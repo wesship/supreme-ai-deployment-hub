@@ -26,7 +26,7 @@ jobs:
     environment: 
       name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       
       # Build the extension for deployment
       - uses: actions/setup-node@v3

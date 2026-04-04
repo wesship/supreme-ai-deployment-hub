@@ -37,7 +37,7 @@ jobs:
           - environment: production
             api_url: 'https://api.devonn.ai'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: development
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
      
       - name: Download development build
         uses: actions/download-artifact@v4

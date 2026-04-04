@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -113,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -269,7 +269,7 @@ jobs:
       plan_output: ${{ steps.plan.outputs.stdout }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -408,7 +408,7 @@ jobs:
       cluster_name: ${{ steps.outputs.outputs.cluster_name }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
       
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -529,7 +529,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -593,7 +593,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -802,7 +802,7 @@ jobs:
       COMPLIANCE_STANDARDS: "cis_1.5_aws,iso27001_2022_aws,pci_3.2.1_aws"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -915,7 +915,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
