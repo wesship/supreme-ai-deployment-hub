@@ -1,9 +1,8 @@
 // Ambient extension of jest.Matchers with @testing-library/jest-dom matchers.
-// jest-dom v5 does not ship a vitest/standalone matchers .d.ts, so declare the
-// subset used in this project.
+// jest-dom v5 ships no .d.ts in this project, so declare the subset used.
 
 declare namespace jest {
-  interface Matchers<R, T = any> {
+  interface Matchers<R, T = {}> {
     toBeInTheDocument(): R;
     toBeVisible(): R;
     toBeEmpty(): R;
@@ -31,11 +30,7 @@ declare namespace jest {
   }
 }
 
-// Mirror onto vitest's expect for tests that resolve via vitest globals.
-import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 declare module "vitest" {
   interface Assertion<T = any> extends jest.Matchers<void, T> {}
   interface AsymmetricMatchersContaining extends jest.Matchers<void, any> {}
 }
-
-export {};
