@@ -12,7 +12,7 @@ describe('useAPIPlayground request handling', () => {
     const mockResponse = createSuccessResponseMock();
     (global.fetch as jest.Mock).mockReturnValue(Promise.resolve(mockResponse));
     
-    const { result, waitForNextUpdate } = renderHook(() => useAPIPlayground());
+    const { result } = renderHook(() => useAPIPlayground());
     
     act(() => {
       result.current.setEndpoint('https://api.test.com');
@@ -33,7 +33,7 @@ describe('useAPIPlayground request handling', () => {
   it('should handle fetch errors', async () => {
     (global.fetch as jest.Mock).mockReturnValue(Promise.reject(new Error('Network error')));
     
-    const { result, waitForNextUpdate } = renderHook(() => useAPIPlayground());
+    const { result } = renderHook(() => useAPIPlayground());
     
     act(() => {
       result.current.setEndpoint('https://api.test.com');
