@@ -24,7 +24,7 @@
     "skipLibCheck": true,
     "strict": false,
     "target": "ES2020",
-    "types": ["vitest/globals", "jest"],
+    "types": ["vitest/globals", "jest", "@testing-library/jest-dom"],
     "useDefineForClassFields": true
   },
   "include": [
