@@ -30,6 +30,8 @@ declare namespace jest {
   }
 }
 
+// Augment vitest's Assertion with the same matchers (don't replace the module).
+import "vitest";
 declare module "vitest" {
   interface Assertion<T = any> extends jest.Matchers<void, T> {}
   interface AsymmetricMatchersContaining extends jest.Matchers<void, any> {}
