@@ -138,6 +138,35 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          allow-no-subscriptions: true
+
+      # Diagnostic: surface which subscription/tenant/SP is actually authenticated.
+      # If this prints nothing or errors with "no subscriptions found", the service
+      # principal behind AZURE_CLIENT_ID is missing a Contributor role assignment
+      # on AZURE_SUBSCRIPTION_ID (most common cause of deploy failure here).
+      - name: Show Azure account context
+        run: |
+          echo "=== Authenticated identity ==="
+          az account show --output table || echo "⚠️  No subscription accessible to this service principal."
+          echo ""
+          echo "=== All subscriptions visible to this SP ==="
+          az account list --output table || true
+          echo ""
+          echo "Expected AZURE_SUBSCRIPTION_ID (last 4): ...${AZURE_SUB: -4}"
+        env:
+          AZURE_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify subscription access
+        run: |
+          if ! az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}" 2>/dev/null; then
+            echo "❌ Service principal cannot access subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+            echo ""
+            echo "Fix: In Azure Portal → Subscriptions → <your sub> → Access control (IAM)"
+            echo "     → Add role assignment → Role: Contributor"
+            echo "     → Member: the app matching AZURE_CLIENT_ID"
+            exit 1
+          fi
+          echo "✅ Subscription access confirmed."
 
       - name: Terraform Init
         working-directory: ./src/data/manifest/terraform/azure
