@@ -1,5 +1,5 @@
 
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react';
 import { useAPIPlayground } from '../../useAPIPlayground';
 import { toast } from 'sonner';
 import { setupMockFetch } from './testUtils';

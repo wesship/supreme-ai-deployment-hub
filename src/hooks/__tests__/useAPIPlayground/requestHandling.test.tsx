@@ -1,5 +1,6 @@
 
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react';
+const waitForNextUpdate = async () => new Promise((r) => setTimeout(r, 0));
 import { useAPIPlayground } from '../../useAPIPlayground';
 import { toast } from 'sonner';
 import { setupMockFetch, createSuccessResponseMock } from './testUtils';
