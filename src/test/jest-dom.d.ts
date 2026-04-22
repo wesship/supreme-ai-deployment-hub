@@ -1,5 +1,6 @@
 // Ambient extension of jest.Matchers with @testing-library/jest-dom matchers.
-// jest-dom v5 ships no .d.ts in this project, so declare the subset used.
+// Must remain a script file (no top-level import/export) so the
+// `declare namespace jest` augments the global namespace from @types/jest.
 
 declare namespace jest {
   interface Matchers<R, T = {}> {
@@ -28,11 +29,4 @@ declare namespace jest {
     toHaveDisplayValue(value: string | RegExp | (string | RegExp)[]): R;
     toBeInTheDOM(): R;
   }
-}
-
-// Augment vitest's Assertion with the same matchers (don't replace the module).
-import "vitest";
-declare module "vitest" {
-  interface Assertion<T = any> extends jest.Matchers<void, T> {}
-  interface AsymmetricMatchersContaining extends jest.Matchers<void, any> {}
 }
