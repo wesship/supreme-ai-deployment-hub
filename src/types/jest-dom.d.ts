@@ -22,6 +22,14 @@ declare global {
       toContainElement(element: HTMLElement | null): R;
       toContainHTML(htmlText: string): R;
       toHaveDescription(text: string): R;
+      toHaveTextContent(text?: string | RegExp, options?: { normalizeWhitespace: boolean }): R;
+      toHaveDisplayValue(value: string | RegExp | Array<string | RegExp>): R;
+      toBeEnabled(): R;
+      toBeEmpty(): R;
+      toBeEmptyDOMElement(): R;
+      toHaveFormValues(values: Record<string, any>): R;
+      toHaveAccessibleName(text?: string | RegExp): R;
+      toHaveAccessibleDescription(text?: string | RegExp): R;
     }
   }
 }
