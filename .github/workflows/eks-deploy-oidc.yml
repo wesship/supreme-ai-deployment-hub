@@ -1,0 +1,124 @@
+name: EKS Deploy (OIDC + Trivy)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'k8s/**'
+      - 'Dockerfile'
+      - 'src/**'
+      - '.github/workflows/eks-deploy-oidc.yml'
+  workflow_dispatch:
+
+# Required for AWS OIDC short-lived credentials
+permissions:
+  id-token: write
+  contents: read
+  security-events: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+
+jobs:
+  scan-source:
+    name: Trivy filesystem scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy FS scan (HIGH,CRITICAL)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          format: sarif
+          output: trivy-fs.sarif
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  build-and-push:
+    name: Build, scan & push image to ECR
+    needs: scan-source
+    runs-on: ubuntu-latest
+    outputs:
+      image_uri: ${{ steps.meta.outputs.image_uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-oidc-deployer
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Compute image metadata
+        id: meta
+        run: |
+          IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA::7}"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        run: docker build -t ${{ steps.meta.outputs.image_uri }} .
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image_uri }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      - name: Push image
+        run: docker push ${{ steps.meta.outputs.image_uri }}
+
+  deploy:
+    name: Deploy to EKS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-oidc-deployer
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Bootstrap namespaces & PSA labels
+        run: bash scripts/bootstrap.sh
+
+      - name: Render & apply manifests
+        env:
+          IMAGE_URI: ${{ needs.build-and-push.outputs.image_uri }}
+        run: |
+          # Substitute placeholders
+          export AWS_ACCOUNT_ID="${{ env.AWS_ACCOUNT_ID }}"
+          find k8s/base -type f -name '*.yaml' -print0 | xargs -0 -I{} sh -c \
+            'envsubst < "$1" | kubectl apply -f -' _ {}
+
+      - name: Set deployment image
+        run: |
+          kubectl -n devonn set image deployment/devonn-backend \
+            backend=${{ needs.build-and-push.outputs.image_uri }} --record
+
+      - name: Wait for rollout
+        run: kubectl -n devonn rollout status deployment/devonn-backend --timeout=5m
