@@ -1,0 +1,20 @@
+driver:
+  kind: modern_ebpf
+
+tty: true
+
+falco:
+  json_output: true
+  log_level: info
+  priority: warning
+
+falcosidekick:
+  enabled: true
+  webui:
+    enabled: true
+    service:
+      type: ClusterIP
+
+collectors:
+  kubernetes:
+    enabled: true
