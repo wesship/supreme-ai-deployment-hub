@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { z } from "npm:zod@^3"
 
 // AWS SDK v3 for Deno - using npm: specifiers (more stable than esm.sh)
 // Use a real, current major range. Avoid fabricated pins like @3.700.0 — they break deploys.
@@ -8,19 +9,117 @@ import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws
 import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3"
 import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3"
 
+// ────────────────────────────────────────────────────────────────────────────
+// CORS — explicit allow-list of methods + headers, mirrored on every response
+// ────────────────────────────────────────────────────────────────────────────
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  'Access-Control-Max-Age': '86400',
+  Vary: 'Origin',
 }
 
-interface DeploymentRequest {
-  operation?: 'validate' | 'list-clusters' | 'describe-cluster' | 'create-cluster' | 'delete-cluster' | 'get-status' | 'deploy'
-  clusterName?: string
-  region?: string
-  nodeCount?: number
-  instanceType?: string
-  dryRun?: boolean
-  config?: any
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Schema validation (Zod) — narrow, defensive, with clear error messages
+// ────────────────────────────────────────────────────────────────────────────
+const ALLOWED_OPERATIONS = [
+  'validate',
+  'list-clusters',
+  'describe-cluster',
+  'create-cluster',
+  'delete-cluster',
+  'get-status',
+  'deploy',
+  // Convenience aliases used by some callers / dashboards
+  'status',
+  'delete',
+] as const
+
+// Cluster names: AWS EKS allows letters, numbers, hyphens; 1-100 chars.
+const CLUSTER_NAME_REGEX = /^[A-Za-z][A-Za-z0-9-]{0,99}$/
+// AWS regions: e.g. us-east-1, eu-west-3, ap-southeast-2
+const AWS_REGION_REGEX = /^[a-z]{2}-[a-z]+-\d$/
+
+const RequestSchema = z.object({
+  operation: z.enum(ALLOWED_OPERATIONS).optional(),
+  clusterName: z
+    .string()
+    .regex(CLUSTER_NAME_REGEX, 'clusterName must start with a letter and contain only letters, numbers, or hyphens (max 100 chars)')
+    .optional(),
+  region: z
+    .string()
+    .regex(AWS_REGION_REGEX, 'region must look like "us-east-1"')
+    .optional(),
+  nodeCount: z.number().int().min(1).max(100).optional(),
+  instanceType: z.string().min(1).max(64).optional(),
+  dryRun: z.boolean().optional(),
+  config: z.unknown().optional(),
+})
+
+type DeploymentRequest = z.infer<typeof RequestSchema>
+
+function validateRequest(body: unknown):
+  | { ok: true; data: DeploymentRequest }
+  | { ok: false; errors: string[] } {
+  const parsed = RequestSchema.safeParse(body)
+  if (parsed.success) return { ok: true, data: parsed.data }
+  const errors = parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
+  return { ok: false, errors }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Planned actions — operation-aware preview for dry-runs / dashboards
+// ────────────────────────────────────────────────────────────────────────────
+function getPlannedActions(body: DeploymentRequest): string[] {
+  const op = String(body.operation ?? 'deploy')
+
+  if (op === 'validate') {
+    return [
+      'Validate AWS credentials',
+      'Validate region',
+      'Check EKS cluster visibility',
+      'No AWS resources changed',
+    ]
+  }
+
+  if (op === 'deploy' || op === 'create-cluster') {
+    return [
+      'Validate AWS credentials',
+      'Discover VPC and subnets',
+      'Validate IAM role',
+      'Create or update EKS cluster',
+      'Configure node group',
+      'Return deployment status',
+    ]
+  }
+
+  if (op === 'status' || op === 'get-status' || op === 'describe-cluster') {
+    return ['Validate AWS credentials', 'Describe EKS cluster', 'No AWS resources changed']
+  }
+
+  if (op === 'list-clusters') {
+    return ['Validate AWS credentials', 'List EKS clusters in region', 'No AWS resources changed']
+  }
+
+  if (op === 'delete' || op === 'delete-cluster') {
+    return [
+      'Validate AWS credentials',
+      'Locate target EKS cluster',
+      'Initiate cluster deletion',
+      'Return deletion status',
+    ]
+  }
+
+  return ['Validate request', 'No AWS resources changed']
 }
 
 // Standardized error formatter
@@ -33,53 +132,71 @@ function formatError(error: unknown) {
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+
+  // Reject non-POST early so the rest of the handler can assume POST
+  if (req.method !== 'POST') {
+    return jsonResponse(
+      { ok: false, success: false, error: 'Method not allowed', errorType: 'MethodNotAllowedError' },
+      405,
+    )
   }
 
   try {
     // Parse request FIRST so dry-run can short-circuit before any auth or DB work.
-    let body: DeploymentRequest
+    let rawBody: unknown
     try {
-      body = await req.json()
+      rawBody = await req.json()
     } catch (parseErr) {
       const formatted = formatError(parseErr)
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           ok: false,
           success: false,
           error: `Invalid JSON body: ${formatted.message}`,
           errorType: 'BadRequestError',
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        },
+        400,
       )
     }
+
+    // Schema validation — runs for BOTH dry-run and real requests
+    const validation = validateRequest(rawBody)
+    if (!validation.ok) {
+      return jsonResponse(
+        {
+          ok: false,
+          success: false,
+          error: 'Invalid request payload',
+          errorType: 'ValidationError',
+          details: validation.errors,
+        },
+        400,
+      )
+    }
+    const body = validation.data
 
     // Dry-run short-circuit: validates routing/payload without touching AWS,
     // the database, or requiring a user JWT. Real deploys still require auth below.
     if (body.dryRun === true) {
       console.log(`AWS EKS dry-run: operation=${body.operation ?? '(none)'} cluster=${body.clusterName ?? '(none)'}`)
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          success: true,
-          mode: 'dry-run',
-          message: 'Dry run passed. No AWS resources changed.',
-          received: {
-            operation: body.operation ?? null,
-            clusterName: body.clusterName ?? null,
-            region: body.region ?? null,
-          },
-          plannedActions: [
-            'Validate request payload',
-            'Validate region and cluster name',
-            'Prepare EKS deployment plan',
-            'Skip AWS mutations',
-          ],
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return jsonResponse({
+        ok: true,
+        success: true,
+        mode: 'dry-run',
+        message: 'Dry run passed. No AWS resources changed.',
+        received: {
+          operation: body.operation ?? null,
+          clusterName: body.clusterName ?? null,
+          region: body.region ?? null,
+          nodeCount: body.nodeCount ?? null,
+          instanceType: body.instanceType ?? null,
+        },
+        plannedActions: getPlannedActions(body),
+      })
     }
 
     // Initialize Supabase client (auth required for real operations)
@@ -166,11 +283,13 @@ serve(async (req) => {
         break
       
       case 'delete-cluster':
+      case 'delete':
         if (!body.clusterName) throw new Error('Cluster name required')
         result = await deleteCluster(awsConfig, body.clusterName)
         break
       
       case 'get-status':
+      case 'status':
         if (!body.clusterName) throw new Error('Cluster name required')
         result = await getClusterStatus(awsConfig, body.clusterName)
         break
@@ -195,26 +314,20 @@ serve(async (req) => {
         throw new Error(`Unknown operation: ${body.operation}`)
     }
 
-    return new Response(
-      JSON.stringify({ success: true, data: result }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return jsonResponse({ ok: true, success: true, data: result })
   } catch (error: unknown) {
     const formatted = formatError(error)
     console.error('AWS EKS Deploy Error:', formatted)
-    // Auth/permission errors should be 401/403, everything else is a server-side fault
+    // Auth/permission errors should be 401, everything else is a server-side fault
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         ok: false,
         success: false,
         error: formatted.message,
         errorType: formatted.name,
-      }),
-      {
-        status: isAuthError ? 401 : 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
+      isAuthError ? 401 : 500,
     )
   }
 })

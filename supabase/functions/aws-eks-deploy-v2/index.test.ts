@@ -1,5 +1,6 @@
 // Integration test for aws-eks-deploy-v2 edge function.
-// Verifies the dry-run path returns ok=true without touching AWS.
+// Covers: dry-run (per operation), validation errors, CORS, method guards,
+// invalid JSON, real-deploy auth requirement, and an opt-in JWT auth happy path.
 
 import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 import {
@@ -21,6 +22,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/aws-eks-deploy-v2`;
 
+// Optional JWT auth test creds — only run the JWT happy-path test when set.
+const TEST_USER_EMAIL = Deno.env.get("TEST_USER_EMAIL");
+const TEST_USER_PASSWORD = Deno.env.get("TEST_USER_PASSWORD");
+
 function authHeaders() {
   return {
     Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
@@ -29,74 +34,231 @@ function authHeaders() {
   };
 }
 
-Deno.test("aws-eks-deploy-v2: dry-run returns 200 ok without auth or AWS", async () => {
+async function postDryRun(payload: Record<string, unknown>) {
   const res = await fetch(FUNCTION_URL, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify({
-      dryRun: true,
-      operation: "deploy",
-      clusterName: "devonn-eks-prod",
-      region: "us-east-1",
-    }),
+    body: JSON.stringify({ dryRun: true, ...payload }),
   });
-
   const text = await res.text();
-  assertEquals(res.status, 200, `Expected 200, got ${res.status}. Body: ${text.slice(0, 300)}`);
+  return { status: res.status, headers: res.headers, body: JSON.parse(text), raw: text };
+}
 
-  const body = JSON.parse(text);
+// ────────────────────────────────────────────────────────────────────────
+// Dry-run: operation-specific planned actions
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test("dry-run [deploy]: returns deploy-specific planned actions", async () => {
+  const { status, body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+  });
+  assertEquals(status, 200);
   assertEquals(body.ok, true);
-  assertEquals(body.success, true);
   assertEquals(body.mode, "dry-run");
-  assertExists(body.plannedActions);
-  assert(Array.isArray(body.plannedActions) && body.plannedActions.length > 0);
-  assertEquals(body.received?.clusterName, "devonn-eks-prod");
-  assertEquals(body.received?.region, "us-east-1");
+  assert(Array.isArray(body.plannedActions));
+  assert(
+    body.plannedActions.some((a: string) => /VPC|subnet/i.test(a)),
+    `Deploy plan should mention VPC/subnets. Got: ${body.plannedActions}`,
+  );
 });
 
-Deno.test("aws-eks-deploy-v2: real deploy (no dryRun) requires auth", async () => {
-  const res = await fetch(FUNCTION_URL, {
-    method: "POST",
-    headers: authHeaders(), // anon key only — no end-user JWT
-    body: JSON.stringify({
-      operation: "validate",
-      region: "us-east-1",
-    }),
+Deno.test("dry-run [validate]: returns validate-specific planned actions", async () => {
+  const { status, body } = await postDryRun({ operation: "validate", region: "us-east-1" });
+  assertEquals(status, 200);
+  assertEquals(body.ok, true);
+  assert(
+    body.plannedActions.some((a: string) => /No AWS resources changed/i.test(a)),
+    `Validate plan should be read-only. Got: ${body.plannedActions}`,
+  );
+  assert(!body.plannedActions.some((a: string) => /Create or update/i.test(a)));
+});
+
+Deno.test("dry-run [status]: read-only plan, accepts 'status' alias", async () => {
+  const { status, body } = await postDryRun({
+    operation: "status",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
   });
-  const text = await res.text();
-  assertEquals(res.status, 401, `Expected 401 for unauthenticated real call, got ${res.status}. Body: ${text.slice(0, 300)}`);
-  const body = JSON.parse(text);
-  assertEquals(body.ok, false);
-  assert(/Unauthorized/i.test(body.error), `Expected auth error, got: ${body.error}`);
+  assertEquals(status, 200);
+  assertEquals(body.ok, true);
+  assert(body.plannedActions.some((a: string) => /Describe EKS cluster/i.test(a)));
 });
 
-Deno.test("aws-eks-deploy-v2: responds to CORS preflight", async () => {
+Deno.test("dry-run [delete]: includes deletion step, accepts 'delete' alias", async () => {
+  const { status, body } = await postDryRun({
+    operation: "delete",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+  });
+  assertEquals(status, 200);
+  assertEquals(body.ok, true);
+  assert(body.plannedActions.some((a: string) => /Initiate cluster deletion/i.test(a)));
+});
+
+Deno.test("dry-run [list-clusters]: list-specific plan", async () => {
+  const { status, body } = await postDryRun({ operation: "list-clusters", region: "us-east-1" });
+  assertEquals(status, 200);
+  assert(body.plannedActions.some((a: string) => /List EKS clusters/i.test(a)));
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Schema validation
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test("validation: rejects unknown operation with 400 + ValidationError", async () => {
+  const { status, body } = await postDryRun({ operation: "drop-database" });
+  assertEquals(status, 400);
+  assertEquals(body.ok, false);
+  assertEquals(body.errorType, "ValidationError");
+  assert(Array.isArray(body.details) && body.details.length > 0);
+  assert(
+    body.details.some((d: string) => /operation/i.test(d)),
+    `Expected operation error in details. Got: ${JSON.stringify(body.details)}`,
+  );
+});
+
+Deno.test("validation: rejects malformed region", async () => {
+  const { status, body } = await postDryRun({
+    operation: "validate",
+    region: "not a region",
+  });
+  assertEquals(status, 400);
+  assertEquals(body.errorType, "ValidationError");
+  assert(body.details.some((d: string) => /region/i.test(d)));
+});
+
+Deno.test("validation: rejects invalid clusterName", async () => {
+  const { status, body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "1-bad-start", // must start with a letter
+    region: "us-east-1",
+  });
+  assertEquals(status, 400);
+  assertEquals(body.errorType, "ValidationError");
+  assert(body.details.some((d: string) => /clusterName/i.test(d)));
+});
+
+Deno.test("validation: rejects nodeCount out of range", async () => {
+  const { status, body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+    nodeCount: 9999,
+  });
+  assertEquals(status, 400);
+  assertEquals(body.errorType, "ValidationError");
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// CORS hardening
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test("CORS: preflight returns 204 with required headers", async () => {
   const res = await fetch(FUNCTION_URL, {
     method: "OPTIONS",
     headers: {
       Origin: "https://example.com",
       "Access-Control-Request-Method": "POST",
-      "Access-Control-Request-Headers": "authorization, content-type",
+      "Access-Control-Request-Headers": "authorization, content-type, apikey",
     },
   });
   await res.text();
-  assert(
-    res.status === 200 || res.status === 204,
-    `Expected 200/204 for OPTIONS, got ${res.status}`,
-  );
+  assertEquals(res.status, 204);
+  assertEquals(res.headers.get("access-control-allow-origin"), "*");
+  const allowedHeaders = res.headers.get("access-control-allow-headers") ?? "";
+  for (const h of ["authorization", "content-type", "apikey", "x-client-info"]) {
+    assert(allowedHeaders.toLowerCase().includes(h), `Allow-Headers missing '${h}': ${allowedHeaders}`);
+  }
+  const allowedMethods = res.headers.get("access-control-allow-methods") ?? "";
+  assert(/POST/i.test(allowedMethods) && /OPTIONS/i.test(allowedMethods));
+});
+
+Deno.test("CORS: actual responses include Access-Control-Allow-Origin", async () => {
+  const { headers } = await postDryRun({ operation: "validate", region: "us-east-1" });
+  assertEquals(headers.get("access-control-allow-origin"), "*");
+});
+
+Deno.test("Method guard: GET returns 405 with CORS headers", async () => {
+  const res = await fetch(FUNCTION_URL, { method: "GET", headers: authHeaders() });
+  await res.text();
+  assertEquals(res.status, 405);
   assertEquals(res.headers.get("access-control-allow-origin"), "*");
 });
 
-Deno.test("aws-eks-deploy-v2: returns structured error on invalid JSON body", async () => {
+// ────────────────────────────────────────────────────────────────────────
+// Body parsing + auth boundaries
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test("returns structured BadRequestError on invalid JSON body", async () => {
   const res = await fetch(FUNCTION_URL, {
     method: "POST",
     headers: authHeaders(),
     body: "not-json",
   });
   const text = await res.text();
-  // Should fail with 4xx/5xx and a JSON envelope including errorType
-  assert(res.status >= 400, `Expected 4xx/5xx, got ${res.status}`);
+  assertEquals(res.status, 400);
   const body = JSON.parse(text);
   assertEquals(body.ok, false);
-  assertExists(body.errorType, "Error response should include errorType");
+  assertEquals(body.errorType, "BadRequestError");
+});
+
+Deno.test("real call (no dryRun) requires a user JWT — anon key returns 401", async () => {
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: authHeaders(), // anon key only — no end-user JWT
+    body: JSON.stringify({ operation: "validate", region: "us-east-1" }),
+  });
+  const text = await res.text();
+  assertEquals(res.status, 401);
+  const body = JSON.parse(text);
+  assertEquals(body.ok, false);
+  assert(/Unauthorized/i.test(body.error));
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Opt-in JWT happy path
+// Set TEST_USER_EMAIL / TEST_USER_PASSWORD in your env to enable.
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test({
+  name: "JWT auth: real call with valid user JWT is no longer 401",
+  ignore: !TEST_USER_EMAIL || !TEST_USER_PASSWORD,
+  fn: async () => {
+    // Sign in via Supabase Auth REST to get an access_token
+    const signInRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: TEST_USER_EMAIL, password: TEST_USER_PASSWORD }),
+    });
+    const signInText = await signInRes.text();
+    assertEquals(signInRes.status, 200, `Sign-in failed: ${signInText}`);
+    const { access_token } = JSON.parse(signInText);
+    assertExists(access_token);
+
+    const res = await fetch(FUNCTION_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        apikey: SUPABASE_ANON_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ operation: "validate", region: "us-east-1" }),
+    });
+    const text = await res.text();
+    // We don't require AWS credentials to be set up — just prove auth is no longer the failure.
+    assert(res.status !== 401, `Expected non-401 with valid JWT, got 401. Body: ${text.slice(0, 300)}`);
+    const body = JSON.parse(text);
+    if (!body.ok) {
+      // Acceptable downstream errors when AWS isn't configured for this test user
+      assert(
+        /AWS credentials not configured|cloud_credentials/i.test(body.error ?? ""),
+        `Unexpected post-auth error: ${body.error}`,
+      );
+    }
+  },
 });
