@@ -398,3 +398,133 @@ Deno.test("idempotency: response includes expiresAt (~24h from now) in body + he
   assert(expiresMs <= after + ttl + 5_000, `expiresAt too late: ${body.idempotencyExpiresAt}`);
 });
 
+
+// ────────────────────────────────────────────────────────────────────────
+// Correlation IDs — request tracing
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test("correlation: caller-supplied X-Correlation-ID is echoed in body + header", async () => {
+  const cid = `cid-${crypto.randomUUID()}`;
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: { ...authHeaders(), "X-Correlation-ID": cid },
+    body: JSON.stringify({ dryRun: true, operation: "validate", region: "us-east-1" }),
+  });
+  const text = await res.text();
+  assertEquals(res.status, 200);
+  assertEquals(res.headers.get("x-correlation-id"), cid);
+  const body = JSON.parse(text);
+  assertEquals(body.correlationId, cid);
+});
+
+Deno.test("correlation: server mints a UUID when caller omits the header", async () => {
+  const { headers, body } = await postDryRun({ operation: "validate", region: "us-east-1" });
+  const headerCid = headers.get("x-correlation-id");
+  assertExists(headerCid, "response should carry X-Correlation-ID");
+  assertEquals(body.correlationId, headerCid);
+  assert(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(headerCid!),
+    `correlationId should look like a UUID: ${headerCid}`,
+  );
+});
+
+Deno.test("correlation: error responses also carry the correlation id", async () => {
+  const cid = `err-cid-${crypto.randomUUID()}`;
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: { ...authHeaders(), "X-Correlation-ID": cid },
+    body: "not-json",
+  });
+  const text = await res.text();
+  assertEquals(res.status, 400);
+  assertEquals(res.headers.get("x-correlation-id"), cid);
+  const body = JSON.parse(text);
+  assertEquals(body.correlationId, cid);
+});
+
+Deno.test("CORS: preflight advertises the new tracing headers", async () => {
+  const res = await fetch(FUNCTION_URL, {
+    method: "OPTIONS",
+    headers: {
+      Origin: "https://example.com",
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "x-correlation-id, idempotency-key",
+    },
+  });
+  await res.text();
+  assertEquals(res.status, 204);
+  const allow = res.headers.get("access-control-allow-headers") ?? "";
+  assert(/x-correlation-id/i.test(allow), `Allow-Headers missing x-correlation-id: ${allow}`);
+  assert(/idempotency-key/i.test(allow), `Allow-Headers missing idempotency-key: ${allow}`);
+  const expose = res.headers.get("access-control-expose-headers") ?? "";
+  assert(/x-correlation-id/i.test(expose), `Expose-Headers missing x-correlation-id: ${expose}`);
+  assert(/idempotency-key/i.test(expose), `Expose-Headers missing idempotency-key: ${expose}`);
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Golden contract — locks the dry-run response shape so future changes
+// can't silently break the Devonn dashboard or downstream consumers.
+// If you intentionally change the shape, update this test in the SAME PR.
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test("golden contract: dry-run response includes every documented field", async () => {
+  const { status, headers, body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+    nodeCount: 3,
+  });
+  assertEquals(status, 200);
+
+  // Top-level envelope
+  assertExists(body.ok);
+  assertExists(body.success);
+  assertExists(body.mode);
+  assertEquals(body.mode, "dry-run");
+
+  // Tracing
+  assertExists(body.idempotencyKey);
+  assertExists(body.idempotencyExpiresAt);
+  assertExists(body.correlationId);
+  assertExists(headers.get("idempotency-key"));
+  assertExists(headers.get("x-idempotency-expires-at"));
+  assertExists(headers.get("x-correlation-id"));
+
+  // Standardized metrics
+  assertExists(body.metrics);
+  for (const k of ["durationMs", "operation", "dryRun", "plannedActionsCount", "mutatingCount", "highRiskCount"]) {
+    assert(k in body.metrics, `metrics.${k} is required`);
+  }
+  assertEquals(body.metrics.dryRun, true);
+  assertEquals(body.metrics.operation, "deploy");
+
+  // Planned actions — both rich + back-compat string forms
+  assertExists(body.plannedActions);
+  assert(Array.isArray(body.plannedActions) && body.plannedActions.length > 0);
+  for (const a of body.plannedActions) {
+    for (const k of ["id", "title", "type", "risk", "requiresAuth", "mutatesAws"]) {
+      assert(k in a, `plannedAction.${k} is required`);
+    }
+  }
+  assertExists(body.plannedActionTitles);
+  assertEquals(
+    body.plannedActionTitles,
+    body.plannedActions.map((a: { title: string }) => a.title),
+  );
+
+  // Diff report
+  assertExists(body.diff);
+  assertEquals(body.diff.current, "unknown");
+  assertExists(body.diff.desired);
+  assertExists(body.diff.changes);
+  assertExists(body.diff.summary);
+  for (const k of ["total", "mutating", "highRisk"]) {
+    assert(k in body.diff.summary, `diff.summary.${k} is required`);
+  }
+
+  // Echo of the request (received block)
+  assertExists(body.received);
+
+  // Observability
+  assertExists(body.durationMs);
+});
