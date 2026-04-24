@@ -155,48 +155,100 @@ function validateRequest(body: unknown):
 // ────────────────────────────────────────────────────────────────────────────
 // Planned actions — operation-aware preview for dry-runs / dashboards
 // ────────────────────────────────────────────────────────────────────────────
-function getPlannedActions(body: DeploymentRequest): string[] {
+type PlannedAction = {
+  id: string
+  title: string
+  type: 'read' | 'write' | 'delete'
+  risk: 'low' | 'medium' | 'high'
+  requiresAuth: boolean
+  mutatesAws: boolean
+}
+
+const A = {
+  read: (id: string, title: string, risk: PlannedAction['risk'] = 'low'): PlannedAction => ({
+    id, title, type: 'read', risk, requiresAuth: true, mutatesAws: false,
+  }),
+  write: (id: string, title: string, risk: PlannedAction['risk'] = 'medium'): PlannedAction => ({
+    id, title, type: 'write', risk, requiresAuth: true, mutatesAws: true,
+  }),
+  del: (id: string, title: string, risk: PlannedAction['risk'] = 'high'): PlannedAction => ({
+    id, title, type: 'delete', risk, requiresAuth: true, mutatesAws: true,
+  }),
+  noop: (id: string, title: string): PlannedAction => ({
+    id, title, type: 'read', risk: 'low', requiresAuth: false, mutatesAws: false,
+  }),
+}
+
+function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
   const op = String(body.operation ?? 'deploy')
 
   if (op === 'validate') {
     return [
-      'Validate AWS credentials',
-      'Validate region',
-      'Check EKS cluster visibility',
-      'No AWS resources changed',
+      A.read('validate.creds', 'Validate AWS credentials'),
+      A.read('validate.region', 'Validate region'),
+      A.read('validate.cluster', 'Check EKS cluster visibility'),
+      A.noop('validate.noop', 'No AWS resources changed'),
     ]
   }
 
   if (op === 'deploy' || op === 'create-cluster') {
     return [
-      'Validate AWS credentials',
-      'Discover VPC and subnets',
-      'Validate IAM role',
-      'Create or update EKS cluster',
-      'Configure node group',
-      'Return deployment status',
+      A.read('deploy.creds', 'Validate AWS credentials'),
+      A.read('deploy.vpc', 'Discover VPC and subnets'),
+      A.read('deploy.iam', 'Validate IAM role'),
+      A.write('deploy.cluster', 'Create or update EKS cluster', 'high'),
+      A.write('deploy.nodegroup', 'Configure node group', 'medium'),
+      A.read('deploy.status', 'Return deployment status'),
     ]
   }
 
   if (op === 'status' || op === 'get-status' || op === 'describe-cluster') {
-    return ['Validate AWS credentials', 'Describe EKS cluster', 'No AWS resources changed']
+    return [
+      A.read('status.creds', 'Validate AWS credentials'),
+      A.read('status.describe', 'Describe EKS cluster'),
+      A.noop('status.noop', 'No AWS resources changed'),
+    ]
   }
 
   if (op === 'list-clusters') {
-    return ['Validate AWS credentials', 'List EKS clusters in region', 'No AWS resources changed']
+    return [
+      A.read('list.creds', 'Validate AWS credentials'),
+      A.read('list.clusters', 'List EKS clusters in region'),
+      A.noop('list.noop', 'No AWS resources changed'),
+    ]
   }
 
   if (op === 'delete' || op === 'delete-cluster') {
     return [
-      'Validate AWS credentials',
-      'Locate target EKS cluster',
-      'Initiate cluster deletion',
-      'Return deletion status',
+      A.read('delete.creds', 'Validate AWS credentials'),
+      A.read('delete.locate', 'Locate target EKS cluster'),
+      A.del('delete.cluster', 'Initiate cluster deletion', 'high'),
+      A.read('delete.status', 'Return deletion status'),
     ]
   }
 
-  return ['Validate request', 'No AWS resources changed']
+  return [
+    A.noop('unknown.validate', 'Validate request'),
+    A.noop('unknown.noop', 'No AWS resources changed'),
+  ]
 }
+
+// Dry-run diff report — current state is "unknown" without AWS calls; the
+// desired state echoes the validated payload, and `changes` lists the
+// operations the real run would perform.
+function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
+  return {
+    current: 'unknown' as const,
+    desired: body,
+    changes: planned,
+    summary: {
+      total: planned.length,
+      mutating: planned.filter((a) => a.mutatesAws).length,
+      highRisk: planned.filter((a) => a.risk === 'high').length,
+    },
+  }
+}
+
 
 // Standardized error formatter
 function formatError(error: unknown) {
@@ -207,10 +259,14 @@ function formatError(error: unknown) {
   }
 }
 
+// Idempotency key TTL — 24h. Callers can dedupe retries within this window.
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000
+
 serve(async (req) => {
   // Idempotency key: honor caller-supplied key, otherwise mint one. Returned
   // in headers + body so callers can dedupe retries on their side.
   const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
+  const idempotencyExpiresAt = new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString()
   const requestStartedAt = Date.now()
 
   // Handle CORS preflight
@@ -228,9 +284,10 @@ serve(async (req) => {
         error: 'Method not allowed',
         errorType: 'MethodNotAllowedError',
         idempotencyKey,
+        idempotencyExpiresAt,
       },
       405,
-      { 'Idempotency-Key': idempotencyKey },
+      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
     )
   }
 
@@ -249,9 +306,10 @@ serve(async (req) => {
           error: `Invalid JSON body: ${formatted.message}`,
           errorType: 'BadRequestError',
           idempotencyKey,
+          idempotencyExpiresAt,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
 
@@ -267,9 +325,10 @@ serve(async (req) => {
           errorType: 'ValidationError',
           details: validation.errors,
           idempotencyKey,
+          idempotencyExpiresAt,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
     const body = validation.data
@@ -286,7 +345,15 @@ serve(async (req) => {
     // the database, or requiring a user JWT. Real deploys still require auth below.
     if (body.dryRun === true) {
       const planned = getPlannedActions(body)
-      audit('request.dry_run', { idempotencyKey, operation: body.operation, plannedActionsCount: planned.length })
+      const diff = getDryRunDiff(body, planned)
+      const durationMs = Date.now() - requestStartedAt
+      audit('request.dry_run', {
+        idempotencyKey,
+        operation: body.operation,
+        plannedActionsCount: planned.length,
+        mutatingCount: diff.summary.mutating,
+        highRiskCount: diff.summary.highRisk,
+      })
       return jsonResponse(
         {
           ok: true,
@@ -301,19 +368,21 @@ serve(async (req) => {
             instanceType: body.instanceType ?? null,
           },
           plannedActions: planned,
-          // Diff report — current state is "unknown" without AWS calls; the
-          // desired state echoes the validated payload, and `changes` lists
-          // the operations the real run would perform.
-          diff: {
-            current: 'unknown',
-            desired: body,
-            changes: planned,
+          diff,
+          metrics: {
+            durationMs,
+            operation: body.operation ?? 'deploy',
+            dryRun: true,
+            plannedActionsCount: planned.length,
+            mutatingCount: diff.summary.mutating,
+            highRiskCount: diff.summary.highRisk,
           },
           idempotencyKey,
-          durationMs: Date.now() - requestStartedAt,
+          idempotencyExpiresAt,
+          durationMs,
         },
         200,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
 
@@ -383,9 +452,10 @@ serve(async (req) => {
           errorType: 'IamPreflightError',
           requiredActions: iamCheck.required,
           idempotencyKey,
+          idempotencyExpiresAt,
         },
         403,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
     audit('iam.preflight_ok', {
@@ -475,29 +545,39 @@ serve(async (req) => {
       durationMs: Date.now() - requestStartedAt,
     })
 
-    return jsonResponse(
-      {
-        ok: true,
-        success: true,
-        data: result,
-        idempotencyKey,
-        durationMs: Date.now() - requestStartedAt,
-      },
-      200,
-      { 'Idempotency-Key': idempotencyKey },
-    )
+    {
+      const durationMs = Date.now() - requestStartedAt
+      return jsonResponse(
+        {
+          ok: true,
+          success: true,
+          data: result,
+          metrics: {
+            durationMs,
+            operation: body.operation ?? 'deploy',
+            dryRun: false,
+          },
+          idempotencyKey,
+          idempotencyExpiresAt,
+          durationMs,
+        },
+        200,
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+      )
+    }
   } catch (error: unknown) {
     const formatted = formatError(error)
     console.error('AWS EKS Deploy Error:', formatted)
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
     const isTimeout = formatted.name === 'TimeoutError'
     const status = isAuthError ? 401 : isTimeout ? 504 : 500
+    const durationMs = Date.now() - requestStartedAt
     audit('request.failed', {
       idempotencyKey,
       errorType: formatted.name,
       error: formatted.message,
       status,
-      durationMs: Date.now() - requestStartedAt,
+      durationMs,
     })
     return jsonResponse(
       {
@@ -505,11 +585,13 @@ serve(async (req) => {
         success: false,
         error: formatted.message,
         errorType: formatted.name,
+        metrics: { durationMs, operation: 'unknown', dryRun: false },
         idempotencyKey,
-        durationMs: Date.now() - requestStartedAt,
+        idempotencyExpiresAt,
+        durationMs,
       },
       status,
-      { 'Idempotency-Key': idempotencyKey },
+      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
     )
   }
 })

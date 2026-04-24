@@ -48,6 +48,17 @@ async function postDryRun(payload: Record<string, unknown>) {
 // Dry-run: operation-specific planned actions
 // ────────────────────────────────────────────────────────────────────────
 
+type PlannedAction = {
+  id: string;
+  title: string;
+  type: "read" | "write" | "delete";
+  risk: "low" | "medium" | "high";
+  requiresAuth: boolean;
+  mutatesAws: boolean;
+};
+
+const titles = (actions: PlannedAction[]) => actions.map((a) => a.title);
+
 Deno.test("dry-run [deploy]: returns deploy-specific planned actions", async () => {
   const { status, body } = await postDryRun({
     operation: "deploy",
@@ -58,10 +69,15 @@ Deno.test("dry-run [deploy]: returns deploy-specific planned actions", async () 
   assertEquals(body.ok, true);
   assertEquals(body.mode, "dry-run");
   assert(Array.isArray(body.plannedActions));
+  // Enriched shape: each action is a PlannedAction object
+  assert(body.plannedActions.every((a: PlannedAction) => typeof a.id === "string" && typeof a.title === "string"));
   assert(
-    body.plannedActions.some((a: string) => /VPC|subnet/i.test(a)),
-    `Deploy plan should mention VPC/subnets. Got: ${body.plannedActions}`,
+    titles(body.plannedActions).some((t) => /VPC|subnet/i.test(t)),
+    `Deploy plan should mention VPC/subnets. Got: ${JSON.stringify(titles(body.plannedActions))}`,
   );
+  // Deploy is mutating + has at least one high-risk step
+  assert(body.plannedActions.some((a: PlannedAction) => a.mutatesAws));
+  assert(body.plannedActions.some((a: PlannedAction) => a.risk === "high"));
 });
 
 Deno.test("dry-run [validate]: returns validate-specific planned actions", async () => {
@@ -69,10 +85,12 @@ Deno.test("dry-run [validate]: returns validate-specific planned actions", async
   assertEquals(status, 200);
   assertEquals(body.ok, true);
   assert(
-    body.plannedActions.some((a: string) => /No AWS resources changed/i.test(a)),
-    `Validate plan should be read-only. Got: ${body.plannedActions}`,
+    titles(body.plannedActions).some((t) => /No AWS resources changed/i.test(t)),
+    `Validate plan should be read-only. Got: ${JSON.stringify(titles(body.plannedActions))}`,
   );
-  assert(!body.plannedActions.some((a: string) => /Create or update/i.test(a)));
+  assert(!titles(body.plannedActions).some((t) => /Create or update/i.test(t)));
+  // Pure read-only plan: nothing mutates AWS
+  assert(body.plannedActions.every((a: PlannedAction) => !a.mutatesAws));
 });
 
 Deno.test("dry-run [status]: read-only plan, accepts 'status' alias", async () => {
@@ -83,7 +101,7 @@ Deno.test("dry-run [status]: read-only plan, accepts 'status' alias", async () =
   });
   assertEquals(status, 200);
   assertEquals(body.ok, true);
-  assert(body.plannedActions.some((a: string) => /Describe EKS cluster/i.test(a)));
+  assert(titles(body.plannedActions).some((t) => /Describe EKS cluster/i.test(t)));
 });
 
 Deno.test("dry-run [delete]: includes deletion step, accepts 'delete' alias", async () => {
@@ -94,13 +112,15 @@ Deno.test("dry-run [delete]: includes deletion step, accepts 'delete' alias", as
   });
   assertEquals(status, 200);
   assertEquals(body.ok, true);
-  assert(body.plannedActions.some((a: string) => /Initiate cluster deletion/i.test(a)));
+  assert(titles(body.plannedActions).some((t) => /Initiate cluster deletion/i.test(t)));
+  // The deletion step should be typed as "delete"
+  assert(body.plannedActions.some((a: PlannedAction) => a.type === "delete"));
 });
 
 Deno.test("dry-run [list-clusters]: list-specific plan", async () => {
   const { status, body } = await postDryRun({ operation: "list-clusters", region: "us-east-1" });
   assertEquals(status, 200);
-  assert(body.plannedActions.some((a: string) => /List EKS clusters/i.test(a)));
+  assert(titles(body.plannedActions).some((t) => /List EKS clusters/i.test(t)));
 });
 
 // ────────────────────────────────────────────────────────────────────────
@@ -304,7 +324,7 @@ Deno.test("idempotency: error responses also include the key", async () => {
   assertEquals(body.idempotencyKey, key);
 });
 
-Deno.test("dry-run: response includes a diff report (current/desired/changes)", async () => {
+Deno.test("dry-run: response includes a diff report (current/desired/changes/summary)", async () => {
   const { body } = await postDryRun({
     operation: "deploy",
     clusterName: "devonn-eks-prod",
@@ -318,6 +338,11 @@ Deno.test("dry-run: response includes a diff report (current/desired/changes)", 
   assertEquals(body.diff.desired.clusterName, "devonn-eks-prod");
   assertEquals(body.diff.desired.nodeCount, 3);
   assert(Array.isArray(body.diff.changes) && body.diff.changes.length > 0);
+  // Diff summary aggregates risk + mutation counts
+  assertExists(body.diff.summary);
+  assertEquals(body.diff.summary.total, body.diff.changes.length);
+  assert(body.diff.summary.mutating >= 1, "Deploy diff should have ≥1 mutating action");
+  assert(body.diff.summary.highRisk >= 1, "Deploy diff should have ≥1 high-risk action");
 });
 
 Deno.test("response shape: includes durationMs for observability", async () => {
@@ -325,3 +350,34 @@ Deno.test("response shape: includes durationMs for observability", async () => {
   assertExists(body.durationMs);
   assert(typeof body.durationMs === "number" && body.durationMs >= 0);
 });
+
+Deno.test("response shape: includes structured metrics block", async () => {
+  const { body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+  });
+  assertExists(body.metrics, "Response should include a metrics field");
+  assertEquals(body.metrics.dryRun, true);
+  assertEquals(body.metrics.operation, "deploy");
+  assert(typeof body.metrics.durationMs === "number");
+  assert(body.metrics.plannedActionsCount >= 1);
+});
+
+Deno.test("idempotency: response includes expiresAt (~24h from now) in body + header", async () => {
+  const before = Date.now();
+  const { headers, body } = await postDryRun({ operation: "validate", region: "us-east-1" });
+  const after = Date.now();
+
+  assertExists(body.idempotencyExpiresAt, "body should include idempotencyExpiresAt");
+  const headerExpires = headers.get("x-idempotency-expires-at");
+  assertExists(headerExpires, "response should include X-Idempotency-Expires-At header");
+  assertEquals(body.idempotencyExpiresAt, headerExpires);
+
+  const expiresMs = Date.parse(body.idempotencyExpiresAt);
+  const ttl = 24 * 60 * 60 * 1000;
+  // Expiry should land within [now+ttl-5s, now+ttl+5s] window of the request
+  assert(expiresMs >= before + ttl - 5_000, `expiresAt too early: ${body.idempotencyExpiresAt}`);
+  assert(expiresMs <= after + ttl + 5_000, `expiresAt too late: ${body.idempotencyExpiresAt}`);
+});
+
