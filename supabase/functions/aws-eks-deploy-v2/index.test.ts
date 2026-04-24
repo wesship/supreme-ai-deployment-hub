@@ -262,3 +262,66 @@ Deno.test({
     }
   },
 });
+
+// ────────────────────────────────────────────────────────────────────────
+// Idempotency, dry-run diff, audit-friendly response shape
+// ────────────────────────────────────────────────────────────────────────
+
+Deno.test("idempotency: caller-supplied Idempotency-Key is echoed in body + header", async () => {
+  const key = `test-${crypto.randomUUID()}`;
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: { ...authHeaders(), "Idempotency-Key": key },
+    body: JSON.stringify({ dryRun: true, operation: "validate", region: "us-east-1" }),
+  });
+  const text = await res.text();
+  assertEquals(res.status, 200);
+  assertEquals(res.headers.get("idempotency-key"), key);
+  const body = JSON.parse(text);
+  assertEquals(body.idempotencyKey, key);
+});
+
+Deno.test("idempotency: server mints a key when caller omits one", async () => {
+  const { headers, body } = await postDryRun({ operation: "validate", region: "us-east-1" });
+  const headerKey = headers.get("idempotency-key");
+  assertExists(headerKey);
+  assertEquals(body.idempotencyKey, headerKey);
+  // Should look like a UUID
+  assert(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(headerKey!));
+});
+
+Deno.test("idempotency: error responses also include the key", async () => {
+  const key = `err-${crypto.randomUUID()}`;
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: { ...authHeaders(), "Idempotency-Key": key },
+    body: "not-json",
+  });
+  const text = await res.text();
+  assertEquals(res.status, 400);
+  assertEquals(res.headers.get("idempotency-key"), key);
+  const body = JSON.parse(text);
+  assertEquals(body.idempotencyKey, key);
+});
+
+Deno.test("dry-run: response includes a diff report (current/desired/changes)", async () => {
+  const { body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+    nodeCount: 3,
+  });
+  assertExists(body.diff, "Response should include a diff field");
+  assertEquals(body.diff.current, "unknown");
+  assertExists(body.diff.desired);
+  assertEquals(body.diff.desired.operation, "deploy");
+  assertEquals(body.diff.desired.clusterName, "devonn-eks-prod");
+  assertEquals(body.diff.desired.nodeCount, 3);
+  assert(Array.isArray(body.diff.changes) && body.diff.changes.length > 0);
+});
+
+Deno.test("response shape: includes durationMs for observability", async () => {
+  const { body } = await postDryRun({ operation: "validate", region: "us-east-1" });
+  assertExists(body.durationMs);
+  assert(typeof body.durationMs === "number" && body.durationMs >= 0);
+});
