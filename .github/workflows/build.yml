@@ -38,7 +38,7 @@ jobs:
             api_url: 'https://api.devonn.ai'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
@@ -117,7 +117,7 @@ jobs:
           unzip ./artifacts/devonn-ai-development.zip -d ./extension
      
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
          
