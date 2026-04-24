@@ -545,29 +545,39 @@ serve(async (req) => {
       durationMs: Date.now() - requestStartedAt,
     })
 
-    return jsonResponse(
-      {
-        ok: true,
-        success: true,
-        data: result,
-        idempotencyKey,
-        durationMs: Date.now() - requestStartedAt,
-      },
-      200,
-      { 'Idempotency-Key': idempotencyKey },
-    )
+    {
+      const durationMs = Date.now() - requestStartedAt
+      return jsonResponse(
+        {
+          ok: true,
+          success: true,
+          data: result,
+          metrics: {
+            durationMs,
+            operation: body.operation ?? 'deploy',
+            dryRun: false,
+          },
+          idempotencyKey,
+          idempotencyExpiresAt,
+          durationMs,
+        },
+        200,
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+      )
+    }
   } catch (error: unknown) {
     const formatted = formatError(error)
     console.error('AWS EKS Deploy Error:', formatted)
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
     const isTimeout = formatted.name === 'TimeoutError'
     const status = isAuthError ? 401 : isTimeout ? 504 : 500
+    const durationMs = Date.now() - requestStartedAt
     audit('request.failed', {
       idempotencyKey,
       errorType: formatted.name,
       error: formatted.message,
       status,
-      durationMs: Date.now() - requestStartedAt,
+      durationMs,
     })
     return jsonResponse(
       {
@@ -575,11 +585,13 @@ serve(async (req) => {
         success: false,
         error: formatted.message,
         errorType: formatted.name,
+        metrics: { durationMs, operation: 'unknown', dryRun: false },
         idempotencyKey,
-        durationMs: Date.now() - requestStartedAt,
+        idempotencyExpiresAt,
+        durationMs,
       },
       status,
-      { 'Idempotency-Key': idempotencyKey },
+      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
     )
   }
 })
