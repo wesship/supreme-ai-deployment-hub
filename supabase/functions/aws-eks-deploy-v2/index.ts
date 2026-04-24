@@ -342,7 +342,15 @@ serve(async (req) => {
     // the database, or requiring a user JWT. Real deploys still require auth below.
     if (body.dryRun === true) {
       const planned = getPlannedActions(body)
-      audit('request.dry_run', { idempotencyKey, operation: body.operation, plannedActionsCount: planned.length })
+      const diff = getDryRunDiff(body, planned)
+      const durationMs = Date.now() - requestStartedAt
+      audit('request.dry_run', {
+        idempotencyKey,
+        operation: body.operation,
+        plannedActionsCount: planned.length,
+        mutatingCount: diff.summary.mutating,
+        highRiskCount: diff.summary.highRisk,
+      })
       return jsonResponse(
         {
           ok: true,
@@ -357,19 +365,21 @@ serve(async (req) => {
             instanceType: body.instanceType ?? null,
           },
           plannedActions: planned,
-          // Diff report — current state is "unknown" without AWS calls; the
-          // desired state echoes the validated payload, and `changes` lists
-          // the operations the real run would perform.
-          diff: {
-            current: 'unknown',
-            desired: body,
-            changes: planned,
+          diff,
+          metrics: {
+            durationMs,
+            operation: body.operation ?? 'deploy',
+            dryRun: true,
+            plannedActionsCount: planned.length,
+            mutatingCount: diff.summary.mutating,
+            highRiskCount: diff.summary.highRisk,
           },
           idempotencyKey,
-          durationMs: Date.now() - requestStartedAt,
+          idempotencyExpiresAt,
+          durationMs,
         },
         200,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
 
