@@ -181,12 +181,22 @@ serve(async (req) => {
       JSON.stringify({ success: true, data: result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error('AWS EKS Deploy Error:', error)
+  } catch (error: unknown) {
+    const formatted = formatError(error)
+    console.error('AWS EKS Deploy Error:', formatted)
+    // Auth/permission errors should be 401/403, everything else is a server-side fault
+    const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
     return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        ok: false,
+        success: false,
+        error: formatted.message,
+        errorType: formatted.name,
+      }),
+      {
+        status: isAuthError ? 401 : 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
     )
   }
 })
