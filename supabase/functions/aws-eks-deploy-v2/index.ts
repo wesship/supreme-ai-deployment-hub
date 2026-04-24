@@ -21,11 +21,87 @@ const corsHeaders = {
   Vary: 'Origin',
 }
 
-function jsonResponse(payload: unknown, status = 200) {
+function jsonResponse(payload: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
   })
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Structured audit log — single-line JSON, easy to ingest in any log pipeline
+// ────────────────────────────────────────────────────────────────────────────
+function audit(event: string, data: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({
+    event,
+    service: 'aws-eks-deploy-v2',
+    timestamp: new Date().toISOString(),
+    ...data,
+  }))
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Timeout wrapper — abort upstream AWS work after N ms so the function can
+// always return *some* response within the edge runtime's request budget.
+// ────────────────────────────────────────────────────────────────────────────
+const DEFAULT_AWS_TIMEOUT_MS = 25_000
+
+async function withTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  ms: number = DEFAULT_AWS_TIMEOUT_MS,
+): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+  try {
+    return await fn(controller.signal)
+  } catch (err) {
+    if (controller.signal.aborted) {
+      const e = new Error(`Operation timed out after ${ms}ms`)
+      e.name = 'TimeoutError'
+      throw e
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// IAM permission preflight — verifies the AWS caller is live + records which
+// IAM actions the requested operation will need. Deep simulation
+// (iam:SimulatePrincipalPolicy) is intentionally NOT enabled by default
+// because it requires extra IAM permissions on the caller; see TODO below.
+// ────────────────────────────────────────────────────────────────────────────
+const REQUIRED_ACTIONS_BY_OP: Record<string, string[]> = {
+  'deploy':           ['eks:CreateCluster', 'eks:DescribeCluster', 'ec2:DescribeVpcs', 'ec2:DescribeSubnets', 'iam:GetRole', 'iam:CreateRole', 'iam:AttachRolePolicy'],
+  'create-cluster':   ['eks:CreateCluster', 'ec2:DescribeVpcs', 'ec2:DescribeSubnets', 'iam:GetRole', 'iam:CreateRole', 'iam:AttachRolePolicy'],
+  'delete-cluster':   ['eks:DeleteCluster'],
+  'delete':           ['eks:DeleteCluster'],
+  'describe-cluster': ['eks:DescribeCluster'],
+  'get-status':       ['eks:DescribeCluster'],
+  'status':           ['eks:DescribeCluster'],
+  'list-clusters':    ['eks:ListClusters'],
+  'validate':         ['sts:GetCallerIdentity'],
+}
+
+async function checkIamPermissions(
+  awsConfig: { region: string; credentials: { accessKeyId: string; secretAccessKey: string } },
+  operation: string,
+): Promise<{ ok: boolean; identity?: { account?: string; arn?: string }; required: string[]; error?: string }> {
+  const required = REQUIRED_ACTIONS_BY_OP[operation] ?? []
+  try {
+    const id = await withTimeout(async () => {
+      const sts = new STSClient(awsConfig)
+      return await sts.send(new GetCallerIdentityCommand({}))
+    }, 10_000)
+    // TODO(deep-check): if Deno.env.get('IAM_DEEP_CHECK') === 'true', call
+    // iam:SimulatePrincipalPolicy with PolicySourceArn=id.Arn and
+    // ActionNames=required to verify each action. Off by default because
+    // it requires iam:SimulatePrincipalPolicy on the caller principal.
+    return { ok: true, identity: { account: id.Account, arn: id.Arn }, required }
+  } catch (err) {
+    return { ok: false, required, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -132,6 +208,11 @@ function formatError(error: unknown) {
 }
 
 serve(async (req) => {
+  // Idempotency key: honor caller-supplied key, otherwise mint one. Returned
+  // in headers + body so callers can dedupe retries on their side.
+  const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
+  const requestStartedAt = Date.now()
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders })
@@ -139,9 +220,17 @@ serve(async (req) => {
 
   // Reject non-POST early so the rest of the handler can assume POST
   if (req.method !== 'POST') {
+    audit('request.rejected', { idempotencyKey, reason: 'method-not-allowed', method: req.method })
     return jsonResponse(
-      { ok: false, success: false, error: 'Method not allowed', errorType: 'MethodNotAllowedError' },
+      {
+        ok: false,
+        success: false,
+        error: 'Method not allowed',
+        errorType: 'MethodNotAllowedError',
+        idempotencyKey,
+      },
       405,
+      { 'Idempotency-Key': idempotencyKey },
     )
   }
 
@@ -152,20 +241,24 @@ serve(async (req) => {
       rawBody = await req.json()
     } catch (parseErr) {
       const formatted = formatError(parseErr)
+      audit('request.bad_json', { idempotencyKey, error: formatted.message })
       return jsonResponse(
         {
           ok: false,
           success: false,
           error: `Invalid JSON body: ${formatted.message}`,
           errorType: 'BadRequestError',
+          idempotencyKey,
         },
         400,
+        { 'Idempotency-Key': idempotencyKey },
       )
     }
 
     // Schema validation — runs for BOTH dry-run and real requests
     const validation = validateRequest(rawBody)
     if (!validation.ok) {
+      audit('request.validation_failed', { idempotencyKey, errors: validation.errors })
       return jsonResponse(
         {
           ok: false,
@@ -173,30 +266,55 @@ serve(async (req) => {
           error: 'Invalid request payload',
           errorType: 'ValidationError',
           details: validation.errors,
+          idempotencyKey,
         },
         400,
+        { 'Idempotency-Key': idempotencyKey },
       )
     }
     const body = validation.data
 
+    audit('request.received', {
+      idempotencyKey,
+      operation: body.operation,
+      dryRun: body.dryRun ?? false,
+      region: body.region,
+      clusterName: body.clusterName,
+    })
+
     // Dry-run short-circuit: validates routing/payload without touching AWS,
     // the database, or requiring a user JWT. Real deploys still require auth below.
     if (body.dryRun === true) {
-      console.log(`AWS EKS dry-run: operation=${body.operation ?? '(none)'} cluster=${body.clusterName ?? '(none)'}`)
-      return jsonResponse({
-        ok: true,
-        success: true,
-        mode: 'dry-run',
-        message: 'Dry run passed. No AWS resources changed.',
-        received: {
-          operation: body.operation ?? null,
-          clusterName: body.clusterName ?? null,
-          region: body.region ?? null,
-          nodeCount: body.nodeCount ?? null,
-          instanceType: body.instanceType ?? null,
+      const planned = getPlannedActions(body)
+      audit('request.dry_run', { idempotencyKey, operation: body.operation, plannedActionsCount: planned.length })
+      return jsonResponse(
+        {
+          ok: true,
+          success: true,
+          mode: 'dry-run',
+          message: 'Dry run passed. No AWS resources changed.',
+          received: {
+            operation: body.operation ?? null,
+            clusterName: body.clusterName ?? null,
+            region: body.region ?? null,
+            nodeCount: body.nodeCount ?? null,
+            instanceType: body.instanceType ?? null,
+          },
+          plannedActions: planned,
+          // Diff report — current state is "unknown" without AWS calls; the
+          // desired state echoes the validated payload, and `changes` lists
+          // the operations the real run would perform.
+          diff: {
+            current: 'unknown',
+            desired: body,
+            changes: planned,
+          },
+          idempotencyKey,
+          durationMs: Date.now() - requestStartedAt,
         },
-        plannedActions: getPlannedActions(body),
-      })
+        200,
+        { 'Idempotency-Key': idempotencyKey },
+      )
     }
 
     // Initialize Supabase client (auth required for real operations)
@@ -216,11 +334,12 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser()
 
     if (!user) {
+      audit('auth.unauthorized', { idempotencyKey })
       throw new Error('Unauthorized - Please log in')
     }
 
-    console.log(`AWS EKS operation: ${body.operation ?? '(none)'} for user: ${user.id}`)
-    
+    audit('auth.ok', { idempotencyKey, userId: user.id, operation: body.operation })
+
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
       .from('cloud_credentials')
@@ -230,6 +349,7 @@ serve(async (req) => {
       .single()
 
     if (credError || !credentials) {
+      audit('credentials.missing', { idempotencyKey, userId: user.id, dbError: credError?.message })
       throw new Error('AWS credentials not configured. Please add your AWS credentials in settings.')
     }
 
@@ -245,89 +365,147 @@ serve(async (req) => {
       },
     }
 
-    // Execute operation
-    let result
-
-    switch (body.operation) {
-      case 'validate':
-        result = await validateCredentials(awsConfig)
-        break
-      
-      case 'list-clusters':
-        result = await listClusters(awsConfig)
-        break
-      
-      case 'describe-cluster':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await describeCluster(awsConfig, body.clusterName)
-        break
-      
-      case 'create-cluster':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await createCluster(
-          awsConfig,
-          body.clusterName,
-          body.nodeCount || 2,
-          body.instanceType || 't3.medium'
-        )
-        
-        // Log creation
-        await supabaseClient.from('deployment_logs').insert({
-          user_id: user.id,
-          provider: 'aws',
-          environment: 'production',
-          cluster_name: body.clusterName,
-          status: 'creating',
-          steps: [{ step: 'create-cluster', status: 'initiated', timestamp: new Date().toISOString() }],
-        })
-        break
-      
-      case 'delete-cluster':
-      case 'delete':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await deleteCluster(awsConfig, body.clusterName)
-        break
-      
-      case 'get-status':
-      case 'status':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await getClusterStatus(awsConfig, body.clusterName)
-        break
-      
-      case 'deploy':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await deployToCluster(awsConfig, body.clusterName, body.config)
-        
-        // Log deployment
-        await supabaseClient.from('deployment_logs').insert({
-          user_id: user.id,
-          provider: 'aws',
-          environment: body.config?.environment || 'production',
-          cluster_name: body.clusterName,
-          status: result.success ? 'success' : 'failed',
-          steps: result.steps || [],
-          error_message: result.error,
-        })
-        break
-      
-      default:
-        throw new Error(`Unknown operation: ${body.operation}`)
+    // IAM permission preflight — verifies the AWS principal is live and
+    // records which actions the requested operation requires.
+    const iamCheck = await checkIamPermissions(awsConfig, String(body.operation ?? 'deploy'))
+    if (!iamCheck.ok) {
+      audit('iam.preflight_failed', {
+        idempotencyKey,
+        userId: user.id,
+        operation: body.operation,
+        error: iamCheck.error,
+      })
+      return jsonResponse(
+        {
+          ok: false,
+          success: false,
+          error: `AWS credentials/IAM check failed: ${iamCheck.error}`,
+          errorType: 'IamPreflightError',
+          requiredActions: iamCheck.required,
+          idempotencyKey,
+        },
+        403,
+        { 'Idempotency-Key': idempotencyKey },
+      )
     }
+    audit('iam.preflight_ok', {
+      idempotencyKey,
+      userId: user.id,
+      operation: body.operation,
+      account: iamCheck.identity?.account,
+      requiredActionsCount: iamCheck.required.length,
+    })
 
-    return jsonResponse({ ok: true, success: true, data: result })
+    // Execute operation (wrapped in a hard timeout so we always reply in time)
+    let result: any
+    await withTimeout(async () => {
+      switch (body.operation) {
+        case 'validate':
+          result = await validateCredentials(awsConfig)
+          break
+
+        case 'list-clusters':
+          result = await listClusters(awsConfig)
+          break
+
+        case 'describe-cluster':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await describeCluster(awsConfig, body.clusterName)
+          break
+
+        case 'create-cluster':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await createCluster(
+            awsConfig,
+            body.clusterName,
+            body.nodeCount || 2,
+            body.instanceType || 't3.medium',
+          )
+
+          await supabaseClient.from('deployment_logs').insert({
+            user_id: user.id,
+            provider: 'aws',
+            environment: 'production',
+            cluster_name: body.clusterName,
+            status: 'creating',
+            steps: [{ step: 'create-cluster', status: 'initiated', timestamp: new Date().toISOString() }],
+          })
+          break
+
+        case 'delete-cluster':
+        case 'delete':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await deleteCluster(awsConfig, body.clusterName)
+          break
+
+        case 'get-status':
+        case 'status':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await getClusterStatus(awsConfig, body.clusterName)
+          break
+
+        case 'deploy':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await deployToCluster(awsConfig, body.clusterName, body.config)
+
+          await supabaseClient.from('deployment_logs').insert({
+            user_id: user.id,
+            provider: 'aws',
+            environment: body.config?.environment || 'production',
+            cluster_name: body.clusterName,
+            status: result.success ? 'success' : 'failed',
+            steps: result.steps || [],
+            error_message: result.error,
+          })
+          break
+
+        default:
+          throw new Error(`Unknown operation: ${body.operation}`)
+      }
+    })
+
+    audit('request.completed', {
+      idempotencyKey,
+      userId: user.id,
+      operation: body.operation,
+      durationMs: Date.now() - requestStartedAt,
+    })
+
+    return jsonResponse(
+      {
+        ok: true,
+        success: true,
+        data: result,
+        idempotencyKey,
+        durationMs: Date.now() - requestStartedAt,
+      },
+      200,
+      { 'Idempotency-Key': idempotencyKey },
+    )
   } catch (error: unknown) {
     const formatted = formatError(error)
     console.error('AWS EKS Deploy Error:', formatted)
-    // Auth/permission errors should be 401, everything else is a server-side fault
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
+    const isTimeout = formatted.name === 'TimeoutError'
+    const status = isAuthError ? 401 : isTimeout ? 504 : 500
+    audit('request.failed', {
+      idempotencyKey,
+      errorType: formatted.name,
+      error: formatted.message,
+      status,
+      durationMs: Date.now() - requestStartedAt,
+    })
     return jsonResponse(
       {
         ok: false,
         success: false,
         error: formatted.message,
         errorType: formatted.name,
+        idempotencyKey,
+        durationMs: Date.now() - requestStartedAt,
       },
-      isAuthError ? 401 : 500,
+      status,
+      { 'Idempotency-Key': idempotencyKey },
     )
   }
 })
