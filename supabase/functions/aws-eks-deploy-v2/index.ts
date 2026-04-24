@@ -2,10 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 // AWS SDK v3 for Deno - using npm: specifiers (more stable than esm.sh)
-import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "npm:@aws-sdk/client-eks@^3.700"
-import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws-sdk/client-ec2@^3.700"
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3.700"
-import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3.700"
+// Use a real, current major range. Avoid fabricated pins like @3.700.0 — they break deploys.
+import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "npm:@aws-sdk/client-eks@^3"
+import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws-sdk/client-ec2@^3"
+import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3"
+import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,12 +14,22 @@ const corsHeaders = {
 }
 
 interface DeploymentRequest {
-  operation: 'validate' | 'list-clusters' | 'describe-cluster' | 'create-cluster' | 'delete-cluster' | 'get-status' | 'deploy'
+  operation?: 'validate' | 'list-clusters' | 'describe-cluster' | 'create-cluster' | 'delete-cluster' | 'get-status' | 'deploy'
   clusterName?: string
   region?: string
   nodeCount?: number
   instanceType?: string
+  dryRun?: boolean
   config?: any
+}
+
+// Standardized error formatter
+function formatError(error: unknown) {
+  return {
+    message: error instanceof Error ? error.message : String(error),
+    name: error instanceof Error ? error.name : 'UnknownError',
+    stack: error instanceof Error ? error.stack : undefined,
+  }
 }
 
 serve(async (req) => {
