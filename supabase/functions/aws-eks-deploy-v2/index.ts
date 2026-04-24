@@ -390,19 +390,13 @@ serve(async (req) => {
         operation: body.operation,
         error: iamCheck.error,
       })
-      return jsonResponse(
-        {
-          ok: false,
-          success: false,
-          error: `AWS credentials/IAM check failed: ${iamCheck.error}`,
-          errorType: 'IamPreflightError',
-          requiredActions: iamCheck.required,
-          idempotencyKey,
-          idempotencyExpiresAt,
-          correlationId,
-        },
+      return errorResponse(
         403,
-        traceHeaders,
+        `AWS credentials/IAM check failed: ${iamCheck.error}`,
+        'IamPreflightError',
+        { requiredActions: iamCheck.required },
+        String(body.operation ?? 'unknown'),
+        body.dryRun === true,
       )
     }
     audit('iam.preflight_ok', {
