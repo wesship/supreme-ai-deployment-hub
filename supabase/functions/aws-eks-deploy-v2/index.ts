@@ -189,11 +189,23 @@ serve(async (req) => {
   // in headers + body so callers can dedupe retries on their side.
   const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
   const idempotencyExpiresAt = buildIdempotencyExpiry(Date.now(), IDEMPOTENCY_TTL_MS)
+  // Correlation ID: trace a single client/user action across services + logs.
+  // Honor caller-supplied X-Correlation-ID, else mint a UUID. Always echoed
+  // back in the response header AND body, and included in every audit log.
+  const correlationId = req.headers.get('X-Correlation-ID') ?? crypto.randomUUID()
   const requestStartedAt = Date.now()
+
+  // Standard headers + body fragment attached to EVERY response below.
+  const traceHeaders = {
+    'Idempotency-Key': idempotencyKey,
+    'X-Idempotency-Expires-At': idempotencyExpiresAt,
+    'X-Correlation-ID': correlationId,
+  }
+  const traceBody = { idempotencyKey, idempotencyExpiresAt, correlationId }
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
+    return new Response(null, { status: 204, headers: { ...corsHeaders, ...traceHeaders } })
   }
 
   // Reject non-POST early so the rest of the handler can assume POST
