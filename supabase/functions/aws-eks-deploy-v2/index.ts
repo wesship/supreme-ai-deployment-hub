@@ -221,7 +221,7 @@ serve(async (req) => {
         idempotencyExpiresAt,
       },
       405,
-      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+      traceHeaders,
     )
   }
 
@@ -243,7 +243,7 @@ serve(async (req) => {
           idempotencyExpiresAt,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
 
@@ -262,7 +262,7 @@ serve(async (req) => {
           idempotencyExpiresAt,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
     const body = validation.data
@@ -313,7 +313,7 @@ serve(async (req) => {
           durationMs,
         },
         200,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
 
@@ -386,7 +386,7 @@ serve(async (req) => {
           idempotencyExpiresAt,
         },
         403,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
     audit('iam.preflight_ok', {
@@ -491,7 +491,7 @@ serve(async (req) => {
           durationMs,
         },
         200,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
   } catch (error: unknown) {
@@ -530,7 +530,7 @@ serve(async (req) => {
         durationMs,
       },
       status,
-      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+      traceHeaders,
     )
   }
 })
