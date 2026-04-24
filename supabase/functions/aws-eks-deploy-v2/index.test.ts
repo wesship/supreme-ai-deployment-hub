@@ -48,6 +48,17 @@ async function postDryRun(payload: Record<string, unknown>) {
 // Dry-run: operation-specific planned actions
 // ────────────────────────────────────────────────────────────────────────
 
+type PlannedAction = {
+  id: string;
+  title: string;
+  type: "read" | "write" | "delete";
+  risk: "low" | "medium" | "high";
+  requiresAuth: boolean;
+  mutatesAws: boolean;
+};
+
+const titles = (actions: PlannedAction[]) => actions.map((a) => a.title);
+
 Deno.test("dry-run [deploy]: returns deploy-specific planned actions", async () => {
   const { status, body } = await postDryRun({
     operation: "deploy",
@@ -58,10 +69,15 @@ Deno.test("dry-run [deploy]: returns deploy-specific planned actions", async () 
   assertEquals(body.ok, true);
   assertEquals(body.mode, "dry-run");
   assert(Array.isArray(body.plannedActions));
+  // Enriched shape: each action is a PlannedAction object
+  assert(body.plannedActions.every((a: PlannedAction) => typeof a.id === "string" && typeof a.title === "string"));
   assert(
-    body.plannedActions.some((a: string) => /VPC|subnet/i.test(a)),
-    `Deploy plan should mention VPC/subnets. Got: ${body.plannedActions}`,
+    titles(body.plannedActions).some((t) => /VPC|subnet/i.test(t)),
+    `Deploy plan should mention VPC/subnets. Got: ${JSON.stringify(titles(body.plannedActions))}`,
   );
+  // Deploy is mutating + has at least one high-risk step
+  assert(body.plannedActions.some((a: PlannedAction) => a.mutatesAws));
+  assert(body.plannedActions.some((a: PlannedAction) => a.risk === "high"));
 });
 
 Deno.test("dry-run [validate]: returns validate-specific planned actions", async () => {
@@ -69,10 +85,12 @@ Deno.test("dry-run [validate]: returns validate-specific planned actions", async
   assertEquals(status, 200);
   assertEquals(body.ok, true);
   assert(
-    body.plannedActions.some((a: string) => /No AWS resources changed/i.test(a)),
-    `Validate plan should be read-only. Got: ${body.plannedActions}`,
+    titles(body.plannedActions).some((t) => /No AWS resources changed/i.test(t)),
+    `Validate plan should be read-only. Got: ${JSON.stringify(titles(body.plannedActions))}`,
   );
-  assert(!body.plannedActions.some((a: string) => /Create or update/i.test(a)));
+  assert(!titles(body.plannedActions).some((t) => /Create or update/i.test(t)));
+  // Pure read-only plan: nothing mutates AWS
+  assert(body.plannedActions.every((a: PlannedAction) => !a.mutatesAws));
 });
 
 Deno.test("dry-run [status]: read-only plan, accepts 'status' alias", async () => {
@@ -83,7 +101,7 @@ Deno.test("dry-run [status]: read-only plan, accepts 'status' alias", async () =
   });
   assertEquals(status, 200);
   assertEquals(body.ok, true);
-  assert(body.plannedActions.some((a: string) => /Describe EKS cluster/i.test(a)));
+  assert(titles(body.plannedActions).some((t) => /Describe EKS cluster/i.test(t)));
 });
 
 Deno.test("dry-run [delete]: includes deletion step, accepts 'delete' alias", async () => {
@@ -94,13 +112,15 @@ Deno.test("dry-run [delete]: includes deletion step, accepts 'delete' alias", as
   });
   assertEquals(status, 200);
   assertEquals(body.ok, true);
-  assert(body.plannedActions.some((a: string) => /Initiate cluster deletion/i.test(a)));
+  assert(titles(body.plannedActions).some((t) => /Initiate cluster deletion/i.test(t)));
+  // The deletion step should be typed as "delete"
+  assert(body.plannedActions.some((a: PlannedAction) => a.type === "delete"));
 });
 
 Deno.test("dry-run [list-clusters]: list-specific plan", async () => {
   const { status, body } = await postDryRun({ operation: "list-clusters", region: "us-east-1" });
   assertEquals(status, 200);
-  assert(body.plannedActions.some((a: string) => /List EKS clusters/i.test(a)));
+  assert(titles(body.plannedActions).some((t) => /List EKS clusters/i.test(t)));
 });
 
 // ────────────────────────────────────────────────────────────────────────
