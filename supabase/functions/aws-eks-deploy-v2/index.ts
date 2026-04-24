@@ -249,6 +249,44 @@ function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
   }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Standardized metrics schema — keep this STABLE. Dashboards + CI rely on it.
+// Always returned in the same shape on success AND dry-run responses so
+// downstream consumers can index a single contract.
+// ────────────────────────────────────────────────────────────────────────────
+type Metrics = {
+  durationMs: number
+  operation: string
+  dryRun: boolean
+  plannedActionsCount: number
+  mutatingCount: number
+  highRiskCount: number
+}
+
+function buildMetrics(
+  body: Pick<DeploymentRequest, 'operation' | 'dryRun'>,
+  planned: PlannedAction[],
+  durationMs: number,
+): Metrics {
+  return {
+    durationMs,
+    operation: String(body.operation ?? 'deploy'),
+    dryRun: body.dryRun === true,
+    plannedActionsCount: planned.length,
+    mutatingCount: planned.filter((a) => a.mutatesAws).length,
+    highRiskCount: planned.filter((a) => a.risk === 'high').length,
+  }
+}
+
+// Idempotency expiry — TTL clamped to a sane range so a misconfigured TTL
+// can never produce expiries in the past or absurdly far in the future.
+function buildIdempotencyExpiry(now: number, ttlMs: number): string {
+  const MIN_TTL = 60 * 1000           // 1 min floor
+  const MAX_TTL = 7 * 24 * 60 * 60 * 1000  // 7 day ceiling
+  const safeTtl = Math.min(MAX_TTL, Math.max(MIN_TTL, Math.floor(ttlMs)))
+  return new Date(now + safeTtl).toISOString()
+}
+
 
 // Standardized error formatter
 function formatError(error: unknown) {
