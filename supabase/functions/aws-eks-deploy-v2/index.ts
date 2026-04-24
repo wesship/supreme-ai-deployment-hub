@@ -444,20 +444,24 @@ serve(async (req) => {
           result = await getClusterStatus(awsConfig, body.clusterName)
           break
 
-        case 'deploy':
+        case 'deploy': {
           if (!body.clusterName) throw new Error('Cluster name required')
           result = await deployToCluster(awsConfig, body.clusterName, body.config)
+
+          const config = body.config as Record<string, unknown> | undefined
+          const environment = (config?.environment as string | undefined) ?? 'production'
 
           await supabaseClient.from('deployment_logs').insert({
             user_id: user.id,
             provider: 'aws',
-            environment: (body.config as Record<string, unknown> | undefined)?.environment ?? 'production',
+            environment,
             cluster_name: body.clusterName,
             status: result.success ? 'success' : 'failed',
             steps: result.steps || [],
             error_message: result.error,
           })
           break
+        }
 
         default:
           throw new Error(`Unknown operation: ${body.operation}`)
