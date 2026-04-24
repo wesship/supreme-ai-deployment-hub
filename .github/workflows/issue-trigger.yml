@@ -58,6 +58,10 @@ jobs:
           JWT_SECRET_KEY: test-jwt-secret-key-for-ci-32chars
           FLASK_TESTING: "true"
           RATELIMIT_ENABLED: "false"
+          # Pass via env to avoid shell-injection from arbitrary issue text,
+          # and fall back so the body is never empty.
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY_RAW: ${{ github.event.issue.body || 'No description provided' }}
         run: |
           python scripts/ai/propose_fixes.py \
-            --issue-body "${{ github.event.issue.title }}: ${{ github.event.issue.body }}"
+            --issue-body "${ISSUE_TITLE}: ${ISSUE_BODY_RAW}"

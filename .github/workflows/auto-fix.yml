@@ -25,7 +25,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      issues: read
+      issues: write
+      actions: read
 
     steps:
       - name: Checkout repository
@@ -91,6 +92,9 @@ jobs:
           JWT_SECRET_KEY: test-jwt-secret-key-for-ci-32chars
           FLASK_TESTING: "true"
           RATELIMIT_ENABLED: "false"
+          # Pass through the env so the script never receives an empty string.
+          # Quoting via $ISSUE_BODY also avoids shell-injection from issue text.
+          ISSUE_BODY: ${{ github.event.inputs.issue_body || github.event.head_commit.message || format('Scheduled run triggered by {0}', github.event_name) }}
         run: |
           python scripts/ai/propose_fixes.py \
-            --issue-body "${{ github.event.inputs.issue_body || '' }}"
+            --issue-body "$ISSUE_BODY"
