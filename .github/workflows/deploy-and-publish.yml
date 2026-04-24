@@ -37,6 +37,16 @@ jobs:
       - name: Install Project Dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Validate Snyk token
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::error::SNYK_TOKEN is missing or empty. Add it under Settings → Secrets and variables → Actions → Repository secrets."
+            exit 1
+          fi
+          echo "SNYK_TOKEN is set (length: ${#SNYK_TOKEN})"
+
       - name: Run Snyk Security Test
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
