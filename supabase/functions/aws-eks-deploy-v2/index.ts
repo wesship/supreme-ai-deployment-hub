@@ -132,53 +132,71 @@ function formatError(error: unknown) {
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+
+  // Reject non-POST early so the rest of the handler can assume POST
+  if (req.method !== 'POST') {
+    return jsonResponse(
+      { ok: false, success: false, error: 'Method not allowed', errorType: 'MethodNotAllowedError' },
+      405,
+    )
   }
 
   try {
     // Parse request FIRST so dry-run can short-circuit before any auth or DB work.
-    let body: DeploymentRequest
+    let rawBody: unknown
     try {
-      body = await req.json()
+      rawBody = await req.json()
     } catch (parseErr) {
       const formatted = formatError(parseErr)
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           ok: false,
           success: false,
           error: `Invalid JSON body: ${formatted.message}`,
           errorType: 'BadRequestError',
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        },
+        400,
       )
     }
+
+    // Schema validation — runs for BOTH dry-run and real requests
+    const validation = validateRequest(rawBody)
+    if (!validation.ok) {
+      return jsonResponse(
+        {
+          ok: false,
+          success: false,
+          error: 'Invalid request payload',
+          errorType: 'ValidationError',
+          details: validation.errors,
+        },
+        400,
+      )
+    }
+    const body = validation.data
 
     // Dry-run short-circuit: validates routing/payload without touching AWS,
     // the database, or requiring a user JWT. Real deploys still require auth below.
     if (body.dryRun === true) {
       console.log(`AWS EKS dry-run: operation=${body.operation ?? '(none)'} cluster=${body.clusterName ?? '(none)'}`)
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          success: true,
-          mode: 'dry-run',
-          message: 'Dry run passed. No AWS resources changed.',
-          received: {
-            operation: body.operation ?? null,
-            clusterName: body.clusterName ?? null,
-            region: body.region ?? null,
-          },
-          plannedActions: [
-            'Validate request payload',
-            'Validate region and cluster name',
-            'Prepare EKS deployment plan',
-            'Skip AWS mutations',
-          ],
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return jsonResponse({
+        ok: true,
+        success: true,
+        mode: 'dry-run',
+        message: 'Dry run passed. No AWS resources changed.',
+        received: {
+          operation: body.operation ?? null,
+          clusterName: body.clusterName ?? null,
+          region: body.region ?? null,
+          nodeCount: body.nodeCount ?? null,
+          instanceType: body.instanceType ?? null,
+        },
+        plannedActions: getPlannedActions(body),
+      })
     }
 
     // Initialize Supabase client (auth required for real operations)
