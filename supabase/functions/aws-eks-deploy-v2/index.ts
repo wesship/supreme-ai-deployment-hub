@@ -393,14 +393,15 @@ async function deployToCluster(config: any, clusterName: string, deployConfig: a
       message: 'Deployment completed successfully',
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     console.error('Deployment error:', error)
-    steps.push({ step: 'error', status: 'failed', message: error.message, timestamp: new Date().toISOString() })
+    steps.push({ step: 'error', status: 'failed', message, timestamp: new Date().toISOString() })
     
     return {
       success: false,
       clusterName,
       steps,
-      error: error.message,
+      error: message,
     }
   }
 }
