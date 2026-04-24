@@ -1,7 +1,11 @@
 import { LLMConfig, LLMMessage, LLMResponse, StreamingLLMResponse } from '@/types/llm';
 import { LLMClient } from '../client';
 
-const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
+// All OpenAI traffic is proxied through a Supabase edge function so the API key
+// stays on the server. Never call api.openai.com directly from the browser.
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+const OPENAI_ENDPOINT = `${SUPABASE_URL ?? ''}/functions/v1/openai-proxy`;
 
 interface RetryOptions {
   maxAttempts?: number;
@@ -203,7 +207,9 @@ export class OpenAIClient implements LLMClient {
     const response = await fetchWithRetry(OPENAI_ENDPOINT, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+        // The edge function reads the OpenAI key server-side; the publishable
+        // key only authorizes calling the function itself.
+        ...(SUPABASE_ANON_KEY ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY } : {}),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -251,7 +257,7 @@ export class OpenAIClient implements LLMClient {
     const response = await fetchWithRetry(OPENAI_ENDPOINT, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
+        ...(SUPABASE_ANON_KEY ? { Authorization: `Bearer ${SUPABASE_ANON_KEY}`, apikey: SUPABASE_ANON_KEY } : {}),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
