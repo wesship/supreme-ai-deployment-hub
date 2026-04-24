@@ -364,6 +364,23 @@ Deno.test("response shape: includes structured metrics block", async () => {
   assert(body.metrics.plannedActionsCount >= 1);
 });
 
+Deno.test("backward-compat: response includes plannedActionTitles (string[])", async () => {
+  const { body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+  });
+  assert(Array.isArray(body.plannedActionTitles), "plannedActionTitles must be an array");
+  assert(body.plannedActionTitles.every((t: unknown) => typeof t === "string"));
+  // Must mirror plannedActions[*].title 1:1 in order — this is the contract
+  // older clients/tests will read.
+  assertEquals(
+    body.plannedActionTitles,
+    body.plannedActions.map((a: { title: string }) => a.title),
+  );
+  assert(body.plannedActionTitles.some((t: string) => /VPC|subnet/i.test(t)));
+});
+
 Deno.test("idempotency: response includes expiresAt (~24h from now) in body + header", async () => {
   const before = Date.now();
   const { headers, body } = await postDryRun({ operation: "validate", region: "us-east-1" });
