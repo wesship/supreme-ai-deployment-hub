@@ -528,3 +528,143 @@ Deno.test("golden contract: dry-run response includes every documented field", a
   // Observability
   assertExists(body.durationMs);
 });
+
+// ────────────────────────────────────────────────────────────────────────
+// Golden ERROR contract — locks the failure response shape so dashboards
+// and CI alerting can rely on a single envelope across every error path.
+// If you intentionally change the shape, update this test in the SAME PR.
+// ────────────────────────────────────────────────────────────────────────
+
+const ERROR_REQUIRED_KEYS = [
+  "ok",
+  "success",
+  "error",
+  "errorType",
+  "idempotencyKey",
+  "idempotencyExpiresAt",
+  "correlationId",
+  "metrics",
+  "durationMs",
+] as const;
+
+const METRICS_REQUIRED_KEYS = [
+  "durationMs",
+  "operation",
+  "dryRun",
+  "plannedActionsCount",
+  "mutatingCount",
+  "highRiskCount",
+] as const;
+
+function assertErrorContract(body: Record<string, unknown>) {
+  for (const k of ERROR_REQUIRED_KEYS) {
+    assert(k in body, `error envelope missing '${k}': ${JSON.stringify(body)}`);
+  }
+  assertEquals(body.ok, false);
+  assertEquals(body.success, false);
+  assert(typeof body.error === "string" && body.error.length > 0);
+  assert(typeof body.errorType === "string" && (body.errorType as string).length > 0);
+  assert(typeof body.idempotencyKey === "string");
+  assert(typeof body.idempotencyExpiresAt === "string");
+  assert(typeof body.correlationId === "string");
+  assert(typeof body.durationMs === "number" && (body.durationMs as number) >= 0);
+  const metrics = body.metrics as Record<string, unknown>;
+  assert(metrics && typeof metrics === "object", "metrics must be an object");
+  for (const k of METRICS_REQUIRED_KEYS) {
+    assert(k in metrics, `metrics.${k} is required on error path`);
+  }
+  assert(typeof metrics.durationMs === "number");
+  assert(typeof metrics.operation === "string");
+  assert(typeof metrics.dryRun === "boolean");
+  assert(typeof metrics.plannedActionsCount === "number");
+  assert(typeof metrics.mutatingCount === "number");
+  assert(typeof metrics.highRiskCount === "number");
+}
+
+Deno.test("error contract [BadRequestError]: invalid JSON → 400 with full envelope", async () => {
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: authHeaders(),
+    body: "{not-json",
+  });
+  const text = await res.text();
+  assertEquals(res.status, 400);
+  const body = JSON.parse(text);
+  assertErrorContract(body);
+  assertEquals(body.errorType, "BadRequestError");
+  // Tracing headers must mirror body
+  assertEquals(res.headers.get("idempotency-key"), body.idempotencyKey);
+  assertEquals(res.headers.get("x-correlation-id"), body.correlationId);
+  assertEquals(res.headers.get("x-idempotency-expires-at"), body.idempotencyExpiresAt);
+});
+
+Deno.test("error contract [ValidationError]: bad payload → 400 with full envelope + details", async () => {
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ dryRun: true, operation: "drop-database" }),
+  });
+  const text = await res.text();
+  assertEquals(res.status, 400);
+  const body = JSON.parse(text);
+  assertErrorContract(body);
+  assertEquals(body.errorType, "ValidationError");
+  assert(Array.isArray(body.details) && body.details.length > 0);
+});
+
+Deno.test("error contract [MethodNotAllowedError]: GET → 405 with full envelope", async () => {
+  const res = await fetch(FUNCTION_URL, { method: "GET", headers: authHeaders() });
+  const text = await res.text();
+  assertEquals(res.status, 405);
+  const body = JSON.parse(text);
+  assertErrorContract(body);
+  assertEquals(body.errorType, "MethodNotAllowedError");
+  assertEquals(res.headers.get("x-correlation-id"), body.correlationId);
+});
+
+Deno.test("error contract [UnauthorizedError]: real call without JWT → 401 with full envelope", async () => {
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: authHeaders(), // anon key only — no end-user JWT
+    body: JSON.stringify({ operation: "validate", region: "us-east-1" }),
+  });
+  const text = await res.text();
+  assertEquals(res.status, 401);
+  const body = JSON.parse(text);
+  assertErrorContract(body);
+  assertEquals(body.errorType, "UnauthorizedError");
+});
+
+Deno.test("error contract: correlation id propagates through every error path", async () => {
+  const cases = [
+    { name: "bad-json", init: { method: "POST", headers: authHeaders(), body: "{nope" } as RequestInit },
+    {
+      name: "validation",
+      init: {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ dryRun: true, operation: "drop-database" }),
+      } as RequestInit,
+    },
+    { name: "method", init: { method: "GET", headers: authHeaders() } as RequestInit },
+    {
+      name: "unauthorized",
+      init: {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ operation: "validate", region: "us-east-1" }),
+      } as RequestInit,
+    },
+  ];
+  for (const c of cases) {
+    const cid = `cid-${c.name}-${crypto.randomUUID()}`;
+    const headers = { ...(c.init.headers as Record<string, string>), "X-Correlation-ID": cid };
+    const res = await fetch(FUNCTION_URL, { ...c.init, headers });
+    const text = await res.text();
+    assert(res.status >= 400, `${c.name}: expected error status, got ${res.status}`);
+    assertEquals(res.headers.get("x-correlation-id"), cid, `${c.name}: header cid mismatch`);
+    const body = JSON.parse(text);
+    assertEquals(body.correlationId, cid, `${c.name}: body cid mismatch`);
+    assertErrorContract(body);
+  }
+});
