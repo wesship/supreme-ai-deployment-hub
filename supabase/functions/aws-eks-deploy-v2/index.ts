@@ -582,16 +582,14 @@ serve(async (req) => {
 
     {
       const durationMs = Date.now() - requestStartedAt
+      const planned = getPlannedActions(body)
+      const metrics = buildMetrics(body, planned, durationMs)
       return jsonResponse(
         {
           ok: true,
           success: true,
           data: result,
-          metrics: {
-            durationMs,
-            operation: body.operation ?? 'deploy',
-            dryRun: false,
-          },
+          metrics,
           idempotencyKey,
           idempotencyExpiresAt,
           durationMs,
@@ -614,13 +612,23 @@ serve(async (req) => {
       status,
       durationMs,
     })
+    // Best-effort metrics on the error path — operation/dryRun unknown if we
+    // failed before parsing succeeded, so default conservatively.
+    const errorMetrics: Metrics = {
+      durationMs,
+      operation: 'unknown',
+      dryRun: false,
+      plannedActionsCount: 0,
+      mutatingCount: 0,
+      highRiskCount: 0,
+    }
     return jsonResponse(
       {
         ok: false,
         success: false,
         error: formatted.message,
         errorType: formatted.name,
-        metrics: { durationMs, operation: 'unknown', dryRun: false },
+        metrics: errorMetrics,
         idempotencyKey,
         idempotencyExpiresAt,
         durationMs,
