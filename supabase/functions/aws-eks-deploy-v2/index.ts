@@ -2,10 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 // AWS SDK v3 for Deno - using npm: specifiers (more stable than esm.sh)
-import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "https://esm.sh/@aws-sdk/client-eks@3.700.0"
-import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "https://esm.sh/@aws-sdk/client-ec2@3.700.0"
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "https://esm.sh/@aws-sdk/client-iam@3.700.0"
-import { STSClient, GetCallerIdentityCommand } from "https://esm.sh/@aws-sdk/client-sts@3.700.0"
+import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "npm:@aws-sdk/client-eks@^3.700"
+import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws-sdk/client-ec2@^3.700"
+import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3.700"
+import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3.700"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -148,9 +148,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     console.error('AWS EKS Deploy Error:', error)
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: message }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
@@ -214,7 +215,7 @@ async function getClusterStatus(config: any, clusterName: string) {
       healthy: response.cluster?.status === 'ACTIVE',
     }
   } catch (error) {
-    if (error.name === 'ResourceNotFoundException') {
+    if ((error as { name?: string })?.name === 'ResourceNotFoundException') {
       return {
         exists: false,
         status: 'NOT_FOUND',
@@ -254,7 +255,7 @@ async function createCluster(config: any, clusterName: string, nodeCount: number
     throw new Error('At least 2 subnets required for EKS. Please configure subnets in AWS Console.')
   }
   
-  const subnetIds = subnetsResponse.Subnets.slice(0, 2).map(s => s.SubnetId!)
+  const subnetIds = subnetsResponse.Subnets.slice(0, 2).map((s: { SubnetId?: string }) => s.SubnetId!)
   console.log(`Using subnets: ${subnetIds.join(', ')}`)
   
   // Step 3: Create/Get IAM role
@@ -266,7 +267,7 @@ async function createCluster(config: any, clusterName: string, nodeCount: number
     roleArn = getRoleResponse.Role!.Arn!
     console.log(`Using existing role: ${roleArn}`)
   } catch (error) {
-    if (error.name === 'NoSuchEntity') {
+    if ((error as { name?: string })?.name === 'NoSuchEntity') {
       console.log(`Creating new IAM role: ${roleName}`)
       
       const assumeRolePolicy = {
@@ -392,14 +393,15 @@ async function deployToCluster(config: any, clusterName: string, deployConfig: a
       message: 'Deployment completed successfully',
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     console.error('Deployment error:', error)
-    steps.push({ step: 'error', status: 'failed', message: error.message, timestamp: new Date().toISOString() })
+    steps.push({ step: 'error', status: 'failed', message, timestamp: new Date().toISOString() })
     
     return {
       success: false,
       clusterName,
       steps,
-      error: error.message,
+      error: message,
     }
   }
 }
