@@ -2,51 +2,7 @@
 //
 // Kept in a separate module from index.ts so unit tests can import them
 // WITHOUT triggering serve() (which would try to bind a port).
-// index.ts re-exports these for backward-compatible imports.
-
-import { z } from "https://esm.sh/zod@3.23.8"
-
-// ────────────────────────────────────────────────────────────────────────────
-// Request schema
-// ────────────────────────────────────────────────────────────────────────────
-export const ALLOWED_OPERATIONS = [
-  'deploy',
-  'create-cluster',
-  'validate',
-  'status',
-  'get-status',
-  'describe-cluster',
-  'list-clusters',
-  'delete',
-  'delete-cluster',
-] as const
-
-export const RequestSchema = z.object({
-  operation: z.enum(ALLOWED_OPERATIONS).optional(),
-  clusterName: z
-    .string()
-    .regex(/^[A-Za-z][A-Za-z0-9-]{0,99}$/, 'must start with a letter and be ≤100 chars (letters, digits, dashes)')
-    .optional(),
-  region: z
-    .string()
-    .regex(/^[a-z]{2}-[a-z]+-\d$/, 'must look like an AWS region, e.g. us-east-1')
-    .optional(),
-  nodeCount: z.number().int().min(1).max(100).optional(),
-  instanceType: z.string().min(1).max(64).optional(),
-  config: z.record(z.unknown()).optional(),
-  dryRun: z.boolean().optional(),
-})
-
-export type DeploymentRequest = z.infer<typeof RequestSchema>
-
-export function validateRequest(body: unknown):
-  | { ok: true; data: DeploymentRequest }
-  | { ok: false; errors: string[] } {
-  const parsed = RequestSchema.safeParse(body)
-  if (parsed.success) return { ok: true, data: parsed.data }
-  const errors = parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`)
-  return { ok: false, errors }
-}
+// index.ts re-imports these so production behavior stays identical.
 
 // ────────────────────────────────────────────────────────────────────────────
 // Planned actions
@@ -58,6 +14,18 @@ export type PlannedAction = {
   risk: 'low' | 'medium' | 'high'
   requiresAuth: boolean
   mutatesAws: boolean
+}
+
+// Minimal request shape these helpers care about. Kept local so we don't
+// have to import the full Zod schema (which lives in index.ts).
+export type PlanInput = {
+  operation?: string
+  dryRun?: boolean
+  clusterName?: string
+  region?: string
+  nodeCount?: number
+  instanceType?: string
+  config?: unknown
 }
 
 const A = {
@@ -75,7 +43,7 @@ const A = {
   }),
 }
 
-export function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
+export function getPlannedActions(body: PlanInput): PlannedAction[] {
   const op = String(body.operation ?? 'deploy')
 
   if (op === 'validate') {
@@ -132,7 +100,7 @@ export function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
 // Dry-run diff report — current state is "unknown" without AWS calls; the
 // desired state echoes the validated payload, and `changes` lists the
 // operations the real run would perform.
-export function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
+export function getDryRunDiff<T extends PlanInput>(body: T, planned: PlannedAction[]) {
   return {
     current: 'unknown' as const,
     desired: body,
@@ -158,7 +126,7 @@ export type Metrics = {
 }
 
 export function buildMetrics(
-  body: Pick<DeploymentRequest, 'operation' | 'dryRun'>,
+  body: Pick<PlanInput, 'operation' | 'dryRun'>,
   planned: PlannedAction[],
   durationMs: number,
 ): Metrics {
@@ -172,8 +140,10 @@ export function buildMetrics(
   }
 }
 
+// ────────────────────────────────────────────────────────────────────────────
 // Idempotency expiry — TTL clamped to a sane range so a misconfigured TTL
 // can never produce expiries in the past or absurdly far in the future.
+// ────────────────────────────────────────────────────────────────────────────
 export const IDEMPOTENCY_MIN_TTL_MS = 60 * 1000
 export const IDEMPOTENCY_MAX_TTL_MS = 7 * 24 * 60 * 60 * 1000
 export const IDEMPOTENCY_DEFAULT_TTL_MS = 24 * 60 * 60 * 1000
