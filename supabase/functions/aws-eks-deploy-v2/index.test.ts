@@ -324,7 +324,7 @@ Deno.test("idempotency: error responses also include the key", async () => {
   assertEquals(body.idempotencyKey, key);
 });
 
-Deno.test("dry-run: response includes a diff report (current/desired/changes)", async () => {
+Deno.test("dry-run: response includes a diff report (current/desired/changes/summary)", async () => {
   const { body } = await postDryRun({
     operation: "deploy",
     clusterName: "devonn-eks-prod",
@@ -338,6 +338,11 @@ Deno.test("dry-run: response includes a diff report (current/desired/changes)", 
   assertEquals(body.diff.desired.clusterName, "devonn-eks-prod");
   assertEquals(body.diff.desired.nodeCount, 3);
   assert(Array.isArray(body.diff.changes) && body.diff.changes.length > 0);
+  // Diff summary aggregates risk + mutation counts
+  assertExists(body.diff.summary);
+  assertEquals(body.diff.summary.total, body.diff.changes.length);
+  assert(body.diff.summary.mutating >= 1, "Deploy diff should have ≥1 mutating action");
+  assert(body.diff.summary.highRisk >= 1, "Deploy diff should have ≥1 high-risk action");
 });
 
 Deno.test("response shape: includes durationMs for observability", async () => {
@@ -345,3 +350,34 @@ Deno.test("response shape: includes durationMs for observability", async () => {
   assertExists(body.durationMs);
   assert(typeof body.durationMs === "number" && body.durationMs >= 0);
 });
+
+Deno.test("response shape: includes structured metrics block", async () => {
+  const { body } = await postDryRun({
+    operation: "deploy",
+    clusterName: "devonn-eks-prod",
+    region: "us-east-1",
+  });
+  assertExists(body.metrics, "Response should include a metrics field");
+  assertEquals(body.metrics.dryRun, true);
+  assertEquals(body.metrics.operation, "deploy");
+  assert(typeof body.metrics.durationMs === "number");
+  assert(body.metrics.plannedActionsCount >= 1);
+});
+
+Deno.test("idempotency: response includes expiresAt (~24h from now) in body + header", async () => {
+  const before = Date.now();
+  const { headers, body } = await postDryRun({ operation: "validate", region: "us-east-1" });
+  const after = Date.now();
+
+  assertExists(body.idempotencyExpiresAt, "body should include idempotencyExpiresAt");
+  const headerExpires = headers.get("x-idempotency-expires-at");
+  assertExists(headerExpires, "response should include X-Idempotency-Expires-At header");
+  assertEquals(body.idempotencyExpiresAt, headerExpires);
+
+  const expiresMs = Date.parse(body.idempotencyExpiresAt);
+  const ttl = 24 * 60 * 60 * 1000;
+  // Expiry should land within [now+ttl-5s, now+ttl+5s] window of the request
+  assert(expiresMs >= before + ttl - 5_000, `expiresAt too early: ${body.idempotencyExpiresAt}`);
+  assert(expiresMs <= after + ttl + 5_000, `expiresAt too late: ${body.idempotencyExpiresAt}`);
+});
+
