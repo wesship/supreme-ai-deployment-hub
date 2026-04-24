@@ -210,7 +210,7 @@ serve(async (req) => {
 
   // Reject non-POST early so the rest of the handler can assume POST
   if (req.method !== 'POST') {
-    audit('request.rejected', { idempotencyKey, reason: 'method-not-allowed', method: req.method })
+    audit('request.rejected', { idempotencyKey, correlationId, reason: 'method-not-allowed', method: req.method })
     return jsonResponse(
       {
         ok: false,
@@ -233,7 +233,7 @@ serve(async (req) => {
       rawBody = await req.json()
     } catch (parseErr) {
       const formatted = formatError(parseErr)
-      audit('request.bad_json', { idempotencyKey, error: formatted.message })
+      audit('request.bad_json', { idempotencyKey, correlationId, error: formatted.message })
       return jsonResponse(
         {
           ok: false,
@@ -252,7 +252,7 @@ serve(async (req) => {
     // Schema validation — runs for BOTH dry-run and real requests
     const validation = validateRequest(rawBody)
     if (!validation.ok) {
-      audit('request.validation_failed', { idempotencyKey, errors: validation.errors })
+      audit('request.validation_failed', { idempotencyKey, correlationId, errors: validation.errors })
       return jsonResponse(
         {
           ok: false,
@@ -271,7 +271,7 @@ serve(async (req) => {
     const body = validation.data
 
     audit('request.received', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       operation: body.operation,
       dryRun: body.dryRun ?? false,
       region: body.region,
@@ -286,7 +286,7 @@ serve(async (req) => {
       const durationMs = Date.now() - requestStartedAt
       const metrics = buildMetrics(body, planned, durationMs)
       audit('request.dry_run', {
-        idempotencyKey,
+        idempotencyKey, correlationId,
         operation: body.operation,
         plannedActionsCount: metrics.plannedActionsCount,
         mutatingCount: metrics.mutatingCount,
@@ -338,11 +338,11 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser()
 
     if (!user) {
-      audit('auth.unauthorized', { idempotencyKey })
+      audit('auth.unauthorized', { idempotencyKey, correlationId })
       throw new Error('Unauthorized - Please log in')
     }
 
-    audit('auth.ok', { idempotencyKey, userId: user.id, operation: body.operation })
+    audit('auth.ok', { idempotencyKey, correlationId, userId: user.id, operation: body.operation })
 
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
@@ -353,7 +353,7 @@ serve(async (req) => {
       .single()
 
     if (credError || !credentials) {
-      audit('credentials.missing', { idempotencyKey, userId: user.id, dbError: credError?.message })
+      audit('credentials.missing', { idempotencyKey, correlationId, userId: user.id, dbError: credError?.message })
       throw new Error('AWS credentials not configured. Please add your AWS credentials in settings.')
     }
 
@@ -374,7 +374,7 @@ serve(async (req) => {
     const iamCheck = await checkIamPermissions(awsConfig, String(body.operation ?? 'deploy'))
     if (!iamCheck.ok) {
       audit('iam.preflight_failed', {
-        idempotencyKey,
+        idempotencyKey, correlationId,
         userId: user.id,
         operation: body.operation,
         error: iamCheck.error,
@@ -395,7 +395,7 @@ serve(async (req) => {
       )
     }
     audit('iam.preflight_ok', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       userId: user.id,
       operation: body.operation,
       account: iamCheck.identity?.account,
@@ -475,7 +475,7 @@ serve(async (req) => {
     })
 
     audit('request.completed', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       userId: user.id,
       operation: body.operation,
       durationMs: Date.now() - requestStartedAt,
@@ -508,7 +508,7 @@ serve(async (req) => {
     const status = isAuthError ? 401 : isTimeout ? 504 : 500
     const durationMs = Date.now() - requestStartedAt
     audit('request.failed', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       errorType: formatted.name,
       error: formatted.message,
       status,
