@@ -267,7 +267,7 @@ async function createCluster(config: any, clusterName: string, nodeCount: number
     roleArn = getRoleResponse.Role!.Arn!
     console.log(`Using existing role: ${roleArn}`)
   } catch (error) {
-    if (error.name === 'NoSuchEntity') {
+    if ((error as { name?: string })?.name === 'NoSuchEntity') {
       console.log(`Creating new IAM role: ${roleName}`)
       
       const assumeRolePolicy = {
