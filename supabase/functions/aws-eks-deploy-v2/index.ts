@@ -1,13 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { z } from "npm:zod@^3"
+import { z } from "https://esm.sh/zod@3.23.8"
 
-// AWS SDK v3 for Deno - using npm: specifiers (more stable than esm.sh)
-// Use a real, current major range. Avoid fabricated pins like @3.700.0 — they break deploys.
-import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "npm:@aws-sdk/client-eks@^3"
-import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws-sdk/client-ec2@^3"
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3"
-import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3"
+// AWS SDK v3 via esm.sh — pinned to a known-published version to avoid
+// floating-range resolution issues and to keep the deno-check graph stable.
+import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "https://esm.sh/@aws-sdk/client-eks@3.650.0?target=deno"
+import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "https://esm.sh/@aws-sdk/client-ec2@3.650.0?target=deno"
+import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "https://esm.sh/@aws-sdk/client-iam@3.650.0?target=deno"
+import { STSClient, GetCallerIdentityCommand } from "https://esm.sh/@aws-sdk/client-sts@3.650.0?target=deno"
 
 // ────────────────────────────────────────────────────────────────────────────
 // CORS — explicit allow-list of methods + headers, mirrored on every response
@@ -451,7 +451,7 @@ serve(async (req) => {
           await supabaseClient.from('deployment_logs').insert({
             user_id: user.id,
             provider: 'aws',
-            environment: body.config?.environment || 'production',
+            environment: (body.config as Record<string, unknown> | undefined)?.environment ?? 'production',
             cluster_name: body.clusterName,
             status: result.success ? 'success' : 'failed',
             steps: result.steps || [],
