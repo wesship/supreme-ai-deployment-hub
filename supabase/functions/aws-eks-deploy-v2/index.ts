@@ -396,7 +396,7 @@ serve(async (req) => {
         'IamPreflightError',
         { requiredActions: iamCheck.required },
         String(body.operation ?? 'unknown'),
-        body.dryRun === true,
+        Boolean(body.dryRun),
       )
     }
     audit('iam.preflight_ok', {
