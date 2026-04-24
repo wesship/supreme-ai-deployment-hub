@@ -5,15 +5,23 @@
 // Requires VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in the project .env
 // (loaded automatically below) and a valid OPENAI_API_KEY secret on the server.
 
-import "https://deno.land/std@0.224.0/dotenv/load.ts";
+import { load } from "https://deno.land/std@0.224.0/dotenv/mod.ts";
 import {
   assert,
   assertEquals,
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-const SUPABASE_URL = Deno.env.get("VITE_SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY")!;
+// Load .env without comparing against .env.example (which has many unrelated keys).
+const env = await load({ envPath: "./.env", examplePath: null, export: true });
+
+const SUPABASE_URL = Deno.env.get("VITE_SUPABASE_URL") ?? env["VITE_SUPABASE_URL"];
+const SUPABASE_ANON_KEY =
+  Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY") ?? env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY in .env");
+}
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/openai-proxy`;
 
 function authHeaders(extra: Record<string, string> = {}) {
