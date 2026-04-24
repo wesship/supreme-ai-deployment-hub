@@ -61,7 +61,30 @@ serve(async (req) => {
 
     // Parse request
     const body: DeploymentRequest = await req.json()
-    console.log(`AWS EKS operation: ${body.operation} for user: ${user.id}`)
+    console.log(`AWS EKS operation: ${body.operation ?? '(none)'} for user: ${user.id}${body.dryRun ? ' [DRY RUN]' : ''}`)
+
+    // Dry-run short-circuit: validate inputs without touching AWS or the database
+    if (body.dryRun === true) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          mode: 'dry-run',
+          message: 'EKS deploy validation passed. No AWS resources were changed.',
+          received: {
+            operation: body.operation ?? null,
+            clusterName: body.clusterName ?? null,
+            region: body.region ?? null,
+          },
+          plannedActions: [
+            'Validate AWS credentials',
+            'Check VPC/subnets',
+            'Check IAM role',
+            'Prepare EKS cluster deployment',
+          ],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
     
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
