@@ -314,26 +314,20 @@ serve(async (req) => {
         throw new Error(`Unknown operation: ${body.operation}`)
     }
 
-    return new Response(
-      JSON.stringify({ success: true, data: result }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return jsonResponse({ ok: true, success: true, data: result })
   } catch (error: unknown) {
     const formatted = formatError(error)
     console.error('AWS EKS Deploy Error:', formatted)
-    // Auth/permission errors should be 401/403, everything else is a server-side fault
+    // Auth/permission errors should be 401, everything else is a server-side fault
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      {
         ok: false,
         success: false,
         error: formatted.message,
         errorType: formatted.name,
-      }),
-      {
-        status: isAuthError ? 401 : 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       },
+      isAuthError ? 401 : 500,
     )
   }
 })
