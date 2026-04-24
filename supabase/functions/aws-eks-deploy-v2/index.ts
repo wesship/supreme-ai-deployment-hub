@@ -397,94 +397,115 @@ serve(async (req) => {
     })
 
     // Execute operation (wrapped in a hard timeout so we always reply in time)
-    let result: unknown
-    await withTimeout(async (_signal) => {
-      result = await runOperation(body, awsConfig, supabaseClient, user.id)
+    let result: any
+    await withTimeout(async () => {
+      switch (body.operation) {
+        case 'validate':
+          result = await validateCredentials(awsConfig)
+          break
+
+        case 'list-clusters':
+          result = await listClusters(awsConfig)
+          break
+
+        case 'describe-cluster':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await describeCluster(awsConfig, body.clusterName)
+          break
+
+        case 'create-cluster':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await createCluster(
+            awsConfig,
+            body.clusterName,
+            body.nodeCount || 2,
+            body.instanceType || 't3.medium',
+          )
+
+          await supabaseClient.from('deployment_logs').insert({
+            user_id: user.id,
+            provider: 'aws',
+            environment: 'production',
+            cluster_name: body.clusterName,
+            status: 'creating',
+            steps: [{ step: 'create-cluster', status: 'initiated', timestamp: new Date().toISOString() }],
+          })
+          break
+
+        case 'delete-cluster':
+        case 'delete':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await deleteCluster(awsConfig, body.clusterName)
+          break
+
+        case 'get-status':
+        case 'status':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await getClusterStatus(awsConfig, body.clusterName)
+          break
+
+        case 'deploy':
+          if (!body.clusterName) throw new Error('Cluster name required')
+          result = await deployToCluster(awsConfig, body.clusterName, body.config)
+
+          await supabaseClient.from('deployment_logs').insert({
+            user_id: user.id,
+            provider: 'aws',
+            environment: body.config?.environment || 'production',
+            cluster_name: body.clusterName,
+            status: result.success ? 'success' : 'failed',
+            steps: result.steps || [],
+            error_message: result.error,
+          })
+          break
+
+        default:
+          throw new Error(`Unknown operation: ${body.operation}`)
+      }
     })
 
-    // Execute operation
-    let result
+    audit('request.completed', {
+      idempotencyKey,
+      userId: user.id,
+      operation: body.operation,
+      durationMs: Date.now() - requestStartedAt,
+    })
 
-    switch (body.operation) {
-      case 'validate':
-        result = await validateCredentials(awsConfig)
-        break
-      
-      case 'list-clusters':
-        result = await listClusters(awsConfig)
-        break
-      
-      case 'describe-cluster':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await describeCluster(awsConfig, body.clusterName)
-        break
-      
-      case 'create-cluster':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await createCluster(
-          awsConfig,
-          body.clusterName,
-          body.nodeCount || 2,
-          body.instanceType || 't3.medium'
-        )
-        
-        // Log creation
-        await supabaseClient.from('deployment_logs').insert({
-          user_id: user.id,
-          provider: 'aws',
-          environment: 'production',
-          cluster_name: body.clusterName,
-          status: 'creating',
-          steps: [{ step: 'create-cluster', status: 'initiated', timestamp: new Date().toISOString() }],
-        })
-        break
-      
-      case 'delete-cluster':
-      case 'delete':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await deleteCluster(awsConfig, body.clusterName)
-        break
-      
-      case 'get-status':
-      case 'status':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await getClusterStatus(awsConfig, body.clusterName)
-        break
-      
-      case 'deploy':
-        if (!body.clusterName) throw new Error('Cluster name required')
-        result = await deployToCluster(awsConfig, body.clusterName, body.config)
-        
-        // Log deployment
-        await supabaseClient.from('deployment_logs').insert({
-          user_id: user.id,
-          provider: 'aws',
-          environment: body.config?.environment || 'production',
-          cluster_name: body.clusterName,
-          status: result.success ? 'success' : 'failed',
-          steps: result.steps || [],
-          error_message: result.error,
-        })
-        break
-      
-      default:
-        throw new Error(`Unknown operation: ${body.operation}`)
-    }
-
-    return jsonResponse({ ok: true, success: true, data: result })
+    return jsonResponse(
+      {
+        ok: true,
+        success: true,
+        data: result,
+        idempotencyKey,
+        durationMs: Date.now() - requestStartedAt,
+      },
+      200,
+      { 'Idempotency-Key': idempotencyKey },
+    )
   } catch (error: unknown) {
     const formatted = formatError(error)
     console.error('AWS EKS Deploy Error:', formatted)
-    // Auth/permission errors should be 401, everything else is a server-side fault
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
+    const isTimeout = formatted.name === 'TimeoutError'
+    const status = isAuthError ? 401 : isTimeout ? 504 : 500
+    audit('request.failed', {
+      idempotencyKey,
+      errorType: formatted.name,
+      error: formatted.message,
+      status,
+      durationMs: Date.now() - requestStartedAt,
+    })
     return jsonResponse(
       {
         ok: false,
         success: false,
         error: formatted.message,
         errorType: formatted.name,
+        idempotencyKey,
+        durationMs: Date.now() - requestStartedAt,
       },
-      isAuthError ? 401 : 500,
+      status,
+      { 'Idempotency-Key': idempotencyKey },
     )
   }
 })
