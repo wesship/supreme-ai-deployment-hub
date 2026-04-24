@@ -29,7 +29,7 @@ function authHeaders() {
   };
 }
 
-Deno.test("aws-eks-deploy-v2: dry-run returns ok without touching AWS", async () => {
+Deno.test("aws-eks-deploy-v2: dry-run returns 200 ok without auth or AWS", async () => {
   const res = await fetch(FUNCTION_URL, {
     method: "POST",
     headers: authHeaders(),
@@ -42,24 +42,32 @@ Deno.test("aws-eks-deploy-v2: dry-run returns ok without touching AWS", async ()
   });
 
   const text = await res.text();
-
-  // The function requires an authenticated user (auth.getUser). With only the
-  // anon key (no end-user JWT) the handler throws "Unauthorized - Please log in"
-  // BEFORE reaching the dry-run short-circuit, returning 401. Either outcome
-  // proves the function is reachable, parses the body, and routes correctly.
-  if (res.status === 401) {
-    const body = JSON.parse(text);
-    assertEquals(body.ok, false);
-    assert(/Unauthorized/i.test(body.error), `Expected auth error, got: ${body.error}`);
-    return;
-  }
-
   assertEquals(res.status, 200, `Expected 200, got ${res.status}. Body: ${text.slice(0, 300)}`);
+
   const body = JSON.parse(text);
   assertEquals(body.ok, true);
+  assertEquals(body.success, true);
   assertEquals(body.mode, "dry-run");
   assertExists(body.plannedActions);
   assert(Array.isArray(body.plannedActions) && body.plannedActions.length > 0);
+  assertEquals(body.received?.clusterName, "devonn-eks-prod");
+  assertEquals(body.received?.region, "us-east-1");
+});
+
+Deno.test("aws-eks-deploy-v2: real deploy (no dryRun) requires auth", async () => {
+  const res = await fetch(FUNCTION_URL, {
+    method: "POST",
+    headers: authHeaders(), // anon key only — no end-user JWT
+    body: JSON.stringify({
+      operation: "validate",
+      region: "us-east-1",
+    }),
+  });
+  const text = await res.text();
+  assertEquals(res.status, 401, `Expected 401 for unauthenticated real call, got ${res.status}. Body: ${text.slice(0, 300)}`);
+  const body = JSON.parse(text);
+  assertEquals(body.ok, false);
+  assert(/Unauthorized/i.test(body.error), `Expected auth error, got: ${body.error}`);
 });
 
 Deno.test("aws-eks-deploy-v2: responds to CORS preflight", async () => {

@@ -39,7 +39,50 @@ serve(async (req) => {
   }
 
   try {
-    // Initialize Supabase client
+    // Parse request FIRST so dry-run can short-circuit before any auth or DB work.
+    let body: DeploymentRequest
+    try {
+      body = await req.json()
+    } catch (parseErr) {
+      const formatted = formatError(parseErr)
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          success: false,
+          error: `Invalid JSON body: ${formatted.message}`,
+          errorType: 'BadRequestError',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Dry-run short-circuit: validates routing/payload without touching AWS,
+    // the database, or requiring a user JWT. Real deploys still require auth below.
+    if (body.dryRun === true) {
+      console.log(`AWS EKS dry-run: operation=${body.operation ?? '(none)'} cluster=${body.clusterName ?? '(none)'}`)
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          success: true,
+          mode: 'dry-run',
+          message: 'Dry run passed. No AWS resources changed.',
+          received: {
+            operation: body.operation ?? null,
+            clusterName: body.clusterName ?? null,
+            region: body.region ?? null,
+          },
+          plannedActions: [
+            'Validate request payload',
+            'Validate region and cluster name',
+            'Prepare EKS deployment plan',
+            'Skip AWS mutations',
+          ],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Initialize Supabase client (auth required for real operations)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -59,32 +102,7 @@ serve(async (req) => {
       throw new Error('Unauthorized - Please log in')
     }
 
-    // Parse request
-    const body: DeploymentRequest = await req.json()
-    console.log(`AWS EKS operation: ${body.operation ?? '(none)'} for user: ${user.id}${body.dryRun ? ' [DRY RUN]' : ''}`)
-
-    // Dry-run short-circuit: validate inputs without touching AWS or the database
-    if (body.dryRun === true) {
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          mode: 'dry-run',
-          message: 'EKS deploy validation passed. No AWS resources were changed.',
-          received: {
-            operation: body.operation ?? null,
-            clusterName: body.clusterName ?? null,
-            region: body.region ?? null,
-          },
-          plannedActions: [
-            'Validate AWS credentials',
-            'Check VPC/subnets',
-            'Check IAM role',
-            'Prepare EKS cluster deployment',
-          ],
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
+    console.log(`AWS EKS operation: ${body.operation ?? '(none)'} for user: ${user.id}`)
     
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
