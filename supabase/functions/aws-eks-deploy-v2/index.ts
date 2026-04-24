@@ -16,7 +16,10 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'authorization, x-client-info, apikey, content-type, idempotency-key, x-correlation-id, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+  // Expose response headers so browser callers can read them off `Response.headers`
+  'Access-Control-Expose-Headers':
+    'idempotency-key, x-idempotency-expires-at, x-correlation-id',
   'Access-Control-Max-Age': '86400',
   Vary: 'Origin',
 }
@@ -186,16 +189,28 @@ serve(async (req) => {
   // in headers + body so callers can dedupe retries on their side.
   const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
   const idempotencyExpiresAt = buildIdempotencyExpiry(Date.now(), IDEMPOTENCY_TTL_MS)
+  // Correlation ID: trace a single client/user action across services + logs.
+  // Honor caller-supplied X-Correlation-ID, else mint a UUID. Always echoed
+  // back in the response header AND body, and included in every audit log.
+  const correlationId = req.headers.get('X-Correlation-ID') ?? crypto.randomUUID()
   const requestStartedAt = Date.now()
+
+  // Standard headers + body fragment attached to EVERY response below.
+  const traceHeaders = {
+    'Idempotency-Key': idempotencyKey,
+    'X-Idempotency-Expires-At': idempotencyExpiresAt,
+    'X-Correlation-ID': correlationId,
+  }
+  
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
+    return new Response(null, { status: 204, headers: { ...corsHeaders, ...traceHeaders } })
   }
 
   // Reject non-POST early so the rest of the handler can assume POST
   if (req.method !== 'POST') {
-    audit('request.rejected', { idempotencyKey, reason: 'method-not-allowed', method: req.method })
+    audit('request.rejected', { idempotencyKey, correlationId, reason: 'method-not-allowed', method: req.method })
     return jsonResponse(
       {
         ok: false,
@@ -204,9 +219,10 @@ serve(async (req) => {
         errorType: 'MethodNotAllowedError',
         idempotencyKey,
         idempotencyExpiresAt,
+        correlationId,
       },
       405,
-      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+      traceHeaders,
     )
   }
 
@@ -217,7 +233,7 @@ serve(async (req) => {
       rawBody = await req.json()
     } catch (parseErr) {
       const formatted = formatError(parseErr)
-      audit('request.bad_json', { idempotencyKey, error: formatted.message })
+      audit('request.bad_json', { idempotencyKey, correlationId, error: formatted.message })
       return jsonResponse(
         {
           ok: false,
@@ -226,16 +242,17 @@ serve(async (req) => {
           errorType: 'BadRequestError',
           idempotencyKey,
           idempotencyExpiresAt,
+          correlationId,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
 
     // Schema validation — runs for BOTH dry-run and real requests
     const validation = validateRequest(rawBody)
     if (!validation.ok) {
-      audit('request.validation_failed', { idempotencyKey, errors: validation.errors })
+      audit('request.validation_failed', { idempotencyKey, correlationId, errors: validation.errors })
       return jsonResponse(
         {
           ok: false,
@@ -245,15 +262,16 @@ serve(async (req) => {
           details: validation.errors,
           idempotencyKey,
           idempotencyExpiresAt,
+          correlationId,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
     const body = validation.data
 
     audit('request.received', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       operation: body.operation,
       dryRun: body.dryRun ?? false,
       region: body.region,
@@ -268,7 +286,7 @@ serve(async (req) => {
       const durationMs = Date.now() - requestStartedAt
       const metrics = buildMetrics(body, planned, durationMs)
       audit('request.dry_run', {
-        idempotencyKey,
+        idempotencyKey, correlationId,
         operation: body.operation,
         plannedActionsCount: metrics.plannedActionsCount,
         mutatingCount: metrics.mutatingCount,
@@ -295,10 +313,11 @@ serve(async (req) => {
           metrics,
           idempotencyKey,
           idempotencyExpiresAt,
+          correlationId,
           durationMs,
         },
         200,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
 
@@ -319,11 +338,11 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser()
 
     if (!user) {
-      audit('auth.unauthorized', { idempotencyKey })
+      audit('auth.unauthorized', { idempotencyKey, correlationId })
       throw new Error('Unauthorized - Please log in')
     }
 
-    audit('auth.ok', { idempotencyKey, userId: user.id, operation: body.operation })
+    audit('auth.ok', { idempotencyKey, correlationId, userId: user.id, operation: body.operation })
 
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
@@ -334,7 +353,7 @@ serve(async (req) => {
       .single()
 
     if (credError || !credentials) {
-      audit('credentials.missing', { idempotencyKey, userId: user.id, dbError: credError?.message })
+      audit('credentials.missing', { idempotencyKey, correlationId, userId: user.id, dbError: credError?.message })
       throw new Error('AWS credentials not configured. Please add your AWS credentials in settings.')
     }
 
@@ -355,7 +374,7 @@ serve(async (req) => {
     const iamCheck = await checkIamPermissions(awsConfig, String(body.operation ?? 'deploy'))
     if (!iamCheck.ok) {
       audit('iam.preflight_failed', {
-        idempotencyKey,
+        idempotencyKey, correlationId,
         userId: user.id,
         operation: body.operation,
         error: iamCheck.error,
@@ -369,13 +388,14 @@ serve(async (req) => {
           requiredActions: iamCheck.required,
           idempotencyKey,
           idempotencyExpiresAt,
+          correlationId,
         },
         403,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
     audit('iam.preflight_ok', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       userId: user.id,
       operation: body.operation,
       account: iamCheck.identity?.account,
@@ -455,10 +475,11 @@ serve(async (req) => {
     })
 
     audit('request.completed', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       userId: user.id,
       operation: body.operation,
       durationMs: Date.now() - requestStartedAt,
+      metrics: buildMetrics(body, getPlannedActions(body), Date.now() - requestStartedAt),
     })
 
     {
@@ -473,10 +494,11 @@ serve(async (req) => {
           metrics,
           idempotencyKey,
           idempotencyExpiresAt,
+          correlationId,
           durationMs,
         },
         200,
-        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+        traceHeaders,
       )
     }
   } catch (error: unknown) {
@@ -487,7 +509,7 @@ serve(async (req) => {
     const status = isAuthError ? 401 : isTimeout ? 504 : 500
     const durationMs = Date.now() - requestStartedAt
     audit('request.failed', {
-      idempotencyKey,
+      idempotencyKey, correlationId,
       errorType: formatted.name,
       error: formatted.message,
       status,
@@ -512,10 +534,11 @@ serve(async (req) => {
         metrics: errorMetrics,
         idempotencyKey,
         idempotencyExpiresAt,
+        correlationId,
         durationMs,
       },
       status,
-      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
+      traceHeaders,
     )
   }
 })
