@@ -1,13 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { z } from "npm:zod@^3"
+import { z } from "https://esm.sh/zod@3.23.8"
 
-// AWS SDK v3 for Deno - using npm: specifiers (more stable than esm.sh)
-// Use a real, current major range. Avoid fabricated pins like @3.700.0 — they break deploys.
-import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "npm:@aws-sdk/client-eks@^3"
-import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws-sdk/client-ec2@^3"
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3"
-import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3"
+// AWS SDK v3 via esm.sh — works without a node_modules directory at deno-check time.
+// Use floating major (^3) so we don't pin to a non-existent version.
+import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "https://esm.sh/@aws-sdk/client-eks@^3"
+import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "https://esm.sh/@aws-sdk/client-ec2@^3"
+import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "https://esm.sh/@aws-sdk/client-iam@^3"
+import { STSClient, GetCallerIdentityCommand } from "https://esm.sh/@aws-sdk/client-sts@^3"
 
 // ────────────────────────────────────────────────────────────────────────────
 // CORS — explicit allow-list of methods + headers, mirrored on every response
