@@ -261,18 +261,10 @@ serve(async (req) => {
     } catch (parseErr) {
       const formatted = formatError(parseErr)
       audit('request.bad_json', { idempotencyKey, correlationId, error: formatted.message })
-      return jsonResponse(
-        {
-          ok: false,
-          success: false,
-          error: `Invalid JSON body: ${formatted.message}`,
-          errorType: 'BadRequestError',
-          idempotencyKey,
-          idempotencyExpiresAt,
-          correlationId,
-        },
+      return errorResponse(
         400,
-        traceHeaders,
+        `Invalid JSON body: ${formatted.message}`,
+        'BadRequestError',
       )
     }
 
@@ -280,19 +272,11 @@ serve(async (req) => {
     const validation = validateRequest(rawBody)
     if (!validation.ok) {
       audit('request.validation_failed', { idempotencyKey, correlationId, errors: validation.errors })
-      return jsonResponse(
-        {
-          ok: false,
-          success: false,
-          error: 'Invalid request payload',
-          errorType: 'ValidationError',
-          details: validation.errors,
-          idempotencyKey,
-          idempotencyExpiresAt,
-          correlationId,
-        },
+      return errorResponse(
         400,
-        traceHeaders,
+        'Invalid request payload',
+        'ValidationError',
+        { details: validation.errors },
       )
     }
     const body = validation.data
