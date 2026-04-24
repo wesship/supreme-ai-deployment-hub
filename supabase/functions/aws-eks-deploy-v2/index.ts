@@ -283,11 +283,13 @@ serve(async (req) => {
         break
       
       case 'delete-cluster':
+      case 'delete':
         if (!body.clusterName) throw new Error('Cluster name required')
         result = await deleteCluster(awsConfig, body.clusterName)
         break
       
       case 'get-status':
+      case 'status':
         if (!body.clusterName) throw new Error('Cluster name required')
         result = await getClusterStatus(awsConfig, body.clusterName)
         break
