@@ -255,7 +255,7 @@ async function createCluster(config: any, clusterName: string, nodeCount: number
     throw new Error('At least 2 subnets required for EKS. Please configure subnets in AWS Console.')
   }
   
-  const subnetIds = subnetsResponse.Subnets.slice(0, 2).map(s => s.SubnetId!)
+  const subnetIds = subnetsResponse.Subnets.slice(0, 2).map((s: { SubnetId?: string }) => s.SubnetId!)
   console.log(`Using subnets: ${subnetIds.join(', ')}`)
   
   // Step 3: Create/Get IAM role
