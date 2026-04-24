@@ -259,10 +259,14 @@ function formatError(error: unknown) {
   }
 }
 
+// Idempotency key TTL — 24h. Callers can dedupe retries within this window.
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000
+
 serve(async (req) => {
   // Idempotency key: honor caller-supplied key, otherwise mint one. Returned
   // in headers + body so callers can dedupe retries on their side.
   const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
+  const idempotencyExpiresAt = new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString()
   const requestStartedAt = Date.now()
 
   // Handle CORS preflight
