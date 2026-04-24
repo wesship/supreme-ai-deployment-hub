@@ -452,9 +452,10 @@ serve(async (req) => {
           errorType: 'IamPreflightError',
           requiredActions: iamCheck.required,
           idempotencyKey,
+          idempotencyExpiresAt,
         },
         403,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
     audit('iam.preflight_ok', {
