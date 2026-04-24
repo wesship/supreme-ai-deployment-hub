@@ -201,7 +201,46 @@ serve(async (req) => {
     'X-Idempotency-Expires-At': idempotencyExpiresAt,
     'X-Correlation-ID': correlationId,
   }
-  
+
+  // Default metrics shape used on early error paths (before we have a parsed
+  // body). Locked by the error-contract tests so dashboards can rely on it.
+  const emptyMetrics = (operation: string, dryRun: boolean, durationMs: number): Metrics => ({
+    durationMs,
+    operation,
+    dryRun,
+    plannedActionsCount: 0,
+    mutatingCount: 0,
+    highRiskCount: 0,
+  })
+
+  // Standard error envelope — used by EVERY failure path so callers can rely
+  // on a single shape (see error-contract tests in index.test.ts).
+  const errorResponse = (
+    status: number,
+    error: string,
+    errorType: string,
+    extra: Record<string, unknown> = {},
+    operation = 'unknown',
+    dryRun = false,
+  ) => {
+    const durationMs = Date.now() - requestStartedAt
+    return jsonResponse(
+      {
+        ok: false,
+        success: false,
+        error,
+        errorType,
+        ...extra,
+        idempotencyKey,
+        idempotencyExpiresAt,
+        correlationId,
+        metrics: emptyMetrics(operation, dryRun, durationMs),
+        durationMs,
+      },
+      status,
+      traceHeaders,
+    )
+  }
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -211,19 +250,7 @@ serve(async (req) => {
   // Reject non-POST early so the rest of the handler can assume POST
   if (req.method !== 'POST') {
     audit('request.rejected', { idempotencyKey, correlationId, reason: 'method-not-allowed', method: req.method })
-    return jsonResponse(
-      {
-        ok: false,
-        success: false,
-        error: 'Method not allowed',
-        errorType: 'MethodNotAllowedError',
-        idempotencyKey,
-        idempotencyExpiresAt,
-        correlationId,
-      },
-      405,
-      traceHeaders,
-    )
+    return errorResponse(405, 'Method not allowed', 'MethodNotAllowedError', { method: req.method })
   }
 
   try {
