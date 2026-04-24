@@ -427,7 +427,7 @@ def main():
         # Set failure outputs
         set_output("has_proposal", "false")
         set_output("error", str(e))
-        set_summary(f"## Autonomous Fix Engine Results\n\n❌ Failed: {e}\n        
+        set_summary(f"## Autonomous Fix Engine Results\n\n❌ Failed: {e}\n")
         return 1
 
 
