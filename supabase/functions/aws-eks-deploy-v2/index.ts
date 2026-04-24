@@ -385,12 +385,13 @@ serve(async (req) => {
       const planned = getPlannedActions(body)
       const diff = getDryRunDiff(body, planned)
       const durationMs = Date.now() - requestStartedAt
+      const metrics = buildMetrics(body, planned, durationMs)
       audit('request.dry_run', {
         idempotencyKey,
         operation: body.operation,
-        plannedActionsCount: planned.length,
-        mutatingCount: diff.summary.mutating,
-        highRiskCount: diff.summary.highRisk,
+        plannedActionsCount: metrics.plannedActionsCount,
+        mutatingCount: metrics.mutatingCount,
+        highRiskCount: metrics.highRiskCount,
       })
       return jsonResponse(
         {
@@ -405,16 +406,12 @@ serve(async (req) => {
             nodeCount: body.nodeCount ?? null,
             instanceType: body.instanceType ?? null,
           },
+          // Rich object array for dashboards
           plannedActions: planned,
+          // Backward-compat: simple string list for older clients/tests
+          plannedActionTitles: planned.map((a) => a.title),
           diff,
-          metrics: {
-            durationMs,
-            operation: body.operation ?? 'deploy',
-            dryRun: true,
-            plannedActionsCount: planned.length,
-            mutatingCount: diff.summary.mutating,
-            highRiskCount: diff.summary.highRisk,
-          },
+          metrics,
           idempotencyKey,
           idempotencyExpiresAt,
           durationMs,
