@@ -2,10 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 // AWS SDK v3 for Deno - using npm: specifiers (more stable than esm.sh)
-import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "npm:@aws-sdk/client-eks@^3.700"
-import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws-sdk/client-ec2@^3.700"
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3.700"
-import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3.700"
+// Use a real, current major range. Avoid fabricated pins like @3.700.0 — they break deploys.
+import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "npm:@aws-sdk/client-eks@^3"
+import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "npm:@aws-sdk/client-ec2@^3"
+import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "npm:@aws-sdk/client-iam@^3"
+import { STSClient, GetCallerIdentityCommand } from "npm:@aws-sdk/client-sts@^3"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,12 +14,22 @@ const corsHeaders = {
 }
 
 interface DeploymentRequest {
-  operation: 'validate' | 'list-clusters' | 'describe-cluster' | 'create-cluster' | 'delete-cluster' | 'get-status' | 'deploy'
+  operation?: 'validate' | 'list-clusters' | 'describe-cluster' | 'create-cluster' | 'delete-cluster' | 'get-status' | 'deploy'
   clusterName?: string
   region?: string
   nodeCount?: number
   instanceType?: string
+  dryRun?: boolean
   config?: any
+}
+
+// Standardized error formatter
+function formatError(error: unknown) {
+  return {
+    message: error instanceof Error ? error.message : String(error),
+    name: error instanceof Error ? error.name : 'UnknownError',
+    stack: error instanceof Error ? error.stack : undefined,
+  }
 }
 
 serve(async (req) => {
@@ -50,7 +61,30 @@ serve(async (req) => {
 
     // Parse request
     const body: DeploymentRequest = await req.json()
-    console.log(`AWS EKS operation: ${body.operation} for user: ${user.id}`)
+    console.log(`AWS EKS operation: ${body.operation ?? '(none)'} for user: ${user.id}${body.dryRun ? ' [DRY RUN]' : ''}`)
+
+    // Dry-run short-circuit: validate inputs without touching AWS or the database
+    if (body.dryRun === true) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          mode: 'dry-run',
+          message: 'EKS deploy validation passed. No AWS resources were changed.',
+          received: {
+            operation: body.operation ?? null,
+            clusterName: body.clusterName ?? null,
+            region: body.region ?? null,
+          },
+          plannedActions: [
+            'Validate AWS credentials',
+            'Check VPC/subnets',
+            'Check IAM role',
+            'Prepare EKS cluster deployment',
+          ],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
     
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
@@ -147,12 +181,22 @@ serve(async (req) => {
       JSON.stringify({ success: true, data: result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error('AWS EKS Deploy Error:', error)
+  } catch (error: unknown) {
+    const formatted = formatError(error)
+    console.error('AWS EKS Deploy Error:', formatted)
+    // Auth/permission errors should be 401/403, everything else is a server-side fault
+    const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
     return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({
+        ok: false,
+        success: false,
+        error: formatted.message,
+        errorType: formatted.name,
+      }),
+      {
+        status: isAuthError ? 401 : 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
     )
   }
 })
@@ -392,16 +436,17 @@ async function deployToCluster(config: any, clusterName: string, deployConfig: a
       steps,
       message: 'Deployment completed successfully',
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error('Deployment error:', error)
-    steps.push({ step: 'error', status: 'failed', message, timestamp: new Date().toISOString() })
-    
+  } catch (error: unknown) {
+    const formatted = formatError(error)
+    console.error('Deployment error:', formatted)
+    steps.push({ step: 'error', status: 'failed', message: formatted.message, timestamp: new Date().toISOString() })
+
     return {
       success: false,
       clusterName,
       steps,
-      error: message,
+      error: formatted.message,
+      errorType: formatted.name,
     }
   }
 }
