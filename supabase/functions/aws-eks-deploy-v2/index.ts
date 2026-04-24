@@ -284,9 +284,10 @@ serve(async (req) => {
         error: 'Method not allowed',
         errorType: 'MethodNotAllowedError',
         idempotencyKey,
+        idempotencyExpiresAt,
       },
       405,
-      { 'Idempotency-Key': idempotencyKey },
+      { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
     )
   }
 
