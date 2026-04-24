@@ -306,9 +306,10 @@ serve(async (req) => {
           error: `Invalid JSON body: ${formatted.message}`,
           errorType: 'BadRequestError',
           idempotencyKey,
+          idempotencyExpiresAt,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
 
