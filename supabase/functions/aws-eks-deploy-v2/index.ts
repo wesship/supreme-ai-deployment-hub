@@ -141,7 +141,7 @@ const RequestSchema = z.object({
   config: z.unknown().optional(),
 })
 
-type DeploymentRequest = z.infer<typeof RequestSchema>
+export type DeploymentRequest = z.infer<typeof RequestSchema>
 
 function validateRequest(body: unknown):
   | { ok: true; data: DeploymentRequest }
@@ -155,7 +155,7 @@ function validateRequest(body: unknown):
 // ────────────────────────────────────────────────────────────────────────────
 // Planned actions — operation-aware preview for dry-runs / dashboards
 // ────────────────────────────────────────────────────────────────────────────
-type PlannedAction = {
+export type PlannedAction = {
   id: string
   title: string
   type: 'read' | 'write' | 'delete'
@@ -179,7 +179,7 @@ const A = {
   }),
 }
 
-function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
+export function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
   const op = String(body.operation ?? 'deploy')
 
   if (op === 'validate') {
@@ -236,7 +236,7 @@ function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
 // Dry-run diff report — current state is "unknown" without AWS calls; the
 // desired state echoes the validated payload, and `changes` lists the
 // operations the real run would perform.
-function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
+export function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
   return {
     current: 'unknown' as const,
     desired: body,
@@ -254,7 +254,7 @@ function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
 // Always returned in the same shape on success AND dry-run responses so
 // downstream consumers can index a single contract.
 // ────────────────────────────────────────────────────────────────────────────
-type Metrics = {
+export type Metrics = {
   durationMs: number
   operation: string
   dryRun: boolean
@@ -263,7 +263,7 @@ type Metrics = {
   highRiskCount: number
 }
 
-function buildMetrics(
+export function buildMetrics(
   body: Pick<DeploymentRequest, 'operation' | 'dryRun'>,
   planned: PlannedAction[],
   durationMs: number,
@@ -280,7 +280,7 @@ function buildMetrics(
 
 // Idempotency expiry — TTL clamped to a sane range so a misconfigured TTL
 // can never produce expiries in the past or absurdly far in the future.
-function buildIdempotencyExpiry(now: number, ttlMs: number): string {
+export function buildIdempotencyExpiry(now: number, ttlMs: number): string {
   const MIN_TTL = 60 * 1000           // 1 min floor
   const MAX_TTL = 7 * 24 * 60 * 60 * 1000  // 7 day ceiling
   const safeTtl = Math.min(MAX_TTL, Math.max(MIN_TTL, Math.floor(ttlMs)))
