@@ -215,7 +215,7 @@ async function getClusterStatus(config: any, clusterName: string) {
       healthy: response.cluster?.status === 'ACTIVE',
     }
   } catch (error) {
-    if (error.name === 'ResourceNotFoundException') {
+    if ((error as { name?: string })?.name === 'ResourceNotFoundException') {
       return {
         exists: false,
         status: 'NOT_FOUND',
