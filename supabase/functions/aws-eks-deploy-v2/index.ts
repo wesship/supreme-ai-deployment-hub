@@ -325,9 +325,10 @@ serve(async (req) => {
           errorType: 'ValidationError',
           details: validation.errors,
           idempotencyKey,
+          idempotencyExpiresAt,
         },
         400,
-        { 'Idempotency-Key': idempotencyKey },
+        { 'Idempotency-Key': idempotencyKey, 'X-Idempotency-Expires-At': idempotencyExpiresAt },
       )
     }
     const body = validation.data
