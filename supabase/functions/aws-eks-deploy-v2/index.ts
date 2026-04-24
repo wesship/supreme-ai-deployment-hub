@@ -4,10 +4,10 @@ import { z } from "https://esm.sh/zod@3.23.8"
 
 // AWS SDK v3 via esm.sh — pinned to a known-published version to avoid
 // floating-range resolution issues and to keep the deno-check graph stable.
-import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "https://esm.sh/@aws-sdk/client-eks@3.650.0"
-import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "https://esm.sh/@aws-sdk/client-ec2@3.650.0"
-import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "https://esm.sh/@aws-sdk/client-iam@3.650.0"
-import { STSClient, GetCallerIdentityCommand } from "https://esm.sh/@aws-sdk/client-sts@3.650.0"
+import { EKSClient, CreateClusterCommand, DescribeClusterCommand, ListClustersCommand, DeleteClusterCommand } from "https://esm.sh/@aws-sdk/client-eks@3.650.0?target=deno"
+import { EC2Client, DescribeVpcsCommand, DescribeSubnetsCommand } from "https://esm.sh/@aws-sdk/client-ec2@3.650.0?target=deno"
+import { IAMClient, CreateRoleCommand, AttachRolePolicyCommand, GetRoleCommand } from "https://esm.sh/@aws-sdk/client-iam@3.650.0?target=deno"
+import { STSClient, GetCallerIdentityCommand } from "https://esm.sh/@aws-sdk/client-sts@3.650.0?target=deno"
 
 // ────────────────────────────────────────────────────────────────────────────
 // CORS — explicit allow-list of methods + headers, mirrored on every response
