@@ -141,7 +141,7 @@ const RequestSchema = z.object({
   config: z.unknown().optional(),
 })
 
-type DeploymentRequest = z.infer<typeof RequestSchema>
+export type DeploymentRequest = z.infer<typeof RequestSchema>
 
 function validateRequest(body: unknown):
   | { ok: true; data: DeploymentRequest }
@@ -153,101 +153,20 @@ function validateRequest(body: unknown):
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Planned actions — operation-aware preview for dry-runs / dashboards
+// Pure helpers (planned actions, diff report, metrics, idempotency expiry)
+// live in ./helpers.ts so they can be unit-tested without booting serve().
 // ────────────────────────────────────────────────────────────────────────────
-type PlannedAction = {
-  id: string
-  title: string
-  type: 'read' | 'write' | 'delete'
-  risk: 'low' | 'medium' | 'high'
-  requiresAuth: boolean
-  mutatesAws: boolean
-}
-
-const A = {
-  read: (id: string, title: string, risk: PlannedAction['risk'] = 'low'): PlannedAction => ({
-    id, title, type: 'read', risk, requiresAuth: true, mutatesAws: false,
-  }),
-  write: (id: string, title: string, risk: PlannedAction['risk'] = 'medium'): PlannedAction => ({
-    id, title, type: 'write', risk, requiresAuth: true, mutatesAws: true,
-  }),
-  del: (id: string, title: string, risk: PlannedAction['risk'] = 'high'): PlannedAction => ({
-    id, title, type: 'delete', risk, requiresAuth: true, mutatesAws: true,
-  }),
-  noop: (id: string, title: string): PlannedAction => ({
-    id, title, type: 'read', risk: 'low', requiresAuth: false, mutatesAws: false,
-  }),
-}
-
-function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
-  const op = String(body.operation ?? 'deploy')
-
-  if (op === 'validate') {
-    return [
-      A.read('validate.creds', 'Validate AWS credentials'),
-      A.read('validate.region', 'Validate region'),
-      A.read('validate.cluster', 'Check EKS cluster visibility'),
-      A.noop('validate.noop', 'No AWS resources changed'),
-    ]
-  }
-
-  if (op === 'deploy' || op === 'create-cluster') {
-    return [
-      A.read('deploy.creds', 'Validate AWS credentials'),
-      A.read('deploy.vpc', 'Discover VPC and subnets'),
-      A.read('deploy.iam', 'Validate IAM role'),
-      A.write('deploy.cluster', 'Create or update EKS cluster', 'high'),
-      A.write('deploy.nodegroup', 'Configure node group', 'medium'),
-      A.read('deploy.status', 'Return deployment status'),
-    ]
-  }
-
-  if (op === 'status' || op === 'get-status' || op === 'describe-cluster') {
-    return [
-      A.read('status.creds', 'Validate AWS credentials'),
-      A.read('status.describe', 'Describe EKS cluster'),
-      A.noop('status.noop', 'No AWS resources changed'),
-    ]
-  }
-
-  if (op === 'list-clusters') {
-    return [
-      A.read('list.creds', 'Validate AWS credentials'),
-      A.read('list.clusters', 'List EKS clusters in region'),
-      A.noop('list.noop', 'No AWS resources changed'),
-    ]
-  }
-
-  if (op === 'delete' || op === 'delete-cluster') {
-    return [
-      A.read('delete.creds', 'Validate AWS credentials'),
-      A.read('delete.locate', 'Locate target EKS cluster'),
-      A.del('delete.cluster', 'Initiate cluster deletion', 'high'),
-      A.read('delete.status', 'Return deletion status'),
-    ]
-  }
-
-  return [
-    A.noop('unknown.validate', 'Validate request'),
-    A.noop('unknown.noop', 'No AWS resources changed'),
-  ]
-}
-
-// Dry-run diff report — current state is "unknown" without AWS calls; the
-// desired state echoes the validated payload, and `changes` lists the
-// operations the real run would perform.
-function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
-  return {
-    current: 'unknown' as const,
-    desired: body,
-    changes: planned,
-    summary: {
-      total: planned.length,
-      mutating: planned.filter((a) => a.mutatesAws).length,
-      highRisk: planned.filter((a) => a.risk === 'high').length,
-    },
-  }
-}
+import {
+  type PlannedAction,
+  type Metrics,
+  getPlannedActions,
+  getDryRunDiff,
+  buildMetrics,
+  buildIdempotencyExpiry,
+  IDEMPOTENCY_DEFAULT_TTL_MS,
+} from './helpers.ts'
+export type { PlannedAction, Metrics }
+export { getPlannedActions, getDryRunDiff, buildMetrics, buildIdempotencyExpiry }
 
 
 // Standardized error formatter
@@ -259,14 +178,14 @@ function formatError(error: unknown) {
   }
 }
 
-// Idempotency key TTL — 24h. Callers can dedupe retries within this window.
-const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000
+// Idempotency key TTL — defaults to 24h (clamped 1m–7d in helpers.ts).
+const IDEMPOTENCY_TTL_MS = IDEMPOTENCY_DEFAULT_TTL_MS
 
 serve(async (req) => {
   // Idempotency key: honor caller-supplied key, otherwise mint one. Returned
   // in headers + body so callers can dedupe retries on their side.
   const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
-  const idempotencyExpiresAt = new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString()
+  const idempotencyExpiresAt = buildIdempotencyExpiry(Date.now(), IDEMPOTENCY_TTL_MS)
   const requestStartedAt = Date.now()
 
   // Handle CORS preflight
@@ -347,12 +266,13 @@ serve(async (req) => {
       const planned = getPlannedActions(body)
       const diff = getDryRunDiff(body, planned)
       const durationMs = Date.now() - requestStartedAt
+      const metrics = buildMetrics(body, planned, durationMs)
       audit('request.dry_run', {
         idempotencyKey,
         operation: body.operation,
-        plannedActionsCount: planned.length,
-        mutatingCount: diff.summary.mutating,
-        highRiskCount: diff.summary.highRisk,
+        plannedActionsCount: metrics.plannedActionsCount,
+        mutatingCount: metrics.mutatingCount,
+        highRiskCount: metrics.highRiskCount,
       })
       return jsonResponse(
         {
@@ -367,16 +287,12 @@ serve(async (req) => {
             nodeCount: body.nodeCount ?? null,
             instanceType: body.instanceType ?? null,
           },
+          // Rich object array for dashboards
           plannedActions: planned,
+          // Backward-compat: simple string list for older clients/tests
+          plannedActionTitles: planned.map((a) => a.title),
           diff,
-          metrics: {
-            durationMs,
-            operation: body.operation ?? 'deploy',
-            dryRun: true,
-            plannedActionsCount: planned.length,
-            mutatingCount: diff.summary.mutating,
-            highRiskCount: diff.summary.highRisk,
-          },
+          metrics,
           idempotencyKey,
           idempotencyExpiresAt,
           durationMs,
@@ -547,16 +463,14 @@ serve(async (req) => {
 
     {
       const durationMs = Date.now() - requestStartedAt
+      const planned = getPlannedActions(body)
+      const metrics = buildMetrics(body, planned, durationMs)
       return jsonResponse(
         {
           ok: true,
           success: true,
           data: result,
-          metrics: {
-            durationMs,
-            operation: body.operation ?? 'deploy',
-            dryRun: false,
-          },
+          metrics,
           idempotencyKey,
           idempotencyExpiresAt,
           durationMs,
@@ -579,13 +493,23 @@ serve(async (req) => {
       status,
       durationMs,
     })
+    // Best-effort metrics on the error path — operation/dryRun unknown if we
+    // failed before parsing succeeded, so default conservatively.
+    const errorMetrics: Metrics = {
+      durationMs,
+      operation: 'unknown',
+      dryRun: false,
+      plannedActionsCount: 0,
+      mutatingCount: 0,
+      highRiskCount: 0,
+    }
     return jsonResponse(
       {
         ok: false,
         success: false,
         error: formatted.message,
         errorType: formatted.name,
-        metrics: { durationMs, operation: 'unknown', dryRun: false },
+        metrics: errorMetrics,
         idempotencyKey,
         idempotencyExpiresAt,
         durationMs,
