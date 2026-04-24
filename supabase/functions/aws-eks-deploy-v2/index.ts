@@ -304,7 +304,7 @@ serve(async (req) => {
   // Idempotency key: honor caller-supplied key, otherwise mint one. Returned
   // in headers + body so callers can dedupe retries on their side.
   const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
-  const idempotencyExpiresAt = new Date(Date.now() + IDEMPOTENCY_TTL_MS).toISOString()
+  const idempotencyExpiresAt = buildIdempotencyExpiry(Date.now(), IDEMPOTENCY_TTL_MS)
   const requestStartedAt = Date.now()
 
   // Handle CORS preflight
