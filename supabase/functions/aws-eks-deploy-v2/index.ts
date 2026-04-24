@@ -201,7 +201,46 @@ serve(async (req) => {
     'X-Idempotency-Expires-At': idempotencyExpiresAt,
     'X-Correlation-ID': correlationId,
   }
-  
+
+  // Default metrics shape used on early error paths (before we have a parsed
+  // body). Locked by the error-contract tests so dashboards can rely on it.
+  const emptyMetrics = (operation: string, dryRun: boolean, durationMs: number): Metrics => ({
+    durationMs,
+    operation,
+    dryRun,
+    plannedActionsCount: 0,
+    mutatingCount: 0,
+    highRiskCount: 0,
+  })
+
+  // Standard error envelope — used by EVERY failure path so callers can rely
+  // on a single shape (see error-contract tests in index.test.ts).
+  const errorResponse = (
+    status: number,
+    error: string,
+    errorType: string,
+    extra: Record<string, unknown> = {},
+    operation = 'unknown',
+    dryRun = false,
+  ) => {
+    const durationMs = Date.now() - requestStartedAt
+    return jsonResponse(
+      {
+        ok: false,
+        success: false,
+        error,
+        errorType,
+        ...extra,
+        idempotencyKey,
+        idempotencyExpiresAt,
+        correlationId,
+        metrics: emptyMetrics(operation, dryRun, durationMs),
+        durationMs,
+      },
+      status,
+      traceHeaders,
+    )
+  }
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -211,19 +250,7 @@ serve(async (req) => {
   // Reject non-POST early so the rest of the handler can assume POST
   if (req.method !== 'POST') {
     audit('request.rejected', { idempotencyKey, correlationId, reason: 'method-not-allowed', method: req.method })
-    return jsonResponse(
-      {
-        ok: false,
-        success: false,
-        error: 'Method not allowed',
-        errorType: 'MethodNotAllowedError',
-        idempotencyKey,
-        idempotencyExpiresAt,
-        correlationId,
-      },
-      405,
-      traceHeaders,
-    )
+    return errorResponse(405, 'Method not allowed', 'MethodNotAllowedError', { method: req.method })
   }
 
   try {
@@ -234,18 +261,10 @@ serve(async (req) => {
     } catch (parseErr) {
       const formatted = formatError(parseErr)
       audit('request.bad_json', { idempotencyKey, correlationId, error: formatted.message })
-      return jsonResponse(
-        {
-          ok: false,
-          success: false,
-          error: `Invalid JSON body: ${formatted.message}`,
-          errorType: 'BadRequestError',
-          idempotencyKey,
-          idempotencyExpiresAt,
-          correlationId,
-        },
+      return errorResponse(
         400,
-        traceHeaders,
+        `Invalid JSON body: ${formatted.message}`,
+        'BadRequestError',
       )
     }
 
@@ -253,19 +272,11 @@ serve(async (req) => {
     const validation = validateRequest(rawBody)
     if (!validation.ok) {
       audit('request.validation_failed', { idempotencyKey, correlationId, errors: validation.errors })
-      return jsonResponse(
-        {
-          ok: false,
-          success: false,
-          error: 'Invalid request payload',
-          errorType: 'ValidationError',
-          details: validation.errors,
-          idempotencyKey,
-          idempotencyExpiresAt,
-          correlationId,
-        },
+      return errorResponse(
         400,
-        traceHeaders,
+        'Invalid request payload',
+        'ValidationError',
+        { details: validation.errors },
       )
     }
     const body = validation.data
@@ -379,19 +390,13 @@ serve(async (req) => {
         operation: body.operation,
         error: iamCheck.error,
       })
-      return jsonResponse(
-        {
-          ok: false,
-          success: false,
-          error: `AWS credentials/IAM check failed: ${iamCheck.error}`,
-          errorType: 'IamPreflightError',
-          requiredActions: iamCheck.required,
-          idempotencyKey,
-          idempotencyExpiresAt,
-          correlationId,
-        },
+      return errorResponse(
         403,
-        traceHeaders,
+        `AWS credentials/IAM check failed: ${iamCheck.error}`,
+        'IamPreflightError',
+        { requiredActions: iamCheck.required },
+        String(body.operation ?? 'unknown'),
+        Boolean(body.dryRun),
       )
     }
     audit('iam.preflight_ok', {
@@ -507,30 +512,31 @@ serve(async (req) => {
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
     const isTimeout = formatted.name === 'TimeoutError'
     const status = isAuthError ? 401 : isTimeout ? 504 : 500
+    // Normalize errorType so error-contract tests (and dashboards) can
+    // bucket failures by a stable name even when the underlying Error is
+    // a plain `Error`.
+    const errorType = isAuthError
+      ? 'UnauthorizedError'
+      : isTimeout
+        ? 'TimeoutError'
+        : (formatted.name && formatted.name !== 'Error' ? formatted.name : 'InternalServerError')
     const durationMs = Date.now() - requestStartedAt
     audit('request.failed', {
       idempotencyKey, correlationId,
-      errorType: formatted.name,
+      errorType,
       error: formatted.message,
       status,
       durationMs,
     })
     // Best-effort metrics on the error path — operation/dryRun unknown if we
     // failed before parsing succeeded, so default conservatively.
-    const errorMetrics: Metrics = {
-      durationMs,
-      operation: 'unknown',
-      dryRun: false,
-      plannedActionsCount: 0,
-      mutatingCount: 0,
-      highRiskCount: 0,
-    }
+    const errorMetrics: Metrics = emptyMetrics('unknown', false, durationMs)
     return jsonResponse(
       {
         ok: false,
         success: false,
         error: formatted.message,
-        errorType: formatted.name,
+        errorType,
         metrics: errorMetrics,
         idempotencyKey,
         idempotencyExpiresAt,
