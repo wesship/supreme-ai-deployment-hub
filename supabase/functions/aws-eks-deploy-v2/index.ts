@@ -479,6 +479,7 @@ serve(async (req) => {
       userId: user.id,
       operation: body.operation,
       durationMs: Date.now() - requestStartedAt,
+      metrics: buildMetrics(body, getPlannedActions(body), Date.now() - requestStartedAt),
     })
 
     {
