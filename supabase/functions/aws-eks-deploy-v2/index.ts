@@ -451,7 +451,7 @@ serve(async (req) => {
           await supabaseClient.from('deployment_logs').insert({
             user_id: user.id,
             provider: 'aws',
-            environment: body.config?.environment || 'production',
+            environment: (body.config as Record<string, unknown> | undefined)?.environment ?? 'production',
             cluster_name: body.clusterName,
             status: result.success ? 'success' : 'failed',
             steps: result.steps || [],
