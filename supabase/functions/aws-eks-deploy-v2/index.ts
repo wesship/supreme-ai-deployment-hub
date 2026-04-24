@@ -21,11 +21,87 @@ const corsHeaders = {
   Vary: 'Origin',
 }
 
-function jsonResponse(payload: unknown, status = 200) {
+function jsonResponse(payload: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json', ...extraHeaders },
   })
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Structured audit log — single-line JSON, easy to ingest in any log pipeline
+// ────────────────────────────────────────────────────────────────────────────
+function audit(event: string, data: Record<string, unknown> = {}) {
+  console.log(JSON.stringify({
+    event,
+    service: 'aws-eks-deploy-v2',
+    timestamp: new Date().toISOString(),
+    ...data,
+  }))
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Timeout wrapper — abort upstream AWS work after N ms so the function can
+// always return *some* response within the edge runtime's request budget.
+// ────────────────────────────────────────────────────────────────────────────
+const DEFAULT_AWS_TIMEOUT_MS = 25_000
+
+async function withTimeout<T>(
+  fn: (signal: AbortSignal) => Promise<T>,
+  ms: number = DEFAULT_AWS_TIMEOUT_MS,
+): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+  try {
+    return await fn(controller.signal)
+  } catch (err) {
+    if (controller.signal.aborted) {
+      const e = new Error(`Operation timed out after ${ms}ms`)
+      e.name = 'TimeoutError'
+      throw e
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// IAM permission preflight — verifies the AWS caller is live + records which
+// IAM actions the requested operation will need. Deep simulation
+// (iam:SimulatePrincipalPolicy) is intentionally NOT enabled by default
+// because it requires extra IAM permissions on the caller; see TODO below.
+// ────────────────────────────────────────────────────────────────────────────
+const REQUIRED_ACTIONS_BY_OP: Record<string, string[]> = {
+  'deploy':           ['eks:CreateCluster', 'eks:DescribeCluster', 'ec2:DescribeVpcs', 'ec2:DescribeSubnets', 'iam:GetRole', 'iam:CreateRole', 'iam:AttachRolePolicy'],
+  'create-cluster':   ['eks:CreateCluster', 'ec2:DescribeVpcs', 'ec2:DescribeSubnets', 'iam:GetRole', 'iam:CreateRole', 'iam:AttachRolePolicy'],
+  'delete-cluster':   ['eks:DeleteCluster'],
+  'delete':           ['eks:DeleteCluster'],
+  'describe-cluster': ['eks:DescribeCluster'],
+  'get-status':       ['eks:DescribeCluster'],
+  'status':           ['eks:DescribeCluster'],
+  'list-clusters':    ['eks:ListClusters'],
+  'validate':         ['sts:GetCallerIdentity'],
+}
+
+async function checkIamPermissions(
+  awsConfig: { region: string; credentials: { accessKeyId: string; secretAccessKey: string } },
+  operation: string,
+): Promise<{ ok: boolean; identity?: { account?: string; arn?: string }; required: string[]; error?: string }> {
+  const required = REQUIRED_ACTIONS_BY_OP[operation] ?? []
+  try {
+    const id = await withTimeout(async () => {
+      const sts = new STSClient(awsConfig)
+      return await sts.send(new GetCallerIdentityCommand({}))
+    }, 10_000)
+    // TODO(deep-check): if Deno.env.get('IAM_DEEP_CHECK') === 'true', call
+    // iam:SimulatePrincipalPolicy with PolicySourceArn=id.Arn and
+    // ActionNames=required to verify each action. Off by default because
+    // it requires iam:SimulatePrincipalPolicy on the caller principal.
+    return { ok: true, identity: { account: id.Account, arn: id.Arn }, required }
+  } catch (err) {
+    return { ok: false, required, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
