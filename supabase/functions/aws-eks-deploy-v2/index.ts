@@ -512,30 +512,31 @@ serve(async (req) => {
     const isAuthError = /Unauthorized|not configured/i.test(formatted.message)
     const isTimeout = formatted.name === 'TimeoutError'
     const status = isAuthError ? 401 : isTimeout ? 504 : 500
+    // Normalize errorType so error-contract tests (and dashboards) can
+    // bucket failures by a stable name even when the underlying Error is
+    // a plain `Error`.
+    const errorType = isAuthError
+      ? 'UnauthorizedError'
+      : isTimeout
+        ? 'TimeoutError'
+        : (formatted.name && formatted.name !== 'Error' ? formatted.name : 'InternalServerError')
     const durationMs = Date.now() - requestStartedAt
     audit('request.failed', {
       idempotencyKey, correlationId,
-      errorType: formatted.name,
+      errorType,
       error: formatted.message,
       status,
       durationMs,
     })
     // Best-effort metrics on the error path — operation/dryRun unknown if we
     // failed before parsing succeeded, so default conservatively.
-    const errorMetrics: Metrics = {
-      durationMs,
-      operation: 'unknown',
-      dryRun: false,
-      plannedActionsCount: 0,
-      mutatingCount: 0,
-      highRiskCount: 0,
-    }
+    const errorMetrics: Metrics = emptyMetrics('unknown', false, durationMs)
     return jsonResponse(
       {
         ok: false,
         success: false,
         error: formatted.message,
-        errorType: formatted.name,
+        errorType,
         metrics: errorMetrics,
         idempotencyKey,
         idempotencyExpiresAt,
