@@ -208,6 +208,11 @@ function formatError(error: unknown) {
 }
 
 serve(async (req) => {
+  // Idempotency key: honor caller-supplied key, otherwise mint one. Returned
+  // in headers + body so callers can dedupe retries on their side.
+  const idempotencyKey = req.headers.get('Idempotency-Key') ?? crypto.randomUUID()
+  const requestStartedAt = Date.now()
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders })
@@ -215,9 +220,17 @@ serve(async (req) => {
 
   // Reject non-POST early so the rest of the handler can assume POST
   if (req.method !== 'POST') {
+    audit('request.rejected', { idempotencyKey, reason: 'method-not-allowed', method: req.method })
     return jsonResponse(
-      { ok: false, success: false, error: 'Method not allowed', errorType: 'MethodNotAllowedError' },
+      {
+        ok: false,
+        success: false,
+        error: 'Method not allowed',
+        errorType: 'MethodNotAllowedError',
+        idempotencyKey,
+      },
       405,
+      { 'Idempotency-Key': idempotencyKey },
     )
   }
 
@@ -228,20 +241,24 @@ serve(async (req) => {
       rawBody = await req.json()
     } catch (parseErr) {
       const formatted = formatError(parseErr)
+      audit('request.bad_json', { idempotencyKey, error: formatted.message })
       return jsonResponse(
         {
           ok: false,
           success: false,
           error: `Invalid JSON body: ${formatted.message}`,
           errorType: 'BadRequestError',
+          idempotencyKey,
         },
         400,
+        { 'Idempotency-Key': idempotencyKey },
       )
     }
 
     // Schema validation — runs for BOTH dry-run and real requests
     const validation = validateRequest(rawBody)
     if (!validation.ok) {
+      audit('request.validation_failed', { idempotencyKey, errors: validation.errors })
       return jsonResponse(
         {
           ok: false,
@@ -249,30 +266,55 @@ serve(async (req) => {
           error: 'Invalid request payload',
           errorType: 'ValidationError',
           details: validation.errors,
+          idempotencyKey,
         },
         400,
+        { 'Idempotency-Key': idempotencyKey },
       )
     }
     const body = validation.data
 
+    audit('request.received', {
+      idempotencyKey,
+      operation: body.operation,
+      dryRun: body.dryRun ?? false,
+      region: body.region,
+      clusterName: body.clusterName,
+    })
+
     // Dry-run short-circuit: validates routing/payload without touching AWS,
     // the database, or requiring a user JWT. Real deploys still require auth below.
     if (body.dryRun === true) {
-      console.log(`AWS EKS dry-run: operation=${body.operation ?? '(none)'} cluster=${body.clusterName ?? '(none)'}`)
-      return jsonResponse({
-        ok: true,
-        success: true,
-        mode: 'dry-run',
-        message: 'Dry run passed. No AWS resources changed.',
-        received: {
-          operation: body.operation ?? null,
-          clusterName: body.clusterName ?? null,
-          region: body.region ?? null,
-          nodeCount: body.nodeCount ?? null,
-          instanceType: body.instanceType ?? null,
+      const planned = getPlannedActions(body)
+      audit('request.dry_run', { idempotencyKey, operation: body.operation, plannedActionsCount: planned.length })
+      return jsonResponse(
+        {
+          ok: true,
+          success: true,
+          mode: 'dry-run',
+          message: 'Dry run passed. No AWS resources changed.',
+          received: {
+            operation: body.operation ?? null,
+            clusterName: body.clusterName ?? null,
+            region: body.region ?? null,
+            nodeCount: body.nodeCount ?? null,
+            instanceType: body.instanceType ?? null,
+          },
+          plannedActions: planned,
+          // Diff report — current state is "unknown" without AWS calls; the
+          // desired state echoes the validated payload, and `changes` lists
+          // the operations the real run would perform.
+          diff: {
+            current: 'unknown',
+            desired: body,
+            changes: planned,
+          },
+          idempotencyKey,
+          durationMs: Date.now() - requestStartedAt,
         },
-        plannedActions: getPlannedActions(body),
-      })
+        200,
+        { 'Idempotency-Key': idempotencyKey },
+      )
     }
 
     // Initialize Supabase client (auth required for real operations)
@@ -292,11 +334,12 @@ serve(async (req) => {
     } = await supabaseClient.auth.getUser()
 
     if (!user) {
+      audit('auth.unauthorized', { idempotencyKey })
       throw new Error('Unauthorized - Please log in')
     }
 
-    console.log(`AWS EKS operation: ${body.operation ?? '(none)'} for user: ${user.id}`)
-    
+    audit('auth.ok', { idempotencyKey, userId: user.id, operation: body.operation })
+
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
       .from('cloud_credentials')
@@ -306,6 +349,7 @@ serve(async (req) => {
       .single()
 
     if (credError || !credentials) {
+      audit('credentials.missing', { idempotencyKey, userId: user.id, dbError: credError?.message })
       throw new Error('AWS credentials not configured. Please add your AWS credentials in settings.')
     }
 
@@ -320,6 +364,43 @@ serve(async (req) => {
         secretAccessKey: credentialsJson.secretAccessKey,
       },
     }
+
+    // IAM permission preflight — verifies the AWS principal is live and
+    // records which actions the requested operation requires.
+    const iamCheck = await checkIamPermissions(awsConfig, String(body.operation ?? 'deploy'))
+    if (!iamCheck.ok) {
+      audit('iam.preflight_failed', {
+        idempotencyKey,
+        userId: user.id,
+        operation: body.operation,
+        error: iamCheck.error,
+      })
+      return jsonResponse(
+        {
+          ok: false,
+          success: false,
+          error: `AWS credentials/IAM check failed: ${iamCheck.error}`,
+          errorType: 'IamPreflightError',
+          requiredActions: iamCheck.required,
+          idempotencyKey,
+        },
+        403,
+        { 'Idempotency-Key': idempotencyKey },
+      )
+    }
+    audit('iam.preflight_ok', {
+      idempotencyKey,
+      userId: user.id,
+      operation: body.operation,
+      account: iamCheck.identity?.account,
+      requiredActionsCount: iamCheck.required.length,
+    })
+
+    // Execute operation (wrapped in a hard timeout so we always reply in time)
+    let result: unknown
+    await withTimeout(async (_signal) => {
+      result = await runOperation(body, awsConfig, supabaseClient, user.id)
+    })
 
     // Execute operation
     let result
