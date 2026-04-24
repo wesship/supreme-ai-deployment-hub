@@ -178,8 +178,8 @@ function formatError(error: unknown) {
   }
 }
 
-// Idempotency key TTL — 24h. Callers can dedupe retries within this window.
-const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000
+// Idempotency key TTL — defaults to 24h (clamped 1m–7d in helpers.ts).
+const IDEMPOTENCY_TTL_MS = IDEMPOTENCY_DEFAULT_TTL_MS
 
 serve(async (req) => {
   // Idempotency key: honor caller-supplied key, otherwise mint one. Returned
