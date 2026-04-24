@@ -201,7 +201,7 @@ serve(async (req) => {
     'X-Idempotency-Expires-At': idempotencyExpiresAt,
     'X-Correlation-ID': correlationId,
   }
-  const traceBody = { idempotencyKey, idempotencyExpiresAt, correlationId }
+  
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
