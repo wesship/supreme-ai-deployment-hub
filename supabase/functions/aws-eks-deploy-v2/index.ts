@@ -155,48 +155,100 @@ function validateRequest(body: unknown):
 // ────────────────────────────────────────────────────────────────────────────
 // Planned actions — operation-aware preview for dry-runs / dashboards
 // ────────────────────────────────────────────────────────────────────────────
-function getPlannedActions(body: DeploymentRequest): string[] {
+type PlannedAction = {
+  id: string
+  title: string
+  type: 'read' | 'write' | 'delete'
+  risk: 'low' | 'medium' | 'high'
+  requiresAuth: boolean
+  mutatesAws: boolean
+}
+
+const A = {
+  read: (id: string, title: string, risk: PlannedAction['risk'] = 'low'): PlannedAction => ({
+    id, title, type: 'read', risk, requiresAuth: true, mutatesAws: false,
+  }),
+  write: (id: string, title: string, risk: PlannedAction['risk'] = 'medium'): PlannedAction => ({
+    id, title, type: 'write', risk, requiresAuth: true, mutatesAws: true,
+  }),
+  del: (id: string, title: string, risk: PlannedAction['risk'] = 'high'): PlannedAction => ({
+    id, title, type: 'delete', risk, requiresAuth: true, mutatesAws: true,
+  }),
+  noop: (id: string, title: string): PlannedAction => ({
+    id, title, type: 'read', risk: 'low', requiresAuth: false, mutatesAws: false,
+  }),
+}
+
+function getPlannedActions(body: DeploymentRequest): PlannedAction[] {
   const op = String(body.operation ?? 'deploy')
 
   if (op === 'validate') {
     return [
-      'Validate AWS credentials',
-      'Validate region',
-      'Check EKS cluster visibility',
-      'No AWS resources changed',
+      A.read('validate.creds', 'Validate AWS credentials'),
+      A.read('validate.region', 'Validate region'),
+      A.read('validate.cluster', 'Check EKS cluster visibility'),
+      A.noop('validate.noop', 'No AWS resources changed'),
     ]
   }
 
   if (op === 'deploy' || op === 'create-cluster') {
     return [
-      'Validate AWS credentials',
-      'Discover VPC and subnets',
-      'Validate IAM role',
-      'Create or update EKS cluster',
-      'Configure node group',
-      'Return deployment status',
+      A.read('deploy.creds', 'Validate AWS credentials'),
+      A.read('deploy.vpc', 'Discover VPC and subnets'),
+      A.read('deploy.iam', 'Validate IAM role'),
+      A.write('deploy.cluster', 'Create or update EKS cluster', 'high'),
+      A.write('deploy.nodegroup', 'Configure node group', 'medium'),
+      A.read('deploy.status', 'Return deployment status'),
     ]
   }
 
   if (op === 'status' || op === 'get-status' || op === 'describe-cluster') {
-    return ['Validate AWS credentials', 'Describe EKS cluster', 'No AWS resources changed']
+    return [
+      A.read('status.creds', 'Validate AWS credentials'),
+      A.read('status.describe', 'Describe EKS cluster'),
+      A.noop('status.noop', 'No AWS resources changed'),
+    ]
   }
 
   if (op === 'list-clusters') {
-    return ['Validate AWS credentials', 'List EKS clusters in region', 'No AWS resources changed']
+    return [
+      A.read('list.creds', 'Validate AWS credentials'),
+      A.read('list.clusters', 'List EKS clusters in region'),
+      A.noop('list.noop', 'No AWS resources changed'),
+    ]
   }
 
   if (op === 'delete' || op === 'delete-cluster') {
     return [
-      'Validate AWS credentials',
-      'Locate target EKS cluster',
-      'Initiate cluster deletion',
-      'Return deletion status',
+      A.read('delete.creds', 'Validate AWS credentials'),
+      A.read('delete.locate', 'Locate target EKS cluster'),
+      A.del('delete.cluster', 'Initiate cluster deletion', 'high'),
+      A.read('delete.status', 'Return deletion status'),
     ]
   }
 
-  return ['Validate request', 'No AWS resources changed']
+  return [
+    A.noop('unknown.validate', 'Validate request'),
+    A.noop('unknown.noop', 'No AWS resources changed'),
+  ]
 }
+
+// Dry-run diff report — current state is "unknown" without AWS calls; the
+// desired state echoes the validated payload, and `changes` lists the
+// operations the real run would perform.
+function getDryRunDiff(body: DeploymentRequest, planned: PlannedAction[]) {
+  return {
+    current: 'unknown' as const,
+    desired: body,
+    changes: planned,
+    summary: {
+      total: planned.length,
+      mutating: planned.filter((a) => a.mutatesAws).length,
+      highRisk: planned.filter((a) => a.risk === 'high').length,
+    },
+  }
+}
+
 
 // Standardized error formatter
 function formatError(error: unknown) {
