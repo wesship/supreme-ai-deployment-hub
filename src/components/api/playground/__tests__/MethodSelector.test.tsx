@@ -2,12 +2,13 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import MethodSelector from '../MethodSelector';
+import { vi, Mock } from 'vitest';
 
 describe('MethodSelector component', () => {
-  const mockOnMethodChange = jest.fn();
+  const mockOnMethodChange = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render with the correct method selected', () => {
@@ -38,7 +39,8 @@ describe('MethodSelector component', () => {
     const select = screen.getByRole('combobox');
     fireEvent.click(select);
     
-    expect(screen.getByText('GET')).toBeInTheDocument();
+    // GET appears in both the trigger and the dropdown, so use getAllByText
+    expect(screen.getAllByText('GET').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('POST')).toBeInTheDocument();
     expect(screen.getByText('PUT')).toBeInTheDocument();
     expect(screen.getByText('DELETE')).toBeInTheDocument();

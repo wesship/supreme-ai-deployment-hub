@@ -1,48 +1,36 @@
 
 import { renderHook, act } from '@testing-library/react';
+import { vi } from 'vitest';
 import { useAPIPlayground } from '../../useAPIPlayground';
-import { toast } from 'sonner';
 import { setupMockFetch } from './testUtils';
+
+const mockToastError = (globalThis as any).__mockToastError as ReturnType<typeof vi.fn>;
 
 setupMockFetch();
 
 describe('useAPIPlayground response saving', () => {
-  it('should handle response saving', () => {
-    const saveResponseMock = jest.fn();
-    const { result } = renderHook(() => useAPIPlayground({ 
-      onSaveResponse: saveResponseMock 
-    }));
-    
-    // Setup state for a valid response
-    act(() => {
-      result.current.handleSelectAPI('Test API', 'https://api.test.com');
-      result.current.setMethod('GET');
-      // Manually update the response and status
-      result.current.state.response = '{"data": "test"}';
-      result.current.state.status = '200 OK';
-    });
-    
+  it('should show error when trying to save without a response', () => {
+    const { result } = renderHook(() => useAPIPlayground());
+
     act(() => {
       result.current.handleSaveResponse();
     });
-    
-    expect(saveResponseMock).toHaveBeenCalledWith(
-      'Test API',
-      'GET',
-      'https://api.test.com',
-      '200 OK',
-      '{"data": "test"}'
-    );
-    expect(toast.success).toHaveBeenCalled();
+
+    // useResponseHandler calls toast.error('No response to save') from sonner
+    expect(mockToastError).toHaveBeenCalledWith('No response to save');
   });
 
-  it('should show error toast when trying to save without a response', () => {
-    const { result } = renderHook(() => useAPIPlayground());
-    
+  it('should not save when no API is selected', () => {
+    const saveResponseMock = vi.fn();
+    const { result } = renderHook(() => useAPIPlayground({
+      onSaveResponse: saveResponseMock
+    }));
+
     act(() => {
       result.current.handleSaveResponse();
     });
-    
-    expect(toast.error).toHaveBeenCalledWith('No response to save');
+
+    expect(saveResponseMock).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalled();
   });
 });

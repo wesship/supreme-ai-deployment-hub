@@ -1,6 +1,30 @@
 import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
+// Global mock for toast modules to prevent circular dependency issues
+const mockToastFn = vi.fn();
+const mockToastSuccess = vi.fn();
+const mockToastError = vi.fn();
+
+vi.mock('@/hooks/use-toast', () => ({
+  toast: mockToastFn,
+  useToast: () => ({ toast: mockToastFn }),
+}));
+
+const sonnerToast = Object.assign(mockToastFn, {
+  success: mockToastSuccess,
+  error: mockToastError,
+});
+
+vi.mock('sonner', () => ({
+  toast: sonnerToast,
+}));
+
+// Export for tests to access
+(globalThis as any).__mockToast = mockToastFn;
+(globalThis as any).__mockToastSuccess = mockToastSuccess;
+(globalThis as any).__mockToastError = mockToastError;
+
 // Jest compatibility globals
 // Many existing tests use jest.fn() / jest.mock() — map them to vitest equivalents
 (globalThis as any).jest = {
@@ -11,6 +35,8 @@ import { vi } from "vitest";
   useFakeTimers: vi.useFakeTimers,
   useRealTimers: vi.useRealTimers,
   advanceTimersByTime: vi.advanceTimersByTime,
+  runOnlyPendingTimers: vi.runOnlyPendingTimers,
+  setSystemTime: vi.setSystemTime,
   clearAllMocks: vi.clearAllMocks,
   resetAllMocks: vi.resetAllMocks,
   restoreAllMocks: vi.restoreAllMocks,

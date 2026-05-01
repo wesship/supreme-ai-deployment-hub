@@ -3,22 +3,23 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import APISelector from '../APISelector';
 import { useAPI } from '@/contexts/APIContext';
+import { vi, Mock } from 'vitest';
 
 // Mock the API context
-jest.mock('@/contexts/APIContext', () => ({
-  useAPI: jest.fn(),
+vi.mock('@/contexts/APIContext', () => ({
+  useAPI: vi.fn(),
 }));
 
 describe('APISelector component', () => {
-  const mockOnSelectAPI = jest.fn();
+  const mockOnSelectAPI = vi.fn();
   const mockAPIConfigs = [
     { name: 'API 1', endpoint: 'https://api1.com', apiKey: 'key1', description: 'First API', isConnected: true },
     { name: 'API 2', endpoint: 'https://api2.com', apiKey: 'key2', description: 'Second API', isConnected: false },
   ];
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (useAPI as jest.Mock).mockReturnValue({ apiConfigs: mockAPIConfigs });
+    vi.clearAllMocks();
+    vi.mocked(useAPI).mockReturnValue({ apiConfigs: mockAPIConfigs });
   });
 
   it('should render with the correct API selected', () => {
@@ -43,7 +44,7 @@ describe('APISelector component', () => {
   });
 
   it('should show message when no APIs are configured', () => {
-    (useAPI as jest.Mock).mockReturnValue({ apiConfigs: [] });
+    vi.mocked(useAPI).mockReturnValue({ apiConfigs: [] });
     
     render(<APISelector selectedAPI="" onSelectAPI={mockOnSelectAPI} />);
     

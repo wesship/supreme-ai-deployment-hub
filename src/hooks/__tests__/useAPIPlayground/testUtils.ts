@@ -1,30 +1,27 @@
 
-import { toast } from 'sonner';
+import { vi } from 'vitest';
 
-// Mock dependencies
-jest.mock('sonner', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-  },
-}));
+// Use the global mock toast from setup.ts
+const mockToast = (globalThis as any).__mockToast as ReturnType<typeof vi.fn>;
+
+export { mockToast };
 
 // Setup mock fetch
 export const setupMockFetch = () => {
   // Mock fetch
-  global.fetch = jest.fn();
-  
+  global.fetch = vi.fn();
+
   beforeEach(() => {
-    jest.clearAllMocks();
-    (global.fetch as jest.Mock).mockClear();
-    (toast.success as jest.Mock).mockClear();
-    (toast.error as jest.Mock).mockClear();
+    vi.clearAllMocks();
+    vi.mocked(global.fetch).mockClear();
+    mockToast.mockClear();
   });
 };
 
 // Create a successful response mock
 export const createSuccessResponseMock = (data: any = { success: true }) => ({
-  json: jest.fn().mockReturnValue(Promise.resolve(data)),
+  json: vi.fn().mockResolvedValue(data),
+  text: vi.fn().mockResolvedValue(JSON.stringify(data)),
   ok: true,
   status: 200,
   statusText: 'OK'
@@ -32,7 +29,8 @@ export const createSuccessResponseMock = (data: any = { success: true }) => ({
 
 // Create an error response mock
 export const createErrorResponseMock = (status = 400, statusText = 'Bad Request', data = { error: 'Error' }) => ({
-  json: jest.fn().mockReturnValue(Promise.resolve(data)),
+  json: vi.fn().mockResolvedValue(data),
+  text: vi.fn().mockResolvedValue(JSON.stringify(data)),
   ok: false,
   status,
   statusText

@@ -2,10 +2,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import APIDashboard from '../APIDashboard';
+import { vi, Mock } from 'vitest';
 
 // Mock recharts components as they don't play well with Jest
-jest.mock('recharts', () => {
-  const OriginalModule = jest.requireActual('recharts');
+vi.mock('recharts', () => {
+  const OriginalModule = vi.importActual('recharts');
   
   return {
     ...OriginalModule,
@@ -69,9 +70,10 @@ describe('APIDashboard component', () => {
   it('displays status codes with appropriate classes', () => {
     render(<APIDashboard />);
     
-    // Check status elements and their classes
-    const successStatus = screen.getByText('200 OK');
-    expect(successStatus.className).toContain('status-success');
+    // Check status elements and their classes (multiple entries may have same status)
+    const successStatuses = screen.getAllByText('200 OK');
+    expect(successStatuses.length).toBeGreaterThan(0);
+    expect(successStatuses[0].className).toContain('status-success');
     
     const errorStatus = screen.getByText('401 Unauthorized');
     expect(errorStatus.className).toContain('status-error');

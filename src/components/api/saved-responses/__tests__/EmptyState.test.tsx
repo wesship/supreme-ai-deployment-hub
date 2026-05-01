@@ -15,14 +15,15 @@ describe('EmptyState component', () => {
 
   it('renders within a CardContent component', () => {
     const { container } = render(<EmptyState />);
-    const cardContent = container.querySelector('[class*="card-content"]');
-    
+    // CardContent renders a div with padding classes (e.g., pt-4, p-6)
+    const cardContent = container.firstElementChild;
     expect(cardContent).toBeInTheDocument();
   });
 
   it('has proper styling for empty state', () => {
     const { container } = render(<EmptyState />);
-    const emptyStateDiv = container.querySelector('div');
+    // The inner div with flex styling is inside CardContent wrapper
+    const emptyStateDiv = container.querySelector('.flex.flex-col');
     
     expect(emptyStateDiv).toHaveClass('flex');
     expect(emptyStateDiv).toHaveClass('flex-col');

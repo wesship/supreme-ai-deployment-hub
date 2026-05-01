@@ -2,25 +2,26 @@
 import { renderHook, act } from '@testing-library/react';
 import { useSavedResponses } from '../useSavedResponses';
 import { toast } from 'sonner';
+import { vi, Mock } from 'vitest';
 
 // Mock dependencies
-jest.mock('sonner', () => ({
+vi.mock('sonner', () => ({
   toast: {
-    success: jest.fn(),
-    error: jest.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 // Mock clipboard API
 Object.defineProperty(navigator, 'clipboard', {
   value: {
-    writeText: jest.fn(),
+    writeText: vi.fn(),
   },
 });
 
 describe('useSavedResponses hook', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should initialize with empty saved responses', () => {

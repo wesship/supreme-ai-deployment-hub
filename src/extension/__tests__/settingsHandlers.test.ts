@@ -2,11 +2,12 @@
 import { loadSettings, saveSettingsHandler, testConnection, resetSettings } from '../settingsHandlers';
 import { getSettings, saveSettings, defaultSettings } from '../storage';
 import * as settingsUI from '../settingsUI';
+import { vi, Mock } from 'vitest';
 
 // Mock dependencies
-jest.mock('../storage', () => ({
-  getSettings: jest.fn(),
-  saveSettings: jest.fn(),
+vi.mock('../storage', () => ({
+  getSettings: vi.fn(),
+  saveSettings: vi.fn(),
   defaultSettings: {
     apiUrl: 'https://api.default.com',
     userId: 'default-user',
@@ -17,15 +18,15 @@ jest.mock('../storage', () => ({
   }
 }));
 
-jest.mock('../settingsUI', () => ({
-  showConnectionStatus: jest.fn(),
-  showErrorMessage: jest.fn(),
-  showSuccessMessage: jest.fn(),
-  showWarningMessage: jest.fn()
+vi.mock('../settingsUI', () => ({
+  showConnectionStatus: vi.fn(),
+  showErrorMessage: vi.fn(),
+  showSuccessMessage: vi.fn(),
+  showWarningMessage: vi.fn()
 }));
 
 // Mock fetch for testing API connections
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('settingsHandlers', () => {
   let apiUrlInput: HTMLInputElement;
@@ -59,7 +60,7 @@ describe('settingsHandlers', () => {
     settingsForm = document.querySelector('.settings-form') as Element;
     
     // Reset mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('loadSettings', () => {
@@ -73,7 +74,7 @@ describe('settingsHandlers', () => {
         }
       };
       
-      (getSettings as jest.Mock).mockResolvedValue(mockSettings);
+      vi.mocked(getSettings).mockResolvedValue(mockSettings);
       
       await loadSettings(apiUrlInput, userIdInput, notifyTaskComplete, notifyErrors);
       
@@ -84,7 +85,7 @@ describe('settingsHandlers', () => {
     });
 
     it('should use default settings if none are saved', async () => {
-      (getSettings as jest.Mock).mockResolvedValue({});
+      vi.mocked(getSettings).mockResolvedValue({});
       
       await loadSettings(apiUrlInput, userIdInput, notifyTaskComplete, notifyErrors);
       
@@ -95,7 +96,7 @@ describe('settingsHandlers', () => {
     });
 
     it('should handle errors when loading settings', async () => {
-      (getSettings as jest.Mock).mockRejectedValue(new Error('Failed to load'));
+      vi.mocked(getSettings).mockRejectedValue(new Error('Failed to load'));
       
       await loadSettings(apiUrlInput, userIdInput, notifyTaskComplete, notifyErrors);
       
@@ -113,7 +114,7 @@ describe('settingsHandlers', () => {
       notifyTaskComplete.checked = true;
       notifyErrors.checked = false;
       
-      (saveSettings as jest.Mock).mockResolvedValue(undefined);
+      vi.mocked(saveSettings).mockResolvedValue(undefined);
       
       await saveSettingsHandler(apiUrlInput, userIdInput, notifyTaskComplete, notifyErrors, connectionStatus);
       
@@ -174,7 +175,7 @@ describe('settingsHandlers', () => {
   describe('testConnection', () => {
     beforeEach(() => {
       // Reset fetch mock
-      (global.fetch as jest.Mock).mockReset();
+      vi.mocked(global.fetch).mockReset();
     });
 
     it('should test a valid connection', async () => {
@@ -184,9 +185,9 @@ describe('settingsHandlers', () => {
       const mockResponse = {
         ok: true,
         status: 200,
-        json: jest.fn().mockResolvedValue({ status: 'healthy' })
+        json: vi.fn().mockResolvedValue({ status: 'healthy' })
       };
-      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse);
       
       await testConnection(apiUrlInput, connectionStatus, testConnectionButton);
       

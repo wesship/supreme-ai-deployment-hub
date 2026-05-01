@@ -2,6 +2,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useDeploymentLogFiltering } from '../useDeploymentLogFiltering';
 import { Log } from '@/types/logs';
+import { vi, Mock } from 'vitest';
 
 describe('useDeploymentLogFiltering', () => {
   const mockLogs: Log[] = [
@@ -56,9 +57,9 @@ describe('useDeploymentLogFiltering', () => {
   });
 
   it('filters logs by time range', () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const now = new Date('2024-04-24T10:01:00');
-    jest.setSystemTime(now);
+    vi.setSystemTime(now);
 
     const { result } = renderHook(() => useDeploymentLogFiltering(mockLogs));
     
@@ -68,6 +69,6 @@ describe('useDeploymentLogFiltering', () => {
     
     expect(result.current.filteredLogs.length).toBeLessThanOrEqual(mockLogs.length);
     
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 });

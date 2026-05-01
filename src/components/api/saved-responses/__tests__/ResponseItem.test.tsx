@@ -3,6 +3,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import ResponseItem from '../ResponseItem';
 import { SavedAPIResponse } from '@/types/api';
+import { vi, Mock } from 'vitest';
 
 describe('ResponseItem component', () => {
   const mockResponse: SavedAPIResponse = {
@@ -15,11 +16,11 @@ describe('ResponseItem component', () => {
     response: '{"data": "test"}'
   };
   
-  const mockOnCopy = jest.fn();
-  const mockOnDelete = jest.fn();
+  const mockOnCopy = vi.fn();
+  const mockOnDelete = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render response details correctly', () => {

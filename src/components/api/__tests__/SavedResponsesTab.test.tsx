@@ -3,6 +3,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import SavedResponsesTab from '../SavedResponsesTab';
 import { SavedAPIResponse } from '@/types/api';
+import { vi, Mock } from 'vitest';
 
 describe('SavedResponsesTab component', () => {
   const mockResponses: SavedAPIResponse[] = [
@@ -26,11 +27,11 @@ describe('SavedResponsesTab component', () => {
     }
   ];
   
-  const mockOnDeleteResponse = jest.fn();
-  const mockOnCopyToClipboard = jest.fn();
+  const mockOnDeleteResponse = vi.fn();
+  const mockOnCopyToClipboard = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should render empty state when no responses', () => {

@@ -1,5 +1,6 @@
 
 import { showConnectionStatus, showErrorMessage, showSuccessMessage, showWarningMessage } from '../settingsUI';
+import { vi, Mock } from 'vitest';
 
 // Mock DOM elements
 function setupDomElements() {
@@ -20,12 +21,12 @@ describe('settingsUI', () => {
   beforeEach(() => {
     // Reset DOM before each test
     document.body.innerHTML = '';
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
   });
 
   describe('showConnectionStatus', () => {
@@ -58,7 +59,7 @@ describe('settingsUI', () => {
       expect(errorElement?.textContent).toBe('Error message');
       
       // Fast-forward timeout
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       
       // Message should be removed
       expect(document.querySelector('.error-message')).toBeNull();
@@ -73,7 +74,7 @@ describe('settingsUI', () => {
       expect(successElement?.textContent).toBe('Success message');
       
       // Fast-forward timeout
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       
       // Message should be removed
       expect(document.querySelector('.success-message')).toBeNull();
@@ -88,7 +89,7 @@ describe('settingsUI', () => {
       expect(warningElement?.textContent).toBe('Warning message');
       
       // Fast-forward timeout
-      jest.advanceTimersByTime(4000);
+      vi.advanceTimersByTime(4000);
       
       // Message should be removed
       expect(document.querySelector('.warning-message')).toBeNull();

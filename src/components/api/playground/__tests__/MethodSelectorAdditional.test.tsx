@@ -2,12 +2,13 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import MethodSelector from '../MethodSelector';
+import { vi, Mock } from 'vitest';
 
 describe('MethodSelector component styling and classes', () => {
-  const mockOnMethodChange = jest.fn();
+  const mockOnMethodChange = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should apply the correct class for GET method', () => {
