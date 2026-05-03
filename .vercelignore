@@ -43,7 +43,7 @@ lerna-debug.log*
 
 # Infrastructure and deployment
 infrastructure/
-deployment/
+/deployment/
 terraform/
 *.tfstate
 *.tfstate.*
