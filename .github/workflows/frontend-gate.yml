@@ -1,0 +1,172 @@
+name: Frontend Build Gate
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.eslintrc.json'
+      - 'eslint.config.js'
+      - 'postcss.config.js'
+      - 'tailwind.config.ts'
+      - '.github/workflows/frontend-gate.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.eslintrc.json'
+      - 'eslint.config.js'
+      - 'postcss.config.js'
+      - 'tailwind.config.ts'
+      - '.github/workflows/frontend-gate.yml'
+
+concurrency:
+  group: frontend-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Maximum allowed total size (in KB) for all JS assets in dist/assets/
+  BUNDLE_SIZE_LIMIT_KB: 5120
+
+jobs:
+  typecheck:
+    name: TypeScript Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit --project tsconfig.app.json
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run ESLint
+        run: npm run lint
+
+  unit-tests:
+    name: Unit Tests & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  build:
+    name: Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [typecheck, lint, unit-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Build (production)
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verify dist output
+        run: |
+          echo "=== Verifying dist output ==="
+          if [ ! -d "dist" ] || [ -z "$(ls -A dist)" ]; then
+            echo "❌ dist/ is missing or empty — build failed"
+            exit 1
+          fi
+          if [ ! -f "dist/manifest.json" ]; then
+            echo "❌ dist/manifest.json is missing"
+            exit 1
+          fi
+          echo "✅ dist/ contents:"
+          ls -lhR dist/
+
+      - name: Bundle size guard
+        run: |
+          echo "=== Bundle size check ==="
+          LIMIT_KB="${BUNDLE_SIZE_LIMIT_KB}"
+          total=0
+          for f in dist/assets/*.js; do
+            [ -f "$f" ] || continue
+            size=$(du -k "$f" | cut -f1)
+            total=$((total + size))
+            echo "  $f — ${size}KB"
+          done
+          echo "Total JS bundle size: ${total}KB (limit: ${LIMIT_KB}KB)"
+          if [ "$total" -gt "$LIMIT_KB" ]; then
+            echo "❌ Bundle exceeds ${LIMIT_KB}KB limit"
+            exit 1
+          fi
+          echo "✅ Bundle size is within limit"
+
+      - name: Upload production build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+          retention-days: 3
