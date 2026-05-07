@@ -2,6 +2,7 @@
 Secrets Manager for API keys
 """
 import os
+import sys
 from typing import Dict, Optional
 import json
 from cryptography.fernet import Fernet
@@ -13,12 +14,41 @@ _api_keys_cache: Dict[str, str] = {}
 # Path to encrypted keys storage
 KEYS_FILE = os.environ.get("KEYS_FILE", "secrets/encrypted_keys.json")
 
-# Encryption key - in production this would come from environment or secure storage
-# For demo purposes, we're using a fixed key - CHANGE THIS IN PRODUCTION!
-_ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "RV8z7o1i8Xm9uKL5KzUdN-j6G5DD99wgYDkynlHECZY=")
+# Encryption key must be provided via the ENCRYPTION_KEY environment variable.
+# No hardcoded fallback is intentional — a missing key in production is a
+# configuration error that must be caught at startup.
+_ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")
+
+# Support both NODE_ENV (Node.js convention used across this project) and
+# ENVIRONMENT / APP_ENV (common Python / cloud-platform conventions).
+_ENV = (
+    os.environ.get("ENVIRONMENT")
+    or os.environ.get("APP_ENV")
+    or os.environ.get("NODE_ENV")
+    or ""
+).lower()
+_IS_PRODUCTION = _ENV == "production"
+
+if _IS_PRODUCTION and not _ENCRYPTION_KEY:
+    raise EnvironmentError(
+        "ENCRYPTION_KEY environment variable is required in production but was not set. "
+        "Set it to a valid Fernet key before starting the application."
+    )
+
+if not _IS_PRODUCTION and not _ENCRYPTION_KEY:
+    # Warn loudly in development/test so this isn't missed.
+    print(
+        "WARNING: ENCRYPTION_KEY is not set. "
+        "Encrypted storage will be unavailable. "
+        "Set ENCRYPTION_KEY to enable it.",
+        file=sys.stderr,
+    )
+
 
 def _get_cipher():
-    """Get the encryption cipher"""
+    """Get the encryption cipher, or return None if no key is configured."""
+    if not _ENCRYPTION_KEY:
+        return None
     try:
         key = base64.urlsafe_b64decode(_ENCRYPTION_KEY)
         return Fernet(key)
