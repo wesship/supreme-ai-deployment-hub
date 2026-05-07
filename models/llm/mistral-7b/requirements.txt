@@ -4,3 +4,5 @@ accelerate==0.26.1
 bitsandbytes==0.42.0
 ipykernel
 jupyter
+jupyterlab>=4.5.7 # not directly required, pinned by Snyk to avoid a vulnerability
+jupyter-server>=2.18.0 # not directly required, pinned by Snyk to avoid a vulnerability
