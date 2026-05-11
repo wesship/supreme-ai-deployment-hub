@@ -108,7 +108,7 @@ const SCREENS: Screen[] = [
   },
   {
     id: "404_or_suspended",
-    title: "GitHub — 404, suspended, or "Request access"",
+    title: 'GitHub — 404, suspended, or "Request access"',
     description: "You hit a wall. Either the org blocks third-party apps, the install is suspended, or you lack admin rights.",
     urlPatterns: [/github\.com\/.*\/?(404|suspended|request)/i],
     signals: [
