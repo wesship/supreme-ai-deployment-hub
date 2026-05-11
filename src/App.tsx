@@ -62,6 +62,7 @@ function App() {
                     <Route path="/mcp" element={<McpPage />} />
                     <Route path="/status" element={<StatusDashboard />} />
                     <Route path="/manifest" element={<ManifestPage />} />
+                    <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
                     <Route path="/command-center" element={<CommandCenter />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/contact" element={<Contact />} />
