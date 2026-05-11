@@ -25,6 +25,7 @@ import McpPage from "./pages/McpPage";
 import StatusDashboard from "./pages/StatusDashboard";
 import CommandCenter from "./pages/CommandCenter";
 import ManifestPage from "./pages/ManifestPage";
+import GitHubConnectorDiagnostic from "./pages/GitHubConnectorDiagnostic";
 import { Toaster } from "./components/ui/sonner";
 import { ChatProvider } from "./contexts/ChatContext";
 import { ThemeProvider } from 'next-themes';
@@ -61,6 +62,7 @@ function App() {
                     <Route path="/mcp" element={<McpPage />} />
                     <Route path="/status" element={<StatusDashboard />} />
                     <Route path="/manifest" element={<ManifestPage />} />
+                    <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
                     <Route path="/command-center" element={<CommandCenter />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/contact" element={<Contact />} />
