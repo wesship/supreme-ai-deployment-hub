@@ -25,6 +25,7 @@ import McpPage from "./pages/McpPage";
 import StatusDashboard from "./pages/StatusDashboard";
 import CommandCenter from "./pages/CommandCenter";
 import ManifestPage from "./pages/ManifestPage";
+import GitHubConnectorDiagnostic from "./pages/GitHubConnectorDiagnostic";
 import { Toaster } from "./components/ui/sonner";
 import { ChatProvider } from "./contexts/ChatContext";
 import { ThemeProvider } from 'next-themes';
