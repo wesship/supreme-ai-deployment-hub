@@ -1,0 +1,26 @@
+name: CI Watchdog
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  issues: write
+
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Issue on Failure
+        if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "🚨 CI Failure Detected",
+              body: "CI failed. Run npm run build locally and fix first error.",
+              labels: ["critical", "bug"]
+            });
