@@ -2,28 +2,31 @@ import type { CloudCommandResult, ExecuteCommandOptions } from '../types';
 import { classifyCloudError } from '../errorHandling';
 import { createClient } from '@supabase/supabase-js';
 
-const fallbackSupabaseUrl = 'https://example.supabase.co';
-const fallbackSupabaseAnonKey = 'public-anon-key-placeholder';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || fallbackSupabaseUrl;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  fallbackSupabaseAnonKey;
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!import.meta.env.VITE_SUPABASE_URL || (!import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
+if (!isSupabaseConfigured) {
   console.warn(
-    '[awsReal] Supabase env vars are missing. Using placeholder values until keys are configured.',
+    '[awsReal] Supabase env vars are missing. AWS edge-function operations are disabled until keys are configured.',
   );
 }
 
 // Create Supabase client
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 /**
  * Call the AWS EKS deployment edge function
  */
 async function callAWSEdgeFunction(operation: string, params: any = {}): Promise<any> {
+  if (!supabase) {
+    throw new Error(
+      'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY) to enable AWS operations.',
+    );
+  }
+
   const { data: { session } } = await supabase.auth.getSession();
   
   if (!session) {
