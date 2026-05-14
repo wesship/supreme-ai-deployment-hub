@@ -15,7 +15,7 @@ if (!isSupabaseConfigured) {
 }
 
 // Create Supabase client
-const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabaseAnonKey) : null;
+const supabase = isSupabaseConfigured ? createClient(supabaseUrl!, supabaseAnonKey!) : null;
 
 /**
  * Call the AWS EKS deployment edge function

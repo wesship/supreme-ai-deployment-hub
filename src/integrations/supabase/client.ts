@@ -15,7 +15,7 @@ if (!isSupabaseConfigured) {
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-const missingConfigError = () =>
+const createMissingConfigError = () =>
   new Error(
     'Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to enable Supabase features.',
   );
@@ -32,7 +32,7 @@ export const supabase = isSupabaseConfigured
       {},
       {
         get() {
-          throw missingConfigError();
+          throw createMissingConfigError();
         },
       },
     ) as ReturnType<typeof createClient<Database>>);
