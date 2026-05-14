@@ -21,6 +21,6 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: "🚨 CI Failure Detected",
-              body: "CI failed. Run npm run build locally and fix first error.",
+              body: `CI failed.\n\nWorkflow run: ${context.payload.workflow_run.html_url}\n\nRun \`npm run build\` locally and fix the first error.`,
               labels: ["critical", "bug"]
             });

@@ -42,7 +42,7 @@ Automation rules to configure in GitHub Projects:
 
 4. **CI Alignment**
    - Make GitHub Actions match local environment exactly (Node version + build steps only).
-   - Labels: `critical`, `phase-4`
+   - Labels: `critical`, `phase-1`
 
 ### 🟠 Phase 2 — Structure Hardening
 

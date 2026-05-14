@@ -18,8 +18,7 @@ jobs:
             let label = "agent:planner";
             if (title.includes("build") || title.includes("ci")) {
               label = "agent:debug";
-            }
-            if (title.includes("deploy")) {
+            } else if (title.includes("deploy")) {
               label = "agent:deploy";
             }
             github.rest.issues.addLabels({
