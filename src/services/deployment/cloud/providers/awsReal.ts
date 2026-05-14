@@ -2,8 +2,20 @@ import type { CloudCommandResult, ExecuteCommandOptions } from '../types';
 import { classifyCloudError } from '../errorHandling';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const fallbackSupabaseUrl = 'https://example.supabase.co';
+const fallbackSupabaseAnonKey = 'public-anon-key-placeholder';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || fallbackSupabaseUrl;
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  fallbackSupabaseAnonKey;
+
+if (!import.meta.env.VITE_SUPABASE_URL || (!import.meta.env.VITE_SUPABASE_ANON_KEY && !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)) {
+  console.warn(
+    '[awsReal] Supabase env vars are missing. Using placeholder values until keys are configured.',
+  );
+}
 
 // Create Supabase client
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
