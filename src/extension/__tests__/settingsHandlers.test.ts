@@ -74,7 +74,7 @@ describe('settingsHandlers', () => {
         }
       };
       
-      vi.mocked(getSettings).mockResolvedValue(mockSettings);
+      vi.mocked(getSettings).mockResolvedValue(mockSettings as any);
       
       await loadSettings(apiUrlInput, userIdInput, notifyTaskComplete, notifyErrors);
       
@@ -85,7 +85,7 @@ describe('settingsHandlers', () => {
     });
 
     it('should use default settings if none are saved', async () => {
-      vi.mocked(getSettings).mockResolvedValue({});
+      vi.mocked(getSettings).mockResolvedValue({} as any);
       
       await loadSettings(apiUrlInput, userIdInput, notifyTaskComplete, notifyErrors);
       
@@ -187,7 +187,7 @@ describe('settingsHandlers', () => {
         status: 200,
         json: vi.fn().mockResolvedValue({ status: 'healthy' })
       };
-      vi.mocked(global.fetch).mockResolvedValue(mockResponse);
+      vi.mocked(global.fetch).mockResolvedValue(mockResponse as any);
       
       await testConnection(apiUrlInput, connectionStatus, testConnectionButton);
       
