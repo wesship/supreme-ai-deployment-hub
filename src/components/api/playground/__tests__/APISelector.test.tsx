@@ -19,7 +19,7 @@ describe('APISelector component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(useAPI).mockReturnValue({ apiConfigs: mockAPIConfigs });
+    vi.mocked(useAPI).mockReturnValue({ apiConfigs: mockAPIConfigs } as any);
   });
 
   it('should render with the correct API selected', () => {
@@ -44,7 +44,7 @@ describe('APISelector component', () => {
   });
 
   it('should show message when no APIs are configured', () => {
-    vi.mocked(useAPI).mockReturnValue({ apiConfigs: [] });
+    vi.mocked(useAPI).mockReturnValue({ apiConfigs: [] } as any);
     
     render(<APISelector selectedAPI="" onSelectAPI={mockOnSelectAPI} />);
     
