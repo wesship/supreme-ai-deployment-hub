@@ -1,0 +1,74 @@
+name: Mutation Tests
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"   # Every Monday at 4 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-tests
+  cancel-in-progress: true
+
+jobs:
+  mutmut:
+    name: Python Mutation Tests (mutmut)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install mutmut pytest pytest-asyncio
+
+      - name: Run mutmut
+        run: |
+          mutmut run --paths-to-mutate=auth/,mesh/,tasks/ \
+            --runner="python -m pytest tests/ -x -q" \
+            --no-progress || true
+
+      - name: Show mutation results
+        run: mutmut results
+
+      - name: Upload mutmut cache
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutmut-results
+          path: backend/.mutmut-cache
+          retention-days: 7
+
+  stryker:
+    name: TypeScript Mutation Tests (Stryker)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      - name: Run Stryker
+        run: npx stryker run || true
+
+      - name: Upload Stryker report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stryker-report
+          path: reports/mutation/
+          retention-days: 7

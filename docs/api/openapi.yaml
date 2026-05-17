@@ -1,0 +1,64 @@
+openapi: 3.1.0
+info:
+  title: Devonn.AI API
+  version: 1.0.0
+  description: Multi-agent orchestration API for Devonn.AI platform.
+servers:
+  - url: https://api.devonn.ai
+    description: Production server
+  - url: https://api.staging.devonn.ai
+    description: Staging server
+paths:
+  /api/v1/health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /api/v1/tasks:
+    post:
+      summary: Enqueue a new agent task
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_type, payload]
+              properties:
+                task_type:
+                  type: string
+                payload:
+                  type: object
+      responses:
+        '202':
+          description: Task accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id:
+                    type: string
+  /api/v1/tasks/{task_id}:
+    get:
+      summary: Get task status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task status
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
