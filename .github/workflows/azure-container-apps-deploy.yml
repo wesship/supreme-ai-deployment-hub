@@ -50,6 +50,7 @@ jobs:
   build-and-push:
     name: Build and Push Backend + Frontend
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       backend_tag: ${{ steps.backend_tag.outputs.tag }}
       frontend_tag: ${{ steps.frontend_tag.outputs.tag }}
@@ -121,6 +122,7 @@ jobs:
     name: Deploy with Terraform
     needs: build-and-push
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
 
     steps:
@@ -310,6 +312,7 @@ jobs:
     needs: [build-and-push, terraform-deploy]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Deployment Status
         uses: slackapi/slack-github-action@v1

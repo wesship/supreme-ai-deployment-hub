@@ -14,6 +14,7 @@ jobs:
   auto-merge:
     name: Auto-merge if safe
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Only auto-merge PRs that have the 'auto-merge' label AND are from Dependabot or Snyk
     if: |
       contains(github.event.pull_request.labels.*.name, 'auto-merge') &&

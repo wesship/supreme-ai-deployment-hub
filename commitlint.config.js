@@ -16,6 +16,7 @@
  *   ci       — Changes to CI/CD configuration
  *   chore    — Maintenance tasks (no production code change)
  *   revert   — Reverts a previous commit
+ *   security — Security fixes, secret rotation, vulnerability remediation
  *
  * Breaking changes: add "!" after the type, e.g. "feat!: remove legacy API"
  * This triggers a major version bump.
@@ -36,7 +37,7 @@ module.exports = {
     'type-enum': [
       2,
       'always',
-      ['feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert'],
+      ['feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert', 'security'],
     ],
     // Subject must not end with a period
     'subject-full-stop': [2, 'never', '.'],

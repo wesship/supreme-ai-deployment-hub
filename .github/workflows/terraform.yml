@@ -42,6 +42,7 @@ jobs:
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     outputs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
     
@@ -222,6 +223,7 @@ jobs:
     name: Terraform Apply
     if: needs.terraform-plan.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: 
       name: ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'production' }}
       # url: https://${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'prod' }}.devonn.ai

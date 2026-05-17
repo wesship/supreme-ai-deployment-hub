@@ -68,6 +68,7 @@ jobs:
   validate:
     name: Validate Terraform
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -116,6 +117,7 @@ jobs:
     name: Security Scan
     needs: validate
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       security-events: write
@@ -293,6 +295,7 @@ jobs:
     name: Terraform Plan
     needs: [validate, security-scan]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
@@ -401,6 +404,7 @@ jobs:
     name: Terraform Apply
     needs: terraform-plan
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Only apply on manual workflow_dispatch to production; never auto-apply on push
     if: |
       github.event_name == 'workflow_dispatch' &&

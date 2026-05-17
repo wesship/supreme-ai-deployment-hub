@@ -16,6 +16,7 @@ jobs:
   commitlint:
     name: Validate Commit Messages
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       pull-requests: read
 

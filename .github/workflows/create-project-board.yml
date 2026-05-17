@@ -9,6 +9,7 @@ permissions:
 jobs:
   create-board:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Create Project Board (classic)
         uses: actions/github-script@v7

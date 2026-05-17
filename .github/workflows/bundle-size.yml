@@ -16,6 +16,7 @@ jobs:
   bundle-size:
     name: Analyze Bundle Size
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write

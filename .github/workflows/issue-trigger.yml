@@ -7,6 +7,7 @@ on:
 jobs:
   trigger-fix:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     # Only trigger for bug reports or issues labeled 'auto-fix'
     if: |
       contains(github.event.issue.labels.*.name, 'auto-fix') ||
