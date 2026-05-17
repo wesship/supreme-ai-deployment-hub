@@ -15,6 +15,7 @@ jobs:
   sbom-frontend:
     name: Generate Frontend SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
       security-events: write
@@ -49,6 +50,7 @@ jobs:
   sbom-backend:
     name: Generate Backend SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
       security-events: write
@@ -79,6 +81,7 @@ jobs:
   grype-scan:
     name: Grype Vulnerability Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [sbom-frontend, sbom-backend]
     permissions:
       security-events: write
@@ -108,6 +111,7 @@ jobs:
   ossf-scorecard:
     name: OSSF Security Scorecard
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       security-events: write
       id-token: write

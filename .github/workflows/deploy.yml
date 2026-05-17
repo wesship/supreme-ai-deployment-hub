@@ -26,6 +26,7 @@ jobs:
   deploy:
     name: Deploy — ${{ github.event.inputs.environment || 'production' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment:
       name: ${{ github.event.inputs.environment || 'production' }}
     steps:
@@ -110,6 +111,7 @@ jobs:
     name: Post-Deploy Smoke Test
     needs: deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Verify deployment

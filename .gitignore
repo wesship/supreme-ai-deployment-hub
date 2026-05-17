@@ -28,3 +28,5 @@ coverage/
 .env
 .env.local
 .env.*.local
+*.key
+bun.lockb

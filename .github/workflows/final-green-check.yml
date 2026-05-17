@@ -13,6 +13,7 @@ jobs:
   all-systems-go:
     name: All Systems Go
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [] # In a real setup, this would depend on build, test, sbom, codeql
 
     steps:

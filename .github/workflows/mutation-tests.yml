@@ -13,6 +13,7 @@ jobs:
   mutmut:
     name: Python Mutation Tests (mutmut)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -50,6 +51,7 @@ jobs:
   stryker:
     name: TypeScript Mutation Tests (Stryker)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4

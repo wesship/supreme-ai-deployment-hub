@@ -21,6 +21,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4          # was @v6 (non-existent)
       - uses: actions/setup-node@v4
@@ -35,6 +36,7 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4          # was @v6 (non-existent)
 
@@ -43,7 +45,7 @@ jobs:
         continue-on-error: true
 
       - name: Run Snyk scan
-        uses: snyk/actions/node@master
+        uses: snyk/actions/node@v0.1.0
         continue-on-error: true
         with:
           args: --severity-threshold=high
@@ -57,6 +59,7 @@ jobs:
   unit-test:
     name: Unit Tests (Node.js)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4          # was @v6 (non-existent)
       - uses: actions/setup-node@v4
@@ -88,6 +91,7 @@ jobs:
   python-test:
     name: Python Tests & Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4          # was @v6 (non-existent)
       - name: Set up Python
@@ -127,6 +131,7 @@ jobs:
   extension-test:
     name: Extension Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4          # was @v6 (non-existent)
       - uses: actions/setup-node@v4
@@ -147,6 +152,7 @@ jobs:
   e2e-test:
     name: End-to-End Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [unit-test]
     strategy:
       fail-fast: false                     # don't cancel sibling matrix jobs

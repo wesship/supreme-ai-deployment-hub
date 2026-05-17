@@ -124,7 +124,7 @@ jobs:
             HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }}
 
       - name: Scan model image for vulnerabilities
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.24.0
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/devonn-mistral-7b:${{ github.sha }}
           format: sarif

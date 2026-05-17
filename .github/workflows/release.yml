@@ -25,6 +25,7 @@ jobs:
   release:
     name: Semantic Release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Only run if CI passed — require the build job to succeed first
     # (configure this as a branch protection required status check)
     steps:
@@ -55,6 +56,7 @@ jobs:
     name: Post-Release Smoke Tests
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: needs.release.result == 'success'
     steps:
       - name: Checkout repository
