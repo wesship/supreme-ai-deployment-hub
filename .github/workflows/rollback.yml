@@ -1,0 +1,55 @@
+name: Production Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to rollback to (e.g., v1.2.3)'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    name: Execute Rollback
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify Tag Exists
+        run: |
+          if ! git rev-parse ${{ github.event.inputs.tag }} >/dev/null 2>&1; then
+            echo "Error: Tag ${{ github.event.inputs.tag }} does not exist."
+            exit 1
+          fi
+          echo "Tag verified."
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Execute Terraform Rollback
+        run: |
+          git checkout ${{ github.event.inputs.tag }}
+          cd terraform/aws
+          terraform init
+          terraform apply -auto-approve
+        
+      - name: Record Rollback Event
+        run: |
+          echo "Rollback to ${{ github.event.inputs.tag }} completed."
+          echo "Reason: ${{ github.event.inputs.reason }}"
+          # In a real environment, this would send a Slack/Discord notification

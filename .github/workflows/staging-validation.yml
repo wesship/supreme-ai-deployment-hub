@@ -1,0 +1,66 @@
+name: Staging Validation & Smoke Tests
+
+on:
+  workflow_run:
+    workflows: ["Deploy with Terraform"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to validate'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  smoke-tests:
+    name: Run Smoke Tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Supabase Connectivity
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "Supabase URL not configured, skipping check."
+            exit 0
+          fi
+          echo "Testing Supabase connectivity..."
+          curl -s -o /dev/null -w "%{http_code}" -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/rest/v1/" | grep -q "200" || (echo "Supabase connectivity failed" && exit 1)
+          echo "Supabase connection successful."
+
+      - name: Run Playwright Smoke Tests
+        run: npx playwright test --project=chromium --grep "@smoke"
+        env:
+          BASE_URL: ${{ secrets.STAGING_URL }}
+
+      - name: Check Health Endpoints
+        env:
+          BASE_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            echo "Base URL not configured, skipping check."
+            exit 0
+          fi
+          echo "Checking /api/health..."
+          curl -f -s "$BASE_URL/api/health" || (echo "Health check failed" && exit 1)
+          echo "Health check passed."
