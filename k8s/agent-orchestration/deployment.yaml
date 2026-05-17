@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devonn-agent-orchestrator
+  namespace: ai-core
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: devonn-agent-orchestrator
+  template:
+    metadata:
+      labels:
+        app: devonn-agent-orchestrator
+    spec:
+      containers:
+      - name: orchestrator
+        image: devonn/agent-orchestrator:latest
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: url
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
