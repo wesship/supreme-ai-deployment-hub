@@ -172,7 +172,7 @@ export const createDeploymentError = (
   const logger = createLogger(environment, provider);
   
   // Extract error code from various error shapes
-  let errorCode = error.code || error.errorCode || error.name || 'DEPLOY_UNKNOWN';
+  const errorCode = error.code || error.errorCode || error.name || 'DEPLOY_UNKNOWN';
   
   // Map provider-specific error code to our standard codes
   const standardErrorCode = mapProviderErrorCode(errorCode, provider);

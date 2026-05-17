@@ -28,8 +28,6 @@ export const useToast = () => {
   };
 };
 
-// Extended toast function that handles all variants
-export const toast = (props: ExtendedToastProps) => {
-  // Use the original toast function from use-toast.ts
-  return useToastOriginal().toast(props);
-};
+// Re-export toast directly from the original module to avoid rules-of-hooks violation
+// (hooks cannot be called inside regular functions)
+export { toast } from "@/components/ui/use-toast";

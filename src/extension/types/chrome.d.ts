@@ -45,4 +45,4 @@ interface PermissionRequest {
   origins?: string[];
 }
 
-declare var chrome: Chrome;
+declare let chrome: Chrome;

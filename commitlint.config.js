@@ -28,7 +28,7 @@
  *   feat!: remove deprecated v1 API endpoints
  */
 
-module.exports = {
+export default {
   extends: ['@commitlint/config-conventional'],
   rules: {
     // Enforce lowercase type

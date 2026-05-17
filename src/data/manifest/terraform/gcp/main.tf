@@ -1,5 +1,5 @@
 provider "google" {
-  credentials = jsondecode(base64decode(var.GCP_CREDENTIALS_JSON)) 
+  credentials = jsondecode(base64decode(var.GCP_CREDENTIALS_JSON))
   project     = var.gcp_project_id
   region      = var.gcp_region
 }
@@ -42,7 +42,7 @@ resource "google_compute_instance" "backend" {
 
   # Network interface block (Required)
   network_interface {
-    network = "default"  # Default VPC
+    network = "default" # Default VPC
     access_config {     # Required for an external IP address
       // No external IP if you don't want it
     }
@@ -74,7 +74,7 @@ resource "google_compute_instance" "frontend" {
 
   # Network interface block (Required)
   network_interface {
-    network = "default"  # Default VPC
+    network = "default" # Default VPC
     access_config {     # Required for an external IP address
       // No external IP if you don't want it
     }

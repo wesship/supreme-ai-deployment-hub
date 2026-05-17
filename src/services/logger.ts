@@ -62,7 +62,7 @@ export const getLogs = (
   // Apply time filter
   if (timeRange !== 'all') {
     const now = new Date();
-    let cutoff = new Date();
+    const cutoff = new Date();
     
     switch (timeRange) {
       case 'recent':
