@@ -1,0 +1,223 @@
+name: Environment Promotion
+
+# Manages the promotion pipeline: development → staging → production
+#
+# Flow:
+#   1. Every push to `main` automatically deploys to development
+#   2. After development passes smoke tests, a manual approval promotes to staging
+#   3. After staging passes load tests, a manual approval promotes to production
+#
+# Required secrets:
+#   VERCEL_TOKEN           — Vercel API token
+#   VERCEL_ORG_ID          — Vercel organization ID
+#   VERCEL_PROJECT_ID      — Vercel project ID
+#   SLACK_WEBHOOK_DEPLOYS  — Slack webhook for deploy notifications
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: "Target environment to promote to"
+        required: true
+        type: choice
+        options: [staging, production]
+
+concurrency:
+  group: promotion-${{ github.ref }}
+  cancel-in-progress: false   # Never cancel in-progress promotions
+
+jobs:
+  # ── Stage 1: Deploy to Development ──────────────────────────────────────────
+  deploy-development:
+    name: Deploy → Development
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 15
+    environment:
+      name: development
+      url: https://dev.devonn.ai
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_ENVIRONMENT: development
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION: ${{ github.sha }}
+
+      - name: Deploy to Vercel (Development)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--env ENVIRONMENT=development'
+          alias-domains: dev.devonn.ai
+
+      - name: Run smoke tests against development
+        run: |
+          sleep 30  # Wait for deployment to propagate
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.devonn.ai)
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Development smoke test failed — HTTP $STATUS"
+            exit 1
+          fi
+          echo "Development smoke test passed (HTTP $STATUS)"
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Development* deploy ${{ job.status }} — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+            }
+
+  # ── Stage 2: Promote to Staging (manual approval) ───────────────────────────
+  promote-staging:
+    name: Promote → Staging
+    runs-on: ubuntu-latest
+    needs: deploy-development
+    if: |
+      (github.event_name == 'push' && needs.deploy-development.result == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'staging')
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: https://staging.devonn.ai
+    # This environment requires a manual approval in GitHub
+    # Configure at: Settings → Environments → staging → Required reviewers
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for staging
+        run: npm run build
+        env:
+          VITE_ENVIRONMENT: staging
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION: ${{ github.sha }}
+
+      - name: Deploy to Vercel (Staging)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--env ENVIRONMENT=staging'
+          alias-domains: staging.devonn.ai
+
+      - name: Run k6 smoke test against staging
+        run: |
+          sudo apt-get install -y k6 2>/dev/null || \
+            (curl -s https://dl.k6.io/key.gpg | sudo apt-key add - && \
+             echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list && \
+             sudo apt-get update && sudo apt-get install k6 -y)
+          k6 run \
+            --env BASE_URL=https://staging.devonn.ai \
+            --env SCENARIO=smoke \
+            load-tests/api-load-test.js
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Staging* deploy ${{ job.status }} — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+            }
+
+  # ── Stage 3: Promote to Production (manual approval) ────────────────────────
+  promote-production:
+    name: Promote → Production
+    runs-on: ubuntu-latest
+    needs: promote-staging
+    if: |
+      (needs.promote-staging.result == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target_env == 'production')
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://devonn.ai
+    # This environment requires a manual approval in GitHub
+    # Configure at: Settings → Environments → production → Required reviewers
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for production
+        run: npm run build
+        env:
+          VITE_ENVIRONMENT: production
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION: ${{ github.ref_name }}
+
+      - name: Deploy to Vercel (Production)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod --env ENVIRONMENT=production'
+
+      - name: Production smoke test
+        run: |
+          sleep 30
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://devonn.ai)
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Production smoke test failed — HTTP $STATUS"
+            exit 1
+          fi
+          echo "Production smoke test passed (HTTP $STATUS)"
+
+      - name: Notify Slack — Production Deploy
+        if: always()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "${{ job.status == 'success' && '🚀 Production deploy SUCCEEDED' || '🔥 Production deploy FAILED' }} — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\nCommit: `${{ github.sha }}` by ${{ github.actor }}"
+            }

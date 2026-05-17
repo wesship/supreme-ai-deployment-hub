@@ -1,0 +1,115 @@
+name: IaC Drift Detection
+
+# Detects when the live AWS infrastructure has drifted from the Terraform state.
+# Runs daily and on every push to terraform/ to catch unauthorized manual changes.
+#
+# Required secrets:
+#   AWS_ROLE_ARN      — OIDC role with read-only access to all managed resources
+#   SLACK_WEBHOOK_OPS — Slack webhook for drift alerts
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # Daily at 6am UTC
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'infra/**'
+  workflow_dispatch:
+
+concurrency:
+  group: iac-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-drift:
+    name: Terraform Drift Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend=true -reconfigure
+        env:
+          TF_CLI_ARGS_init: "-input=false"
+
+      - name: Terraform Plan (drift check)
+        id: drift-check
+        working-directory: terraform
+        run: |
+          set +e
+          terraform plan \
+            -detailed-exitcode \
+            -refresh=true \
+            -input=false \
+            -out=drift.tfplan \
+            2>&1 | tee /tmp/drift_output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          # Exit code 0 = no changes (no drift)
+          # Exit code 1 = error
+          # Exit code 2 = changes detected (drift!)
+          if [ "$EXIT_CODE" -eq "2" ]; then
+            echo "drift_detected=true" >> $GITHUB_OUTPUT
+            echo "::warning::Infrastructure drift detected!"
+          elif [ "$EXIT_CODE" -eq "1" ]; then
+            echo "drift_detected=error" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "drift_detected=false" >> $GITHUB_OUTPUT
+            echo "No infrastructure drift detected."
+          fi
+
+      - name: Post drift alert to Slack
+        if: steps.drift-check.outputs.drift_detected == 'true'
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_OPS }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "⚠️ *Infrastructure Drift Detected* in `supreme-ai-deployment-hub`",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ *Terraform drift detected* — live AWS infrastructure does not match Terraform state.\n\nThis may indicate unauthorized manual changes to the infrastructure.\n\n*Action required:* Review the drift and either apply the Terraform plan or import the manual changes.\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
+                  }
+                }
+              ]
+            }
+
+      - name: Open GitHub Issue on drift
+        if: steps.drift-check.outputs.drift_detected == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 Infrastructure Drift Detected — ${new Date().toISOString().split('T')[0]}`;
+            const body = `## Infrastructure Drift Alert\n\nTerraform detected that the live AWS infrastructure has drifted from the state file.\n\n**Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Immediate Actions\n1. Review the Terraform plan output in the workflow run above.\n2. Determine if the drift was intentional (import it) or unauthorized (revert it).\n3. Run \`terraform apply\` to reconcile if appropriate.\n4. Close this issue once resolved.\n\n**Do not ignore this alert.** Unreconciled drift leads to unpredictable infrastructure behavior.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['infrastructure', 'drift', 'urgent']
+            });

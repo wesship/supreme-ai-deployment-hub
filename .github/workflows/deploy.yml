@@ -1,4 +1,3 @@
-
 name: Devonn.AI Deploy
 
 on:
@@ -12,143 +11,106 @@ on:
       environment:
         description: 'Deployment environment'
         required: true
-        default: 'development'
+        default: 'production'
         type: choice
         options:
           - development
           - staging
           - production
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false   # don't cancel in-flight deploys
+
 jobs:
   deploy:
-    name: Deploy
+    name: Deploy — ${{ github.event.inputs.environment || 'production' }}
     runs-on: ubuntu-latest
-    environment: 
-      name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
     steps:
-      - uses: actions/checkout@v6
-      
-      # Build the extension for deployment
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      
+
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-      
-      - name: Set environment variables
+        run: npm ci
+
+      - name: Resolve environment
+        id: env
         run: |
-          if [ "${{ github.event.inputs.environment }}" != "" ]; then
-            ENV="${{ github.event.inputs.environment }}"
-          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            ENV="production"
-          else
-            ENV="development"
+          ENV="${{ github.event.inputs.environment || 'production' }}"
+          echo "name=$ENV" >> $GITHUB_OUTPUT
+          case "$ENV" in
+            development) echo "api_url=http://localhost:8000" >> $GITHUB_OUTPUT ;;
+            staging)     echo "api_url=https://staging-api.devonn.ai" >> $GITHUB_OUTPUT ;;
+            *)           echo "api_url=https://api.devonn.ai" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Validate OpenAI API Key
+        if: steps.env.outputs.name == 'production'
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "ERROR: OPENAI_API_KEY is not set for production deploy"
+            exit 1
           fi
-          echo "ENVIRONMENT=$ENV" >> $GITHUB_ENV
-          
-          if [ "$ENV" == "development" ]; then
-            echo "API_URL=http://localhost:8000" >> $GITHUB_ENV
-          elif [ "$ENV" == "staging" ]; then 
-            echo "API_URL=https://staging-api.devonn.ai" >> $GITHUB_ENV
-          else
-            echo "API_URL=https://api.devonn.ai" >> $GITHUB_ENV
-          fi
-      
-      # - name: Validate OpenAI API Key  #c
-      #   if: ${{ env.ENVIRONMENT == 'production' }}
-      #   run: node scripts/validate-openai-key.cjs
-      #   env:
-      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      
+          echo "OPENAI_API_KEY is present"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
       - name: Build extension
-        run: npm run build -- --mode $ENVIRONMENT
-      
+        run: npm run build -- --mode ${{ steps.env.outputs.name }}
+        env:
+          NODE_ENV: ${{ steps.env.outputs.name }}
+          VITE_API_URL: ${{ steps.env.outputs.api_url }}
+
       - name: Package extension
         run: |
           cd dist
-          zip -r ../devonn-ai-${{ env.ENVIRONMENT }}.zip *
-      
+          zip -r ../devonn-ai-${{ steps.env.outputs.name }}.zip .
+
       - name: Upload to Chrome Web Store
-        if: ${{ github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main' }}
-        run: |
-          node scripts/upload-to-chrome-webstore.cjs
+        if: steps.env.outputs.name == 'production'
+        run: node scripts/upload-to-chrome-webstore.cjs
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-          ZIP_PATH: devonn-ai-${{ env.ENVIRONMENT }}.zip
-          PUBLISH_EXTENSION: ${{ env.ENVIRONMENT == 'production' }}
-      
+          ZIP_PATH: devonn-ai-${{ steps.env.outputs.name }}.zip
+          PUBLISH_EXTENSION: 'true'
+
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.environment == 'production' || github.ref == 'refs/heads/main' }}
-        uses: softprops/action-gh-release@v1
+        if: steps.env.outputs.name == 'production'
+        uses: softprops/action-gh-release@v2
         with:
-          files: devonn-ai-${{ env.ENVIRONMENT }}.zip
+          files: devonn-ai-${{ steps.env.outputs.name }}.zip
           name: Release ${{ github.ref_name }}
           tag_name: v${{ github.run_number }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Notify Slack on Success
-        if: success()
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{
-            "text": "✅ *Deployment Successful!*\nEnvironment: ${{ env.ENVIRONMENT }}\nBranch: ${{ github.ref_name }}\nTriggered by: ${{ github.actor }}"
-          }' ${{ secrets.SLACK_WEBHOOK_URL }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        continue-on-error: true
-
-      - name: Notify Slack on Failure
-        if: failure()
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{
-            "text": "❌ *Deployment Failed!*\nEnvironment: ${{ env.ENVIRONMENT }}\nBranch: ${{ github.ref_name }}\nTriggered by: ${{ github.actor }}\nSee: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }' ${{ secrets.SLACK_WEBHOOK_URL }}
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        continue-on-error: true
-
-  smoke-test:
-    name: Post-Deployment Smoke Test
-    needs: deploy
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Check deployed extension
-        run: |
-          # This would be a script to verify the extension is working in the store
-          echo "Running post-deployment verification tests"
-          # Add actual verification here
-          echo "Extension published successfully!"
-          
-  notify:
-    name: Notify Team
-    needs: [deploy, smoke-test]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Determine status
-        id: status
-        run: |
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "deployment_status=successful" >> $GITHUB_OUTPUT
-          else
-            echo "deployment_status=failed" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Send deployment notification
+      - name: Notify Slack
+        if: always() && secrets.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1
         with:
           payload: |
             {
-              "text": "Deployment ${{ steps.status.outputs.deployment_status }} for Devonn.AI ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}"
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Deploy ${{ job.status }}* — `${{ steps.env.outputs.name }}` | Branch: `${{ github.ref_name }}` | Actor: `${{ github.actor }}` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
             }
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL || '' }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
+  smoke-test:
+    name: Post-Deploy Smoke Test
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Verify deployment
+        run: echo "Smoke test placeholder — add real verification here"

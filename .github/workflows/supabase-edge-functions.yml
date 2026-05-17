@@ -1,0 +1,109 @@
+name: Supabase Edge Functions
+
+# Typechecks and deploys Supabase Edge Functions on every push to main.
+# Replaces the manual deploy-edge-function.sh script with a fully automated CI/CD pipeline.
+#
+# Required secrets:
+#   SUPABASE_ACCESS_TOKEN  — Supabase personal access token (Settings → Access Tokens)
+#   SUPABASE_PROJECT_ID    — Supabase project reference ID (Settings → General)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/supabase-edge-functions.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+
+concurrency:
+  group: supabase-edge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Typecheck Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck all edge functions
+        run: |
+          echo "Typechecking Supabase Edge Functions..."
+          for func_dir in supabase/functions/*/; do
+            func_name=$(basename "$func_dir")
+            index_file="$func_dir/index.ts"
+            if [ -f "$index_file" ]; then
+              echo "  Checking: $func_name"
+              deno check \
+                --import-map=supabase/functions/import_map.json \
+                "$index_file" 2>&1 || {
+                echo "::error::Typecheck failed for function: $func_name"
+                exit 1
+              }
+            fi
+          done
+          echo "All edge functions passed typecheck."
+
+  deploy:
+    name: Deploy Edge Functions
+    runs-on: ubuntu-latest
+    needs: typecheck
+    # Only deploy on push to main, not on PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy all edge functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Deploying Supabase Edge Functions to project: ${{ secrets.SUPABASE_PROJECT_ID }}"
+          for func_dir in supabase/functions/*/; do
+            func_name=$(basename "$func_dir")
+            # Skip _shared directories (not deployable functions)
+            if [[ "$func_name" == _* ]]; then
+              continue
+            fi
+            echo "  Deploying: $func_name"
+            supabase functions deploy "$func_name" \
+              --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} \
+              --no-verify-jwt 2>&1 || {
+              echo "::error::Deployment failed for function: $func_name"
+              exit 1
+            }
+          done
+          echo "All edge functions deployed successfully."
+
+      - name: Smoke test deployed functions
+        env:
+          SUPABASE_URL: https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Running smoke tests against deployed edge functions..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/functions/v1/ai-proxy/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::ai-proxy health check returned $STATUS (may not be deployed yet)"
+          else
+            echo "  ✓ ai-proxy health check passed"
+          fi

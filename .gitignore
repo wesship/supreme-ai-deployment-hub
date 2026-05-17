@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 coverage/
+
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local

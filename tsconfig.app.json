@@ -1,33 +1,46 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
-    "lib": [
-      "ES2020",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "module": "ESNext",
     "moduleDetection": "force",
-    "moduleResolution": "bundler",
     "noEmit": true,
-    "noFallthroughCasesInSwitch": false,
+
+    /* JSX */
+    "jsx": "react-jsx",
+
+    /* Path aliases */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* ── Hardened strictness (progressive — tighten over time) ─────────────
+     *
+     * Phase 1 (NOW — applied here):
+     *   - strictNullChecks: true   → catches null/undefined dereferences
+     *   - noImplicitAny: false     → keep relaxed until TS2322/TS2740 are fully resolved
+     *   - noUnusedLocals: false    → keep relaxed to avoid noise during migration
+     *
+     * Phase 2 (next sprint):
+     *   - noImplicitAny: true
+     *   - noUnusedLocals: true
+     *   - noUnusedParameters: true
+     *
+     * Phase 3 (hardened):
+     *   - strict: true             → enables all strict flags
+     * ─────────────────────────────────────────────────────────────────────── */
+    "strictNullChecks": true,
     "noImplicitAny": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "paths": {
-      "@/*": [
-        "./src/*"
-      ]
-    },
-    "skipLibCheck": true,
-    "strict": false,
-    "target": "ES2020",
-    "types": ["vitest/globals", "jest"],
-    "useDefineForClassFields": true
+    "allowJs": true
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

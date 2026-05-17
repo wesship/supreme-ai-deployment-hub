@@ -1,20 +1,125 @@
+# falco.yaml — Hardened Falco Runtime Security for Devonn.AI
+# Replaces the missing/stub falco.yaml with production-grade rules.
+#
+# Install:
+#   helm repo add falcosecurity https://falcosecurity.github.io/charts
+#   helm upgrade --install falco falcosecurity/falco \
+#     -n falco --create-namespace \
+#     -f helm-values/falco.yaml
+
+image:
+  tag: "0.39.2"
+
+# ── Driver: use eBPF for modern kernel compatibility ──────────────────────────
 driver:
-  kind: modern_ebpf
+  kind: ebpf
 
-tty: true
-
+# ── Falco configuration ───────────────────────────────────────────────────────
 falco:
+  grpc:
+    enabled: true
+  grpc_output:
+    enabled: true
   json_output: true
-  log_level: info
+  log_stderr: true
+  log_syslog: false
   priority: warning
 
+# ── Falcosidekick: route alerts to Slack ─────────────────────────────────────
 falcosidekick:
   enabled: true
-  webui:
-    enabled: true
-    service:
-      type: ClusterIP
+  config:
+    slack:
+      webhookurl: ""   # Set via: kubectl create secret generic falco-slack --from-literal=webhookurl=<url>
+      minimumpriority: "warning"
+      messageformat: |
+        🚨 *Falco Runtime Alert*
+        Rule: `{{ .Rule }}`
+        Priority: `{{ .Priority }}`
+        Pod: `{{ .OutputFields.k8s_pod_name }}`
+        Namespace: `{{ .OutputFields.k8s_ns_name }}`
+        Message: {{ .Output }}
 
-collectors:
-  kubernetes:
-    enabled: true
+# ── Custom Devonn.AI Rules ────────────────────────────────────────────────────
+customRules:
+  devonn-rules.yaml: |-
+    # ── Rule: Detect shell spawned inside devonn containers ──────────────────
+    - rule: Shell Spawned in Devonn Container
+      desc: >
+        A shell was spawned inside a Devonn.AI container. This may indicate
+        an attacker has achieved code execution via a vulnerability.
+      condition: >
+        spawned_process and container and
+        container.image.repository contains "devonn" and
+        (proc.name in (bash, sh, zsh, dash, ksh, fish) or
+         proc.name startswith "python" or proc.name startswith "node")
+        and not proc.pname in (devonn-backend, uvicorn, node)
+      output: >
+        Shell spawned in Devonn container
+        (user=%user.name container=%container.name image=%container.image.repository
+         shell=%proc.name parent=%proc.pname cmdline=%proc.cmdline)
+      priority: CRITICAL
+      tags: [devonn, shell, container]
+
+    # ── Rule: Detect write to /etc inside any container ──────────────────────
+    - rule: Write to /etc in Container
+      desc: Detect any write to /etc inside a container (may indicate config tampering).
+      condition: >
+        open_write and container and fd.name startswith /etc
+        and not proc.name in (apt, dpkg, rpm, yum, dnf)
+      output: >
+        Write to /etc in container
+        (user=%user.name container=%container.name file=%fd.name
+         proc=%proc.name cmdline=%proc.cmdline)
+      priority: WARNING
+      tags: [devonn, filesystem, container]
+
+    # ── Rule: Detect outbound connection to non-approved hosts ───────────────
+    - rule: Unexpected Outbound Connection from Devonn Backend
+      desc: >
+        The devonn-backend container made an outbound connection to a host
+        that is not in the approved allowlist (OpenAI, Supabase, AWS).
+      condition: >
+        outbound and container and
+        container.image.repository contains "devonn-backend" and
+        not fd.sip.name in (
+          "api.openai.com",
+          "*.supabase.co",
+          "*.amazonaws.com",
+          "*.sentry.io"
+        )
+      output: >
+        Unexpected outbound connection from devonn-backend
+        (container=%container.name dest=%fd.sip.name:%fd.sport
+         proc=%proc.name cmdline=%proc.cmdline)
+      priority: WARNING
+      tags: [devonn, network, exfiltration]
+
+    # ── Rule: Detect privilege escalation attempt ─────────────────────────────
+    - rule: Privilege Escalation in Devonn Namespace
+      desc: Detect any process attempting to gain elevated privileges.
+      condition: >
+        evt.type in (setuid, setgid) and container and
+        container.label.namespace = "devonn" and
+        not user.name in (root) and
+        evt.rawres >= 0
+      output: >
+        Privilege escalation attempt in devonn namespace
+        (user=%user.name container=%container.name
+         proc=%proc.name cmdline=%proc.cmdline)
+      priority: CRITICAL
+      tags: [devonn, privilege-escalation]
+
+    # ── Rule: Detect crypto mining indicators ─────────────────────────────────
+    - rule: Crypto Mining Detected
+      desc: Detect processes commonly associated with crypto mining.
+      condition: >
+        spawned_process and container and
+        (proc.name in (xmrig, minerd, cpuminer, cgminer, bfgminer) or
+         proc.cmdline contains "stratum+tcp" or
+         proc.cmdline contains "stratum+ssl")
+      output: >
+        Crypto mining process detected
+        (container=%container.name proc=%proc.name cmdline=%proc.cmdline)
+      priority: CRITICAL
+      tags: [devonn, crypto-mining, malware]

@@ -1,0 +1,123 @@
+name: Accessibility CI
+
+# Runs automated accessibility audits on every PR using axe-core and pa11y.
+# Fails the PR if any WCAG 2.1 AA violations are detected.
+#
+# Required secrets:
+#   None — runs against the built preview
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: a11y-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  axe-audit:
+    name: axe-core WCAG 2.1 AA Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.devonn.ai
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      - name: Start preview server
+        run: npx serve dist -p 4173 &
+        shell: bash
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:4173 --timeout 30000
+
+      - name: Run axe accessibility audit
+        uses: dequelabs/axe-core-npm/packages/cli@v4
+        with:
+          args: >
+            http://localhost:4173
+            --tags wcag2a,wcag2aa,wcag21aa
+            --reporter json
+            --output-file axe-results.json
+        continue-on-error: true
+
+      - name: Parse axe results and fail on violations
+        run: |
+          VIOLATIONS=$(node -e "
+            const r = require('./axe-results.json');
+            const v = r[0]?.violations || [];
+            console.log(v.length);
+            if (v.length > 0) {
+              v.forEach(vi => {
+                console.error('VIOLATION:', vi.id, '-', vi.description);
+                vi.nodes.forEach(n => console.error('  Element:', n.target.join(', ')));
+              });
+            }
+          ")
+          echo "Violations found: $VIOLATIONS"
+          if [ "$VIOLATIONS" -gt "0" ]; then
+            echo "::error::$VIOLATIONS WCAG 2.1 AA accessibility violations detected. See axe-results.json for details."
+            exit 1
+          fi
+
+      - name: Upload axe results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: axe-accessibility-results
+          path: axe-results.json
+          retention-days: 14
+
+  pa11y-audit:
+    name: pa11y WCAG 2.1 Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: axe-audit
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci && npm install -g pa11y-ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.devonn.ai
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      - name: Start preview server
+        run: npx serve dist -p 4173 &
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:4173 --timeout 30000
+
+      - name: Run pa11y-ci
+        run: |
+          pa11y-ci \
+            --standard WCAG2AA \
+            --reporter cli \
+            http://localhost:4173 \
+            http://localhost:4173/agents \
+            http://localhost:4173/settings

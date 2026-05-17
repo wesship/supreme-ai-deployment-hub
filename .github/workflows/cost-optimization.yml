@@ -1,0 +1,139 @@
+name: Cost Optimization
+
+# Runs Infracost on every Terraform PR to show the cost impact of infrastructure changes.
+# Also runs a weekly AWS cost anomaly check and posts a report to Slack.
+#
+# Required secrets:
+#   INFRACOST_API_KEY      — Infracost API key (free tier available at infracost.io)
+#   AWS_ROLE_ARN           — OIDC role for AWS Cost Explorer read access
+#   SLACK_WEBHOOK_COSTS    — Slack webhook for weekly cost reports
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'infra/**'
+  schedule:
+    # Weekly cost report every Monday at 9am UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  # ── Infracost PR Cost Diff ─────────────────────────────────────────────────
+  infracost:
+    name: Terraform Cost Estimate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Infracost cost estimate for base branch
+        run: |
+          infracost breakdown \
+            --path terraform/ \
+            --format json \
+            --out-file /tmp/infracost-base.json
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+
+      - name: Generate Infracost cost estimate for PR branch
+        run: |
+          infracost breakdown \
+            --path terraform/ \
+            --format json \
+            --out-file /tmp/infracost-pr.json
+
+      - name: Post cost diff comment on PR
+        run: |
+          infracost diff \
+            --path /tmp/infracost-pr.json \
+            --compare-to /tmp/infracost-base.json \
+            --format github-comment \
+            --github-token ${{ github.token }} \
+            --pull-request ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }}
+
+  # ── Weekly AWS Cost Anomaly Report ────────────────────────────────────────
+  weekly-cost-report:
+    name: Weekly Cost Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Generate weekly cost report
+        id: cost-report
+        run: |
+          python3 - <<'EOF'
+          import boto3, json
+          from datetime import datetime, timedelta
+
+          ce = boto3.client('ce', region_name='us-east-1')
+          end = datetime.utcnow().strftime('%Y-%m-%d')
+          start = (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+          response = ce.get_cost_and_usage(
+              TimePeriod={'Start': start, 'End': end},
+              Granularity='MONTHLY',
+              Metrics=['UnblendedCost'],
+              GroupBy=[{'Type': 'DIMENSION', 'Key': 'SERVICE'}]
+          )
+
+          total = 0
+          services = []
+          for result in response['ResultsByTime']:
+              for group in result['Groups']:
+                  cost = float(group['Metrics']['UnblendedCost']['Amount'])
+                  if cost > 0.01:
+                      services.append({'service': group['Keys'][0], 'cost': cost})
+                      total += cost
+
+          services.sort(key=lambda x: x['cost'], reverse=True)
+
+          report = f"*Weekly AWS Cost Report* ({start} → {end})\n"
+          report += f"Total: *${total:.2f}*\n\n"
+          report += "Top services:\n"
+          for s in services[:8]:
+              report += f"  • {s['service']}: ${s['cost']:.2f}\n"
+
+          print(f"REPORT<<EOF\n{report}\nEOF")
+          with open('/tmp/cost_report.txt', 'w') as f:
+              f.write(report)
+          EOF
+          echo "report=$(cat /tmp/cost_report.txt)" >> $GITHUB_OUTPUT
+
+      - name: Post cost report to Slack
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_COSTS }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "📊 ${{ steps.cost-report.outputs.report }}"
+            }

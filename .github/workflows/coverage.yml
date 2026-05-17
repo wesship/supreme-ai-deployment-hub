@@ -1,0 +1,90 @@
+name: Test Coverage
+
+# Runs unit tests, enforces coverage thresholds, and uploads results to Codecov.
+# Blocks PRs that reduce coverage below the configured minimums.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit Tests & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test -- --coverage --reporter=verbose
+        env:
+          CI: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: devonn-ai-coverage
+          fail_ci_if_error: false   # Don't fail CI if Codecov upload fails
+          verbose: true
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Coverage summary comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summaryPath = './coverage/coverage-summary.json';
+            if (!fs.existsSync(summaryPath)) {
+              console.log('No coverage summary found, skipping comment');
+              return;
+            }
+            const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+            const total = summary.total;
+            const lines = total.lines.pct.toFixed(1);
+            const functions = total.functions.pct.toFixed(1);
+            const branches = total.branches.pct.toFixed(1);
+            const statements = total.statements.pct.toFixed(1);
+
+            const badge = (pct) => pct >= 80 ? '🟢' : pct >= 60 ? '🟡' : '🔴';
+
+            const body = `## 📊 Test Coverage Report
+
+| Metric | Coverage | Status |
+|--------|----------|--------|
+| Lines | ${lines}% | ${badge(lines)} |
+| Functions | ${functions}% | ${badge(functions)} |
+| Branches | ${branches}% | ${badge(branches)} |
+| Statements | ${statements}% | ${badge(statements)} |
+
+> Thresholds: Lines ≥ 70%, Functions ≥ 70%, Branches ≥ 60%, Statements ≥ 70%
+`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });

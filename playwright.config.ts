@@ -1,54 +1,83 @@
+import { defineConfig, devices } from '@playwright/test';
 
-import { PlaywrightTestConfig } from '@playwright/test';
+/**
+ * Playwright E2E Configuration — Devonn.AI
+ *
+ * Replaces the stub `test:e2e` script ("echo No E2E tests && exit 0").
+ * Tests live in tests/e2e/ and run against the local Vite dev server.
+ *
+ * Usage:
+ *   npm run test:e2e              # headless, all browsers
+ *   npm run test:e2e:ui           # interactive UI mode
+ *   npm run test:e2e:debug        # headed debug mode
+ */
 
-const config: PlaywrightTestConfig = {
-  testDir: './src/extension/__tests__/e2e',
-  timeout: 30 * 1000,
-  expect: {
-    timeout: 5000
-  },
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  testMatch: '**/*.spec.ts',
+
+  // Run tests in parallel across workers
+  fullyParallel: true,
+
+  // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+
+  // Retry failed tests once on CI to reduce flakiness noise
+  retries: process.env.CI ? 1 : 0,
+
+  // Use 1 worker on CI to avoid resource contention; unlimited locally
   workers: process.env.CI ? 1 : undefined,
+
   reporter: [
-    ['html', { outputFolder: 'playwright-report' }],
-    ['json', { outputFile: 'playwright-results.json' }]
+    ['list'],
+    ['html', { outputFolder: 'test-results/playwright-report', open: 'never' }],
+    ['junit', { outputFile: 'test-results/e2e-results.xml' }],
   ],
+
   use: {
-    actionTimeout: 0,
-    baseURL: 'http://localhost:5173',
+    baseURL: BASE_URL,
     trace: 'on-first-retry',
-    screenshot: 'only-on-failure'
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    // Reasonable timeouts
+    actionTimeout: 10_000,
+    navigationTimeout: 30_000,
   },
+
+  // Automatically start the Vite dev server before running tests
+  webServer: {
+    command: 'npm run dev',
+    url: BASE_URL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  },
+
   projects: [
+    // Desktop browsers
     {
       name: 'chromium',
-      use: {
-        browserName: 'chromium',
-      },
+      use: { ...devices['Desktop Chrome'] },
     },
     {
       name: 'firefox',
-      use: {
-        browserName: 'firefox',
-      },
+      use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
-      use: {
-        browserName: 'webkit',
-      },
+      use: { ...devices['Desktop Safari'] },
     },
+    // Mobile viewports
     {
       name: 'mobile-chrome',
-      use: {
-        browserName: 'chromium',
-        viewport: { width: 375, height: 667 },
-        deviceScaleFactor: 2,
-        isMobile: true,
-      },
-    }
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 13'] },
+    },
   ],
-};
-
-export default config;
+});

@@ -1,17 +1,21 @@
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+import { initSentry } from './lib/sentry';
 
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+// Initialize Sentry error tracking before rendering
+initSentry();
 
-// Clear any cached styles that might be preventing theme changes
-if (typeof window !== 'undefined') {
-  const head = document.head;
-  const stylesheets = head.querySelectorAll('style');
-  stylesheets.forEach(sheet => {
-    if (sheet.innerHTML.includes('--primary') || sheet.innerHTML.includes('--background')) {
-      sheet.remove();
-    }
-  });
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error(
+    'Root element #root not found. Check your index.html.'
+  );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(rootElement).render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
