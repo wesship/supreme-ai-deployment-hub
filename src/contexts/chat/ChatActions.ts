@@ -65,7 +65,7 @@ export const createChatActions = ({
     // Mock AI response logic
     setTimeout(() => {
       // Generate context-aware response
-      let response = createMockResponse(text, {
+      const response = createMockResponse(text, {
         deploymentInfo: getDeploymentSummary?.() || null,
         isConnected: isClusterConnected || false,
         apis: apiConfigs || [],

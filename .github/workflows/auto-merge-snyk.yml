@@ -12,6 +12,7 @@ jobs:
   auto-merge-snyk:
     name: Auto-merge Snyk PRs
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: |
       contains(github.event.pull_request.title, '[Snyk]') ||
       contains(github.event.pull_request.title, 'Security upgrade') ||

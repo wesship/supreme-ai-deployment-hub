@@ -1,41 +1,41 @@
-
 {
   "manifest_version": 3,
   "name": "Devonn.AI Assistant",
-  "version": "1.0.1",
-  "description": "Access Devonn.AI agents and tools directly from your browser",
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
-  "permissions": [
-    "storage",
-    "activeTab",
-    "notifications",
-    "alarms"
-  ],
-  "host_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
-  "background": {
-    "service_worker": "background.js",
-    "type": "module"
-  },
-  "options_ui": {
-    "page": "settings.html",
-    "open_in_tab": true
-  },
+  "version": "1.1.0",
+  "description": "Devonn.AI agent mesh controller for orchestrating AI tasks.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "author": "Devonn.AI Team",
-  "homepage_url": "https://devonn.ai/",
-  "offline_enabled": false
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+
+  "host_permissions": [
+    "https://api.devonn.ai/*",
+    "http://localhost:8000/*"
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';"
+  },
+
+  "web_accessible_resources": []
 }

@@ -13,6 +13,7 @@ jobs:
   deno-check:
     name: Deno typecheck (with npm modules)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -26,35 +27,33 @@ jobs:
         with:
           node-version: '20'
 
-      # The AWS EKS edge function imports AWS SDK v3 via npm: specifiers.
-      # Deno's local typechecker needs them in node_modules to resolve.
-      # In the Supabase deploy runtime, npm: is resolved natively — this is
-      # purely for local/CI typechecking parity.
-      - name: Install AWS SDK deps for typecheck
+      # The AWS EKS edge function imports AWS SDK v3 via esm.sh URLs.
+      # Deno v1 resolves these remotely; we just need @types/node for node: builtins.
+      - name: Install @types/node for Deno typecheck
         run: |
           npm init -y >/dev/null 2>&1 || true
-          npm install --no-save \
-            @aws-sdk/client-eks \
-            @aws-sdk/client-ec2 \
-            @aws-sdk/client-iam \
-            @aws-sdk/client-sts \
-            @aws-sdk/client-supabase 2>/dev/null || \
-          npm install --no-save \
-            @aws-sdk/client-eks \
-            @aws-sdk/client-ec2 \
-            @aws-sdk/client-iam \
-            @aws-sdk/client-sts
+          npm install --no-save @types/node 2>/dev/null || \
+          npm install --no-save @types/node
+        working-directory: supabase/functions
+
+      - name: Cache Deno dependencies for aws-eks-deploy-v2
+        run: deno cache supabase/functions/aws-eks-deploy-v2/index.ts
+        env:
+          DENO_DIR: .deno-cache
 
       - name: Typecheck aws-eks-deploy-v2
         run: |
-          deno check --node-modules-dir \
-            supabase/functions/aws-eks-deploy-v2/index.ts
+          deno check supabase/functions/aws-eks-deploy-v2/index.ts
+        env:
+          DENO_DIR: .deno-cache
 
       - name: Typecheck other edge functions (best-effort)
         continue-on-error: true
         run: |
           for f in supabase/functions/*/index.ts; do
             echo "::group::$f"
-            deno check --node-modules-dir "$f" || true
+            deno check "$f" || true
             echo "::endgroup::"
           done
+        env:
+          DENO_DIR: .deno-cache

@@ -1,10 +1,8 @@
 
-import { vi } from 'vitest';
+import { vi, beforeEach } from 'vitest';
 
-// Use the global mock toast from setup.ts
-const mockToast = (globalThis as any).__mockToast as ReturnType<typeof vi.fn>;
-
-export { mockToast };
+// NOTE: vi.mock for '@/hooks/use-toast' must be declared in each test file
+// that needs it (for proper hoisting). Do NOT declare it here.
 
 // Setup mock fetch
 export const setupMockFetch = () => {
@@ -14,7 +12,6 @@ export const setupMockFetch = () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(global.fetch).mockClear();
-    mockToast.mockClear();
   });
 };
 
@@ -28,7 +25,7 @@ export const createSuccessResponseMock = (data: any = { success: true }) => ({
 });
 
 // Create an error response mock
-export const createErrorResponseMock = (status = 400, statusText = 'Bad Request', data = { error: 'Error' }) => ({
+export const createErrorResponseMock = (status = 400, statusText = 'Bad Request', data: any = { error: 'Error' }) => ({
   json: vi.fn().mockResolvedValue(data),
   text: vi.fn().mockResolvedValue(JSON.stringify(data)),
   ok: false,

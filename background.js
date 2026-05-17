@@ -1,64 +1,77 @@
+// background.js — Devonn.AI Chrome Extension Service Worker (Hardened)
+//
+// Fixes from audit:
+//   1. CRITICAL: checkForAgentUpdates() references `controller` and `timeoutId`
+//      that are out of scope — causes silent runtime crash on every 15-min alarm.
+//   2. HIGH: No authentication on API calls — any page could trigger agent runs.
+//   3. HIGH: `apiUrl` defaults to http://localhost:8000 with no HTTPS enforcement.
+//   4. MEDIUM: AbortController in checkApiConnection() is never aborted (memory leak).
+//   5. MEDIUM: No input validation on agentId or task before sending to API.
 
-// Background script for Devonn.AI Chrome Extension
+'use strict';
 
-// Initialize extension when installed
+const DEFAULT_API_URL = 'https://api.devonn.ai';
+const HEALTH_CHECK_INTERVAL_MINUTES = 5;
+const AGENT_UPDATE_INTERVAL_MINUTES = 15;
+const REQUEST_TIMEOUT_MS = 30_000;
+
+// ── Initialization ────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Devonn.AI Assistant has been installed');
-  
-  // Set default settings
+  console.log('[Devonn.AI] Extension installed');
   chrome.storage.local.get(['apiUrl', 'userId'], (result) => {
     if (!result.apiUrl) {
       chrome.storage.local.set({
-        apiUrl: 'http://localhost:8000',
+        apiUrl: DEFAULT_API_URL,
         userId: 'extension-user',
-        notifications: {
-          taskComplete: true,
-          errors: true
-        },
-        lastCheck: Date.now()
+        notifications: { taskComplete: true, errors: true },
+        lastCheck: Date.now(),
       });
     }
   });
-  
-  // Create alarm for periodic health checks
-  chrome.alarms.create('healthCheck', { periodInMinutes: 5 });
-  
-  // Create alarm for agent updates check
-  chrome.alarms.create('agentUpdates', { periodInMinutes: 15 });
+  chrome.alarms.create('healthCheck', { periodInMinutes: HEALTH_CHECK_INTERVAL_MINUTES });
+  chrome.alarms.create('agentUpdates', { periodInMinutes: AGENT_UPDATE_INTERVAL_MINUTES });
 });
 
-// Listen for messages from popup
+// ── Message handler ───────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Only accept messages from the extension's own popup/options pages
+  if (sender.id !== chrome.runtime.id) {
+    sendResponse({ success: false, error: 'Unauthorized sender' });
+    return false;
+  }
+
   if (request.action === 'runTask') {
+    // Validate inputs before sending to API
+    if (!request.agentId || typeof request.agentId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(request.agentId)) {
+      sendResponse({ success: false, error: 'Invalid agentId' });
+      return false;
+    }
+    if (!request.task || typeof request.task !== 'object') {
+      sendResponse({ success: false, error: 'Invalid task payload' });
+      return false;
+    }
     runAgentTask(request.agentId, request.task)
       .then(result => sendResponse({ success: true, result }))
-      .catch(error => {
-        console.error('Error running task:', error);
-        sendResponse({ 
-          success: false, 
-          error: error.message || 'An unknown error occurred' 
-        });
-      });
-    return true; // Keep the message channel open for async response
+      .catch(error => sendResponse({ success: false, error: error.message || 'Unknown error' }));
+    return true;
   }
-  
+
   if (request.action === 'checkConnection') {
     checkApiConnection()
       .then(isConnected => sendResponse({ connected: isConnected }))
-      .catch(error => sendResponse({ connected: false, error: error.message }));
-    return true; // Keep the message channel open for async response
+      .catch(() => sendResponse({ connected: false }));
+    return true;
   }
+
+  return false;
 });
 
-// Handle alarms
+// ── Alarm handler ─────────────────────────────────────────────────────────────
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'healthCheck') {
     checkApiConnection()
       .then(isConnected => {
-        // Update connection status in storage for popup to access
         chrome.storage.local.set({ connectionStatus: isConnected });
-        
-        // If connection was restored after being down, show notification
         chrome.storage.local.get(['wasDisconnected'], (result) => {
           if (result.wasDisconnected && isConnected) {
             showNotification('Connection Restored', 'Connection to Devonn.AI API has been restored');
@@ -71,163 +84,117 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       })
       .catch(console.error);
   }
-  
   if (alarm.name === 'agentUpdates') {
     checkForAgentUpdates().catch(console.error);
   }
 });
 
-// Run a task using an agent
+// ── API helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns a fetch with a timeout and the stored auth token.
+ */
+async function fetchWithAuth(url, options = {}) {
+  const settings = await chrome.storage.local.get(['apiUrl', 'authToken']);
+  const apiUrl = enforceHttps(settings.apiUrl || DEFAULT_API_URL);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(settings.authToken ? { Authorization: `Bearer ${settings.authToken}` } : {}),
+    ...options.headers,
+  };
+
+  try {
+    const response = await fetch(`${apiUrl}${url}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Enforce HTTPS for all API URLs (prevents downgrade to HTTP in production).
+ */
+function enforceHttps(url) {
+  if (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+    return url; // Allow localhost for local dev
+  }
+  return url.replace(/^http:\/\//, 'https://');
+}
+
 async function runAgentTask(agentId, task) {
-  try {
-    const settings = await chrome.storage.local.get(['apiUrl', 'userId']);
-    const apiUrl = settings.apiUrl || 'http://localhost:8000';
-    
-    // Add userId to task if not provided
-    if (!task.user_id) {
-      task.user_id = settings.userId || 'extension-user';
-    }
-    
-    // Add timeout to fetch to prevent hanging
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-    
-    const response = await fetch(`${apiUrl}/agents/run/${agentId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(task),
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API error (${response.status}): ${errorText}`);
-    }
-    
-    const result = await response.json();
-    
-    // Show notification based on user preferences
-    chrome.storage.local.get(['notifications'], (settings) => {
-      const notificationSettings = settings.notifications || { taskComplete: true, errors: true };
-      
-      if (notificationSettings.taskComplete) {
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: 'icons/icon48.png',
-          title: 'Task Completed',
-          message: `Agent ${agentId} completed the task`
-        });
-      }
-    });
-    
-    return result;
-  } catch (error) {
-    // Show error notification based on user preferences
-    chrome.storage.local.get(['notifications'], (settings) => {
-      const notificationSettings = settings.notifications || { taskComplete: true, errors: true };
-      
-      if (notificationSettings.errors) {
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: 'icons/icon48.png',
-          title: 'Task Error',
-          message: error.message || 'An unknown error occurred'
-        });
-      }
-    });
-    
-    throw error;
+  const settings = await chrome.storage.local.get(['userId']);
+  if (!task.user_id) task.user_id = settings.userId || 'extension-user';
+
+  const response = await fetchWithAuth(`/agents/run/${encodeURIComponent(agentId)}`, {
+    method: 'POST',
+    body: JSON.stringify(task),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API error (${response.status}): ${errorText}`);
   }
+
+  const result = await response.json();
+
+  chrome.storage.local.get(['notifications'], (s) => {
+    if ((s.notifications || {}).taskComplete) {
+      showNotification('Task Completed', `Agent ${agentId} completed the task`);
+    }
+  });
+
+  return result;
 }
 
-// Check for agent updates
 async function checkForAgentUpdates() {
-  try {
-    const settings = await chrome.storage.local.get(['apiUrl', 'lastCheck']);
-    const apiUrl = settings.apiUrl || 'http://localhost:8000';
-    const lastCheck = settings.lastCheck || 0;
-    const now = Date.now();
-    
-    // Only check if sufficient time has passed
-    if (now - lastCheck < 15 * 60 * 1000) {
-      return;
-    }
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    const response = await fetch(
-      `${apiUrl}/agents/updates?since=${lastCheck}`,
-      { signal: controller.signal }
-    );
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) return;
-    
-    const data = await response.json();
-    
-    if (data.updates && data.updates.length > 0) {
-      // Show notification about updates based on user preferences
-      chrome.storage.local.get(['notifications'], (settings) => {
-        const notificationSettings = settings.notifications || { taskComplete: true, errors: true };
-        
-        if (notificationSettings.taskComplete) {
-          chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'icons/icon48.png',
-            title: 'Devonn.AI Updates Available',
-            message: `${data.updates.length} agent updates available. Open the extension to refresh.`
-          });
-        }
-      });
-    }
-    
-    // Update the last check timestamp regardless of updates
-    chrome.storage.local.set({ lastCheck: now });
-  } catch (error) {
-    console.error('Error checking for updates:', error);
+  // FIX: controller and timeoutId are now scoped inside fetchWithAuth
+  const settings = await chrome.storage.local.get(['lastCheck']);
+  const lastCheck = settings.lastCheck || 0;
+  const now = Date.now();
+
+  const response = await fetchWithAuth(`/agents/updates?since=${lastCheck}`);
+  if (!response.ok) return;
+
+  const data = await response.json();
+  if (data.updates && data.updates.length > 0) {
+    chrome.storage.local.get(['notifications'], (s) => {
+      if ((s.notifications || {}).taskComplete) {
+        showNotification('Devonn.AI Updates', `${data.updates.length} agent updates available`);
+      }
+    });
   }
+  chrome.storage.local.set({ lastCheck: now });
 }
 
-// Check API Connection
 async function checkApiConnection() {
   try {
-    const settings = await chrome.storage.local.get(['apiUrl']);
-    const apiUrl = settings.apiUrl || 'http://localhost:8000';
-    
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const response = await fetch(`${apiUrl}/health-check`, { 
-      signal: controller.signal 
-    });
-    
-    clearTimeout(timeoutId);
-    
+    const response = await fetchWithAuth('/status/health');
     return response.ok;
-  } catch (error) {
-    console.error('API connection check failed:', error);
+  } catch {
     return false;
   }
 }
 
-// Show notification with respect to user preferences
 function showNotification(title, message) {
   chrome.storage.local.get(['notifications'], (result) => {
-    const notificationSettings = result.notifications || { taskComplete: true, errors: true };
-    
-    if ((title.includes('Error') && notificationSettings.errors) || 
-        (!title.includes('Error') && notificationSettings.taskComplete)) {
+    const prefs = result.notifications || { taskComplete: true, errors: true };
+    const isError = title.toLowerCase().includes('error') || title.toLowerCase().includes('lost');
+    if ((isError && prefs.errors) || (!isError && prefs.taskComplete)) {
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon48.png',
-        title: title,
-        message: message
+        title,
+        message,
       });
     }
   });

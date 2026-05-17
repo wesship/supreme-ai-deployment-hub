@@ -1,0 +1,106 @@
+name: CodeQL SAST
+
+# Runs Static Application Security Testing on every push to main/develop
+# and on all pull requests. Also runs on a weekly schedule to catch
+# newly-discovered vulnerabilities in existing code.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Every Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL Analysis (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - javascript-typescript   # covers all .ts, .tsx, .js files
+          - python                  # covers backend/*.py and scripts/*.py
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── JavaScript/TypeScript setup ─────────────────────────────────────────
+      - name: Setup Node.js (JS/TS analysis)
+        if: matrix.language == 'javascript-typescript'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Node dependencies (JS/TS analysis)
+        if: matrix.language == 'javascript-typescript'
+        run: npm ci
+
+      # ── Python setup ────────────────────────────────────────────────────────
+      - name: Setup Python (Python analysis)
+        if: matrix.language == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install Python dependencies (Python analysis)
+        if: matrix.language == 'python'
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      # ── CodeQL Analysis ─────────────────────────────────────────────────────
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Use the security-extended query suite for broader coverage
+          queries: security-extended
+          config: |
+            paths-ignore:
+              - node_modules
+              - dist
+              - build
+              - .next
+              - coverage
+              - test-results
+              - '**/*.test.ts'
+              - '**/*.spec.ts'
+              - '**/__tests__/**'
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
+          upload: true
+          output: sarif-results
+          add-snippet: true
+
+      - name: Upload SARIF results as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: sarif-results/
+          retention-days: 14

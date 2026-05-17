@@ -34,7 +34,7 @@ export const generateResponse = (
   const fallbackResponse = getFallbackResponse(conversationContext.failedIntentCount || 0);
   
   // Start with a default response
-  let response: ChatMessage = {
+  const response: ChatMessage = {
     content: fallbackResponse || "", // Use fallback if available
     role: 'assistant'
   };

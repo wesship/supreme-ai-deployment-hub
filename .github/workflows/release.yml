@@ -1,0 +1,88 @@
+name: Release
+
+# Automated semantic versioning and CHANGELOG generation.
+# Triggered only on pushes to main (after PR merge).
+# Uses conventional commits to determine version bump:
+#   feat: → minor bump (1.x.0)
+#   fix:  → patch bump (1.0.x)
+#   feat!: or BREAKING CHANGE → major bump (x.0.0)
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false   # never cancel an in-flight release
+
+permissions:
+  contents: write        # to push tags and create releases
+  pull-requests: write   # to comment on PRs
+  issues: write          # to comment on issues
+  id-token: write        # for npm provenance (optional)
+
+jobs:
+  release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Only run if CI passed — require the build job to succeed first
+    # (configure this as a branch protection required status check)
+    steps:
+      - name: Checkout repository (full history for semantic-release)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # semantic-release needs full git history
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Semantic Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Uncomment if publishing to npm:
+          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
+
+  # Post-release: run deployment smoke tests against the new production build
+  post-release-smoke:
+    name: Post-Release Smoke Tests
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: needs.release.result == 'success'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run deployment smoke tests
+        env:
+          PLAYWRIGHT_BASE_URL: https://devonn.ai
+        run: npx playwright test tests/e2e/deployment-smoke.spec.ts --project=chromium
+
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: post-release-smoke-results
+          path: test-results/
+          retention-days: 7

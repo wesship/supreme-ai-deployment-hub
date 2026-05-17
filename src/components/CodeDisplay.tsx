@@ -44,7 +44,7 @@ const CodeDisplay = ({
           
           // Highlight keys
           highlightedLine = highlightedLine.replace(
-            /^(\s*)([\w\-]+):/g,
+            /^(\s*)([\w-]+):/g,
             '$1<span class="keyword">$2</span>:'
           );
           
