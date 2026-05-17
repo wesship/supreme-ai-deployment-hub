@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 
 import { DevonnSettings } from '../storage';
 
@@ -16,23 +17,23 @@ const mockSettings: DevonnSettings = {
 export const mockChrome = {
   storage: {
     local: {
-      get: jest.fn((keys, callback) => {
+      get: vi.fn((keys, callback) => {
         callback({ settings: mockSettings });
       }),
-      set: jest.fn((items, callback) => {
+      set: vi.fn((items, callback) => {
         if (callback) callback();
       })
     },
     onChanged: {
-      addListener: jest.fn()
+      addListener: vi.fn()
     }
   },
   permissions: {
-    contains: jest.fn()
+    contains: vi.fn()
   },
   tabs: {
     onActivated: {
-      addListener: jest.fn()
+      addListener: vi.fn()
     }
   },
   runtime: {
@@ -42,10 +43,10 @@ export const mockChrome = {
 
 // Mock storage implementation
 export const mockChromeStorage = {
-  get: jest.fn((keys, callback) => {
+  get: vi.fn((keys, callback) => {
     callback({ settings: mockSettings });
   }),
-  set: jest.fn((items, callback) => {
+  set: vi.fn((items, callback) => {
     if (callback) callback();
   })
 };

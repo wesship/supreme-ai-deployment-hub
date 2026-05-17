@@ -1,8 +1,18 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { vi } from 'vitest';
+
+// Must be hoisted before other imports
+vi.mock('@/hooks/use-toast', () => ({
+  toast: vi.fn(),
+  useToast: () => ({ toast: vi.fn() }),
+  _registerToast: vi.fn(),
+}));
+
 import { useAPIPlayground } from '../../useAPIPlayground';
-import { setupMockFetch, mockToast } from './testUtils';
+import { setupMockFetch } from './testUtils';
+import { toast } from '@/hooks/use-toast';
+const mockToast = toast as ReturnType<typeof vi.fn>;
 
 setupMockFetch();
 

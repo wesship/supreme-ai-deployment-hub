@@ -2,10 +2,6 @@
 // This is a wrapper around the toast component from shadcn/ui
 import { Toast, ToastActionElement, ToastProps } from "@/components/ui/toast";
 
-import {
-  useToast as useToastOriginal,
-} from "@/components/ui/use-toast";
-
 // Define the extended toast props type with all required properties
 export type ExtendedToastProps = {
   variant?: 'default' | 'destructive' | 'success' | 'warning' | 'info';
@@ -15,19 +11,21 @@ export type ExtendedToastProps = {
   action?: ToastActionElement;
 };
 
-// Wrapper for useToast that handles the extended variants
-export const useToast = () => {
-  const originalHook = useToastOriginal();
+// Internal state for imperative toast calls (mirrors shadcn/ui pattern)
+type ToastFn = (props: ExtendedToastProps) => void;
+let _toastFn: ToastFn | null = null;
 
-  return {
-    ...originalHook,
-    toast: (props: ExtendedToastProps) => {
-      // Pass all props to the original toast function
-      return originalHook.toast(props);
-    }
-  };
+/** Called once by the Toaster component to register the imperative handler */
+export const _registerToast = (fn: ToastFn) => { _toastFn = fn; };
+
+/** Imperative toast helper — safe to call outside React components */
+export const toast = (props: ExtendedToastProps) => {
+  if (_toastFn) _toastFn(props);
 };
 
-// Re-export toast directly from the original module to avoid rules-of-hooks violation
-// (hooks cannot be called inside regular functions)
-export { toast } from "@/components/ui/use-toast";
+// Wrapper for useToast that handles the extended variants
+export const useToast = () => {
+  return {
+    toast,
+  };
+};

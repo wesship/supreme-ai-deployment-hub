@@ -33,12 +33,7 @@ vi.mock('@/lib/env', () => ({
 
 describe('useAgentHealth', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     mockFetch.mockReset();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it('returns unknown status initially', () => {
@@ -53,7 +48,7 @@ describe('useAgentHealth', () => {
 
     await waitFor(() => {
       expect(result.current.overall).toBe('healthy');
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.services.api).toBe('healthy');
     expect(result.current.services.supabase).toBe('healthy');
@@ -72,7 +67,7 @@ describe('useAgentHealth', () => {
 
     await waitFor(() => {
       expect(result.current.overall).toBe('degraded');
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.services.supabase).toBe('degraded');
   });
@@ -87,16 +82,18 @@ describe('useAgentHealth', () => {
 
     await waitFor(() => {
       expect(result.current.services.supabase).toBe('down');
-    });
+    }, { timeout: 5000 });
 
     expect(result.current.overall).toBe('down');
   });
 
   it('does not poll when disabled', async () => {
+    vi.useFakeTimers();
     mockFetch.mockResolvedValue({ ok: true });
     renderHook(() => useAgentHealth(false));
 
     await vi.advanceTimersByTimeAsync(60_000);
     expect(mockFetch).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

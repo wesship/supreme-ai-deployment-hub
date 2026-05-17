@@ -1,10 +1,19 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { vi } from 'vitest';
+
+// Mock sonner toast since useResponseHandler uses it
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    error: vi.fn(),
+    success: vi.fn(),
+  }),
+}));
+
 import { useAPIPlayground } from '../../useAPIPlayground';
 import { setupMockFetch } from './testUtils';
-
-const mockToastError = (globalThis as any).__mockToastError as ReturnType<typeof vi.fn>;
+import { toast as sonnerToast } from 'sonner';
+const mockToastError = (sonnerToast as any).error as ReturnType<typeof vi.fn>;
 
 setupMockFetch();
 

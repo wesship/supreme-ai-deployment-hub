@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 
 // Setup for extension tests
 
@@ -6,8 +7,8 @@ Object.defineProperty(global, 'chrome', {
   value: {
     storage: {
       local: {
-        get: jest.fn(),
-        set: jest.fn()
+        get: vi.fn(),
+        set: vi.fn()
       }
     },
     runtime: {
