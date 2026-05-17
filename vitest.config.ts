@@ -35,8 +35,11 @@ export default defineConfig({
     exclude: [
       'node_modules/**',
       'dist/**',
-      'tests/e2e/**',                    // Playwright handles E2E separately
-      'src/extension/__tests__/e2e/**', // Extension E2E tests run via Playwright
+      'tests/e2e/**',                          // Playwright handles E2E separately
+      'src/extension/__tests__/e2e/**',        // Extension E2E tests run via Playwright
+      'src/extension/__tests__/setupExtensionTests.ts', // setup helper, not a test suite
+      'src/extension/__tests__/storage.mock.ts',        // mock helper, not a test suite
+      'src/hooks/__tests__/**/testUtils.ts',            // test utility, not a test suite
     ],
 
     coverage: {

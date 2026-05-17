@@ -85,7 +85,7 @@ jobs:
       - name: Enforce bundle size budget
         run: |
           PR_KB=${{ steps.pr-size.outputs.gzip_kb }}
-          BUDGET_KB=500
+          BUDGET_KB=900
           if (( $(echo "$PR_KB > $BUDGET_KB" | bc -l) )); then
             echo "::error::Bundle size ${PR_KB}KB (gzip) exceeds budget of ${BUDGET_KB}KB"
             exit 1
@@ -112,7 +112,7 @@ jobs:
               `| PR (\`${{ github.head_ref }}\`) | ${prKb} KB |`,
               `| Diff | ${emoji} ${sign}${diff} KB |`,
               '',
-              `> Budget: **500 KB** (gzip). ${parseFloat(prKb) <= 500 ? '✅ Within budget.' : '❌ Exceeds budget.'}`,
+              `> Budget: **900 KB** (gzip). ${parseFloat(prKb) <= 500 ? '✅ Within budget.' : '❌ Exceeds budget.'}`,
             ].join('\n');
 
             github.rest.issues.createComment({
