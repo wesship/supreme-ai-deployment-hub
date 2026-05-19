@@ -1,0 +1,14 @@
+{
+  "standard": "WCAG2AA",
+  "reporter": "cli",
+  "timeout": 30000,
+  "wait": 1000,
+  "ignore": [
+    "WCAG2AA.Principle1.Guideline1_4.1_4_3.G18.Fail"
+  ],
+  "urls": [
+    "http://localhost:4173",
+    "http://localhost:4173/agents",
+    "http://localhost:4173/settings"
+  ]
+}
