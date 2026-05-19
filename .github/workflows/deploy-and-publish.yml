@@ -108,7 +108,9 @@ jobs:
           curl -X POST -H 'Content-type: application/json' --data '{"text":"*Preview Environment Ready*: ${{ env.VERCEL_PREVIEW_URL }}"}' $SLACK_WEBHOOK_URL
 
       - name: Slack Notification - Success
-        if: success()
+        if: success() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -X POST -H 'Content-type: application/json' --data '{"text":"*Deployment + Chrome Extension Publish Successful!*"}' $SLACK_WEBHOOK_URL
 
@@ -119,7 +121,8 @@ jobs:
 
       - name: Create GitHub Issue on Failure
         if: failure()
-        uses: dacbd/create-issue-action@v1
+        continue-on-error: true
+        uses: dacbd/create-issue-action@v2
         with:
           title: "Deployment Failure Detected"
           body: "Auto-created because the deployment failed. Check logs for troubleshooting."
