@@ -1,0 +1,99 @@
+---
+# render.yaml — Devonn.AI Backend Deployment on Render.com
+# Deploy with: render deploy --service devonn-ai-backend
+# Or connect this repo to Render and it will auto-deploy on push to main.
+#
+# Service URL will be: https://devonn-ai-backend.onrender.com
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────────────────────
+  - type: web
+    name: devonn-ai-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: starter  # Upgrade to standard for production (no sleep)
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # ── Required secrets (set in Render dashboard → Environment) ────────────
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+
+      - key: SUPABASE_URL
+        sync: false
+
+      - key: SUPABASE_ANON_KEY
+        sync: false
+
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      - key: JWT_SECRET
+        sync: false
+
+      - key: DATABASE_URL
+        sync: false
+
+      # ── Optional secrets ─────────────────────────────────────────────────────
+      - key: REDIS_URL
+        sync: false
+
+      - key: SENTRY_DSN
+        sync: false
+
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+
+      - key: AWS_REGION
+        value: us-east-1
+
+      # ── Runtime config ───────────────────────────────────────────────────────
+      - key: ENVIRONMENT
+        value: production
+
+      - key: LOG_LEVEL
+        value: info
+
+      - key: WORKERS
+        value: "2"
+
+      - key: PORT
+        value: "8000"
+
+      - key: CORS_ORIGINS
+        value: "https://devonn.ai,https://www.devonn.ai,https://supreme-ai-deployment-hub.vercel.app"
+
+  # ── Background Worker (Agent Task Queue) ─────────────────────────────────────
+  - type: worker
+    name: devonn-ai-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: starter
+    autoDeploy: true
+
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: WORKER_MODE
+        value: "true"
