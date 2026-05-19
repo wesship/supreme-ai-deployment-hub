@@ -46,12 +46,13 @@ export default defineConfig({
     navigationTimeout: 30_000,
   },
 
-  // Automatically start the Vite dev server before running tests
+  // In CI: serve the pre-built dist/ with `npm run preview` (fast, no HMR overhead).
+  // Locally: use the Vite dev server for hot reloading.
   webServer: {
-    command: 'npm run dev',
+    command: process.env.CI ? 'npm run preview -- --port 5173' : 'npm run dev',
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 60_000,
     stdout: 'pipe',
     stderr: 'pipe',
   },

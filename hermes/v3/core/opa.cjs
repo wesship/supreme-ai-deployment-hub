@@ -83,9 +83,16 @@ function evaluatePolicy(ctx) {
   // ── DENY rules (hard blocks) ─────────────────────────────────────────────
 
   // ci.rego: block direct pushes to main by humans
+  // Exception: squash-merge commits from PRs arrive as push events but contain
+  // "(#NNN)" in the commit message — these are legitimate and should be allowed.
+  const isSquashMerge = /\(#\d+\)/.test(ctx.commitMessage || "");
+  const isMergeCommit = (ctx.commitMessage || "").startsWith("Merge ");
+  const isEventPush = ctx.eventName === "push";
   if (
     ctx.branch === "main" &&
-    !ctx.agentContext?.isAgentActor
+    !ctx.agentContext?.isAgentActor &&
+    !isSquashMerge &&
+    !isMergeCommit
   ) {
     return deny(
       "Direct pushes to main are blocked — use a pull request",
