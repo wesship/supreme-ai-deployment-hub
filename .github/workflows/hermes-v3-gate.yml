@@ -1,0 +1,53 @@
+name: Hermes v3 Governance Gate
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+concurrency:
+  group: hermes-v3-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  hermes-gate:
+    name: Hermes v3 Policy Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run Hermes v3 Unit Tests
+        run: node hermes/v3/tests/hermes-v3.test.cjs
+
+      - name: Run Hermes v3 Policy Gate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEVONN_AGENT_ID: ${{ github.actor }}
+          DEVONN_EXECUTION_MODE: ${{ github.actor == 'github-actions[bot]' && 'bot' || 'human' }}
+        run: node hermes/v3/core/engine.cjs
+
+      - name: Upload Hermes Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-v3-report-${{ github.run_id }}
+          path: |
+            hermes/v3/
+          retention-days: 30
