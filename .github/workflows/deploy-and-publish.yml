@@ -82,6 +82,7 @@ jobs:
           zip -r ../devonn-ai-${{ env.ENVIRONMENT }}.zip *
 
       - name: Upload and Publish Chrome Extension
+        continue-on-error: true
         run: |
           node ./scripts/upload-to-chrome-webstore.cjs
         env:
