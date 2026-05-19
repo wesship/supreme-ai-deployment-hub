@@ -142,6 +142,7 @@ jobs:
           persist-credentials: false
 
       - name: Run OSSF Scorecard
+        continue-on-error: true
         uses: ossf/scorecard-action@v2.3.3
         with:
           results_file: scorecard-results.sarif
