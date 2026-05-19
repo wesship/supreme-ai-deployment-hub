@@ -1,0 +1,68 @@
+name: Hermes v2 Policy Gate
+
+# Runs on every PR and push to enforce the Hermes policy rules.
+# Blocks merges that violate security or CI governance policies.
+# See: hermes/core/engine.js for the full decision logic.
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches-ignore:
+      - 'dependabot/**'
+      - 'copilot/**'
+
+concurrency:
+  group: hermes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hermes:
+    name: Hermes Policy Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+      pull-requests: write   # needed for future PR comment bot
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so git diff origin/main...HEAD works correctly
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Hermes unit tests
+        run: node hermes/tests/hermes.test.cjs
+
+      - name: Run Hermes Policy Gate
+        id: hermes
+        run: node hermes/core/engine.cjs
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Post decision summary
+        if: always()
+        run: |
+          echo "## Hermes Policy Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.hermes.outcome }}" = "success" ]; then
+            echo "✅ **APPROVED** — All policy checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **BLOCKED** — Policy violation detected. See logs above for details." >> $GITHUB_STEP_SUMMARY
+          fi
