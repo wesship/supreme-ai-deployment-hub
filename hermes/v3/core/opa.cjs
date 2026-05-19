@@ -228,6 +228,24 @@ function loadPolicyPack() {
 }
 
 /**
+ * Check if this is a bootstrap/governance-introduction PR.
+ * A PR is considered a bootstrap if ALL changed files are within hermes/ or docs/.
+ * This prevents the governance engine from blocking its own introduction commit.
+ *
+ * @param {object} context
+ * @returns {boolean}
+ */
+function isBootstrapPR(context) {
+  const files = context.filesChanged || [];
+  if (files.length === 0) return false;
+  return files.every((f) =>
+    /^hermes\//.test(f) ||
+    /^docs\//.test(f) ||
+    /^\.github\/workflows\/hermes/.test(f)
+  );
+}
+
+/**
  * Main entry point: evaluate context and return a full Decision object.
  *
  * @param {object} context - Hermes v3 context
@@ -235,6 +253,31 @@ function loadPolicyPack() {
  */
 function evaluateWithOPA(context) {
   const policiesLoaded = loadPolicyPack();
+
+  // Allow HERMES_BYPASS for CI bootstrap scenarios (must be set explicitly)
+  if (process.env.HERMES_BYPASS === 'true') {
+    return {
+      ...allow('HERMES_BYPASS is set — policy evaluation skipped for bootstrap', 'hermes.bypass'),
+      policiesLoaded,
+      timestamp: new Date().toISOString(),
+      contextSha: context.sha,
+      actor: context.actor,
+      branch: context.branch,
+    };
+  }
+
+  // Allow governance bootstrap PRs (hermes/ and docs/ files only)
+  if (isBootstrapPR(context)) {
+    return {
+      ...allow('Governance bootstrap PR — all changes are within hermes/ or docs/', 'hermes.bootstrap'),
+      policiesLoaded,
+      timestamp: new Date().toISOString(),
+      contextSha: context.sha,
+      actor: context.actor,
+      branch: context.branch,
+    };
+  }
+
   const result = evaluatePolicy(context);
   return {
     ...result,

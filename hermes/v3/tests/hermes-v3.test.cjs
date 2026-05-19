@@ -186,6 +186,20 @@ test("ALLOW: clean feature branch", () => {
   assertEqual(r.riskScore, 0);
 });
 
+test("ALLOW: bootstrap PR (hermes-only files)", () => {
+  const ctx = makeContext({
+    filesChanged: [
+      "hermes/v3/core/opa.cjs",
+      "hermes/v3/README.md",
+      ".github/workflows/hermes-v3-gate.yml",
+    ],
+    riskSignals: { ...makeContext().riskSignals, touchesIAM: true, largeDiff: true },
+  });
+  const r = evaluateWithOPA(ctx);
+  assertEqual(r.decision, "ALLOW", "bootstrap PR should be allowed even with IAM+large diff signals");
+  assertEqual(r.policy, "hermes.bootstrap");
+});
+
 test("decision includes timestamp and contextSha", () => {
   const ctx = makeContext();
   const r = evaluateWithOPA(ctx);
