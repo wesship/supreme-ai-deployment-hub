@@ -1,0 +1,20 @@
+push:
+    branches: [ main ]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  oidc-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+          audience: sts.amazonaws.com
+      - name: Verify Keyless Identity Connection
+        run: |
+          aws sts get-caller-identity
