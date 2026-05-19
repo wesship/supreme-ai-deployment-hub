@@ -30,9 +30,10 @@ export default defineConfig({
   // Use 1 worker on CI to avoid resource contention; unlimited locally
   workers: process.env.CI ? 1 : undefined,
 
+  outputDir: 'test-results/artifacts',
   reporter: [
     ['list'],
-    ['html', { outputFolder: 'test-results/playwright-report', open: 'never' }],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['junit', { outputFile: 'test-results/e2e-results.xml' }],
   ],
 

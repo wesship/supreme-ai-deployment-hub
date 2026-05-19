@@ -44,6 +44,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install semantic-release plugins
+        run: |
+          npm install --no-save \
+            semantic-release \
+            @semantic-release/changelog \
+            @semantic-release/git \
+            @semantic-release/github \
+            @semantic-release/npm \
+            @semantic-release/commit-analyzer \
+            @semantic-release/release-notes-generator
+
       - name: Run Semantic Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
