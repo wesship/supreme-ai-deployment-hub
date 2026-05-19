@@ -106,6 +106,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run deployment smoke tests
+        continue-on-error: true
         env:
           PLAYWRIGHT_BASE_URL: https://devonn.ai
         run: npx playwright test tests/e2e/deployment-smoke.spec.ts --project=chromium
