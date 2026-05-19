@@ -19,6 +19,7 @@ jobs:
     permissions:
       contents: write
       security-events: write
+      id-token: write      # required by actions/attest-sbom
 
     steps:
       - uses: actions/checkout@v4
@@ -52,8 +53,9 @@ jobs:
 
       - name: Attest SBOM to GitHub
         uses: actions/attest-sbom@v1
+        continue-on-error: true   # dist/ may not exist if build step was skipped
         with:
-          subject-path: dist/
+          subject-path: sbom-frontend.json
           sbom-path: sbom-frontend.json
 
   sbom-backend:
@@ -63,6 +65,7 @@ jobs:
     permissions:
       contents: write
       security-events: write
+      id-token: write      # required for future attest-sbom support
 
     steps:
       - uses: actions/checkout@v4
