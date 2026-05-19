@@ -108,6 +108,7 @@ function buildContext() {
     eventName: process.env.GITHUB_EVENT_NAME || "unknown",
     runId: process.env.GITHUB_RUN_ID || "local",
     sha: process.env.GITHUB_SHA || safeExec("git rev-parse HEAD").trim().slice(0, 8),
+    commitMessage: safeExec("git log -1 --pretty=%s").trim(),
 
     // Diff analysis
     filesChanged,

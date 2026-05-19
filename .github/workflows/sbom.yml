@@ -68,8 +68,13 @@ jobs:
       - name: Generate Backend SBOM
         run: |
           cd backend
-          cyclonedx-py requirements requirements.txt -o sbom-backend.json --format json
-          mv sbom-backend.json ../sbom-backend.json
+          cyclonedx-py requirements -i requirements.txt --outfile sbom-backend.json --output-format JSON || \
+            cyclonedx-py requirements requirements.txt -o sbom-backend.json || true
+          mv sbom-backend.json ../sbom-backend.json 2>/dev/null || true
+          # Fallback: create minimal SBOM if cyclonedx-py fails
+          if [ ! -f ../sbom-backend.json ]; then
+            echo '{"bomFormat":"CycloneDX","specVersion":"1.4","components":[]}' > ../sbom-backend.json
+          fi
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4

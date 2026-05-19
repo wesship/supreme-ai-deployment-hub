@@ -66,10 +66,18 @@ function evaluatePolicy(ctx) {
   // ── DENY rules (hard blocks) ─────────────────────────────────────────────
 
   // ci.rego: block direct pushes to main by humans
+  // Exception: squash-merges and merge commits from PRs are allowed.
+  // GitHub fires a push event with the human actor when a PR is squash-merged,
+  // so we detect them via the commit message pattern "feat: foo (#112)".
+  const commitMsg = ctx.commitMessage || "";
+  const isSquashMerge = /\(#\d+\)/.test(commitMsg);
+  const isMergeCommit = commitMsg.startsWith("Merge pull request") || commitMsg.startsWith("Merge branch");
+  const isBotActor = ctx.actor === "github-actions[bot]" || ctx.actor === "dependabot[bot]";
   if (
     ctx.branch === "main" &&
-    ctx.actor !== "github-actions[bot]" &&
-    ctx.actor !== "dependabot[bot]"
+    !isBotActor &&
+    !isSquashMerge &&
+    !isMergeCommit
   ) {
     return deny("Direct pushes to main are blocked — use a PR", "hermes.ci");
   }
