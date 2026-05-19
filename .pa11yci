@@ -1,0 +1,12 @@
+{
+  "standard": "WCAG2AA",
+  "reporter": "cli",
+  "urls": [
+    "http://localhost:4173",
+    "http://localhost:4173/agents",
+    "http://localhost:4173/settings"
+  ],
+  "chromeLaunchConfig": {
+    "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+  }
+}

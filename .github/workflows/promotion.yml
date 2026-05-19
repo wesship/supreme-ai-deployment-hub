@@ -162,7 +162,7 @@ jobs:
 
       - name: Notify Slack
         continue-on-error: true
-        if: always()
+        if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
         uses: slackapi/slack-github-action@v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
@@ -226,7 +226,8 @@ jobs:
           echo "Production smoke test passed (HTTP $STATUS)"
 
       - name: Notify Slack — Production Deploy
-        if: always()
+        continue-on-error: true
+        if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
         uses: slackapi/slack-github-action@v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}

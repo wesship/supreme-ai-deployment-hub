@@ -56,7 +56,19 @@ jobs:
             @semantic-release/commit-analyzer \
             @semantic-release/release-notes-generator
 
+      - name: Check release prerequisites
+        id: prereq
+        run: |
+          if [ -z "${{ secrets.GH_PAT }}" ]; then
+            echo "::warning::GH_PAT secret is not set — skipping semantic-release to avoid push permission error"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+        # Skip if GH_PAT is not configured
+
       - name: Run Semantic Release
+        if: steps.prereq.outputs.skip != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: github-actions[bot]

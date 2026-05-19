@@ -1,5 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test';
-
+/* eslint-disable react-hooks/rules-of-hooks */
 /**
  * Devonn.AI — Playwright Test Fixtures
  *
@@ -7,7 +6,13 @@ import { test as base, expect, type Page } from '@playwright/test';
  * Import from this file instead of directly from @playwright/test:
  *
  *   import { test, expect } from './fixtures';
+ *
+ * Note: The `eslint-disable react-hooks/rules-of-hooks` directive above is
+ * intentional. Playwright's `base.extend()` fixture callbacks use a `use()`
+ * function that ESLint misidentifies as a React Hook. These are NOT React
+ * Hooks — they are Playwright's fixture injection mechanism.
  */
+import { test as base, expect, type Page } from '@playwright/test';
 
 // ---------------------------------------------------------------------------
 // Page Object Models
@@ -26,12 +31,10 @@ export class HomePage {
   }
 
   async expectNavigation() {
-    // Check that a nav element exists
     await expect(this.page.locator('nav, [role="navigation"]').first()).toBeVisible({ timeout: 10_000 });
   }
 
   async expectHeroSection() {
-    // Check that the main content area renders
     await expect(this.page.locator('main, [role="main"], #root').first()).toBeVisible({ timeout: 10_000 });
   }
 
@@ -54,8 +57,6 @@ type CustomFixtures = {
 // ---------------------------------------------------------------------------
 
 export const test = base.extend<CustomFixtures>({
-  // eslint-disable-next-line no-empty-pattern
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   consoleErrors: async ({ page }, use) => {
     const errors: string[] = [];
     page.on('console', msg => {
@@ -66,8 +67,6 @@ export const test = base.extend<CustomFixtures>({
     await use(errors);
   },
 
-  // eslint-disable-next-line no-empty-pattern
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   homePage: async ({ page }, use) => {
     const home = new HomePage(page);
     await use(home);
