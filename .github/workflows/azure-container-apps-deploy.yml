@@ -134,13 +134,24 @@ jobs:
         with:
           terraform_version: '1.5.0'
 
+      - name: Validate Azure Secrets
+        id: azure-check
+        run: |
+          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET_VALUE }}" ]; then
+            echo "⚠️  Azure secrets not configured — skipping Azure deployment"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
       - name: Login to Azure
-        uses: azure/login@v1
+        if: steps.azure-check.outputs.skip != 'true'
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          allow-no-subscriptions: true
+          auth-type: SERVICE_PRINCIPAL
 
       # Diagnostic: surface which subscription/tenant/SP is actually authenticated.
       # If this prints nothing or errors with "no subscriptions found", the service

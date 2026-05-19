@@ -46,14 +46,15 @@ jobs:
       - name: Wait for server
         run: npx wait-on http://localhost:4173 --timeout 30000
 
+      - name: Install axe-core CLI
+        run: npm install -g @axe-core/cli
+
       - name: Run axe accessibility audit
-        uses: dequelabs/axe-core-npm/packages/cli@v4
-        with:
-          args: >
-            http://localhost:4173
-            --tags wcag2a,wcag2aa,wcag21aa
-            --reporter json
-            --output-file axe-results.json
+        run: |
+          axe http://localhost:4173 \
+            --tags wcag2a,wcag2aa,wcag21aa \
+            --reporter json \
+            --output-file axe-results.json || true
         continue-on-error: true
 
       - name: Parse axe results and fail on violations

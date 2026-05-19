@@ -62,7 +62,17 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_VERSION: ${{ github.sha }}
 
+      - name: Validate Vercel Secrets
+        id: vercel-check
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ] || [ -z "${{ secrets.VERCEL_ORG_ID }}" ] || [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "Vercel secrets not configured - skipping Vercel deployment"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
       - name: Deploy to Vercel (Development)
+        if: steps.vercel-check.outputs.skip != 'true'
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -82,6 +92,7 @@ jobs:
           echo "Development smoke test passed (HTTP $STATUS)"
 
       - name: Notify Slack
+        continue-on-error: true
         if: always()
         uses: slackapi/slack-github-action@v2
         with:
@@ -148,6 +159,7 @@ jobs:
             load-tests/api-load-test.js
 
       - name: Notify Slack
+        continue-on-error: true
         if: always()
         uses: slackapi/slack-github-action@v2
         with:
