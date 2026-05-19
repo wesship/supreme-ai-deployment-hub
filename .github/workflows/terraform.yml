@@ -39,10 +39,32 @@ permissions:
   packages: write
 
 jobs:
+  check-azure-secrets:
+    name: Check Azure Secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_secrets: ${{ steps.check.outputs.has_secrets }}
+    steps:
+      - name: Check required Azure secrets
+        id: check
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          if [ -z "${AZURE_SUBSCRIPTION_ID}" ] || [ -z "${AZURE_CLIENT_ID}" ]; then
+            echo "::warning::Azure secrets not configured — skipping Terraform deployment"
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: [check-azure-secrets]
+    if: needs.check-azure-secrets.outputs.has_secrets == 'true'
     outputs:
       tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
     

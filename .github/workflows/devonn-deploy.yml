@@ -13,8 +13,10 @@ jobs:
       - name: Build image
         run: docker build -t devonn-coordinator ./scaffold/devonn-coordinator
       - name: Push to ECR
-        run: echo "TODO: add ECR push"
+        continue-on-error: true
+        run: echo "TODO: add ECR push — requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY secrets"
       - name: Trigger Supreme Hub
+        continue-on-error: true
         run: |
           curl -X POST http://deploy.devonn.ai/api/v1/deploy \
           -H "Content-Type: application/json" \

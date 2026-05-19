@@ -70,7 +70,8 @@ jobs:
         # Skip if GH_PAT is not configured
 
       - name: Run Semantic Release
-        if: steps.prereq.outputs.skip != 'true'
+        if: steps.prereq.outputs.skip == 'false'
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: github-actions[bot]

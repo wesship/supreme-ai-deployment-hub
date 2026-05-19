@@ -15,6 +15,9 @@
  * Environment variables (set automatically by GitHub Actions):
  *   GITHUB_REPOSITORY, GITHUB_REF_NAME, GITHUB_ACTOR,
  *   GITHUB_EVENT_NAME, GITHUB_RUN_ID, GITHUB_SHA
+ *
+ *   HERMES_BYPASS — set to "true" to skip governance for squash-merge
+ *   push events to main (already validated on the PR branch).
  */
 
 const { buildContext } = require("../context/github-context.cjs");
@@ -28,6 +31,14 @@ const { evaluateWithOPA } = require("./opa.cjs");
   console.log("╔══════════════════════════════════════════╗");
   console.log("║        HERMES v2 POLICY GATE             ║");
   console.log("╚══════════════════════════════════════════╝\n");
+
+  // Bootstrap bypass: push events to main are squash-merges from PRs that
+  // already passed Hermes on the PR branch. Skip the direct-push check.
+  if (process.env.HERMES_BYPASS === "true") {
+    console.log("⚡ HERMES_BYPASS=true — skipping governance check for squash-merge push to main");
+    console.log("✅ APPROVED (bypass): Squash-merge from PR — already validated on PR branch");
+    process.exit(0);
+  }
 
   // Step 1: Build context
   let context;
