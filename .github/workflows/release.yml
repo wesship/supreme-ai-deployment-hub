@@ -58,8 +58,10 @@ jobs:
 
       - name: Check release prerequisites
         id: prereq
+        env:
+          GH_PAT_VALUE: ${{ secrets.GH_PAT }}
         run: |
-          if [ -z "${{ secrets.GH_PAT }}" ]; then
+          if [ -z "${GH_PAT_VALUE}" ]; then
             echo "::warning::GH_PAT secret is not set — skipping semantic-release to avoid push permission error"
             echo "skip=true" >> $GITHUB_OUTPUT
           else

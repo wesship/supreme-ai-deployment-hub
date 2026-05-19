@@ -129,6 +129,7 @@ jobs:
     name: OSSF Security Scorecard
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    continue-on-error: true  # OSSF requires specific token permissions
     permissions:
       security-events: write
       id-token: write
