@@ -32,7 +32,16 @@ jobs:
         run: npm ci --include=dev
 
       - name: Generate SBOM (CycloneDX)
-        run: npx @cyclonedx/cyclonedx-npm --output-file sbom-frontend.json --output-format JSON
+        run: |
+          # --ignore-npm-errors allows SBOM generation even when npm-ls reports
+          # peer dependency warnings (exit code 1) — common with React 19 ecosystem
+          npx @cyclonedx/cyclonedx-npm \
+            --output-file sbom-frontend.json \
+            --output-format JSON \
+            --ignore-npm-errors || \
+          npx @cyclonedx/cyclonedx-npm \
+            --output-file sbom-frontend.json \
+            --output-format JSON
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4

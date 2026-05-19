@@ -1,4 +1,4 @@
-import { test as base, expect, Page } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
 /**
  * Devonn.AI — Playwright Test Fixtures
@@ -13,7 +13,7 @@ import { test as base, expect, Page } from '@playwright/test';
 // Page Object Models
 // ---------------------------------------------------------------------------
 
-class HomePage {
+export class HomePage {
   constructor(private page: Page) {}
 
   async navigate() {
@@ -54,6 +54,8 @@ type CustomFixtures = {
 // ---------------------------------------------------------------------------
 
 export const test = base.extend<CustomFixtures>({
+  // eslint-disable-next-line no-empty-pattern
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   consoleErrors: async ({ page }, use) => {
     const errors: string[] = [];
     page.on('console', msg => {
@@ -64,9 +66,11 @@ export const test = base.extend<CustomFixtures>({
     await use(errors);
   },
 
+  // eslint-disable-next-line no-empty-pattern
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   homePage: async ({ page }, use) => {
-    const homePage = new HomePage(page);
-    await use(homePage);
+    const home = new HomePage(page);
+    await use(home);
   },
 });
 

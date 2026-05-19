@@ -51,7 +51,19 @@ jobs:
         with:
           urls: |
             http://localhost:4173/
-          configPath: .github/workflows/lighthouse-config.json
+          # Use inline assertions instead of configPath to avoid startServerCommand conflict
+          # (the server is already started above)
+          assertConfig: |
+            assertions:
+              categories:performance:
+                - warn
+                - minScore: 0.7
+              categories:accessibility:
+                - warn
+                - minScore: 0.8
+              categories:best-practices:
+                - warn
+                - minScore: 0.8
           uploadArtifacts: true
           temporaryPublicStorage: true
 
