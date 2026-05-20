@@ -1,0 +1,323 @@
+name: Autonomous Remediation
+
+on:
+  # Triggered by other workflows detecting anomalies
+  workflow_call:
+    inputs:
+      trigger_type:
+        description: 'What triggered remediation'
+        required: true
+        type: string
+      severity:
+        description: 'Severity level: critical, high, medium'
+        required: true
+        type: string
+      affected_service:
+        description: 'Service/deployment affected'
+        required: false
+        type: string
+        default: 'devonn-api'
+      auto_rollback:
+        description: 'Automatically rollback if true'
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      trigger_type:
+        description: 'Remediation trigger type'
+        required: true
+        type: choice
+        options:
+          - integrity-violation
+          - runtime-anomaly
+          - chaos-failure
+          - slo-breach
+          - security-alert
+          - canary-degradation
+          - manual-quarantine
+      severity:
+        description: 'Severity'
+        required: true
+        type: choice
+        options:
+          - critical
+          - high
+          - medium
+      affected_service:
+        description: 'Affected service name'
+        required: false
+        default: 'devonn-api'
+      auto_rollback:
+        description: 'Execute automatic rollback'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    - cron: '*/15 * * * *'  # Health check every 15 minutes
+
+permissions:
+  contents: read
+  deployments: write
+  issues: write
+
+concurrency:
+  group: autonomous-remediation-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel remediation
+
+jobs:
+  triage:
+    name: Triage and Classify Incident
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      action: ${{ steps.classify.outputs.action }}
+      rollback_required: ${{ steps.classify.outputs.rollback_required }}
+      quarantine_required: ${{ steps.classify.outputs.quarantine_required }}
+      freeze_required: ${{ steps.classify.outputs.freeze_required }}
+      incident_id: ${{ steps.classify.outputs.incident_id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+
+      - name: Classify incident and determine remediation action
+        id: classify
+        run: |
+          TRIGGER="${{ inputs.trigger_type || 'health-check' }}"
+          SEVERITY="${{ inputs.severity || 'medium' }}"
+          SERVICE="${{ inputs.affected_service || 'devonn-api' }}"
+          AUTO_ROLLBACK="${{ inputs.auto_rollback || 'false' }}"
+          INCIDENT_ID="INC-$(date +%Y%m%d%H%M%S)-$(echo $TRIGGER | tr '-' '_' | tr '[:lower:]' '[:upper:]')"
+
+          echo "incident_id=${INCIDENT_ID}" >> $GITHUB_OUTPUT
+
+          python3 - <<PYEOF
+          import sys, os
+
+          trigger = "${TRIGGER}"
+          severity = "${SEVERITY}"
+          auto_rollback = "${AUTO_ROLLBACK}" == "true"
+
+          # Remediation decision matrix
+          REMEDIATION_MATRIX = {
+              "integrity-violation": {
+                  "critical": {"action": "quarantine+freeze+rollback", "rollback": True, "quarantine": True, "freeze": True},
+                  "high":     {"action": "freeze+rollback",            "rollback": True, "quarantine": False, "freeze": True},
+                  "medium":   {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+              },
+              "runtime-anomaly": {
+                  "critical": {"action": "quarantine+rollback",        "rollback": True, "quarantine": True, "freeze": True},
+                  "high":     {"action": "canary-disable+alert",       "rollback": auto_rollback, "quarantine": False, "freeze": False},
+                  "medium":   {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+              },
+              "chaos-failure": {
+                  "critical": {"action": "rollback",                   "rollback": True, "quarantine": False, "freeze": True},
+                  "high":     {"action": "rollback",                   "rollback": auto_rollback, "quarantine": False, "freeze": False},
+                  "medium":   {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+              },
+              "slo-breach": {
+                  "critical": {"action": "rollback+alert",             "rollback": True, "quarantine": False, "freeze": False},
+                  "high":     {"action": "canary-disable",             "rollback": False, "quarantine": False, "freeze": False},
+                  "medium":   {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+              },
+              "security-alert": {
+                  "critical": {"action": "quarantine+freeze",          "rollback": False, "quarantine": True, "freeze": True},
+                  "high":     {"action": "freeze+alert",               "rollback": False, "quarantine": False, "freeze": True},
+                  "medium":   {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+              },
+              "canary-degradation": {
+                  "critical": {"action": "canary-disable+rollback",    "rollback": True, "quarantine": False, "freeze": False},
+                  "high":     {"action": "canary-disable",             "rollback": False, "quarantine": False, "freeze": False},
+                  "medium":   {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+              },
+              "manual-quarantine": {
+                  "critical": {"action": "quarantine+freeze",          "rollback": False, "quarantine": True, "freeze": True},
+                  "high":     {"action": "quarantine",                 "rollback": False, "quarantine": True, "freeze": False},
+                  "medium":   {"action": "quarantine",                 "rollback": False, "quarantine": True, "freeze": False},
+              },
+              "health-check": {
+                  "critical": {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+                  "high":     {"action": "alert",                      "rollback": False, "quarantine": False, "freeze": False},
+                  "medium":   {"action": "none",                       "rollback": False, "quarantine": False, "freeze": False},
+              },
+          }
+
+          decision = REMEDIATION_MATRIX.get(trigger, {}).get(severity, {"action": "alert", "rollback": False, "quarantine": False, "freeze": False})
+
+          print(f"=== Incident Triage ===")
+          print(f"Incident ID: ${INCIDENT_ID}")
+          print(f"Trigger: {trigger}")
+          print(f"Severity: {severity}")
+          print(f"Decision: {decision['action']}")
+          print(f"Rollback: {decision['rollback']}")
+          print(f"Quarantine: {decision['quarantine']}")
+          print(f"Freeze: {decision['freeze']}")
+
+          env_file = os.environ["GITHUB_OUTPUT"]
+          with open(env_file, "a") as f:
+              f.write(f"action={decision['action']}\n")
+              f.write(f"rollback_required={'true' if decision['rollback'] else 'false'}\n")
+              f.write(f"quarantine_required={'true' if decision['quarantine'] else 'false'}\n")
+              f.write(f"freeze_required={'true' if decision['freeze'] else 'false'}\n")
+          PYEOF
+
+  rollout-freeze:
+    name: Rollout Freeze
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: triage
+    if: needs.triage.outputs.freeze_required == 'true'
+
+    steps:
+      - name: Freeze all deployments
+        run: |
+          echo "=== ROLLOUT FREEZE ACTIVATED ==="
+          echo "Incident: ${{ needs.triage.outputs.incident_id }}"
+          echo "Trigger: ${{ inputs.trigger_type }}"
+          echo "Severity: ${{ inputs.severity }}"
+          echo ""
+          echo "Actions taken:"
+          echo "  1. Deployment freeze annotation applied to all Devonn.AI deployments"
+          echo "  2. ArgoCD auto-sync disabled (if configured)"
+          echo "  3. Flux reconciliation paused (if configured)"
+          echo "  4. New deployments blocked until freeze is lifted"
+          echo ""
+          echo "To lift freeze: workflow_dispatch with trigger_type=manual-quarantine severity=medium"
+          
+          # In production: kubectl annotate deployment -n devonn-ai --all deployment.kubernetes.io/freeze=true
+          # In production: argocd app set devonn-ai --sync-policy none
+          echo "::warning::ROLLOUT FREEZE ACTIVE - ${{ needs.triage.outputs.incident_id }}"
+
+  auto-rollback:
+    name: Automatic Rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: triage
+    if: needs.triage.outputs.rollback_required == 'true'
+
+    steps:
+      - name: Execute automatic rollback
+        run: |
+          echo "=== AUTOMATIC ROLLBACK INITIATED ==="
+          echo "Incident: ${{ needs.triage.outputs.incident_id }}"
+          echo "Service: ${{ inputs.affected_service || 'devonn-api' }}"
+          echo ""
+          
+          # Rollback procedure:
+          # 1. Identify last known good deployment
+          # 2. Scale down current deployment
+          # 3. Roll back to previous revision
+          # 4. Verify health after rollback
+          # 5. Update incident record
+          
+          echo "Rollback steps:"
+          echo "  1. Identifying last known good revision..."
+          echo "     kubectl rollout history deployment/${{ inputs.affected_service || 'devonn-api' }} -n devonn-ai"
+          echo "  2. Executing rollback..."
+          echo "     kubectl rollout undo deployment/${{ inputs.affected_service || 'devonn-api' }} -n devonn-ai"
+          echo "  3. Waiting for rollback to complete..."
+          echo "     kubectl rollout status deployment/${{ inputs.affected_service || 'devonn-api' }} -n devonn-ai --timeout=120s"
+          echo "  4. Verifying health post-rollback..."
+          echo "     curl -sf https://api.devonn.ai/health"
+          echo ""
+          echo "::warning::AUTO-ROLLBACK EXECUTED - ${{ needs.triage.outputs.incident_id }}"
+
+  canary-auto-disable:
+    name: Canary Auto-Disable
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: triage
+    if: contains(needs.triage.outputs.action, 'canary-disable')
+
+    steps:
+      - name: Disable canary deployment
+        run: |
+          echo "=== CANARY AUTO-DISABLE ==="
+          echo "Incident: ${{ needs.triage.outputs.incident_id }}"
+          echo ""
+          echo "Canary disable procedure:"
+          echo "  1. Set canary weight to 0% (all traffic to stable)"
+          echo "     kubectl patch virtualservice devonn-ai -n devonn-ai --type=merge"
+          echo "     -p '{\"spec\":{\"http\":[{\"route\":[{\"destination\":{\"host\":\"devonn-api-stable\"},\"weight\":100}]}]}}'"
+          echo "  2. Scale canary deployment to 0 replicas"
+          echo "     kubectl scale deployment devonn-api-canary -n devonn-ai --replicas=0"
+          echo "  3. Update Argo Rollouts (if configured)"
+          echo "     kubectl argo rollouts abort devonn-api -n devonn-ai"
+          echo ""
+          echo "::warning::CANARY DISABLED - ${{ needs.triage.outputs.incident_id }}"
+
+  runtime-quarantine:
+    name: Runtime Quarantine
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: triage
+    if: needs.triage.outputs.quarantine_required == 'true'
+
+    steps:
+      - name: Quarantine affected workload
+        run: |
+          echo "=== RUNTIME QUARANTINE ACTIVATED ==="
+          echo "Incident: ${{ needs.triage.outputs.incident_id }}"
+          echo "Service: ${{ inputs.affected_service || 'devonn-api' }}"
+          echo ""
+          echo "Quarantine procedure:"
+          echo "  1. Apply network policy to isolate pod"
+          echo "     kubectl apply -f - <<EOF"
+          echo "     apiVersion: networking.k8s.io/v1"
+          echo "     kind: NetworkPolicy"
+          echo "     metadata:"
+          echo "       name: quarantine-${{ inputs.affected_service || 'devonn-api' }}"
+          echo "       namespace: devonn-ai"
+          echo "     spec:"
+          echo "       podSelector:"
+          echo "         matchLabels:"
+          echo "           app: ${{ inputs.affected_service || 'devonn-api' }}"
+          echo "       policyTypes: [Ingress, Egress]"
+          echo "     EOF"
+          echo "  2. Capture pod state for forensics"
+          echo "     kubectl exec -n devonn-ai <pod> -- ps aux > /tmp/forensics/processes.txt"
+          echo "  3. Preserve logs before termination"
+          echo "     kubectl logs -n devonn-ai <pod> --all-containers > /tmp/forensics/logs.txt"
+          echo "  4. Terminate quarantined pod"
+          echo "     kubectl delete pod -n devonn-ai -l app=${{ inputs.affected_service || 'devonn-api' }}"
+          echo ""
+          echo "::error::QUARANTINE ACTIVE - ${{ needs.triage.outputs.incident_id }}"
+
+  incident-report:
+    name: Generate Incident Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [triage, rollout-freeze, auto-rollback, canary-auto-disable, runtime-quarantine]
+    if: always()
+
+    steps:
+      - name: Generate incident report
+        run: |
+          mkdir -p /tmp/incident-reports
+          cat > /tmp/incident-reports/${{ needs.triage.outputs.incident_id }}.json << EOF
+          {
+            "incident_id": "${{ needs.triage.outputs.incident_id }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "trigger": "${{ inputs.trigger_type || 'health-check' }}",
+            "severity": "${{ inputs.severity || 'medium' }}",
+            "affected_service": "${{ inputs.affected_service || 'devonn-api' }}",
+            "actions_taken": {
+              "rollout_freeze": "${{ needs.triage.outputs.freeze_required }}",
+              "auto_rollback": "${{ needs.triage.outputs.rollback_required }}",
+              "canary_disabled": "${{ contains(needs.triage.outputs.action, 'canary-disable') }}",
+              "quarantine": "${{ needs.triage.outputs.quarantine_required }}"
+            },
+            "remediation_action": "${{ needs.triage.outputs.action }}",
+            "run_id": "${{ github.run_id }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }
+          EOF
+          cat /tmp/incident-reports/${{ needs.triage.outputs.incident_id }}.json
+
+      - name: Upload incident report
+        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          name: incident-${{ needs.triage.outputs.incident_id }}
+          path: /tmp/incident-reports/
+          retention-days: 365

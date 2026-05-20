@@ -1,0 +1,120 @@
+# Hardened Runner Configuration for Devonn.AI CI/CD
+# Defines the security posture for GitHub Actions runners
+# Compatible with: StepSecurity Harden-Runner, self-hosted hardened runners,
+# and future Firecracker/gVisor sandboxed execution environments.
+
+runner_hardening:
+  # Egress filtering: only allow connections to required endpoints
+  egress_policy: block
+  allowed_endpoints:
+    # GitHub infrastructure
+    - github.com:443
+    - api.github.com:443
+    - uploads.github.com:443
+    - objects.githubusercontent.com:443
+    - ghcr.io:443
+    - pkg.github.com:443
+    # npm registry
+    - registry.npmjs.org:443
+    - nodejs.org:443
+    # Python/pip
+    - pypi.org:443
+    - files.pythonhosted.org:443
+    # Sigstore
+    - fulcio.sigstore.dev:443
+    - rekor.sigstore.dev:443
+    - tuf-repo-cdn.sigstore.dev:443
+    # Kyverno
+    - github.com:443  # Kyverno CLI download
+    # Container registries
+    - gcr.io:443
+    - quay.io:443
+    # Cosign
+    - oauth2.sigstore.dev:443
+
+  # File system restrictions
+  filesystem:
+    read_only_paths:
+      - /etc/passwd
+      - /etc/shadow
+      - /etc/sudoers
+      - /root/.ssh
+    blocked_paths:
+      - /proc/sysrq-trigger
+      - /sys/kernel/debug
+
+  # Process restrictions
+  process:
+    # Block privilege escalation
+    no_new_privileges: true
+    # Seccomp profile
+    seccomp_profile: policy/seccomp/devonn-api.json
+    # Drop all capabilities except those needed for build
+    drop_capabilities:
+      - ALL
+    add_capabilities:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+      - FOWNER
+
+  # Network restrictions
+  network:
+    # Block raw socket creation (prevents network scanning)
+    block_raw_sockets: true
+    # Block packet capture
+    block_packet_capture: true
+
+# Workload attestation configuration
+workload_attestation:
+  # Attest the runner environment before executing sensitive steps
+  attest_on:
+    - before_secrets_access
+    - before_deployment
+    - before_signing
+
+  # Claims to include in runner attestation
+  claims:
+    - runner_os
+    - runner_arch
+    - runner_name
+    - github_sha
+    - github_workflow
+    - github_repository
+    - github_actor
+    - github_run_id
+
+  # Attestation backend
+  backend: github_oidc  # Uses GitHub OIDC token as runner attestation
+
+# Sandboxed execution configuration (future: Firecracker/gVisor)
+sandboxed_execution:
+  # Technology options in order of preference:
+  # 1. Firecracker microVMs (strongest isolation, 125ms startup)
+  # 2. gVisor (strong isolation, kernel syscall interception)
+  # 3. Kata Containers (VM-level isolation with container UX)
+  preferred_technology: gvisor
+
+  # gVisor configuration
+  gvisor:
+    runtime_class: gvisor
+    platform: ptrace  # or kvm for better performance
+    network: sandbox  # or host for better performance
+
+  # Firecracker configuration (for highest-security builds)
+  firecracker:
+    vcpus: 2
+    memory_mb: 4096
+    kernel: vmlinux-5.10
+    rootfs: ubuntu-22.04-minimal.ext4
+    jailer: true  # Run Firecracker inside jailer for additional isolation
+
+  # Build environment constraints
+  build_environment:
+    # Maximum build duration
+    timeout_minutes: 30
+    # Ephemeral: destroy runner after each job
+    ephemeral: true
+    # No persistent state between jobs
+    no_state_carryover: true

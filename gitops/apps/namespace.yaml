@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devonn-ai
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    security.devonn.ai/kyverno-enforce: "true"
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
