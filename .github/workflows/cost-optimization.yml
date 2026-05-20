@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout base branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           ref: ${{ github.event.pull_request.base.ref }}
 
@@ -48,7 +48,7 @@ jobs:
             --out-file /tmp/infracost-base.json
 
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Generate Infracost cost estimate for PR branch
         run: |
@@ -79,11 +79,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Configure AWS credentials via OIDC
         continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
@@ -130,7 +130,7 @@ jobs:
           echo "report=$(cat /tmp/cost_report.txt)" >> $GITHUB_OUTPUT
 
       - name: Post cost report to Slack
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_COSTS }}
           webhook-type: incoming-webhook

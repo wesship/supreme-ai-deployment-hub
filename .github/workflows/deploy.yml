@@ -30,9 +30,9 @@ jobs:
     environment:
       name: ${{ github.event.inputs.environment || 'production' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: '22'
           cache: 'npm'
@@ -87,7 +87,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.env.outputs.name == 'production'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2
         with:
           files: devonn-ai-${{ steps.env.outputs.name }}.zip
           name: Release ${{ github.ref_name }}
@@ -98,7 +98,7 @@ jobs:
 
       - name: Notify Slack
         if: always() && secrets.SLACK_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3  # v1
         with:
           payload: |
             {

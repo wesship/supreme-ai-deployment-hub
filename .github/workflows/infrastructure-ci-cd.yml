@@ -73,10 +73,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4          # was @v6 (non-existent)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3  # was @v2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
@@ -106,7 +106,7 @@ jobs:
           terraform-docs markdown ./src/data/manifest/terraform > TERRAFORM.md
 
       - name: Upload Terraform Documentation
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: terraform-docs
           path: TERRAFORM.md
@@ -123,11 +123,11 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4          # was @v6
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Configure AWS Credentials (OIDC)
         continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@v4   # was @v6 (non-existent)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
@@ -137,14 +137,14 @@ jobs:
           # aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Run tfsec
-        uses: aquasecurity/tfsec-action@v1.0.0
+        uses: aquasecurity/tfsec-action@a73ebc46fba54691e25cbe901656e7b205fb9bf2  # v1.0.0
         with:
           soft_fail: true
           format: sarif
           additional_args: --out tfsec.sarif
 
       - name: Run checkov
-        uses: bridgecrewio/checkov-action@v3
+        uses: bridgecrewio/checkov-action@803f802e15372b44bfa1045780e9427936ab2f5b  # v3
         with:
           directory: ./src/data/manifest/terraform/azure
           framework: terraform
@@ -177,7 +177,7 @@ jobs:
           opa version
 
       - name: Setup Terraform (for plan generation)
-        uses: hashicorp/setup-terraform@v3  # was @v2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
@@ -282,7 +282,7 @@ jobs:
           fi
 
       - name: Upload OPA Policy Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
           name: policy-check-results
@@ -308,17 +308,17 @@ jobs:
       plan_exit_code: ${{ steps.plan.outputs.exitcode }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4          # was @v6
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Configure AWS Credentials (OIDC)
         continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@v4   # was @v6
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3  # was @v2
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
@@ -334,7 +334,7 @@ jobs:
         run: terraform init -reconfigure
 
       - name: Upload Terraform Lock File
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: terraform-lock
           path: src/data/manifest/terraform/.terraform.lock.hcl
@@ -342,7 +342,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Terraform Config Files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: terraform-config
           path: ./src/data/manifest/terraform/*.tf
@@ -366,7 +366,7 @@ jobs:
       # HARDENING: Upload only the binary plan file (not the JSON representation)
       # The binary plan is opaque and does not expose secret values in plain text.
       - name: Upload Terraform Plan (binary only)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: terraform-plan
           path: ./src/data/manifest/terraform/tfplan
@@ -374,7 +374,7 @@ jobs:
 
       - name: Comment Plan Summary on PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7     # was @v6
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -423,22 +423,22 @@ jobs:
       url: https://devonn.ai
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Configure AWS Credentials (OIDC)
         continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: terraform-plan
           path: ./src/data/manifest/terraform/

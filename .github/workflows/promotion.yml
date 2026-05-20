@@ -41,10 +41,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: 22
           cache: npm
@@ -73,7 +73,7 @@ jobs:
           fi
       - name: Deploy to Vercel (Development)
         if: steps.vercel-check.outputs.skip != 'true'
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9  # v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -96,7 +96,7 @@ jobs:
       - name: Notify Slack
         continue-on-error: true
         if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
           webhook-type: incoming-webhook
@@ -122,10 +122,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: 22
           cache: npm
@@ -141,7 +141,7 @@ jobs:
           VITE_APP_VERSION: ${{ github.sha }}
 
       - name: Deploy to Vercel (Staging)
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9  # v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -163,7 +163,7 @@ jobs:
       - name: Notify Slack
         continue-on-error: true
         if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
           webhook-type: incoming-webhook
@@ -189,10 +189,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: 22
           cache: npm
@@ -208,7 +208,7 @@ jobs:
           VITE_APP_VERSION: ${{ github.ref_name }}
 
       - name: Deploy to Vercel (Production)
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9  # v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -228,7 +228,7 @@ jobs:
       - name: Notify Slack - Production Deploy
         continue-on-error: true
         if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
           webhook-type: incoming-webhook
