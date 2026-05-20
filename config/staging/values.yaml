@@ -1,0 +1,31 @@
+# Environment: staging
+# Managed by: GitOps (ArgoCD)
+environment: staging
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/wesship/devonn-api
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+logging:
+  level: info
+
+featureFlags:
+  newAIModels: true
+  betaVoiceAPI: false
+  experimentalMesh: false
