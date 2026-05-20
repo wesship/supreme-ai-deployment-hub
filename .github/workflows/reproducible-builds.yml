@@ -37,10 +37,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Set up Node.js (pinned version)
-        uses: actions/setup-node@49933ea5288c96b7e7e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -91,7 +91,7 @@ jobs:
           cat /tmp/dist-file-digests.txt
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: ${{ steps.digest.outputs.artifact_name }}
           path: |
@@ -108,16 +108,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Set up Node.js (same pinned version)
-        uses: actions/setup-node@49933ea5288c96b7e7e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 22
           cache: npm
 
       - name: Download first build artifact
-        uses: actions/download-artifact@d3f86a106a0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: ${{ needs.hermetic-build.outputs.build_artifact_name }}
           path: /tmp/first-build/
@@ -168,16 +168,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Download build artifact
-        uses: actions/download-artifact@d3f86a106a0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: ${{ needs.hermetic-build.outputs.build_artifact_name }}
           path: /tmp/artifact/
 
       - name: Generate SLSA provenance attestation
-        uses: actions/attest-build-provenance@db473fddc4ec7ef46cf9c4d6d1b07b3a7e7e7e7e  # v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
         with:
           subject-path: /tmp/artifact/${{ needs.hermetic-build.outputs.build_artifact_name }}.tar.gz
           subject-name: ${{ needs.hermetic-build.outputs.build_artifact_name }}
@@ -201,7 +201,7 @@ jobs:
           echo "SLSA Level 3 provenance recorded"
 
       - name: Upload SLSA metadata
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: slsa-metadata-${{ github.sha }}
           path: /tmp/slsa-metadata.json

@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Install Kyverno CLI
         run: |
@@ -200,7 +200,7 @@ jobs:
           PYEOF
 
       - name: Upload Kyverno policy report
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: kyverno-policy-report-${{ github.run_id }}
           path: /tmp/kyverno-report/
@@ -213,7 +213,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Generate Sigstore Policy Controller ClusterImagePolicy
         run: |
@@ -243,7 +243,7 @@ jobs:
           cat /tmp/sigstore-policy/cluster-image-policy.yaml
 
       - name: Upload Sigstore policy config
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: sigstore-policy-controller-config-${{ github.run_id }}
           path: /tmp/sigstore-policy/
