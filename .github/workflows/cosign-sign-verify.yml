@@ -35,10 +35,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288c96b7e7e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -105,7 +105,7 @@ jobs:
           PYEOF
 
       - name: Upload signed artifact and bundle
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: signed-artifact-${{ github.sha }}
           path: |
@@ -125,13 +125,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3
 
       - name: Download signed artifact
-        uses: actions/download-artifact@d3f86a106a0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
           name: signed-artifact-${{ github.sha }}
           path: /tmp/verify/
@@ -182,7 +182,7 @@ jobs:
           cat /tmp/deployment-approval.json
 
       - name: Upload deployment approval record
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: deployment-approval-${{ github.sha }}
           path: /tmp/deployment-approval.json

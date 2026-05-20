@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Install Falco (for rule validation)
         run: |
@@ -141,7 +141,7 @@ jobs:
           PYEOF
 
       - name: Upload Falco rules artifact
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: falco-rules-${{ github.run_id }}
           path: policy/falco/
@@ -155,7 +155,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Generate Falco Helm values for Kubernetes deployment
         run: |
@@ -260,7 +260,7 @@ jobs:
           echo "Falco DaemonSet manifest generated"
 
       - name: Upload Falco deployment config
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: falco-deploy-config-${{ github.run_id }}
           path: /tmp/falco-deploy/

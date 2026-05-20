@@ -275,7 +275,7 @@ jobs:
           echo '{"status":"no_new_cves","timestamp":"'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"}' > /tmp/threat-intel/status.json
 
       - name: Upload threat intelligence artifacts
-        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: threat-intelligence-${{ github.run_id }}
           path: /tmp/threat-intel/
