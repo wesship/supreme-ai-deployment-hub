@@ -43,7 +43,7 @@ jobs:
           git config user.name "Devonn AI Agent"
           git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN_WRITE }}@github.com/${{ github.repository }}
 
-      - name: Comment on issue — AI is working
+      - name: Comment on issue - AI is working
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_WRITE }}
         run: |

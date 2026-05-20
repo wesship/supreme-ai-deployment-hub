@@ -55,7 +55,7 @@ jobs:
             This pull request has been automatically **closed** due to 14 days of
             inactivity. If this fix is still needed, please open a new PR.
 
-          # Only stale PRs from known bots — never stale human PRs
+          # Only stale PRs from known bots - never stale human PRs
           # Remove this filter if you want all PRs to be subject to staleness
           only-labels: ''
           exempt-pr-labels: 'pinned,security,do-not-close'

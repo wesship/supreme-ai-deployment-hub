@@ -26,7 +26,7 @@ jobs:
     name: Semantic Release
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Only run if CI passed — require the build job to succeed first
+    # Only run if CI passed - require the build job to succeed first
     # (configure this as a branch protection required status check)
     steps:
       - name: Checkout repository (full history for semantic-release)
@@ -62,7 +62,7 @@ jobs:
           GH_PAT_VALUE: ${{ secrets.GH_PAT }}
         run: |
           if [ -z "${GH_PAT_VALUE}" ]; then
-            echo "::warning::GH_PAT secret is not set — skipping semantic-release to avoid push permission error"
+            echo "::warning::GH_PAT secret is not set - skipping semantic-release to avoid push permission error"
             echo "skip=true" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT

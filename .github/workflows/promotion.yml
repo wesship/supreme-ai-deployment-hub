@@ -8,10 +8,10 @@ name: Environment Promotion
 #   3. After staging passes load tests, a manual approval promotes to production
 #
 # Required secrets:
-#   VERCEL_TOKEN           — Vercel API token
-#   VERCEL_ORG_ID          — Vercel organization ID
-#   VERCEL_PROJECT_ID      — Vercel project ID
-#   SLACK_WEBHOOK_DEPLOYS  — Slack webhook for deploy notifications
+#   VERCEL_TOKEN           - Vercel API token
+#   VERCEL_ORG_ID          - Vercel organization ID
+#   VERCEL_PROJECT_ID      - Vercel project ID
+#   SLACK_WEBHOOK_DEPLOYS  - Slack webhook for deploy notifications
 
 on:
   push:
@@ -88,7 +88,7 @@ jobs:
           sleep 30  # Wait for deployment to propagate
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.devonn.ai || echo "000")
           if [ "$STATUS" != "200" ]; then
-            echo "::warning::Development smoke test returned HTTP $STATUS — deployment may still be propagating"
+            echo "::warning::Development smoke test returned HTTP $STATUS - deployment may still be propagating"
           else
             echo "Development smoke test passed (HTTP $STATUS)"
           fi
@@ -102,7 +102,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Development* deploy ${{ job.status }} — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Development* deploy ${{ job.status }} - <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
             }
 
   # ── Stage 2: Promote to Staging (manual approval) ───────────────────────────
@@ -169,7 +169,7 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Staging* deploy ${{ job.status }} — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Staging* deploy ${{ job.status }} - <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
             }
 
   # ── Stage 3: Promote to Production (manual approval) ────────────────────────
@@ -220,12 +220,12 @@ jobs:
           sleep 30
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://devonn.ai)
           if [ "$STATUS" != "200" ]; then
-            echo "::error::Production smoke test failed — HTTP $STATUS"
+            echo "::error::Production smoke test failed - HTTP $STATUS"
             exit 1
           fi
           echo "Production smoke test passed (HTTP $STATUS)"
 
-      - name: Notify Slack — Production Deploy
+      - name: Notify Slack - Production Deploy
         continue-on-error: true
         if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
         uses: slackapi/slack-github-action@v2
@@ -234,5 +234,5 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "${{ job.status == 'success' && '🚀 Production deploy SUCCEEDED' || '🔥 Production deploy FAILED' }} — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\nCommit: `${{ github.sha }}` by ${{ github.actor }}"
+              "text": "${{ job.status == 'success' && '🚀 Production deploy SUCCEEDED' || '🔥 Production deploy FAILED' }} - <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\nCommit: `${{ github.sha }}` by ${{ github.actor }}"
             }

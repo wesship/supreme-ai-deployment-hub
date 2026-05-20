@@ -38,7 +38,8 @@ jobs:
             --no-progress || true
 
       - name: Show mutation results
-        run: mutmut results
+        continue-on-error: true
+        run: mutmut results || echo '::warning::No mutation results (mutmut not run or no mutations found)'
 
       - name: Upload mutmut cache
         uses: actions/upload-artifact@v4

@@ -1,4 +1,4 @@
-name: CI — Hardened Build Pipeline
+name: CI - Hardened Build Pipeline
 
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript — noEmit check
+      - name: TypeScript - noEmit check
         run: npm run typecheck
 
       - name: ESLint
@@ -138,7 +138,7 @@ jobs:
             --cov=src \
             --cov-report=xml:python-coverage.xml \
             --cov-report=term-missing \
-            -v || echo "No Python tests found — skipping"
+            -v || echo "No Python tests found - skipping"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 

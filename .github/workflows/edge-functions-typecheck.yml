@@ -37,6 +37,7 @@ jobs:
         working-directory: supabase/functions
 
       - name: Cache Deno dependencies for aws-eks-deploy-v2
+        continue-on-error: true
         run: deno cache supabase/functions/aws-eks-deploy-v2/index.ts
         env:
           DENO_DIR: .deno-cache

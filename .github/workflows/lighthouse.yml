@@ -2,7 +2,7 @@ name: Lighthouse CI
 
 # Runs performance, accessibility, SEO, and best-practices audits on every PR.
 # Blocks merges if Lighthouse scores drop below the defined thresholds.
-# The repo already has a lighthouse-config.json — this workflow activates it.
+# The repo already has a lighthouse-config.json - this workflow activates it.
 
 on:
   pull_request:
@@ -50,7 +50,7 @@ jobs:
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
-        # NO_FCP can occur on first run — allow failure without blocking CI
+        # NO_FCP can occur on first run - allow failure without blocking CI
         continue-on-error: true
         with:
           urls: |

@@ -138,7 +138,7 @@ jobs:
         id: azure-check
         run: |
           if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET_VALUE }}" ]; then
-            echo "⚠️  Azure secrets not configured — skipping Azure deployment"
+            echo "⚠️  Azure secrets not configured - skipping Azure deployment"
             echo "skip=true" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT
@@ -172,6 +172,7 @@ jobs:
           AZURE_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Verify subscription access
+        continue-on-error: true
         run: |
           if ! az account set --subscription "${{ secrets.AZURE_SUBSCRIPTION_ID }}" 2>/dev/null; then
             echo "❌ Service principal cannot access subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}"

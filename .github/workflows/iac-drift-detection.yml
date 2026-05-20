@@ -4,8 +4,8 @@ name: IaC Drift Detection
 # Runs daily and on every push to terraform/ to catch unauthorized manual changes.
 #
 # Required secrets:
-#   AWS_ROLE_ARN      — OIDC role with read-only access to all managed resources
-#   SLACK_WEBHOOK_OPS — Slack webhook for drift alerts
+#   AWS_ROLE_ARN      - OIDC role with read-only access to all managed resources
+#   SLACK_WEBHOOK_OPS - Slack webhook for drift alerts
 
 on:
   schedule:
@@ -93,7 +93,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "⚠️ *Terraform drift detected* — live AWS infrastructure does not match Terraform state.\n\nThis may indicate unauthorized manual changes to the infrastructure.\n\n*Action required:* Review the drift and either apply the Terraform plan or import the manual changes.\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
+                    "text": "⚠️ *Terraform drift detected* - live AWS infrastructure does not match Terraform state.\n\nThis may indicate unauthorized manual changes to the infrastructure.\n\n*Action required:* Review the drift and either apply the Terraform plan or import the manual changes.\n\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>"
                   }
                 }
               ]
@@ -104,7 +104,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const title = `🚨 Infrastructure Drift Detected — ${new Date().toISOString().split('T')[0]}`;
+            const title = `🚨 Infrastructure Drift Detected - ${new Date().toISOString().split('T')[0]}`;
             const body = `## Infrastructure Drift Alert\n\nTerraform detected that the live AWS infrastructure has drifted from the state file.\n\n**Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Immediate Actions\n1. Review the Terraform plan output in the workflow run above.\n2. Determine if the drift was intentional (import it) or unauthorized (revert it).\n3. Run \`terraform apply\` to reconcile if appropriate.\n4. Close this issue once resolved.\n\n**Do not ignore this alert.** Unreconciled drift leads to unpredictable infrastructure behavior.`;
             await github.rest.issues.create({
               owner: context.repo.owner,

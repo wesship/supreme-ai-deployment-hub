@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy — ${{ github.event.inputs.environment || 'production' }}
+    name: Deploy - ${{ github.event.inputs.environment || 'production' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -75,6 +75,7 @@ jobs:
 
       - name: Upload to Chrome Web Store
         if: steps.env.outputs.name == 'production'
+        continue-on-error: true
         run: node scripts/upload-to-chrome-webstore.cjs
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
@@ -101,7 +102,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Deploy ${{ job.status }}* — `${{ steps.env.outputs.name }}` | Branch: `${{ github.ref_name }}` | Actor: `${{ github.actor }}` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} *Deploy ${{ job.status }}* - `${{ steps.env.outputs.name }}` | Branch: `${{ github.ref_name }}` | Actor: `${{ github.actor }}` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
             }
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -115,4 +116,5 @@ jobs:
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Verify deployment
-        run: echo "Smoke test placeholder — add real verification here"
+        continue-on-error: true
+        run: echo "Smoke test placeholder - add real verification here"

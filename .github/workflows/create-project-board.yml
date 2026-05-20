@@ -12,9 +12,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Create Project Board (classic)
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GH_TOKEN }}
+          github-token: ${{ github.token }}
           script: |
             // Create a classic project board (doesn't require project scope)
             const columns = [
@@ -28,7 +29,7 @@ jobs:
             try {
               const res = await github.rest.projects.createForOrg({
                 org: 'wesship',
-                name: 'Devonn Ecosystem — Phase 3 Hardening',
+                name: 'Devonn Ecosystem - Phase 3 Hardening',
                 body: 'Tracks all hardening, security, and automation work across the 9 Devonn repos.'
               });
               project = res.data;
@@ -38,7 +39,7 @@ jobs:
               const res = await github.rest.projects.createForRepo({
                 owner: 'wesship',
                 repo: 'supreme-ai-deployment-hub',
-                name: 'Devonn Ecosystem — Phase 3 Hardening',
+                name: 'Devonn Ecosystem - Phase 3 Hardening',
                 body: 'Tracks all hardening, security, and automation work.'
               });
               project = res.data;

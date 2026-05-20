@@ -4,7 +4,7 @@ name: Accessibility CI
 # Fails the PR if any WCAG 2.1 AA violations are detected.
 #
 # Required secrets:
-#   None — runs against the built preview
+#   None - runs against the built preview
 
 on:
   pull_request:
@@ -60,7 +60,7 @@ jobs:
       - name: Parse axe results and fail on violations
         run: |
           if [ ! -f axe-results.json ]; then
-            echo "::warning::axe-results.json not found — skipping violation check"
+            echo "::warning::axe-results.json not found - skipping violation check"
             exit 0
           fi
           VIOLATIONS=$(node -e "
