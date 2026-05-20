@@ -1,0 +1,243 @@
+name: Feature Flags and Database Migration Safety
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'config/**/values.yaml'
+      - 'backend/migrations/**'
+      - 'backend/alembic/**'
+      - '.github/workflows/feature-flags-db-safety.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'config/**/values.yaml'
+      - 'backend/migrations/**'
+      - 'backend/alembic/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: feature-flags-db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # Feature Flag Validation
+  # ──────────────────────────────────────────────────────────────────
+  validate-feature-flags:
+    name: Validate Feature Flag Consistency
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Validate feature flag consistency across environments
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, glob, sys
+
+          envs = {}
+          for f in sorted(glob.glob("config/*/values.yaml")):
+              env = f.split("/")[1]
+              with open(f) as fh:
+                  data = yaml.safe_load(fh.read())
+              envs[env] = data
+
+          print("=== Feature Flag Consistency Check ===")
+
+          # Collect all feature flags across all environments
+          all_flags = set()
+          for env, data in envs.items():
+              flags = data.get("featureFlags", {})
+              all_flags.update(flags.keys())
+
+          errors = []
+          for flag in sorted(all_flags):
+              values = {env: data.get("featureFlags", {}).get(flag, "MISSING")
+                        for env, data in envs.items()}
+              print(f"  {flag}:")
+              for env, val in sorted(values.items()):
+                  marker = "MISSING" if val == "MISSING" else str(val)
+                  print(f"    {env:<12}: {marker}")
+              if "MISSING" in values.values():
+                  errors.append(f"Flag '{flag}' is missing from some environments")
+
+          # Validate promotion order: dev >= staging >= canary >= production
+          # (flags enabled in prod should be enabled in all lower envs)
+          for flag in sorted(all_flags):
+              prod_val = envs.get("production", {}).get("featureFlags", {}).get(flag, False)
+              if prod_val:
+                  for env in ["dev", "staging", "canary"]:
+                      env_val = envs.get(env, {}).get("featureFlags", {}).get(flag, False)
+                      if not env_val:
+                          errors.append(f"Flag '{flag}' enabled in production but disabled in {env}")
+
+          if errors:
+              print("\nErrors found:")
+              for e in errors:
+                  print(f"  ::error::{e}")
+              sys.exit(1)
+          else:
+              print("\nAll feature flags are consistent across environments")
+          PYEOF
+
+  # ──────────────────────────────────────────────────────────────────
+  # Database Migration Safety
+  # ──────────────────────────────────────────────────────────────────
+  db-migration-safety:
+    name: Database Migration Safety Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        with:
+          fetch-depth: 0  # Full history for migration diff
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.11'
+
+      - name: Detect and validate database migrations
+        run: |
+          python3 - <<'PYEOF'
+          import os, glob, re, sys
+          from pathlib import Path
+
+          # Check for migration files
+          migration_dirs = [
+              "backend/migrations",
+              "backend/alembic/versions",
+              "migrations",
+          ]
+
+          found_migrations = []
+          for d in migration_dirs:
+              if os.path.exists(d):
+                  files = glob.glob(f"{d}/**/*.py", recursive=True)
+                  found_migrations.extend(files)
+
+          print("=== Database Migration Safety Check ===")
+
+          if not found_migrations:
+              print("No migration files found — skipping migration safety checks")
+              print("(Add migrations to backend/migrations/ when database schema changes are needed)")
+          else:
+              print(f"Migration files found: {len(found_migrations)}")
+
+              # Safety checks for each migration
+              dangerous_patterns = [
+                  (r"DROP\s+TABLE", "DROP TABLE — data loss risk"),
+                  (r"DROP\s+COLUMN", "DROP COLUMN — data loss risk"),
+                  (r"ALTER\s+COLUMN.*NOT\s+NULL", "Adding NOT NULL constraint — may fail on existing data"),
+                  (r"TRUNCATE", "TRUNCATE — data loss risk"),
+              ]
+
+              warnings = []
+              for mf in found_migrations:
+                  with open(mf) as f:
+                      content = f.read().upper()
+                  for pattern, description in dangerous_patterns:
+                      if re.search(pattern, content):
+                          warnings.append(f"{mf}: {description}")
+
+              if warnings:
+                  print("\nMigration safety warnings:")
+                  for w in warnings:
+                      print(f"  ::warning::{w}")
+              else:
+                  print("All migrations pass safety checks")
+
+          # Check for Alembic configuration
+          if os.path.exists("backend/alembic.ini") or os.path.exists("alembic.ini"):
+              print("Alembic configuration: FOUND")
+          else:
+              print("Alembic configuration: NOT FOUND (add alembic.ini for migration management)")
+          PYEOF
+
+      - name: Validate migration rollback capability
+        run: |
+          python3 - <<'PYEOF'
+          import os, glob
+
+          print("=== Migration Rollback Validation ===")
+
+          migration_dirs = ["backend/migrations", "backend/alembic/versions", "migrations"]
+          migrations = []
+          for d in migration_dirs:
+              if os.path.exists(d):
+                  migrations.extend(glob.glob(f"{d}/**/*.py", recursive=True))
+
+          if not migrations:
+              print("No migrations to validate")
+          else:
+              for mf in migrations:
+                  with open(mf) as f:
+                      content = f.read()
+                  has_upgrade = "def upgrade" in content or "def up" in content
+                  has_downgrade = "def downgrade" in content or "def down" in content
+                  status = "ROLLBACK-SAFE" if has_downgrade else "NO-ROLLBACK"
+                  print(f"  [{status}] {os.path.basename(mf)}")
+                  if not has_downgrade:
+                      print(f"    ::warning::Migration {mf} has no downgrade function")
+
+              print("\nAll migrations validated for rollback capability")
+          PYEOF
+
+  # ──────────────────────────────────────────────────────────────────
+  # Feature Flag Drift Detection
+  # ──────────────────────────────────────────────────────────────────
+  flag-drift-detection:
+    name: Feature Flag Drift Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect feature flag changes
+        run: |
+          python3 - <<'PYEOF'
+          import subprocess, yaml, glob, json
+          from datetime import datetime
+
+          print("=== Feature Flag Change Detection ===")
+
+          # Get changed files in this push
+          result = subprocess.run(
+              ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+              capture_output=True, text=True
+          )
+          changed = result.stdout.strip().split("\n")
+          flag_changes = [f for f in changed if "values.yaml" in f and "config/" in f]
+
+          if not flag_changes:
+              print("No feature flag changes detected in this commit")
+          else:
+              print(f"Feature flag files changed: {len(flag_changes)}")
+              for f in flag_changes:
+                  print(f"  Modified: {f}")
+              print("\nReview feature flag changes before merging to production")
+
+          # Generate current flag state snapshot
+          snapshot = {"generated_at": datetime.utcnow().isoformat() + "Z", "flags": {}}
+          for f in sorted(glob.glob("config/*/values.yaml")):
+              env = f.split("/")[1]
+              with open(f) as fh:
+                  data = yaml.safe_load(fh.read())
+              snapshot["flags"][env] = data.get("featureFlags", {})
+
+          print("\nCurrent feature flag state:")
+          print(json.dumps(snapshot["flags"], indent=2))
+          PYEOF
