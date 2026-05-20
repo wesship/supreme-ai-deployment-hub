@@ -8,3 +8,4 @@ cryptography>=46.0.5
 python-multipart>=0.0.22
 python-dotenv>=1.0.0
 sse-starlette
+idna>=3.15 # not directly required, pinned by Snyk to avoid a vulnerability
