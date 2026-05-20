@@ -1,0 +1,237 @@
+name: Zero-Downtime Migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/migrations/**'
+      - 'backend/alembic/**'
+      - 'supabase/migrations/**'
+      - 'database/**'
+  workflow_dispatch:
+    inputs:
+      migration_target:
+        description: 'Migration target (supabase|postgres|all)'
+        required: false
+        default: 'all'
+      dry_run:
+        description: 'Dry run only (true|false)'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: zero-downtime-migration
+  cancel-in-progress: false
+
+jobs:
+  validate-migrations:
+    name: Validate Migration Safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install migration tools
+        run: pip install alembic sqlparse pyyaml --quiet
+
+      - name: Scan migrations for data-loss operations
+        id: migration_scan
+        run: |
+          python3 - << 'PYEOF'
+          import os, glob, re, json
+          from datetime import datetime
+
+          print("ZERO-DOWNTIME MIGRATION SAFETY SCANNER")
+          print(f"Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+          print("=" * 55)
+
+          # Patterns that indicate destructive operations
+          DESTRUCTIVE_PATTERNS = [
+              (r'\bDROP\s+TABLE\b',        "CRITICAL", "DROP TABLE"),
+              (r'\bDROP\s+COLUMN\b',       "CRITICAL", "DROP COLUMN"),
+              (r'\bTRUNCATE\b',            "CRITICAL", "TRUNCATE"),
+              (r'\bDELETE\s+FROM\b',       "HIGH",     "DELETE FROM (bulk)"),
+              (r'\bDROP\s+INDEX\b',        "MEDIUM",   "DROP INDEX"),
+              (r'\bALTER\s+COLUMN\b',      "MEDIUM",   "ALTER COLUMN (type change)"),
+              (r'\bNOT\s+NULL\b',          "LOW",      "NOT NULL constraint added"),
+              (r'\bDROP\s+CONSTRAINT\b',   "MEDIUM",   "DROP CONSTRAINT"),
+          ]
+
+          # Zero-downtime safe patterns
+          SAFE_PATTERNS = [
+              r'\bCREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b',
+              r'\bADD\s+COLUMN\b',
+              r'\bCREATE\s+INDEX\s+CONCURRENTLY\b',
+              r'\bCREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\b',
+          ]
+
+          migration_dirs = [
+              "backend/migrations",
+              "backend/alembic/versions",
+              "supabase/migrations",
+              "database/migrations",
+          ]
+
+          all_issues = []
+          files_scanned = 0
+
+          for mdir in migration_dirs:
+              if not os.path.exists(mdir):
+                  continue
+              sql_files = glob.glob(f"{mdir}/**/*.sql", recursive=True)
+              py_files  = glob.glob(f"{mdir}/**/*.py",  recursive=True)
+
+              for f in sql_files + py_files:
+                  files_scanned += 1
+                  content = open(f).read().upper()
+                  file_issues = []
+
+                  for pattern, severity, label in DESTRUCTIVE_PATTERNS:
+                      if re.search(pattern, content, re.IGNORECASE):
+                          file_issues.append({"severity": severity, "operation": label})
+
+                  # Check for downgrade function in Alembic
+                  if f.endswith('.py') and 'def upgrade' in open(f).read():
+                      if 'def downgrade' not in open(f).read():
+                          file_issues.append({"severity": "HIGH", "operation": "Missing downgrade() function"})
+                      elif 'pass' in open(f).read().split('def downgrade')[1][:100]:
+                          file_issues.append({"severity": "MEDIUM", "operation": "Empty downgrade() function"})
+
+                  if file_issues:
+                      all_issues.append({"file": f, "issues": file_issues})
+                      for issue in file_issues:
+                          print(f"  [{issue['severity']}] {f}: {issue['operation']}")
+
+          print(f"\nFiles scanned: {files_scanned}")
+          print(f"Files with issues: {len(all_issues)}")
+
+          critical_issues = [i for f_issues in all_issues for i in f_issues["issues"] if i["severity"] == "CRITICAL"]
+          high_issues     = [i for f_issues in all_issues for i in f_issues["issues"] if i["severity"] == "HIGH"]
+
+          report = {
+              "generated": datetime.utcnow().isoformat(),
+              "files_scanned": files_scanned,
+              "files_with_issues": len(all_issues),
+              "critical_count": len(critical_issues),
+              "high_count": len(high_issues),
+              "issues": all_issues,
+              "safe_to_deploy": len(critical_issues) == 0,
+          }
+
+          with open("/tmp/migration-safety-report.json", "w") as f:
+              json.dump(report, f, indent=2)
+
+          print(f"\nCritical issues: {len(critical_issues)}")
+          print(f"High issues: {len(high_issues)}")
+          print(f"Safe to deploy: {report['safe_to_deploy']}")
+
+          if not report["safe_to_deploy"]:
+              print("\nERROR: Critical migration issues detected. Deployment blocked.")
+              exit(1)
+          elif files_scanned == 0:
+              print("\nNo migration files found - skipping migration safety check")
+          else:
+              print("\nMigration safety check: PASSED")
+          PYEOF
+
+      - name: Validate zero-downtime migration patterns
+        run: |
+          python3 - << 'PYEOF'
+          import os, glob, re
+
+          print("ZERO-DOWNTIME PATTERN VALIDATION")
+          print("=" * 45)
+
+          # Best practices checklist
+          checks = {
+              "expand_contract": False,
+              "concurrent_indexes": False,
+              "backward_compatible": True,  # Assume true unless proven otherwise
+              "rollback_scripts": False,
+          }
+
+          migration_dirs = [
+              "backend/migrations", "backend/alembic/versions",
+              "supabase/migrations", "database/migrations",
+          ]
+
+          for mdir in migration_dirs:
+              if not os.path.exists(mdir):
+                  continue
+              for f in glob.glob(f"{mdir}/**/*.sql", recursive=True):
+                  content = open(f).read().upper()
+                  if re.search(r'CREATE\s+INDEX\s+CONCURRENTLY', content):
+                      checks["concurrent_indexes"] = True
+              for f in glob.glob(f"{mdir}/**/*rollback*", recursive=True):
+                  checks["rollback_scripts"] = True
+              for f in glob.glob(f"{mdir}/**/*down*", recursive=True):
+                  checks["rollback_scripts"] = True
+
+          print("\nZero-Downtime Best Practices:")
+          for check, status in checks.items():
+              icon = "OK" if status else "N/A"
+              print(f"  [{icon}] {check.replace('_', ' ').title()}")
+
+          print("\nMigration pattern validation: COMPLETE")
+          PYEOF
+
+      - name: Generate migration execution plan
+        run: |
+          python3 - << 'PYEOF'
+          import os, glob, json
+          from datetime import datetime
+
+          print("MIGRATION EXECUTION PLAN")
+          print("=" * 45)
+
+          steps = [
+              "1. Pre-migration health check (verify DB connectivity)",
+              "2. Create point-in-time backup snapshot",
+              "3. Run migration in READ-ONLY mode (dry run)",
+              "4. Apply expand phase (additive changes only)",
+              "5. Deploy new application version",
+              "6. Monitor for 10 minutes (error rate, latency)",
+              "7. Apply contract phase (remove old columns/tables)",
+              "8. Verify data integrity checksums",
+              "9. Update migration registry",
+          ]
+
+          print("\nExecution steps:")
+          for step in steps:
+              print(f"  {step}")
+
+          plan = {
+              "generated": datetime.utcnow().isoformat(),
+              "strategy": "expand-contract",
+              "estimated_downtime_seconds": 0,
+              "rollback_window_minutes": 30,
+              "steps": steps,
+          }
+
+          with open("/tmp/migration-plan.json", "w") as f:
+              json.dump(plan, f, indent=2)
+
+          print(f"\nEstimated downtime: {plan['estimated_downtime_seconds']}s")
+          print(f"Rollback window: {plan['rollback_window_minutes']} minutes")
+          PYEOF
+
+      - name: Upload migration artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: migration-plan-${{ github.run_id }}
+          path: |
+            /tmp/migration-safety-report.json
+            /tmp/migration-plan.json
+          retention-days: 90

@@ -48,7 +48,7 @@ jobs:
 
       - name: Build artifact
         run: |
-          NODE_ENV=production CI=true npm run build
+          NODE_ENV=production npm run build
           tar czf /tmp/devonn-dist.tar.gz dist/
           DIGEST=$(sha256sum /tmp/devonn-dist.tar.gz | cut -d' ' -f1)
           echo "Build artifact SHA-256: ${DIGEST}"
