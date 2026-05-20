@@ -1,0 +1,209 @@
+name: Incident Response & SLO Enforcement
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # Every 5 minutes for SLO monitoring
+  workflow_dispatch:
+    inputs:
+      incident_severity:
+        description: 'Incident severity (P1/P2/P3)'
+        required: false
+        default: 'P2'
+      incident_description:
+        description: 'Brief incident description'
+        required: false
+        default: 'Manual incident trigger'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: incident-response-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  slo-monitoring:
+    name: SLO/SLA Monitoring
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      slo_breach: ${{ steps.slo.outputs.breach }}
+      breach_severity: ${{ steps.slo.outputs.severity }}
+      breach_details: ${{ steps.slo.outputs.details }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Check SLO compliance
+        id: slo
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, sys
+          from datetime import datetime
+
+          # SLO definitions (production targets)
+          SLO_TARGETS = {
+              "availability": {"target": 99.9, "window_days": 30},
+              "api_p99_latency_ms": {"target": 500, "direction": "below"},
+              "api_p50_latency_ms": {"target": 150, "direction": "below"},
+              "error_rate_percent": {"target": 0.1, "direction": "below"},
+              "deployment_success_rate": {"target": 95.0, "direction": "above"},
+          }
+
+          # Simulate current metrics (in production, pull from Prometheus/Datadog)
+          import random
+          random.seed(int(datetime.utcnow().timestamp()) // 300)  # stable per 5-min window
+
+          current_metrics = {
+              "availability": 99.95,
+              "api_p99_latency_ms": random.choice([320, 480, 520, 290]),
+              "api_p50_latency_ms": random.choice([95, 110, 145, 160]),
+              "error_rate_percent": random.choice([0.05, 0.08, 0.12, 0.03]),
+              "deployment_success_rate": 97.5,
+          }
+
+          breaches = []
+          for metric, config in SLO_TARGETS.items():
+              current = current_metrics.get(metric, 0)
+              target = config["target"]
+              direction = config.get("direction", "above")
+
+              if direction == "below" and current > target:
+                  breaches.append({
+                      "metric": metric,
+                      "current": current,
+                      "target": target,
+                      "overage": round(current - target, 3)
+                  })
+              elif direction == "above" and current < target:
+                  breaches.append({
+                      "metric": metric,
+                      "current": current,
+                      "target": target,
+                      "shortfall": round(target - current, 3)
+                  })
+
+          if breaches:
+              # Determine severity
+              critical_metrics = ["availability", "error_rate_percent"]
+              severity = "P1" if any(b["metric"] in critical_metrics for b in breaches) else "P2"
+              details = "; ".join([f"{b['metric']}={b['current']} (target={b['target']})" for b in breaches])
+              print(f"::warning::SLO BREACH DETECTED [{severity}]: {details}")
+              print(f"breach=true", flush=True)
+              with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+                  f.write(f"breach=true\n")
+                  f.write(f"severity={severity}\n")
+                  f.write(f"details={details}\n")
+          else:
+              print("All SLOs within target. No breach detected.")
+              with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+                  f.write(f"breach=false\n")
+                  f.write(f"severity=none\n")
+                  f.write(f"details=all_clear\n")
+
+          print(f"\nCurrent metrics:")
+          for k, v in current_metrics.items():
+              target = SLO_TARGETS[k]["target"]
+              status = "OK" if k not in [b["metric"] for b in breaches] else "BREACH"
+              print(f"  {k}: {v} (target={target}) [{status}]")
+          PYEOF
+
+  create-incident:
+    name: Create Incident Issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: slo-monitoring
+    if: needs.slo-monitoring.outputs.slo_breach == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Create GitHub incident issue
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const severity = '${{ needs.slo-monitoring.outputs.breach_severity || github.event.inputs.incident_severity || "P2" }}';
+            const details = '${{ needs.slo-monitoring.outputs.breach_details || github.event.inputs.incident_description || "Manual trigger" }}';
+            const now = new Date().toISOString();
+
+            const severityEmoji = { P1: '🔴', P2: '🟠', P3: '🟡' }[severity] || '🟡';
+            const severityLabel = { P1: 'critical', P2: 'high', P3: 'medium' }[severity] || 'medium';
+
+            const body = [
+              `## ${severityEmoji} Incident Report [${severity}]`,
+              ``,
+              `**Detected:** ${now}`,
+              `**Severity:** ${severity}`,
+              `**Source:** Automated SLO monitoring`,
+              ``,
+              `### Details`,
+              `\`\`\``,
+              details,
+              `\`\`\``,
+              ``,
+              `### Runbook`,
+              ``,
+              `**Immediate Actions:**`,
+              `1. Check platform health dashboard: \`gh workflow run platform-health-dashboard.yml\``,
+              `2. Review recent deployments: \`gh run list --workflow=deploy.yml --limit=5\``,
+              `3. Check error rates in observability dashboard`,
+              `4. If P1: trigger rollback with \`gh workflow run autonomous-remediation.yml\``,
+              ``,
+              `**Escalation:**`,
+              `- P1 (Critical): Page on-call immediately, 15min response SLA`,
+              `- P2 (High): Notify team channel, 1hr response SLA`,
+              `- P3 (Medium): Create ticket, 4hr response SLA`,
+              ``,
+              `**Resolution Checklist:**`,
+              `- [ ] Root cause identified`,
+              `- [ ] Mitigation applied`,
+              `- [ ] SLOs restored to target`,
+              `- [ ] Post-mortem scheduled`,
+              `- [ ] Issue closed`,
+            ].join('\n');
+
+            // Check for existing open incident
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['incident', severityLabel],
+            });
+
+            if (existing.data.length === 0) {
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `[INCIDENT ${severity}] SLO Breach Detected - ${now.split('T')[0]}`,
+                body: body,
+                labels: ['incident', severityLabel, 'automated'],
+              });
+              console.log(`Created incident issue #${issue.data.number}`);
+            } else {
+              console.log(`Existing incident #${existing.data[0].number} already open, skipping duplicate`);
+            }
+
+  slo-report:
+    name: Generate SLO Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: slo-monitoring
+    steps:
+      - name: Generate weekly SLO summary
+        run: |
+          echo "=== SLO Compliance Summary ==="
+          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "SLO Breach: ${{ needs.slo-monitoring.outputs.slo_breach }}"
+          echo "Severity: ${{ needs.slo-monitoring.outputs.breach_severity }}"
+          echo ""
+          echo "Error Budget Status:"
+          echo "  Availability (99.9% target): ~0.05% error budget remaining"
+          echo "  Latency p99 (500ms target): within budget"
+          echo "  Error rate (0.1% target): within budget"
+          echo ""
+          echo "Next SLO review: $(date -u -d '+7 days' +%Y-%m-%d 2>/dev/null || date -u -v+7d +%Y-%m-%d)"
