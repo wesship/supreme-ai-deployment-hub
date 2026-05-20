@@ -1,0 +1,56 @@
+name: Lockfile Integrity
+
+# Runs on every push and PR to main to catch package-lock.json drift early.
+# A drifted lockfile means the installed dependency graph differs from what
+# was committed, leading to non-reproducible builds and potential supply-chain risk.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - '.npmrc'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - '.npmrc'
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile-check:
+    name: Verify lockfile is in sync with package.json
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (npm ci)
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify lockfile integrity (no drift)
+        run: |
+          if ! git diff --exit-code package-lock.json; then
+            echo "::error::package-lock.json has drifted from package.json."
+            echo "::error::Run 'npm install' locally and commit the updated lockfile."
+            git diff --stat package-lock.json
+            exit 1
+          fi
+          echo "Lockfile integrity verified - no drift detected."
+
+      - name: Validate dependency tree
+        run: |
+          npm ls --depth=0 2>&1 | grep -E "UNMET|MISSING|invalid" && {
+            echo "::error::Dependency tree has unmet or missing peer dependencies."
+            exit 1
+          } || echo "Dependency tree is clean."

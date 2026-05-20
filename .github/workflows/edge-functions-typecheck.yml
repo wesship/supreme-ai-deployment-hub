@@ -25,7 +25,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 22
+          cache: npm
 
       # The AWS EKS edge function imports AWS SDK v3 via esm.sh URLs.
       # Deno v1 resolves these remotely; we just need @types/node for node: builtins.

@@ -37,6 +37,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify lockfile integrity (no drift)
+        run: git diff --exit-code package-lock.json || (echo "::error::package-lock.json was modified by npm ci - commit the updated lockfile" && exit 1)
       - name: TypeScript - noEmit check
         run: npm run typecheck
 
