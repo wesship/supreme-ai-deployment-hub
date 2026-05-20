@@ -1,0 +1,235 @@
+name: DORA Metrics Tracking
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      period_days:
+        description: 'Analysis period in days (default 30)'
+        required: false
+        default: '30'
+  schedule:
+    - cron: '0 8 * * 1'   # Weekly Monday 08:00 UTC
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: dora-metrics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calculate-dora:
+    name: Calculate DORA Four Key Metrics
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0   # Full history for lead time calculation
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip3 install requests
+
+      - name: Calculate DORA metrics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PERIOD_DAYS: ${{ github.event.inputs.period_days || '30' }}
+        run: |
+          python3 - << 'PYEOF'
+          import os, json, subprocess, requests
+          from datetime import datetime, timedelta, timezone
+
+          token  = os.environ.get("GITHUB_TOKEN", "")
+          repo   = os.environ.get("GITHUB_REPOSITORY", "wesship/supreme-ai-deployment-hub")
+          period = int(os.environ.get("PERIOD_DAYS", "30"))
+          headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+          now    = datetime.now(timezone.utc)
+          since  = (now - timedelta(days=period)).isoformat()
+
+          # ── 1. DEPLOYMENT FREQUENCY ─────────────────────────────────────────
+          # Count successful deploy workflow runs on main in the period
+          deploy_workflows = ["deploy.yml", "devonn-deploy.yml", "deployment-promotion.yml"]
+          deploy_count = 0
+          for wf in deploy_workflows:
+              r = requests.get(
+                  f"https://api.github.com/repos/{repo}/actions/workflows/{wf}/runs",
+                  headers=headers,
+                  params={"branch": "main", "status": "success", "created": f">={since}", "per_page": 100},
+                  timeout=10
+              )
+              if r.status_code == 200:
+                  deploy_count += r.json().get("total_count", 0)
+
+          deploys_per_day = deploy_count / period
+          if deploys_per_day >= 1:
+              df_rating = "Elite"
+          elif deploys_per_day >= 1/7:
+              df_rating = "High"
+          elif deploys_per_day >= 1/30:
+              df_rating = "Medium"
+          else:
+              df_rating = "Low"
+
+          # ── 2. LEAD TIME FOR CHANGES ─────────────────────────────────────────
+          # Measure time from first commit in a PR to merge
+          r = requests.get(
+              f"https://api.github.com/repos/{repo}/pulls",
+              headers=headers,
+              params={"state": "closed", "base": "main", "per_page": 50, "sort": "updated", "direction": "desc"},
+              timeout=10
+          )
+          lead_times_hours = []
+          if r.status_code == 200:
+              for pr in r.json():
+                  if not pr.get("merged_at"):
+                      continue
+                  merged_at = datetime.fromisoformat(pr["merged_at"].replace("Z", "+00:00"))
+                  created_at = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
+                  if (now - merged_at).days > period:
+                      continue
+                  lead_hours = (merged_at - created_at).total_seconds() / 3600
+                  lead_times_hours.append(lead_hours)
+
+          avg_lead_hours = sum(lead_times_hours) / len(lead_times_hours) if lead_times_hours else 0
+          if avg_lead_hours < 1:
+              lt_rating = "Elite"
+          elif avg_lead_hours < 24:
+              lt_rating = "High"
+          elif avg_lead_hours < 24 * 7:
+              lt_rating = "Medium"
+          else:
+              lt_rating = "Low"
+
+          # ── 3. CHANGE FAILURE RATE ────────────────────────────────────────────
+          # Ratio of failed deploy runs to total deploy runs
+          total_deploys = 0
+          failed_deploys = 0
+          for wf in deploy_workflows:
+              r_total = requests.get(
+                  f"https://api.github.com/repos/{repo}/actions/workflows/{wf}/runs",
+                  headers=headers,
+                  params={"branch": "main", "created": f">={since}", "per_page": 1},
+                  timeout=10
+              )
+              r_fail = requests.get(
+                  f"https://api.github.com/repos/{repo}/actions/workflows/{wf}/runs",
+                  headers=headers,
+                  params={"branch": "main", "status": "failure", "created": f">={since}", "per_page": 1},
+                  timeout=10
+              )
+              if r_total.status_code == 200:
+                  total_deploys += r_total.json().get("total_count", 0)
+              if r_fail.status_code == 200:
+                  failed_deploys += r_fail.json().get("total_count", 0)
+
+          cfr_pct = (failed_deploys / max(total_deploys, 1)) * 100
+          if cfr_pct <= 5:
+              cfr_rating = "Elite"
+          elif cfr_pct <= 10:
+              cfr_rating = "High"
+          elif cfr_pct <= 15:
+              cfr_rating = "Medium"
+          else:
+              cfr_rating = "Low"
+
+          # ── 4. MEAN TIME TO RESTORE (MTTR) ────────────────────────────────────
+          # Measure time from incident issue opened to closed
+          r = requests.get(
+              f"https://api.github.com/repos/{repo}/issues",
+              headers=headers,
+              params={"state": "closed", "labels": "incident", "per_page": 50, "since": since},
+              timeout=10
+          )
+          restore_times_hours = []
+          if r.status_code == 200:
+              for issue in r.json():
+                  if not issue.get("closed_at"):
+                      continue
+                  opened = datetime.fromisoformat(issue["created_at"].replace("Z", "+00:00"))
+                  closed = datetime.fromisoformat(issue["closed_at"].replace("Z", "+00:00"))
+                  restore_times_hours.append((closed - opened).total_seconds() / 3600)
+
+          avg_mttr_hours = sum(restore_times_hours) / len(restore_times_hours) if restore_times_hours else 0
+          if avg_mttr_hours < 1:
+              mttr_rating = "Elite"
+          elif avg_mttr_hours < 24:
+              mttr_rating = "High"
+          elif avg_mttr_hours < 24 * 7:
+              mttr_rating = "Medium"
+          else:
+              mttr_rating = "Low"
+
+          # ── OVERALL RATING ────────────────────────────────────────────────────
+          rating_score = {"Elite": 4, "High": 3, "Medium": 2, "Low": 1}
+          scores = [rating_score[r] for r in [df_rating, lt_rating, cfr_rating, mttr_rating]]
+          avg_score = sum(scores) / len(scores)
+          if avg_score >= 3.5:
+              overall = "Elite"
+          elif avg_score >= 2.5:
+              overall = "High"
+          elif avg_score >= 1.5:
+              overall = "Medium"
+          else:
+              overall = "Low"
+
+          # ── PRINT REPORT ─────────────────────────────────────────────────────
+          print("=" * 60)
+          print(f"  DORA METRICS REPORT — Last {period} days")
+          print("=" * 60)
+          print(f"  Generated:  {now.strftime('%Y-%m-%d %H:%M UTC')}")
+          print(f"  Repository: {repo}")
+          print(f"  Overall:    {overall} Performer")
+          print()
+          print(f"  {'Metric':<30} {'Value':>15} {'Rating':>8}")
+          print("  " + "-" * 56)
+          print(f"  {'Deployment Frequency':<30} {f'{deploy_count} deploys':>15} {df_rating:>8}")
+          print(f"  {'Lead Time for Changes':<30} {f'{avg_lead_hours:.1f}h avg':>15} {lt_rating:>8}")
+          print(f"  {'Change Failure Rate':<30} {f'{cfr_pct:.1f}%':>15} {cfr_rating:>8}")
+          print(f"  {'Mean Time to Restore':<30} {f'{avg_mttr_hours:.1f}h avg':>15} {mttr_rating:>8}")
+          print()
+          print("  DORA Benchmarks:")
+          print("    Elite:  Deploy multiple times/day, LT <1h, CFR <5%, MTTR <1h")
+          print("    High:   Deploy daily, LT 1-24h, CFR <10%, MTTR <24h")
+          print("    Medium: Deploy weekly, LT 1-7 days, CFR <15%, MTTR <7 days")
+          print("    Low:    Deploy monthly, LT >7 days, CFR >15%, MTTR >7 days")
+
+          report = {
+              "generated_at": now.isoformat(),
+              "period_days": period,
+              "overall_rating": overall,
+              "metrics": {
+                  "deployment_frequency": {"value": deploy_count, "unit": f"deploys/{period}d", "rating": df_rating},
+                  "lead_time_hours": {"value": round(avg_lead_hours, 2), "unit": "hours", "rating": lt_rating},
+                  "change_failure_rate_pct": {"value": round(cfr_pct, 2), "unit": "%", "rating": cfr_rating},
+                  "mttr_hours": {"value": round(avg_mttr_hours, 2), "unit": "hours", "rating": mttr_rating},
+              },
+          }
+          with open("/tmp/dora-metrics.json", "w") as f:
+              json.dump(report, f, indent=2)
+          print("\nReport saved to /tmp/dora-metrics.json")
+          PYEOF
+
+      - name: Upload DORA metrics report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: dora-metrics-${{ github.run_id }}
+          path: /tmp/dora-metrics.json
+          retention-days: 90
+
+      - name: Update DORA badge in README
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "DORA metrics calculated and artifact uploaded."
+          echo "To display live DORA badges, integrate with shields.io endpoint badges."
