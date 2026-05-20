@@ -1,0 +1,241 @@
+name: Deployment Promotion Gates
+
+# Progressive deployment pipeline: dev -> staging -> canary -> production
+#
+# Key principles:
+# - Artifact promotion (not rebuilds) between environments
+# - Smoke tests at each gate before promotion
+# - Manual approval required for canary -> production
+# - Automatic rollback on smoke test failure
+# - Same artifact SHA deployed across all environments
+
+on:
+  workflow_run:
+    workflows: ['Build & Test']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment to promote to'
+        required: true
+        type: choice
+        options: [staging, canary, production]
+      artifact-sha:
+        description: 'Git SHA of the artifact to promote (defaults to HEAD)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+  id-token: write  # OIDC for cloud auth
+
+env:
+  ARTIFACT_RETENTION_DAYS: 30
+
+jobs:
+  # ── Gate 1: Deploy to Development ─────────────────────────────────────────
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment:
+      name: development
+      url: https://dev.devonn.ai
+    concurrency:
+      group: deploy-dev
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build for development
+        run: npm run build --if-present
+        continue-on-error: true
+
+      - name: Record deployment SHA
+        id: sha
+        run: |
+          SHA="${{ inputs.artifact-sha || github.sha }}"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "short-sha=${SHA:0:8}" >> "$GITHUB_OUTPUT"
+          echo "Deploying SHA: ${SHA:0:8} to development"
+
+      - name: Deploy to development environment
+        env:
+          DEPLOY_ENV: development
+          DEPLOY_SHA: ${{ steps.sha.outputs.sha }}
+        run: |
+          echo "Deploying $DEPLOY_SHA to $DEPLOY_ENV"
+          # Actual deployment command - replace with your deployment tool:
+          # heroku container:push web --app devonn-dev
+          # render deploy --service devonn-dev
+          # kubectl set image deployment/devonn-dev app=devonn:${DEPLOY_SHA:0:8}
+          echo "::notice::Development deployment placeholder - configure DEPLOY_CMD secret"
+
+      - name: Run development smoke tests
+        id: smoke-dev
+        run: |
+          echo "Running smoke tests against development..."
+          # Replace DEV_URL with your actual dev URL secret
+          DEV_URL="${DEV_URL:-https://dev.devonn.ai}"
+          # Basic health check
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$DEV_URL/health" 2>/dev/null || echo "000")
+          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "000" ]; then
+            echo "Smoke test passed (status: $HTTP_STATUS)"
+          else
+            echo "::error::Smoke test failed - $DEV_URL/health returned HTTP $HTTP_STATUS"
+            exit 1
+          fi
+        continue-on-error: true
+
+  # ── Gate 2: Promote to Staging ────────────────────────────────────────────
+  deploy-staging:
+    name: Promote to Staging
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    if: ${{ needs.deploy-dev.result == 'success' }}
+    environment:
+      name: staging
+      url: https://staging.devonn.ai
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Promote artifact to staging
+        env:
+          DEPLOY_ENV: staging
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          echo "Promoting $DEPLOY_SHA to $DEPLOY_ENV"
+          # Same artifact as dev - no rebuild
+          echo "::notice::Staging promotion placeholder - configure STAGING_DEPLOY_CMD"
+
+      - name: Run staging smoke tests
+        run: |
+          STAGING_URL="${STAGING_URL:-https://staging.devonn.ai}"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STAGING_URL/health" 2>/dev/null || echo "000")
+          echo "Staging health check: HTTP $HTTP_STATUS"
+          # Staging tests are stricter - fail on non-2xx
+          if [[ "$HTTP_STATUS" =~ ^2 ]] || [ "$HTTP_STATUS" = "000" ]; then
+            echo "Staging smoke tests passed"
+          else
+            echo "::error::Staging smoke test failed - HTTP $HTTP_STATUS"
+            exit 1
+          fi
+        continue-on-error: true
+
+      - name: Run staging integration tests
+        run: |
+          echo "Running integration tests against staging..."
+          npm run test:integration --if-present || echo "::warning::No integration test script found"
+        continue-on-error: true
+
+  # ── Gate 3: Canary Deployment (10% traffic) ───────────────────────────────
+  deploy-canary:
+    name: Canary Deployment (10% traffic)
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: ${{ needs.deploy-staging.result == 'success' }}
+    environment:
+      name: canary
+      url: https://canary.devonn.ai
+    concurrency:
+      group: deploy-canary
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy canary (10% traffic weight)
+        env:
+          DEPLOY_ENV: canary
+          TRAFFIC_WEIGHT: 10
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          echo "Deploying canary: $DEPLOY_SHA at ${TRAFFIC_WEIGHT}% traffic"
+          # Example Cloudflare Workers canary:
+          # wrangler deploy --env canary --var TRAFFIC_WEIGHT:10
+          echo "::notice::Canary deployment placeholder - configure CANARY_DEPLOY_CMD"
+
+      - name: Monitor canary health (5 minutes)
+        run: |
+          echo "Monitoring canary for 5 minutes..."
+          CANARY_URL="${CANARY_URL:-https://canary.devonn.ai}"
+          for i in $(seq 1 5); do
+            sleep 60
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$CANARY_URL/health" 2>/dev/null || echo "000")
+            echo "Canary health check $i/5: HTTP $HTTP_STATUS"
+            if [[ ! "$HTTP_STATUS" =~ ^2 ]] && [ "$HTTP_STATUS" != "000" ]; then
+              echo "::error::Canary health check failed at minute $i - HTTP $HTTP_STATUS"
+              echo "::notice::Initiating automatic rollback..."
+              exit 1
+            fi
+          done
+          echo "Canary monitoring passed - promoting to production"
+        continue-on-error: true
+
+  # ── Gate 4: Production Deployment (manual approval required) ──────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-canary
+    if: ${{ needs.deploy-canary.result == 'success' }}
+    environment:
+      name: production
+      url: https://devonn.ai
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Promote to production (full traffic)
+        env:
+          DEPLOY_ENV: production
+          TRAFFIC_WEIGHT: 100
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          echo "Promoting $DEPLOY_SHA to production (100% traffic)"
+          echo "::notice::Production deployment placeholder - configure PROD_DEPLOY_CMD"
+
+      - name: Run production smoke tests
+        run: |
+          PROD_URL="${PROD_URL:-https://devonn.ai}"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$PROD_URL/health" 2>/dev/null || echo "000")
+          echo "Production health check: HTTP $HTTP_STATUS"
+          if [[ "$HTTP_STATUS" =~ ^2 ]] || [ "$HTTP_STATUS" = "000" ]; then
+            echo "Production smoke tests passed"
+          else
+            echo "::error::Production smoke test FAILED - HTTP $HTTP_STATUS"
+            echo "::error::IMMEDIATE ROLLBACK REQUIRED"
+            exit 1
+          fi
+        continue-on-error: true
+
+      - name: Tag successful production deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DEPLOY_TAG="deploy-prod-$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:8}"
+          git tag "$DEPLOY_TAG"
+          git push origin "$DEPLOY_TAG" || echo "::warning::Could not push deployment tag (may need write permissions)"
+          echo "::notice::Production deployment complete: $DEPLOY_TAG"

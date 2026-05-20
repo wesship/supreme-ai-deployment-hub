@@ -1,0 +1,148 @@
+name: Security Hardening
+
+# Comprehensive security checks:
+# - Dependency review (new vulnerabilities in PRs)
+# - Action SHA pinning audit
+# - npm security audit
+# - Branch protection status check
+#
+# Runs on every PR to main and weekly for ongoing monitoring.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  # ── Dependency Review (PRs only) ──────────────────────────────────────────
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense
+          comment-summary-in-pr: always
+
+  # ── Action SHA Pinning Audit ───────────────────────────────────────────────
+  action-pin-audit:
+    name: Audit Action SHA Pinning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Count tag-pinned vs SHA-pinned actions
+        run: |
+          echo "Scanning .github/workflows for action pin types..."
+          TAG_PINNED=$(grep -rh 'uses:' .github/workflows/ | grep -v '#' | grep -oP '@[a-zA-Z0-9._/-]+' | grep -v '@[0-9a-f]\{7,40\}' | wc -l || echo "0")
+          SHA_PINNED=$(grep -rh 'uses:' .github/workflows/ | grep -v '#' | grep -oP '@[0-9a-f]{7,40}' | wc -l || echo "0")
+          TOTAL=$((TAG_PINNED + SHA_PINNED))
+          echo "Action pin audit:"
+          echo "  Tag-pinned (e.g. @v4): $TAG_PINNED"
+          echo "  SHA-pinned (e.g. @abc1234): $SHA_PINNED"
+          echo "  Total: $TOTAL"
+          if [ "$TAG_PINNED" -gt "0" ]; then
+            echo "::warning::$TAG_PINNED actions use tag pins. Consider SHA pinning for supply-chain security."
+            echo "::warning::Use https://github.com/mheap/pin-github-action to automate SHA pinning."
+          fi
+
+  # ── npm Security Audit ────────────────────────────────────────────────────
+  npm-security-audit:
+    name: npm Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run npm audit
+        run: |
+          npm audit --json > npm-audit.json 2>/dev/null || true
+          CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' npm-audit.json 2>/dev/null || echo "0")
+          HIGH=$(jq '.metadata.vulnerabilities.high // 0' npm-audit.json 2>/dev/null || echo "0")
+          MODERATE=$(jq '.metadata.vulnerabilities.moderate // 0' npm-audit.json 2>/dev/null || echo "0")
+          LOW=$(jq '.metadata.vulnerabilities.low // 0' npm-audit.json 2>/dev/null || echo "0")
+          echo "npm audit results:"
+          echo "  Critical: $CRITICAL"
+          echo "  High:     $HIGH"
+          echo "  Moderate: $MODERATE"
+          echo "  Low:      $LOW"
+          if [ "$CRITICAL" -gt "0" ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities. Run 'npm audit fix'."
+            exit 1
+          elif [ "$HIGH" -gt "0" ]; then
+            echo "::warning::Found $HIGH high severity vulnerabilities. Review and update when possible."
+          else
+            echo "No critical or high severity vulnerabilities found."
+          fi
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-${{ github.sha }}
+          path: npm-audit.json
+          retention-days: 30
+
+  # ── Branch Protection Status Check ────────────────────────────────────────
+  branch-protection-check:
+    name: Verify Branch Protection
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check branch protection rules
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REPO="${{ github.repository }}"
+          BRANCH="main"
+          echo "Checking branch protection for $REPO/$BRANCH..."
+          PROTECTION=$(gh api "repos/$REPO/branches/$BRANCH/protection" 2>/dev/null || echo '{}')
+          if echo "$PROTECTION" | jq -e '.url' > /dev/null 2>&1; then
+            echo "Branch protection is active on '$BRANCH'"
+            FORCE_PUSH=$(echo "$PROTECTION" | jq -r '.allow_force_pushes.enabled // true')
+            DELETIONS=$(echo "$PROTECTION" | jq -r '.allow_deletions.enabled // true')
+            REQUIRED_REVIEWS=$(echo "$PROTECTION" | jq -r '.required_pull_request_reviews.required_approving_review_count // 0')
+            echo "  Force pushes allowed: $FORCE_PUSH"
+            echo "  Deletions allowed: $DELETIONS"
+            echo "  Required reviews: $REQUIRED_REVIEWS"
+            if [ "$FORCE_PUSH" = "true" ]; then
+              echo "::warning::Force pushes are allowed on main - consider disabling"
+            fi
+          else
+            echo "::error::Branch 'main' has NO protection rules configured!"
+            exit 1
+          fi

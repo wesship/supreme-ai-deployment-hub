@@ -9,8 +9,11 @@ updates:
     labels:
       - "security"
       - "auto-merge"
+      - "dependencies"
     commit-message:
-      prefix: "security"
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+      include: scope
     open-pull-requests-limit: 10
     groups:
       aws-sdk:
@@ -20,6 +23,23 @@ updates:
         patterns:
           - "lucide-react"
           - "@radix-ui/*"
+      vitest-ecosystem:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+      stryker-ecosystem:
+        patterns:
+          - "@stryker-mutator/*"
+      typescript-ecosystem:
+        patterns:
+          - "typescript"
+          - "@types/*"
+    # Ignore major/minor bumps for infrastructure-critical packages
+    ignore:
+      - dependency-name: "jsdom"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "canvas"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
