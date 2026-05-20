@@ -30,3 +30,16 @@ coverage/
 .env.*.local
 *.key
 bun.lockb
+
+# Security: sensitive files (Wave 11 secrets elimination)
+.env.production
+.env.staging
+*.pem
+*.p12
+*.pfx
+secrets.json
+.secrets
+*.crt
+*.cer
+.vault-token
+*.kubeconfig

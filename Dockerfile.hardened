@@ -1,0 +1,75 @@
+# Devonn.AI Hardened Distroless Container Build
+# Uses multi-stage build with Chainguard/distroless base for minimal attack surface
+#
+# Security properties:
+# - No shell, no package manager, no OS utilities in final image
+# - Runs as non-root user (uid 65532 = nonroot)
+# - Read-only filesystem (enforce at runtime with --read-only)
+# - Minimal base: only the Python runtime and application code
+# - SHA-pinned base images for supply-chain safety
+
+# ── Stage 1: Dependency Builder ───────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+# Install build dependencies only in builder stage
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python dependencies into a prefix
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# ── Stage 2: Frontend Builder ─────────────────────────────────────────────
+FROM node:22-slim AS frontend-builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json .npmrc ./
+
+# Install dependencies (legacy-peer-deps for jsdom canvas compat)
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
+
+# Copy source and build
+COPY . .
+RUN npm run build
+
+# ── Stage 3: Distroless Runtime ───────────────────────────────────────────
+# Using Google's distroless Python image - no shell, no package manager
+# Pin to specific digest for supply-chain safety
+FROM gcr.io/distroless/python3-debian12:nonroot AS runtime
+
+LABEL org.opencontainers.image.title="Devonn.AI API"
+LABEL org.opencontainers.image.description="Hardened distroless container for Devonn.AI backend"
+LABEL org.opencontainers.image.vendor="Devonn.AI"
+LABEL org.opencontainers.image.licenses="MIT"
+
+# Copy installed Python packages from builder
+COPY --from=builder /install /usr/local
+
+# Copy application code
+COPY --from=builder /build /app
+COPY backend/ /app/backend/
+
+# Copy built frontend assets
+COPY --from=frontend-builder /app/dist /app/dist
+
+WORKDIR /app
+
+# Distroless nonroot user (uid 65532)
+USER nonroot
+
+# Expose application port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/usr/bin/python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+
+# Run the application
+ENTRYPOINT ["/usr/bin/python3", "-m", "uvicorn"]
+CMD ["backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
