@@ -1,0 +1,200 @@
+name: LLM Cost Governance
+
+on:
+  schedule:
+    - cron: '0 6 * * *'    # Daily 06:00 UTC — cost report
+    - cron: '0 0 1 * *'    # Monthly 1st — budget reset and review
+  push:
+    branches: [main]
+    paths:
+      - 'config/ai/**'
+      - 'backend/agents/**'
+      - '.github/workflows/llm-cost-governance.yml'
+  workflow_dispatch:
+    inputs:
+      report_period:
+        description: 'Reporting period'
+        required: false
+        default: 'daily'
+        type: choice
+        options: [daily, weekly, monthly]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: llm-cost-governance
+  cancel-in-progress: false
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # LLM Cost Tracking and Budget Enforcement
+  # ──────────────────────────────────────────────────────────────────
+  cost-tracking:
+    name: LLM Cost Tracking & Budget Enforcement
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.11'
+
+      - name: Install cost analysis dependencies
+        run: pip install tabulate requests --quiet
+
+      - name: Analyse LLM token usage and costs
+        run: |
+          python3 - <<'PYEOF'
+          from tabulate import tabulate
+          from datetime import datetime, timedelta
+          import json, os
+
+          # ── Token pricing (per 1M tokens, USD) ──────────────────────────
+          PRICING = {
+              "gpt-4o":              {"input": 2.50,  "output": 10.00, "provider": "OpenAI"},
+              "gpt-4o-mini":         {"input": 0.15,  "output": 0.60,  "provider": "OpenAI"},
+              "gpt-4.1-mini":        {"input": 0.40,  "output": 1.60,  "provider": "OpenAI"},
+              "gpt-4.1-nano":        {"input": 0.10,  "output": 0.40,  "provider": "OpenAI"},
+              "claude-3-5-sonnet":   {"input": 3.00,  "output": 15.00, "provider": "Anthropic"},
+              "claude-3-haiku":      {"input": 0.25,  "output": 1.25,  "provider": "Anthropic"},
+              "gemini-2.5-flash":    {"input": 0.15,  "output": 0.60,  "provider": "Google"},
+              "mistral-7b-instruct": {"input": 0.07,  "output": 0.07,  "provider": "Self-hosted"},
+          }
+
+          # ── Simulated 24h usage (would be fetched from LLM gateway/Langfuse in prod) ──
+          USAGE_24H = {
+              "gpt-4o":              {"input_tokens": 450_000,   "output_tokens": 120_000,  "requests": 1_200},
+              "gpt-4o-mini":         {"input_tokens": 2_800_000, "output_tokens": 680_000,  "requests": 8_500},
+              "gpt-4.1-mini":        {"input_tokens": 1_200_000, "output_tokens": 300_000,  "requests": 3_400},
+              "claude-3-5-sonnet":   {"input_tokens": 180_000,   "output_tokens": 55_000,   "requests": 420},
+              "gemini-2.5-flash":    {"input_tokens": 3_500_000, "output_tokens": 900_000,  "requests": 12_000},
+              "mistral-7b-instruct": {"input_tokens": 5_200_000, "output_tokens": 1_400_000,"requests": 18_000},
+          }
+
+          # ── Monthly budget limits (USD) ──────────────────────────────────
+          MONTHLY_BUDGETS = {
+              "OpenAI":      500.00,
+              "Anthropic":   200.00,
+              "Google":      300.00,
+              "Self-hosted": 50.00,
+              "total":       1000.00,
+          }
+
+          # ── Cost calculation ─────────────────────────────────────────────
+          rows = []
+          provider_costs = {}
+          total_cost = 0.0
+
+          for model, usage in USAGE_24H.items():
+              p = PRICING[model]
+              cost_in  = usage["input_tokens"]  / 1_000_000 * p["input"]
+              cost_out = usage["output_tokens"] / 1_000_000 * p["output"]
+              cost     = cost_in + cost_out
+              total_cost += cost
+              provider = p["provider"]
+              provider_costs[provider] = provider_costs.get(provider, 0) + cost
+              rows.append([model, p["provider"], usage["requests"],
+                           f"{usage['input_tokens']:,}", f"{usage['output_tokens']:,}",
+                           f"${cost:.2f}"])
+
+          rows.sort(key=lambda x: float(x[5].replace("$","")), reverse=True)
+
+          print("=" * 70)
+          print("LLM COST GOVERNANCE REPORT")
+          print(f"Period: {datetime.utcnow().strftime('%Y-%m-%d')} (24h)")
+          print("=" * 70)
+          print(tabulate(rows,
+              headers=["Model", "Provider", "Requests", "Input Tokens", "Output Tokens", "Cost (USD)"],
+              tablefmt="github"))
+
+          print(f"\nTotal 24h cost: ${total_cost:.2f}")
+          print(f"Projected monthly: ${total_cost * 30:.2f}")
+
+          # ── Budget enforcement ───────────────────────────────────────────
+          print("\n=== Budget Enforcement ===")
+          budget_breaches = []
+          for provider, daily_cost in provider_costs.items():
+              monthly_proj = daily_cost * 30
+              budget = MONTHLY_BUDGETS.get(provider, float("inf"))
+              pct = (monthly_proj / budget) * 100 if budget < float("inf") else 0
+              status = "BREACH" if monthly_proj > budget else "WARNING" if pct > 80 else "OK"
+              print(f"  {provider:<15}: ${monthly_proj:>8.2f}/mo  budget=${budget:.2f}  ({pct:.0f}%)  [{status}]")
+              if status == "BREACH":
+                  budget_breaches.append(f"{provider}: projected ${monthly_proj:.2f} exceeds budget ${budget:.2f}")
+
+          total_monthly = total_cost * 30
+          total_budget  = MONTHLY_BUDGETS["total"]
+          total_pct     = (total_monthly / total_budget) * 100
+          print(f"  {'TOTAL':<15}: ${total_monthly:>8.2f}/mo  budget=${total_budget:.2f}  ({total_pct:.0f}%)")
+
+          if budget_breaches:
+              for b in budget_breaches:
+                  print(f"\n::error::Budget breach: {b}")
+          else:
+              print("\nAll providers within budget")
+
+          # ── Cost optimisation recommendations ───────────────────────────
+          print("\n=== Cost Optimisation Recommendations ===")
+          print("  1. Route simple classification tasks from gpt-4o -> gpt-4o-mini (saves ~80%)")
+          print("  2. Increase mistral-7b-instruct usage for internal summarisation tasks")
+          print("  3. Enable prompt caching for repeated system prompts (est. 30% reduction)")
+          print("  4. Set per-user token quotas: 50K tokens/day for free tier")
+          PYEOF
+
+  # ──────────────────────────────────────────────────────────────────
+  # Provider Cost Comparison
+  # ──────────────────────────────────────────────────────────────────
+  provider-comparison:
+    name: Provider Cost Comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.11'
+
+      - name: Run provider cost comparison for standard workloads
+        run: |
+          python3 - <<'PYEOF'
+          from tabulate import tabulate
+
+          # Standard workload: 1M input + 250K output tokens/day
+          WORKLOAD = {"input": 1_000_000, "output": 250_000}
+
+          MODELS = [
+              ("gpt-4o",              2.50,  10.00, "OpenAI",     "Best quality"),
+              ("gpt-4o-mini",         0.15,   0.60, "OpenAI",     "Best value/quality ratio"),
+              ("gpt-4.1-mini",        0.40,   1.60, "OpenAI",     "Balanced"),
+              ("claude-3-5-sonnet",   3.00,  15.00, "Anthropic",  "Strong reasoning"),
+              ("claude-3-haiku",      0.25,   1.25, "Anthropic",  "Fast + cheap"),
+              ("gemini-2.5-flash",    0.15,   0.60, "Google",     "Multimodal"),
+              ("mistral-7b-instruct", 0.07,   0.07, "Self-hosted","Lowest cost"),
+          ]
+
+          rows = []
+          for name, ip, op, provider, note in MODELS:
+              daily  = WORKLOAD["input"]/1e6*ip + WORKLOAD["output"]/1e6*op
+              monthly = daily * 30
+              rows.append([name, provider, f"${ip:.2f}", f"${op:.2f}",
+                           f"${daily:.2f}", f"${monthly:.2f}", note])
+
+          rows.sort(key=lambda x: float(x[4].replace("$","")))
+
+          print("=== Provider Cost Comparison (1M input + 250K output tokens/day) ===")
+          print(tabulate(rows,
+              headers=["Model", "Provider", "$/1M in", "$/1M out", "Daily", "Monthly", "Notes"],
+              tablefmt="github"))
+          print("\nRecommendation: Use gemini-2.5-flash or gpt-4o-mini for high-volume tasks")
+          print("Reserve gpt-4o / claude-3-5-sonnet for complex reasoning and code generation")
+          PYEOF

@@ -1,0 +1,79 @@
+# AI Model Registry
+# Managed by: AI Model Governance workflow
+# Last updated: 2026-05-20
+
+models:
+  - id: gpt-4o-2024-11-20
+    name: GPT-4o
+    provider: openai
+    version: "2024-11-20"
+    status: production
+    tier: premium
+    use_cases: [complex_reasoning, code_generation, analysis]
+    token_limits:
+      max_input: 128000
+      max_output: 16384
+    cost_per_1m_input: 2.50
+    cost_per_1m_output: 10.00
+    safety_rating: high
+    approved_by: platform-team
+    approved_at: "2026-04-01T00:00:00Z"
+    slsa_provenance: verified
+
+  - id: gpt-4o-mini-2024-07-18
+    name: GPT-4o Mini
+    provider: openai
+    version: "2024-07-18"
+    status: production
+    tier: standard
+    use_cases: [summarisation, classification, chat, embeddings]
+    token_limits:
+      max_input: 128000
+      max_output: 16384
+    cost_per_1m_input: 0.15
+    cost_per_1m_output: 0.60
+    safety_rating: high
+    approved_by: platform-team
+    approved_at: "2026-04-01T00:00:00Z"
+
+  - id: gemini-2.5-flash-preview
+    name: Gemini 2.5 Flash
+    provider: google
+    version: "2.5-flash"
+    status: staging
+    tier: standard
+    use_cases: [multimodal, high_volume, voice]
+    token_limits:
+      max_input: 1048576
+      max_output: 8192
+    cost_per_1m_input: 0.15
+    cost_per_1m_output: 0.60
+    safety_rating: high
+    approved_by: null
+    approved_at: null
+    pending_review: true
+
+  - id: mistral-7b-instruct-v0.3
+    name: Mistral 7B Instruct
+    provider: self-hosted
+    version: "0.3"
+    status: production
+    tier: economy
+    use_cases: [internal_tools, summarisation, low_latency]
+    token_limits:
+      max_input: 32768
+      max_output: 4096
+    cost_per_1m_input: 0.07
+    cost_per_1m_output: 0.07
+    safety_rating: medium
+    approved_by: platform-team
+    approved_at: "2026-03-15T00:00:00Z"
+
+policies:
+  require_approval_for_production: true
+  max_cost_per_request_usd: 0.50
+  require_safety_rating: medium
+  allowed_providers: [openai, anthropic, google, self-hosted]
+  blocked_models: []
+  auto_rollback_on_error_rate_pct: 5.0
+  canary_traffic_pct: 10
