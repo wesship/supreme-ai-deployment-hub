@@ -70,15 +70,15 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -95,7 +95,7 @@ jobs:
           fi
       - name: Configure Azure Credentials
         if: steps.azure-secrets-check.outputs.skip != 'true'
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           client-secret: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
@@ -105,7 +105,7 @@ jobs:
 
       - name: Configure GCP Credentials
         if: steps.azure-secrets-check.outputs.skip != 'true' && secrets.GCP_CREDENTIALS_JSON != ''
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         continue-on-error: true
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
@@ -193,7 +193,7 @@ jobs:
           ls -l ./src/data/manifest/terraform/azure
 
       - name: Publish Terraform Plan
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: tfplan
           path: ./
@@ -221,7 +221,7 @@ jobs:
         run: |
           echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
       - name: Comment PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         if: github.event_name == 'pull_request'
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -268,15 +268,15 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -293,7 +293,7 @@ jobs:
           fi
       - name: Configure Azure Credentials
         if: steps.azure-secrets-check.outputs.skip != 'true'
-        uses: azure/login@v2
+        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           client-secret: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
@@ -303,7 +303,7 @@ jobs:
 
       - name: Configure GCP Credentials
         if: steps.azure-secrets-check.outputs.skip != 'true' && secrets.GCP_CREDENTIALS_JSON != ''
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         continue-on-error: true
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
@@ -324,7 +324,7 @@ jobs:
             -backend-config="key=${{ github.event.inputs.environment || 'production' }}.terraform.tfstate"  
 
       - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: tfplan
           path: ./
@@ -368,7 +368,7 @@ jobs:
           fi
       - name: Slack Success Notification
         if: success()
-        uses: 8398a7/action-slack@v3
+        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e  # v3
         with:
           status: success
           channel: '#deployments'
@@ -378,7 +378,7 @@ jobs:
 
       - name: Slack Failure Notification
         if: failure()
-        uses: 8398a7/action-slack@v3
+        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e  # v3
         with:
           status: failure
           channel: '#deployments'
@@ -388,7 +388,7 @@ jobs:
 
       - name: Email Notification
         if: always()
-        uses: dawidd6/action-send-mail@v16
+        uses: dawidd6/action-send-mail@d38f3f7cd391cdebfe0d38efc3998b935e951c4f  # v16
         with:
           server_address: smtp.gmail.com
           server_port: 465

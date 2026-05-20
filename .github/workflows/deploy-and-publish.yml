@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
           node-version: '22'
           cache: npm
@@ -65,7 +65,7 @@ jobs:
         run: npm run build
 
       - name: Canary Deployment (Optional Safety)
-        uses: chrnorm/deployment-action@v2
+        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a  # v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           environment: canary
@@ -95,7 +95,7 @@ jobs:
           PUBLISH_EXTENSION: ${{ env.ENVIRONMENT == 'production' }}  
 
       - name: Production Deployment Mark
-        uses: chrnorm/deployment-action@v2
+        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a  # v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           environment: production
@@ -123,7 +123,7 @@ jobs:
       - name: Create GitHub Issue on Failure
         if: failure()
         continue-on-error: true
-        uses: dacbd/create-issue-action@v2
+        uses: dacbd/create-issue-action@cdb57ab6ff8862aa09fee2be6ba77a59581921c2  # v2
         with:
           title: "Deployment Failure Detected"
           body: "Auto-created because the deployment failed. Check logs for troubleshooting."
