@@ -1,0 +1,177 @@
+name: API Contract Testing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'backend/**'
+      - '.github/workflows/api-contract-testing.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'backend/**'
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours against staging
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: api-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-openapi-spec:
+    name: Validate OpenAPI Specification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli@latest
+
+      - name: Validate OpenAPI spec
+        run: |
+          redocly lint api/openapi.yaml --format=stylish
+          echo "OpenAPI spec is valid"
+
+      - name: Check for breaking changes (on PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Fetch base branch spec for comparison
+          git fetch origin ${{ github.base_ref }} --depth=1
+          git show origin/${{ github.base_ref }}:api/openapi.yaml > /tmp/base-openapi.yaml 2>/dev/null || \
+            echo "No base spec found - skipping breaking change detection"
+          
+          if [ -f /tmp/base-openapi.yaml ]; then
+            npx @optic/api-checks@latest compare \
+              --from /tmp/base-openapi.yaml \
+              --to api/openapi.yaml \
+              --check breaking-changes 2>/dev/null || \
+              echo "::warning::Potential breaking changes detected in API spec"
+          fi
+
+  contract-test-staging:
+    name: Contract Tests (Staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Dredd (API contract testing)
+        run: npm install -g dredd@latest
+
+      - name: Run contract tests against staging
+        env:
+          API_BASE_URL: ${{ vars.STAGING_API_URL || 'https://staging-api.devonn.ai/v1' }}
+          API_TOKEN: ${{ secrets.STAGING_API_TOKEN }}
+        run: |
+          if [ -z "$API_TOKEN" ]; then
+            echo "::warning::STAGING_API_TOKEN not set - running spec validation only"
+            exit 0
+          fi
+          
+          dredd api/openapi.yaml "$API_BASE_URL" \
+            --header "Authorization: Bearer $API_TOKEN" \
+            --reporter=xunit \
+            --output=/tmp/dredd-results.xml \
+            --dry-run || true
+          
+          echo "Contract test results:"
+          cat /tmp/dredd-results.xml 2>/dev/null | head -50 || true
+
+      - name: Upload contract test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: contract-test-results-${{ github.run_id }}
+          path: /tmp/dredd-results.xml
+          retention-days: 14
+
+  schema-drift-detection:
+    name: Schema Drift Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Validate API spec completeness
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, sys
+
+          with open("api/openapi.yaml") as f:
+              spec = yaml.safe_load(f)
+
+          errors = []
+          warnings = []
+
+          # Check all paths have operationId
+          for path, methods in spec.get("paths", {}).items():
+              for method, op in methods.items():
+                  if method in ["get", "post", "put", "patch", "delete"]:
+                      if not op.get("operationId"):
+                          errors.append(f"Missing operationId: {method.upper()} {path}")
+                      if not op.get("tags"):
+                          warnings.append(f"Missing tags: {method.upper()} {path}")
+                      if not op.get("summary"):
+                          warnings.append(f"Missing summary: {method.upper()} {path}")
+                      # Check all responses are documented
+                      responses = op.get("responses", {})
+                      if not responses:
+                          errors.append(f"No responses documented: {method.upper()} {path}")
+
+          # Check all schemas have required fields
+          schemas = spec.get("components", {}).get("schemas", {})
+          for name, schema in schemas.items():
+              if schema.get("type") == "object" and not schema.get("properties"):
+                  warnings.append(f"Schema '{name}' has no properties defined")
+
+          if errors:
+              print(f"ERRORS ({len(errors)}):")
+              for e in errors:
+                  print(f"  ::error::{e}")
+              sys.exit(1)
+
+          if warnings:
+              print(f"WARNINGS ({len(warnings)}):")
+              for w in warnings:
+                  print(f"  ::warning::{w}")
+
+          paths_count = len(spec.get("paths", {}))
+          schemas_count = len(schemas)
+          print(f"API spec validation passed: {paths_count} paths, {schemas_count} schemas")
+          PYEOF

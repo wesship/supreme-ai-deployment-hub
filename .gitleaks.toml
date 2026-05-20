@@ -1,0 +1,46 @@
+title = "Devonn.AI Gitleaks Configuration"
+
+[allowlist]
+description = "Allowlist for known false positives"
+regexes = [
+  # Test fixtures and example patterns - not real secrets
+  '''ghp_abcdefghijklmnopqrstuvwxyz1234567890''',
+  # Regex pattern definitions in source code (not actual tokens)
+  '''pattern.*ghp_''',
+  '''ghp_\[a-zA-Z0-9\]''',
+  # grep/detection patterns in workflow files
+  '''grep.*ghp_''',
+  # Documentation examples
+  '''example.*ghp_''',
+  '''ghp_.*example''',
+]
+paths = [
+  # Test files with intentional fake token patterns
+  '''hermes/tests/.*\.cjs''',
+  '''hermes/analyzers/secrets\.cjs''',
+  # Environment example files
+  '''\.env\.example''',
+  # Source code that detects tokens (not contains them)
+  '''src/components/git/AddRepositoryDialog\.tsx''',
+]
+
+[[rules]]
+description = "GitHub Personal Access Token"
+id = "github-pat"
+regex = '''ghp_[0-9a-zA-Z]{36}'''
+tags = ["key", "GitHub"]
+
+  [rules.allowlist]
+  regexes = [
+    # Allow regex pattern strings that define the token format
+    '''\[a-zA-Z0-9\]\{36\}''',
+    # Allow grep commands searching for tokens
+    '''grep.*ghp_''',
+    # Allow test fixtures with obviously fake tokens
+    '''ghp_abcdef''',
+  ]
+  paths = [
+    '''hermes/''',
+    '''\.env\.example''',
+    '''src/components/git/''',
+  ]
