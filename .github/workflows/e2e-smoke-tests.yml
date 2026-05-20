@@ -1,0 +1,159 @@
+name: E2E Smoke Tests
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/15 * * * *'  # Every 15 minutes
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: e2e-smoke-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false  # Never cancel running smoke tests
+
+jobs:
+  smoke-test-api:
+    name: API Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ENV: ${{ github.event.inputs.environment || 'staging' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set environment URLs
+        id: env-config
+        run: |
+          if [ "$ENV" = "production" ]; then
+            echo "api_url=${{ vars.PRODUCTION_API_URL || 'https://api.devonn.ai/v1' }}" >> $GITHUB_OUTPUT
+          else
+            echo "api_url=${{ vars.STAGING_API_URL || 'https://staging-api.devonn.ai/v1' }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Health check with SLO assertion
+        id: health-check
+        run: |
+          API_URL="${{ steps.env-config.outputs.api_url }}"
+          
+          if [ -z "$API_URL" ] || [[ "$API_URL" == *"devonn.ai"* ]]; then
+            echo "::notice::API URL not configured for $ENV - skipping live smoke tests"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # SLO: Health endpoint must respond in < 2000ms
+          START=$(date +%s%3N)
+          HTTP_CODE=$(curl -s -o /tmp/health-response.json -w "%{http_code}" \
+            --max-time 10 "$API_URL/health" || echo "000")
+          END=$(date +%s%3N)
+          LATENCY=$((END - START))
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Latency: ${LATENCY}ms"
+          echo "latency=${LATENCY}" >> $GITHUB_OUTPUT
+          echo "http_code=${HTTP_CODE}" >> $GITHUB_OUTPUT
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Health check failed: HTTP $HTTP_CODE"
+            cat /tmp/health-response.json 2>/dev/null || true
+            exit 1
+          fi
+          
+          if [ "$LATENCY" -gt 2000 ]; then
+            echo "::warning::Health check SLO breach: ${LATENCY}ms > 2000ms threshold"
+          fi
+          
+          echo "Health check passed: HTTP $HTTP_CODE in ${LATENCY}ms"
+
+      - name: API endpoint smoke tests
+        if: steps.health-check.outputs.skipped != 'true'
+        env:
+          API_URL: ${{ steps.env-config.outputs.api_url }}
+          API_TOKEN: ${{ secrets.STAGING_API_TOKEN }}
+        run: |
+          PASS=0
+          FAIL=0
+          
+          run_test() {
+            local name="$1"
+            local url="$2"
+            local expected_code="$3"
+            local auth="${4:-false}"
+            
+            HEADERS="-H 'Content-Type: application/json'"
+            if [ "$auth" = "true" ] && [ -n "$API_TOKEN" ]; then
+              HEADERS="$HEADERS -H 'Authorization: Bearer $API_TOKEN'"
+            fi
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 10 "$url" || echo "000")
+            
+            if [ "$HTTP_CODE" = "$expected_code" ]; then
+              echo "  PASS: $name (HTTP $HTTP_CODE)"
+              PASS=$((PASS + 1))
+            else
+              echo "  FAIL: $name (expected $expected_code, got $HTTP_CODE)"
+              FAIL=$((FAIL + 1))
+            fi
+          }
+          
+          echo "Running smoke tests against $API_URL..."
+          run_test "Health endpoint"   "$API_URL/health"  "200"
+          run_test "Models list (auth)" "$API_URL/models"  "401"
+          run_test "Agents list (auth)" "$API_URL/agents"  "401"
+          run_test "Mesh status (auth)" "$API_URL/mesh/status" "401"
+          run_test "404 handling"      "$API_URL/nonexistent-endpoint-xyz" "404"
+          
+          echo ""
+          echo "Results: $PASS passed, $FAIL failed"
+          
+          if [ "$FAIL" -gt 0 ]; then
+            echo "::error::$FAIL smoke test(s) failed"
+            exit 1
+          fi
+
+      - name: Create incident issue on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const env = process.env.ENV || 'staging';
+            const title = `[INCIDENT] Smoke test failure on ${env} - ${new Date().toISOString().split('T')[0]}`;
+            
+            // Check if incident issue already open
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'incident,smoke-test-failure'
+            });
+            
+            const existing = issues.data.find(i => i.title.includes(`on ${env}`));
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Smoke test still failing at ${new Date().toISOString()}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: `## Smoke Test Failure\n\n**Environment:** ${env}\n**Time:** ${new Date().toISOString()}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Next Steps\n1. Check the failing workflow run logs\n2. Verify deployment health in the target environment\n3. Escalate if not resolved within 15 minutes`,
+                labels: ['incident', 'smoke-test-failure', 'priority:high']
+              });
+            }

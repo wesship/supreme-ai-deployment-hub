@@ -1,9 +1,8 @@
 package devonn.ai.governance
 
-# ── AI Model Governance Policy ────────────────────────────────────────────────
+# ── AI Model Governance Policy (OPA v1 syntax) ────────────────────────────────
 # Enforces safety and compliance rules for all AI model deployments in Devonn.AI.
-# This policy is evaluated by the infrastructure-ci-cd.yml pipeline before any
-# model deployment is applied.
+# Compatible with OPA >= 0.59.0 (v1 syntax: `if` and `contains` keywords required).
 #
 # Usage: opa eval --data policy/ai_model_governance.rego \
 #                 --input models/llm/mistral-7b/deployment.json \
@@ -12,8 +11,7 @@ package devonn.ai.governance
 import input as deployment
 
 # ── Approved model registry ───────────────────────────────────────────────────
-# Only models from this list may be deployed to production.
-approved_models = {
+approved_models := {
     "mistralai/Mistral-7B-Instruct-v0.3",
     "mistralai/Mistral-7B-Instruct-v0.2",
     "openai/gpt-4.1-mini",
@@ -22,7 +20,7 @@ approved_models = {
 }
 
 # ── Deny: Unapproved model in production ─────────────────────────────────────
-deny[reason] {
+deny contains reason if {
     deployment.environment == "production"
     not approved_models[deployment.model_id]
     reason := sprintf(
@@ -32,7 +30,7 @@ deny[reason] {
 }
 
 # ── Deny: Model without content filtering in production ──────────────────────
-deny[reason] {
+deny contains reason if {
     deployment.environment == "production"
     not deployment.content_filter.enabled
     reason := sprintf(
@@ -42,7 +40,7 @@ deny[reason] {
 }
 
 # ── Deny: Model with max_tokens > 8192 without explicit approval ─────────────
-deny[reason] {
+deny contains reason if {
     deployment.max_tokens > 8192
     not deployment.large_context_approved
     reason := sprintf(
@@ -52,10 +50,8 @@ deny[reason] {
 }
 
 # ── Deny: Missing required model metadata ────────────────────────────────────
-required_fields = ["model_id", "version", "owner", "use_case", "data_classification"]
-
-deny[reason] {
-    field := required_fields[_]
+deny contains reason if {
+    field := ["model_id", "version", "owner", "use_case", "data_classification"][_]
     not deployment[field]
     reason := sprintf(
         "Model deployment is missing required metadata field: '%s'.",
@@ -64,7 +60,7 @@ deny[reason] {
 }
 
 # ── Deny: PII data classification without data residency config ──────────────
-deny[reason] {
+deny contains reason if {
     deployment.data_classification == "PII"
     not deployment.data_residency
     reason := sprintf(
@@ -74,7 +70,7 @@ deny[reason] {
 }
 
 # ── Warn: No rate limiting configured ────────────────────────────────────────
-warn[reason] {
+warn contains reason if {
     not deployment.rate_limit
     reason := sprintf(
         "Model '%s': no rate_limit configured. This may lead to unexpected cost overruns.",
@@ -83,11 +79,16 @@ warn[reason] {
 }
 
 # ── Warn: Temperature > 1.0 in production ────────────────────────────────────
-warn[reason] {
+warn contains reason if {
     deployment.environment == "production"
     deployment.temperature > 1.0
     reason := sprintf(
-        "Model '%s': temperature=%.1f is high for production. Consider ≤0.7 for deterministic outputs.",
+        "Model '%s': temperature=%.1f is high for production. Consider 0.7 or lower for deterministic outputs.",
         [deployment.model_id, deployment.temperature]
     )
+}
+
+# ── Allow: All checks passed ─────────────────────────────────────────────────
+allow if {
+    count(deny) == 0
 }
