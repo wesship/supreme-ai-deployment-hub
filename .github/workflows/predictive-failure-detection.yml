@@ -1,0 +1,205 @@
+name: Predictive Failure Detection
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+
+jobs:
+  pre-flight-risk-assessment:
+    name: Pre-Flight Risk Assessment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 0  # Full history for trend analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install prediction dependencies
+        run: pip3 install requests numpy
+
+      - name: Analyse change risk profile
+        id: risk-analysis
+        run: |
+          python3 - << 'PYEOF'
+          import subprocess, json, os, sys
+
+          # Get changed files in this PR/push
+          try:
+              result = subprocess.run(
+                  ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+                  capture_output=True, text=True
+              )
+              changed_files = [f for f in result.stdout.strip().split("\n") if f]
+          except:
+              changed_files = []
+
+          if not changed_files:
+              print("No changed files detected - skipping risk analysis")
+              with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
+                  f.write("risk_level=low\n")
+                  f.write("risk_score=0\n")
+              sys.exit(0)
+
+          # Risk scoring model
+          risk_score = 0
+          risk_factors = []
+
+          # High-risk file patterns
+          high_risk_patterns = [
+              (".github/workflows/", 15, "Workflow modification"),
+              ("package.json", 20, "Package manifest change"),
+              ("package-lock.json", 10, "Lockfile change"),
+              ("backend/main.py", 25, "Backend entry point change"),
+              ("backend/auth/", 30, "Authentication module change"),
+              ("policy/", 20, "Policy change"),
+              ("Dockerfile", 20, "Container definition change"),
+              (".npmrc", 15, "npm configuration change"),
+          ]
+
+          medium_risk_patterns = [
+              ("src/", 5, "Frontend source change"),
+              ("backend/", 10, "Backend source change"),
+              ("config/", 8, "Configuration change"),
+              ("api/", 12, "API spec change"),
+          ]
+
+          for f in changed_files:
+              for pattern, score, label in high_risk_patterns:
+                  if pattern in f:
+                      risk_score += score
+                      risk_factors.append(f"{label}: {f}")
+                      break
+              else:
+                  for pattern, score, label in medium_risk_patterns:
+                      if pattern in f:
+                          risk_score += score
+                          risk_factors.append(f"{label}: {f}")
+                          break
+
+          # Volume risk
+          file_count = len(changed_files)
+          if file_count > 20:
+              risk_score += 25
+              risk_factors.append(f"Large changeset: {file_count} files modified")
+          elif file_count > 10:
+              risk_score += 10
+              risk_factors.append(f"Medium changeset: {file_count} files modified")
+
+          # Determine risk level
+          if risk_score >= 60:
+              risk_level = "critical"
+          elif risk_score >= 40:
+              risk_level = "high"
+          elif risk_score >= 20:
+              risk_level = "medium"
+          else:
+              risk_level = "low"
+
+          print(f"=== Pre-Flight Risk Assessment ===")
+          print(f"Risk Score: {risk_score}/100")
+          print(f"Risk Level: {risk_level.upper()}")
+          print(f"Changed Files: {file_count}")
+          print(f"\nRisk Factors:")
+          for factor in risk_factors[:10]:
+              print(f"  - {factor}")
+
+          # Write outputs
+          output_file = os.environ.get("GITHUB_OUTPUT", "/dev/null")
+          with open(output_file, "a") as f:
+              f.write(f"risk_level={risk_level}\n")
+              f.write(f"risk_score={risk_score}\n")
+              f.write(f"file_count={file_count}\n")
+
+          # Fail on critical risk without approval
+          if risk_level == "critical":
+              print(f"\n::error::CRITICAL risk score ({risk_score}). Manual review required before merging.")
+              # Don't hard fail - just warn. Actual gate is in deployment workflow.
+          elif risk_level == "high":
+              print(f"\n::warning::HIGH risk score ({risk_score}). Ensure all tests pass before merging.")
+          PYEOF
+
+      - name: Historical trend analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - << 'PYEOF'
+          import os, json, requests, numpy as np
+          from datetime import datetime, timezone, timedelta
+
+          token = os.environ["GITHUB_TOKEN"]
+          repo = os.environ["REPO"]
+          headers = {"Authorization": f"token {token}"}
+
+          # Fetch last 30 days of runs
+          since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+          resp = requests.get(
+              f"https://api.github.com/repos/{repo}/actions/runs?per_page=100&branch=main&created=>={since}",
+              headers=headers
+          )
+          runs = resp.json().get("workflow_runs", [])
+
+          if not runs:
+              print("No historical data available yet")
+              exit(0)
+
+          # Calculate rolling failure rate trend
+          total = len(runs)
+          failures = sum(1 for r in runs if r.get("conclusion") == "failure")
+          success_rate = round((total - failures) / max(total, 1) * 100, 1)
+
+          # Split into first half vs second half for trend
+          mid = total // 2
+          recent_failures = sum(1 for r in runs[:mid] if r.get("conclusion") == "failure")
+          older_failures = sum(1 for r in runs[mid:] if r.get("conclusion") == "failure")
+
+          recent_rate = recent_failures / max(mid, 1) * 100
+          older_rate = older_failures / max(total - mid, 1) * 100
+          trend = recent_rate - older_rate
+
+          print(f"=== 30-Day CI Health Trend ===")
+          print(f"Total runs: {total}")
+          print(f"Overall success rate: {success_rate}%")
+          print(f"Recent failure rate (last {mid} runs): {recent_rate:.1f}%")
+          print(f"Older failure rate (prior {total-mid} runs): {older_rate:.1f}%")
+
+          if trend > 10:
+              print(f"::warning::CI health DEGRADING: failure rate increased by {trend:.1f}% recently")
+          elif trend < -10:
+              print(f"CI health IMPROVING: failure rate decreased by {abs(trend):.1f}% recently")
+          else:
+              print(f"CI health STABLE: trend {trend:+.1f}%")
+          PYEOF
+
+      - name: Post risk summary to PR
+        if: github.event_name == 'pull_request' && steps.risk-analysis.outputs.risk_level != 'low'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        with:
+          script: |
+            const riskLevel = '${{ steps.risk-analysis.outputs.risk_level }}';
+            const riskScore = '${{ steps.risk-analysis.outputs.risk_score }}';
+            const fileCount = '${{ steps.risk-analysis.outputs.file_count }}';
+
+            const emoji = { critical: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[riskLevel] || '⚪';
+            const body = `## ${emoji} Pre-Flight Risk Assessment\n\n| Metric | Value |\n|--------|-------|\n| Risk Level | **${riskLevel.toUpperCase()}** |\n| Risk Score | ${riskScore}/100 |\n| Files Changed | ${fileCount} |\n\n${riskLevel === 'critical' ? '> ⚠️ **Critical risk detected.** Ensure all CI checks pass and request an additional review before merging.' : riskLevel === 'high' ? '> ⚠️ **High risk change.** Verify all tests pass and review the diff carefully.' : '> ℹ️ Medium risk change detected. Standard review process applies.'}`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
