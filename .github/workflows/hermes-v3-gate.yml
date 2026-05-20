@@ -30,7 +30,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 22
+          cache: npm
 
       - name: Run Hermes v3 Unit Tests
         run: node hermes/v3/tests/hermes-v3.test.cjs
