@@ -1,0 +1,6 @@
+packages:
+  - 'apps/*'
+  - 'agents/*'
+  - 'integrations/*'
+  - 'sdk/*'
+  - 'packages/*'
