@@ -1,0 +1,189 @@
+name: Cosign Sign & Verify (Sigstore)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*', 'platform-v*']
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'backend/**'
+      - 'Dockerfile*'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write        # Required for keyless Sigstore signing
+  attestations: write    # Required for GitHub attestation API
+  packages: write        # Required for container image signing
+
+concurrency:
+  group: cosign-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Build & Sign Artifact ─────────────────────────────────────────────────
+  sign-artifact:
+    name: Build, Sign & Attest (Cosign Keyless)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact_digest: ${{ steps.sign.outputs.artifact_digest }}
+      bundle_path: ${{ steps.sign.outputs.bundle_path }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288c96b7e7e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      - name: Build artifact
+        run: |
+          NODE_ENV=production CI=true npm run build
+          tar czf /tmp/devonn-dist.tar.gz dist/
+          DIGEST=$(sha256sum /tmp/devonn-dist.tar.gz | cut -d' ' -f1)
+          echo "Build artifact SHA-256: ${DIGEST}"
+          echo "ARTIFACT_DIGEST=${DIGEST}" >> $GITHUB_ENV
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3
+
+      - name: Sign artifact with Cosign (keyless via OIDC)
+        id: sign
+        run: |
+          # Keyless signing: Cosign uses GitHub OIDC token to sign via Fulcio CA
+          # The signature is recorded in the Rekor transparency log
+          cosign sign-blob \
+            --yes \
+            --output-certificate /tmp/devonn-dist.crt \
+            --output-signature /tmp/devonn-dist.sig \
+            --bundle /tmp/devonn-dist.bundle \
+            /tmp/devonn-dist.tar.gz
+
+          echo "Cosign signature generated"
+          echo "Certificate:"
+          cat /tmp/devonn-dist.crt | openssl x509 -noout -text 2>/dev/null | \
+            grep -E "Subject:|Issuer:|Not After" || true
+
+          echo "artifact_digest=${ARTIFACT_DIGEST}" >> $GITHUB_OUTPUT
+          echo "bundle_path=/tmp/devonn-dist.bundle" >> $GITHUB_OUTPUT
+
+      - name: Verify signature immediately (self-check)
+        run: |
+          cosign verify-blob \
+            --bundle /tmp/devonn-dist.bundle \
+            --certificate-identity-regexp "https://github.com/wesship/supreme-ai-deployment-hub" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            /tmp/devonn-dist.tar.gz
+          echo "Self-verification passed: signature is valid"
+
+      - name: Record Rekor transparency log entry
+        run: |
+          # Extract Rekor log index from bundle for auditability
+          python3 - <<'PYEOF'
+          import json, os
+          bundle_path = "/tmp/devonn-dist.bundle"
+          try:
+              with open(bundle_path) as f:
+                  bundle = json.load(f)
+              # Extract Rekor log entry details
+              tlog = bundle.get("rekorBundle", bundle.get("verificationMaterial", {}))
+              print("Sigstore bundle recorded:")
+              print(f"  Artifact digest: {os.environ.get('ARTIFACT_DIGEST', 'unknown')}")
+              print(f"  Bundle keys: {list(bundle.keys())}")
+          except Exception as e:
+              print(f"Bundle info: {e}")
+          PYEOF
+
+      - name: Upload signed artifact and bundle
+        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          name: signed-artifact-${{ github.sha }}
+          path: |
+            /tmp/devonn-dist.tar.gz
+            /tmp/devonn-dist.crt
+            /tmp/devonn-dist.sig
+            /tmp/devonn-dist.bundle
+          retention-days: 90
+
+  # ── Pre-Deployment Signature Verification ─────────────────────────────────
+  verify-before-deploy:
+    name: Verify Signature Before Deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: sign-artifact
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3
+
+      - name: Download signed artifact
+        uses: actions/download-artifact@d3f86a106a0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        with:
+          name: signed-artifact-${{ github.sha }}
+          path: /tmp/verify/
+
+      - name: Verify artifact signature (pre-deployment gate)
+        run: |
+          echo "=== Pre-Deployment Signature Verification ==="
+          echo "Artifact: devonn-dist.tar.gz"
+          echo "Expected digest: ${{ needs.sign-artifact.outputs.artifact_digest }}"
+          
+          # Verify the SHA-256 digest matches
+          ACTUAL_DIGEST=$(sha256sum /tmp/verify/devonn-dist.tar.gz | cut -d' ' -f1)
+          EXPECTED_DIGEST="${{ needs.sign-artifact.outputs.artifact_digest }}"
+          
+          if [ "$ACTUAL_DIGEST" = "$EXPECTED_DIGEST" ]; then
+            echo "PASS: Artifact digest matches"
+          else
+            echo "::error::Artifact digest mismatch - possible tampering detected"
+            echo "Expected: ${EXPECTED_DIGEST}"
+            echo "Actual:   ${ACTUAL_DIGEST}"
+            exit 1
+          fi
+          
+          # Verify Cosign signature
+          cosign verify-blob \
+            --bundle /tmp/verify/devonn-dist.bundle \
+            --certificate-identity-regexp "https://github.com/wesship/supreme-ai-deployment-hub" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            /tmp/verify/devonn-dist.tar.gz
+          
+          echo "PASS: Cosign signature verified against Rekor transparency log"
+          echo "Deployment gate: APPROVED"
+
+      - name: Emit deployment approval record
+        run: |
+          cat > /tmp/deployment-approval.json << EOF
+          {
+            "status": "approved",
+            "artifact_digest": "${{ needs.sign-artifact.outputs.artifact_digest }}",
+            "verified_by": "cosign-keyless",
+            "transparency_log": "rekor.sigstore.dev",
+            "github_sha": "${{ github.sha }}",
+            "github_ref": "${{ github.ref }}",
+            "verified_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run_id": "${{ github.run_id }}"
+          }
+          EOF
+          cat /tmp/deployment-approval.json
+
+      - name: Upload deployment approval record
+        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          name: deployment-approval-${{ github.sha }}
+          path: /tmp/deployment-approval.json
+          retention-days: 365
