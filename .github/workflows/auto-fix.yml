@@ -8,7 +8,7 @@ name: Autonomous Fix Engine
 # To re-enable, uncomment the schedule block below and set a sensible interval.
 #
 # schedule:
-#   - cron: '0 */6 * * *'   # every 6 hours (was: every hour — too aggressive)
+#   - cron: '0 */6 * * *'   # every 6 hours (was: every hour - too aggressive)
 
 on:
   workflow_dispatch:          # manual trigger only until stabilized
@@ -28,6 +28,9 @@ jobs:
   auto-fix:
     name: Autonomous Fix
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

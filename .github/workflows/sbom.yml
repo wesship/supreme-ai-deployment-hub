@@ -35,7 +35,7 @@ jobs:
       - name: Generate SBOM (CycloneDX)
         run: |
           # --ignore-npm-errors allows SBOM generation even when npm-ls reports
-          # peer dependency warnings (exit code 1) — common with React 19 ecosystem
+          # peer dependency warnings (exit code 1) - common with React 19 ecosystem
           npx @cyclonedx/cyclonedx-npm \
             --output-file sbom-frontend.json \
             --output-format JSON \
@@ -122,6 +122,7 @@ jobs:
       - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: results.sarif
 

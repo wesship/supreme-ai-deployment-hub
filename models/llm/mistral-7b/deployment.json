@@ -1,0 +1,37 @@
+{
+  "model_id": "mistralai/Mistral-7B-Instruct-v0.2",
+  "version": "0.2",
+  "owner": "devonn-ai-platform-team",
+  "use_case": "general-purpose text generation and instruction following",
+  "data_classification": "internal",
+  "environment": "staging",
+  "max_tokens": 4096,
+  "temperature": 0.7,
+  "large_context_approved": false,
+  "content_filter": {
+    "enabled": true,
+    "provider": "internal",
+    "blocked_categories": ["hate_speech", "violence", "pii_leak"]
+  },
+  "rate_limit": {
+    "requests_per_minute": 60,
+    "tokens_per_minute": 100000
+  },
+  "quantization": "bitsandbytes-nf4",
+  "approved": true,
+  "approval_date": "2025-01-01",
+  "approved_by": "devonn-ai-governance",
+  "risk_level": "medium",
+  "governance": {
+    "bias_assessment": "completed",
+    "safety_review": "completed",
+    "pii_handling": "none",
+    "output_filtering": "enabled"
+  },
+  "resource_requirements": {
+    "gpu": "A10G",
+    "gpu_memory_gb": 24,
+    "cpu_cores": 4,
+    "memory_gb": 32
+  }
+}

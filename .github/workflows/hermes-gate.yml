@@ -65,7 +65,7 @@ jobs:
           echo "## Hermes Policy Gate" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.hermes.outcome }}" = "success" ]; then
-            echo "✅ **APPROVED** — All policy checks passed" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **APPROVED** - All policy checks passed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ **BLOCKED** — Policy violation detected. See logs above for details." >> $GITHUB_STEP_SUMMARY
+            echo "❌ **BLOCKED** - Policy violation detected. See logs above for details." >> $GITHUB_STEP_SUMMARY
           fi

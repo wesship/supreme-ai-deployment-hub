@@ -105,7 +105,7 @@ jobs:
           pip install pytest pytest-cov httpx fastapi uvicorn pydantic
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Verify OpenAI key is present
-        run: test -n "$OPENAI_API_KEY" && echo "OPENAI_API_KEY is set" || echo "OPENAI_API_KEY not set — skipping key-dependent tests"
+        run: test -n "$OPENAI_API_KEY" && echo "OPENAI_API_KEY is set" || echo "OPENAI_API_KEY not set - skipping key-dependent tests"
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       - name: Run Python tests with coverage
@@ -117,7 +117,7 @@ jobs:
             --cov-report=xml:python-coverage.xml \
             --cov-report=term-missing \
             --cov-omit="tests/*,*/__pycache__/*" \
-            -v || echo "No Python tests found — skipping"
+            -v || echo "No Python tests found - skipping"
       - name: Upload Python coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v4

@@ -2,7 +2,7 @@ name: Commit Lint
 
 # Validates that all commit messages in a PR follow Conventional Commits format.
 # This is required for semantic-release to correctly determine version bumps.
-# The repo already has commitlint.config.js — this workflow enforces it in CI.
+# The repo already has commitlint.config.js - this workflow enforces it in CI.
 
 on:
   pull_request:

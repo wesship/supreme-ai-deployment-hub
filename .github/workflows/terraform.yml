@@ -53,7 +53,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
           if [ -z "${AZURE_SUBSCRIPTION_ID}" ] || [ -z "${AZURE_CLIENT_ID}" ]; then
-            echo "::warning::Azure secrets not configured — skipping Terraform deployment"
+            echo "::warning::Azure secrets not configured - skipping Terraform deployment"
             echo "has_secrets=false" >> $GITHUB_OUTPUT
           else
             echo "has_secrets=true" >> $GITHUB_OUTPUT
@@ -88,7 +88,7 @@ jobs:
         id: azure-secrets-check
         run: |
           if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET_VALUE }}" ]; then
-            echo "⚠️  Azure secrets not configured — skipping Azure deployment steps"
+            echo "⚠️  Azure secrets not configured - skipping Azure deployment steps"
             echo "skip=true" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT
@@ -286,7 +286,7 @@ jobs:
         id: azure-secrets-check
         run: |
           if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET_VALUE }}" ]; then
-            echo "⚠️  Azure secrets not configured — skipping Azure deployment steps"
+            echo "⚠️  Azure secrets not configured - skipping Azure deployment steps"
             echo "skip=true" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT
