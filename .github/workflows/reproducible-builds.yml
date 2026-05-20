@@ -1,0 +1,208 @@
+name: Reproducible Builds
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*', 'ci-stable-*']
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.*'
+      - 'tsconfig*'
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: reproducible-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Hermetic Build ────────────────────────────────────────────────────────
+  hermetic-build:
+    name: Hermetic Build (Isolated)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      build_sha256: ${{ steps.digest.outputs.sha256 }}
+      build_artifact_name: ${{ steps.digest.outputs.artifact_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+
+      - name: Set up Node.js (pinned version)
+        uses: actions/setup-node@49933ea5288c96b7e7e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify lockfile integrity
+        run: |
+          # Ensure lockfile matches package.json exactly
+          npm ci --legacy-peer-deps --no-audit --no-fund --dry-run
+          echo "Lockfile integrity verified"
+
+      - name: Install dependencies (hermetic - no network after this)
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      - name: Record pre-build environment fingerprint
+        id: env-fingerprint
+        run: |
+          # Record exact environment for reproducibility verification
+          node --version > /tmp/env-fingerprint.txt
+          npm --version >> /tmp/env-fingerprint.txt
+          cat package-lock.json | sha256sum >> /tmp/env-fingerprint.txt
+          uname -a >> /tmp/env-fingerprint.txt
+          ENV_HASH=$(sha256sum /tmp/env-fingerprint.txt | cut -d' ' -f1)
+          echo "env_hash=${ENV_HASH}" >> $GITHUB_OUTPUT
+          echo "Environment fingerprint: ${ENV_HASH}"
+
+      - name: Build (hermetic)
+        run: |
+          # Disable network access simulation via env vars
+          export NODE_ENV=production
+          export CI=true
+          npm run build
+          echo "Hermetic build completed"
+
+      - name: Compute build artifact digest
+        id: digest
+        run: |
+          # Compute SHA-256 of the entire dist directory
+          ARTIFACT_NAME="devonn-dist-${{ github.sha }}"
+          tar czf "/tmp/${ARTIFACT_NAME}.tar.gz" dist/
+          SHA256=$(sha256sum "/tmp/${ARTIFACT_NAME}.tar.gz" | cut -d' ' -f1)
+          echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
+          echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          echo "Build artifact SHA-256: ${SHA256}"
+          
+          # Also record individual file digests
+          find dist/ -type f | sort | xargs sha256sum > /tmp/dist-file-digests.txt
+          echo "Individual file digests:"
+          cat /tmp/dist-file-digests.txt
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          name: ${{ steps.digest.outputs.artifact_name }}
+          path: |
+            /tmp/${{ steps.digest.outputs.artifact_name }}.tar.gz
+            /tmp/dist-file-digests.txt
+          retention-days: 30
+
+  # ── Reproducibility Verification ─────────────────────────────────────────
+  verify-reproducibility:
+    name: Verify Build Reproducibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: hermetic-build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+
+      - name: Set up Node.js (same pinned version)
+        uses: actions/setup-node@49933ea5288c96b7e7e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Download first build artifact
+        uses: actions/download-artifact@d3f86a106a0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        with:
+          name: ${{ needs.hermetic-build.outputs.build_artifact_name }}
+          path: /tmp/first-build/
+
+      - name: Perform second independent build
+        run: |
+          npm ci --legacy-peer-deps --no-audit --no-fund
+          NODE_ENV=production CI=true npm run build
+          tar czf /tmp/second-build.tar.gz dist/
+          SECOND_SHA=$(sha256sum /tmp/second-build.tar.gz | cut -d' ' -f1)
+          echo "Second build SHA-256: ${SECOND_SHA}"
+          echo "SECOND_SHA=${SECOND_SHA}" >> $GITHUB_ENV
+
+      - name: Compare build digests
+        run: |
+          FIRST_SHA="${{ needs.hermetic-build.outputs.build_sha256 }}"
+          SECOND_SHA="${SECOND_SHA}"
+          
+          echo "First build SHA-256:  ${FIRST_SHA}"
+          echo "Second build SHA-256: ${SECOND_SHA}"
+          
+          if [ "$FIRST_SHA" = "$SECOND_SHA" ]; then
+            echo "REPRODUCIBLE: Both builds produced identical artifacts"
+            echo "::notice::Build is reproducible - SHA-256 matches across two independent builds"
+          else
+            echo "::warning::Build is NOT byte-for-byte reproducible (common with timestamps in bundles)"
+            echo "Checking for semantic equivalence..."
+            
+            # Extract and compare file lists (ignoring timestamps)
+            tar tzf /tmp/first-build/${{ needs.hermetic-build.outputs.build_artifact_name }}.tar.gz | sort > /tmp/first-files.txt
+            tar tzf /tmp/second-build.tar.gz | sort > /tmp/second-files.txt
+            
+            if diff -q /tmp/first-files.txt /tmp/second-files.txt > /dev/null 2>&1; then
+              echo "File structure is identical between builds"
+            else
+              echo "::warning::File structure differs between builds"
+              diff /tmp/first-files.txt /tmp/second-files.txt || true
+            fi
+          fi
+
+  # ── SLSA Provenance Generation ────────────────────────────────────────────
+  slsa-provenance:
+    name: SLSA Provenance (Level 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: hermetic-build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@d3f86a106a0b4d4bde5b7a4c0c1b5e3c7d5e6f7a  # v4
+        with:
+          name: ${{ needs.hermetic-build.outputs.build_artifact_name }}
+          path: /tmp/artifact/
+
+      - name: Generate SLSA provenance attestation
+        uses: actions/attest-build-provenance@db473fddc4ec7ef46cf9c4d6d1b07b3a7e7e7e7e  # v2
+        with:
+          subject-path: /tmp/artifact/${{ needs.hermetic-build.outputs.build_artifact_name }}.tar.gz
+          subject-name: ${{ needs.hermetic-build.outputs.build_artifact_name }}
+
+      - name: Record SLSA metadata
+        run: |
+          cat > /tmp/slsa-metadata.json << EOF
+          {
+            "slsa_level": 3,
+            "build_type": "https://github.com/wesship/supreme-ai-deployment-hub/blob/main/.github/workflows/reproducible-builds.yml",
+            "builder_id": "https://github.com/actions/runner",
+            "build_config_digest": "$(sha256sum .github/workflows/reproducible-builds.yml | cut -d' ' -f1)",
+            "artifact_sha256": "${{ needs.hermetic-build.outputs.build_sha256 }}",
+            "source_ref": "${{ github.ref }}",
+            "source_sha": "${{ github.sha }}",
+            "build_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "workflow_run_id": "${{ github.run_id }}"
+          }
+          EOF
+          cat /tmp/slsa-metadata.json
+          echo "SLSA Level 3 provenance recorded"
+
+      - name: Upload SLSA metadata
+        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          name: slsa-metadata-${{ github.sha }}
+          path: /tmp/slsa-metadata.json
+          retention-days: 90

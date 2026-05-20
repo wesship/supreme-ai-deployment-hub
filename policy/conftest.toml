@@ -1,0 +1,19 @@
+# Conftest configuration for Devonn.AI Policy-as-Code enforcement
+# https://www.conftest.dev/
+
+# Policy directories to load
+policy = ["policy/opa"]
+
+# Output format
+output = "table"
+
+# Fail on warnings as well as violations (strict mode)
+# Set to false to allow warnings to be informational only
+fail_on_warn = false
+
+# Namespace mappings for different resource types
+[namespaces]
+workflow = "workflow.standards"
+deployment = "deployment.gates"
+artifact = "artifact.integrity"
+secrets = "secrets.policy"
