@@ -1,0 +1,161 @@
+name: Workflow Optimizer
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'  # Weekly on Sunday at 4am UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  analyze-and-optimize:
+    name: Analyze Workflow Efficiency
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip3 install requests pyyaml
+
+      - name: Audit workflow concurrency and caching
+        run: |
+          python3 - << 'PYEOF'
+          import yaml, glob, json
+
+          workflows = glob.glob(".github/workflows/*.yml")
+          report = {
+              "total_workflows": len(workflows),
+              "missing_concurrency": [],
+              "missing_timeout": [],
+              "missing_cache": [],
+              "missing_permissions": [],
+              "optimization_score": 0
+          }
+
+          total_score = 0
+          max_score = len(workflows) * 4  # 4 checks per workflow
+
+          for wf_path in workflows:
+              try:
+                  with open(wf_path) as f:
+                      wf = yaml.safe_load(f.read())
+              except:
+                  continue
+
+              wf_name = wf_path.split("/")[-1]
+              score = 0
+
+              # Check 1: concurrency group
+              if wf.get("concurrency"):
+                  score += 1
+              else:
+                  report["missing_concurrency"].append(wf_name)
+
+              # Check 2: top-level permissions
+              if wf.get("permissions"):
+                  score += 1
+              else:
+                  report["missing_permissions"].append(wf_name)
+
+              # Check 3: timeout-minutes on jobs
+              jobs = wf.get("jobs", {})
+              has_timeout = all(
+                  job.get("timeout-minutes") for job in jobs.values()
+                  if isinstance(job, dict)
+              )
+              if has_timeout and jobs:
+                  score += 1
+              elif jobs:
+                  report["missing_timeout"].append(wf_name)
+
+              # Check 4: cache usage (setup-node or actions/cache)
+              wf_str = str(wf)
+              if "cache: npm" in wf_str or "actions/cache" in wf_str:
+                  score += 1
+              else:
+                  # Only flag if it uses Node.js
+                  if "setup-node" in wf_str or "node" in wf_str.lower():
+                      report["missing_cache"].append(wf_name)
+                  else:
+                      score += 1  # Not applicable
+
+              total_score += score
+
+          report["optimization_score"] = round(total_score / max(max_score, 1) * 100, 1)
+
+          print(f"=== Workflow Optimization Report ===")
+          print(f"Total workflows: {report['total_workflows']}")
+          print(f"Optimization score: {report['optimization_score']}%")
+          print(f"\nMissing concurrency groups ({len(report['missing_concurrency'])}): {report['missing_concurrency'][:5]}")
+          print(f"Missing permissions ({len(report['missing_permissions'])}): {report['missing_permissions'][:5]}")
+          print(f"Missing timeouts ({len(report['missing_timeout'])}): {report['missing_timeout'][:5]}")
+          print(f"Missing cache config ({len(report['missing_cache'])}): {report['missing_cache'][:5]}")
+
+          with open("/tmp/optimization-report.json", "w") as f:
+              json.dump(report, f, indent=2)
+
+          if report["optimization_score"] < 70:
+              print(f"\n::warning::Optimization score {report['optimization_score']}% is below 70% threshold")
+          else:
+              print(f"\nOptimization score {report['optimization_score']}% meets the 70% threshold")
+          PYEOF
+
+      - name: Generate parallelisation recommendations
+        run: |
+          python3 - << 'PYEOF'
+          import yaml, glob
+
+          print("=== Parallelisation Recommendations ===")
+          recommendations = []
+
+          for wf_path in glob.glob(".github/workflows/*.yml"):
+              try:
+                  with open(wf_path) as f:
+                      wf = yaml.safe_load(f.read())
+              except:
+                  continue
+
+              jobs = wf.get("jobs", {})
+              if len(jobs) < 2:
+                  continue
+
+              # Find jobs with no dependencies (can run in parallel)
+              independent_jobs = []
+              for job_id, job in jobs.items():
+                  if isinstance(job, dict) and not job.get("needs"):
+                      independent_jobs.append(job_id)
+
+              # If all jobs are sequential (each needs the previous), suggest parallelisation
+              sequential_chain = sum(1 for j in jobs.values()
+                                     if isinstance(j, dict) and j.get("needs"))
+              if sequential_chain == len(jobs) - 1 and len(jobs) >= 3:
+                  recommendations.append({
+                      "workflow": wf_path.split("/")[-1],
+                      "jobs": len(jobs),
+                      "suggestion": "Consider parallelising independent jobs to reduce total run time"
+                  })
+
+          if recommendations:
+              for rec in recommendations[:5]:
+                  print(f"  {rec['workflow']}: {rec['suggestion']} ({rec['jobs']} jobs)")
+          else:
+              print("  No parallelisation improvements identified")
+          PYEOF
+
+      - name: Upload optimization report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: workflow-optimization-${{ github.run_id }}
+          path: /tmp/optimization-report.json
+          retention-days: 30
