@@ -1,0 +1,276 @@
+name: Issue Tracker Sync (Jira / Linear)
+
+on:
+  issues:
+    types: [opened, labeled]
+  workflow_run:
+    workflows:
+      - "Incident Response & SLO Enforcement"
+      - "Security Hardening"
+      - "Secrets Elimination & Scanning"
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      title:
+        description: 'Issue title to create in Jira/Linear'
+        required: true
+      severity:
+        description: 'Severity: critical/high/medium/low'
+        required: false
+        default: 'medium'
+      source:
+        description: 'Source system (security/incident/ci)'
+        required: false
+        default: 'ci'
+
+permissions:
+  contents: read
+  issues: read
+
+concurrency:
+  group: issue-tracker-sync-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  sync-to-jira:
+    name: Sync to Jira
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: env.JIRA_BASE_URL != '' || github.event_name == 'workflow_dispatch'
+    env:
+      JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+      JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY || 'DEVONN' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip3 install requests
+
+      - name: Determine issue details
+        id: issue
+        run: |
+          python3 - << 'PYEOF'
+          import os, json
+
+          event = os.environ.get("GITHUB_EVENT_NAME", "workflow_dispatch")
+          repo = os.environ.get("GITHUB_REPOSITORY", "wesship/supreme-ai-deployment-hub")
+          run_id = os.environ.get("GITHUB_RUN_ID", "0")
+          run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
+
+          if event == "workflow_dispatch":
+              title = "${{ github.event.inputs.title }}"
+              severity = "${{ github.event.inputs.severity || 'medium' }}"
+              source = "${{ github.event.inputs.source || 'ci' }}"
+              description = f"Manually triggered issue sync from GitHub Actions.\n\nRun: {run_url}"
+          elif event == "workflow_run":
+              wf_name = "${{ github.event.workflow_run.name }}"
+              conclusion = "${{ github.event.workflow_run.conclusion }}"
+              wf_url = "${{ github.event.workflow_run.html_url }}"
+              if conclusion == "failure":
+                  severity = "high"
+                  title = f"[CI FAILURE] {wf_name} failed on main"
+                  description = f"Workflow **{wf_name}** failed.\n\nRun URL: {wf_url}\n\nPlease investigate immediately."
+              else:
+                  print("Workflow succeeded — no Jira ticket needed")
+                  import sys; sys.exit(0)
+              source = "ci"
+          elif event == "issues":
+              title = "${{ github.event.issue.title }}"
+              severity = "medium"
+              source = "github"
+              description = "${{ github.event.issue.body }}"
+          else:
+              title = f"Platform Alert from {event}"
+              severity = "medium"
+              source = "platform"
+              description = f"Automated alert from GitHub Actions.\n\nEvent: {event}\nRun: {run_url}"
+
+          # Priority mapping
+          priority_map = {
+              "critical": {"name": "Highest", "id": "1"},
+              "high": {"name": "High", "id": "2"},
+              "medium": {"name": "Medium", "id": "3"},
+              "low": {"name": "Low", "id": "4"},
+          }
+          priority = priority_map.get(severity, priority_map["medium"])
+
+          # Label mapping
+          label_map = {
+              "security": "Security",
+              "incident": "Incident",
+              "ci": "CI/CD",
+              "github": "GitHub",
+              "platform": "Platform",
+          }
+          label = label_map.get(source, "Platform")
+
+          issue_data = {
+              "title": title,
+              "description": description,
+              "severity": severity,
+              "priority": priority,
+              "label": label,
+              "source": source,
+          }
+
+          print(json.dumps(issue_data, indent=2))
+
+          with open("/tmp/issue-data.json", "w") as f:
+              json.dump(issue_data, f)
+          PYEOF
+
+      - name: Create Jira issue
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, requests, base64
+
+          base_url = os.environ.get("JIRA_BASE_URL", "")
+          email = os.environ.get("JIRA_EMAIL", "")
+          token = os.environ.get("JIRA_API_TOKEN", "")
+          project = os.environ.get("JIRA_PROJECT_KEY", "DEVONN")
+
+          if not base_url or not email or not token:
+              print("Jira credentials not configured — skipping (set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN secrets)")
+              exit(0)
+
+          with open("/tmp/issue-data.json") as f:
+              issue = json.load(f)
+
+          auth = base64.b64encode(f"{email}:{token}".encode()).decode()
+          headers = {
+              "Authorization": f"Basic {auth}",
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+          }
+
+          payload = {
+              "fields": {
+                  "project": {"key": project},
+                  "summary": issue["title"],
+                  "description": {
+                      "type": "doc",
+                      "version": 1,
+                      "content": [{
+                          "type": "paragraph",
+                          "content": [{"type": "text", "text": issue["description"]}]
+                      }]
+                  },
+                  "issuetype": {"name": "Bug" if issue["severity"] in ["critical", "high"] else "Task"},
+                  "priority": {"name": issue["priority"]["name"]},
+                  "labels": [issue["label"], "devonn-platform", "automated"],
+              }
+          }
+
+          r = requests.post(
+              f"{base_url}/rest/api/3/issue",
+              headers=headers,
+              json=payload,
+              timeout=15,
+          )
+
+          if r.status_code == 201:
+              jira_key = r.json().get("key", "")
+              jira_url = f"{base_url}/browse/{jira_key}"
+              print(f"Created Jira issue: {jira_key} — {jira_url}")
+          else:
+              print(f"Jira API error: HTTP {r.status_code} — {r.text[:200]}")
+          PYEOF
+
+  sync-to-linear:
+    name: Sync to Linear
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: env.LINEAR_API_KEY != '' || github.event_name == 'workflow_dispatch'
+    env:
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      LINEAR_TEAM_ID: ${{ secrets.LINEAR_TEAM_ID }}
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip3 install requests
+
+      - name: Create Linear issue
+        run: |
+          python3 - << 'PYEOF'
+          import os, json, requests
+
+          api_key = os.environ.get("LINEAR_API_KEY", "")
+          team_id = os.environ.get("LINEAR_TEAM_ID", "")
+
+          if not api_key or not team_id:
+              print("Linear credentials not configured — skipping (set LINEAR_API_KEY, LINEAR_TEAM_ID secrets)")
+              exit(0)
+
+          event = os.environ.get("GITHUB_EVENT_NAME", "")
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+          run_id = os.environ.get("GITHUB_RUN_ID", "0")
+
+          if event == "workflow_run":
+              conclusion = "${{ github.event.workflow_run.conclusion }}"
+              if conclusion != "failure":
+                  print("No failure — skipping Linear issue creation")
+                  exit(0)
+              wf_name = "${{ github.event.workflow_run.name }}"
+              title = f"[CI FAILURE] {wf_name}"
+              description = f"Workflow {wf_name} failed. Run: https://github.com/{repo}/actions/runs/{run_id}"
+              priority = 1  # Urgent
+          else:
+              title = "${{ github.event.inputs.title || 'Platform Alert' }}"
+              description = f"Automated issue from GitHub Actions. Run: https://github.com/{repo}/actions/runs/{run_id}"
+              severity = "${{ github.event.inputs.severity || 'medium' }}"
+              priority_map = {"critical": 1, "high": 2, "medium": 3, "low": 4}
+              priority = priority_map.get(severity, 3)
+
+          # Linear GraphQL mutation
+          query = """
+          mutation CreateIssue($teamId: String!, $title: String!, $description: String, $priority: Int) {
+            issueCreate(input: {
+              teamId: $teamId
+              title: $title
+              description: $description
+              priority: $priority
+            }) {
+              success
+              issue {
+                id
+                identifier
+                url
+              }
+            }
+          }
+          """
+
+          r = requests.post(
+              "https://api.linear.app/graphql",
+              headers={"Authorization": api_key, "Content-Type": "application/json"},
+              json={"query": query, "variables": {
+                  "teamId": team_id,
+                  "title": title,
+                  "description": description,
+                  "priority": priority,
+              }},
+              timeout=15,
+          )
+
+          if r.status_code == 200:
+              data = r.json()
+              if data.get("data", {}).get("issueCreate", {}).get("success"):
+                  issue = data["data"]["issueCreate"]["issue"]
+                  print(f"Created Linear issue: {issue['identifier']} — {issue['url']}")
+              else:
+                  print(f"Linear error: {data.get('errors', 'Unknown error')}")
+          else:
+              print(f"Linear API error: HTTP {r.status_code}")
+          PYEOF
