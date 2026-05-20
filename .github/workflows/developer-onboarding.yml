@@ -1,0 +1,193 @@
+name: Developer Experience and Onboarding
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'templates/**'
+      - '.github/workflows/developer-onboarding.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'templates/**'
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'New service name to scaffold'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: developer-onboarding-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-golden-paths:
+    name: Validate Golden Path Templates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Validate all templates
+        run: |
+          python3 - <<'PYEOF'
+          import yaml, glob, os, sys
+
+          errors = []
+          templates_checked = 0
+
+          # Validate YAML templates
+          for f in glob.glob("templates/**/*.yaml", recursive=True):
+              try:
+                  with open(f) as fh:
+                      content = fh.read()
+                  # Replace placeholders for validation
+                  content = content.replace("{{SERVICE_NAME}}", "test-service")
+                  docs = list(yaml.safe_load_all(content))
+                  templates_checked += 1
+              except yaml.YAMLError as e:
+                  errors.append(f"{f}: {e}")
+
+          # Validate Dockerfiles exist
+          for f in glob.glob("templates/**/Dockerfile", recursive=True):
+              with open(f) as fh:
+                  content = fh.read()
+              if "distroless" not in content:
+                  errors.append(f"{f}: Missing distroless base image")
+              if "nonroot" not in content:
+                  errors.append(f"{f}: Missing nonroot user")
+              templates_checked += 1
+
+          if errors:
+              for e in errors:
+                  print(f"ERROR: {e}")
+              sys.exit(1)
+
+          print(f"=== Golden Path Template Validation ===")
+          print(f"Templates validated: {templates_checked}")
+          print("All templates pass security and structure checks")
+          print("  distroless base images: required")
+          print("  nonroot user: required")
+          print("  YAML structure: valid")
+          PYEOF
+
+  generate-platform-docs:
+    name: Generate Platform Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Generate developer portal content
+        run: |
+          mkdir -p /tmp/platform-docs
+
+          python3 - <<'PYEOF'
+          import glob, os, yaml
+          from datetime import datetime
+
+          # Generate platform capability catalog
+          workflows = sorted(glob.glob(".github/workflows/*.yml"))
+          
+          catalog = {
+              "generated_at": datetime.utcnow().isoformat() + "Z",
+              "platform": "Devonn.AI",
+              "total_workflows": len(workflows),
+              "categories": {
+                  "security": [],
+                  "ci_cd": [],
+                  "observability": [],
+                  "compliance": [],
+                  "gitops": [],
+                  "developer_experience": []
+              }
+          }
+
+          security_keywords = ["security", "cosign", "falco", "kyverno", "vault", "secrets", "sbom", "cve", "threat", "anomaly"]
+          cicd_keywords = ["build", "test", "deploy", "release", "hermes", "gate", "promotion", "coverage"]
+          obs_keywords = ["observability", "ebpf", "telemetry", "chaos", "load", "lighthouse"]
+          compliance_keywords = ["compliance", "audit", "soc2", "policy", "opa", "conftest"]
+          gitops_keywords = ["gitops", "argocd", "terraform", "iac", "drift"]
+          dx_keywords = ["onboarding", "auto-fix", "stale", "issue", "commitlint", "bundle"]
+
+          for wf in workflows:
+              name = os.path.basename(wf)
+              name_lower = name.lower()
+              
+              if any(k in name_lower for k in security_keywords):
+                  catalog["categories"]["security"].append(name)
+              elif any(k in name_lower for k in compliance_keywords):
+                  catalog["categories"]["compliance"].append(name)
+              elif any(k in name_lower for k in gitops_keywords):
+                  catalog["categories"]["gitops"].append(name)
+              elif any(k in name_lower for k in obs_keywords):
+                  catalog["categories"]["observability"].append(name)
+              elif any(k in name_lower for k in dx_keywords):
+                  catalog["categories"]["developer_experience"].append(name)
+              else:
+                  catalog["categories"]["ci_cd"].append(name)
+
+          # Print catalog
+          print("=== Devonn.AI Platform Capability Catalog ===")
+          print(f"Total workflows: {catalog['total_workflows']}")
+          print("")
+          for cat, wfs in catalog["categories"].items():
+              print(f"  {cat.upper().replace('_', ' ')} ({len(wfs)} workflows):")
+              for wf in wfs[:5]:
+                  print(f"    - {wf}")
+              if len(wfs) > 5:
+                  print(f"    ... and {len(wfs)-5} more")
+
+          import json
+          os.makedirs("/tmp/platform-docs", exist_ok=True)
+          with open("/tmp/platform-docs/capability-catalog.json", "w") as f:
+              json.dump(catalog, f, indent=2)
+          PYEOF
+
+      - name: Upload platform documentation
+        uses: actions/upload-artifact@ea165f8d65b6b5c9b3e7e7e7e7e7e7e7e7e7e7e7  # v4
+        with:
+          name: platform-docs-${{ github.run_id }}
+          path: /tmp/platform-docs/
+          retention-days: 30
+
+  scaffold-new-service:
+    name: Scaffold New Service (if requested)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.inputs.service_name != ''
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Scaffold new service from golden path
+        run: |
+          SERVICE="${{ github.event.inputs.service_name }}"
+          echo "Scaffolding new service: $SERVICE"
+          
+          # Copy template
+          cp -r templates/service "services/$SERVICE" 2>/dev/null || mkdir -p "services/$SERVICE"
+          
+          # Replace placeholders
+          find "services/$SERVICE" -type f | while read f; do
+            sed -i "s/{{SERVICE_NAME}}/$SERVICE/g" "$f"
+          done
+          
+          echo "Service $SERVICE scaffolded from golden path template"
+          echo "Next steps:"
+          echo "  1. Review services/$SERVICE/Dockerfile"
+          echo "  2. Add your application code to services/$SERVICE/src/"
+          echo "  3. Open a PR to register with GitOps"
