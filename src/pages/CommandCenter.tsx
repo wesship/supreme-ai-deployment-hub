@@ -28,7 +28,7 @@ const SIDEBAR_ITEMS: { id: View; label: string; icon: React.ReactNode }[] = [
   { id: "settings", label: "Settings", icon: <Settings className="h-5 w-5" /> },
 ];
 
-const VIEW_COMPONENTS: Record<View, React.FC<{ onNavigate: (v: View) => void }>> = {
+const VIEW_COMPONENTS: Record<View, React.FC<{ onNavigate: (v: string) => void }>> = {
   overview: CommandCenterOverview,
   agents: CommandCenterAgents,
   mcp: CommandCenterMcp,
@@ -100,7 +100,7 @@ export default function CommandCenter() {
               transition={{ duration: 0.2 }}
               className="p-6 max-w-7xl mx-auto"
             >
-              <ActiveComponent onNavigate={setActiveView} />
+              <ActiveComponent onNavigate={(v) => setActiveView(v as View)} />
             </motion.div>
           </AnimatePresence>
         </main>

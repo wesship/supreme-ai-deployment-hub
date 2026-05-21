@@ -25,18 +25,19 @@ export class SpeechRecognitionService {
         return;
       }
 
-      this.recognition = new SpeechRecognition();
+      const rec = new SpeechRecognition();
+      this.recognition = rec;
       
       // Configure recognition
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
 
       // Set up event handlers
-      this.recognition.onstart = this.handleStart.bind(this);
-      this.recognition.onend = this.handleEnd.bind(this);
-      this.recognition.onerror = this.handleError.bind(this);
-      this.recognition.onresult = this.handleResult.bind(this);
+      rec.onstart = this.handleStart.bind(this);
+      rec.onend = this.handleEnd.bind(this);
+      rec.onerror = this.handleError.bind(this);
+      rec.onresult = this.handleResult.bind(this);
       
     } catch (error) {
       console.error('Failed to initialize speech recognition:', error);

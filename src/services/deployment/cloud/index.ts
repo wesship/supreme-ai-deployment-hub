@@ -22,7 +22,7 @@ export const executeCloudCommand = async (options: ExecuteCommandOptions): Promi
   switch (provider) {
     case 'aws':
       // Use AWS SDK implementation
-      return executeAwsCommand(options.command, options);
+      return executeAwsCommand(options.command || '', options);
     
     case 'azure':
     case 'gcp':

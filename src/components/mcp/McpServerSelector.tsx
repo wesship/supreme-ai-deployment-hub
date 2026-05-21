@@ -112,7 +112,7 @@ export function McpServerSelector({
                 key={server.id}
                 server={server}
                 isConnected={connectedServerId === server.id}
-                isConnecting={isConnecting && selectedServer?.id === server.id}
+                isConnecting={!!(isConnecting && selectedServer?.id === server.id)}
                 onConnect={() => openConnectionDialog(server)}
               />
             ))}
@@ -127,7 +127,7 @@ export function McpServerSelector({
                   key={server.id}
                   server={server}
                   isConnected={connectedServerId === server.id}
-                  isConnecting={isConnecting && selectedServer?.id === server.id}
+                  isConnecting={!!(isConnecting && selectedServer?.id === server.id)}
                   onConnect={() => openConnectionDialog(server)}
                 />
               ))}

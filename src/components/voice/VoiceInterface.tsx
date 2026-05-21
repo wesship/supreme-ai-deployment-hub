@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Mic, MicOff, Volume2, VolumeX, Play, Pause } from 'lucide-react';
+// @ts-ignore - optional dependency
 import { useConversation } from '@11labs/react';
 
 interface VoiceInterfaceProps {
