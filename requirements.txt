@@ -6,5 +6,5 @@ pyjwt>=2.8.0
 pydantic>=2.3.0
 cryptography>=46.0.5
 python-multipart>=0.0.22
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2
 sse-starlette
