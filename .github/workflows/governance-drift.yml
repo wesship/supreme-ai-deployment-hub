@@ -1,0 +1,90 @@
+name: Governance Drift Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  governance-drift:
+    name: Verify governance manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify required files exist
+        shell: bash
+        run: |
+          set -e
+          REQUIRED_FILES=(
+            "GOVERNANCE_LOCK_MANIFEST.md"
+            "README.md"
+            "package.json"
+            ".github/workflows/governance-drift.yml"
+          )
+          missing=0
+          for f in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "::error file=$f::Required governance file is missing"
+              missing=1
+            else
+              echo "ok: $f"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Governance drift detected: required files missing."
+            exit 1
+          fi
+
+      - name: Detect destructive changes to protected paths
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -e
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          echo "Diffing $BASE_SHA..$HEAD_SHA"
+
+          PROTECTED_AUTOGEN=(
+            "src/integrations/supabase/client.ts"
+            "src/integrations/supabase/types.ts"
+            ".env"
+          )
+
+          fail=0
+
+          # Auto-generated files must not be edited by hand
+          for f in "${PROTECTED_AUTOGEN[@]}"; do
+            if git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- "$f" | grep -q .; then
+              echo "::error file=$f::Auto-generated file edited; revert this change."
+              fail=1
+            fi
+          done
+
+          # Migrations are append-only: no deletions or modifications of existing files
+          if git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- 'supabase/migrations/**' \
+              | awk '$1 == "D" || $1 == "M" || $1 ~ /^R/ { print; found=1 } END { exit !found }'; then
+            echo "::error::Existing supabase/migrations files were modified or deleted. Migrations are append-only."
+            fail=1
+          fi
+
+          # config.toml: project-level settings locked
+          if git diff "$BASE_SHA" "$HEAD_SHA" -- supabase/config.toml \
+              | grep -E '^[-+]project_id' >/dev/null; then
+            echo "::error file=supabase/config.toml::project_id changed; project-level settings are locked."
+            fail=1
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo "Governance drift detected."
+            exit 1
+          fi
+          echo "No governance drift detected."
+
+      - name: Summary
+        if: always()
+        run: echo "Governance manifest verified against GOVERNANCE_LOCK_MANIFEST.md"
