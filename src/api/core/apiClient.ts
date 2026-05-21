@@ -35,12 +35,9 @@ export const apiClient = createApiClient({
 export const handleApiError = (
   error: unknown, 
   customMessage: string,
-  options: { rethrow?: boolean; logLevel?: 'error' | 'warn' | 'info' } = { 
-    rethrow: true,
-    logLevel: 'error'
-  }
-): never | null => {
-  const { rethrow, logLevel } = options;
+  options: { rethrow?: boolean; logLevel?: 'error' | 'warn' | 'info' } = {}
+): never => {
+  const { rethrow = true, logLevel = 'error' } = options;
   
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError;
@@ -51,25 +48,17 @@ export const handleApiError = (
       url: axiosError.config?.url
     };
 
-    // Log error with appropriate level
     console[logLevel](`${customMessage}:`, errorDetails);
     
-    // Rethrow if requested
     if (rethrow) {
       throw error;
     }
     
-    return null;
+    throw new Error(customMessage);
   }
   
-  // Handle non-Axios errors
   console[logLevel](`${customMessage} (Non-Axios error):`, error);
-  
-  if (rethrow) {
-    throw error;
-  }
-  
-  return null;
+  throw (rethrow ? error : new Error(customMessage));
 };
 
 /**

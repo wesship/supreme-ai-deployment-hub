@@ -13,17 +13,23 @@ export const detectIntent = (
   const entities = extractEntities(message);
   const sentiment = analyzeSentiment(message);
   
+  // Ensure mentionedEntities exists
+  if (!conversationContext.mentionedEntities) {
+    conversationContext.mentionedEntities = {};
+  }
+  const mentionedEntities = conversationContext.mentionedEntities;
+  
   // Keep track of entities for conversation context
   entities.forEach(entity => {
-    if (!conversationContext.mentionedEntities[entity.type]) {
-      conversationContext.mentionedEntities[entity.type] = [];
+    if (!mentionedEntities[entity.type]) {
+      mentionedEntities[entity.type] = [];
     }
-    if (!conversationContext.mentionedEntities[entity.type].includes(entity.value)) {
+    if (!mentionedEntities[entity.type].includes(entity.value)) {
       updateConversationContext(prev => ({
         ...prev,
         mentionedEntities: {
-          ...prev.mentionedEntities,
-          [entity.type]: [...prev.mentionedEntities[entity.type], entity.value]
+          ...(prev.mentionedEntities || {}),
+          [entity.type]: [...((prev.mentionedEntities || {})[entity.type] || []), entity.value]
         }
       }));
     }
@@ -62,21 +68,21 @@ export const detectIntent = (
   });
   
   // Enhanced conversation context consideration
-  if (conversationContext.lastIntent && conversationContext.messageCount < 5) {
+  if (conversationContext.lastIntent && (conversationContext.messageCount ?? 0) < 5) {
     // If we're in a conversation thread, slightly bias toward same intent family
     intentScores.forEach(intent => {
       if (intent.type === conversationContext.lastIntent) {
-        intent.score += 0.15; // Increased from 0.1 for stronger context continuity
+        intent.score += 0.15;
       }
     });
   }
   
   // Consider topic history for more coherent conversations
-  if (conversationContext.topicHistory && conversationContext.topicHistory.length > 0) {
+  const topicHistory = conversationContext.topicHistory || [];
+  if (topicHistory.length > 0) {
     intentScores.forEach(intent => {
-      // If intent matches any recent topics, give it a small boost
-      if (conversationContext.topicHistory.includes(intent.type)) {
-        intent.score += 0.05 * (conversationContext.topicHistory.length > 3 ? 3 : conversationContext.topicHistory.length);
+      if (topicHistory.includes(intent.type)) {
+        intent.score += 0.05 * (topicHistory.length > 3 ? 3 : topicHistory.length);
       }
     });
   }
@@ -98,7 +104,7 @@ export const detectIntent = (
     // Update failed intent count if low confidence
     updateConversationContext(prev => ({
       ...prev,
-      failedIntentCount: prev.failedIntentCount + 1,
+      failedIntentCount: (prev.failedIntentCount ?? 0) + 1,
       lastUserSentiment: sentiment
     }));
     
@@ -123,11 +129,10 @@ export const detectIntent = (
     return {
       ...prev,
       lastIntent: highestIntent.type,
-      messageCount: prev.messageCount + 1,
+      messageCount: (prev.messageCount ?? 0) + 1,
       topicHistory: newTopicHistory,
       lastUserSentiment: sentiment,
-      // Reset or increment failed intent count
-      failedIntentCount: isLowConfidence ? prev.failedIntentCount + 1 : 0
+      failedIntentCount: isLowConfidence ? (prev.failedIntentCount ?? 0) + 1 : 0
     };
   });
   

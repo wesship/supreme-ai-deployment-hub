@@ -1,4 +1,5 @@
 
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/dom';
 import '@testing-library/jest-dom';
 import * as StorageModule from '../storage';
@@ -6,7 +7,7 @@ import { setupChromeStorageMock, mockChromeStorage } from './storage.mock';
 
 // Set up the chrome mock
 const mockChrome = setupChromeStorageMock();
-global.chrome = mockChrome as any;
+(globalThis as any).chrome = mockChrome as any;
 
 // Mock functions for edge case testing
 vi.mock('../storage', () => {
