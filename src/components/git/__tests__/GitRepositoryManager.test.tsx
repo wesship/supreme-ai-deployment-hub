@@ -36,8 +36,8 @@ vi.mock('@/components/git/GitDocumentation', () => ({
 
 describe('GitRepositoryManager', () => {
   const mockRepositories: import('@/services/git/types').GitRepository[] = [
-    { id: '1', name: 'repo1', url: 'https://github.com/user/repo1', branch: 'main', status: 'synced' },
-    { id: '2', name: 'repo2', url: 'https://github.com/user/repo2', branch: 'main', status: 'modified' }
+    { id: '1', name: 'repo1', url: 'https://github.com/user/repo1', branch: 'main', status: 'synced' as const },
+    { id: '2', name: 'repo2', url: 'https://github.com/user/repo2', branch: 'main', status: 'modified' as const }
   ];
   
   beforeEach(() => {
