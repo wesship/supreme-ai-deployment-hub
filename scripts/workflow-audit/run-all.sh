@@ -11,6 +11,10 @@ bash "$HERE/detect-duplicates.sh"
 echo
 bash "$HERE/workflow-risk-score.sh"
 echo
+bash "$HERE/dead-paths.sh"
+echo
+bash "$HERE/permissions-audit.sh"
+echo
 if command -v gh >/dev/null 2>&1; then
   bash "$HERE/stale-workflows.sh"
 else
