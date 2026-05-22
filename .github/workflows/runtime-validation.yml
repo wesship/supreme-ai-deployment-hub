@@ -74,11 +74,11 @@ jobs:
           passed = data.get("numPassedTests", 0)
           failed = data.get("numFailedTests", 0)
           pending = data.get("numPendingTests", 0)
-          print(f"Runtime Validation Results (Wave 27+28+29+30):")
+          print(f"Runtime Validation Results (Wave 27+28+29+30+31):")
           print(f"  Total:   {total}")
           print(f"  Passed:  {passed}")
           print(f"  Failed:  {failed}")
-          print(f"  Pending: {pending} (todo - Wave 31+)")
+          print(f"  Pending: {pending} (todo - future waves)")
           if failed > 0:
             print(f"\nFAILED SCENARIOS:")
             for suite in data.get("testResults", []):
@@ -277,6 +277,68 @@ jobs:
           path: runtime-validation/reports/governance-arbitration-results.json
           retention-days: 30
 
+  # Wave 31: Observability intelligence gate
+  observability-intelligence-gate:
+    name: Observability Intelligence Gate (Wave 31)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run observability intelligence scenarios
+        run: |
+          npx vitest run runtime-validation/scenarios/observability-intelligence.test.ts \
+            --reporter=verbose \
+            --reporter=json \
+            --outputFile=runtime-validation/reports/observability-intelligence-results.json
+
+      - name: Assert observability intelligence correctness
+        run: |
+          python3 - << 'PYEOF'
+          import json, sys
+          try:
+            data = json.load(open("runtime-validation/reports/observability-intelligence-results.json"))
+          except FileNotFoundError:
+            print("No observability intelligence results found.")
+            sys.exit(1)
+          failed = data.get("numFailedTests", 0)
+          total = data.get("numTotalTests", 0)
+          passed = data.get("numPassedTests", 0)
+          print(f"Observability Intelligence Gate (Wave 31):")
+          print(f"  Scenarios: {total}")
+          print(f"  Passed:    {passed}")
+          print(f"  Failed:    {failed}")
+          if failed > 0:
+            print("OBSERVABILITY INTELLIGENCE GATE FAILED: observability graph, telemetry, correlation, or health scoring errors detected.")
+            for suite in data.get("testResults", []):
+              for test in suite.get("assertionResults", []):
+                if test.get("status") == "failed":
+                  print(f"  - {test.get('fullName')}")
+                  for msg in test.get("failureMessages", []):
+                    print(f"    {msg[:200]}")
+            sys.exit(1)
+          print("Observability intelligence gate PASSED: cross-wave correlation, telemetry, and health scoring verified.")
+          PYEOF
+
+      - name: Upload observability intelligence report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: observability-intelligence-report-${{ github.run_number }}
+          path: runtime-validation/reports/observability-intelligence-results.json
+          retention-days: 30
+
   # Harness integrity check - verify the harness primitives themselves are valid TypeScript
   harness-typecheck:
     name: Harness TypeScript Check
@@ -309,6 +371,7 @@ jobs:
       - memory-continuity-gate
       - failure-recovery-gate
       - governance-arbitration-gate
+      - observability-intelligence-gate
       - harness-typecheck
     runs-on: ubuntu-latest
     if: always()
@@ -332,10 +395,14 @@ jobs:
             echo "Governance arbitration gate FAILED"
             exit 1
           fi
+          if [ "${{ needs.observability-intelligence-gate.result }}" != "success" ]; then
+            echo "Observability intelligence gate FAILED"
+            exit 1
+          fi
           if [ "${{ needs.harness-typecheck.result }}" != "success" ]; then
             echo "Harness typecheck FAILED"
             exit 1
           fi
           echo "Runtime Validation Gate: PASSED"
           echo "All scenarios green. Memory continuity verified. Failure recovery verified."
-          echo "Governance arbitration verified. Harness integrity confirmed."
+          echo "Governance arbitration verified. Observability intelligence verified. Harness integrity confirmed."
