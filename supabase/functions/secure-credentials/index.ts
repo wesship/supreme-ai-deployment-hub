@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { rateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rateLimit.ts";
+
+// Pre-auth limiter (IP-keyed) — cheap shield against unauthenticated floods.
+const RL_PRE_AUTH = { capacity: 20, refillPerSec: 20 / 60 };
+// Post-auth limiter (user-keyed) — encryption ops are expensive.
+const RL_POST_AUTH = { capacity: 15, refillPerSec: 15 / 60 };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +17,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const preRl = rateLimit(rateLimitKey(req), RL_PRE_AUTH);
+  if (!preRl.allowed) return rateLimitResponse(preRl, corsHeaders);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -40,6 +49,9 @@ serve(async (req) => {
     if (userError || !user) {
       throw new Error("User not authenticated");
     }
+
+    const postRl = rateLimit(rateLimitKey(req, user.id), RL_POST_AUTH);
+    if (!postRl.allowed) return rateLimitResponse(postRl, corsHeaders);
 
     const { action, provider, credentials, region } = await req.json();
 

@@ -1,6 +1,11 @@
 // Edge function that proxies OpenAI chat completions using a server-side API key.
 // The OPENAI_API_KEY secret is read from the environment and never exposed to the client.
 
+import { rateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rateLimit.ts";
+
+// 30 req/min sustained, burst 30 — keyed per Bearer token or IP.
+const RL_CFG = { capacity: 30, refillPerSec: 30 / 60 };
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -36,6 +41,9 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
+
+  const rl = rateLimit(rateLimitKey(req), RL_CFG);
+  if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) {

@@ -85,3 +85,22 @@ export function rateLimitResponse(
 export function __resetBucketsForTests(): void {
   buckets.clear();
 }
+
+/**
+ * Derive a stable rate-limit key from a Request. Prefers an explicit `userId`,
+ * falls back to bearer-token suffix, then `x-forwarded-for` first hop, then
+ * a literal "anonymous" bucket (which means all unauth callers share a bucket
+ * — use sparingly).
+ */
+export function rateLimitKey(req: Request, userId?: string | null): string {
+  if (userId) return `u:${userId}`;
+  const auth = req.headers.get("Authorization") ?? "";
+  if (auth.startsWith("Bearer ")) {
+    const t = auth.slice(7);
+    return `t:${t.slice(-32)}`;
+  }
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return `ip:${xff.split(",")[0].trim()}`;
+  return "anonymous";
+}
+

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { z } from "https://esm.sh/zod@3.23.8"
+import { rateLimit, rateLimitKey } from "../_shared/rateLimit.ts"
 
 // AWS SDK v3 via esm.sh — pinned to a known-published version to avoid
 // floating-range resolution issues and to keep the deno-check graph stable.
@@ -354,6 +355,13 @@ serve(async (req) => {
     }
 
     audit('auth.ok', { idempotencyKey, correlationId, userId: user.id, operation: body.operation })
+
+    // Per-user rate limit (post-auth) — heavy mutating ops.
+    const rl = rateLimit(rateLimitKey(req, user.id), { capacity: 10, refillPerSec: 10 / 60 })
+    if (!rl.allowed) {
+      audit('rate_limit.exceeded', { idempotencyKey, correlationId, userId: user.id, retryAfterSec: rl.retryAfterSec })
+      return errorResponse(429, 'Too many requests', 'RateLimitError', { retryAfterSec: rl.retryAfterSec }, body.operation, false)
+    }
 
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
