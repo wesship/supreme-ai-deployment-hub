@@ -3,8 +3,9 @@
  *
  * Shared types for the Devonn.AI Runtime Validation Harness.
  * These types model execution traces, DAG nodes, scenario results,
- * Wave 28 memory continuity structures, and Wave 29 failure recovery
- * and replay integrity structures.
+ * Wave 28 memory continuity structures, Wave 29 failure recovery
+ * and replay integrity structures, and Wave 30 governance arbitration
+ * and conflict resolution structures.
  * They are intentionally decoupled from production src/ types so the
  * harness can evolve independently of the runtime implementation.
  */
@@ -47,6 +48,17 @@ export type TraceEventKind =
   | "network_partition"    // simulated network partition injected
   | "network_restored"     // simulated network partition resolved
   | "causal_link"          // explicit causal dependency between two events
+  // Wave 30: governance arbitration events
+  | "conflict_detected"    // two or more agents have conflicting proposals
+  | "arbitration_begin"    // arbitration engine started evaluating a conflict
+  | "arbitration_decision" // arbitration engine reached a decision
+  | "arbitration_escalate" // arbitration engine could not decide; escalated to human
+  | "policy_precedence"    // a higher-precedence policy overrode a lower one
+  | "forbidden_action"     // an action was suppressed under conflict pressure
+  | "review_token_issued"  // human-review pause token emitted
+  | "review_token_resolved"// human-review pause token resolved
+  | "authority_override"   // a higher-authority agent overrode a lower-authority decision
+  | "tie_break"            // deterministic tie-breaking applied
   | "error";
 
 export interface TraceEvent {
@@ -334,4 +346,183 @@ export interface CausalIntegrityResult {
   /** Event IDs that participate in a causal cycle */
   cyclicEvents: string[];
   passed: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Wave 30: Conflict taxonomy types
+// ---------------------------------------------------------------------------
+
+/**
+ * The three classes of conflict that can occur between agents.
+ *
+ * - soft:       Preference mismatch — both actions are valid but incompatible
+ *               (e.g., agent A wants to scale up, agent B wants to scale down).
+ * - hard:       Policy violation — at least one action violates a governance rule
+ *               (e.g., an agent attempts to write to a locked environment).
+ * - structural: Mutually exclusive actions — executing both would corrupt state
+ *               (e.g., two agents attempting to claim the same exclusive resource).
+ */
+export type ConflictClass = "soft" | "hard" | "structural";
+
+/**
+ * A proposal submitted by an agent to the arbitration engine.
+ * The engine evaluates all proposals in a conflict set together.
+ */
+export interface AgentProposal {
+  proposalId: string;
+  agentId: string;
+  /** The action the agent wants to take */
+  action: string;
+  /** The resource or target the action applies to */
+  resource: string;
+  /** ISO-8601 timestamp of proposal submission */
+  submittedAt: string;
+  /** Priority weight of the proposing agent (higher = more authority) */
+  priorityWeight: number;
+  /** Arbitrary metadata about the proposal */
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * A conflict set is a group of proposals that cannot all be executed.
+ * The arbitration engine receives a conflict set and produces a decision.
+ */
+export interface ConflictSet {
+  conflictId: string;
+  runId: string;
+  conflictClass: ConflictClass;
+  proposals: AgentProposal[];
+  /** The policy rules that were triggered by this conflict */
+  triggeredPolicies: string[];
+  detectedAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// Wave 30: Policy resolution types
+// ---------------------------------------------------------------------------
+
+/**
+ * A policy rule in the resolution graph.
+ * Rules are evaluated in precedence order (highest first).
+ */
+export interface PolicyRule {
+  ruleId: string;
+  /** Human-readable name */
+  name: string;
+  /** Higher number = evaluated first */
+  precedence: number;
+  /** The action pattern this rule applies to (exact match or glob) */
+  actionPattern: string;
+  /** The decision this rule enforces */
+  decision: "allow" | "deny" | "escalate";
+  /** Whether this rule can be overridden by a higher-authority agent */
+  overridable: boolean;
+  /** The minimum authority level required to override this rule */
+  overrideRequiresAuthority?: number;
+  reason: string;
+}
+
+/**
+ * The authority hierarchy for agents.
+ * Higher level = more authority.
+ */
+export interface AgentAuthority {
+  agentId: string;
+  /** Authority level (e.g., 1=executor, 2=planner, 3=auditor, 4=governance) */
+  authorityLevel: number;
+  /** Roles granted to this agent */
+  roles: string[];
+  /** Whether this agent can issue review tokens */
+  canIssueReviewTokens: boolean;
+}
+
+/**
+ * The result of evaluating a conflict set against the policy resolution graph.
+ */
+export interface PolicyResolutionResult {
+  conflictId: string;
+  runId: string;
+  /** The rule that was applied to resolve the conflict */
+  appliedRule?: PolicyRule;
+  /** The final decision */
+  decision: "allow_winner" | "deny_all" | "escalate" | "tie_break";
+  /** The winning proposal (if decision is allow_winner or tie_break) */
+  winnerProposalId?: string;
+  /** The agent that won (if applicable) */
+  winnerAgentId?: string;
+  /** Whether a review token was issued */
+  reviewTokenIssued: boolean;
+  reviewTokenId?: string;
+  /** Human-readable explanation of the decision */
+  explanation: string;
+  /** Whether the decision is deterministic (same inputs always produce same output) */
+  isDeterministic: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Wave 30: Arbitration decision trace types
+// ---------------------------------------------------------------------------
+
+/**
+ * A complete record of one arbitration decision, including all inputs,
+ * the rule evaluation path, and the final outcome.
+ * Used by the DecisionTraceValidator to verify reproducibility.
+ */
+export interface ArbitrationDecisionTrace {
+  decisionId: string;
+  conflictId: string;
+  runId: string;
+  /** All proposals evaluated */
+  proposals: AgentProposal[];
+  /** The policy rules evaluated, in order */
+  rulesEvaluated: Array<{ rule: PolicyRule; matched: boolean }>;
+  /** The final resolution result */
+  resolution: PolicyResolutionResult;
+  /** Trace events emitted during arbitration */
+  traceEvents: TraceEvent[];
+  decidedAt: string;
+}
+
+/**
+ * The result of validating an arbitration decision for reproducibility
+ * and absence of hidden state influence.
+ */
+export interface DecisionValidationResult {
+  decisionId: string;
+  /** Whether replaying the same inputs produces the same decision */
+  isReproducible: boolean;
+  /** Whether the decision is fully explained by the rule evaluation path */
+  isExplainable: boolean;
+  /** Whether any hidden state (e.g., mutable globals) influenced the decision */
+  hasHiddenStateInfluence: boolean;
+  /** Whether the decision respects the authority hierarchy */
+  respectsAuthorityHierarchy: boolean;
+  /** Whether forbidden actions were correctly suppressed under conflict pressure */
+  forbiddenActionsSuppressed: boolean;
+  /** Any violations found during validation */
+  violations: string[];
+  passed: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Wave 30: Conflict injection types
+// ---------------------------------------------------------------------------
+
+/**
+ * A conflict scenario specification used by the ConflictGenerator.
+ */
+export interface ConflictScenario {
+  scenarioId: string;
+  description: string;
+  conflictClass: ConflictClass;
+  /** The proposals to inject */
+  proposals: Array<Omit<AgentProposal, "proposalId" | "submittedAt">>;
+  /** The policies that should be active during this scenario */
+  activePolicies: string[];
+  /** The expected arbitration outcome */
+  expectedDecision: PolicyResolutionResult["decision"];
+  /** Whether the scenario should trigger a review token */
+  expectsReviewToken: boolean;
+  /** Whether the scenario should trigger an authority override */
+  expectsAuthorityOverride: boolean;
 }

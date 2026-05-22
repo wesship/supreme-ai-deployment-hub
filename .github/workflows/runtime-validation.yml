@@ -74,11 +74,11 @@ jobs:
           passed = data.get("numPassedTests", 0)
           failed = data.get("numFailedTests", 0)
           pending = data.get("numPendingTests", 0)
-          print(f"Runtime Validation Results (Wave 27+28+29):")
+          print(f"Runtime Validation Results (Wave 27+28+29+30):")
           print(f"  Total:   {total}")
           print(f"  Passed:  {passed}")
           print(f"  Failed:  {failed}")
-          print(f"  Pending: {pending} (todo - Wave 30+)")
+          print(f"  Pending: {pending} (todo - Wave 31+)")
           if failed > 0:
             print(f"\nFAILED SCENARIOS:")
             for suite in data.get("testResults", []):
@@ -215,6 +215,68 @@ jobs:
           path: runtime-validation/reports/failure-recovery-results.json
           retention-days: 30
 
+  # Wave 30: Governance arbitration gate
+  governance-arbitration-gate:
+    name: Governance Arbitration Gate (Wave 30)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run governance arbitration scenarios
+        run: |
+          npx vitest run runtime-validation/scenarios/governance-arbitration-wave30.test.ts \
+            --reporter=verbose \
+            --reporter=json \
+            --outputFile=runtime-validation/reports/governance-arbitration-results.json
+
+      - name: Assert governance arbitration correctness
+        run: |
+          python3 - << 'PYEOF'
+          import json, sys
+          try:
+            data = json.load(open("runtime-validation/reports/governance-arbitration-results.json"))
+          except FileNotFoundError:
+            print("No governance arbitration results found.")
+            sys.exit(1)
+          failed = data.get("numFailedTests", 0)
+          total = data.get("numTotalTests", 0)
+          passed = data.get("numPassedTests", 0)
+          print(f"Governance Arbitration Gate (Wave 30):")
+          print(f"  Scenarios: {total}")
+          print(f"  Passed:    {passed}")
+          print(f"  Failed:    {failed}")
+          if failed > 0:
+            print("GOVERNANCE ARBITRATION GATE FAILED: authority correctness violations detected.")
+            for suite in data.get("testResults", []):
+              for test in suite.get("assertionResults", []):
+                if test.get("status") == "failed":
+                  print(f"  - {test.get('fullName')}")
+                  for msg in test.get("failureMessages", []):
+                    print(f"    {msg[:200]}")
+            sys.exit(1)
+          print("Governance arbitration gate PASSED: conflict resolution, authority hierarchy, and decision reproducibility verified.")
+          PYEOF
+
+      - name: Upload governance arbitration report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: governance-arbitration-report-${{ github.run_number }}
+          path: runtime-validation/reports/governance-arbitration-results.json
+          retention-days: 30
+
   # Harness integrity check - verify the harness primitives themselves are valid TypeScript
   harness-typecheck:
     name: Harness TypeScript Check
@@ -242,7 +304,12 @@ jobs:
   # Summary gate - required status check
   runtime-validation-gate:
     name: Runtime Validation Gate
-    needs: [runtime-validation, memory-continuity-gate, failure-recovery-gate, harness-typecheck]
+    needs:
+      - runtime-validation
+      - memory-continuity-gate
+      - failure-recovery-gate
+      - governance-arbitration-gate
+      - harness-typecheck
     runs-on: ubuntu-latest
     if: always()
 
@@ -261,9 +328,14 @@ jobs:
             echo "Failure recovery gate FAILED"
             exit 1
           fi
+          if [ "${{ needs.governance-arbitration-gate.result }}" != "success" ]; then
+            echo "Governance arbitration gate FAILED"
+            exit 1
+          fi
           if [ "${{ needs.harness-typecheck.result }}" != "success" ]; then
             echo "Harness typecheck FAILED"
             exit 1
           fi
           echo "Runtime Validation Gate: PASSED"
-          echo "All scenarios green. Memory continuity verified. Failure recovery verified. Harness integrity confirmed."
+          echo "All scenarios green. Memory continuity verified. Failure recovery verified."
+          echo "Governance arbitration verified. Harness integrity confirmed."
