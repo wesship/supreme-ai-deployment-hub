@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: devonn-api-staging
+    env: docker
+    plan: starter
+    rootDir: services/api
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: AUTONOMY_MODE
+        value: guarded
+      - key: EXECUTION_MODE
+        value: dry-run
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+
+  - type: web
+    name: devonn-orchestrator-staging
+    env: docker
+    plan: starter
+    rootDir: services/orchestrator
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: AUTONOMY_MODE
+        value: guarded
+      - key: EXECUTION_MODE
+        value: dry-run
+      - key: API_BASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
+  - type: worker
+    name: devonn-worker-staging
+    env: docker
+    plan: starter
+    rootDir: services/workers
+    autoDeploy: false
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: EXECUTION_MODE
+        value: dry-run
+      - key: API_BASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
