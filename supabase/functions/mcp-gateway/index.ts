@@ -1,4 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { rateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rateLimit.ts";
+
+// 60 req/min sustained, burst 60 — MCP proxy is per-session chatty.
+const RL_CFG = { capacity: 60, refillPerSec: 1 };
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +21,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const rl = rateLimit(rateLimitKey(req), RL_CFG);
+  if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
   try {
     const body: McpProxyRequest = await req.json();

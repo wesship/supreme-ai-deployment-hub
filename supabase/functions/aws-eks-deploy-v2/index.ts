@@ -355,6 +355,13 @@ serve(async (req) => {
 
     audit('auth.ok', { idempotencyKey, correlationId, userId: user.id, operation: body.operation })
 
+    // Per-user rate limit (post-auth) — heavy mutating ops.
+    const rl = rateLimit(rateLimitKey(req, user.id), { capacity: 10, refillPerSec: 10 / 60 })
+    if (!rl.allowed) {
+      audit('rate_limit.exceeded', { idempotencyKey, correlationId, userId: user.id, retryAfterSec: rl.retryAfterSec })
+      return errorResponse(429, 'Too many requests', 'RateLimitError', { retryAfterSec: rl.retryAfterSec }, body.operation, false)
+    }
+
     // Fetch AWS credentials from database
     const { data: credentials, error: credError } = await supabaseClient
       .from('cloud_credentials')

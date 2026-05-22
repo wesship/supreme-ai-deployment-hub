@@ -1,6 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { rateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rateLimit.ts";
+
+// 10 deploy actions/min, burst 10 — EKS ops are heavy and mutating.
+const RL_CFG = { capacity: 10, refillPerSec: 10 / 60 };
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,6 +47,9 @@ serve(async (req) => {
     if (!user) {
       throw new Error('Unauthorized');
     }
+
+    const rl = rateLimit(rateLimitKey(req, user.id), RL_CFG);
+    if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
     const requestData: DeploymentRequest = await req.json();
     console.log('AWS EKS Deploy request:', { action: requestData.action, user: user.id });
