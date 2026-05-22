@@ -222,17 +222,18 @@ jobs:
 
       - name: Run production smoke tests
         run: |
+          set -euo pipefail
           PROD_URL="${PROD_URL:-https://devonn.ai}"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$PROD_URL/health" 2>/dev/null || echo "000")
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$PROD_URL/health" || echo "000")
           echo "Production health check: HTTP $HTTP_STATUS"
-          if [[ "$HTTP_STATUS" =~ ^2 ]] || [ "$HTTP_STATUS" = "000" ]; then
+          if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
             echo "Production smoke tests passed"
           else
-            echo "::error::Production smoke test FAILED - HTTP $HTTP_STATUS"
+            echo "::error::Production smoke test FAILED — HTTP $HTTP_STATUS (000 = connect failure)"
             echo "::error::IMMEDIATE ROLLBACK REQUIRED"
             exit 1
           fi
-        continue-on-error: true
+
 
       - name: Tag successful production deployment
         env:
