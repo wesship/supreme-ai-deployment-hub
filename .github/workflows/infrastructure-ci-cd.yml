@@ -18,7 +18,7 @@ on:
     paths:
       - 'terraform/**'
       - '.github/workflows/infrastructure-ci-cd.yml'
-      - 'scripts/generate-tf-files.js'
+      - 'scripts/generate-tf-files.cjs'
       - 'policy/**'
       - 'tests/infrastructure/**'
   pull_request:
@@ -26,7 +26,7 @@ on:
     paths:
       - 'terraform/**'
       - 'policy/**'
-      - 'scripts/generate-tf-files.js'
+      - 'scripts/generate-tf-files.cjs'
       - 'tests/infrastructure/**'
   workflow_dispatch:
     inputs:

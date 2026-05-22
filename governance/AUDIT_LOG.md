@@ -186,3 +186,27 @@ Two mechanical fixes applied across the workflow set; YAML re-validated 0 broken
    Workflows already declaring custom permissions are untouched.
 
 Fingerprints re-baselined. Audit reports should be re-run after this lands.
+
+## Phase D — Targeted dead-path cleanup
+
+- `infrastructure-ci-cd.yml` path triggers updated `.js` → `.cjs` (real
+  script is `.cjs`; trigger filter was stale and the audit flagged it).
+- `azure-container-apps-deploy.yml` removed non-existent `azure-deploy`
+  branch from push trigger.
+- `validate-secrets.yml` removed non-existent `hardening/all-phases` branch
+  from push trigger.
+- `terraform.yml` `verify-completion.sh` left as-is (call is already
+  guarded by `[ -f ... ]`, so it's a benign optional hook).
+- Remaining 5 dead-path entries are false positives (doc strings,
+  runtime-generated Dockerfiles, env-var names).
+
+### Dead-path re-baseline
+
+After targeted cleanup the scanner reports 6 remaining entries, all
+confirmed false positives:
+- `bundle-size.yml workdir/base-branch` — env-var name
+- `developer-onboarding.yml Dockerfiles, SERVICE/Dockerfile` — README placeholders
+- `terraform.yml verify-completion.sh` — guarded by `[ -f ... ]`
+- `trusted-runner-isolation.yml Dockerfile.runner` — generated at runtime
+
+Real dead refs: **0**. Total dead-path entries dropped 23 → 6 across Phase D.
