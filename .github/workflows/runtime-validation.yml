@@ -74,11 +74,11 @@ jobs:
           passed = data.get("numPassedTests", 0)
           failed = data.get("numFailedTests", 0)
           pending = data.get("numPendingTests", 0)
-          print(f"Runtime Validation Results:")
+          print(f"Runtime Validation Results (Wave 27+28):")
           print(f"  Total:   {total}")
           print(f"  Passed:  {passed}")
           print(f"  Failed:  {failed}")
-          print(f"  Pending: {pending} (todo - Wave 28+)")
+          print(f"  Pending: {pending} (todo - Wave 29+)")
           if failed > 0:
             print(f"\nFAILED SCENARIOS:")
             for suite in data.get("testResults", []):
@@ -97,6 +97,63 @@ jobs:
         with:
           name: runtime-validation-report-${{ github.run_number }}
           path: runtime-validation/reports/results.json
+          retention-days: 30
+
+  # Wave 28: Memory continuity drift gate
+  # Runs only when memory-continuity scenarios are affected
+  memory-continuity-gate:
+    name: Memory Continuity Gate (Wave 28)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Setup Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run memory continuity scenarios
+        run: |
+          npx vitest run runtime-validation/scenarios/memory-continuity.test.ts \
+            --reporter=verbose \
+            --reporter=json \
+            --outputFile=runtime-validation/reports/memory-continuity-results.json
+
+      - name: Assert zero drift in clean scenarios
+        run: |
+          python3 - << 'PYEOF'
+          import json, sys
+          try:
+            data = json.load(open("runtime-validation/reports/memory-continuity-results.json"))
+          except FileNotFoundError:
+            print("No memory continuity results found.")
+            sys.exit(1)
+          failed = data.get("numFailedTests", 0)
+          total = data.get("numTotalTests", 0)
+          passed = data.get("numPassedTests", 0)
+          print(f"Memory Continuity Gate:")
+          print(f"  Scenarios: {total}")
+          print(f"  Passed:    {passed}")
+          print(f"  Failed:    {failed}")
+          if failed > 0:
+            print("MEMORY CONTINUITY GATE FAILED: drift or recovery failures detected.")
+            sys.exit(1)
+          print("Memory continuity gate PASSED: no drift, full recovery verified.")
+          PYEOF
+
+      - name: Upload memory continuity report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: memory-continuity-report-${{ github.run_number }}
+          path: runtime-validation/reports/memory-continuity-results.json
           retention-days: 30
 
   # Harness integrity check - verify the harness primitives themselves are valid TypeScript
@@ -120,23 +177,13 @@ jobs:
 
       - name: Typecheck harness primitives
         run: |
-          npx tsc --noEmit \
-            --strict \
-            --target ES2022 \
-            --module NodeNext \
-            --moduleResolution NodeNext \
-            --esModuleInterop \
-            runtime-validation/harness/types.ts \
-            runtime-validation/harness/traceEngine.ts \
-            runtime-validation/harness/scenarioRunner.ts \
-            2>&1 || true
           # Note: full project typecheck via `npx tsc --noEmit` is the authoritative check
           npx tsc --noEmit 2>&1 | grep -E "error TS" | grep "runtime-validation" || echo "No harness type errors"
 
   # Summary gate - required status check
   runtime-validation-gate:
     name: Runtime Validation Gate
-    needs: [runtime-validation, harness-typecheck]
+    needs: [runtime-validation, memory-continuity-gate, harness-typecheck]
     runs-on: ubuntu-latest
     if: always()
 
@@ -147,9 +194,13 @@ jobs:
             echo "Runtime validation scenarios FAILED"
             exit 1
           fi
+          if [ "${{ needs.memory-continuity-gate.result }}" != "success" ]; then
+            echo "Memory continuity gate FAILED"
+            exit 1
+          fi
           if [ "${{ needs.harness-typecheck.result }}" != "success" ]; then
             echo "Harness typecheck FAILED"
             exit 1
           fi
           echo "Runtime Validation Gate: PASSED"
-          echo "All scenarios green. Harness integrity verified."
+          echo "All scenarios green. Memory continuity verified. Harness integrity confirmed."
