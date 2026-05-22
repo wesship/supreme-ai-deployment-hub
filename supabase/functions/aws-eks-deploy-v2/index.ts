@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { z } from "https://esm.sh/zod@3.23.8"
+import { rateLimit, rateLimitKey } from "../_shared/rateLimit.ts"
 
 // AWS SDK v3 via esm.sh — pinned to a known-published version to avoid
 // floating-range resolution issues and to keep the deno-check graph stable.

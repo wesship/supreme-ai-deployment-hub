@@ -158,3 +158,14 @@ These are tracked as failing-to-build features, not silent omissions.
   (10 req/min sustained, burst 10).
 - Next: extend to `openai-proxy`, `mcp-gateway`, `secure-credentials`,
   `generate-screenplay`, `generate-film` once integration-tested.
+
+## Phase C — Rollout (proxies + heavy ops)
+
+Wired shared token-bucket limiter into:
+- `openai-proxy` — 30 rpm, IP/token keyed (no auth in this proxy)
+- `mcp-gateway` — 60 rpm, IP/token keyed
+- `secure-credentials` — 20 rpm pre-auth (IP) + 15 rpm post-auth (user)
+- `aws-eks-deploy` — 10 rpm post-auth (user-keyed)
+- `aws-eks-deploy-v2` — 10 rpm post-auth (user-keyed, uses structured errorResponse)
+
+All 429s emit `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining: 0`.
