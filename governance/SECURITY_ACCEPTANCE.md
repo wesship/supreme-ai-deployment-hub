@@ -39,6 +39,18 @@ Trigger/internal-only (no API exposure, anon revoked):
 **Risk evaluation:** Contains only published, non-sensitive template metadata.
 No `auth.users` data, no credentials, no PII.
 
+### `deployment-promotion.yml` — risk score 5
+
+**Status:** Accepted — flags are intentional and correctly scoped
+**Risk evaluation:**
+- `workflow_run` trigger is filtered by `branches: [main]` AND `conclusion == 'success'` — only successful main-branch builds can trigger promotion.
+- `id-token: write` is required for OIDC cloud authentication (no static credentials).
+- `contents: read` keeps the principle of least privilege; the tag-push step
+  uses `github.token` and is tolerant of failure.
+- Behavioral risks (silently-swallowed smoke failures, HTTP 000 treated as
+  success) were FIXED on 2026-05-22 — see `governance/AUDIT_LOG.md`.
+
+
 ## Re-evaluation triggers
 
 This file must be reviewed when:

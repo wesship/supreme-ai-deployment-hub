@@ -61,8 +61,8 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Build for development
-        run: npm run build --if-present
-        continue-on-error: true
+        run: npm run build
+
 
       - name: Record deployment SHA
         id: sha
@@ -87,18 +87,17 @@ jobs:
       - name: Run development smoke tests
         id: smoke-dev
         run: |
-          echo "Running smoke tests against development..."
-          # Replace DEV_URL with your actual dev URL secret
+          set -euo pipefail
           DEV_URL="${DEV_URL:-https://dev.devonn.ai}"
-          # Basic health check
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$DEV_URL/health" 2>/dev/null || echo "000")
-          if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "000" ]; then
-            echo "Smoke test passed (status: $HTTP_STATUS)"
+          echo "Running smoke tests against $DEV_URL"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$DEV_URL/health" || echo "000")
+          if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
+            echo "Smoke test passed (HTTP $HTTP_STATUS)"
           else
-            echo "::error::Smoke test failed - $DEV_URL/health returned HTTP $HTTP_STATUS"
+            echo "::error::Smoke test FAILED — $DEV_URL/health returned HTTP $HTTP_STATUS (000 = connect failure)"
             exit 1
           fi
-        continue-on-error: true
+
 
   # ── Gate 2: Promote to Staging ────────────────────────────────────────────
   deploy-staging:
@@ -128,23 +127,26 @@ jobs:
 
       - name: Run staging smoke tests
         run: |
+          set -euo pipefail
           STAGING_URL="${STAGING_URL:-https://staging.devonn.ai}"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STAGING_URL/health" 2>/dev/null || echo "000")
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STAGING_URL/health" || echo "000")
           echo "Staging health check: HTTP $HTTP_STATUS"
-          # Staging tests are stricter - fail on non-2xx
-          if [[ "$HTTP_STATUS" =~ ^2 ]] || [ "$HTTP_STATUS" = "000" ]; then
+          if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
             echo "Staging smoke tests passed"
           else
-            echo "::error::Staging smoke test failed - HTTP $HTTP_STATUS"
+            echo "::error::Staging smoke test FAILED — HTTP $HTTP_STATUS (000 = connect failure)"
             exit 1
           fi
-        continue-on-error: true
 
       - name: Run staging integration tests
         run: |
-          echo "Running integration tests against staging..."
-          npm run test:integration --if-present || echo "::warning::No integration test script found"
-        continue-on-error: true
+          set -euo pipefail
+          if npm run | grep -q "test:integration"; then
+            npm run test:integration
+          else
+            echo "::warning::No test:integration script defined — skipping"
+          fi
+
 
   # ── Gate 3: Canary Deployment (10% traffic) ───────────────────────────────
   deploy-canary:
@@ -176,20 +178,21 @@ jobs:
 
       - name: Monitor canary health (5 minutes)
         run: |
-          echo "Monitoring canary for 5 minutes..."
+          set -euo pipefail
           CANARY_URL="${CANARY_URL:-https://canary.devonn.ai}"
+          echo "Monitoring canary for 5 minutes at $CANARY_URL"
           for i in $(seq 1 5); do
             sleep 60
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$CANARY_URL/health" 2>/dev/null || echo "000")
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$CANARY_URL/health" || echo "000")
             echo "Canary health check $i/5: HTTP $HTTP_STATUS"
-            if [[ ! "$HTTP_STATUS" =~ ^2 ]] && [ "$HTTP_STATUS" != "000" ]; then
-              echo "::error::Canary health check failed at minute $i - HTTP $HTTP_STATUS"
+            if [[ ! "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
+              echo "::error::Canary health check FAILED at minute $i — HTTP $HTTP_STATUS"
               echo "::notice::Initiating automatic rollback..."
               exit 1
             fi
           done
-          echo "Canary monitoring passed - promoting to production"
-        continue-on-error: true
+          echo "Canary monitoring passed — promoting to production"
+
 
   # ── Gate 4: Production Deployment (manual approval required) ──────────────
   deploy-production:
@@ -219,17 +222,18 @@ jobs:
 
       - name: Run production smoke tests
         run: |
+          set -euo pipefail
           PROD_URL="${PROD_URL:-https://devonn.ai}"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$PROD_URL/health" 2>/dev/null || echo "000")
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$PROD_URL/health" || echo "000")
           echo "Production health check: HTTP $HTTP_STATUS"
-          if [[ "$HTTP_STATUS" =~ ^2 ]] || [ "$HTTP_STATUS" = "000" ]; then
+          if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
             echo "Production smoke tests passed"
           else
-            echo "::error::Production smoke test FAILED - HTTP $HTTP_STATUS"
+            echo "::error::Production smoke test FAILED — HTTP $HTTP_STATUS (000 = connect failure)"
             echo "::error::IMMEDIATE ROLLBACK REQUIRED"
             exit 1
           fi
-        continue-on-error: true
+
 
       - name: Tag successful production deployment
         env:
