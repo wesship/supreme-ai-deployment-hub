@@ -13,7 +13,15 @@ import { createMockClient, fakeTool, type MockClientHandle } from "./harness/mcp
 
 let mockHandle: MockClientHandle;
 vi.mock("@/lib/mcp/client", () => ({
-  McpClient: vi.fn().mockImplementation(() => mockHandle),
+  // Class-based mock proxies to the current `mockHandle` lazily so per-test
+  // reassignment in beforeEach is picked up. Cannot use arrow in mockImplementation
+  // because `new ArrowFn()` throws "is not a constructor".
+  McpClient: class {
+    initialize = (...a: unknown[]) => mockHandle.initialize(...a);
+    listTools  = (...a: unknown[]) => mockHandle.listTools(...a);
+    callTool   = (...a: unknown[]) => mockHandle.callTool(...a);
+    close      = (...a: unknown[]) => mockHandle.close(...a);
+  },
 }));
 
 import { AutonomousAgentExecutor } from "@/lib/mcp/autonomousAgent";
