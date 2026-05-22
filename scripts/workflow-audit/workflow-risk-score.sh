@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Permission & secret risk scoring per workflow
 # Safe / read-only. Output: reports/risk-score.tsv
-set -euo pipefail
+set -uo pipefail
 cd "$(dirname "$0")/../.."
 OUT="scripts/workflow-audit/reports/risk-score.tsv"
 echo -e "file\tscore\twrite_all\tpull_request_target\tworkflow_run\tsecrets_used\tnotes" > "$OUT"
