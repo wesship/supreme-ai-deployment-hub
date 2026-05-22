@@ -38,6 +38,25 @@ jobs:
           test -f docs/ENVIRONMENT_VARIABLES.md
           test -f docs/GUARDRAILS.md
 
+      - name: Create CI-only staging env file
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > .env.staging.local <<'EOF'
+          POSTGRES_DB=devonn_staging_ci
+          POSTGRES_USER=devonn_ci
+          POSTGRES_PASSWORD=local_ci_only
+          DATABASE_URL=postgresql://devonn_ci:local_ci_only@postgres:5432/devonn_staging_ci
+          REDIS_URL=redis://redis:6379/0
+          QDRANT_URL=http://qdrant:6333
+          ENVIRONMENT=staging
+          AUTONOMY_MODE=guarded
+          EXECUTION_MODE=dry-run
+          API_BASE_URL=http://api:8000
+          VITE_API_BASE_URL=http://localhost:8000
+          VITE_ORCHESTRATOR_URL=http://localhost:7373
+          EOF
+
       - name: Validate Docker Compose syntax
         shell: bash
         run: docker compose -f docker-compose.yml config >/tmp/devonn-compose.yml
