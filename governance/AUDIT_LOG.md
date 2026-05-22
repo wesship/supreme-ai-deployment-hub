@@ -169,3 +169,20 @@ Wired shared token-bucket limiter into:
 - `aws-eks-deploy-v2` — 10 rpm post-auth (user-keyed, uses structured errorResponse)
 
 All 429s emit `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining: 0`.
+
+## Phase D — Bulk workflow remediation (auto-applied)
+
+Two mechanical fixes applied across the workflow set; YAML re-validated 0 broken:
+
+1. **Stale `develop` branch refs stripped** — 11 workflows had push/pull_request
+   triggers pointing at the non-existent `develop` branch, causing systemic CI
+   noise. `scripts/workflow-audit/remediate-develop-branch.sh` strips it from
+   inline + block branch lists. Workflows where `develop` is the only branch
+   were intentionally left for human review (none in this pass).
+
+2. **`permissions: { contents: read }` injected** — 31 workflows lacked a
+   top-level permissions block, inheriting the broad repo default. Script
+   `remediate-permissions.sh` injects least-privilege read just above `jobs:`.
+   Workflows already declaring custom permissions are untouched.
+
+Fingerprints re-baselined. Audit reports should be re-run after this lands.
