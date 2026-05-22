@@ -15,6 +15,9 @@ concurrency:
   group: a11y-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   axe-audit:
     name: axe-core WCAG 2.1 AA Audit

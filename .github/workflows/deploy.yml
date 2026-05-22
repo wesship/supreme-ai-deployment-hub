@@ -22,6 +22,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false   # don't cancel in-flight deploys
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Deploy - ${{ github.event.inputs.environment || 'production' }}

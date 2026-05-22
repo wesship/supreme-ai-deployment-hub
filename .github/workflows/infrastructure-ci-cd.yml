@@ -14,7 +14,7 @@ name: Infrastructure CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'terraform/**'
       - '.github/workflows/infrastructure-ci-cd.yml'
@@ -62,6 +62,9 @@ env:
   CONTAINER_APP_NAME: devonn-ai
   CONTAINER_ENV_NAME: devonn-${{ github.event.inputs.environment || 'production' }}-env
   AZURE_RESOURCE_GROUP_TFSTATE: devonn-tfstate-rg
+
+permissions:
+  contents: read
 
 jobs:
   # ── Stage 1: Validate Terraform syntax and formatting ──────────────────────

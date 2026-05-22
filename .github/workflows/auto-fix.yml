@@ -24,6 +24,9 @@ concurrency:
   group: autonomous-fix-engine
   cancel-in-progress: false   # let an in-flight fix finish
 
+permissions:
+  contents: read
+
 jobs:
   auto-fix:
     name: Autonomous Fix

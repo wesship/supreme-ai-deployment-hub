@@ -6,11 +6,14 @@ name: Commit Lint
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 concurrency:
   group: commitlint-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   commitlint:

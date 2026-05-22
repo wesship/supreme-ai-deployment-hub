@@ -6,9 +6,9 @@ name: CodeQL SAST
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   schedule:
     # Every Monday at 08:00 UTC
     - cron: '0 8 * * 1'
@@ -16,6 +16,9 @@ on:
 concurrency:
   group: codeql-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   analyze:

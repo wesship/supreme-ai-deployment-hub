@@ -2,12 +2,12 @@ name: Devonn.AI Testing
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths-ignore:
       - '*.md'
       - 'docs/**'
   pull_request:
-    branches: [main, develop]
+    branches: [main]
     paths-ignore:
       - '*.md'
       - 'docs/**'
@@ -16,6 +16,9 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   lint:
