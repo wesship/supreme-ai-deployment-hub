@@ -3,7 +3,7 @@ name: Azure Container Apps CI/CD
 
 on:
   push:
-    branches: [main, azure-deploy]
+    branches: [main]
     paths-ignore:
       - 'terraform/**'
       - '.github/workflows/infrastructure-ci-cd.yml'
