@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # dead-paths.sh — Detect workflows that reference missing files, scripts,
 # directories, Dockerfiles, or branches. Output: reports/dead-paths.tsv
-set -euo pipefail
+set -uo pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 WF_DIR="$ROOT/.github/workflows"

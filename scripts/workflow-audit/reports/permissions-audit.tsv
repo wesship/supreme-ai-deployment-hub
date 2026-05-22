@@ -1,0 +1,1 @@
+workflow	has_top_perms	write_all	id_token_write	contents_write	actions_write	packages_write	secret_refs	secret_names	flags
