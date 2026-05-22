@@ -12,10 +12,10 @@ export interface MockClientOptions {
 }
 
 export interface MockClientHandle {
-  initialize: ReturnType<typeof vi.fn>;
-  listTools: ReturnType<typeof vi.fn>;
-  callTool: ReturnType<typeof vi.fn>;
-  close: ReturnType<typeof vi.fn>;
+  initialize: ((...a: unknown[]) => Promise<void>) & { mock: { calls: unknown[][] } };
+  listTools:  ((...a: unknown[]) => Promise<McpTool[]>) & { mock: { calls: unknown[][] } };
+  callTool:   ((name: string, args: Record<string, unknown>) => Promise<McpToolResult>) & { mock: { calls: unknown[][] } };
+  close:      ((...a: unknown[]) => Promise<void>) & { mock: { calls: unknown[][] } };
   callLog: Array<{ name: string; args: Record<string, unknown> }>;
 }
 
