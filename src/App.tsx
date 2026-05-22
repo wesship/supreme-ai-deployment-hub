@@ -68,6 +68,7 @@ function App() {
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/privacy-policy" element={<Privacy />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>
