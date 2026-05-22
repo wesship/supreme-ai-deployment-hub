@@ -1,127 +1,107 @@
-version: '3.9'
+name: devonn-staging
 
-# Devonn.AI — Local Development Stack
+# Root staging foundation.
 #
-# Services:
-#   frontend  — Vite dev server (hot reload)
-#   backend   — FastAPI Python API
-#   db        — PostgreSQL (mirrors Supabase schema locally)
-#   redis     — Cache / session store
-#   mailhog   — Local SMTP for email testing
+# This file defines the target runtime topology. The app services use
+# ./services/* build contexts, which should be populated by the extraction PR.
+# Until then, run only the infra profile:
 #
-# Usage:
-#   docker compose up              # start all services
-#   docker compose up frontend     # start frontend only
-#   docker compose logs -f backend # tail backend logs
-#   docker compose down -v         # stop and remove volumes
+#   docker compose up postgres redis qdrant
+#
+# After services are extracted:
+#
+#   docker compose --profile app up --build
 
 services:
-
-  # ── Frontend (Vite + React) ─────────────────────────────────────────────────
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      target: builder          # use the builder stage for hot reload
-    ports:
-      - "5173:5173"
-    volumes:
-      - .:/app
-      - /app/node_modules      # prevent host node_modules from overriding
-    environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-    command: npm run dev -- --host 0.0.0.0
-    depends_on:
-      - backend
-    networks:
-      - devonn-net
-
-  # ── Backend (FastAPI Python) ────────────────────────────────────────────────
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app         # hot reload via uvicorn --reload
-    environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://devonn:devonn_secret@db:5432/devonn_dev
-      - REDIS_URL=redis://redis:6379/0
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_change_in_production}
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - devonn-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-
-  # ── PostgreSQL Database ─────────────────────────────────────────────────────
-  db:
+  postgres:
     image: postgres:16-alpine
+    env_file:
+      - .env.staging.local
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: devonn
-      POSTGRES_PASSWORD: devonn_secret
-      POSTGRES_DB: devonn_dev
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      # Auto-run migrations on first start
-      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
-    networks:
-      - devonn-net
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U devonn -d devonn_dev"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 10s
+      retries: 10
 
-  # ── Redis Cache ─────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    networks:
-      - devonn-net
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 10
 
-  # ── MailHog (local email testing) ───────────────────────────────────────────
-  mailhog:
-    image: mailhog/mailhog:latest
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI — open http://localhost:8025 to view emails
-    networks:
-      - devonn-net
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  api:
+    build:
+      context: ./services/api
+    profiles: ["app"]
+    env_file:
+      - .env.staging.local
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+    profiles: ["app"]
+    env_file:
+      - .env.staging.local
+    ports:
+      - "7373:7373"
+      - "7374:7374"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./services/workers
+    profiles: ["app"]
+    env_file:
+      - .env.staging.local
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./services/frontend
+    profiles: ["app"]
+    env_file:
+      - .env.staging.local
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_started
 
 volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-
-networks:
-  devonn-net:
-    driver: bridge
+  postgres-data:
+  redis-data:
+  qdrant-data:
