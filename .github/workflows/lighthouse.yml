@@ -6,13 +6,16 @@ name: Lighthouse CI
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   push:
     branches: [main]
 
 concurrency:
   group: lighthouse-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   lighthouse:

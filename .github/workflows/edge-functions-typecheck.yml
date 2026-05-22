@@ -9,6 +9,9 @@ on:
     paths:
       - 'supabase/functions/**'
 
+permissions:
+  contents: read
+
 jobs:
   deno-check:
     name: Deno typecheck (with npm modules)

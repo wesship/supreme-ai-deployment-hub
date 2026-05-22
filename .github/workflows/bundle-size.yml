@@ -6,11 +6,14 @@ name: Bundle Size Check
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 concurrency:
   group: bundle-size-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   bundle-size:

@@ -6,7 +6,7 @@ name: Hermes v2 Policy Gate
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   push:
     branches-ignore:
       - 'dependabot/**'
@@ -15,6 +15,9 @@ on:
 concurrency:
   group: hermes-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   hermes:

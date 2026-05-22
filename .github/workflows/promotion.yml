@@ -28,6 +28,9 @@ concurrency:
   group: promotion-${{ github.ref }}
   cancel-in-progress: false   # Never cancel in-progress promotions
 
+permissions:
+  contents: read
+
 jobs:
   # ── Stage 1: Deploy to Development ──────────────────────────────────────────
   deploy-development:

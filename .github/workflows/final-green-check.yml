@@ -9,6 +9,9 @@ concurrency:
   group: final-green-check-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   all-systems-go:
     name: All Systems Go

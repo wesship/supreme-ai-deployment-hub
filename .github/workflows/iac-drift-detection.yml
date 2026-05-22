@@ -21,6 +21,9 @@ concurrency:
   group: iac-drift-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   terraform-drift:
     name: Terraform Drift Detection

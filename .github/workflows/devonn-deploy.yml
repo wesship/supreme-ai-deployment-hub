@@ -2,6 +2,9 @@ name: Devonn Deploy
 on:
   push:
     branches: [main]
+permissions:
+  contents: read
+
 jobs:
   build-deploy:
     runs-on: ubuntu-latest
