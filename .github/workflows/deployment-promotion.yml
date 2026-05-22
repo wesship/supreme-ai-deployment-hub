@@ -178,20 +178,21 @@ jobs:
 
       - name: Monitor canary health (5 minutes)
         run: |
-          echo "Monitoring canary for 5 minutes..."
+          set -euo pipefail
           CANARY_URL="${CANARY_URL:-https://canary.devonn.ai}"
+          echo "Monitoring canary for 5 minutes at $CANARY_URL"
           for i in $(seq 1 5); do
             sleep 60
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$CANARY_URL/health" 2>/dev/null || echo "000")
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$CANARY_URL/health" || echo "000")
             echo "Canary health check $i/5: HTTP $HTTP_STATUS"
-            if [[ ! "$HTTP_STATUS" =~ ^2 ]] && [ "$HTTP_STATUS" != "000" ]; then
-              echo "::error::Canary health check failed at minute $i - HTTP $HTTP_STATUS"
+            if [[ ! "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
+              echo "::error::Canary health check FAILED at minute $i — HTTP $HTTP_STATUS"
               echo "::notice::Initiating automatic rollback..."
               exit 1
             fi
           done
-          echo "Canary monitoring passed - promoting to production"
-        continue-on-error: true
+          echo "Canary monitoring passed — promoting to production"
+
 
   # ── Gate 4: Production Deployment (manual approval required) ──────────────
   deploy-production:
