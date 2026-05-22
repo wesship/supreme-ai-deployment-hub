@@ -9,9 +9,7 @@ on:
       - "services/**"
       - "infra/**"
       - "observability/**"
-      - "docs/STAGING_DEPLOYMENT_RUNBOOK.md"
-      - "docs/ENVIRONMENT_VARIABLES.md"
-      - "docs/GUARDRAILS.md"
+      - "docs/**"
       - ".github/workflows/staging-ci.yml"
   workflow_dispatch:
 
