@@ -196,7 +196,7 @@ jobs:
           echo "  [PASS] Error rate: 0.1% (threshold: 1%)"
           echo "  [PASS] P99 latency: 195ms (threshold: 500ms)"
           echo "  [PASS] Availability: 99.98% (threshold: 99.9%)"
-          echo "Canary healthy — promoting to production"
+          echo "Canary healthy - promoting to production"
 
   # ──────────────────────────────────────────────────────────────────
   # ENV: Production (requires manual approval)

@@ -17,7 +17,7 @@ on:
       - 'config/ai/**'
       - 'policy/ai/**'
   schedule:
-    - cron: '0 2 * * *'  # Daily 02:00 UTC — safety regression sweep
+    - cron: '0 2 * * *'  # Daily 02:00 UTC - safety regression sweep
   workflow_dispatch:
 
 permissions:
@@ -75,7 +75,7 @@ jobs:
           )
 
           if not ai_files:
-              print("No AI/agent Python files found — policy checks will run when files are added")
+              print("No AI/agent Python files found - policy checks will run when files are added")
               print("Expected locations: backend/agents/, backend/ai/")
           else:
               print(f"Scanning {len(ai_files)} AI/agent files...")

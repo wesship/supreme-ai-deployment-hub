@@ -73,13 +73,13 @@ jobs:
               conclusion = "${{ github.event.workflow_run.conclusion }}"
               if conclusion == "success":
                   color = "good"
-                  title = f":white_check_mark: {wf_name} — Passed"
+                  title = f":white_check_mark: {wf_name} - Passed"
               elif conclusion == "failure":
                   color = "danger"
-                  title = f":x: {wf_name} — FAILED"
+                  title = f":x: {wf_name} - FAILED"
               else:
                   color = "warning"
-                  title = f":warning: {wf_name} — {conclusion}"
+                  title = f":warning: {wf_name} - {conclusion}"
               text = f"Workflow completed with status: `{conclusion}`"
           elif event == "workflow_dispatch":
               severity = "${{ github.event.inputs.severity || 'info' }}"

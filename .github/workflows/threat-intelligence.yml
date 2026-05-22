@@ -2,8 +2,8 @@ name: Automated Threat Intelligence
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # Daily 06:00 UTC — CVE feed refresh
-    - cron: '0 */4 * * *' # Every 4 hours — active threat monitoring
+    - cron: '0 6 * * *'   # Daily 06:00 UTC - CVE feed refresh
+    - cron: '0 */4 * * *' # Every 4 hours - active threat monitoring
   push:
     branches: [main]
     paths:

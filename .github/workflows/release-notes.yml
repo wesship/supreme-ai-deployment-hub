@@ -112,7 +112,7 @@ jobs:
           # Generate release notes markdown
           now = datetime.utcnow().strftime("%Y-%m-%d")
           lines = [
-              f"# Release Notes — {current_tag}",
+              f"# Release Notes - {current_tag}",
               f"",
               f"**Released:** {now}  ",
               f"**Previous:** {prev_tag or 'Initial release'}  ",
@@ -176,7 +176,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: tag,
-                name: `${tag} — Production Resilience & Disaster Recovery`,
+                name: `${tag} - Production Resilience & Disaster Recovery`,
                 body: changelog,
                 draft: false,
                 prerelease: false,

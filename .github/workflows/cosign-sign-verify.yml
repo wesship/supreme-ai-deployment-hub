@@ -72,7 +72,7 @@ jobs:
 
           echo "Cosign signature generated"
           echo "Certificate:"
-          # Informational pretty-print only — wrapped in `if` so a malformed
+          # Informational pretty-print only - wrapped in `if` so a malformed
           # cert dump never silently masks the signing step's real exit code.
           if openssl x509 -noout -text -in /tmp/devonn-dist.crt > /tmp/cert.txt 2>/dev/null; then
             grep -E "Subject:|Issuer:|Not After" /tmp/cert.txt || echo "(no matching cert fields)"

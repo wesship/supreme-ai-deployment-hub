@@ -32,7 +32,7 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           if [ -z "$GH_PAT" ]; then
-            echo "::warning::GH_PAT not set — checkout of private submodules/cross-repo will fail with exit 128"
+            echo "::warning::GH_PAT not set - checkout of private submodules/cross-repo will fail with exit 128"
           else
             echo "✔ GH_PAT present"
             # Validate token works and has repo scope

@@ -149,7 +149,7 @@ jobs:
                   '- Separating refactoring from feature changes',
                   '- Using feature flags to merge incrementally',
                   '',
-                  '_This is a warning only — the PR can still be merged._',
+                  '_This is a warning only - the PR can still be merged._',
                 ].join('\n'),
               });
             }

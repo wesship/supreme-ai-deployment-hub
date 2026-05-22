@@ -2,8 +2,8 @@ name: ML-Based Anomaly Detection
 
 on:
   schedule:
-    - cron: '0 */2 * * *'  # Every 2 hours — continuous baseline monitoring
-    - cron: '0 0 * * 0'    # Weekly Sunday — full model retrain
+    - cron: '0 */2 * * *'  # Every 2 hours - continuous baseline monitoring
+    - cron: '0 0 * * 0'    # Weekly Sunday - full model retrain
   push:
     branches: [main]
     paths:

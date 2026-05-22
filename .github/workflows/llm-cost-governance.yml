@@ -2,8 +2,8 @@ name: LLM Cost Governance
 
 on:
   schedule:
-    - cron: '0 6 * * *'    # Daily 06:00 UTC — cost report
-    - cron: '0 0 1 * *'    # Monthly 1st — budget reset and review
+    - cron: '0 6 * * *'    # Daily 06:00 UTC - cost report
+    - cron: '0 0 1 * *'    # Monthly 1st - budget reset and review
   push:
     branches: [main]
     paths:

@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 4 * * *'  # Daily 04:00 UTC — nightly performance baseline
+    - cron: '0 4 * * *'  # Daily 04:00 UTC - nightly performance baseline
   workflow_dispatch:
 
 permissions:
@@ -90,7 +90,7 @@ jobs:
                   print("  All bundle sizes within budget")
           else:
               print("=== Bundle Size Analysis ===")
-              print("No build artifacts found — run 'npm run build' to generate bundle")
+              print("No build artifacts found - run 'npm run build' to generate bundle")
               print("Baseline budgets configured:")
               for k, v in baselines.items():
                   print(f"  {k}: {v} KB")
@@ -193,7 +193,7 @@ jobs:
 
           # Budget: 60 seconds
           if [ "$ELAPSED" -gt 60000 ]; then
-            echo "::warning::npm ci took ${ELAPSED}ms — exceeds 60s budget"
+            echo "::warning::npm ci took ${ELAPSED}ms - exceeds 60s budget"
           else
             echo "npm ci within budget (${ELAPSED}ms < 60000ms)"
           fi

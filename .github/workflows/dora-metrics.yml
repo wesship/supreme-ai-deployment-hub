@@ -184,7 +184,7 @@ jobs:
 
           # ── PRINT REPORT ─────────────────────────────────────────────────────
           print("=" * 60)
-          print(f"  DORA METRICS REPORT — Last {period} days")
+          print(f"  DORA METRICS REPORT - Last {period} days")
           print("=" * 60)
           print(f"  Generated:  {now.strftime('%Y-%m-%d %H:%M UTC')}")
           print(f"  Repository: {repo}")

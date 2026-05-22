@@ -79,7 +79,7 @@ jobs:
                   title = f"[CI FAILURE] {wf_name} failed on main"
                   description = f"Workflow **{wf_name}** failed.\n\nRun URL: {wf_url}\n\nPlease investigate immediately."
               else:
-                  print("Workflow succeeded — no Jira ticket needed")
+                  print("Workflow succeeded - no Jira ticket needed")
                   import sys; sys.exit(0)
               source = "ci"
           elif event == "issues":
@@ -138,7 +138,7 @@ jobs:
           project = os.environ.get("JIRA_PROJECT_KEY", "DEVONN")
 
           if not base_url or not email or not token:
-              print("Jira credentials not configured — skipping (set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN secrets)")
+              print("Jira credentials not configured - skipping (set JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN secrets)")
               exit(0)
 
           with open("/tmp/issue-data.json") as f:
@@ -179,9 +179,9 @@ jobs:
           if r.status_code == 201:
               jira_key = r.json().get("key", "")
               jira_url = f"{base_url}/browse/{jira_key}"
-              print(f"Created Jira issue: {jira_key} — {jira_url}")
+              print(f"Created Jira issue: {jira_key} - {jira_url}")
           else:
-              print(f"Jira API error: HTTP {r.status_code} — {r.text[:200]}")
+              print(f"Jira API error: HTTP {r.status_code} - {r.text[:200]}")
           PYEOF
 
   sync-to-linear:
@@ -210,7 +210,7 @@ jobs:
           team_id = os.environ.get("LINEAR_TEAM_ID", "")
 
           if not api_key or not team_id:
-              print("Linear credentials not configured — skipping (set LINEAR_API_KEY, LINEAR_TEAM_ID secrets)")
+              print("Linear credentials not configured - skipping (set LINEAR_API_KEY, LINEAR_TEAM_ID secrets)")
               exit(0)
 
           event = os.environ.get("GITHUB_EVENT_NAME", "")
@@ -220,7 +220,7 @@ jobs:
           if event == "workflow_run":
               conclusion = "${{ github.event.workflow_run.conclusion }}"
               if conclusion != "failure":
-                  print("No failure — skipping Linear issue creation")
+                  print("No failure - skipping Linear issue creation")
                   exit(0)
               wf_name = "${{ github.event.workflow_run.name }}"
               title = f"[CI FAILURE] {wf_name}"
@@ -268,7 +268,7 @@ jobs:
               data = r.json()
               if data.get("data", {}).get("issueCreate", {}).get("success"):
                   issue = data["data"]["issueCreate"]["issue"]
-                  print(f"Created Linear issue: {issue['identifier']} — {issue['url']}")
+                  print(f"Created Linear issue: {issue['identifier']} - {issue['url']}")
               else:
                   print(f"Linear error: {data.get('errors', 'Unknown error')}")
           else:

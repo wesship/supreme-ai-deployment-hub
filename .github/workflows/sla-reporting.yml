@@ -80,7 +80,7 @@ jobs:
           all_slos_met     = all([slo_uptime_met, slo_p99_met, slo_p50_met, slo_error_met])
 
           print("=" * 60)
-          print(f"  DEVONN.AI SLA REPORT — {month_str}")
+          print(f"  DEVONN.AI SLA REPORT - {month_str}")
           print("=" * 60)
           print()
           print(f"  Reporting Period:  {month_str}")
@@ -97,7 +97,7 @@ jobs:
           print()
           print(f"  Incidents ({len(MONTHLY_METRICS['incidents'])} total):")
           for inc in MONTHLY_METRICS["incidents"]:
-              print(f"    [{inc['severity']}] {inc['date']} — {inc['duration_min']}min — {inc['cause']}")
+              print(f"    [{inc['severity']}] {inc['date']} - {inc['duration_min']}min - {inc['cause']}")
 
           # Compliance certificate
           cert = {
@@ -203,7 +203,7 @@ jobs:
           headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
 
           now = datetime.utcnow()
-          title = f"📊 SLA Report — {now.strftime('%Y-%m')} (auto-generated)"
+          title = f"📊 SLA Report - {now.strftime('%Y-%m')} (auto-generated)"
           _run_id = os.environ.get('GITHUB_RUN_ID', '')
           _gen_time = now.strftime('%Y-%m-%d %H:%M UTC')
           body = "\n".join([
@@ -222,7 +222,7 @@ jobs:
               timeout=10
           )
           if r.status_code == 201:
-              print(f"SLA issue created: #{r.json().get('number')} — {r.json().get('html_url')}")
+              print(f"SLA issue created: #{r.json().get('number')} - {r.json().get('html_url')}")
           else:
               print(f"Issue creation: HTTP {r.status_code}")
           PYEOF
