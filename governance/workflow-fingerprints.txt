@@ -1,4 +1,4 @@
-# Workflow Fingerprints — captured 2026-05-22T14:39:52Z
+# Workflow Fingerprints — captured 2026-05-22T14:40:32Z
 # Any drift from these hashes after lock requires CHANGE_CONTROL approval.
 
 972721688f4814878e05f147e4690ae79593fdfe842980df7dca825a9e062625  .github/workflows/ab-testing.yml
@@ -14,7 +14,7 @@ fb3a7391734bed793ef48ae86cce07bafef91806640b6d9d7dab83a389372574  .github/workfl
 655da62b1ce98dcbb41c864283e5af00a4bffb1c027bcaa9806749283682eda9  .github/workflows/auto-merge-snyk.yml
 8b315c5ffecba044684309017cff3205f77983c7aaf9e5d77d1045177119755d  .github/workflows/auto-merge.yml
 777e96aa921753e952f415f56cc4bc8652a4d1f5ddd343820ef144d4c2ec5185  .github/workflows/autonomous-remediation.yml
-0a549e893a804dced6a8ab3cbbfacda7d9618eba661b67e8d3c14af57119f899  .github/workflows/azure-container-apps-deploy.yml
+3065d31b15b888326caf3ef58372611b2662a6eabbdc9a63512eb44a64b6eebc  .github/workflows/azure-container-apps-deploy.yml
 ba20ba879c51b23a2873e8d8c744e016512da3c598e4c98849c81a457b9eac4a  .github/workflows/billing-reconciliation.yml
 787fd0b191558474bfc5711d29f07872b9451f2f6b7f0f62df4a60efed00d628  .github/workflows/build.yml
 f54c607366163c2e814680682db6ff986ef20fac7e0ec6fa01465b65c79069bc  .github/workflows/bundle-size.yml
@@ -57,7 +57,7 @@ b4f70931deccdb1d4d44f513ee316535630d58500843524003ee9f72fdddd29e  .github/workfl
 a6ce5ef3b04122a4182a4426e3c3910fc3d77594f08109fc1da3e8e22103c20d  .github/workflows/hermes-v3-gate.yml
 3a09eecf66c5bc7cdee03225efb73d9575dce1c67a0e401abfe03e65a026e627  .github/workflows/iac-drift-detection.yml
 353a3efc91446edddcb50bd16e6b7d0f98c230667bd911386727aaa42b380714  .github/workflows/incident-response.yml
-dbc891ccf2c146079317b453d60216157d7d921024767d7b799bb76ecb0d32cd  .github/workflows/infrastructure-ci-cd.yml
+3a1dbace526731a5bd168fcfac14ff4918ddad73fa0bd04e1d370e3f025d71ef  .github/workflows/infrastructure-ci-cd.yml
 ab43928d04560580088ea165ace1b1cd430e260fab14d5f59eb271a14c24ff1d  .github/workflows/issue-tracker-sync.yml
 7b74cb902936451bf8af29bdcd1840f83ac40ffd0bd19746d9a5b42be0977eaa  .github/workflows/issue-trigger.yml
 a89e88c4750cfbd5c99e26ea0f2667e9068def57268fc44aa1830bfd596ff814  .github/workflows/kyverno-admission.yml
@@ -103,7 +103,7 @@ c815a433b690530ce63b346c80ef4ae99e21b97e9c6e30cecc1dd90aedefa0b2  .github/workfl
 4a36de855b0ca0174f77e769277ac2976b61418e432e768983b4a14ff2614d49  .github/workflows/trusted-runner-isolation.yml
 c65c19a784cf7b2cef7594589acf501255d209969b0b1a23e7e8640162a53a5f  .github/workflows/usage-analytics.yml
 9d217a4e4de299b7e679c2b16ec3eb239a73c3a924aad3b02e7cd3c92f8feb46  .github/workflows/validate-actions.yml
-a02b293f52c8a4f49f0cd57d50826e1133ef4caf0aa894f5904c37411b941883  .github/workflows/validate-secrets.yml
+a0e516faf333b7a52d7f079adad127e0eb2c0534089e62b432e86e6cddfae0ff  .github/workflows/validate-secrets.yml
 9052dd99074885d001d502a19083bd374b19c773b035d61ad71f7ff037b3b8fc  .github/workflows/vault-secrets-injection.yml
 5ecf94c3dae2022cba492dc3a3aa83f18f3692acdf325d3653800ccaab688d02  .github/workflows/workflow-optimizer.yml
 b3cd1b8e729f577c026b5fd5f2818114fabafd8968c91d3fedf081f2149628fd  .github/workflows/zero-downtime-migration.yml

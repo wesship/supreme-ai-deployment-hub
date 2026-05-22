@@ -199,3 +199,14 @@ Fingerprints re-baselined. Audit reports should be re-run after this lands.
   guarded by `[ -f ... ]`, so it's a benign optional hook).
 - Remaining 5 dead-path entries are false positives (doc strings,
   runtime-generated Dockerfiles, env-var names).
+
+### Dead-path re-baseline
+
+After targeted cleanup the scanner reports 6 remaining entries, all
+confirmed false positives:
+- `bundle-size.yml workdir/base-branch` — env-var name
+- `developer-onboarding.yml Dockerfiles, SERVICE/Dockerfile` — README placeholders
+- `terraform.yml verify-completion.sh` — guarded by `[ -f ... ]`
+- `trusted-runner-isolation.yml Dockerfile.runner` — generated at runtime
+
+Real dead refs: **0**. Total dead-path entries dropped 23 → 6 across Phase D.
