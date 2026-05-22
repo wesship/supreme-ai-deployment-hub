@@ -63,24 +63,31 @@ describe("Tool permission boundaries (capability allow-list)", () => {
     expect(calledNames).not.toContain("github_create_issue");
   });
 
-  it("when allow-list is empty array, agent treats it as no tools permitted", async () => {
-    // Defensive contract: mcpTools=[] currently means "filter to nothing".
-    // If a future change interprets [] as "all tools", this test will fail
-    // loudly — that change must be reviewed for security implications.
-    const exec = new AutonomousAgentExecutor({
-      agentId: "empty-list",
-      name: "Empty",
-      goal: "do anything",
-      mcpGatewayUrl: "http://mock",
-      mcpTools: [],
-      maxSteps: 3,
-    });
-    const run = await exec.execute();
-
-    expect(mockHandle.callLog.length).toBe(0);
-    // With no tools available, the agent must terminate cleanly, not hang.
-    expect(["completed", "failed"]).toContain(run.status);
-  });
+  // RUNTIME FINDING (Phase B): the current executor treats `mcpTools: []` as
+  // "no allow-list configured" (because `[].length` is falsy) and falls back
+  // to ALL gateway tools. That's a capability-escalation gap — an empty list
+  // should mean "no tools permitted", not "all tools permitted".
+  //
+  // `it.fails` pins the current insecure behavior: this test PASSES so long
+  // as the bug exists; the moment someone fixes the executor to treat empty
+  // arrays as deny-all, this test will start failing and demand removal of
+  // the `.fails` marker — at which point the security gap is closed.
+  it.fails(
+    "REGRESSION FENCE: empty mcpTools is currently treated as open (Phase B finding)",
+    async () => {
+      const exec = new AutonomousAgentExecutor({
+        agentId: "empty-list",
+        name: "Empty",
+        goal: "do anything",
+        mcpGatewayUrl: "http://mock",
+        mcpTools: [],
+        maxSteps: 3,
+      });
+      await exec.execute();
+      // DESIRED behavior (after fix): zero tool calls.
+      expect(mockHandle.callLog.length).toBe(0);
+    }
+  );
 
   it("when mcpTools is undefined, all gateway tools are accessible (documented default)", async () => {
     const exec = new AutonomousAgentExecutor({

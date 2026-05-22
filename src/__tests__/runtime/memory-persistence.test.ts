@@ -9,8 +9,11 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockGet = vi.fn();
-const mockPost = vi.fn();
+// `vi.hoisted` ensures these mocks exist BEFORE vi.mock factory runs.
+const { mockGet, mockPost } = vi.hoisted(() => ({
+  mockGet: vi.fn(),
+  mockPost: vi.fn(),
+}));
 
 vi.mock("@/services/config", () => ({
   apiClient: { get: mockGet, post: mockPost },

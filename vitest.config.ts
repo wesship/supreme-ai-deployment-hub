@@ -40,6 +40,7 @@ export default defineConfig({
       'src/extension/__tests__/setupExtensionTests.ts', // setup helper, not a test suite
       'src/extension/__tests__/storage.mock.ts',        // mock helper, not a test suite
       'src/hooks/__tests__/**/testUtils.ts',            // test utility, not a test suite
+      'src/__tests__/runtime/harness/**',               // runtime harness primitives, not suites
     ],
 
     coverage: {
