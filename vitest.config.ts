@@ -30,6 +30,8 @@ export default defineConfig({
     include: [
       'src/**/*.{test,spec}.{ts,tsx}',
       'src/**/__tests__/**/*.{ts,tsx}',
+      // Wave 27+: dedicated runtime validation namespace (isolated from src/)
+      'runtime-validation/scenarios/**/*.test.ts',
     ],
 
     exclude: [
@@ -41,6 +43,7 @@ export default defineConfig({
       'src/extension/__tests__/storage.mock.ts',        // mock helper, not a test suite
       'src/hooks/__tests__/**/testUtils.ts',            // test utility, not a test suite
       'src/__tests__/runtime/harness/**',               // runtime harness primitives, not suites
+      'runtime-validation/harness/**',                  // runtime harness primitives, not suites
     ],
 
     coverage: {
