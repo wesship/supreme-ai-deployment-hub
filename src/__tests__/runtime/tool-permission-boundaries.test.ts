@@ -17,10 +17,10 @@ vi.mock("@/lib/mcp/client", () => ({
   // reassignment in beforeEach is picked up. Cannot use arrow in mockImplementation
   // because `new ArrowFn()` throws "is not a constructor".
   McpClient: class {
-    initialize = (...a: any[]) => mockHandle.initialize(...a);
-    listTools  = (...a: any[]) => mockHandle.listTools(...a);
-    callTool   = (...a: any[]) => mockHandle.callTool(...a);
-    close      = (...a: any[]) => mockHandle.close(...a);
+    initialize = (...a: any[]) => (mockHandle.initialize as any)(...a);
+    listTools  = (...a: any[]) => (mockHandle.listTools as any)(...a);
+    callTool   = (...a: any[]) => (mockHandle.callTool as any)(...a);
+    close      = (...a: any[]) => (mockHandle.close as any)(...a);
   },
 }));
 
