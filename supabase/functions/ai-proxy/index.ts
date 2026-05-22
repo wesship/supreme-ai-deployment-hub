@@ -15,30 +15,15 @@
 
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, rateLimitResponse } from "../_shared/rateLimit.ts";
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Simple in-memory rate limiter (resets on cold start)
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 10;       // requests per window
-const RATE_WINDOW_MS = 60_000; // 1 minute
+// Token-bucket: 10 req/min sustained, burst of 10.
+const RL_CFG = { capacity: 10, refillPerSec: 10 / 60 };
 
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-
-  if (entry.count >= RATE_LIMIT) return false;
-
-  entry.count++;
-  return true;
-}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,17 +65,12 @@ serve(async (req: Request) => {
       });
     }
 
-    // ── 2. Rate limit per user ────────────────────────────────────────────────
-    if (!checkRateLimit(user.id)) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again in 1 minute." }), {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-          "Retry-After": "60",
-        },
-      });
+    // ── 2. Rate limit per user (token bucket) ────────────────────────────────
+    const rl = rateLimit(user.id, RL_CFG);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl, { ...corsHeaders });
     }
+
 
     // ── 3. Parse and validate the request body ────────────────────────────────
     const body = await req.json();

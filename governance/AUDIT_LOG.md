@@ -146,3 +146,15 @@ get caught in production. Now: any such drift fails CI.
 - Memory continuity: `snapshot()` / `restore()` across executor restart.
 
 These are tracked as failing-to-build features, not silent omissions.
+
+## Phase C — Edge Function Rate Limiting (initial)
+
+- Added shared `supabase/functions/_shared/rateLimit.ts` token-bucket middleware
+  (per-key capacity + refill-per-second, 429 with `Retry-After` and
+  `X-RateLimit-*` headers).
+- Added Deno tests `supabase/functions/_shared/rateLimit.test.ts`
+  (capacity, key isolation, refill).
+- Migrated `ai-proxy` from ad-hoc fixed-window limiter to shared token bucket
+  (10 req/min sustained, burst 10).
+- Next: extend to `openai-proxy`, `mcp-gateway`, `secure-credentials`,
+  `generate-screenplay`, `generate-film` once integration-tested.
