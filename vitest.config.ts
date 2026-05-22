@@ -32,6 +32,8 @@ export default defineConfig({
       'src/**/__tests__/**/*.{ts,tsx}',
       // Wave 27+: dedicated runtime validation namespace (isolated from src/)
       'runtime-validation/scenarios/**/*.test.ts',
+      // Operational Stress Intelligence: LS-1 through LS-6
+      'stress-validation/scenarios/**/*.test.ts',
     ],
 
     exclude: [
@@ -44,6 +46,7 @@ export default defineConfig({
       'src/hooks/__tests__/**/testUtils.ts',            // test utility, not a test suite
       'src/__tests__/runtime/harness/**',               // runtime harness primitives, not suites
       'runtime-validation/harness/**',                  // runtime harness primitives, not suites
+      'stress-validation/harness/**',                    // stress harness primitives, not suites
     ],
 
     coverage: {
