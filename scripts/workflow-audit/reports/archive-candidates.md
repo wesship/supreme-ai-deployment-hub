@@ -1,5 +1,5 @@
 # Workflow Archive Candidates
-_Generated: 2026-05-22T14:04:03Z_
+_Generated: 2026-05-22T14:04:21Z_
 
 **Review every entry before archiving. Do NOT delete pre-lock — only move to `.github/workflows/archive/` after `v1.0-prod-lock` is tagged.**
 
