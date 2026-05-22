@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - staging/foundation-runtime
     paths:
       - "docker-compose.yml"
       - "services/**"
@@ -61,6 +62,21 @@ jobs:
         shell: bash
         run: docker compose -f docker-compose.yml config >/tmp/devonn-compose.yml
 
+      - name: Validate frontend and API Dockerfiles exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f services/frontend/Dockerfile
+          test -f services/frontend/MIGRATION.md
+          test -f services/api/Dockerfile
+          test -f services/api/MIGRATION.md
+
+      - name: Build Cut 1 service images
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --profile app build api frontend
+
       - name: Validate no committed staging env file
         shell: bash
         run: |
@@ -74,5 +90,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -R "dry-run" docs infra docker-compose.yml
-          grep -R "guarded" docs infra docker-compose.yml
+          grep -R "dry-run" docs infra docker-compose.yml services
+          grep -R "guarded" docs infra docker-compose.yml services
