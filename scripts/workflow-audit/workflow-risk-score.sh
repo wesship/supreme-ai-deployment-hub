@@ -27,7 +27,7 @@ for f in .github/workflows/*.yml .github/workflows/*.yaml; do
   fi
 
   secrets=$(grep -oE 'secrets\.[A-Z0-9_]+' "$f" | sort -u | wc -l | tr -d ' ')
-  [[ "$secrets" -gt 3 ]] && { score=$((score+1)); notes="$notes many-secrets;"; }
+  if [[ "$secrets" -gt 3 ]]; then score=$((score+1)); notes="$notes many-secrets;"; fi
 
   if grep -qE 'shell:\s*bash' "$f" && grep -qE '\$\{\{\s*github\.event\.' "$f"; then
     score=$((score+3)); notes="$notes event-injection-risk;"
