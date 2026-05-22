@@ -289,7 +289,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [triage, rollout-freeze, auto-rollback, canary-auto-disable, runtime-quarantine]
+    # Justified `if: always()`: incident report MUST be generated even when
+    # upstream remediation jobs fail — that's exactly the case we want audited.
     if: always()
+
 
     steps:
       - name: Generate incident report

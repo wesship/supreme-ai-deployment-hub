@@ -26,7 +26,9 @@ jobs:
   scan-source:
     name: Trivy filesystem scan
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # Hardening: removed `continue-on-error: true`. Trivy is already set to
+    # `exit-code: '0'` so vuln findings don't fail the job, but checkout /
+    # SARIF upload failures now correctly propagate.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -43,6 +45,7 @@ jobs:
           output: trivy-fs.sarif
 
       - name: Upload SARIF
+        # Justified `if: always()`: we want SARIF artifacts even when scan exits non-zero.
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:

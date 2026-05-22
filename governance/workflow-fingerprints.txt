@@ -1,4 +1,4 @@
-# Workflow Fingerprints — captured 2026-05-22T14:14:37Z
+# Workflow Fingerprints — captured 2026-05-22T14:24:23Z
 # Any drift from these hashes after lock requires CHANGE_CONTROL approval.
 
 972721688f4814878e05f147e4690ae79593fdfe842980df7dca825a9e062625  .github/workflows/ab-testing.yml
@@ -13,7 +13,7 @@ ada6130f733995fc6311aec45ed53c59c0c36287c5b45212d17713e12d856666  .github/workfl
 fa128f499c35cab8abe94192c0e8ee0d9a43416d0c525809b758e24d8d33de1c  .github/workflows/auto-fix.yml
 655da62b1ce98dcbb41c864283e5af00a4bffb1c027bcaa9806749283682eda9  .github/workflows/auto-merge-snyk.yml
 988a64f53e879ac1abbb688a4b2ad6186354f1ed2d74d7f89af6077d0a5807b9  .github/workflows/auto-merge.yml
-f961cd55f9d0ae6d41261fec2f21ebefdf96a1e17a93c578c034d5348e2641c0  .github/workflows/autonomous-remediation.yml
+777e96aa921753e952f415f56cc4bc8652a4d1f5ddd343820ef144d4c2ec5185  .github/workflows/autonomous-remediation.yml
 0a549e893a804dced6a8ab3cbbfacda7d9618eba661b67e8d3c14af57119f899  .github/workflows/azure-container-apps-deploy.yml
 ba20ba879c51b23a2873e8d8c744e016512da3c598e4c98849c81a457b9eac4a  .github/workflows/billing-reconciliation.yml
 7984805cafcce1709bd98c5b66854dc113425ff5b684b421af7ab566561028d4  .github/workflows/build.yml
@@ -27,7 +27,7 @@ bfb1de59e3574407c75761c202ed19db641db29be206b15dc3c0aeb3d24cfeca  .github/workfl
 182538f34072858c9f3a755c460adfdf7fa5f950e5ebe3b0e4161837d043a01d  .github/workflows/commitlint.yml
 cbd0b90d9809a35f178a4d3cc8de21ebf336d47ee94d28018ec652cc5b2739b9  .github/workflows/compliance-audit-export.yml
 72bc7f0be294855e92383d9f1c327454fab0949a41a1aea30f5ed6dba24264ca  .github/workflows/container-hardening.yml
-31d1b5cc274f21d7517194eb1e30791527212076fd0c5945085d4eb98f3b2004  .github/workflows/cosign-sign-verify.yml
+e5d3530a57ee92c9221277cdd8deb452c7e2e53b176527632f60f6e918e19fa8  .github/workflows/cosign-sign-verify.yml
 1004a293d525ce6a8f88070dde4ad35d40823225c68048b00aa8020334889b6d  .github/workflows/cost-attribution.yml
 48cfb55061c07e4f8e22a836c32681f09a1e81cc3ab190dc62768e2937499093  .github/workflows/cost-optimization.yml
 b6d230f864e64da60b010fd884021a04177d0349b628f448a82167846e73ad3c  .github/workflows/coverage-enforcement.yml
@@ -47,7 +47,7 @@ f4a0b03c24554d167335b3bc55f0013bf540129265c64144b74aee13e0ffb92e  .github/workfl
 d2f57e510a2646e2cc87794a23a0bb83b4511e088ee45701ce2a3304fa310d46  .github/workflows/e2e.yml
 0a88457f62d840cc680e27c314e2a77a03d7be8392be85e69c1f40772c2140d2  .github/workflows/ebpf-telemetry.yml
 106f0d59ec400b026c981104f3ef1fb22e2a6b89f4fcf4b1833f1cd85b3dd346  .github/workflows/edge-functions-typecheck.yml
-788dd8e124829e8ea474a29538fe30c2de992a336eca1147ddb4f8827be6c591  .github/workflows/eks-deploy-oidc.yml
+3d8204cfd4c6bab322cc9f15f14b994ba93f49aa73b64c93f7193e4346629f8b  .github/workflows/eks-deploy-oidc.yml
 17d72606bcccbd4c3744bb230f45c337ca1a19394f30aeba840e9c0f1f2b6895  .github/workflows/falco-runtime-detection.yml
 b4f70931deccdb1d4d44f513ee316535630d58500843524003ee9f72fdddd29e  .github/workflows/feature-flags-db-safety.yml
 499b117319eec0e159a6e5a10cdd0f719204c00879ac694bbd90a3439085cede  .github/workflows/final-green-check.yml
@@ -96,7 +96,7 @@ a9026ad3de0296be544a239d15de1962b0f03089d54aa9c0c47f8d9d996f5c47  .github/workfl
 838c23c5b800c6b1cf9e04055d11af03c0d7bd887bd06372a34a383ffadde6fb  .github/workflows/stale-pr-cleanup.yml
 99796721bd3cadce1e4e445c41a412b7213bf68d3bbe6bdfed0aeafef0c6a7cb  .github/workflows/supabase-edge-functions.yml
 8714d70d6fef5c2409e5bf428200e9ac6731d7701ec6829afebaed8d22c34f65  .github/workflows/terraform-aws.yml
-283b1ec5a5d32e640db8f4640b2ba533767d0c371380fa18af31a64150785e45  .github/workflows/terraform.yml
+ad6abd936d40be8e9db44707ede39fa4ce50fb3b1531bed0669e171e2659664b  .github/workflows/terraform.yml
 ebb169538b22581aeecfcb39577b6512e2360b2dbfc8eae3ac3f4a675010081a  .github/workflows/testing.yml
 8a2a4427463de865f581df236afbe28d6ed3d06d494f3416e55968ec61035821  .github/workflows/threat-intelligence.yml
 c815a433b690530ce63b346c80ef4ae99e21b97e9c6e30cecc1dd90aedefa0b2  .github/workflows/trusted-build.yml
