@@ -1,10 +1,7 @@
 workflow	kind	reference
-azure-container-apps-deploy.yml	branch	azure-deploy
 bundle-size.yml	workdir	base-branch
 developer-onboarding.yml	dockerfile	Dockerfiles
 developer-onboarding.yml	dockerfile	SERVICE/Dockerfile
-infrastructure-ci-cd.yml	script	scripts/generate-tf-files.js
 terraform.yml	script	scripts/verify-completion.sh
 trusted-runner-isolation.yml	dockerfile	/tmp/runner-image/Dockerfile.runner
 trusted-runner-isolation.yml	dockerfile	Dockerfile.runner
-validate-secrets.yml	branch	hardening/all-phases
