@@ -128,17 +128,17 @@ jobs:
           print("=== Database Migration Safety Check ===")
 
           if not found_migrations:
-              print("No migration files found — skipping migration safety checks")
+              print("No migration files found - skipping migration safety checks")
               print("(Add migrations to backend/migrations/ when database schema changes are needed)")
           else:
               print(f"Migration files found: {len(found_migrations)}")
 
               # Safety checks for each migration
               dangerous_patterns = [
-                  (r"DROP\s+TABLE", "DROP TABLE — data loss risk"),
-                  (r"DROP\s+COLUMN", "DROP COLUMN — data loss risk"),
-                  (r"ALTER\s+COLUMN.*NOT\s+NULL", "Adding NOT NULL constraint — may fail on existing data"),
-                  (r"TRUNCATE", "TRUNCATE — data loss risk"),
+                  (r"DROP\s+TABLE", "DROP TABLE - data loss risk"),
+                  (r"DROP\s+COLUMN", "DROP COLUMN - data loss risk"),
+                  (r"ALTER\s+COLUMN.*NOT\s+NULL", "Adding NOT NULL constraint - may fail on existing data"),
+                  (r"TRUNCATE", "TRUNCATE - data loss risk"),
               ]
 
               warnings = []

@@ -2,7 +2,7 @@ name: A/B Testing Infrastructure
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours — evaluate running experiments
+    - cron: '0 */6 * * *'  # Every 6 hours - evaluate running experiments
   workflow_dispatch:
     inputs:
       action:
@@ -145,7 +145,7 @@ jobs:
                   else:
                       decision = "RETAIN CONTROL"
                       print(f"\n  Decision: {decision}")
-                      print(f"  Recommendation: Treatment underperforms — keep {exp['control']['model']}")
+                      print(f"  Recommendation: Treatment underperforms - keep {exp['control']['model']}")
               elif not sufficient_samples:
                   days_running = 7
                   daily_rate = exp["treatment_n"] / days_running

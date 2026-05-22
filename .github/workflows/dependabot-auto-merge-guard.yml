@@ -70,4 +70,4 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           gh pr edit "$PR" --add-label "auto-merge" || true
-          gh pr comment "$PR" --body "✅ Safe patch bump — auto-merge eligible."
+          gh pr comment "$PR" --body "✅ Safe patch bump - auto-merge eligible."

@@ -68,7 +68,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v3   # was @v2 (deprecated)
+        uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f  # v3.28.18   # was @v2 (deprecated)
         continue-on-error: true
 
   unit-test:

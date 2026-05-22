@@ -195,7 +195,7 @@ jobs:
               for t in rollback_triggers:
                   print(f"  ::error::ROLLBACK TRIGGER: {t}")
           else:
-              print("\nAll models healthy — no rollback triggers")
+              print("\nAll models healthy - no rollback triggers")
           PYEOF
 
   # ──────────────────────────────────────────────────────────────────
@@ -231,7 +231,7 @@ jobs:
               print("No model registry changes detected")
               sys.exit(0)
 
-          print("Model registry changes detected — running approval gate checks")
+          print("Model registry changes detected - running approval gate checks")
 
           with open("config/ai/models/registry.yaml") as f:
               registry = yaml.safe_load(f)

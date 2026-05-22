@@ -2,8 +2,8 @@ name: Platform Health Dashboard
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Every 15 minutes — live health monitoring
-    - cron: '0 0 * * *'     # Daily midnight — full dashboard regeneration
+    - cron: '*/15 * * * *'  # Every 15 minutes - live health monitoring
+    - cron: '0 0 * * *'     # Daily midnight - full dashboard regeneration
   push:
     branches: [main]
     paths:

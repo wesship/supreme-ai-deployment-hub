@@ -11,7 +11,7 @@ on:
     paths:
       - 'gitops/**'
   schedule:
-    - cron: '*/30 * * * *'  # Every 30 minutes — drift detection
+    - cron: '*/30 * * * *'  # Every 30 minutes - drift detection
   workflow_dispatch:
     inputs:
       action:
