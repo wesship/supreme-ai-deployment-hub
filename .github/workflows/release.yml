@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0        # semantic-release needs full git history
           persist-credentials: true
-          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN_WRITE || secrets.GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
@@ -59,21 +59,22 @@ jobs:
       - name: Check release prerequisites
         id: prereq
         env:
+          GH_TOKEN_WRITE_VALUE: ${{ secrets.GH_TOKEN_WRITE }}
           GH_PAT_VALUE: ${{ secrets.GH_PAT }}
         run: |
-          if [ -z "${GH_PAT_VALUE}" ]; then
-            echo "::warning::GH_PAT secret is not set - skipping semantic-release to avoid push permission error"
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
+          if [ -n "${GH_TOKEN_WRITE_VALUE}" ] || [ -n "${GH_PAT_VALUE}" ]; then
             echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "::warning::Neither GH_TOKEN_WRITE nor GH_PAT is set - skipping semantic-release to avoid push permission error"
+            echo "skip=true" >> $GITHUB_OUTPUT
           fi
-        # Skip if GH_PAT is not configured
+        # Skip if no write-capable token is configured
 
       - name: Run Semantic Release
         if: steps.prereq.outputs.skip == 'false'
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_WRITE || secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           GIT_AUTHOR_NAME: github-actions[bot]
           GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
