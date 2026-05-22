@@ -5,6 +5,7 @@
     "": {
       "name": "vite_react_shadcn_ts",
       "dependencies": {
+        "@11labs/react": "^0.2.0",
         "@anthropic-ai/sdk": "^0.91.1",
         "@aws-sdk/client-eks": "^3.974.0",
         "@aws-sdk/client-sts": "^3.1024.0",
@@ -126,6 +127,10 @@
     },
   },
   "packages": {
+    "@11labs/client": ["@11labs/client@0.2.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@11labs/client/-/client-0.2.0.tgz", { "dependencies": { "livekit-client": "^2.11.4" } }, "sha512-GBplAV4WDbcoThsIzdSDPN3xbcitK0ZZ4iJfJZKfltqvgvS6Uw8GZxHwVgiPwnQoA3uosYyY3L9TuPwmel18xQ=="],
+
+    "@11labs/react": ["@11labs/react@0.2.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@11labs/react/-/react-0.2.0.tgz", { "dependencies": { "@11labs/client": "^0.2.0" }, "peerDependencies": { "react": ">=16.8.0" } }, "sha512-YxUwMvW4Gjd+WixS3VrKFUv0pkqI6dk/BCvRgkpR8uBr3BwnMMpZv+7Qrp1EeHixv8gEv5TeAuWEfh2lf2Pf1w=="],
+
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "", {}, "sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg=="],
 
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
