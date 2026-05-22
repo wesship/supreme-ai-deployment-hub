@@ -2,12 +2,9 @@
  * runtime-validation/harness/types.ts
  *
  * Shared types for the Devonn.AI Runtime Validation Harness.
- * These types model execution traces, DAG nodes, scenario results,
- * Wave 28 memory continuity structures, Wave 29 failure recovery
- * and replay integrity structures, and Wave 30 governance arbitration
- * and conflict resolution structures.
- * They are intentionally decoupled from production src/ types so the
- * harness can evolve independently of the runtime implementation.
+ * Waves 27-31: execution traces, memory continuity, failure recovery,
+ * governance arbitration, and observability intelligence.
+ * Intentionally decoupled from production src/ types.
  */
 
 // ---------------------------------------------------------------------------
@@ -17,83 +14,79 @@
 export type TraceEventKind =
   | "agent_start"
   | "agent_stop"
-  | "delegation"           // parent agent delegates to child
+  | "delegation"
   | "tool_call"
   | "tool_result"
   | "thought"
   | "observation"
   | "memory_read"
   | "memory_write"
-  | "memory_snapshot"      // Wave 28: point-in-time memory state capture
-  | "memory_restore"       // Wave 28: memory restored from snapshot
-  | "memory_drift"         // Wave 28: divergence detected between expected and actual state
-  | "restart_begin"        // Wave 28: simulated system restart initiated
-  | "restart_complete"     // Wave 28: system resumed after restart
-  | "governance_check"     // policy evaluation
-  | "governance_block"     // policy hard-deny
-  | "governance_escalate"  // policy escalation to human review
+  | "memory_snapshot"
+  | "memory_restore"
+  | "memory_drift"
+  | "restart_begin"
+  | "restart_complete"
+  | "governance_check"
+  | "governance_block"
+  | "governance_escalate"
   | "replay_start"
   | "replay_end"
-  // Wave 29: failure simulation events
-  | "failure_injected"     // a failure was deliberately injected into the execution
-  | "failure_detected"     // the system detected a failure condition
-  | "recovery_begin"       // recovery procedure initiated
-  | "recovery_complete"    // recovery procedure completed successfully
-  | "recovery_failed"      // recovery procedure could not complete
-  | "checkpoint_saved"     // execution checkpoint persisted for replay
-  | "checkpoint_loaded"    // execution checkpoint loaded for replay
-  | "replay_step"          // a single step being replayed from checkpoint
-  | "idempotency_check"    // verifying a step is safe to replay
-  | "idempotency_violation"// a step was replayed but produced different output
-  | "network_partition"    // simulated network partition injected
-  | "network_restored"     // simulated network partition resolved
-  | "causal_link"          // explicit causal dependency between two events
-  // Wave 30: governance arbitration events
-  | "conflict_detected"    // two or more agents have conflicting proposals
-  | "arbitration_begin"    // arbitration engine started evaluating a conflict
-  | "arbitration_decision" // arbitration engine reached a decision
-  | "arbitration_escalate" // arbitration engine could not decide; escalated to human
-  | "policy_precedence"    // a higher-precedence policy overrode a lower one
-  | "forbidden_action"     // an action was suppressed under conflict pressure
-  | "review_token_issued"  // human-review pause token emitted
-  | "review_token_resolved"// human-review pause token resolved
-  | "authority_override"   // a higher-authority agent overrode a lower-authority decision
-  | "tie_break"            // deterministic tie-breaking applied
+  | "failure_injected"
+  | "failure_detected"
+  | "recovery_begin"
+  | "recovery_complete"
+  | "recovery_failed"
+  | "checkpoint_saved"
+  | "checkpoint_loaded"
+  | "replay_step"
+  | "idempotency_check"
+  | "idempotency_violation"
+  | "network_partition"
+  | "network_restored"
+  | "causal_link"
+  | "conflict_detected"
+  | "arbitration_begin"
+  | "arbitration_decision"
+  | "arbitration_escalate"
+  | "policy_precedence"
+  | "forbidden_action"
+  | "review_token_issued"
+  | "review_token_resolved"
+  | "authority_override"
+  | "tie_break"
+  // Wave 31: observability intelligence events
+  | "obs_graph_ingested"      // event batch ingested into the observability graph
+  | "obs_correlation_found"   // cross-wave causal correlation identified
+  | "obs_anomaly_detected"    // anomaly detected in execution pattern
+  | "obs_drift_forecast"      // drift forecast computed
+  | "obs_health_scored"       // system health score computed
+  | "obs_policy_heatmap"      // governance policy activation heatmap updated
+  | "obs_pre_failure_signal"  // pre-failure signal detected
   | "error";
 
 export interface TraceEvent {
-  /** Globally unique event ID (UUID v4) */
   id: string;
-  /** Run-level correlation ID — all events in one scenario share this */
   runId: string;
-  /** Span ID for parent-child causality (OpenTelemetry-compatible) */
   spanId: string;
-  /** Parent span ID — undefined for root events */
   parentSpanId?: string;
-  /** The agent that emitted this event */
   agentId: string;
   kind: TraceEventKind;
-  /** ISO-8601 timestamp */
   timestamp: string;
-  /** Arbitrary payload — tool name, policy name, memory key, etc. */
   payload: Record<string, unknown>;
 }
 
-/** A node in the execution DAG */
 export interface DAGNode {
-  id: string;           // same as TraceEvent.id
+  id: string;
   kind: TraceEventKind;
   agentId: string;
-  label: string;        // human-readable summary
+  label: string;
   children: DAGNode[];
 }
 
-/** The full execution DAG for one scenario run */
 export interface ExecutionDAG {
   runId: string;
   root: DAGNode;
   events: TraceEvent[];
-  /** Wall-clock duration in milliseconds */
   durationMs: number;
 }
 
@@ -114,9 +107,7 @@ export interface ScenarioResult {
   status: ScenarioStatus;
   dag: ExecutionDAG;
   assertions: ScenarioAssertion[];
-  /** Error message if status === "failed" */
   error?: string;
-  /** ISO-8601 timestamp */
   completedAt: string;
 }
 
@@ -124,70 +115,40 @@ export interface ScenarioResult {
 // Wave 28: Memory snapshot & replay types
 // ---------------------------------------------------------------------------
 
-/**
- * A point-in-time snapshot of the memory store and governance state.
- * Captured at defined execution boundaries (e.g., before a restart,
- * after a task completes, at a delegation handoff).
- */
 export interface MemorySnapshot {
-  /** Unique snapshot ID — used to reference this snapshot during restore */
   snapshotId: string;
-  /** The run and span at which this snapshot was taken */
   runId: string;
   spanId: string;
-  /** ISO-8601 timestamp of capture */
   capturedAt: string;
-  /** The agent whose memory is being snapshotted */
   agentId: string;
-  /** Key-value memory entries at the time of snapshot */
   memoryEntries: Record<string, MemorySnapshotEntry>;
-  /** Governance policy state at the time of snapshot */
   governanceState: GovernanceSnapshot;
-  /** Execution step index at the time of snapshot */
   stepIndex: number;
 }
 
 export interface MemorySnapshotEntry {
   key: string;
   content: string;
-  /** Semantic embedding vector (simplified as number array for harness purposes) */
   embedding?: number[];
   writtenAt: string;
   expiresAt?: string;
 }
 
 export interface GovernanceSnapshot {
-  /** Active policy names at the time of snapshot */
   activePolicies: string[];
-  /** Capability set granted to the agent */
   grantedCapabilities: string[];
-  /** Any pending escalations */
   pendingEscalations: string[];
 }
 
-// ---------------------------------------------------------------------------
-// Wave 28: Replay comparison types
-// ---------------------------------------------------------------------------
-
-/**
- * The result of comparing a pre-restart snapshot against a post-restart
- * reconstructed state. Used by the MemoryReplayValidator.
- */
 export interface ReplayComparison {
   snapshotId: string;
   runId: string;
   agentId: string;
-  /** Whether all memory entries were fully recovered */
   memoryFullyRecovered: boolean;
-  /** Whether governance state was preserved */
   governanceStatePreserved: boolean;
-  /** Keys that were present in snapshot but missing after restore */
   missingKeys: string[];
-  /** Keys that were present after restore but not in snapshot (unexpected) */
   unexpectedKeys: string[];
-  /** Keys whose content diverged between snapshot and restored state */
   divergedKeys: DriftRecord[];
-  /** Overall drift score: 0.0 (identical) to 1.0 (completely diverged) */
   driftScore: number;
 }
 
@@ -195,7 +156,6 @@ export interface DriftRecord {
   key: string;
   expected: string;
   actual: string;
-  /** Cosine similarity between expected and actual embeddings (if available) */
   embeddingSimilarity?: number;
 }
 
@@ -203,95 +163,54 @@ export interface DriftRecord {
 // Wave 29: Failure simulation types
 // ---------------------------------------------------------------------------
 
-/**
- * Describes a failure mode that can be injected into an execution scenario.
- * The harness uses these to simulate crash, network, and resource failures
- * without requiring a live infrastructure.
- */
 export type FailureMode =
-  | "process_crash"        // agent process terminated abruptly
-  | "network_partition"    // agent cannot reach external services
-  | "memory_corruption"    // memory store returns corrupted/stale data
-  | "tool_timeout"         // a tool call exceeds its deadline
-  | "governance_deadlock"  // two governance policies conflict and block progress
-  | "partial_write"        // memory write interrupted mid-operation
-  | "replay_corruption";   // checkpoint data is partially corrupted
+  | "process_crash"
+  | "network_partition"
+  | "memory_corruption"
+  | "tool_timeout"
+  | "governance_deadlock"
+  | "partial_write"
+  | "replay_corruption";
 
 export interface FailureSpec {
-  /** Unique ID for this failure injection */
   failureId: string;
   mode: FailureMode;
-  /** The agent or component targeted by this failure */
   targetAgent: string;
-  /**
-   * The step index at which the failure should be injected.
-   * 0 = before any steps; -1 = at the last step.
-   */
   injectAtStep: number;
-  /** Human-readable description of what this failure simulates */
   description: string;
-  /** Whether the system is expected to recover from this failure */
   expectedRecoverable: boolean;
 }
 
 export interface FailureInjectionResult {
   failureId: string;
   mode: FailureMode;
-  injectedAt: string;  // ISO-8601 timestamp
-  detectedAt?: string; // ISO-8601 timestamp when system detected the failure
-  /** Whether the system successfully recovered */
+  injectedAt: string;
+  detectedAt?: string;
   recovered: boolean;
-  /** Steps taken during recovery */
   recoverySteps: string[];
-  /** The trace events emitted during the failure and recovery window */
   failureWindow: TraceEvent[];
 }
 
-// ---------------------------------------------------------------------------
-// Wave 29: Execution checkpoint types
-// ---------------------------------------------------------------------------
-
-/**
- * A checkpoint captures the full execution state at a specific step,
- * enabling deterministic replay from that point.
- */
 export interface ExecutionCheckpoint {
   checkpointId: string;
   runId: string;
   spanId: string;
-  /** The step index at which this checkpoint was saved */
   stepIndex: number;
   capturedAt: string;
   agentId: string;
-  /** All trace events up to and including this checkpoint */
   traceHistory: TraceEvent[];
-  /** Memory state at checkpoint time */
   memoryState: Record<string, string>;
-  /** Governance state at checkpoint time */
   governanceState: GovernanceSnapshot;
-  /** Whether this checkpoint was created before a failure injection */
   preFailure: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Wave 29: Replay idempotency types
-// ---------------------------------------------------------------------------
-
-/**
- * The result of replaying a step from a checkpoint.
- * Idempotent steps must produce identical outputs on replay.
- */
 export interface ReplayStepResult {
   stepIndex: number;
   eventKind: TraceEventKind;
   agentId: string;
-  /** Output produced during the original execution */
   originalOutput: Record<string, unknown>;
-  /** Output produced during the replay */
   replayOutput: Record<string, unknown>;
-  /** Whether the outputs are identical */
   isIdempotent: boolean;
-  /** Specific fields that diverged between original and replay */
   divergedFields: string[];
 }
 
@@ -301,49 +220,28 @@ export interface ReplayIntegrityReport {
   totalStepsReplayed: number;
   idempotentSteps: number;
   nonIdempotentSteps: number;
-  /** Step results for any steps that failed idempotency */
   violations: ReplayStepResult[];
-  /** Overall pass/fail */
   passed: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Wave 29: Causal graph types
-// ---------------------------------------------------------------------------
-
-/**
- * A causal link records an explicit "A caused B" relationship between
- * two trace events. The causal graph is built by traversing these links.
- */
 export interface CausalLink {
   causeEventId: string;
   effectEventId: string;
-  /** Human-readable description of the causal relationship */
   reason: string;
 }
 
-/**
- * The causal graph for a single run, derived from trace events and
- * explicit causal links. Used to verify that failure injection does not
- * corrupt the causal chain (i.e., effects still trace back to root causes).
- */
 export interface CausalGraph {
   runId: string;
   nodes: Map<string, TraceEvent>;
   links: CausalLink[];
-  /** Root event IDs (events with no incoming causal links) */
   roots: string[];
 }
 
 export interface CausalIntegrityResult {
   runId: string;
-  /** Whether every non-root event has at least one causal predecessor */
   allEventsHaveCause: boolean;
-  /** Whether the graph is acyclic (no causal loops) */
   isAcyclic: boolean;
-  /** Event IDs that are unreachable from any root */
   orphanedEvents: string[];
-  /** Event IDs that participate in a causal cycle */
   cyclicEvents: string[];
   passed: boolean;
 }
@@ -352,177 +250,261 @@ export interface CausalIntegrityResult {
 // Wave 30: Conflict taxonomy types
 // ---------------------------------------------------------------------------
 
-/**
- * The three classes of conflict that can occur between agents.
- *
- * - soft:       Preference mismatch — both actions are valid but incompatible
- *               (e.g., agent A wants to scale up, agent B wants to scale down).
- * - hard:       Policy violation — at least one action violates a governance rule
- *               (e.g., an agent attempts to write to a locked environment).
- * - structural: Mutually exclusive actions — executing both would corrupt state
- *               (e.g., two agents attempting to claim the same exclusive resource).
- */
 export type ConflictClass = "soft" | "hard" | "structural";
 
-/**
- * A proposal submitted by an agent to the arbitration engine.
- * The engine evaluates all proposals in a conflict set together.
- */
 export interface AgentProposal {
   proposalId: string;
   agentId: string;
-  /** The action the agent wants to take */
   action: string;
-  /** The resource or target the action applies to */
   resource: string;
-  /** ISO-8601 timestamp of proposal submission */
   submittedAt: string;
-  /** Priority weight of the proposing agent (higher = more authority) */
   priorityWeight: number;
-  /** Arbitrary metadata about the proposal */
   metadata: Record<string, unknown>;
 }
 
-/**
- * A conflict set is a group of proposals that cannot all be executed.
- * The arbitration engine receives a conflict set and produces a decision.
- */
 export interface ConflictSet {
   conflictId: string;
   runId: string;
   conflictClass: ConflictClass;
   proposals: AgentProposal[];
-  /** The policy rules that were triggered by this conflict */
   triggeredPolicies: string[];
   detectedAt: string;
 }
 
-// ---------------------------------------------------------------------------
-// Wave 30: Policy resolution types
-// ---------------------------------------------------------------------------
-
-/**
- * A policy rule in the resolution graph.
- * Rules are evaluated in precedence order (highest first).
- */
 export interface PolicyRule {
   ruleId: string;
-  /** Human-readable name */
   name: string;
-  /** Higher number = evaluated first */
   precedence: number;
-  /** The action pattern this rule applies to (exact match or glob) */
   actionPattern: string;
-  /** The decision this rule enforces */
   decision: "allow" | "deny" | "escalate";
-  /** Whether this rule can be overridden by a higher-authority agent */
   overridable: boolean;
-  /** The minimum authority level required to override this rule */
   overrideRequiresAuthority?: number;
   reason: string;
 }
 
-/**
- * The authority hierarchy for agents.
- * Higher level = more authority.
- */
 export interface AgentAuthority {
   agentId: string;
-  /** Authority level (e.g., 1=executor, 2=planner, 3=auditor, 4=governance) */
   authorityLevel: number;
-  /** Roles granted to this agent */
   roles: string[];
-  /** Whether this agent can issue review tokens */
   canIssueReviewTokens: boolean;
 }
 
-/**
- * The result of evaluating a conflict set against the policy resolution graph.
- */
 export interface PolicyResolutionResult {
   conflictId: string;
   runId: string;
-  /** The rule that was applied to resolve the conflict */
   appliedRule?: PolicyRule;
-  /** The final decision */
   decision: "allow_winner" | "deny_all" | "escalate" | "tie_break";
-  /** The winning proposal (if decision is allow_winner or tie_break) */
   winnerProposalId?: string;
-  /** The agent that won (if applicable) */
   winnerAgentId?: string;
-  /** Whether a review token was issued */
   reviewTokenIssued: boolean;
   reviewTokenId?: string;
-  /** Human-readable explanation of the decision */
   explanation: string;
-  /** Whether the decision is deterministic (same inputs always produce same output) */
   isDeterministic: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Wave 30: Arbitration decision trace types
-// ---------------------------------------------------------------------------
-
-/**
- * A complete record of one arbitration decision, including all inputs,
- * the rule evaluation path, and the final outcome.
- * Used by the DecisionTraceValidator to verify reproducibility.
- */
 export interface ArbitrationDecisionTrace {
   decisionId: string;
   conflictId: string;
   runId: string;
-  /** All proposals evaluated */
   proposals: AgentProposal[];
-  /** The policy rules evaluated, in order */
   rulesEvaluated: Array<{ rule: PolicyRule; matched: boolean }>;
-  /** The final resolution result */
   resolution: PolicyResolutionResult;
-  /** Trace events emitted during arbitration */
   traceEvents: TraceEvent[];
   decidedAt: string;
 }
 
-/**
- * The result of validating an arbitration decision for reproducibility
- * and absence of hidden state influence.
- */
 export interface DecisionValidationResult {
   decisionId: string;
-  /** Whether replaying the same inputs produces the same decision */
   isReproducible: boolean;
-  /** Whether the decision is fully explained by the rule evaluation path */
   isExplainable: boolean;
-  /** Whether any hidden state (e.g., mutable globals) influenced the decision */
   hasHiddenStateInfluence: boolean;
-  /** Whether the decision respects the authority hierarchy */
   respectsAuthorityHierarchy: boolean;
-  /** Whether forbidden actions were correctly suppressed under conflict pressure */
   forbiddenActionsSuppressed: boolean;
-  /** Any violations found during validation */
   violations: string[];
   passed: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// Wave 30: Conflict injection types
-// ---------------------------------------------------------------------------
-
-/**
- * A conflict scenario specification used by the ConflictGenerator.
- */
 export interface ConflictScenario {
   scenarioId: string;
   description: string;
   conflictClass: ConflictClass;
-  /** The proposals to inject */
   proposals: Array<Omit<AgentProposal, "proposalId" | "submittedAt">>;
-  /** The policies that should be active during this scenario */
   activePolicies: string[];
-  /** The expected arbitration outcome */
   expectedDecision: PolicyResolutionResult["decision"];
-  /** Whether the scenario should trigger a review token */
   expectsReviewToken: boolean;
-  /** Whether the scenario should trigger an authority override */
   expectsAuthorityOverride: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Wave 31: Observability intelligence types
+// ---------------------------------------------------------------------------
+
+/**
+ * The wave source of a trace event — used by the ObservabilityGraph to
+ * partition events by their originating harness wave for cross-wave correlation.
+ */
+export type WaveSource = "wave-27" | "wave-28" | "wave-29" | "wave-30" | "wave-31" | "unknown";
+
+/**
+ * An enriched event node in the ObservabilityGraph.
+ * Wraps a TraceEvent with wave attribution, ingestion metadata, and
+ * pre-computed behavioral signals.
+ */
+export interface ObsGraphNode {
+  /** The original trace event */
+  event: TraceEvent;
+  /** Which harness wave produced this event */
+  waveSource: WaveSource;
+  /** ISO-8601 timestamp when this node was ingested into the graph */
+  ingestedAt: string;
+  /** Behavioral signal tags derived from the event kind and payload */
+  signals: ObsSignal[];
+}
+
+/**
+ * A behavioral signal derived from a trace event.
+ * Signals are the atomic unit of observability intelligence.
+ */
+export type ObsSignalKind =
+  | "governance_trigger"    // an arbitration or governance event occurred
+  | "failure_event"         // a failure was injected or detected
+  | "recovery_event"        // a recovery procedure was initiated or completed
+  | "memory_event"          // a memory read/write/snapshot/restore occurred
+  | "authority_event"       // an authority override or tie-break occurred
+  | "escalation_event"      // a review token was issued
+  | "anomaly_candidate"     // event pattern suggests potential anomaly
+  | "pre_failure_signal";   // event pattern suggests impending failure
+
+export interface ObsSignal {
+  kind: ObsSignalKind;
+  confidence: number;  // 0.0 to 1.0
+  detail: string;
+}
+
+/**
+ * A cross-wave causal correlation: a link between events from different
+ * harness waves that share a causal relationship.
+ */
+export interface CrossWaveCorrelation {
+  correlationId: string;
+  /** The earlier event (cause) */
+  sourceEvent: ObsGraphNode;
+  /** The later event (effect) */
+  targetEvent: ObsGraphNode;
+  /** The waves involved */
+  sourceWave: WaveSource;
+  targetWave: WaveSource;
+  /** The causal relationship type */
+  correlationType:
+    | "governance_to_recovery"    // a governance block caused a recovery
+    | "failure_to_arbitration"    // a failure triggered an arbitration
+    | "memory_drift_to_conflict"  // memory drift preceded a conflict
+    | "escalation_to_failure"     // an escalation preceded a failure
+    | "recovery_to_governance"    // a recovery triggered a governance check
+    | "pattern_repeat";           // the same event pattern repeated across waves
+  confidence: number;
+  detectedAt: string;
+}
+
+/**
+ * Governance telemetry aggregated over a time window.
+ */
+export interface GovernanceTelemetry {
+  windowStart: string;
+  windowEnd: string;
+  /** Total number of arbitration events in the window */
+  totalArbitrations: number;
+  /** Breakdown by decision type */
+  decisionBreakdown: Record<PolicyResolutionResult["decision"], number>;
+  /** Policy activation frequency: ruleId -> count */
+  policyActivationFrequency: Record<string, number>;
+  /** Number of override attempts (authority_override events) */
+  overrideAttempts: number;
+  /** Number of review tokens issued */
+  reviewTokensIssued: number;
+  /** Number of forbidden actions suppressed */
+  forbiddenActionsSuppressed: number;
+  /** The most frequently triggered policy rule ID */
+  dominantPolicy?: string;
+  /** Conflict frequency: conflictClass -> count */
+  conflictFrequency: Record<ConflictClass, number>;
+}
+
+/**
+ * A temporal event cluster: a group of events that occurred within a
+ * short time window and are likely causally related.
+ */
+export interface TemporalCluster {
+  clusterId: string;
+  /** Events in this cluster, sorted by timestamp */
+  events: ObsGraphNode[];
+  /** The time window of this cluster in milliseconds */
+  windowMs: number;
+  /** Whether this cluster contains a cross-wave correlation */
+  hasCrossWaveCorrelation: boolean;
+  /** The dominant signal kind in this cluster */
+  dominantSignal?: ObsSignalKind;
+}
+
+/**
+ * An anomaly detected in the execution pattern.
+ */
+export interface ObsAnomaly {
+  anomalyId: string;
+  detectedAt: string;
+  /** The events that triggered anomaly detection */
+  triggeringEvents: ObsGraphNode[];
+  /** The anomaly type */
+  anomalyType:
+    | "governance_spike"          // unusual spike in governance events
+    | "failure_cluster"           // multiple failures in a short window
+    | "authority_escalation_loop" // repeated escalations without resolution
+    | "memory_drift_acceleration" // drift rate increasing over time
+    | "recovery_failure_rate";    // recovery procedures failing repeatedly
+  severity: "low" | "medium" | "high" | "critical";
+  description: string;
+  /** Whether this anomaly is a pre-failure signal */
+  isPreFailureSignal: boolean;
+}
+
+/**
+ * A system health score computed over a time window.
+ * Score ranges from 0.0 (completely unhealthy) to 1.0 (fully healthy).
+ */
+export interface SystemHealthScore {
+  computedAt: string;
+  windowMs: number;
+  /** Overall health score */
+  score: number;
+  /** Component scores */
+  components: {
+    executionHealth: number;    // based on failure rate and recovery success
+    memoryHealth: number;       // based on drift rate and recovery completeness
+    governanceHealth: number;   // based on conflict rate and escalation frequency
+    recoveryHealth: number;     // based on recovery success rate
+    authorityHealth: number;    // based on override attempts and hierarchy violations
+  };
+  /** Active anomalies that contributed to score reduction */
+  activeAnomalies: ObsAnomaly[];
+  /** Trend: is health improving, stable, or degrading? */
+  trend: "improving" | "stable" | "degrading";
+  /** Forecast: predicted health score in the next window */
+  forecastScore?: number;
+}
+
+/**
+ * A drift forecast: predicted drift rate based on historical patterns.
+ */
+export interface DriftForecast {
+  forecastId: string;
+  computedAt: string;
+  /** Historical drift observations used to compute the forecast */
+  historicalDriftScores: number[];
+  /** Predicted drift score for the next window */
+  predictedDriftScore: number;
+  /** Confidence in the prediction (0.0 to 1.0) */
+  confidence: number;
+  /** Whether the predicted drift exceeds the alert threshold */
+  exceedsAlertThreshold: boolean;
+  alertThreshold: number;
 }
