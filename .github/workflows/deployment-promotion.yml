@@ -61,8 +61,8 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Build for development
-        run: npm run build --if-present
-        continue-on-error: true
+        run: npm run build
+
 
       - name: Record deployment SHA
         id: sha
