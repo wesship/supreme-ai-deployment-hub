@@ -42,9 +42,9 @@ lerna-debug.log*
 *.sw?
 
 # Infrastructure and deployment
-infrastructure/
-deployment/
-terraform/
+/infrastructure/
+/deployment/
+/terraform/
 *.tfstate
 *.tfstate.*
 .terraform/
