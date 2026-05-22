@@ -127,23 +127,26 @@ jobs:
 
       - name: Run staging smoke tests
         run: |
+          set -euo pipefail
           STAGING_URL="${STAGING_URL:-https://staging.devonn.ai}"
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STAGING_URL/health" 2>/dev/null || echo "000")
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STAGING_URL/health" || echo "000")
           echo "Staging health check: HTTP $HTTP_STATUS"
-          # Staging tests are stricter - fail on non-2xx
-          if [[ "$HTTP_STATUS" =~ ^2 ]] || [ "$HTTP_STATUS" = "000" ]; then
+          if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
             echo "Staging smoke tests passed"
           else
-            echo "::error::Staging smoke test failed - HTTP $HTTP_STATUS"
+            echo "::error::Staging smoke test FAILED — HTTP $HTTP_STATUS (000 = connect failure)"
             exit 1
           fi
-        continue-on-error: true
 
       - name: Run staging integration tests
         run: |
-          echo "Running integration tests against staging..."
-          npm run test:integration --if-present || echo "::warning::No integration test script found"
-        continue-on-error: true
+          set -euo pipefail
+          if npm run | grep -q "test:integration"; then
+            npm run test:integration
+          else
+            echo "::warning::No test:integration script defined — skipping"
+          fi
+
 
   # ── Gate 3: Canary Deployment (10% traffic) ───────────────────────────────
   deploy-canary:
