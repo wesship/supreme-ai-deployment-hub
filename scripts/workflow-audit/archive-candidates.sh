@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Generate archive-candidate list: stale + duplicate + zero-run workflows
 # READ-ONLY. Output: reports/archive-candidates.md (review before any deletion)
-set -euo pipefail
+set -uo pipefail
 cd "$(dirname "$0")/../.."
 OUT="scripts/workflow-audit/reports/archive-candidates.md"
 R="scripts/workflow-audit/reports"

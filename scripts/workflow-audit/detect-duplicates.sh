@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Detect duplicate / near-duplicate workflows by job signature
 # Safe / read-only. Output: reports/duplicates.txt
-set -euo pipefail
+set -uo pipefail
 cd "$(dirname "$0")/../.."
 OUT="scripts/workflow-audit/reports/duplicates.txt"
 TMP=$(mktemp -d)

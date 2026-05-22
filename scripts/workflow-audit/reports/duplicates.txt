@@ -1,12 +1,3 @@
-# Workflow Archive Candidates
-_Generated: 2026-05-22T14:04:56Z_
-
-**Review every entry before archiving. Do NOT delete pre-lock — only move to `.github/workflows/archive/` after `v1.0-prod-lock` is tagged.**
-
-## 1. Stale (>90 days since last run / never ran)
-_run stale-workflows.sh first_
-
-## 2. Duplicate signatures
 ── Duplicate / near-duplicate workflow signatures ──
 
 Signature d5d4f22da1b4748f6bc3039c4c817a1ac9631b1264ad01c8a5d87867c4868161 matched 17 workflows:
@@ -88,6 +79,3 @@ Signature 13f7156b0e112d5b553d699fb6e5dcedc3fcfc6ecbc45a7ec5ac2ca7fa55def9 match
   - cosign-sign-verify.yml
   - trusted-build.yml
 
-
-## 3. High-risk (score >= 5)
-- `deployment-promotion.yml`  ·  score 5  ·   broad-perms; workflow_run;
