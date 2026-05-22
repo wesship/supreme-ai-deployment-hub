@@ -109,8 +109,10 @@ jobs:
 
       - name: Generate GitHub SBOM attestation
         uses: actions/attest-sbom@bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b  # v2
+        continue-on-error: true  # attestation is best-effort; do not block SBOM generation
         with:
-          subject-path: '.'
+          # Attest only the SBOM file itself, not the entire repo (which exceeds the 1024-subject limit)
+          subject-path: ${{ steps.sbom.outputs.cyclonedx-file }}
           sbom-path: ${{ steps.sbom.outputs.cyclonedx-file }}
 
   dependency-audit:

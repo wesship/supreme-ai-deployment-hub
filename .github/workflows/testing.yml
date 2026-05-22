@@ -60,7 +60,7 @@ jobs:
         continue-on-error: true
 
       - name: Run Snyk scan
-        uses: snyk/actions/node@master
+        uses: snyk/actions/node@9cf6ca713d71123d2d229cc3d7f145b96ea3c518  # master
         continue-on-error: true
         with:
           args: --severity-threshold=high
