@@ -2,15 +2,15 @@ name: devonn-staging
 
 # Root staging foundation.
 #
-# This file defines the target runtime topology. The app services use
-# ./services/* build contexts, which should be populated by the extraction PR.
-# Until then, run only the infra profile:
+# Cut 1 wires frontend and API as service adapters while preserving the
+# current repo layout. The Docker build context stays at repo root and each
+# service uses its own Dockerfile under services/*.
 #
-#   docker compose up postgres redis qdrant
+# Core app validation:
 #
-# After services are extracted:
-#
-#   docker compose --profile app up --build
+#   docker compose --profile app up --build frontend api postgres redis qdrant
+#   curl -f http://localhost:8000/health
+#   curl -f http://localhost:8000/ready
 
 services:
   postgres:
@@ -50,10 +50,15 @@ services:
 
   api:
     build:
-      context: ./services/api
+      context: .
+      dockerfile: services/api/Dockerfile
     profiles: ["app"]
     env_file:
       - .env.staging.local
+    environment:
+      ENVIRONMENT: staging
+      AUTONOMY_MODE: guarded
+      EXECUTION_MODE: dry-run
     ports:
       - "8000:8000"
     depends_on:
@@ -91,10 +96,14 @@ services:
 
   frontend:
     build:
-      context: ./services/frontend
+      context: .
+      dockerfile: services/frontend/Dockerfile
     profiles: ["app"]
     env_file:
       - .env.staging.local
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+      VITE_ORCHESTRATOR_URL: ${VITE_ORCHESTRATOR_URL:-http://localhost:7373}
     ports:
       - "5173:5173"
     depends_on:
