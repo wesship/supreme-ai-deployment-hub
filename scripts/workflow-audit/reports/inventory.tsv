@@ -1,0 +1,107 @@
+file	triggers	jobs	schedule	permissions	size_bytes
+ab-testing.yml	action,control_model,default,description,experiment_id,inputs,options,required,schedule,traffic_split_pct,treatment_model,type,workflow_dispatch	2	0 */6 * * *  # Every 6 hours — evaluate running experiments	permissions:	9560
+accessibility.yml	branches,pull_request,push	2			3855
+ai-agent-observability.yml	branches,paths,push,schedule,workflow_dispatch	1	0 */6 * * *   # Every 6 hours	permissions:	8677
+ai-model-governance.yml	action,branches,description,inputs,model_id,options,paths,pull_request,push,required,schedule,type,workflow_dispatch	3	0 8 * * *  # Daily model health check	permissions:	10098
+ai-model-pipeline.yml	branches,default,description,inputs,model,paths,pull_request,push,required,workflow_dispatch	2			5181
+ai-safety-guardrails.yml	branches,paths,pull_request,push,schedule,workflow_dispatch	3	0 2 * * *  # Daily 02:00 UTC — safety regression sweep	permissions:	14096
+api-contract-testing.yml	branches,default,description,environment,inputs,options,paths,pull_request,push,required,schedule,type,workflow_dispatch	3	0 */6 * * *  # Every 6 hours against staging	permissions:	6068
+artifact-provenance.yml	branches,push,release,tags,types,workflow_dispatch	2		permissions:	4404
+auto-dependency-upgrade.yml	default,description,inputs,options,required,schedule,type,upgrade_type,workflow_dispatch	2	0 3 * * 2   # Weekly Tuesday 03:00 UTC	permissions:	6879
+auto-fix.yml	default,description,dry_run,inputs,required,type,workflow_dispatch	1	0 */6 * * *   # every 6 hours (was: every hour - too aggressive)		1719
+auto-merge-snyk.yml	pull_request,types	1		permissions:	2225
+auto-merge.yml	check_suite,pull_request,types	1			1083
+autonomous-remediation.yml	affected_service,auto_rollback,default,description,inputs,options,required,schedule,severity,trigger_type,type,workflow_call,workflow_dispatch	6	*/15 * * * *  # Health check every 15 minutes	permissions:	14805
+azure-container-apps-deploy.yml	branches,default,deploy_region,description,environment,inputs,options,pull_request,push,required,type,workflow_dispatch	3		permissions:	15588
+billing-reconciliation.yml	alert_threshold_pct,default,description,inputs,options,period,required,schedule,type,workflow_dispatch	1	0 10 * * 1   # Weekly Monday 10:00 UTC	permissions:	8418
+build.yml	branches,pull_request,push,workflow_dispatch	4			5225
+bundle-size.yml	branches,pull_request	1			4484
+chaos-engineering.yml	chaos_type,default,description,duration_seconds,inputs,options,required,schedule,target_environment,type,workflow_dispatch	4	0 10 * * 3  # Weekly Wednesday 10:00 UTC (mid-week, low-traffic)	permissions:	15650
+ci-analytics.yml	schedule,types,workflow_dispatch,workflow_run,workflows	1	0 6 * * *  # Daily digest at 6am UTC	permissions:	6898
+ci-auth-debugger.yml	branches,paths,pull_request,workflow_dispatch	1			2431
+ci-baseline-metrics.yml	branches,push,schedule,workflow_dispatch	1	0 0 * * *  # Daily at midnight	permissions:	6087
+code-quality-gates.yml	branches,pull_request,push	4		permissions:	7928
+codeql.yml	branches,pull_request,push,schedule	1	0 8 * * 1		3603
+commitlint.yml	branches,pull_request	1			1398
+compliance-audit-export.yml	branches,default,description,export_type,inputs,options,push,required,schedule,tags,type,workflow_dispatch	1	0 0 1 * *  # Monthly on the 1st at 00:00 UTC	permissions:	13675
+container-hardening.yml	branches,paths,pull_request,push,schedule,workflow_dispatch	2	0 5 * * 1  # Weekly Monday 05:00 UTC	permissions:	5244
+cosign-sign-verify.yml	branches,paths,pull_request,push,tags,workflow_dispatch	2		permissions:	7327
+cost-attribution.yml	default,description,inputs,options,period,required,schedule,type,workflow_dispatch	3	0 8 * * 1   # Weekly Monday 08:00 UTC	permissions:	13258
+cost-optimization.yml	paths,pull_request,schedule,workflow_dispatch	2	0 9 * * 1		5005
+coverage-enforcement.yml	branches,pull_request,push,schedule	4	0 3 * * 1   # Weekly mutation baseline on Monday	permissions:	6999
+coverage.yml	branches,pull_request,push	1			3768
+create-project-board.yml	workflow_dispatch	1		permissions:	1978
+dependabot-auto-merge-guard.yml	pull_request_target,types	1		permissions:	2785
+dependency-auto-fix.yml	default,description,inputs,options,required,schedule,severity,type,workflow_dispatch	1	0 3 * * 1  # Every Monday at 3am UTC	permissions:	4853
+dependency-review.yml	paths,pull_request	1		permissions:	1304
+deploy-and-publish.yml	branches,push,workflow_dispatch	1		permissions:	4743
+deploy.yml	branches,default,description,environment,inputs,options,push,required,type,workflow_dispatch	2			4174
+deployment-promotion.yml	branches,description,environment,inputs,options,required,type,types,workflow_dispatch,workflow_run,workflows	4		permissions:	9115
+developer-onboarding.yml	branches,description,inputs,issues,paths,pull_request,push,required,service_name,type,types,workflow_dispatch	3		permissions:	6986
+devonn-deploy.yml	branches,push	1			1090
+disaster-recovery-drill.yml	default,description,drill_type,dry_run,inputs,required,schedule,workflow_dispatch	5	0 2 1 * *   # Monthly on the 1st at 2am UTC	permissions:	9141
+dora-metrics.yml	branches,default,description,inputs,period_days,push,required,schedule,workflow_dispatch	1	0 8 * * 1   # Weekly Monday 08:00 UTC	permissions:	10510
+e2e-smoke-tests.yml	branches,default,description,environment,inputs,options,push,required,schedule,type,workflow_dispatch	1	*/15 * * * *  # Every 15 minutes	permissions:	6119
+e2e.yml	branches,pull_request,push	1			2351
+ebpf-telemetry.yml	branches,default,description,inputs,options,paths,pull_request,push,required,schedule,telemetry_mode,type,workflow_dispatch	1	0 7 * * 1  # Weekly Monday 07:00 UTC	permissions:	8279
+edge-functions-typecheck.yml	paths,pull_request,push	1			1849
+eks-deploy-oidc.yml	branches,paths,push,workflow_dispatch	3		permissions:	4105
+falco-runtime-detection.yml	branches,paths,pull_request,push,schedule,workflow_dispatch	2	0 8 * * 1  # Weekly Monday 08:00 UTC	permissions:	9468
+feature-flags-db-safety.yml	branches,paths,pull_request,push,workflow_dispatch	3		permissions:	9842
+final-green-check.yml	branches,pull_request,workflow_dispatch	1			1692
+gitops-reconciliation.yml	action,branches,default,description,inputs,options,paths,pull_request,push,required,schedule,type,workflow_dispatch	3	*/30 * * * *  # Every 30 minutes — drift detection	permissions:	7463
+governance-drift.yml	branches,pull_request,push	1			2890
+hermes-gate.yml	branches,pull_request,push	1			2509
+hermes-v3-gate.yml	branches,pull_request,push	1		permissions:	1937
+iac-drift-detection.yml	branches,paths,push,schedule,workflow_dispatch	1	0 6 * * *   # Daily at 6am UTC		4724
+incident-response.yml	default,description,incident_description,incident_severity,inputs,required,schedule,workflow_dispatch	3	*/5 * * * *   # Every 5 minutes for SLO monitoring	permissions:	8582
+infrastructure-ci-cd.yml	branches,default,deployment_strategy,description,environment,inputs,options,paths,pull_request,push,required,type,workflow_dispatch	4			17112
+issue-tracker-sync.yml	default,description,inputs,issues,required,severity,source,title,types,workflow_dispatch,workflow_run,workflows	2		permissions:	10071
+issue-trigger.yml	issues,types	1			2454
+kyverno-admission.yml	branches,paths,pull_request,push,schedule,workflow_dispatch	2	0 6 * * 1  # Weekly Monday 06:00 UTC	permissions:	9820
+lighthouse.yml	branches,pull_request,push	1			2170
+llm-cost-governance.yml	branches,default,description,inputs,options,paths,push,report_period,required,schedule,type,workflow_dispatch	2	0 6 * * *    # Daily 06:00 UTC — cost report	permissions:	9833
+load-test.yml	base_url,branches,default,description,inputs,required,scenario,types,workflow_dispatch,workflow_run,workflows	1			2213
+lockfile-integrity.yml	branches,paths,pull_request,push	1		permissions:	1727
+metrics-export.yml	branches,push,schedule,workflow_dispatch	1	*/15 * * * *   # Every 15 minutes	permissions:	10380
+ml-anomaly-detection.yml	branches,default,description,inputs,mode,options,paths,push,required,schedule,type,workflow_dispatch	3	0 */2 * * *  # Every 2 hours — continuous baseline monitoring	permissions:	9318
+multi-cloud-cost-arbitrage.yml	analysis_depth,default,description,inputs,required,schedule,workflow_dispatch	1	0 6 * * 1   # Every Monday at 06:00 UTC	permissions:	8801
+multi-env-promotion.yml	branches,default,description,image_tag,inputs,options,push,required,skip_smoke,tags,target_env,type,workflow_dispatch	5		permissions:	9979
+multi-region-failover.yml	default,description,inputs,required,schedule,target_region,trigger_failover,workflow_dispatch	4	0 */6 * * *   # Every 6 hours	permissions:	8378
+mutation-tests.yml	schedule,workflow_dispatch	2	0 4 * * 1   # Every Monday at 4 AM UTC		2084
+notifications.yml	branches,default,description,inputs,message,pull_request,push,required,severity,tags,types,workflow_dispatch,workflow_run,workflows	2		permissions:	7851
+observability.yml	branches,correlation_id,description,inputs,paths,push,required,type,types,workflow_dispatch,workflow_run,workflows	3		permissions:	11873
+oidc-deploy.yml	description,environment,inputs,options,provider,required,type,workflow_dispatch	4		permissions:	7605
+performance-regression.yml	branches,pull_request,push,schedule,workflow_dispatch	3	0 4 * * *  # Daily 04:00 UTC — nightly performance baseline	permissions:	8649
+platform-control-plane.yml	command,confirm,default,description,inputs,options,required,rollback_version,target,type,workflow_dispatch	1		permissions:	13958
+platform-graduation.yml	branches,push,schedule,workflow_dispatch	3	0 6 * * 1   # Weekly Monday morning report	permissions:	15129
+platform-health-dashboard.yml	branches,paths,push,schedule,workflow_dispatch	2	*/15 * * * *  # Every 15 minutes — live health monitoring	permissions:	13128
+policy-as-code.yml	branches,paths,pull_request,push,schedule,workflow_dispatch	2	0 4 * * 1  # Weekly Monday 04:00 UTC	permissions:	7333
+pr-automation.yml	issues,pull_request,schedule,types	4	0 9 * * 1   # Weekly stale PR cleanup on Monday	permissions:	9501
+predictive-failure-detection.yml	branches,pull_request,push,workflow_dispatch	1		permissions:	8391
+promotion.yml	branches,description,inputs,options,push,required,target_env,type,workflow_dispatch	3			9285
+release-notes.yml	default,description,inputs,push,required,tags,version,workflow_dispatch	1		permissions:	7056
+release.yml	branches,push	2		permissions:	4085
+reproducible-builds.yml	branches,paths,pull_request,push,schedule,tags,workflow_dispatch	3	0 6 * * 1  # Weekly Monday 06:00 UTC	permissions:	8332
+reusable-node-setup.yml	default,description,inputs,outputs,type,value,workflow_call	1			2260
+sbom-generation.yml	branches,push,release,schedule,tags,types,workflow_dispatch	2	0 3 * * 1	permissions:	5560
+sbom.yml	branches,push,schedule,workflow_dispatch	4	0 6 * * 1   # Weekly Monday 6 AM UTC		4908
+secrets-elimination.yml	branches,pull_request,push,schedule,workflow_dispatch	3	0 7 * * *  # Daily 07:00 UTC	permissions:	8862
+security-hardening.yml	branches,pull_request,push,schedule,workflow_dispatch	4	0 2 * * 0	permissions:	6164
+self-documenting-platform.yml	branches,paths,push,schedule,workflow_dispatch	1	0 2 * * 1  # Weekly Monday at 2am UTC	permissions:	10639
+self-healing-v2.yml	default,description,healing_mode,inputs,required,schedule,workflow_dispatch	1	*/30 * * * *   # Every 30 minutes	permissions:	11532
+sla-reporting.yml	description,inputs,month,required,schedule,workflow_dispatch	1	0 9 1 * *   # Monthly on the 1st at 09:00 UTC	permissions:	9845
+stale-pr-cleanup.yml	schedule,workflow_dispatch	1	0 9 * * *		2146
+supabase-edge-functions.yml	branches,paths,pull_request,push	2			3902
+terraform-aws.yml	workflow_dispatch	1		permissions:	714
+terraform.yml	branches,default,description,destroy,environment,inputs,options,pull_request,push,required,type,workflow_dispatch	3		permissions:	17636
+testing.yml	branches,pull_request,push,workflow_dispatch	6			6364
+threat-intelligence.yml	branches,default,description,inputs,options,paths,push,required,scan_mode,schedule,type,workflow_dispatch	4	0 6 * * *   # Daily 06:00 UTC — CVE feed refresh	permissions:	11588
+trusted-build.yml	branches,paths,pull_request,push,tags,workflow_dispatch	3		permissions:	6618
+trusted-runner-isolation.yml	branches,paths,pull_request,push,schedule,workflow_dispatch	2	0 8 * * 1  # Weekly Monday 08:00 UTC	permissions:	9574
+usage-analytics.yml	default,description,inputs,period,required,schedule,workflow_dispatch	2	0 6 * * *   # Daily 06:00 UTC	permissions:	8524
+validate-actions.yml	branches,paths,pull_request,push	1		permissions:	8324
+validate-secrets.yml	branches,paths,push,workflow_dispatch	1			2864
+vault-secrets-injection.yml	branches,description,outputs,push,secrets_injected,value,workflow_call,workflow_dispatch	2		permissions:	7337
+workflow-optimizer.yml	schedule,workflow_dispatch	1	0 4 * * 0  # Weekly on Sunday at 4am UTC	permissions:	5923
+zero-downtime-migration.yml	branches,default,description,dry_run,inputs,migration_target,paths,push,required,workflow_dispatch	1		permissions:	8863
