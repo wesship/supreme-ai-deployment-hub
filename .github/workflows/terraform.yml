@@ -104,9 +104,11 @@ jobs:
           auth-type: SERVICE_PRINCIPAL
 
       - name: Configure GCP Credentials
+        # Hardening: removed `continue-on-error: true`. The `if:` guard already
+        # skips this step when GCP_CREDENTIALS_JSON is absent, so any failure
+        # now is a real auth failure and MUST fail the job.
         if: steps.azure-secrets-check.outputs.skip != 'true' && secrets.GCP_CREDENTIALS_JSON != ''
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
-        continue-on-error: true
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
@@ -134,24 +136,31 @@ jobs:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
         run: |
+          set -uo pipefail
           # Set default environment if not provided
           ENVIRONMENT=${{ github.event.inputs.environment || 'production' }}
-      
-          # Check the environment and handle lease breaking for staging or production
+
+          # Hardening: do NOT blanket-swallow errors with `|| true`. Capture
+          # exit code explicitly so only the known "no lease present" case
+          # is treated as success; every other non-zero exit fails the job.
+          set +e
           LEASE_BREAK_OUTPUT=$(az storage blob lease break --blob-name "${ENVIRONMENT}.terraform.tfstate" \
             --container-name tfstate \
             --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
             --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-            --output tsv --only-show-errors || true)  
-      
-          # Check if the output contains an error related to the lease not being present
+            --output tsv --only-show-errors 2>&1)
+          LEASE_BREAK_RC=$?
+          set -e
+
           if [[ "$LEASE_BREAK_OUTPUT" == *"LeaseNotPresentWithLeaseOperation"* ]]; then
             echo "No lease found, skipping lease break."
-          elif [[ "$LEASE_BREAK_OUTPUT" == *"Lease broken"* ]]; then
+          elif [[ "$LEASE_BREAK_OUTPUT" == *"Lease broken"* ]] || [[ $LEASE_BREAK_RC -eq 0 ]]; then
             echo "Lease found and broken."
           else
-            echo "Unknown error: $LEASE_BREAK_OUTPUT"
+            echo "::error::Unexpected lease-break failure (rc=$LEASE_BREAK_RC): $LEASE_BREAK_OUTPUT"
+            exit 1
           fi
+
 
       - name: Terraform Validate
         working-directory: ./src/data/manifest/terraform/azure
@@ -302,9 +311,10 @@ jobs:
           auth-type: SERVICE_PRINCIPAL
 
       - name: Configure GCP Credentials
+        # Hardening: removed `continue-on-error: true` (apply job). GCP auth
+        # failures during apply must hard-fail to prevent partial deploys.
         if: steps.azure-secrets-check.outputs.skip != 'true' && secrets.GCP_CREDENTIALS_JSON != ''
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
-        continue-on-error: true
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
@@ -387,6 +397,8 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Email Notification
+        # Justified `if: always()`: notification must fire on both success and
+        # failure for audit traceability. Does not affect deploy outcome.
         if: always()
         uses: dawidd6/action-send-mail@d38f3f7cd391cdebfe0d38efc3998b935e951c4f  # v16
         with:

@@ -60,6 +60,7 @@ jobs:
       - name: Sign artifact with Cosign (keyless via OIDC)
         id: sign
         run: |
+          set -euo pipefail
           # Keyless signing: Cosign uses GitHub OIDC token to sign via Fulcio CA
           # The signature is recorded in the Rekor transparency log
           cosign sign-blob \
@@ -71,8 +72,13 @@ jobs:
 
           echo "Cosign signature generated"
           echo "Certificate:"
-          cat /tmp/devonn-dist.crt | openssl x509 -noout -text 2>/dev/null | \
-            grep -E "Subject:|Issuer:|Not After" || true
+          # Informational pretty-print only — wrapped in `if` so a malformed
+          # cert dump never silently masks the signing step's real exit code.
+          if openssl x509 -noout -text -in /tmp/devonn-dist.crt > /tmp/cert.txt 2>/dev/null; then
+            grep -E "Subject:|Issuer:|Not After" /tmp/cert.txt || echo "(no matching cert fields)"
+          else
+            echo "::warning::cert pretty-print failed (non-fatal; signature still produced)"
+          fi
 
           echo "artifact_digest=${ARTIFACT_DIGEST}" >> $GITHUB_OUTPUT
           echo "bundle_path=/tmp/devonn-dist.bundle" >> $GITHUB_OUTPUT
