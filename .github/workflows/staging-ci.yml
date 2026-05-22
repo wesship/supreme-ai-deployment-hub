@@ -1,0 +1,59 @@
+name: Staging CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "docker-compose.yml"
+      - "services/**"
+      - "infra/**"
+      - "observability/**"
+      - "docs/STAGING_DEPLOYMENT_RUNBOOK.md"
+      - "docs/ENVIRONMENT_VARIABLES.md"
+      - "docs/GUARDRAILS.md"
+      - ".github/workflows/staging-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  staging-foundation:
+    name: Validate staging foundation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required foundation files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f docker-compose.yml
+          test -f infra/render/render.yaml
+          test -f infra/vercel/staging.md
+          test -f docs/STAGING_SERVICE_MAP.md
+          test -f docs/STAGING_DEPLOYMENT_RUNBOOK.md
+          test -f docs/ENVIRONMENT_VARIABLES.md
+          test -f docs/GUARDRAILS.md
+
+      - name: Validate Docker Compose syntax
+        shell: bash
+        run: docker compose -f docker-compose.yml config >/tmp/devonn-compose.yml
+
+      - name: Validate no committed staging env file
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -E '^\.env\.staging\.local$'; then
+            echo "Do not commit .env.staging.local"
+            exit 1
+          fi
+
+      - name: Validate guardrail defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -R "dry-run" docs infra docker-compose.yml
+          grep -R "guarded" docs infra docker-compose.yml
