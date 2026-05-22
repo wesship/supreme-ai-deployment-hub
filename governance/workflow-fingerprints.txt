@@ -1,4 +1,4 @@
-# Workflow Fingerprints — captured 2026-05-22T14:04:03Z
+# Workflow Fingerprints — captured 2026-05-22T14:14:08Z
 # Any drift from these hashes after lock requires CHANGE_CONTROL approval.
 
 972721688f4814878e05f147e4690ae79593fdfe842980df7dca825a9e062625  .github/workflows/ab-testing.yml
@@ -38,7 +38,7 @@ e8666fd7a8d16f1cfbf6d427f007d67287b9c546ec1663f204070516b3116eb2  .github/workfl
 05e9ef5a44efaf5aed1076989a6c59a36b02ccf0754b0567359c913bddc9d7a5  .github/workflows/dependency-review.yml
 bdd7af0035bb5abdbc573472c491dfc97153cb5aa4b2fedb762717b54168fbea  .github/workflows/deploy-and-publish.yml
 0e4825135825a0e38c80c04ea8c0615fda5be53b3332b93efb75aa6340f7176f  .github/workflows/deploy.yml
-3def4cbe58a53a1acb983a194b1d28fd767d4c679a708f12c0b5454e6b2234f5  .github/workflows/deployment-promotion.yml
+0052a231ce2963325a0e7054ae1ecd49779325ff8a5e07805e25aff568835b65  .github/workflows/deployment-promotion.yml
 a2fb1595111f768fc225e454d809822ae11c3dd0dc54c628092f576ec0f3d24e  .github/workflows/developer-onboarding.yml
 2097553d894a6924cfd5a61ca49020ff893f4d755e6cab8fabad1f7dded68628  .github/workflows/devonn-deploy.yml
 16a930400c3cf71e4f1b6742577128a693c395a764a9054bf8fe51e4856d92bb  .github/workflows/disaster-recovery-drill.yml
