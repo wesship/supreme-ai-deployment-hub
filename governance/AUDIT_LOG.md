@@ -87,3 +87,62 @@ deployment-critical workflows (deployment-promotion + the 6 above). Any
 deployment-path step that fails will now fail the job. The only remaining
 `if: always()` instances are on notification/reporting jobs where always-run
 behavior is the intended semantic.
+
+
+## 2026-05-22 — Phase B: Agent Runtime Validation Harness
+
+Created `src/__tests__/runtime/` — pins the behavioral contract of
+`AutonomousAgentExecutor`, the memory service, and the tool-permission
+boundary so silent regressions are caught in CI.
+
+### Results
+
+| Suite | Tests | Status |
+|---|---|---|
+| `agent-execution` | 5 | passing — status transitions, maxSteps ceiling, stop(), cleanup, init-failure |
+| `tool-permission-boundaries` | 3 | passing (1 as regression fence — see finding below) |
+| `recovery` | 2 | passing — thrown errors caught, isError observations recorded |
+| `memory-persistence` | 4 | passing — URL contract + error propagation pinned |
+| `recursive-delegation` | 1 | passing maxSteps proxy + 5 `.todo` for sub-agent runtime |
+| `governance-pending` | 0 | 3 `describe.todo` blocks for arbitration / policy / snapshot-restore |
+
+**Total: 14 passing, 1 expected-fail (regression fence), 1 skipped (todos).**
+
+### Runtime Finding — Capability Allow-List Gap
+
+`AutonomousAgentExecutor` treats `mcpTools: []` as "no allow-list configured"
+(because `[].length` is falsy at line 73 of `src/lib/mcp/autonomousAgent.ts`)
+and falls back to ALL gateway tools. An empty list should mean "no tools
+permitted", not "all tools permitted".
+
+Pinned by `it.fails(...)` regression fence in
+`tool-permission-boundaries.test.ts`. The test PASSES today (insecure
+behavior matches). The moment the executor is fixed to treat `[]` as
+deny-all, the test will start failing and demand removal of the `.fails`
+marker — closing the gap.
+
+**Suggested fix (separate PR):**
+```ts
+// before
+if (this.run.config.mcpTools?.length) { ... filter ... }
+// after
+if (this.run.config.mcpTools !== undefined) { ... filter ... }
+```
+
+### Class of risk this harness eliminates
+
+Before: the autonomous loop could change shape (skip `mcpTools` filter, drop
+`stop()` flag, swallow tool errors, leak `mcpClient` connections) and only
+get caught in production. Now: any such drift fails CI.
+
+### Pending runtime work (visible as `.todo` in vitest output)
+
+- Recursive delegation: depth counter, allow-list inheritance, sub-agent step
+  budget, circular-delegation detection.
+- Arbitration: conflicting-write resolution, priority weights, deterministic
+  tie-breaking, audit persistence.
+- Governance enforcement: locked-env blocks, policy-violation observation
+  steps, human-review tokens, hot-reload.
+- Memory continuity: `snapshot()` / `restore()` across executor restart.
+
+These are tracked as failing-to-build features, not silent omissions.
