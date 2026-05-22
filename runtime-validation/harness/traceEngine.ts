@@ -3,11 +3,16 @@
  *
  * Execution Trace Engine for the Devonn.AI Runtime Validation Harness.
  *
- * Responsibilities:
+ * Wave 27 responsibilities:
  *   - Capture every runtime event as a structured TraceEvent
  *   - Build the execution DAG (parent-child causality tree)
  *   - Assign correlation IDs (runId) and span IDs for OpenTelemetry compatibility
  *   - Provide query helpers: getEventsByKind, getAgentLineage, getDelegationChains
+ *
+ * Wave 28 additions:
+ *   - Memory snapshot points: capture state at defined execution boundaries
+ *   - Restart simulation hooks: bracket restart events in the trace
+ *   - Snapshot registry: retrieve snapshots by ID for replay comparison
  *
  * Design: the engine is a pure in-memory recorder. It has no network calls,
  * no side effects, and no dependencies on production src/ modules. It can be
@@ -19,6 +24,7 @@ import type {
   TraceEventKind,
   DAGNode,
   ExecutionDAG,
+  MemorySnapshot,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -47,6 +53,9 @@ export class TraceEngine {
 
   /** Current span stack — push on delegation, pop on return */
   private spanStack: string[] = [];
+
+  /** Wave 28: registry of memory snapshots keyed by snapshotId */
+  private snapshots = new Map<string, MemorySnapshot>();
 
   constructor(runId?: string) {
     this.runId = runId ?? nextId("run");
@@ -96,6 +105,93 @@ export class TraceEngine {
     if (this.spanStack.length > 1) {
       this.spanStack.pop();
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Wave 28: Memory snapshot & restart hooks
+  // -------------------------------------------------------------------------
+
+  /**
+   * Capture a memory snapshot at the current execution boundary.
+   * Records a "memory_snapshot" trace event and registers the snapshot
+   * in the internal registry for later retrieval by the MemoryReplayValidator.
+   *
+   * @param agentId  The agent whose memory is being snapshotted
+   * @param snapshot The full snapshot payload
+   * @returns The snapshot ID assigned to this capture
+   */
+  captureSnapshot(agentId: string, snapshot: Omit<MemorySnapshot, "snapshotId" | "runId" | "spanId" | "capturedAt">): string {
+    const snapshotId = nextId("snap");
+    const fullSnapshot: MemorySnapshot = {
+      ...snapshot,
+      snapshotId,
+      runId: this.runId,
+      spanId: this.currentSpanId(),
+      capturedAt: new Date().toISOString(),
+    };
+    this.snapshots.set(snapshotId, fullSnapshot);
+    this.record(agentId, "memory_snapshot", {
+      snapshotId,
+      keyCount: Object.keys(snapshot.memoryEntries).length,
+      stepIndex: snapshot.stepIndex,
+      summary: `snapshot:${snapshotId}`,
+    });
+    return snapshotId;
+  }
+
+  /**
+   * Record a memory restore event — call when a snapshot is being loaded
+   * back into the execution context after a restart.
+   */
+  recordRestore(agentId: string, snapshotId: string, success: boolean): void {
+    this.record(agentId, "memory_restore", {
+      snapshotId,
+      success,
+      summary: `restore:${snapshotId}:${success ? "ok" : "failed"}`,
+    });
+  }
+
+  /**
+   * Bracket a simulated restart.
+   * Returns a function that, when called, records the restart_complete event.
+   * Usage:
+   *   const endRestart = trace.simulateRestart("orchestrator");
+   *   // ... perform restart operations ...
+   *   endRestart();
+   */
+  simulateRestart(agentId: string): () => void {
+    this.record(agentId, "restart_begin", { summary: "restart_begin" });
+    return () => {
+      this.record(agentId, "restart_complete", { summary: "restart_complete" });
+    };
+  }
+
+  /**
+   * Record a memory drift event — call when divergence is detected
+   * between expected and actual memory state.
+   */
+  recordDrift(agentId: string, key: string, expected: string, actual: string): void {
+    this.record(agentId, "memory_drift", {
+      key,
+      expected: expected.slice(0, 200), // truncate for trace readability
+      actual: actual.slice(0, 200),
+      summary: `drift:${key}`,
+    });
+  }
+
+  /**
+   * Retrieve a previously captured snapshot by ID.
+   * Returns undefined if the snapshot ID is not found.
+   */
+  getSnapshot(snapshotId: string): MemorySnapshot | undefined {
+    return this.snapshots.get(snapshotId);
+  }
+
+  /**
+   * All snapshots captured during this run, in capture order.
+   */
+  allSnapshots(): MemorySnapshot[] {
+    return [...this.snapshots.values()];
   }
 
   // -------------------------------------------------------------------------
@@ -167,6 +263,21 @@ export class TraceEngine {
    */
   wasEscalated(): boolean {
     return this.getEventsByKind("governance_escalate").length > 0;
+  }
+
+  /**
+   * Wave 28: Check whether any memory_drift event was emitted.
+   */
+  hasDrift(): boolean {
+    return this.getEventsByKind("memory_drift").length > 0;
+  }
+
+  /**
+   * Wave 28: Get all drift events, optionally filtered by key.
+   */
+  getDriftEvents(key?: string): TraceEvent[] {
+    const drifts = this.getEventsByKind("memory_drift");
+    return key ? drifts.filter((e) => e.payload.key === key) : drifts;
   }
 
   // -------------------------------------------------------------------------
