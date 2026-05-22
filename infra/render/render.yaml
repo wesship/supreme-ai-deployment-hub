@@ -48,6 +48,8 @@ services:
     envVars:
       - key: ENVIRONMENT
         value: staging
+      - key: AUTONOMY_MODE
+        value: guarded
       - key: EXECUTION_MODE
         value: dry-run
       - key: API_BASE_URL
