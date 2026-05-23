@@ -1,18 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Apply production-safe branch protection to a repository's main branch.
-#
+# Apply production-safe branch protection to a repository branch.
 # Usage:
 #   bash scripts/apply-branch-protection.sh <owner> <repo> [branch]
-#
-# Example:
-#   bash scripts/apply-branch-protection.sh wesship supreme-ai-deployment-hub main
-#
-# Requirements:
-#   - GitHub CLI installed: gh
-#   - Authenticated token with admin:repo_hook / repo administration capability
-#   - Repository admin access
 
 OWNER="${1:-}"
 REPO="${2:-}"
@@ -37,26 +28,25 @@ FULL_REPO="$OWNER/$REPO"
 
 echo "Applying branch protection to $FULL_REPO:$BRANCH"
 
-# Verify repository access before attempting mutation.
 gh repo view "$FULL_REPO" --json nameWithOwner,viewerPermission >/dev/null
 
-# GitHub REST branch protection payload.
-# Current policy:
-# - Require PR reviews with 1 approval
-# - Dismiss stale reviews
-# - Require status checks: build, test
-# - Do not require up-to-date branches yet, to avoid staging friction
-# - Block force pushes
-# - Block branch deletion
-# - Do not require signed commits yet
-#
-# Notes:
-# - If your workflow check names differ from "build" and "test", update contexts below.
-# - Required status check context names must exactly match GitHub Actions job/check names.
-PROTECTION_PAYLOAD='{
+# Keep this list tight and aligned with currently healthy production gates.
+# Do not require experimental or environment-dependent workflows here.
+REQUIRED_CONTEXTS=(
+  "Final Green Check"
+  "Commit Lint"
+  "Secrets Elimination & Scanning"
+  "Hermes v2 Policy Gate"
+  "Hermes v3 Governance Gate"
+)
+
+CONTEXTS_JSON=$(printf '%s\n' "${REQUIRED_CONTEXTS[@]}" | python3 -c 'import json,sys; print(json.dumps([line.strip() for line in sys.stdin if line.strip()]))')
+
+PAYLOAD=$(cat <<JSON
+{
   "required_status_checks": {
     "strict": false,
-    "contexts": ["build", "test"]
+    "contexts": $CONTEXTS_JSON
   },
   "enforce_admins": false,
   "required_pull_request_reviews": {
@@ -77,9 +67,11 @@ PROTECTION_PAYLOAD='{
   "required_conversation_resolution": true,
   "lock_branch": false,
   "allow_fork_syncing": true
-}'
+}
+JSON
+)
 
-printf '%s' "$PROTECTION_PAYLOAD" | gh api \
+printf '%s' "$PAYLOAD" | gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
@@ -89,7 +81,7 @@ printf '%s' "$PROTECTION_PAYLOAD" | gh api \
 echo "Branch protection applied successfully."
 echo "Repository: $FULL_REPO"
 echo "Branch: $BRANCH"
-echo "Required checks: build, test"
+echo "Required checks: ${REQUIRED_CONTEXTS[*]}"
 echo "Required approvals: 1"
 echo "Require up-to-date branch: false"
 echo "Signed commits: false"
