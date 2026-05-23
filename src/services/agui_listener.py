@@ -4,19 +4,21 @@ AG-UI Listener implementation for Devon.AI.
 This module provides endpoints for streaming tokens and handling tool results.
 """
 
-from fastapi import APIRouter, Request, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Request, HTTPException
 from sse_starlette.sse import EventSourceResponse
 import json
 import asyncio
-from typing import Dict, Any, AsyncGenerator, Optional
+from typing import Dict, Any, AsyncGenerator
 from pydantic import BaseModel
+
+from proxy.vapi import router as vapi_router
 
 # Session storage - in production, use Redis or another persistent store
 active_sessions: Dict[str, Dict[str, Any]] = {}
 
-# Router configuration
-router = APIRouter(prefix="/agui", tags=["agui"])
+# Root service router. main.py includes this once; subrouters preserve their own prefixes.
+router = APIRouter()
+agui_router = APIRouter(prefix="/agui", tags=["agui"])
 
 
 class ToolResultRequest(BaseModel):
@@ -52,7 +54,7 @@ async def token_generator(session_id: str, prompt: str) -> AsyncGenerator[str, N
         await asyncio.sleep(0.5)  # Simulate token generation delay
 
 
-@router.get("/stream-token")
+@agui_router.get("/stream-token")
 async def stream_token(request: Request, session_id: str, prompt: str):
     """
     Stream tokens from the agent to the client.
@@ -74,7 +76,7 @@ async def stream_token(request: Request, session_id: str, prompt: str):
     return EventSourceResponse(token_generator(session_id, prompt))
 
 
-@router.post("/tool-result")
+@agui_router.post("/tool-result")
 async def submit_tool_result(request: ToolResultRequest):
     """
     Submit the result of a tool execution back to the agent.
@@ -102,7 +104,7 @@ async def submit_tool_result(request: ToolResultRequest):
     return {"success": True}
 
 
-@router.delete("/session/{session_id}")
+@agui_router.delete("/session/{session_id}")
 async def end_session(session_id: str):
     """End an agent session and clean up resources."""
     if session_id in active_sessions:
@@ -120,3 +122,7 @@ async def end_session(session_id: str):
         return {"success": True, "message": "Session ended"}
     else:
         raise HTTPException(status_code=404, detail="Session not found")
+
+
+router.include_router(agui_router)
+router.include_router(vapi_router)
