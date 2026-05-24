@@ -38,7 +38,7 @@ kombu==5.4.2
 
 # ── Utilities ──────────────────────────────────────────────────────────────
 python-dotenv==1.0.1
-structlog==24.4.0
+structlog==25.5.0
 tenacity==9.0.0
 
 # ── Testing (dev only — install with: pip install -r requirements-dev.txt) ─
