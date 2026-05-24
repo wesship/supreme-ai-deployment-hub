@@ -1,0 +1,46 @@
+{
+  "readiness": "yellow",
+  "ci": {
+    "status": "green",
+    "lastRun": "2026-05-23T00:00:00Z",
+    "requiredChecks": [
+      "CI - Hardened Build Pipeline",
+      "Devonn.AI Testing",
+      "CodeQL SAST",
+      "Secrets Elimination & Scanning",
+      "Final Green Check"
+    ]
+  },
+  "memory": {
+    "vaultPath": ".devonn/memory-vault",
+    "entries": 0,
+    "lastExport": null
+  },
+  "connectors": {
+    "production": [
+      "GitHub",
+      "AWS",
+      "Vercel"
+    ],
+    "staging": [
+      "Supabase",
+      "n8n",
+      "Appsmith"
+    ],
+    "future": [
+      "Slack",
+      "Notion"
+    ]
+  },
+  "deployments": {
+    "frontend": "staging",
+    "api": "pending",
+    "database": "pending",
+    "redis": "pending"
+  },
+  "governance": {
+    "mainProtected": true,
+    "stagingProtected": false,
+    "manualReviewRequired": true
+  }
+}
