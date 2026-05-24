@@ -86,11 +86,6 @@ def loki_status() -> dict[str, Any]:
 
 
 def loki_query_range(query: str | None = None, limit: int = 50) -> dict[str, Any]:
-    """Run a safe read-only Loki query_range request.
-
-    Uses a static/default LogQL selector unless overridden internally.
-    Never exposes credentials or mutates log state.
-    """
     base_url = os.getenv("LOKI_URL", "").strip().rstrip("/")
     log_query = query or os.getenv("LOKI_OPERATOR_QUERY", '{app=~"devonn.*|backend|api"}')
     if not base_url:
@@ -117,7 +112,55 @@ def loki_operator_logs() -> dict[str, Any]:
 
 
 def otel_status() -> dict[str, Any]:
-    return {"provider": "opentelemetry", "configured": env_present("OTEL_EXPORTER_OTLP_ENDPOINT"), "mode": "read-only", "requiredEnv": ["OTEL_EXPORTER_OTLP_ENDPOINT"], "lastChecked": utc_now()}
+    return {"provider": "opentelemetry", "configured": env_present("OTEL_EXPORTER_OTLP_ENDPOINT") or env_present("TEMPO_URL") or env_present("JAEGER_QUERY_URL"), "mode": "read-only-trace-query", "requiredEnv": ["TEMPO_URL or JAEGER_QUERY_URL or OTEL_EXPORTER_OTLP_ENDPOINT"], "lastChecked": utc_now()}
+
+
+def trace_backend_url() -> tuple[str, str]:
+    tempo = os.getenv("TEMPO_URL", "").strip().rstrip("/")
+    jaeger = os.getenv("JAEGER_QUERY_URL", "").strip().rstrip("/")
+    otlp = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip().rstrip("/")
+    if tempo:
+        return "tempo", tempo
+    if jaeger:
+        return "jaeger", jaeger
+    if otlp:
+        return "otlp", otlp
+    return "none", ""
+
+
+def otel_operator_traces(limit: int = 20) -> dict[str, Any]:
+    """Return read-only trace summaries from a supported trace backend.
+
+    Supported first-pass backends:
+    - Tempo: /api/search endpoint when TEMPO_URL is configured.
+    - Jaeger: /api/traces endpoint when JAEGER_QUERY_URL is configured.
+    - OTLP endpoint: readiness only; OTLP is push-oriented, so querying requires Tempo/Jaeger.
+    """
+    backend, base_url = trace_backend_url()
+    if not base_url:
+        return {"timestamp": utc_now(), "provider": "opentelemetry", "configured": False, "backend": backend, "spans": [], "message": "No trace query backend configured."}
+
+    if backend == "otlp":
+        return {"timestamp": utc_now(), "provider": "opentelemetry", "configured": True, "backend": backend, "spans": [], "message": "OTLP endpoint configured for export. Configure TEMPO_URL or JAEGER_QUERY_URL for read queries."}
+
+    try:
+        if backend == "tempo":
+            params = urlencode({"limit": str(limit)})
+            url = f"{base_url}/api/search?{params}"
+        else:
+            service = os.getenv("JAEGER_SERVICE", "devonn-api")
+            params = urlencode({"service": service, "limit": str(limit)})
+            url = f"{base_url}/api/traces?{params}"
+        request = Request(url, headers={"Accept": "application/json"})
+        with urlopen(request, timeout=4) as response:  # noqa: S310 - internal configured URL only
+            payload = json.loads(response.read().decode("utf-8"))
+        traces = payload.get("traces") or payload.get("data") or []
+        spans = []
+        for item in traces[:limit]:
+            spans.append({"traceId": item.get("traceID") or item.get("traceId"), "name": item.get("rootServiceName") or item.get("processes", {}).get("p1", {}).get("serviceName") or "trace", "durationMs": item.get("durationMs") or item.get("duration") or 0, "status": item.get("status") or "observed"})
+        return {"timestamp": utc_now(), "provider": "opentelemetry", "configured": True, "backend": backend, "status": "ok", "spans": spans}
+    except Exception as exc:  # pragma: no cover
+        return {"timestamp": utc_now(), "provider": "opentelemetry", "configured": True, "backend": backend, "status": "error", "error": exc.__class__.__name__, "spans": []}
 
 
 def redis_status() -> dict[str, Any]:
