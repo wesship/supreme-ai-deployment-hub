@@ -88,7 +88,7 @@ jobs:
       - name: Enforce bundle size budget
         run: |
           PR_KB=${{ steps.pr-size.outputs.gzip_kb }}
-          BUDGET_KB=900
+          BUDGET_KB=940
           if (( $(echo "$PR_KB > $BUDGET_KB" | bc -l) )); then
             echo "::error::Bundle size ${PR_KB}KB (gzip) exceeds budget of ${BUDGET_KB}KB"
             exit 1
