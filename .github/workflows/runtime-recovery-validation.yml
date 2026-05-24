@@ -8,6 +8,7 @@ on:
       - 'wave/**'
     paths:
       - 'services/runtime-recovery/**'
+      - 'vitest.runtime-recovery.config.ts'
       - '.github/workflows/runtime-recovery-validation.yml'
   pull_request:
     branches:
@@ -15,6 +16,7 @@ on:
       - 'release/**'
     paths:
       - 'services/runtime-recovery/**'
+      - 'vitest.runtime-recovery.config.ts'
       - '.github/workflows/runtime-recovery-validation.yml'
   workflow_dispatch:
 
@@ -44,7 +46,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run runtime recovery tests
-        run: npx vitest run services/runtime-recovery/runtime-recovery.test.ts
+        run: npx vitest --config vitest.runtime-recovery.config.ts run
 
       - name: Recovery validation summary
         run: |
