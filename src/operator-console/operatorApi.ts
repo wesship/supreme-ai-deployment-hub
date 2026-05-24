@@ -11,7 +11,12 @@ export type OperatorCI = {
   status: string;
   requiredChecks: string[];
   advisoryTools: string[];
-  githubActions?: unknown;
+  githubActions?: {
+    configured?: boolean;
+    status?: string;
+    runs?: Array<Record<string, unknown>>;
+    summary?: { total?: number; failures?: number; healthy?: boolean };
+  };
 };
 
 export type OperatorMemory = {
@@ -38,6 +43,37 @@ export type OperatorGovernance = {
 };
 
 export type OperatorRuntime = Record<string, string>;
+
+export type OperatorMetrics = {
+  timestamp: string;
+  source: string;
+  integrationStatus?: string;
+  prometheus?: {
+    configured?: boolean;
+    results?: Record<string, { status?: string; configured?: boolean; data?: unknown[] }>;
+  };
+  series?: Array<{ name: string; value: number; unit: string; status: string }>;
+};
+
+export type OperatorLogs = {
+  timestamp: string;
+  source: string;
+  entries: Array<{ timestampNs?: string; labels?: Record<string, string>; line?: string }>;
+};
+
+export type OperatorTraces = {
+  timestamp: string;
+  source: string;
+  spans: Array<{ traceId?: string; name?: string; durationMs?: number; status?: string }>;
+};
+
+export type OperatorQueues = {
+  timestamp: string;
+  redisReady?: boolean;
+  provider?: string;
+  configured?: boolean;
+  queues: Array<{ name: string; depth: number; status: string }>;
+};
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -74,6 +110,7 @@ export const operatorFallbacks = {
       'Final Green Check',
     ],
     advisoryTools: ['ci:doctor', 'workflow:audit', 'workflow:classify', 'repo:entropy'],
+    githubActions: { configured: false, runs: [], summary: { total: 0, failures: 0, healthy: false } },
   } satisfies OperatorCI,
   memory: {
     vaultPath: '.devonn/memory-vault',
@@ -113,6 +150,27 @@ export const operatorFallbacks = {
     dag: 'pending-live-check',
     gitnexus: 'pending-live-check',
   } satisfies OperatorRuntime,
+  metrics: {
+    timestamp: new Date(0).toISOString(),
+    source: 'fallback',
+    prometheus: { configured: false, results: {} },
+    series: [],
+  } satisfies OperatorMetrics,
+  logs: {
+    timestamp: new Date(0).toISOString(),
+    source: 'fallback',
+    entries: [],
+  } satisfies OperatorLogs,
+  traces: {
+    timestamp: new Date(0).toISOString(),
+    source: 'fallback',
+    spans: [],
+  } satisfies OperatorTraces,
+  queues: {
+    timestamp: new Date(0).toISOString(),
+    redisReady: false,
+    queues: [],
+  } satisfies OperatorQueues,
 };
 
 export const operatorApi = {
@@ -123,4 +181,8 @@ export const operatorApi = {
   deployments: () => fetchOperator<OperatorDeployments>('/deployments', operatorFallbacks.deployments),
   governance: () => fetchOperator<OperatorGovernance>('/governance', operatorFallbacks.governance),
   runtime: () => fetchOperator<OperatorRuntime>('/runtime', operatorFallbacks.runtime),
+  metrics: () => fetchOperator<OperatorMetrics>('/metrics', operatorFallbacks.metrics),
+  logs: () => fetchOperator<OperatorLogs>('/logs', operatorFallbacks.logs),
+  traces: () => fetchOperator<OperatorTraces>('/traces', operatorFallbacks.traces),
+  queues: () => fetchOperator<OperatorQueues>('/queues', operatorFallbacks.queues),
 };
