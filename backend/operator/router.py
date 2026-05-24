@@ -14,6 +14,11 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+try:
+    from backend.operator.integrations import integration_readiness
+except ImportError:  # pragma: no cover
+    integration_readiness = None  # type: ignore
+
 router = APIRouter()
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,46 +38,23 @@ def memory_files() -> list[Path]:
 
 def memory_summary(path: Path) -> dict[str, Any]:
     stat = path.stat()
-    return {
-        "id": path.stem,
-        "file": path.name,
-        "path": str(path.relative_to(ROOT)),
-        "sizeBytes": stat.st_size,
-        "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
-    }
+    return {"id": path.stem, "file": path.name, "path": str(path.relative_to(ROOT)), "sizeBytes": stat.st_size, "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()}
 
 
 def graph_payload() -> dict[str, Any]:
-    return {
-        "nodes": [
-            {"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"},
-            {"id": "api", "label": "Operator API", "type": "service", "status": "online"},
-            {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"},
-            {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"},
-            {"id": "ion", "label": "ION", "type": "agent", "status": "online"},
-            {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"},
-            {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"},
-            {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"},
-            {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "green"},
-            {"id": "observability", "label": "Observability", "type": "telemetry", "status": "synthetic"},
-        ],
-        "edges": [
-            {"source": "operator", "target": "api", "label": "queries"},
-            {"source": "api", "target": "hermes", "label": "governance state"},
-            {"source": "api", "target": "tars", "label": "runtime state"},
-            {"source": "api", "target": "ion", "label": "dashboard intelligence"},
-            {"source": "api", "target": "sapphire", "label": "memory state"},
-            {"source": "api", "target": "guardian", "label": "safety review"},
-            {"source": "sapphire", "target": "memory", "label": "curates"},
-            {"source": "hermes", "target": "ci", "label": "reviews"},
-            {"source": "tars", "target": "observability", "label": "emits telemetry"},
-        ],
-    }
+    return {"nodes": [{"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"}, {"id": "api", "label": "Operator API", "type": "service", "status": "online"}, {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"}, {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"}, {"id": "ion", "label": "ION", "type": "agent", "status": "online"}, {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"}, {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"}, {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"}, {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "green"}, {"id": "observability", "label": "Observability", "type": "telemetry", "status": "synthetic"}], "edges": [{"source": "operator", "target": "api", "label": "queries"}, {"source": "api", "target": "hermes", "label": "governance state"}, {"source": "api", "target": "tars", "label": "runtime state"}, {"source": "api", "target": "ion", "label": "dashboard intelligence"}, {"source": "api", "target": "sapphire", "label": "memory state"}, {"source": "api", "target": "guardian", "label": "safety review"}, {"source": "sapphire", "target": "memory", "label": "curates"}, {"source": "hermes", "target": "ci", "label": "reviews"}, {"source": "tars", "target": "observability", "label": "emits telemetry"}]}
 
 
 @router.get("/status")
 async def operator_status() -> dict[str, Any]:
-    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "deployments", "governance", "runtime", "observability", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
+    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "integrations", "deployments", "governance", "runtime", "observability", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
+
+
+@router.get("/integrations")
+async def operator_integrations() -> dict[str, Any]:
+    if integration_readiness is None:
+        return {"timestamp": utc_now(), "status": "unavailable", "configured": 0, "total": 0, "adapters": []}
+    return integration_readiness()
 
 
 @router.get("/ci")
@@ -101,10 +83,7 @@ async def operator_memory_snapshots() -> dict[str, Any]:
 @router.get("/memory/replay")
 async def operator_memory_replay() -> dict[str, Any]:
     files = memory_files()
-    events = []
-    for path in files[:10]:
-        summary = memory_summary(path)
-        events.append({"type": "memory.snapshot", "timestamp": summary["modified"], "file": summary["file"], "message": f"Operational memory snapshot available: {summary['file']}"})
+    events = [{"type": "memory.snapshot", "timestamp": memory_summary(path)["modified"], "file": memory_summary(path)["file"], "message": f"Operational memory snapshot available: {memory_summary(path)['file']}"} for path in files[:10]]
     if not events:
         events.append({"type": "memory.empty", "timestamp": utc_now(), "file": None, "message": "No memory snapshots found yet. Run npm run memory:export <file> to create one."})
     return {"timestamp": utc_now(), "events": events}
@@ -116,8 +95,9 @@ async def operator_connectors() -> dict[str, list[str]]:
 
 
 @router.get("/deployments")
-async def operator_deployments() -> dict[str, str]:
-    return {"frontend": "staging-ready", "api": "pending", "database": "pending", "redis": "pending", "observability": "pending"}
+async def operator_deployments() -> dict[str, Any]:
+    readiness = integration_readiness() if integration_readiness else {"adapters": []}
+    return {"frontend": "staging-ready", "api": "pending", "database": "pending", "redis": "pending", "observability": "pending", "integrationReadiness": readiness}
 
 
 @router.get("/governance")
@@ -132,7 +112,8 @@ async def operator_runtime() -> dict[str, str]:
 
 @router.get("/metrics")
 async def operator_metrics() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "source": "operator-synthetic", "series": [{"name": "api_latency_ms", "value": 42, "unit": "ms", "status": "healthy"}, {"name": "queue_depth", "value": 0, "unit": "jobs", "status": "healthy"}, {"name": "error_rate", "value": 0.0, "unit": "%", "status": "healthy"}, {"name": "memory_exports", "value": len(memory_files()), "unit": "files", "status": "observing"}]}
+    integrations = integration_readiness() if integration_readiness else {"status": "unavailable"}
+    return {"timestamp": utc_now(), "source": "operator-synthetic", "integrationStatus": integrations.get("status"), "series": [{"name": "api_latency_ms", "value": 42, "unit": "ms", "status": "healthy"}, {"name": "queue_depth", "value": 0, "unit": "jobs", "status": "healthy"}, {"name": "error_rate", "value": 0.0, "unit": "%", "status": "healthy"}, {"name": "memory_exports", "value": len(memory_files()), "unit": "files", "status": "observing"}]}
 
 
 @router.get("/logs")
@@ -157,7 +138,8 @@ async def operator_events() -> dict[str, Any]:
 
 @router.get("/queues")
 async def operator_queues() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "queues": [{"name": "agent-execution", "depth": 0, "status": "healthy"}, {"name": "memory-export", "depth": 0, "status": "healthy"}, {"name": "deployment-review", "depth": 1, "status": "manual-review"}, {"name": "governance-alerts", "depth": 0, "status": "healthy"}]}
+    readiness = integration_readiness() if integration_readiness else {"adapters": []}
+    return {"timestamp": utc_now(), "redisReady": any(adapter.get("provider") == "redis" and adapter.get("configured") for adapter in readiness.get("adapters", [])), "queues": [{"name": "agent-execution", "depth": 0, "status": "healthy"}, {"name": "memory-export", "depth": 0, "status": "healthy"}, {"name": "deployment-review", "depth": 1, "status": "manual-review"}, {"name": "governance-alerts", "depth": 0, "status": "healthy"}]}
 
 
 @router.get("/alerts")
@@ -180,14 +162,15 @@ async def operator_dag() -> dict[str, Any]:
 
 @router.get("/topology")
 async def operator_topology() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "green", "components": ["Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "synthetic", "components": ["Metrics", "Logs", "Traces", "Runtime Stream"]}]}
+    integrations = integration_readiness() if integration_readiness else {"status": "unavailable"}
+    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "green", "components": ["Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "integration-ready", "components": ["Metrics", "Logs", "Traces", "Runtime Stream"]}]}
 
 
 @router.websocket("/runtime/stream")
 async def operator_runtime_stream(websocket: WebSocket) -> None:
     await websocket.accept()
     event_index = 0
-    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "alerts", "graph"]
+    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "alerts", "graph", "integrations"]
     try:
         await websocket.send_json({"type": "operator.connected", "timestamp": utc_now(), "message": "Operator runtime stream connected.", "severity": "info"})
         while True:
