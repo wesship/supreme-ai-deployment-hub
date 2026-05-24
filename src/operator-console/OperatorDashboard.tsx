@@ -10,6 +10,7 @@ import OperatorStatusCard from './components/OperatorStatusCard';
 import QueueActivityPanel from './components/QueueActivityPanel';
 import RuntimeStreamPanel from './components/RuntimeStreamPanel';
 import RuntimeSupervisionPanel from './components/RuntimeSupervisionPanel';
+import SupervisionTimelinePanel from './components/SupervisionTimelinePanel';
 import TopologyVisualizationPanel from './components/TopologyVisualizationPanel';
 import TraceVisualizationPanel from './components/TraceVisualizationPanel';
 import {
@@ -193,6 +194,8 @@ function OperatorDashboardInner() {
             />
 
             <RuntimeSupervisionPanel />
+
+            <SupervisionTimelinePanel />
 
             <MemoryVaultPanel memory={memory} />
 
