@@ -38,9 +38,10 @@ except ImportError:  # pragma: no cover
     redis_queue_depths = None  # type: ignore
 
 try:
-    from backend.operator.supervision import supervise_runtime
+    from backend.operator.supervision import supervise_runtime, supervision_timeline
 except ImportError:  # pragma: no cover
     supervise_runtime = None  # type: ignore
+    supervision_timeline = None  # type: ignore
 
 router = APIRouter(dependencies=[Depends(require_operator_access)])
 
@@ -73,7 +74,7 @@ def graph_payload() -> dict[str, Any]:
 
 @router.get("/status")
 async def operator_status() -> dict[str, Any]:
-    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "integrations", "deployments", "governance", "runtime", "observability", "supervision", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
+    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "integrations", "deployments", "governance", "runtime", "observability", "supervision", "supervision-timeline", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
 
 
 @router.get("/supervision")
@@ -81,6 +82,13 @@ async def operator_supervision() -> dict[str, Any]:
     if supervise_runtime is None:
         return {"timestamp": utc_now(), "state": "unknown", "anomalies": [], "summary": {"totalAnomalies": 0, "critical": 0, "degraded": 0, "elevated": 0, "unknown": 0}}
     return supervise_runtime()
+
+
+@router.get("/supervision/timeline")
+async def operator_supervision_timeline() -> dict[str, Any]:
+    if supervision_timeline is None:
+        return {"timestamp": utc_now(), "source": "unavailable", "state": "unknown", "events": []}
+    return supervision_timeline()
 
 
 @router.get("/integrations")
@@ -213,7 +221,7 @@ async def operator_dag() -> dict[str, Any]:
 @router.get("/topology")
 async def operator_topology() -> dict[str, Any]:
     integrations = integration_readiness() if integration_readiness else {"status": "unavailable"}
-    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "live-adapter-ready", "components": ["GitHub Actions", "Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Loki", "OpenTelemetry", "Metrics", "Logs", "Traces", "Runtime Stream"]}, {"name": "supervision", "status": "advisory", "components": ["State Classification", "Anomaly Detection", "Remediation Hints"]}]}
+    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "live-adapter-ready", "components": ["GitHub Actions", "Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Loki", "OpenTelemetry", "Metrics", "Logs", "Traces", "Runtime Stream"]}, {"name": "supervision", "status": "advisory", "components": ["State Classification", "Anomaly Detection", "Remediation Hints", "Timeline"]}]}
 
 
 @router.websocket("/runtime/stream")
