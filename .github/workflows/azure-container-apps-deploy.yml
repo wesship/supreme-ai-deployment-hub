@@ -7,10 +7,6 @@ on:
     paths-ignore:
       - 'terraform/**'
       - '.github/workflows/infrastructure-ci-cd.yml'
-  pull_request:
-    branches: [main]
-    paths-ignore:
-      - 'terraform/**'
   workflow_dispatch:
     inputs:
       environment:
