@@ -1,3 +1,17 @@
+import { useEffect, useState } from 'react';
+
+import ConnectorInventoryPanel from './components/ConnectorInventoryPanel';
+import MemoryVaultPanel from './components/MemoryVaultPanel';
+import OperatorStatusCard from './components/OperatorStatusCard';
+import {
+  operatorApi,
+  operatorFallbacks,
+  type OperatorCI,
+  type OperatorConnectors,
+  type OperatorMemory,
+  type OperatorStatus,
+} from './operatorApi';
+
 import './operator-theme.css';
 
 const navItems = [
@@ -14,6 +28,34 @@ const navItems = [
 ];
 
 export function OperatorDashboard() {
+  const [status, setStatus] = useState<OperatorStatus>(operatorFallbacks.status);
+  const [ci, setCI] = useState<OperatorCI>(operatorFallbacks.ci);
+  const [memory, setMemory] = useState<OperatorMemory>(operatorFallbacks.memory);
+  const [connectors, setConnectors] = useState<OperatorConnectors>(
+    operatorFallbacks.connectors,
+  );
+
+  useEffect(() => {
+    async function load() {
+      const [statusData, ciData, memoryData, connectorData] = await Promise.all([
+        operatorApi.status(),
+        operatorApi.ci(),
+        operatorApi.memory(),
+        operatorApi.connectors(),
+      ]);
+
+      setStatus(statusData);
+      setCI(ciData);
+      setMemory(memoryData);
+      setConnectors(connectorData);
+    }
+
+    load();
+
+    const interval = setInterval(load, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="operator-shell">
       <div className="operator-rain" />
@@ -25,7 +67,9 @@ export function OperatorDashboard() {
             <div className="operator-logo" />
             <div>
               <div style={{ fontSize: '2rem', fontWeight: 700 }}>DEVONN.AI</div>
-              <div style={{ color: 'var(--operator-muted)' }}>Operator Console</div>
+              <div style={{ color: 'var(--operator-muted)' }}>
+                Glass Operator Console
+              </div>
             </div>
           </div>
 
@@ -47,74 +91,75 @@ export function OperatorDashboard() {
               <div style={{ fontSize: '2.5rem', fontWeight: 700 }}>
                 Welcome back, Operator.
               </div>
+
               <div style={{ color: 'var(--operator-muted)', marginTop: 8 }}>
-                Unified intelligence. Persistent memory. Operational excellence.
+                {status.mode} • {status.surfaces.length} operational surfaces online
               </div>
             </div>
 
             <div className="operator-pill">
-              <span className="operator-green">●</span> System Online
+              <span className="operator-green">●</span> {status.readiness}
             </div>
           </div>
 
           <section className="operator-grid">
-            <div className="operator-card metric">
-              <div className="operator-label">System Status</div>
-              <div className="operator-value operator-green">Operational</div>
-              <p>All critical systems healthy.</p>
-            </div>
+            <OperatorStatusCard
+              label="System Status"
+              value="Operational"
+              description="All critical systems healthy."
+              accent="green"
+            />
 
-            <div className="operator-card metric">
-              <div className="operator-label">Readiness Score</div>
-              <div className="operator-value operator-cyan">98.7%</div>
-              <p>Production-ready stabilization state.</p>
-            </div>
+            <OperatorStatusCard
+              label="Production Gates"
+              value={ci.requiredChecks.length}
+              description="Required production checks enforced."
+            />
 
-            <div className="operator-card metric">
-              <div className="operator-label">Active Surfaces</div>
-              <div className="operator-value">12</div>
-              <p>Operational services online.</p>
-            </div>
+            <OperatorStatusCard
+              label="Memory Entries"
+              value={memory.entries}
+              description="Operational exports available."
+            />
 
-            <div className="operator-card metric">
-              <div className="operator-label">Memory Vault</div>
-              <div className="operator-value">128</div>
-              <p>Operational exports available.</p>
-            </div>
+            <OperatorStatusCard
+              label="Connectors"
+              value={
+                connectors.production.length +
+                connectors.staging.length +
+                connectors.future.length
+              }
+              description="Connector inventory tracked by lane."
+            />
+
+            <MemoryVaultPanel memory={memory} />
+
+            <ConnectorInventoryPanel connectors={connectors} />
 
             <div className="operator-card wide">
               <div className="operator-label">CI / CD Health</div>
-              <div className="operator-value">7 / 7</div>
-              <p>Production gates stabilized and green.</p>
-              <button className="operator-button">View CI Report</button>
+              <div className="operator-value operator-green">{ci.status}</div>
+
+              <div style={{ marginTop: 18 }}>
+                {ci.requiredChecks.map((check) => (
+                  <div key={check} className="operator-pill" style={{ marginBottom: 8 }}>
+                    {check}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="operator-card wide">
-              <div className="operator-label">Deployment Topology</div>
-              <div className="operator-value operator-cyan">Staging Ready</div>
-              <p>Frontend stabilized. API and observability queued.</p>
-              <button className="operator-button">View Deployment Details</button>
-            </div>
-
-            <div className="operator-card large">
-              <div className="operator-label">Connector Inventory</div>
-              <div className="operator-value">Production</div>
-              <p>GitHub, AWS, Vercel, Supabase, n8n.</p>
-              <button className="operator-button">View Connectors</button>
-            </div>
-
-            <div className="operator-card large">
-              <div className="operator-label">Governance</div>
-              <div className="operator-value operator-green">Protected</div>
-              <p>Required checks enforced with manual review posture.</p>
-              <button className="operator-button">Open Governance Report</button>
-            </div>
-
-            <div className="operator-card large">
-              <div className="operator-label">Runtime</div>
+              <div className="operator-label">Advisory Tooling</div>
               <div className="operator-value operator-cyan">Observing</div>
-              <p>Agent runtime and orchestration monitoring enabled.</p>
-              <button className="operator-button">View Runtime Status</button>
+
+              <div style={{ marginTop: 18 }}>
+                {ci.advisoryTools.map((tool) => (
+                  <div key={tool} className="operator-pill" style={{ marginBottom: 8 }}>
+                    {tool}
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         </main>
