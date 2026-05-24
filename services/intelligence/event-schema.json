@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Operational Intelligence Event",
+  "type": "object",
+  "required": [
+    "event_id",
+    "timestamp",
+    "source",
+    "severity",
+    "deployment_version",
+    "correlation_id"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "runtime",
+        "deployment",
+        "governance",
+        "infrastructure",
+        "observability"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "degraded",
+        "critical"
+      ]
+    },
+    "deployment_version": {
+      "type": "string"
+    },
+    "correlation_id": {
+      "type": "string"
+    },
+    "lineage_id": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}
