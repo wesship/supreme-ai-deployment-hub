@@ -1,16 +1,29 @@
 import { useEffect, useState } from 'react';
 
+import CIWorkflowActivityPanel from './components/CIWorkflowActivityPanel';
 import ConnectorInventoryPanel from './components/ConnectorInventoryPanel';
+import LiveLogsPanel from './components/LiveLogsPanel';
 import MemoryVaultPanel from './components/MemoryVaultPanel';
+import ObservabilityPanel from './components/ObservabilityPanel';
 import OperatorSessionGate from './components/OperatorSessionGate';
 import OperatorStatusCard from './components/OperatorStatusCard';
+import QueueActivityPanel from './components/QueueActivityPanel';
+import RuntimeStreamPanel from './components/RuntimeStreamPanel';
+import TopologyVisualizationPanel from './components/TopologyVisualizationPanel';
+import TraceVisualizationPanel from './components/TraceVisualizationPanel';
 import {
   operatorApi,
   operatorFallbacks,
   type OperatorCI,
   type OperatorConnectors,
+  type OperatorGraph,
+  type OperatorLogs,
   type OperatorMemory,
+  type OperatorMetrics,
+  type OperatorQueues,
   type OperatorStatus,
+  type OperatorTopology,
+  type OperatorTraces,
 } from './operatorApi';
 
 import './operator-theme.css';
@@ -25,6 +38,7 @@ const navItems = [
   'Runtime',
   'Agents Mesh',
   'Observability',
+  'Topology',
   'Settings',
 ];
 
@@ -35,20 +49,49 @@ function OperatorDashboardInner() {
   const [connectors, setConnectors] = useState<OperatorConnectors>(
     operatorFallbacks.connectors,
   );
+  const [metrics, setMetrics] = useState<OperatorMetrics>(operatorFallbacks.metrics);
+  const [logs, setLogs] = useState<OperatorLogs>(operatorFallbacks.logs);
+  const [traces, setTraces] = useState<OperatorTraces>(operatorFallbacks.traces);
+  const [queues, setQueues] = useState<OperatorQueues>(operatorFallbacks.queues);
+  const [graph, setGraph] = useState<OperatorGraph>(operatorFallbacks.graph);
+  const [topology, setTopology] = useState<OperatorTopology>(operatorFallbacks.topology);
 
   useEffect(() => {
     async function load() {
-      const [statusData, ciData, memoryData, connectorData] = await Promise.all([
+      const [
+        statusData,
+        ciData,
+        memoryData,
+        connectorData,
+        metricsData,
+        logsData,
+        tracesData,
+        queueData,
+        graphData,
+        topologyData,
+      ] = await Promise.all([
         operatorApi.status(),
         operatorApi.ci(),
         operatorApi.memory(),
         operatorApi.connectors(),
+        operatorApi.metrics(),
+        operatorApi.logs(),
+        operatorApi.traces(),
+        operatorApi.queues(),
+        operatorApi.graph(),
+        operatorApi.topology(),
       ]);
 
       setStatus(statusData);
       setCI(ciData);
       setMemory(memoryData);
       setConnectors(connectorData);
+      setMetrics(metricsData);
+      setLogs(logsData);
+      setTraces(tracesData);
+      setQueues(queueData);
+      setGraph(graphData);
+      setTopology(topologyData);
     }
 
     load();
@@ -56,6 +99,8 @@ function OperatorDashboardInner() {
     const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const githubSummary = ci.githubActions?.summary;
 
   return (
     <div className="operator-shell">
@@ -133,22 +178,35 @@ function OperatorDashboardInner() {
               description="Connector inventory tracked by lane."
             />
 
+            <OperatorStatusCard
+              label="CI Runs"
+              value={githubSummary?.total ?? 0}
+              description={`${githubSummary?.failures ?? 0} failing workflows observed.`}
+            />
+
+            <OperatorStatusCard
+              label="Queue Depth"
+              value={queues.queues.reduce((total, queue) => total + queue.depth, 0)}
+              description={queues.redisReady ? 'Redis telemetry connected.' : 'Redis telemetry pending.'}
+            />
+
             <MemoryVaultPanel memory={memory} />
 
             <ConnectorInventoryPanel connectors={connectors} />
 
-            <div className="operator-card wide">
-              <div className="operator-label">CI / CD Health</div>
-              <div className="operator-value operator-green">{ci.status}</div>
+            <ObservabilityPanel metrics={metrics} />
 
-              <div style={{ marginTop: 18 }}>
-                {ci.requiredChecks.map((check) => (
-                  <div key={check} className="operator-pill" style={{ marginBottom: 8 }}>
-                    {check}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <QueueActivityPanel queues={queues} />
+
+            <CIWorkflowActivityPanel ci={ci} />
+
+            <RuntimeStreamPanel />
+
+            <LiveLogsPanel logs={logs} />
+
+            <TraceVisualizationPanel traces={traces} />
+
+            <TopologyVisualizationPanel graph={graph} topology={topology} />
 
             <div className="operator-card wide">
               <div className="operator-label">Advisory Tooling</div>
