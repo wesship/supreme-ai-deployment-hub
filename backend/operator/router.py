@@ -25,6 +25,7 @@ try:
         github_actions_runs,
         integration_readiness,
         loki_operator_logs,
+        otel_operator_traces,
         prometheus_operator_metrics,
         redis_queue_depths,
     )
@@ -32,6 +33,7 @@ except ImportError:  # pragma: no cover
     github_actions_runs = None  # type: ignore
     integration_readiness = None  # type: ignore
     loki_operator_logs = None  # type: ignore
+    otel_operator_traces = None  # type: ignore
     prometheus_operator_metrics = None  # type: ignore
     redis_queue_depths = None  # type: ignore
 
@@ -151,7 +153,10 @@ async def operator_logs() -> dict[str, Any]:
 
 @router.get("/traces")
 async def operator_traces() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "source": "operator-synthetic", "spans": [{"name": "operator.status", "durationMs": 4, "status": "ok"}, {"name": "operator.memory", "durationMs": 7, "status": "ok"}, {"name": "operator.connectors", "durationMs": 3, "status": "ok"}]}
+    if otel_operator_traces is None:
+        return {"timestamp": utc_now(), "source": "otel-adapter-unavailable", "spans": []}
+    traces = otel_operator_traces(limit=20)
+    return {"timestamp": utc_now(), "source": "otel-adapter", "traces": traces, "spans": traces.get("spans", [])}
 
 
 @router.get("/agents")
@@ -174,7 +179,7 @@ async def operator_queues() -> dict[str, Any]:
 
 @router.get("/alerts")
 async def operator_alerts() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "alerts": [{"level": "notice", "surface": "governance", "message": "PR merge requires manual approval."}, {"level": "info", "surface": "deployment", "message": "Staging branch creation is queued after main merge."}, {"level": "info", "surface": "observability", "message": "Prometheus, Redis, GitHub Actions, and Loki adapters are wired read-only."}]}
+    return {"timestamp": utc_now(), "alerts": [{"level": "notice", "surface": "governance", "message": "PR merge requires manual approval."}, {"level": "info", "surface": "deployment", "message": "Staging branch creation is queued after main merge."}, {"level": "info", "surface": "observability", "message": "Prometheus, Redis, GitHub Actions, Loki, and OpenTelemetry adapters are wired read-only."}]}
 
 
 @router.get("/graph")
@@ -193,14 +198,14 @@ async def operator_dag() -> dict[str, Any]:
 @router.get("/topology")
 async def operator_topology() -> dict[str, Any]:
     integrations = integration_readiness() if integration_readiness else {"status": "unavailable"}
-    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "live-adapter-ready", "components": ["GitHub Actions", "Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Loki", "Metrics", "Logs", "Runtime Stream"]}]}
+    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "live-adapter-ready", "components": ["GitHub Actions", "Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Loki", "OpenTelemetry", "Metrics", "Logs", "Traces", "Runtime Stream"]}]}
 
 
 @router.websocket("/runtime/stream")
 async def operator_runtime_stream(websocket: WebSocket) -> None:
     await websocket.accept()
     event_index = 0
-    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "logs", "alerts", "graph", "integrations", "ci"]
+    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "logs", "traces", "alerts", "graph", "integrations", "ci"]
     try:
         await websocket.send_json({"type": "operator.connected", "timestamp": utc_now(), "message": "Operator runtime stream connected.", "severity": "info"})
         while True:
