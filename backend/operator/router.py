@@ -37,6 +37,11 @@ except ImportError:  # pragma: no cover
     prometheus_operator_metrics = None  # type: ignore
     redis_queue_depths = None  # type: ignore
 
+try:
+    from backend.operator.supervision import supervise_runtime
+except ImportError:  # pragma: no cover
+    supervise_runtime = None  # type: ignore
+
 router = APIRouter(dependencies=[Depends(require_operator_access)])
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -63,12 +68,19 @@ def memory_summary(path: Path) -> dict[str, Any]:
 
 
 def graph_payload() -> dict[str, Any]:
-    return {"nodes": [{"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"}, {"id": "api", "label": "Operator API", "type": "service", "status": "online"}, {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"}, {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"}, {"id": "ion", "label": "ION", "type": "agent", "status": "online"}, {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"}, {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"}, {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"}, {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "live-adapter-ready"}, {"id": "observability", "label": "Observability", "type": "telemetry", "status": "integration-ready"}], "edges": [{"source": "operator", "target": "api", "label": "queries"}, {"source": "api", "target": "hermes", "label": "governance state"}, {"source": "api", "target": "tars", "label": "runtime state"}, {"source": "api", "target": "ion", "label": "dashboard intelligence"}, {"source": "api", "target": "sapphire", "label": "memory state"}, {"source": "api", "target": "guardian", "label": "safety review"}, {"source": "sapphire", "target": "memory", "label": "curates"}, {"source": "hermes", "target": "ci", "label": "reviews"}, {"source": "tars", "target": "observability", "label": "emits telemetry"}]}
+    return {"nodes": [{"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"}, {"id": "api", "label": "Operator API", "type": "service", "status": "online"}, {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"}, {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"}, {"id": "ion", "label": "ION", "type": "agent", "status": "online"}, {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"}, {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"}, {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"}, {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "live-adapter-ready"}, {"id": "observability", "label": "Observability", "type": "telemetry", "status": "integration-ready"}, {"id": "supervision", "label": "Runtime Supervision", "type": "supervisor", "status": "advisory"}], "edges": [{"source": "operator", "target": "api", "label": "queries"}, {"source": "api", "target": "hermes", "label": "governance state"}, {"source": "api", "target": "tars", "label": "runtime state"}, {"source": "api", "target": "ion", "label": "dashboard intelligence"}, {"source": "api", "target": "sapphire", "label": "memory state"}, {"source": "api", "target": "guardian", "label": "safety review"}, {"source": "sapphire", "target": "memory", "label": "curates"}, {"source": "hermes", "target": "ci", "label": "reviews"}, {"source": "tars", "target": "observability", "label": "emits telemetry"}, {"source": "supervision", "target": "observability", "label": "classifies"}, {"source": "supervision", "target": "queues", "label": "monitors"}]}
 
 
 @router.get("/status")
 async def operator_status() -> dict[str, Any]:
-    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "integrations", "deployments", "governance", "runtime", "observability", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
+    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "integrations", "deployments", "governance", "runtime", "observability", "supervision", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
+
+
+@router.get("/supervision")
+async def operator_supervision() -> dict[str, Any]:
+    if supervise_runtime is None:
+        return {"timestamp": utc_now(), "state": "unknown", "anomalies": [], "summary": {"totalAnomalies": 0, "critical": 0, "degraded": 0, "elevated": 0, "unknown": 0}}
+    return supervise_runtime()
 
 
 @router.get("/integrations")
@@ -133,7 +145,7 @@ async def operator_governance() -> dict[str, Any]:
 
 @router.get("/runtime")
 async def operator_runtime() -> dict[str, str]:
-    return {"agents": "observing", "queues": "observing", "memory": "local-first", "dag": "observing", "gitnexus": "pending-live-check"}
+    return {"agents": "observing", "queues": "observing", "memory": "local-first", "dag": "observing", "gitnexus": "pending-live-check", "supervision": "advisory"}
 
 
 @router.get("/metrics")
@@ -166,7 +178,8 @@ async def operator_agents() -> dict[str, Any]:
 
 @router.get("/events")
 async def operator_events() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "events": [{"type": "ci.green", "surface": "ci", "message": "Core production gates are green.", "severity": "info"}, {"type": "memory.ready", "surface": "memory", "message": "Local-first memory vault surface available.", "severity": "info"}, {"type": "runtime.observing", "surface": "runtime", "message": "Runtime stream heartbeat enabled.", "severity": "info"}]}
+    supervision = supervise_runtime() if supervise_runtime else {"state": "unknown", "anomalies": []}
+    return {"timestamp": utc_now(), "events": [{"type": "ci.green", "surface": "ci", "message": "Core production gates are green.", "severity": "info"}, {"type": "memory.ready", "surface": "memory", "message": "Local-first memory vault surface available.", "severity": "info"}, {"type": "runtime.observing", "surface": "runtime", "message": "Runtime stream heartbeat enabled.", "severity": "info"}, {"type": "supervision.state", "surface": "supervision", "message": f"Runtime supervision state: {supervision.get('state')}", "severity": "info"}]}
 
 
 @router.get("/queues")
@@ -179,7 +192,9 @@ async def operator_queues() -> dict[str, Any]:
 
 @router.get("/alerts")
 async def operator_alerts() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "alerts": [{"level": "notice", "surface": "governance", "message": "PR merge requires manual approval."}, {"level": "info", "surface": "deployment", "message": "Staging branch creation is queued after main merge."}, {"level": "info", "surface": "observability", "message": "Prometheus, Redis, GitHub Actions, Loki, and OpenTelemetry adapters are wired read-only."}]}
+    supervision = supervise_runtime() if supervise_runtime else {"anomalies": []}
+    supervision_alerts = [{"level": item.get("severity", "info"), "surface": item.get("surface", "supervision"), "message": item.get("message", "Supervision anomaly observed.")} for item in supervision.get("anomalies", [])]
+    return {"timestamp": utc_now(), "alerts": [{"level": "notice", "surface": "governance", "message": "PR merge requires manual approval."}, {"level": "info", "surface": "deployment", "message": "Staging branch creation is queued after main merge."}, {"level": "info", "surface": "observability", "message": "Prometheus, Redis, GitHub Actions, Loki, and OpenTelemetry adapters are wired read-only."}, *supervision_alerts]}
 
 
 @router.get("/graph")
@@ -192,25 +207,31 @@ async def operator_graph() -> dict[str, Any]:
 
 @router.get("/dag")
 async def operator_dag() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "nodes": [{"id": "ingest", "label": "Ingest", "status": "ready"}, {"id": "compress", "label": "Compress", "status": "ready"}, {"id": "route", "label": "Route", "status": "ready"}, {"id": "execute", "label": "Execute", "status": "manual-review"}, {"id": "observe", "label": "Observe", "status": "online"}], "edges": [{"source": "ingest", "target": "compress"}, {"source": "compress", "target": "route"}, {"source": "route", "target": "execute"}, {"source": "execute", "target": "observe"}]}
+    return {"timestamp": utc_now(), "nodes": [{"id": "ingest", "label": "Ingest", "status": "ready"}, {"id": "compress", "label": "Compress", "status": "ready"}, {"id": "route", "label": "Route", "status": "ready"}, {"id": "execute", "label": "Execute", "status": "manual-review"}, {"id": "observe", "label": "Observe", "status": "online"}, {"id": "supervise", "label": "Supervise", "status": "advisory"}], "edges": [{"source": "ingest", "target": "compress"}, {"source": "compress", "target": "route"}, {"source": "route", "target": "execute"}, {"source": "execute", "target": "observe"}, {"source": "observe", "target": "supervise"}]}
 
 
 @router.get("/topology")
 async def operator_topology() -> dict[str, Any]:
     integrations = integration_readiness() if integration_readiness else {"status": "unavailable"}
-    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "live-adapter-ready", "components": ["GitHub Actions", "Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Loki", "OpenTelemetry", "Metrics", "Logs", "Traces", "Runtime Stream"]}]}
+    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "live-adapter-ready", "components": ["GitHub Actions", "Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Loki", "OpenTelemetry", "Metrics", "Logs", "Traces", "Runtime Stream"]}, {"name": "supervision", "status": "advisory", "components": ["State Classification", "Anomaly Detection", "Remediation Hints"]}]}
 
 
 @router.websocket("/runtime/stream")
 async def operator_runtime_stream(websocket: WebSocket) -> None:
     await websocket.accept()
     event_index = 0
-    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "logs", "traces", "alerts", "graph", "integrations", "ci"]
+    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "logs", "traces", "supervision", "alerts", "graph", "integrations", "ci"]
     try:
         await websocket.send_json({"type": "operator.connected", "timestamp": utc_now(), "message": "Operator runtime stream connected.", "severity": "info"})
         while True:
             surface = surfaces[event_index % len(surfaces)]
-            await websocket.send_json({"type": "operator.heartbeat", "timestamp": utc_now(), "surface": surface, "status": "observing", "severity": "info", "message": f"{surface} surface heartbeat observed."})
+            message = f"{surface} surface heartbeat observed."
+            event_type = "operator.heartbeat"
+            if surface == "supervision" and supervise_runtime:
+                supervision = supervise_runtime()
+                event_type = "supervision.state"
+                message = f"Runtime supervision state: {supervision.get('state')} with {supervision.get('summary', {}).get('totalAnomalies', 0)} anomalies."
+            await websocket.send_json({"type": event_type, "timestamp": utc_now(), "surface": surface, "status": "observing", "severity": "info", "message": message})
             event_index += 1
             await asyncio.sleep(5)
     except WebSocketDisconnect:
