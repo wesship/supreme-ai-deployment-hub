@@ -7,11 +7,12 @@ behind normal API authentication/proxy controls.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
@@ -20,13 +21,18 @@ STATE_FILE = ROOT / "config" / "operator-console.example.json"
 MEMORY_VAULT = ROOT / ".devonn" / "memory-vault"
 
 
+def utc_now() -> str:
+    """Return an ISO-8601 UTC timestamp."""
+    return datetime.now(timezone.utc).isoformat()
+
+
 @router.get("/status")
 async def operator_status() -> dict[str, Any]:
     """Return high-level operator readiness state."""
     return {
         "readiness": "yellow",
         "mode": "stabilization",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": utc_now(),
         "surfaces": [
             "ci",
             "memory",
@@ -130,3 +136,44 @@ async def operator_runtime() -> dict[str, str]:
         "dag": "pending-live-check",
         "gitnexus": "pending-live-check",
     }
+
+
+@router.websocket("/runtime/stream")
+async def operator_runtime_stream(websocket: WebSocket) -> None:
+    """Emit a read-only operator runtime heartbeat stream.
+
+    This stream is intentionally non-destructive. It only reports status-like
+    events for the Operator Console and does not execute jobs, mutate memory,
+    deploy code, or call external connectors.
+    """
+    await websocket.accept()
+
+    event_index = 0
+    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability"]
+
+    try:
+        await websocket.send_json(
+            {
+                "type": "operator.connected",
+                "timestamp": utc_now(),
+                "message": "Operator runtime stream connected.",
+                "severity": "info",
+            }
+        )
+
+        while True:
+            surface = surfaces[event_index % len(surfaces)]
+            await websocket.send_json(
+                {
+                    "type": "operator.heartbeat",
+                    "timestamp": utc_now(),
+                    "surface": surface,
+                    "status": "observing",
+                    "severity": "info",
+                    "message": f"{surface} surface heartbeat observed.",
+                }
+            )
+            event_index += 1
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        return
