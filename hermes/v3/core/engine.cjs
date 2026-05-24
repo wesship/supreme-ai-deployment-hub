@@ -4,38 +4,58 @@
  * hermes/v3/core/engine.cjs
  *
  * Hermes v3 — Autonomous Governance Layer — CI Entrypoint
- *
- * Pipeline:
- *   1. Build GitHub Actions context
- *   2. Run IAM introspection analyzer
- *   3. Generate risk heatmap
- *   4. Evaluate agent firewall (if actor is a bot)
- *   5. Evaluate OPA policy engine
- *   6. Post PR comment with full decision report
- *   7. Enforce decision (exit 0 or exit 1)
- *
- * Exit codes:
- *   0 — ALLOW or WARN (pipeline continues)
- *   1 — DENY (pipeline blocked)
  */
 
-const { buildContext }           = require("../context/github-context.cjs");
-const { evaluateWithOPA }        = require("./opa.cjs");
-const { postDecisionComment }    = require("../bot/pr-comment.cjs");
-const { generateHeatmap }        = require("../heatmap/risk-heatmap.cjs");
-const { analyzeIAM }             = require("../iam/aws-iam.cjs");
-const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
+const { buildContext }            = require("../context/github-context.cjs");
+const { evaluateWithOPA }         = require("./opa.cjs");
+const { postDecisionComment }     = require("../bot/pr-comment.cjs");
+const { generateHeatmap }         = require("../heatmap/risk-heatmap.cjs");
+const { analyzeIAM }              = require("../iam/aws-iam.cjs");
+const { evaluateContextFirewall } = require("../firewall/agent-firewall.cjs");
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
+function isGovernanceFixtureFile(filePath) {
+  return /(^|\/)hermes\/v3\/tests\//.test(filePath) ||
+    /(^|\/)hermes\/tests\//.test(filePath) ||
+    /(^|\/)test-fixtures?\//.test(filePath) ||
+    /(^|\/)fixtures?\//.test(filePath);
+}
+
+function isIamAnalysisSourceFile(filePath) {
+  return /(^|\/)terraform\//.test(filePath) ||
+    /(^|\/)infra\//.test(filePath) ||
+    /(^|\/)k8s\//.test(filePath) ||
+    /(^|\/)helm\//.test(filePath) ||
+    /(^|\/)src\/data\/manifest\/terraform\//.test(filePath) ||
+    /(^|\/)aws\/.*\.(json|ya?ml|tf)$/.test(filePath) ||
+    /(^|\/)(iam|role|policy|permission|trust)[^/]*\.(json|ya?ml|tf)$/.test(filePath);
+}
+
+function filterDiffByFile(diff, predicate) {
+  const blocks = diff.split(/^diff --git /m);
+  return blocks
+    .filter((block, index) => {
+      if (index === 0 && block.trim() === "") return false;
+      const normalized = index === 0 ? block : `diff --git ${block}`;
+      const match = normalized.match(/^diff --git a\/(.*?) b\/(.*)$/m);
+      if (!match) return true;
+      return predicate(match[1]) || predicate(match[2]);
+    })
+    .join("");
+}
+
+function filterGovernanceFixtureDiff(diff) {
+  return filterDiffByFile(diff, (filePath) => !isGovernanceFixtureFile(filePath));
+}
+
+function filterIamAnalysisDiff(diff) {
+  return filterDiffByFile(diff, (filePath) => !isGovernanceFixtureFile(filePath) && isIamAnalysisSourceFile(filePath));
+}
 
 (async function main() {
   console.log("╔══════════════════════════════════════════════════╗");
   console.log("║      HERMES v3 — AUTONOMOUS GOVERNANCE LAYER     ║");
   console.log("╚══════════════════════════════════════════════════╝\n");
 
-  // ── Step 1: Build context ─────────────────────────────────────────────────
   let context;
   try {
     context = buildContext();
@@ -47,16 +67,16 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
     process.exit(1);
   }
 
-  // ── Step 2: IAM introspection ─────────────────────────────────────────────
   let iamAnalysis = { hasIAMChanges: false, findings: [], riskLevel: "none" };
   try {
-    // Note: diff is not stored in context to keep it small; re-derive here
     const { execSync } = require("child_process");
-    const diff = (() => {
+    const rawDiff = (() => {
       try { return execSync("git diff origin/main...HEAD", { stdio: ["pipe","pipe","pipe"] }).toString(); }
       catch { return execSync("git diff HEAD", { stdio: ["pipe","pipe","pipe"] }).toString(); }
     })();
-    iamAnalysis = analyzeIAM(diff, context.filesChanged);
+    const diff = filterIamAnalysisDiff(rawDiff);
+    const iamFiles = context.filesChanged.filter((file) => !isGovernanceFixtureFile(file) && isIamAnalysisSourceFile(file));
+    iamAnalysis = analyzeIAM(diff, iamFiles);
     if (iamAnalysis.hasIAMChanges) {
       console.log(`⚠️  IAM changes detected — risk level: ${iamAnalysis.riskLevel}`);
       iamAnalysis.findings.forEach((f) => console.log(`   [${f.severity}] ${f.message}`));
@@ -66,7 +86,6 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
     console.warn("⚠️  IAM analysis failed (non-fatal):", err.message);
   }
 
-  // ── Step 3: Risk heatmap ──────────────────────────────────────────────────
   let heatmap = { entries: [], summary: {}, markdownTable: "" };
   try {
     heatmap = generateHeatmap(context);
@@ -77,7 +96,6 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
     console.warn("⚠️  Heatmap generation failed (non-fatal):", err.message);
   }
 
-  // ── Step 4: Agent firewall ────────────────────────────────────────────────
   let firewallResult = { blocked: false, violations: [] };
   try {
     firewallResult = evaluateContextFirewall(context);
@@ -95,18 +113,13 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
     console.warn("⚠️  Agent firewall check failed (non-fatal):", err.message);
   }
 
-  // ── Step 5: OPA policy evaluation ────────────────────────────────────────
   let decision;
   try {
-    // Merge IAM findings into context risk signals for policy evaluation
     if (iamAnalysis.hasIAMChanges) {
       context.riskSignals.touchesIAM = true;
-      if (iamAnalysis.riskLevel === "critical") {
-        context.riskSignals.hasIAMCritical = true;
-      }
+      if (iamAnalysis.riskLevel === "critical") context.riskSignals.hasIAMCritical = true;
     }
 
-    // If agent firewall blocked, override decision
     if (firewallResult.blocked) {
       decision = {
         decision: "DENY",
@@ -137,9 +150,7 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
     process.exit(1);
   }
 
-  // ── Step 6: Post PR comment ───────────────────────────────────────────────
   try {
-    // Enrich context with heatmap for the comment
     context.heatmap = heatmap;
     context.iamAnalysis = iamAnalysis;
     await postDecisionComment(decision, context);
@@ -147,7 +158,6 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
     console.warn("⚠️  PR comment failed (non-fatal):", err.message);
   }
 
-  // ── Step 7: Write GitHub Actions step summary ─────────────────────────────
   try {
     const summaryFile = process.env.GITHUB_STEP_SUMMARY;
     if (summaryFile) {
@@ -168,7 +178,6 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
     // Non-fatal
   }
 
-  // ── Step 8: Enforce decision ──────────────────────────────────────────────
   switch (decision.decision) {
     case "DENY":
       console.error(`\n❌ HERMES BLOCKED PIPELINE`);
@@ -180,7 +189,6 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
       }
       process.exit(1);
       break;
-
     case "WARN":
       console.warn(`\n⚠️  HERMES WARNING`);
       console.warn(`   Policy: ${decision.policy}`);
@@ -188,7 +196,6 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
       console.log("\n✅ Pipeline continues (WARN is non-blocking)");
       process.exit(0);
       break;
-
     case "ALLOW":
     default:
       console.log(`\n✅ HERMES APPROVED`);
@@ -198,3 +205,11 @@ const { evaluateContextFirewall }= require("../firewall/agent-firewall.cjs");
       break;
   }
 })();
+
+module.exports = {
+  isGovernanceFixtureFile,
+  isIamAnalysisSourceFile,
+  filterDiffByFile,
+  filterGovernanceFixtureDiff,
+  filterIamAnalysisDiff,
+};

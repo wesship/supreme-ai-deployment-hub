@@ -2,13 +2,12 @@ import { LLMConfig, LLMMessage, LLMResponse, StreamingLLMResponse } from '@/type
 import { OpenAIClient } from './clients/openai';
 import { AnthropicClient } from './clients/anthropic';
 import { GoogleClient } from './clients/google';
-import { HuggingFaceClient } from './clients/huggingface';
 
 export interface LLMClient {
   generateResponse(messages: LLMMessage[], config: LLMConfig): Promise<LLMResponse>;
   streamResponse(
-    messages: LLMMessage[], 
-    config: LLMConfig, 
+    messages: LLMMessage[],
+    config: LLMConfig,
     onChunk: (chunk: StreamingLLMResponse) => void
   ): Promise<void>;
   generateEmbeddings?(texts: string[], config: LLMConfig): Promise<number[][]>;
@@ -21,37 +20,42 @@ export class UnifiedLLMClient {
     this.clients.set('openai', new OpenAIClient());
     this.clients.set('anthropic', new AnthropicClient());
     this.clients.set('google', new GoogleClient());
-    this.clients.set('huggingface', new HuggingFaceClient());
   }
 
   async generateResponse(messages: LLMMessage[], config: LLMConfig): Promise<LLMResponse> {
-    const client = this.clients.get(config.provider);
-    if (!client) {
-      throw new Error(`Unsupported LLM provider: ${config.provider}`);
-    }
-    
+    const client = await this.getClient(config.provider);
     return client.generateResponse(messages, config);
   }
 
   async streamResponse(
-    messages: LLMMessage[], 
-    config: LLMConfig, 
+    messages: LLMMessage[],
+    config: LLMConfig,
     onChunk: (chunk: StreamingLLMResponse) => void
   ): Promise<void> {
-    const client = this.clients.get(config.provider);
-    if (!client) {
-      throw new Error(`Unsupported LLM provider: ${config.provider}`);
-    }
-    
+    const client = await this.getClient(config.provider);
     return client.streamResponse(messages, config, onChunk);
   }
 
   async generateEmbeddings(texts: string[], config: LLMConfig): Promise<number[][]> {
-    const client = this.clients.get(config.provider);
-    if (!client?.generateEmbeddings) {
+    const client = await this.getClient(config.provider);
+    if (!client.generateEmbeddings) {
       throw new Error(`Provider ${config.provider} does not support embeddings`);
     }
-    
+
     return client.generateEmbeddings(texts, config);
+  }
+
+  private async getClient(provider: string): Promise<LLMClient> {
+    const client = this.clients.get(provider);
+    if (client) return client;
+
+    if (provider === 'huggingface') {
+      const module = await import('./clients/huggingface');
+      const lazyClient = new module.HuggingFaceClient();
+      this.clients.set(provider, lazyClient);
+      return lazyClient;
+    }
+
+    throw new Error(`Unsupported LLM provider: ${provider}`);
   }
 }

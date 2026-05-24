@@ -1,0 +1,55 @@
+name: Promotion Validation
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - 'wave/**'
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promotion-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-promotion-candidate:
+    name: Validate promotion candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_ENVIRONMENT: staging
+          VITE_APP_VERSION: ${{ github.sha }}
+
+      - name: Validate promotion doctrine files
+        run: |
+          test -f docs/WAVE_31_PRODUCTION_FREEZE.md
+          test -f docs/RELEASE_GOVERNANCE_MATRIX.md
+          test -f docs/ROLLBACK_MANIFEST_TEMPLATE.md
+          test -f docs/PRODUCTION_READINESS_MATRIX.md
+          echo "Promotion validation passed"

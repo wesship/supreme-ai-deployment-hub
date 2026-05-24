@@ -1,12 +1,7 @@
 name: Cost Optimization
 
-# Runs Infracost on every Terraform PR to show the cost impact of infrastructure changes.
-# Also runs a weekly AWS cost anomaly check and posts a report to Slack.
-#
-# Required secrets:
-#   INFRACOST_API_KEY      - Infracost API key (free tier available at infracost.io)
-#   AWS_ROLE_ARN           - OIDC role for AWS Cost Explorer read access
-#   SLACK_WEBHOOK_COSTS    - Slack webhook for weekly cost reports
+# Runs Infracost on Terraform PRs when INFRACOST_API_KEY is configured.
+# Missing cost-reporting secrets produce advisory notices instead of blocking release gates.
 
 on:
   pull_request:
@@ -14,7 +9,6 @@ on:
       - 'terraform/**'
       - 'infra/**'
   schedule:
-    # Weekly cost report every Monday at 9am UTC
     - cron: '0 9 * * 1'
   workflow_dispatch:
 
@@ -22,7 +16,6 @@ permissions:
   contents: read
 
 jobs:
-  # ── Infracost PR Cost Diff ─────────────────────────────────────────────────
   infracost:
     name: Terraform Cost Estimate
     runs-on: ubuntu-latest
@@ -33,17 +26,32 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Check Infracost secret availability
+        id: infracost-secret
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: |
+          if [ -z "$INFRACOST_API_KEY" ]; then
+            echo "::warning::INFRACOST_API_KEY is not configured; skipping advisory cost estimate."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout base branch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        if: steps.infracost-secret.outputs.enabled == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: ${{ github.event.pull_request.base.ref }}
 
       - name: Setup Infracost
-        uses: infracost/actions/setup@d5dd739fb5eae81f31bf09fea5c290186a91964a  # v3.0.0
+        if: steps.infracost-secret.outputs.enabled == 'true'
+        uses: infracost/actions/setup@d5dd739fb5eae81f31bf09fea5c290186a91964a
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
 
       - name: Generate Infracost cost estimate for base branch
+        if: steps.infracost-secret.outputs.enabled == 'true'
         run: |
           infracost breakdown \
             --path terraform/ \
@@ -51,9 +59,11 @@ jobs:
             --out-file /tmp/infracost-base.json
 
       - name: Checkout PR branch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        if: steps.infracost-secret.outputs.enabled == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Generate Infracost cost estimate for PR branch
+        if: steps.infracost-secret.outputs.enabled == 'true'
         run: |
           infracost breakdown \
             --path terraform/ \
@@ -61,6 +71,7 @@ jobs:
             --out-file /tmp/infracost-pr.json
 
       - name: Post cost diff comment on PR
+        if: steps.infracost-secret.outputs.enabled == 'true'
         run: |
           infracost diff \
             --path /tmp/infracost-pr.json \
@@ -70,7 +81,13 @@ jobs:
             --pull-request ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }}
 
-  # ── Weekly AWS Cost Anomaly Report ────────────────────────────────────────
+      - name: Advisory cost summary
+        if: steps.infracost-secret.outputs.enabled != 'true'
+        run: |
+          echo "## Cost Optimization" >> "$GITHUB_STEP_SUMMARY"
+          echo "Infracost was skipped because INFRACOST_API_KEY is not configured." >> "$GITHUB_STEP_SUMMARY"
+          echo "This is advisory and does not block release convergence." >> "$GITHUB_STEP_SUMMARY"
+
   weekly-cost-report:
     name: Weekly Cost Report
     runs-on: ubuntu-latest
@@ -82,20 +99,34 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check weekly report secrets
+        id: weekly-secrets
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          SLACK_WEBHOOK_COSTS: ${{ secrets.SLACK_WEBHOOK_COSTS }}
+        run: |
+          if [ -z "$AWS_ROLE_ARN" ] || [ -z "$SLACK_WEBHOOK_COSTS" ]; then
+            echo "::warning::AWS_ROLE_ARN or SLACK_WEBHOOK_COSTS missing; skipping weekly cost report."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Configure AWS credentials via OIDC
-        continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        if: steps.weekly-secrets.outputs.enabled == 'true'
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Generate weekly cost report
+        if: steps.weekly-secrets.outputs.enabled == 'true'
         id: cost-report
         run: |
           python3 - <<'EOF'
-          import boto3, json
+          import boto3
           from datetime import datetime, timedelta
 
           ce = boto3.client('ce', region_name='us-east-1')
@@ -119,21 +150,22 @@ jobs:
                       total += cost
 
           services.sort(key=lambda x: x['cost'], reverse=True)
-
-          report = f"*Weekly AWS Cost Report* ({start} → {end})\n"
-          report += f"Total: *${total:.2f}*\n\n"
-          report += "Top services:\n"
+          report = f"*Weekly AWS Cost Report* ({start} → {end})\nTotal: *${total:.2f}*\n\nTop services:\n"
           for s in services[:8]:
               report += f"  • {s['service']}: ${s['cost']:.2f}\n"
 
-          print(f"REPORT<<EOF\n{report}\nEOF")
           with open('/tmp/cost_report.txt', 'w') as f:
               f.write(report)
           EOF
-          echo "report=$(cat /tmp/cost_report.txt)" >> $GITHUB_OUTPUT
+          {
+            echo "report<<EOF"
+            cat /tmp/cost_report.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Post cost report to Slack
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
+        if: steps.weekly-secrets.outputs.enabled == 'true'
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_COSTS }}
           webhook-type: incoming-webhook
