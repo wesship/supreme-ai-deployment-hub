@@ -17,7 +17,6 @@ const SECRET_PATTERNS = [
 const SAFE_PLACEHOLDER_PATTERNS = [
   /replace-with-/i,
   /placeholder/i,
-  /example/i,
   /your[-_]/i,
   /dummy/i,
   /changeme/i,
