@@ -9,6 +9,7 @@ import OperatorSessionGate from './components/OperatorSessionGate';
 import OperatorStatusCard from './components/OperatorStatusCard';
 import QueueActivityPanel from './components/QueueActivityPanel';
 import RuntimeStreamPanel from './components/RuntimeStreamPanel';
+import RuntimeSupervisionPanel from './components/RuntimeSupervisionPanel';
 import TopologyVisualizationPanel from './components/TopologyVisualizationPanel';
 import TraceVisualizationPanel from './components/TraceVisualizationPanel';
 import {
@@ -30,6 +31,7 @@ import './operator-theme.css';
 
 const navItems = [
   'Overview',
+  'Supervision',
   'CI / CD',
   'Memory Vault',
   'Connectors',
@@ -189,6 +191,8 @@ function OperatorDashboardInner() {
               value={queues.queues.reduce((total, queue) => total + queue.depth, 0)}
               description={queues.redisReady ? 'Redis telemetry connected.' : 'Redis telemetry pending.'}
             />
+
+            <RuntimeSupervisionPanel />
 
             <MemoryVaultPanel memory={memory} />
 
