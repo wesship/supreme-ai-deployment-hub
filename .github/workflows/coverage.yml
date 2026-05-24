@@ -60,14 +60,7 @@ jobs:
         run: |
           echo "## Test Coverage Report" >> "$GITHUB_STEP_SUMMARY"
           if [ -f ./coverage/coverage-summary.json ]; then
-            node - <<'NODE' >> "$GITHUB_STEP_SUMMARY"
-            const fs = require('fs');
-            const summary = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json', 'utf8')).total;
-            for (const metric of ['lines','functions','branches','statements']) {
-              const pct = summary[metric]?.pct ?? 'n/a';
-              console.log(`- ${metric}: ${pct}%`);
-            }
-            NODE
+            node -e "const fs=require('fs'); const s=JSON.parse(fs.readFileSync('./coverage/coverage-summary.json','utf8')).total; for (const m of ['lines','functions','branches','statements']) console.log('- '+m+': '+(s[m]?.pct ?? 'n/a')+'%');" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Coverage summary file not found." >> "$GITHUB_STEP_SUMMARY"
           fi
