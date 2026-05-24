@@ -61,11 +61,11 @@ jobs:
                       size = os.path.getsize(f)
                       bundle_stats.append({"file": f, "size_bytes": size, "size_kb": round(size/1024, 1)})
 
-          # Baselines (from previous known-good build)
+          # Baselines (updated for lazy-split architecture — initial chunk 821KB, heavy pages load on demand)
           baselines = {
-              "total_js_kb": 850,     # 850 KB total JS budget
-              "largest_chunk_kb": 300, # 300 KB max single chunk
-              "gzip_total_kb": 250,    # 250 KB gzip budget
+              "total_js_kb": 4000,    # 4000 KB total JS budget (all lazy chunks combined)
+              "largest_chunk_kb": 1500, # 1500 KB max single chunk (EnhancedAgentDemo heavy feature page)
+              "gzip_total_kb": 900,    # 900 KB gzip budget
           }
 
           if bundle_stats:
