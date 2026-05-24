@@ -1,8 +1,7 @@
 name: CI Auth Debugger
 
-# Diagnoses GitHub auth / checkout (exit code 128) failures by verifying
-# the required PATs and tokens exist with the right scopes before any
-# heavy workflow runs. Run on-demand or wire as a needs: gate.
+# Diagnoses GitHub auth / checkout failures without blocking normal PR validation
+# when optional cross-repo PAT access is not configured.
 
 on:
   workflow_dispatch:
@@ -23,47 +22,64 @@ jobs:
       - name: Check GITHUB_TOKEN
         run: |
           if [ -z "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "::error::GITHUB_TOKEN missing (should be auto-provided)"; exit 1
+            echo "::error::GITHUB_TOKEN missing (should be auto-provided)"
+            exit 1
           fi
-          echo "✔ GITHUB_TOKEN present"
+          echo "GITHUB_TOKEN present"
 
-      - name: Check GH_PAT (optional but recommended)
+      - name: Check GH_PAT availability
+        id: ghpat
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           if [ -z "$GH_PAT" ]; then
-            echo "::warning::GH_PAT not set - checkout of private submodules/cross-repo will fail with exit 128"
-          else
-            echo "✔ GH_PAT present"
-            # Validate token works and has repo scope
-            HTTP=$(curl -s -o /tmp/me.json -w "%{http_code}" \
-              -H "Authorization: token $GH_PAT" https://api.github.com/user)
-            if [ "$HTTP" != "200" ]; then
-              echo "::error::GH_PAT rejected by GitHub API (HTTP $HTTP)"; exit 1
-            fi
-            SCOPES=$(curl -sI -H "Authorization: token $GH_PAT" \
-              https://api.github.com/user | grep -i '^x-oauth-scopes:' || true)
-            echo "GH_PAT scopes: $SCOPES"
-            echo "$SCOPES" | grep -q 'repo' || {
-              echo "::error::GH_PAT missing 'repo' scope"; exit 1; }
+            echo "::warning::GH_PAT not set - private submodule or cross-repo checkout may fail with exit 128"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-      - name: Test cross-repo checkout
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          echo "GH_PAT present"
+
+          HTTP=$(curl -s -o /tmp/me.json -w "%{http_code}" \
+            -H "Authorization: token $GH_PAT" https://api.github.com/user)
+          if [ "$HTTP" != "200" ]; then
+            echo "::error::GH_PAT rejected by GitHub API (HTTP $HTTP)"
+            exit 1
+          fi
+
+          SCOPES=$(curl -sI -H "Authorization: token $GH_PAT" \
+            https://api.github.com/user | grep -i '^x-oauth-scopes:' || true)
+          echo "GH_PAT scopes: $SCOPES"
+          echo "$SCOPES" | grep -q 'repo' || {
+            echo "::error::GH_PAT missing repo scope"
+            exit 1
+          }
+
+      - name: Test repository checkout with default token
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Test PAT-backed checkout when available
+        if: steps.ghpat.outputs.present == 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          token: ${{ secrets.GH_PAT }}
           fetch-depth: 1
 
       - name: Verify git identity works
         run: |
           git config user.email "ci@devonn.ai"
-          git config user.name  "devonn-ci"
-          git rev-parse HEAD && echo "✔ checkout OK"
+          git config user.name "devonn-ci"
+          git rev-parse HEAD
+          echo "checkout OK"
 
       - name: Summary
         if: always()
         run: |
-          echo "### CI Auth Debugger" >> $GITHUB_STEP_SUMMARY
-          echo "- GITHUB_TOKEN: present" >> $GITHUB_STEP_SUMMARY
-          echo "- GH_PAT: ${{ secrets.GH_PAT && 'present' || 'MISSING' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Checkout: succeeded" >> $GITHUB_STEP_SUMMARY
+          echo "### CI Auth Debugger" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GITHUB_TOKEN: present" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GH_PAT present: ${{ steps.ghpat.outputs.present }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Default checkout: attempted" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PAT checkout: ${{ steps.ghpat.outputs.present == 'true' && 'attempted' || 'skipped' }}" >> "$GITHUB_STEP_SUMMARY"
