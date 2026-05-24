@@ -20,7 +20,17 @@ function isGovernanceFixtureFile(filePath) {
     /(^|\/)fixtures?\//.test(filePath);
 }
 
-function filterGovernanceFixtureDiff(diff) {
+function isIamAnalysisSourceFile(filePath) {
+  return /(^|\/)terraform\//.test(filePath) ||
+    /(^|\/)infra\//.test(filePath) ||
+    /(^|\/)k8s\//.test(filePath) ||
+    /(^|\/)helm\//.test(filePath) ||
+    /(^|\/)src\/data\/manifest\/terraform\//.test(filePath) ||
+    /(^|\/)aws\/.*\.(json|ya?ml|tf)$/.test(filePath) ||
+    /(^|\/)(iam|role|policy|permission|trust)[^/]*\.(json|ya?ml|tf)$/.test(filePath);
+}
+
+function filterDiffByFile(diff, predicate) {
   const blocks = diff.split(/^diff --git /m);
   return blocks
     .filter((block, index) => {
@@ -28,9 +38,17 @@ function filterGovernanceFixtureDiff(diff) {
       const normalized = index === 0 ? block : `diff --git ${block}`;
       const match = normalized.match(/^diff --git a\/(.*?) b\/(.*)$/m);
       if (!match) return true;
-      return !isGovernanceFixtureFile(match[1]) && !isGovernanceFixtureFile(match[2]);
+      return predicate(match[1]) || predicate(match[2]);
     })
     .join("");
+}
+
+function filterGovernanceFixtureDiff(diff) {
+  return filterDiffByFile(diff, (filePath) => !isGovernanceFixtureFile(filePath));
+}
+
+function filterIamAnalysisDiff(diff) {
+  return filterDiffByFile(diff, (filePath) => !isGovernanceFixtureFile(filePath) && isIamAnalysisSourceFile(filePath));
 }
 
 (async function main() {
@@ -56,8 +74,8 @@ function filterGovernanceFixtureDiff(diff) {
       try { return execSync("git diff origin/main...HEAD", { stdio: ["pipe","pipe","pipe"] }).toString(); }
       catch { return execSync("git diff HEAD", { stdio: ["pipe","pipe","pipe"] }).toString(); }
     })();
-    const diff = filterGovernanceFixtureDiff(rawDiff);
-    const iamFiles = context.filesChanged.filter((file) => !isGovernanceFixtureFile(file));
+    const diff = filterIamAnalysisDiff(rawDiff);
+    const iamFiles = context.filesChanged.filter((file) => !isGovernanceFixtureFile(file) && isIamAnalysisSourceFile(file));
     iamAnalysis = analyzeIAM(diff, iamFiles);
     if (iamAnalysis.hasIAMChanges) {
       console.log(`⚠️  IAM changes detected — risk level: ${iamAnalysis.riskLevel}`);
@@ -188,4 +206,10 @@ function filterGovernanceFixtureDiff(diff) {
   }
 })();
 
-module.exports = { isGovernanceFixtureFile, filterGovernanceFixtureDiff };
+module.exports = {
+  isGovernanceFixtureFile,
+  isIamAnalysisSourceFile,
+  filterDiffByFile,
+  filterGovernanceFixtureDiff,
+  filterIamAnalysisDiff,
+};
