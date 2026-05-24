@@ -1,7 +1,7 @@
 name: CI Auth Debugger
 
 # Diagnoses GitHub auth / checkout failures without blocking normal PR validation
-# when optional cross-repo PAT access is not configured.
+# when optional cross-repo PAT access is not configured or is temporarily invalid.
 
 on:
   workflow_dispatch:
@@ -35,6 +35,7 @@ jobs:
           if [ -z "$GH_PAT" ]; then
             echo "::warning::GH_PAT not set - private submodule or cross-repo checkout may fail with exit 128"
             echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "valid=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -44,25 +45,29 @@ jobs:
           HTTP=$(curl -s -o /tmp/me.json -w "%{http_code}" \
             -H "Authorization: token $GH_PAT" https://api.github.com/user)
           if [ "$HTTP" != "200" ]; then
-            echo "::error::GH_PAT rejected by GitHub API (HTTP $HTTP)"
-            exit 1
+            echo "::warning::GH_PAT rejected by GitHub API (HTTP $HTTP) - optional PAT checks skipped"
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           SCOPES=$(curl -sI -H "Authorization: token $GH_PAT" \
             https://api.github.com/user | grep -i '^x-oauth-scopes:' || true)
           echo "GH_PAT scopes: $SCOPES"
-          echo "$SCOPES" | grep -q 'repo' || {
-            echo "::error::GH_PAT missing repo scope"
-            exit 1
-          }
+          if ! echo "$SCOPES" | grep -q 'repo'; then
+            echo "::warning::GH_PAT missing repo scope - optional PAT checkout skipped"
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "valid=true" >> "$GITHUB_OUTPUT"
 
       - name: Test repository checkout with default token
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 1
 
-      - name: Test PAT-backed checkout when available
-        if: steps.ghpat.outputs.present == 'true'
+      - name: Test PAT-backed checkout when valid
+        if: steps.ghpat.outputs.valid == 'true'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           token: ${{ secrets.GH_PAT }}
@@ -81,5 +86,6 @@ jobs:
           echo "### CI Auth Debugger" >> "$GITHUB_STEP_SUMMARY"
           echo "- GITHUB_TOKEN: present" >> "$GITHUB_STEP_SUMMARY"
           echo "- GH_PAT present: ${{ steps.ghpat.outputs.present }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GH_PAT valid: ${{ steps.ghpat.outputs.valid }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Default checkout: attempted" >> "$GITHUB_STEP_SUMMARY"
-          echo "- PAT checkout: ${{ steps.ghpat.outputs.present == 'true' && 'attempted' || 'skipped' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PAT checkout: ${{ steps.ghpat.outputs.valid == 'true' && 'attempted' || 'skipped' }}" >> "$GITHUB_STEP_SUMMARY"
