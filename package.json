@@ -14,7 +14,15 @@
     "test:coverage": "vitest run --coverage",
     "test:extension": "vitest run src/extension/__tests__/ --passWithNoTests",
     "test:e2e": "echo \"No E2E tests specified\" && exit 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ci:doctor": "bash scripts/ci-doctor.sh",
+    "workflow:audit": "bash scripts/workflow-audit.sh",
+    "workflow:classify": "bash scripts/workflow-classifier.sh",
+    "repo:entropy": "bash scripts/repo-entropy-scan.sh",
+    "pins:validate": "bash scripts/action-pin-validator.sh",
+    "memory:export": "node scripts/memory-tree-export.mjs",
+    "memory:compress": "node scripts/tokenjuice-lite.mjs",
+    "connectors:audit": "node scripts/connector-inventory.mjs"
   },
   "dependencies": {
     "@11labs/react": "^0.2.0",
