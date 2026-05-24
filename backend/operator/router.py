@@ -22,12 +22,27 @@ MEMORY_VAULT = ROOT / ".devonn" / "memory-vault"
 
 
 def utc_now() -> str:
-    """Return an ISO-8601 UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
 
 
+def memory_files() -> list[Path]:
+    if not MEMORY_VAULT.exists():
+        return []
+    return sorted(MEMORY_VAULT.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+
+def memory_summary(path: Path) -> dict[str, Any]:
+    stat = path.stat()
+    return {
+        "id": path.stem,
+        "file": path.name,
+        "path": str(path.relative_to(ROOT)),
+        "sizeBytes": stat.st_size,
+        "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+    }
+
+
 def graph_payload() -> dict[str, Any]:
-    """Return the canonical read-only operator graph payload."""
     return {
         "nodes": [
             {"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"},
@@ -57,33 +72,42 @@ def graph_payload() -> dict[str, Any]:
 
 @router.get("/status")
 async def operator_status() -> dict[str, Any]:
-    return {
-        "readiness": "yellow",
-        "mode": "stabilization",
-        "timestamp": utc_now(),
-        "surfaces": ["ci", "memory", "connectors", "deployments", "governance", "runtime", "observability", "agents", "events", "queues", "alerts", "graph", "dag", "topology"],
-    }
+    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "deployments", "governance", "runtime", "observability", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
 
 
 @router.get("/ci")
 async def operator_ci() -> dict[str, Any]:
-    return {
-        "status": "green",
-        "requiredChecks": ["CI - Hardened Build Pipeline", "Devonn.AI Testing", "CodeQL SAST", "Secrets Elimination & Scanning", "Final Green Check"],
-        "advisoryTools": ["ci:doctor", "workflow:audit", "workflow:classify", "repo:entropy", "pins:validate"],
-    }
+    return {"status": "green", "requiredChecks": ["CI - Hardened Build Pipeline", "Devonn.AI Testing", "CodeQL SAST", "Secrets Elimination & Scanning", "Final Green Check"], "advisoryTools": ["ci:doctor", "workflow:audit", "workflow:classify", "repo:entropy", "pins:validate"]}
 
 
 @router.get("/memory")
 async def operator_memory() -> dict[str, Any]:
-    entries = 0
-    last_export: str | None = None
-    if MEMORY_VAULT.exists():
-        files = sorted(MEMORY_VAULT.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
-        entries = len(files)
-        if files:
-            last_export = files[0].name
-    return {"vaultPath": str(MEMORY_VAULT.relative_to(ROOT)), "entries": entries, "lastExport": last_export, "mode": "local-first"}
+    files = memory_files()
+    return {"vaultPath": str(MEMORY_VAULT.relative_to(ROOT)), "entries": len(files), "lastExport": files[0].name if files else None, "mode": "local-first"}
+
+
+@router.get("/memory/history")
+async def operator_memory_history() -> dict[str, Any]:
+    files = memory_files()
+    return {"timestamp": utc_now(), "vaultPath": str(MEMORY_VAULT.relative_to(ROOT)), "entries": [memory_summary(path) for path in files[:25]]}
+
+
+@router.get("/memory/snapshots")
+async def operator_memory_snapshots() -> dict[str, Any]:
+    files = memory_files()
+    return {"timestamp": utc_now(), "snapshots": [{**memory_summary(path), "kind": "markdown-export", "compression": "tokenjuice-lite-ready"} for path in files[:10]]}
+
+
+@router.get("/memory/replay")
+async def operator_memory_replay() -> dict[str, Any]:
+    files = memory_files()
+    events = []
+    for path in files[:10]:
+        summary = memory_summary(path)
+        events.append({"type": "memory.snapshot", "timestamp": summary["modified"], "file": summary["file"], "message": f"Operational memory snapshot available: {summary['file']}"})
+    if not events:
+        events.append({"type": "memory.empty", "timestamp": utc_now(), "file": None, "message": "No memory snapshots found yet. Run npm run memory:export <file> to create one."})
+    return {"timestamp": utc_now(), "events": events}
 
 
 @router.get("/connectors")
@@ -108,7 +132,7 @@ async def operator_runtime() -> dict[str, str]:
 
 @router.get("/metrics")
 async def operator_metrics() -> dict[str, Any]:
-    return {"timestamp": utc_now(), "source": "operator-synthetic", "series": [{"name": "api_latency_ms", "value": 42, "unit": "ms", "status": "healthy"}, {"name": "queue_depth", "value": 0, "unit": "jobs", "status": "healthy"}, {"name": "error_rate", "value": 0.0, "unit": "%", "status": "healthy"}, {"name": "memory_exports", "value": len(list(MEMORY_VAULT.glob('*.md'))) if MEMORY_VAULT.exists() else 0, "unit": "files", "status": "observing"}]}
+    return {"timestamp": utc_now(), "source": "operator-synthetic", "series": [{"name": "api_latency_ms", "value": 42, "unit": "ms", "status": "healthy"}, {"name": "queue_depth", "value": 0, "unit": "jobs", "status": "healthy"}, {"name": "error_rate", "value": 0.0, "unit": "%", "status": "healthy"}, {"name": "memory_exports", "value": len(memory_files()), "unit": "files", "status": "observing"}]}
 
 
 @router.get("/logs")
