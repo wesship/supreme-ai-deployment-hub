@@ -75,6 +75,32 @@ export type OperatorQueues = {
   queues: Array<{ name: string; depth: number; status: string }>;
 };
 
+export type OperatorGraphNode = {
+  id: string;
+  label: string;
+  type: string;
+  status: string;
+};
+
+export type OperatorGraphEdge = {
+  source: string;
+  target: string;
+  label?: string;
+};
+
+export type OperatorGraph = {
+  timestamp?: string;
+  source?: string;
+  nodes: OperatorGraphNode[];
+  edges: OperatorGraphEdge[];
+};
+
+export type OperatorTopology = {
+  timestamp: string;
+  integrationStatus?: string;
+  layers: Array<{ name: string; status: string; components: string[] }>;
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 async function fetchOperator<T>(path: string, fallback: T): Promise<T> {
@@ -171,6 +197,17 @@ export const operatorFallbacks = {
     redisReady: false,
     queues: [],
   } satisfies OperatorQueues,
+  graph: {
+    timestamp: new Date(0).toISOString(),
+    source: 'fallback',
+    nodes: [],
+    edges: [],
+  } satisfies OperatorGraph,
+  topology: {
+    timestamp: new Date(0).toISOString(),
+    integrationStatus: 'unknown',
+    layers: [],
+  } satisfies OperatorTopology,
 };
 
 export const operatorApi = {
@@ -185,4 +222,7 @@ export const operatorApi = {
   logs: () => fetchOperator<OperatorLogs>('/logs', operatorFallbacks.logs),
   traces: () => fetchOperator<OperatorTraces>('/traces', operatorFallbacks.traces),
   queues: () => fetchOperator<OperatorQueues>('/queues', operatorFallbacks.queues),
+  graph: () => fetchOperator<OperatorGraph>('/graph', operatorFallbacks.graph),
+  dag: () => fetchOperator<OperatorGraph>('/dag', operatorFallbacks.graph),
+  topology: () => fetchOperator<OperatorTopology>('/topology', operatorFallbacks.topology),
 };
