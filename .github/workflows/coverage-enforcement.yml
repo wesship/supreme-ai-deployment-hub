@@ -1,4 +1,4 @@
-name: Coverage Enforcement & Mutation Tracking
+name: Coverage Enforcement
 
 on:
   pull_request:
@@ -10,24 +10,18 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  checks: write
-
-concurrency:
-  group: coverage-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   coverage-gate:
-    name: Coverage Enforcement Gate
+    name: Coverage Gate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -35,173 +29,35 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Run tests with coverage
+      - name: Run coverage when script exists
         run: |
-          npm run test:coverage -- \
-            --reporter=json \
-            --reporter=text \
-            --coverage.reporter=json \
-            --coverage.reporter=text 2>&1 | tee /tmp/coverage-output.txt || true
+          if npm run | grep -q "test:coverage"; then
+            npm run test:coverage -- --coverage.reporter=json --coverage.reporter=text
+          else
+            echo "No test:coverage script detected."
+          fi
 
-      - name: Enforce coverage thresholds
+      - name: Validate coverage artifact if present
         run: |
           python3 - << 'PYEOF'
           import json, os, sys
-
-          THRESHOLDS = {
-              "lines": 70,
-              "functions": 70,
-              "branches": 60,
-              "statements": 70,
-          }
-
-          coverage_paths = [
-              "coverage/coverage-summary.json",
-              "coverage/coverage-final.json",
-          ]
-
-          coverage_data = None
-          for path in coverage_paths:
-              if os.path.exists(path):
-                  with open(path) as f:
-                      coverage_data = json.load(f)
-                  break
-
-          if coverage_data is None:
-              print("Coverage data not found - tests may not have run")
-              print("::warning::Coverage data unavailable - ensure vitest coverage is configured")
+          summary = 'coverage/coverage-summary.json'
+          if not os.path.exists(summary):
+              print('Coverage summary not found; advisory pass.')
               sys.exit(0)
-
-          totals = coverage_data.get("total", {})
+          data = json.load(open(summary))
+          total = data.get('total', {})
+          thresholds = {'lines': 70, 'functions': 70, 'branches': 60, 'statements': 70}
           failures = []
-
-          for metric, threshold in THRESHOLDS.items():
-              if metric in totals:
-                  pct = totals[metric].get("pct", 0)
-                  status = "PASS" if pct >= threshold else "FAIL"
-                  print(f"  {metric}: {pct:.1f}% (threshold: {threshold}%) [{status}]")
-                  if pct < threshold:
-                      failures.append(f"{metric}: {pct:.1f}% < {threshold}%")
-
+          for metric, threshold in thresholds.items():
+              pct = total.get(metric, {}).get('pct')
+              if pct is None:
+                  continue
+              print(f'{metric}: {pct}% threshold={threshold}%')
+              if pct < threshold:
+                  failures.append(f'{metric} {pct}% below {threshold}%')
           if failures:
-              print(f"\n::error::Coverage gate FAILED: {', '.join(failures)}")
+              print('Coverage gate failed: ' + ', '.join(failures))
               sys.exit(1)
-          else:
-              print("\nCoverage gate PASSED")
+          print('Coverage gate passed.')
           PYEOF
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: coverage-report-${{ github.run_id }}
-          path: coverage/
-          retention-days: 30
-
-  coverage-trend:
-    name: Coverage Trend Analysis
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: coverage-gate
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Track coverage trend
-        run: |
-          python3 - << 'PYEOF'
-          import json, os
-          from datetime import datetime
-
-          trend_data = {
-              "timestamp": datetime.utcnow().isoformat(),
-              "commit": os.environ.get("GITHUB_SHA", "unknown")[:8],
-              "coverage": {
-                  "lines": 72.5,
-                  "functions": 68.3,
-                  "branches": 61.8,
-                  "statements": 72.1,
-              },
-              "trend": "stable",
-          }
-
-          print("=== Coverage Trend Report ===")
-          print(f"Commit: {trend_data['commit']}")
-          for metric, value in trend_data["coverage"].items():
-              print(f"  {metric}: {value}%")
-          print(f"Trend: {trend_data['trend']}")
-
-          with open("/tmp/coverage-trend.json", "w") as f:
-              json.dump(trend_data, f, indent=2)
-          PYEOF
-
-  mutation-score-baseline:
-    name: Mutation Score Baseline
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: Run Stryker mutation tests sampled
-        run: |
-          echo "=== Mutation Testing (Stryker) ==="
-          npx stryker run \
-            --mutate "src/utils/**/*.ts,src/lib/**/*.ts" \
-            --timeoutFactor 2 \
-            --concurrency 2 \
-            2>&1 | tail -30 || echo "Stryker completed"
-
-      - name: Upload mutation report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: mutation-report-${{ github.run_id }}
-          path: reports/mutation/
-          retention-days: 30
-
-  pr-coverage-comment:
-    name: Post Coverage Comment on PR
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: coverage-gate
-    if: github.event_name == 'pull_request' && always()
-    steps:
-      - name: Post coverage summary to PR
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const status = '${{ needs.coverage-gate.result }}';
-            const icon = status === 'success' ? '✅' : '❌';
-
-            const body = [
-              `## ${icon} Coverage Gate: ${status.toUpperCase()}`,
-              '',
-              '| Metric | Coverage | Threshold | Status |',
-              '|--------|----------|-----------|--------|',
-              '| Lines | ~72.5% | 70% | ✅ |',
-              '| Functions | ~68.3% | 70% | ⚠️ |',
-              '| Branches | ~61.8% | 60% | ✅ |',
-              '| Statements | ~72.1% | 70% | ✅ |',
-              '',
-              '_Coverage thresholds enforced by Wave 21 Coverage Enforcement workflow_',
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body,
-            });

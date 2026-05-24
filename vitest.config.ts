@@ -34,6 +34,8 @@ export default defineConfig({
       'runtime-validation/scenarios/**/*.test.ts',
       // Operational Stress Intelligence: LS-1 through LS-6
       'stress-validation/scenarios/**/*.test.ts',
+      // Phase 38: Staging smoke tests and contract tests
+      'tests/contract/**/*.test.ts',
     ],
 
     exclude: [

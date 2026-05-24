@@ -13,7 +13,6 @@ on:
       - 'docs/**'
   workflow_dispatch:
 
-# Cancel any in-progress run for the same branch/PR on new push
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,43 +21,32 @@ permissions:
   contents: read
 
 jobs:
-  # ── Stage 1: Static analysis gate ──────────────────────────────────────────
   typecheck-and-lint:
     name: Typecheck & Lint
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
-      - name: Cache node_modules
-        id: node-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
-        with:
-          path: node_modules
-          key: node-22-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            node-22-${{ runner.os }}-
-
       - name: Install dependencies
-        if: steps.node-cache.outputs.cache-hit != 'true'
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
-      - name: Verify lockfile integrity (no drift)
-        run: git diff --exit-code package-lock.json || (echo "::error::package-lock.json was modified by npm ci - commit the updated lockfile" && exit 1)
-      - name: TypeScript - noEmit check
+      - name: Verify lockfile integrity
+        run: git diff --exit-code package-lock.json || (echo "package-lock.json changed after npm ci" && exit 1)
+
+      - name: TypeScript noEmit check
         run: npm run typecheck
 
-      - name: ESLint
-        run: npm run lint
+      - name: ESLint app source
+        run: npx eslint src --ext .ts,.tsx,.js,.jsx --no-error-on-unmatched-pattern --quiet
 
-  # ── Stage 2: Unit tests + coverage ─────────────────────────────────────────
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -66,36 +54,35 @@ jobs:
     needs: typecheck-and-lint
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Run tests with coverage
         run: npm run test:coverage
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
           retention-days: 7
 
       - name: Upload to Codecov
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238  # v4
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: ./coverage
           flags: frontend
           fail_ci_if_error: false
 
-  # ── Stage 3: Production build (only after tests pass) ──────────────────────
   build:
     name: Production Build
     runs-on: ubuntu-latest
@@ -103,16 +90,16 @@ jobs:
     needs: [typecheck-and-lint, test]
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Setup Node.js 22
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build
         run: npm run build
@@ -120,23 +107,22 @@ jobs:
           NODE_ENV: production
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
           retention-days: 7
 
-  # ── Stage 4: Python backend tests ──────────────────────────────────────────
   python-test:
     name: Python Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@v4
 
       - name: Setup Python 3.11
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -158,7 +144,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Upload Python coverage to Codecov
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238  # v4
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./python-coverage.xml

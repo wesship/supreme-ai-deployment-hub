@@ -1,0 +1,64 @@
+---
+# Devonn.AI Runtime Control Plane — Single Source of Truth
+# All runtime switches are driven from this ConfigMap.
+# Changes take effect on next pod restart (or via live reload if watcher is active).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devonn-runtime-control-plane
+  namespace: devonn-prod
+  labels:
+    app.kubernetes.io/name: devonn-control-plane
+    app.kubernetes.io/component: control-surface
+    app.kubernetes.io/managed-by: gitops
+  annotations:
+    # Increment this version whenever a change is made to enforce audit trail.
+    devonn.ai/config-version: "1.0.0"
+    devonn.ai/last-updated-by: "gitops"
+data:
+  # ── Canary Traffic Control ─────────────────────────────────────────────────
+  # CANARY_ENABLED: Set to "true" to activate canary routing.
+  # CANARY_PERCENTAGE: Fraction of traffic (0-100) routed to canary deployment.
+  # CANARY_STAGE: Current stage (C0-C4). Must be advanced manually.
+  CANARY_ENABLED: "false"
+  CANARY_PERCENTAGE: "0"
+  CANARY_STAGE: "C0"
+
+  # ── Kill Switches ──────────────────────────────────────────────────────────
+  # GLOBAL_EXECUTION_PAUSE: "true" halts all new agent executions immediately.
+  # GOVERNANCE_ENFORCEMENT_LOCK: "true" forces governance to deny all actions.
+  # REPLAY_FREEZE_MODE: "true" pauses all replay ingestion.
+  # KILL_SWITCH_GLOBAL: "armed" = monitoring; "triggered" = emergency stop active.
+  GLOBAL_EXECUTION_PAUSE: "false"
+  GOVERNANCE_ENFORCEMENT_LOCK: "false"
+  REPLAY_FREEZE_MODE: "false"
+  KILL_SWITCH_GLOBAL: "armed"
+
+  # ── Blast Radius Enforcement ───────────────────────────────────────────────
+  # BLAST_RADIUS_MODE: "strict" enforces per-tenant limits; "permissive" logs only.
+  # BLAST_RADIUS_MAX_AGENTS_PER_TENANT: Hard concurrent agent limit per tenant.
+  # BLAST_RADIUS_MAX_MEMORY_NAMESPACES: Max isolated memory namespaces per tenant.
+  # BLAST_RADIUS_OBS_RATE_LIMIT: Max observability events per second per tenant.
+  BLAST_RADIUS_MODE: "strict"
+  BLAST_RADIUS_MAX_AGENTS_PER_TENANT: "5"
+  BLAST_RADIUS_MAX_MEMORY_NAMESPACES: "10"
+  BLAST_RADIUS_OBS_RATE_LIMIT: "1000"
+
+  # ── Governance ─────────────────────────────────────────────────────────────
+  # GOVERNANCE_MODE: "enforcing" = hard deny; "permissive" = log only; "disabled" = bypass.
+  # GOVERNANCE_LATENCY_WARN_MS: Alert threshold for p95 arbitration latency.
+  # GOVERNANCE_LATENCY_CRIT_MS: Critical threshold — triggers auto-rollback signal.
+  GOVERNANCE_MODE: "enforcing"
+  GOVERNANCE_LATENCY_WARN_MS: "150"
+  GOVERNANCE_LATENCY_CRIT_MS: "200"
+
+  # ── Replay and Memory ──────────────────────────────────────────────────────
+  REPLAY_MODE: "active"
+  MEMORY_WRITE_MODE: "strict"
+
+  # ── Failure Containment ────────────────────────────────────────────────────
+  FAILURE_CONTAINMENT: "enabled"
+  AUTO_ROLLBACK: "armed"
+
+  # ── Observability ──────────────────────────────────────────────────────────
+  TRACE_INTAKE_RATE_LIMIT: "10000"

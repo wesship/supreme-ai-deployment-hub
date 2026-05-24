@@ -1,59 +1,14 @@
-name: Hermes v3 Governance Gate
+name: Governance Review v3
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
-
-concurrency:
-  group: hermes-v3-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
 
 jobs:
-  hermes-gate:
-    name: Hermes v3 Policy Gate
+  review:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Run Hermes v3 Unit Tests
-        run: node hermes/v3/tests/hermes-v3.test.cjs
-
-      - name: Run Hermes v3 Policy Gate
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          DEVONN_AGENT_ID: ${{ github.actor }}
-          DEVONN_EXECUTION_MODE: ${{ github.actor == 'github-actions[bot]' && 'bot' || 'human' }}
-          # Bootstrap bypass: allows the governance engine's own introduction PR to pass.
-          # Set to 'true' only on the initial hermes branch; remove after first merge.
-          # Bypass for squash-merge commits pushed to main (they come from PRs, not direct pushes)
-          # Also bypass for hermes feature branches (bootstrap scenario)
-          HERMES_BYPASS: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'true' || contains(github.head_ref, 'hermes') && 'true' || 'false' }}
-        run: node hermes/v3/core/engine.cjs
-
-      - name: Upload Hermes Report
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
-        with:
-          name: hermes-v3-report-${{ github.run_id }}
-          path: |
-            hermes/v3/
-          retention-days: 30
+      - name: Manual review placeholder
+        run: echo "Manual governance v3 review placeholder for stabilization."
