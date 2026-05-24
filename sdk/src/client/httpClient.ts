@@ -43,7 +43,7 @@ export class HttpClient {
     );
   }
 
-  async delete<void>(path: string): Promise<void> {
+  async delete(path: string): Promise<void> {
     const url = this.buildUrl(path);
     return withRetry(
       () => this.request<void>("DELETE", url, undefined),
