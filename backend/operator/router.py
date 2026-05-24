@@ -40,6 +40,7 @@ async def operator_status() -> dict[str, Any]:
             "deployments",
             "governance",
             "runtime",
+            "observability",
         ],
     }
 
@@ -135,6 +136,59 @@ async def operator_runtime() -> dict[str, str]:
         "memory": "local-first",
         "dag": "pending-live-check",
         "gitnexus": "pending-live-check",
+    }
+
+
+@router.get("/metrics")
+async def operator_metrics() -> dict[str, Any]:
+    """Return read-only operator metrics placeholders.
+
+    Future versions should proxy approved Prometheus queries or read sanitized
+    metric snapshots from the observability pipeline.
+    """
+    return {
+        "timestamp": utc_now(),
+        "source": "operator-synthetic",
+        "series": [
+            {"name": "api_latency_ms", "value": 42, "unit": "ms", "status": "healthy"},
+            {"name": "queue_depth", "value": 0, "unit": "jobs", "status": "healthy"},
+            {"name": "error_rate", "value": 0.0, "unit": "%", "status": "healthy"},
+            {"name": "memory_exports", "value": len(list(MEMORY_VAULT.glob('*.md'))) if MEMORY_VAULT.exists() else 0, "unit": "files", "status": "observing"},
+        ],
+    }
+
+
+@router.get("/logs")
+async def operator_logs() -> dict[str, Any]:
+    """Return sanitized log surface placeholders.
+
+    Future versions should read from Loki or an approved log snapshot source.
+    """
+    return {
+        "timestamp": utc_now(),
+        "source": "operator-synthetic",
+        "entries": [
+            {"level": "info", "surface": "api", "message": "Operator API ready."},
+            {"level": "info", "surface": "ci", "message": "Production gates stabilized."},
+            {"level": "info", "surface": "memory", "message": "Local-first memory vault available."},
+        ],
+    }
+
+
+@router.get("/traces")
+async def operator_traces() -> dict[str, Any]:
+    """Return trace surface placeholders.
+
+    Future versions should read sanitized summaries from OpenTelemetry.
+    """
+    return {
+        "timestamp": utc_now(),
+        "source": "operator-synthetic",
+        "spans": [
+            {"name": "operator.status", "durationMs": 4, "status": "ok"},
+            {"name": "operator.memory", "durationMs": 7, "status": "ok"},
+            {"name": "operator.connectors", "durationMs": 3, "status": "ok"},
+        ],
     }
 
 
