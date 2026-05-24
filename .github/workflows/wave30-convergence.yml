@@ -1,0 +1,28 @@
+name: Wave 30 Operational Convergence
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - release/**
+      - wave/**
+
+jobs:
+  convergence-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Ensure convergence script is executable
+        run: chmod +x scripts/wave30-operational-convergence-check.sh
+
+      - name: Run Wave 30 convergence check
+        run: scripts/wave30-operational-convergence-check.sh
