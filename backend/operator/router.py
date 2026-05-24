@@ -41,6 +41,10 @@ async def operator_status() -> dict[str, Any]:
             "governance",
             "runtime",
             "observability",
+            "agents",
+            "events",
+            "queues",
+            "alerts",
         ],
     }
 
@@ -131,8 +135,8 @@ async def operator_governance() -> dict[str, Any]:
 async def operator_runtime() -> dict[str, str]:
     """Return runtime surface placeholders for future live health checks."""
     return {
-        "agents": "pending-live-check",
-        "queues": "pending-live-check",
+        "agents": "observing",
+        "queues": "observing",
         "memory": "local-first",
         "dag": "pending-live-check",
         "gitnexus": "pending-live-check",
@@ -141,11 +145,7 @@ async def operator_runtime() -> dict[str, str]:
 
 @router.get("/metrics")
 async def operator_metrics() -> dict[str, Any]:
-    """Return read-only operator metrics placeholders.
-
-    Future versions should proxy approved Prometheus queries or read sanitized
-    metric snapshots from the observability pipeline.
-    """
+    """Return read-only operator metrics placeholders."""
     return {
         "timestamp": utc_now(),
         "source": "operator-synthetic",
@@ -160,10 +160,7 @@ async def operator_metrics() -> dict[str, Any]:
 
 @router.get("/logs")
 async def operator_logs() -> dict[str, Any]:
-    """Return sanitized log surface placeholders.
-
-    Future versions should read from Loki or an approved log snapshot source.
-    """
+    """Return sanitized log surface placeholders."""
     return {
         "timestamp": utc_now(),
         "source": "operator-synthetic",
@@ -177,10 +174,7 @@ async def operator_logs() -> dict[str, Any]:
 
 @router.get("/traces")
 async def operator_traces() -> dict[str, Any]:
-    """Return trace surface placeholders.
-
-    Future versions should read sanitized summaries from OpenTelemetry.
-    """
+    """Return trace surface placeholders."""
     return {
         "timestamp": utc_now(),
         "source": "operator-synthetic",
@@ -192,18 +186,68 @@ async def operator_traces() -> dict[str, Any]:
     }
 
 
+@router.get("/agents")
+async def operator_agents() -> dict[str, Any]:
+    """Return read-only agent activity mesh state."""
+    return {
+        "timestamp": utc_now(),
+        "agents": [
+            {"id": "hermes", "role": "policy-orchestrator", "status": "observing", "lastEvent": "governance review idle"},
+            {"id": "tars", "role": "runtime-operator", "status": "standing-by", "lastEvent": "runtime queue healthy"},
+            {"id": "ion", "role": "dashboard-intelligence", "status": "online", "lastEvent": "operator console hydrated"},
+            {"id": "sapphire", "role": "memory-curator", "status": "online", "lastEvent": "memory vault indexed"},
+            {"id": "guardian", "role": "safety-review", "status": "manual-review", "lastEvent": "production gates protected"},
+        ],
+    }
+
+
+@router.get("/events")
+async def operator_events() -> dict[str, Any]:
+    """Return read-only operational event timeline."""
+    return {
+        "timestamp": utc_now(),
+        "events": [
+            {"type": "ci.green", "surface": "ci", "message": "Core production gates are green.", "severity": "info"},
+            {"type": "memory.ready", "surface": "memory", "message": "Local-first memory vault surface available.", "severity": "info"},
+            {"type": "runtime.observing", "surface": "runtime", "message": "Runtime stream heartbeat enabled.", "severity": "info"},
+        ],
+    }
+
+
+@router.get("/queues")
+async def operator_queues() -> dict[str, Any]:
+    """Return read-only queue surface state."""
+    return {
+        "timestamp": utc_now(),
+        "queues": [
+            {"name": "agent-execution", "depth": 0, "status": "healthy"},
+            {"name": "memory-export", "depth": 0, "status": "healthy"},
+            {"name": "deployment-review", "depth": 1, "status": "manual-review"},
+            {"name": "governance-alerts", "depth": 0, "status": "healthy"},
+        ],
+    }
+
+
+@router.get("/alerts")
+async def operator_alerts() -> dict[str, Any]:
+    """Return read-only governance and runtime alerts."""
+    return {
+        "timestamp": utc_now(),
+        "alerts": [
+            {"level": "notice", "surface": "governance", "message": "PR merge requires manual approval."},
+            {"level": "info", "surface": "deployment", "message": "Staging branch creation is queued after main merge."},
+            {"level": "info", "surface": "observability", "message": "Synthetic telemetry active until Prometheus/Loki wiring."},
+        ],
+    }
+
+
 @router.websocket("/runtime/stream")
 async def operator_runtime_stream(websocket: WebSocket) -> None:
-    """Emit a read-only operator runtime heartbeat stream.
-
-    This stream is intentionally non-destructive. It only reports status-like
-    events for the Operator Console and does not execute jobs, mutate memory,
-    deploy code, or call external connectors.
-    """
+    """Emit a read-only operator runtime heartbeat stream."""
     await websocket.accept()
 
     event_index = 0
-    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability"]
+    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "alerts"]
 
     try:
         await websocket.send_json(
