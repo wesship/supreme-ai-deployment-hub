@@ -152,6 +152,14 @@ try:
 except ImportError:
     logger.warning("backend.agents.router not found — skipping agent router.")
 
+try:
+    from backend.operator.router import router as operator_router  # type: ignore
+
+    app.include_router(operator_router, prefix="/api/operator", tags=["operator"])
+    logger.info("Operator console router registered at /api/operator")
+except ImportError:
+    logger.warning("backend.operator.router not found — skipping operator router.")
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------
