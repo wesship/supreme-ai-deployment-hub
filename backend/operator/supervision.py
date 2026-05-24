@@ -200,3 +200,41 @@ def supervise_runtime() -> dict[str, Any]:
             "unknown": sum(1 for item in anomalies if item["severity"] == "unknown"),
         },
     }
+
+
+def supervision_timeline() -> dict[str, Any]:
+    """Return a read-only supervision timeline.
+
+    This first version is deterministic and stateless. It transforms the current
+    supervision snapshot into timeline events. A later production version can
+    persist these events into Postgres or the memory vault.
+    """
+    snapshot = supervise_runtime()
+    generated_at = snapshot["timestamp"]
+    events = [
+        {
+            "timestamp": generated_at,
+            "type": "supervision.state",
+            "surface": "supervision",
+            "severity": snapshot["state"],
+            "message": f"Runtime supervision state classified as {snapshot['state']}.",
+            "recommendation": "Use anomaly details to decide whether staging or production promotion should continue.",
+        }
+    ]
+    for item in snapshot.get("anomalies", []):
+        events.append(
+            {
+                "timestamp": generated_at,
+                "type": "supervision.anomaly",
+                "surface": item.get("surface", "unknown"),
+                "severity": item.get("severity", "unknown"),
+                "message": item.get("message", "Anomaly observed."),
+                "recommendation": item.get("recommendation", "Review operator telemetry."),
+            }
+        )
+    return {
+        "timestamp": utc_now(),
+        "source": "supervision-current-snapshot",
+        "state": snapshot["state"],
+        "events": events,
+    }
