@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import ConnectorInventoryPanel from './components/ConnectorInventoryPanel';
 import MemoryVaultPanel from './components/MemoryVaultPanel';
+import OperatorSessionGate from './components/OperatorSessionGate';
 import OperatorStatusCard from './components/OperatorStatusCard';
 import {
   operatorApi,
@@ -27,7 +28,7 @@ const navItems = [
   'Settings',
 ];
 
-export function OperatorDashboard() {
+function OperatorDashboardInner() {
   const [status, setStatus] = useState<OperatorStatus>(operatorFallbacks.status);
   const [ci, setCI] = useState<OperatorCI>(operatorFallbacks.ci);
   const [memory, setMemory] = useState<OperatorMemory>(operatorFallbacks.memory);
@@ -165,6 +166,14 @@ export function OperatorDashboard() {
         </main>
       </div>
     </div>
+  );
+}
+
+export function OperatorDashboard() {
+  return (
+    <OperatorSessionGate>
+      <OperatorDashboardInner />
+    </OperatorSessionGate>
   );
 }
 
