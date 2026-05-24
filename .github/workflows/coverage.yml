@@ -69,7 +69,6 @@ jobs:
       - name: Coverage summary comment on PR
         if: github.event_name == 'pull_request'
         continue-on-error: true
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         with:
           script: |
             const fs = require('fs');
@@ -111,4 +110,33 @@ jobs:
               });
             } catch (error) {
               console.log(`Coverage PR comment skipped: ${error.message}`);
+            }
+            const functions = total.functions.pct.toFixed(1);
+            const branches = total.branches.pct.toFixed(1);
+            const statements = total.statements.pct.toFixed(1);
+
+            const badge = (pct) => pct >= 80 ? 'PASS' : pct >= 60 ? 'WARN' : 'FAIL';
+
+            const body = [
+              '## Test Coverage Report',
+              '',
+              '| Metric | Coverage | Status |',
+              '|--------|----------|--------|',
+              `| Lines | ${lines}% | ${badge(lines)} |`,
+              `| Functions | ${functions}% | ${badge(functions)} |`,
+              `| Branches | ${branches}% | ${badge(branches)} |`,
+              `| Statements | ${statements}% | ${badge(statements)} |`,
+              '',
+              '> Thresholds: Lines >= 70%, Functions >= 70%, Branches >= 60%, Statements >= 70%'
+            ].join('\n');
+
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body
+              });
+            } catch (error) {
+              console.log(`Skipping PR coverage comment: ${error.message}`);
             }
