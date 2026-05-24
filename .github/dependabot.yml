@@ -41,6 +41,42 @@ updates:
       - dependency-name: "canvas"
         update-types: ["version-update:semver-major"]
 
+  # ── pip (Python backend) ───────────────────────────────────────────────────
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+      - "python"
+
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+      - "python"
+
+  - package-ecosystem: "pip"
+    directory: "/models/llm/mistral-7b"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ml-models"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

@@ -20,9 +20,24 @@ import type {
 
 export class DevonnClient {
   private readonly http: HttpClient;
+  private lastResponseHeaders: Record<string, string> | null = null;
 
   constructor(config: DevonnClientConfig) {
     this.http = new HttpClient(config);
+  }
+
+  protected async request<T>(
+    method: "GET" | "POST" | "PUT" | "DELETE",
+    path: string,
+    options?: { body?: unknown; headers?: Record<string, string>; params?: Record<string, string | number> }
+  ): Promise<T> {
+    const response = await this.http.requestRaw<T>(method, path, options);
+    this.lastResponseHeaders = response.headers;
+    return response.data;
+  }
+
+  protected getLastResponseHeaders(): Record<string, string> | null {
+    return this.lastResponseHeaders;
   }
 
   // ---------------------------------------------------------------------------
@@ -34,14 +49,14 @@ export class DevonnClient {
    * Returns immediately with a run ID; poll getRun() for status.
    */
   async startRun(request: StartRunRequest): Promise<RunResponse> {
-    return this.http.post<RunResponse>("/runs", request);
+    return this.request<RunResponse>("POST", "/runs", { body: request });
   }
 
   /**
    * Get the status and full execution trace of a specific run.
    */
   async getRun(runId: string): Promise<RunDetailsResponse> {
-    return this.http.get<RunDetailsResponse>(`/runs/${encodeURIComponent(runId)}`);
+    return this.request<RunDetailsResponse>("GET", `/runs/${encodeURIComponent(runId)}`);
   }
 
   /**
@@ -51,14 +66,14 @@ export class DevonnClient {
     const params: Record<string, string | number> = {};
     if (options?.status) params.status = options.status;
     if (options?.limit !== undefined) params.limit = options.limit;
-    return this.http.get<RunListResponse>("/runs", params);
+    return this.request<RunListResponse>("GET", "/runs", { params });
   }
 
   /**
    * Cancel an active run. No-op if the run has already completed.
    */
   async cancelRun(runId: string): Promise<void> {
-    return this.http.delete(`/runs/${encodeURIComponent(runId)}`);
+    return this.request<void>("DELETE", `/runs/${encodeURIComponent(runId)}`);
   }
 
   /**
@@ -93,9 +108,7 @@ export class DevonnClient {
    * Inspect a governance arbitration decision by its conflict ID.
    */
   async getDecision(conflictId: string): Promise<DecisionTraceResponse> {
-    return this.http.get<DecisionTraceResponse>(
-      `/governance/decisions/${encodeURIComponent(conflictId)}`
-    );
+    return this.request<DecisionTraceResponse>("GET", `/governance/decisions/${encodeURIComponent(conflictId)}`);
   }
 }
 
