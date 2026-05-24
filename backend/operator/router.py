@@ -12,7 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+
+try:
+    from backend.operator.auth import require_operator_access
+except ImportError:  # pragma: no cover
+    async def require_operator_access():  # type: ignore
+        return None
 
 try:
     from backend.operator.integrations import (
@@ -27,27 +33,14 @@ except ImportError:  # pragma: no cover
     prometheus_operator_metrics = None  # type: ignore
     redis_queue_depths = None  # type: ignore
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_operator_access)])
 
 ROOT = Path(__file__).resolve().parents[2]
 STATE_FILE = ROOT / "config" / "operator-console.example.json"
 MEMORY_VAULT = ROOT / ".devonn" / "memory-vault"
 
-REQUIRED_CHECKS = [
-    "CI - Hardened Build Pipeline",
-    "Devonn.AI Testing",
-    "CodeQL SAST",
-    "Secrets Elimination & Scanning",
-    "Final Green Check",
-]
-
-ADVISORY_TOOLS = [
-    "ci:doctor",
-    "workflow:audit",
-    "workflow:classify",
-    "repo:entropy",
-    "pins:validate",
-]
+REQUIRED_CHECKS = ["CI - Hardened Build Pipeline", "Devonn.AI Testing", "CodeQL SAST", "Secrets Elimination & Scanning", "Final Green Check"]
+ADVISORY_TOOLS = ["ci:doctor", "workflow:audit", "workflow:classify", "repo:entropy", "pins:validate"]
 
 
 def utc_now() -> str:
@@ -62,69 +55,16 @@ def memory_files() -> list[Path]:
 
 def memory_summary(path: Path) -> dict[str, Any]:
     stat = path.stat()
-    return {
-        "id": path.stem,
-        "file": path.name,
-        "path": str(path.relative_to(ROOT)),
-        "sizeBytes": stat.st_size,
-        "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
-    }
+    return {"id": path.stem, "file": path.name, "path": str(path.relative_to(ROOT)), "sizeBytes": stat.st_size, "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()}
 
 
 def graph_payload() -> dict[str, Any]:
-    return {
-        "nodes": [
-            {"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"},
-            {"id": "api", "label": "Operator API", "type": "service", "status": "online"},
-            {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"},
-            {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"},
-            {"id": "ion", "label": "ION", "type": "agent", "status": "online"},
-            {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"},
-            {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"},
-            {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"},
-            {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "live-adapter-ready"},
-            {"id": "observability", "label": "Observability", "type": "telemetry", "status": "integration-ready"},
-        ],
-        "edges": [
-            {"source": "operator", "target": "api", "label": "queries"},
-            {"source": "api", "target": "hermes", "label": "governance state"},
-            {"source": "api", "target": "tars", "label": "runtime state"},
-            {"source": "api", "target": "ion", "label": "dashboard intelligence"},
-            {"source": "api", "target": "sapphire", "label": "memory state"},
-            {"source": "api", "target": "guardian", "label": "safety review"},
-            {"source": "sapphire", "target": "memory", "label": "curates"},
-            {"source": "hermes", "target": "ci", "label": "reviews"},
-            {"source": "tars", "target": "observability", "label": "emits telemetry"},
-        ],
-    }
+    return {"nodes": [{"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"}, {"id": "api", "label": "Operator API", "type": "service", "status": "online"}, {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"}, {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"}, {"id": "ion", "label": "ION", "type": "agent", "status": "online"}, {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"}, {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"}, {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"}, {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "live-adapter-ready"}, {"id": "observability", "label": "Observability", "type": "telemetry", "status": "integration-ready"}], "edges": [{"source": "operator", "target": "api", "label": "queries"}, {"source": "api", "target": "hermes", "label": "governance state"}, {"source": "api", "target": "tars", "label": "runtime state"}, {"source": "api", "target": "ion", "label": "dashboard intelligence"}, {"source": "api", "target": "sapphire", "label": "memory state"}, {"source": "api", "target": "guardian", "label": "safety review"}, {"source": "sapphire", "target": "memory", "label": "curates"}, {"source": "hermes", "target": "ci", "label": "reviews"}, {"source": "tars", "target": "observability", "label": "emits telemetry"}]}
 
 
 @router.get("/status")
 async def operator_status() -> dict[str, Any]:
-    return {
-        "readiness": "yellow",
-        "mode": "stabilization",
-        "timestamp": utc_now(),
-        "surfaces": [
-            "ci",
-            "memory",
-            "memory-history",
-            "memory-replay",
-            "connectors",
-            "integrations",
-            "deployments",
-            "governance",
-            "runtime",
-            "observability",
-            "agents",
-            "events",
-            "queues",
-            "alerts",
-            "graph",
-            "dag",
-            "topology",
-        ],
-    }
+    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "integrations", "deployments", "governance", "runtime", "observability", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
 
 
 @router.get("/integrations")
@@ -136,19 +76,9 @@ async def operator_integrations() -> dict[str, Any]:
 
 @router.get("/ci")
 async def operator_ci() -> dict[str, Any]:
-    workflow_runs = github_actions_runs(limit=12) if github_actions_runs else {
-        "configured": False,
-        "status": "unavailable",
-        "runs": [],
-        "summary": {"total": 0, "failures": 0, "healthy": False},
-    }
+    workflow_runs = github_actions_runs(limit=12) if github_actions_runs else {"configured": False, "status": "unavailable", "runs": [], "summary": {"total": 0, "failures": 0, "healthy": False}}
     summary = workflow_runs.get("summary", {})
-    return {
-        "status": "green" if summary.get("healthy") else "observing",
-        "requiredChecks": REQUIRED_CHECKS,
-        "advisoryTools": ADVISORY_TOOLS,
-        "githubActions": workflow_runs,
-    }
+    return {"status": "green" if summary.get("healthy") else "observing", "requiredChecks": REQUIRED_CHECKS, "advisoryTools": ADVISORY_TOOLS, "githubActions": workflow_runs}
 
 
 @router.get("/memory")
