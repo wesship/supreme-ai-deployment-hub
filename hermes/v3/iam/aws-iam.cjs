@@ -3,22 +3,8 @@
  * hermes/v3/iam/aws-iam.cjs
  *
  * Hermes v3 — AWS IAM Introspection Analyzer
- *
- * Analyzes git diffs for IAM-related changes and flags high-risk permission
- * patterns. Works without AWS API access (static analysis only) but can be
- * extended to call `aws iam simulate-principal-policy` when AWS credentials
- * are available in the CI environment.
- *
- * Detects:
- *   - Privilege escalation patterns (iam:PassRole, iam:CreateRole, etc.)
- *   - Wildcard resource grants ("Resource": "*")
- *   - Admin policy attachments (AdministratorAccess, PowerUserAccess)
- *   - IAM user creation (should use roles instead)
- *   - Inline policy additions
- *   - Cross-account trust relationships
  */
 
-// High-risk IAM actions that can lead to privilege escalation
 const PRIVILEGE_ESCALATION_ACTIONS = [
   "iam:CreateRole",
   "iam:AttachRolePolicy",
@@ -34,7 +20,6 @@ const PRIVILEGE_ESCALATION_ACTIONS = [
   "sts:AssumeRole",
 ];
 
-// Managed policies that grant broad access
 const DANGEROUS_MANAGED_POLICIES = [
   "AdministratorAccess",
   "PowerUserAccess",
@@ -43,13 +28,13 @@ const DANGEROUS_MANAGED_POLICIES = [
   "arn:aws:iam::aws:policy/AdministratorAccess",
 ];
 
-/**
- * Analyze a diff for AWS IAM risk patterns.
- *
- * @param {string} diff - The git diff string
- * @param {string[]} files - Changed file paths
- * @returns {object} IAM analysis result
- */
+const AWS_SERVICE_PRINCIPAL_PATTERN = /Service\s*=\s*"[a-z0-9.-]+\.amazonaws\.com"|"Service"\s*:\s*"[a-z0-9.-]+\.amazonaws\.com"/i;
+const ASSUME_ROLE_PATTERN = /sts:AssumeRole/i;
+
+function isServiceTrustPolicy(diff) {
+  return ASSUME_ROLE_PATTERN.test(diff) && AWS_SERVICE_PRINCIPAL_PATTERN.test(diff);
+}
+
 function analyzeIAM(diff, files) {
   const iamFiles = files.filter((f) =>
     /iam|role|policy|permission|trust/i.test(f) ||
@@ -57,19 +42,16 @@ function analyzeIAM(diff, files) {
   );
 
   if (iamFiles.length === 0 && !/iam:|aws_iam/i.test(diff)) {
-    return {
-      hasIAMChanges: false,
-      findings: [],
-      riskLevel: "none",
-    };
+    return { hasIAMChanges: false, findings: [], riskLevel: "none" };
   }
 
   const findings = [];
+  const serviceTrustPolicy = isServiceTrustPolicy(diff);
 
-  // Check for privilege escalation actions
   const foundEscalationActions = PRIVILEGE_ESCALATION_ACTIONS.filter((action) =>
-    diff.includes(action)
+    diff.includes(action) && !(action === "sts:AssumeRole" && serviceTrustPolicy)
   );
+
   if (foundEscalationActions.length > 0) {
     findings.push({
       type: "privilege_escalation",
@@ -79,7 +61,15 @@ function analyzeIAM(diff, files) {
     });
   }
 
-  // Check for wildcard resource grants
+  if (serviceTrustPolicy) {
+    findings.push({
+      type: "service_trust_policy",
+      severity: "medium",
+      message: "AWS service trust policy detected for sts:AssumeRole",
+      remediation: "Confirm the service principal is expected and scoped to the intended AWS service",
+    });
+  }
+
   if (/"Resource"\s*:\s*"\*"/.test(diff) || /resource\s*=\s*"\*"/.test(diff)) {
     findings.push({
       type: "wildcard_resource",
@@ -89,10 +79,7 @@ function analyzeIAM(diff, files) {
     });
   }
 
-  // Check for dangerous managed policy attachments
-  const foundDangerousPolicies = DANGEROUS_MANAGED_POLICIES.filter((p) =>
-    diff.includes(p)
-  );
+  const foundDangerousPolicies = DANGEROUS_MANAGED_POLICIES.filter((p) => diff.includes(p));
   if (foundDangerousPolicies.length > 0) {
     findings.push({
       type: "dangerous_managed_policy",
@@ -102,7 +89,6 @@ function analyzeIAM(diff, files) {
     });
   }
 
-  // Check for IAM user creation (should use roles)
   if (/aws_iam_user|"Type"\s*:\s*"AWS::IAM::User"/.test(diff)) {
     findings.push({
       type: "iam_user_creation",
@@ -112,7 +98,6 @@ function analyzeIAM(diff, files) {
     });
   }
 
-  // Check for cross-account trust relationships
   if (/sts:AssumeRole.*\d{12}|Principal.*\d{12}/.test(diff)) {
     findings.push({
       type: "cross_account_trust",
@@ -122,7 +107,6 @@ function analyzeIAM(diff, files) {
     });
   }
 
-  // Determine overall risk level
   const hasCritical = findings.some((f) => f.severity === "critical");
   const hasHigh = findings.some((f) => f.severity === "high");
   const riskLevel = hasCritical ? "critical" : hasHigh ? "high" : findings.length > 0 ? "medium" : "low";
@@ -138,4 +122,9 @@ function analyzeIAM(diff, files) {
   };
 }
 
-module.exports = { analyzeIAM, PRIVILEGE_ESCALATION_ACTIONS, DANGEROUS_MANAGED_POLICIES };
+module.exports = {
+  analyzeIAM,
+  PRIVILEGE_ESCALATION_ACTIONS,
+  DANGEROUS_MANAGED_POLICIES,
+  isServiceTrustPolicy,
+};
