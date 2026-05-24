@@ -3,11 +3,22 @@ import {
   RuntimeClock,
   systemClock,
 } from './execution-envelope';
+import {
+  RuntimeTelemetrySink,
+  emitRuntimeEvent,
+} from './telemetry';
 
 const DEFAULT_LEASE_SECONDS = 60;
 
 function addSeconds(date: Date, seconds: number): Date {
   return new Date(date.getTime() + seconds * 1000);
+}
+
+export interface RuntimeLifecycleOptions {
+  telemetry?: RuntimeTelemetrySink;
+  deployment_version?: string;
+  clock?: RuntimeClock;
+  leaseSeconds?: number;
 }
 
 export function claimExecution(
@@ -28,6 +39,32 @@ export function claimExecution(
   };
 }
 
+export async function claimExecutionWithTelemetry(
+  envelope: ExecutionEnvelope,
+  workerOwner: string,
+  options: RuntimeLifecycleOptions = {},
+): Promise<ExecutionEnvelope> {
+  const next = claimExecution(
+    envelope,
+    workerOwner,
+    options.clock ?? systemClock,
+    options.leaseSeconds ?? DEFAULT_LEASE_SECONDS,
+  );
+
+  if (options.telemetry) {
+    await emitRuntimeEvent({
+      sink: options.telemetry,
+      event_type: 'TASK_CLAIMED',
+      envelope: next,
+      deployment_version: options.deployment_version,
+      clock: options.clock,
+      metadata: { workerOwner },
+    });
+  }
+
+  return next;
+}
+
 export function beginExecution(
   envelope: ExecutionEnvelope,
   clock: RuntimeClock = systemClock,
@@ -37,6 +74,25 @@ export function beginExecution(
     status: 'RUNNING',
     updated_at: clock.now().toISOString(),
   };
+}
+
+export async function beginExecutionWithTelemetry(
+  envelope: ExecutionEnvelope,
+  options: RuntimeLifecycleOptions = {},
+): Promise<ExecutionEnvelope> {
+  const next = beginExecution(envelope, options.clock ?? systemClock);
+
+  if (options.telemetry) {
+    await emitRuntimeEvent({
+      sink: options.telemetry,
+      event_type: 'EXECUTION_STARTED',
+      envelope: next,
+      deployment_version: options.deployment_version,
+      clock: options.clock,
+    });
+  }
+
+  return next;
 }
 
 export function heartbeatExecution(
@@ -52,6 +108,29 @@ export function heartbeatExecution(
     lease_expires_at: addSeconds(now, leaseSeconds).toISOString(),
     updated_at: now.toISOString(),
   };
+}
+
+export async function heartbeatExecutionWithTelemetry(
+  envelope: ExecutionEnvelope,
+  options: RuntimeLifecycleOptions = {},
+): Promise<ExecutionEnvelope> {
+  const next = heartbeatExecution(
+    envelope,
+    options.clock ?? systemClock,
+    options.leaseSeconds ?? DEFAULT_LEASE_SECONDS,
+  );
+
+  if (options.telemetry) {
+    await emitRuntimeEvent({
+      sink: options.telemetry,
+      event_type: 'HEARTBEAT_RENEWED',
+      envelope: next,
+      deployment_version: options.deployment_version,
+      clock: options.clock,
+    });
+  }
+
+  return next;
 }
 
 export function isExecutionStale(
@@ -78,6 +157,27 @@ export function markExecutionStale(
   };
 }
 
+export async function markExecutionStaleWithTelemetry(
+  envelope: ExecutionEnvelope,
+  reason = 'heartbeat expired',
+  options: RuntimeLifecycleOptions = {},
+): Promise<ExecutionEnvelope> {
+  const next = markExecutionStale(envelope, reason, options.clock ?? systemClock);
+
+  if (options.telemetry) {
+    await emitRuntimeEvent({
+      sink: options.telemetry,
+      event_type: 'STALE_DETECTED',
+      envelope: next,
+      deployment_version: options.deployment_version,
+      clock: options.clock,
+      metadata: { reason },
+    });
+  }
+
+  return next;
+}
+
 export function retryExecution(
   envelope: ExecutionEnvelope,
   clock: RuntimeClock = systemClock,
@@ -99,4 +199,27 @@ export function retryExecution(
     retry_count: nextRetry,
     updated_at: clock.now().toISOString(),
   };
+}
+
+export async function retryExecutionWithTelemetry(
+  envelope: ExecutionEnvelope,
+  options: RuntimeLifecycleOptions = {},
+): Promise<ExecutionEnvelope> {
+  const next = retryExecution(envelope, options.clock ?? systemClock);
+
+  if (options.telemetry) {
+    await emitRuntimeEvent({
+      sink: options.telemetry,
+      event_type: next.status === 'DLQ' ? 'DLQ_ROUTED' : 'RETRY_SCHEDULED',
+      envelope: next,
+      deployment_version: options.deployment_version,
+      clock: options.clock,
+      metadata: {
+        retry_count: next.retry_count,
+        max_retries: next.max_retries,
+      },
+    });
+  }
+
+  return next;
 }
