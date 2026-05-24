@@ -1,0 +1,82 @@
+name: Terraform Validation
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - 'wave/**'
+    paths:
+      - 'terraform/**'
+      - 'infra/**'
+      - 'src/data/manifest/terraform/**'
+      - '.github/workflows/terraform-validation.yml'
+      - '.github/workflows/terraform.yml'
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+    paths:
+      - 'terraform/**'
+      - 'infra/**'
+      - 'src/data/manifest/terraform/**'
+      - '.github/workflows/terraform-validation.yml'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-static-validation:
+    name: Terraform static validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Locate Terraform directories
+        id: dirs
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -type f -name '*.tf' -not -path './node_modules/*' -not -path './.git/*' -print | sed 's#/[^/]*$##' | sort -u > /tmp/tf-dirs.txt
+          cat /tmp/tf-dirs.txt
+          if [ ! -s /tmp/tf-dirs.txt ]; then
+            echo "No Terraform files found; static validation complete."
+          fi
+
+      - name: Terraform format check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s /tmp/tf-dirs.txt ]; then
+            exit 0
+          fi
+          while read -r dir; do
+            echo "Checking terraform fmt in $dir"
+            terraform -chdir="$dir" fmt -check -recursive
+          done < /tmp/tf-dirs.txt
+
+      - name: Terraform validate without backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s /tmp/tf-dirs.txt ]; then
+            exit 0
+          fi
+          while read -r dir; do
+            echo "Validating Terraform directory $dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" validate
+          done < /tmp/tf-dirs.txt
