@@ -1,3 +1,5 @@
+import { operatorAuthHeaders } from './operatorSession';
+
 export type OperatorStatus = {
   readiness: string;
   mode: string;
@@ -9,6 +11,7 @@ export type OperatorCI = {
   status: string;
   requiredChecks: string[];
   advisoryTools: string[];
+  githubActions?: unknown;
 };
 
 export type OperatorMemory = {
@@ -24,7 +27,7 @@ export type OperatorConnectors = {
   future: string[];
 };
 
-export type OperatorDeployments = Record<string, string>;
+export type OperatorDeployments = Record<string, unknown>;
 
 export type OperatorGovernance = {
   mainProtected: boolean;
@@ -41,7 +44,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 async function fetchOperator<T>(path: string, fallback: T): Promise<T> {
   try {
     const response = await fetch(`${API_BASE}/api/operator${path}`, {
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        ...operatorAuthHeaders(),
+      },
     });
 
     if (!response.ok) return fallback;
@@ -59,7 +65,7 @@ export const operatorFallbacks = {
     surfaces: ['ci', 'memory', 'connectors', 'deployments', 'governance', 'runtime'],
   } satisfies OperatorStatus,
   ci: {
-    status: 'green',
+    status: 'observing',
     requiredChecks: [
       'CI - Hardened Build Pipeline',
       'Devonn.AI Testing',
