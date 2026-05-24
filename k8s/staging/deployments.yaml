@@ -1,0 +1,237 @@
+---
+# MCP Gateway - Staging
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-gateway
+  namespace: devonn-staging
+  labels:
+    app: mcp-gateway
+    environment: staging
+    version: "1.0.0-rc"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-gateway
+  template:
+    metadata:
+      labels:
+        app: mcp-gateway
+        environment: staging
+    spec:
+      containers:
+        - name: mcp-gateway
+          image: ghcr.io/wesship/supreme-ai-deployment-hub/mcp-gateway:staging
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: staging
+            - name: PORT
+              value: "3000"
+            - name: RUNTIME_HARNESS_VERSION
+              value: "31.0.0"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-gateway
+  namespace: devonn-staging
+spec:
+  selector:
+    app: mcp-gateway
+  ports:
+    - port: 80
+      targetPort: 3000
+  type: ClusterIP
+---
+# Agent Executor - Staging
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-executor
+  namespace: devonn-staging
+  labels:
+    app: agent-executor
+    environment: staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-executor
+  template:
+    metadata:
+      labels:
+        app: agent-executor
+        environment: staging
+    spec:
+      containers:
+        - name: agent-executor
+          image: ghcr.io/wesship/supreme-ai-deployment-hub/agent-executor:staging
+          ports:
+            - containerPort: 3001
+          env:
+            - name: NODE_ENV
+              value: staging
+            - name: GOVERNANCE_ENGINE_URL
+              value: http://governance-engine.devonn-staging.svc.cluster.local
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-executor
+  namespace: devonn-staging
+spec:
+  selector:
+    app: agent-executor
+  ports:
+    - port: 80
+      targetPort: 3001
+  type: ClusterIP
+---
+# Governance Engine - Staging
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: governance-engine
+  namespace: devonn-staging
+  labels:
+    app: governance-engine
+    environment: staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: governance-engine
+  template:
+    metadata:
+      labels:
+        app: governance-engine
+        environment: staging
+    spec:
+      containers:
+        - name: governance-engine
+          image: ghcr.io/wesship/supreme-ai-deployment-hub/governance-engine:staging
+          ports:
+            - containerPort: 3002
+          env:
+            - name: NODE_ENV
+              value: staging
+            - name: ARBITRATION_TIMEOUT_MS
+              value: "5000"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: governance-engine
+  namespace: devonn-staging
+spec:
+  selector:
+    app: governance-engine
+  ports:
+    - port: 80
+      targetPort: 3002
+  type: ClusterIP
+---
+# Observability Collector - Staging
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observability-collector
+  namespace: devonn-staging
+  labels:
+    app: observability-collector
+    environment: staging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: observability-collector
+  template:
+    metadata:
+      labels:
+        app: observability-collector
+        environment: staging
+    spec:
+      containers:
+        - name: observability-collector
+          image: ghcr.io/wesship/supreme-ai-deployment-hub/observability-collector:staging
+          ports:
+            - containerPort: 3003
+          env:
+            - name: NODE_ENV
+              value: staging
+            - name: METRICS_RETENTION_HOURS
+              value: "24"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3003
+            initialDelaySeconds: 10
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: observability-collector
+  namespace: devonn-staging
+spec:
+  selector:
+    app: observability-collector
+  ports:
+    - port: 80
+      targetPort: 3003
+  type: ClusterIP
