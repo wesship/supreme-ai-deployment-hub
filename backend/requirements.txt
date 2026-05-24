@@ -5,7 +5,7 @@
 # ── Web framework ──────────────────────────────────────────────────────────
 fastapi==0.115.5
 PyJWT==2.11.1
-uvicorn[standard]==0.32.1
+uvicorn[standard]==0.48.0
 pydantic==2.9.2
 pydantic-settings==2.6.1
 
