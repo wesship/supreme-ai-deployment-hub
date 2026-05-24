@@ -16,11 +16,13 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 try:
     from backend.operator.integrations import (
+        github_actions_runs,
         integration_readiness,
         prometheus_operator_metrics,
         redis_queue_depths,
     )
 except ImportError:  # pragma: no cover
+    github_actions_runs = None  # type: ignore
     integration_readiness = None  # type: ignore
     prometheus_operator_metrics = None  # type: ignore
     redis_queue_depths = None  # type: ignore
@@ -30,6 +32,22 @@ router = APIRouter()
 ROOT = Path(__file__).resolve().parents[2]
 STATE_FILE = ROOT / "config" / "operator-console.example.json"
 MEMORY_VAULT = ROOT / ".devonn" / "memory-vault"
+
+REQUIRED_CHECKS = [
+    "CI - Hardened Build Pipeline",
+    "Devonn.AI Testing",
+    "CodeQL SAST",
+    "Secrets Elimination & Scanning",
+    "Final Green Check",
+]
+
+ADVISORY_TOOLS = [
+    "ci:doctor",
+    "workflow:audit",
+    "workflow:classify",
+    "repo:entropy",
+    "pins:validate",
+]
 
 
 def utc_now() -> str:
@@ -44,16 +62,69 @@ def memory_files() -> list[Path]:
 
 def memory_summary(path: Path) -> dict[str, Any]:
     stat = path.stat()
-    return {"id": path.stem, "file": path.name, "path": str(path.relative_to(ROOT)), "sizeBytes": stat.st_size, "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()}
+    return {
+        "id": path.stem,
+        "file": path.name,
+        "path": str(path.relative_to(ROOT)),
+        "sizeBytes": stat.st_size,
+        "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+    }
 
 
 def graph_payload() -> dict[str, Any]:
-    return {"nodes": [{"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"}, {"id": "api", "label": "Operator API", "type": "service", "status": "online"}, {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"}, {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"}, {"id": "ion", "label": "ION", "type": "agent", "status": "online"}, {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"}, {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"}, {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"}, {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "green"}, {"id": "observability", "label": "Observability", "type": "telemetry", "status": "integration-ready"}], "edges": [{"source": "operator", "target": "api", "label": "queries"}, {"source": "api", "target": "hermes", "label": "governance state"}, {"source": "api", "target": "tars", "label": "runtime state"}, {"source": "api", "target": "ion", "label": "dashboard intelligence"}, {"source": "api", "target": "sapphire", "label": "memory state"}, {"source": "api", "target": "guardian", "label": "safety review"}, {"source": "sapphire", "target": "memory", "label": "curates"}, {"source": "hermes", "target": "ci", "label": "reviews"}, {"source": "tars", "target": "observability", "label": "emits telemetry"}]}
+    return {
+        "nodes": [
+            {"id": "operator", "label": "Operator Console", "type": "ui", "status": "online"},
+            {"id": "api", "label": "Operator API", "type": "service", "status": "online"},
+            {"id": "hermes", "label": "Hermes", "type": "agent", "status": "observing"},
+            {"id": "tars", "label": "TARS", "type": "agent", "status": "standing-by"},
+            {"id": "ion", "label": "ION", "type": "agent", "status": "online"},
+            {"id": "sapphire", "label": "SAPPHIRE", "type": "agent", "status": "online"},
+            {"id": "guardian", "label": "GUARDIAN", "type": "agent", "status": "manual-review"},
+            {"id": "memory", "label": "Memory Vault", "type": "memory", "status": "local-first"},
+            {"id": "ci", "label": "CI/CD Gates", "type": "pipeline", "status": "live-adapter-ready"},
+            {"id": "observability", "label": "Observability", "type": "telemetry", "status": "integration-ready"},
+        ],
+        "edges": [
+            {"source": "operator", "target": "api", "label": "queries"},
+            {"source": "api", "target": "hermes", "label": "governance state"},
+            {"source": "api", "target": "tars", "label": "runtime state"},
+            {"source": "api", "target": "ion", "label": "dashboard intelligence"},
+            {"source": "api", "target": "sapphire", "label": "memory state"},
+            {"source": "api", "target": "guardian", "label": "safety review"},
+            {"source": "sapphire", "target": "memory", "label": "curates"},
+            {"source": "hermes", "target": "ci", "label": "reviews"},
+            {"source": "tars", "target": "observability", "label": "emits telemetry"},
+        ],
+    }
 
 
 @router.get("/status")
 async def operator_status() -> dict[str, Any]:
-    return {"readiness": "yellow", "mode": "stabilization", "timestamp": utc_now(), "surfaces": ["ci", "memory", "memory-history", "memory-replay", "connectors", "integrations", "deployments", "governance", "runtime", "observability", "agents", "events", "queues", "alerts", "graph", "dag", "topology"]}
+    return {
+        "readiness": "yellow",
+        "mode": "stabilization",
+        "timestamp": utc_now(),
+        "surfaces": [
+            "ci",
+            "memory",
+            "memory-history",
+            "memory-replay",
+            "connectors",
+            "integrations",
+            "deployments",
+            "governance",
+            "runtime",
+            "observability",
+            "agents",
+            "events",
+            "queues",
+            "alerts",
+            "graph",
+            "dag",
+            "topology",
+        ],
+    }
 
 
 @router.get("/integrations")
@@ -65,7 +136,19 @@ async def operator_integrations() -> dict[str, Any]:
 
 @router.get("/ci")
 async def operator_ci() -> dict[str, Any]:
-    return {"status": "green", "requiredChecks": ["CI - Hardened Build Pipeline", "Devonn.AI Testing", "CodeQL SAST", "Secrets Elimination & Scanning", "Final Green Check"], "advisoryTools": ["ci:doctor", "workflow:audit", "workflow:classify", "repo:entropy", "pins:validate"]}
+    workflow_runs = github_actions_runs(limit=12) if github_actions_runs else {
+        "configured": False,
+        "status": "unavailable",
+        "runs": [],
+        "summary": {"total": 0, "failures": 0, "healthy": False},
+    }
+    summary = workflow_runs.get("summary", {})
+    return {
+        "status": "green" if summary.get("healthy") else "observing",
+        "requiredChecks": REQUIRED_CHECKS,
+        "advisoryTools": ADVISORY_TOOLS,
+        "githubActions": workflow_runs,
+    }
 
 
 @router.get("/memory")
@@ -89,7 +172,10 @@ async def operator_memory_snapshots() -> dict[str, Any]:
 @router.get("/memory/replay")
 async def operator_memory_replay() -> dict[str, Any]:
     files = memory_files()
-    events = [{"type": "memory.snapshot", "timestamp": memory_summary(path)["modified"], "file": memory_summary(path)["file"], "message": f"Operational memory snapshot available: {memory_summary(path)['file']}"} for path in files[:10]]
+    events = []
+    for path in files[:10]:
+        summary = memory_summary(path)
+        events.append({"type": "memory.snapshot", "timestamp": summary["modified"], "file": summary["file"], "message": f"Operational memory snapshot available: {summary['file']}"})
     if not events:
         events.append({"type": "memory.empty", "timestamp": utc_now(), "file": None, "message": "No memory snapshots found yet. Run npm run memory:export <file> to create one."})
     return {"timestamp": utc_now(), "events": events}
@@ -108,7 +194,7 @@ async def operator_deployments() -> dict[str, Any]:
 
 @router.get("/governance")
 async def operator_governance() -> dict[str, Any]:
-    return {"mainProtected": True, "manualReviewRequired": True, "stagingProtected": False, "governanceMode": "manual-review-during-stabilization", "requiredProductionChecks": ["CI - Hardened Build Pipeline", "Devonn.AI Testing", "CodeQL SAST", "Secrets Elimination & Scanning", "Final Green Check"]}
+    return {"mainProtected": True, "manualReviewRequired": True, "stagingProtected": False, "governanceMode": "manual-review-during-stabilization", "requiredProductionChecks": REQUIRED_CHECKS}
 
 
 @router.get("/runtime")
@@ -172,14 +258,14 @@ async def operator_dag() -> dict[str, Any]:
 @router.get("/topology")
 async def operator_topology() -> dict[str, Any]:
     integrations = integration_readiness() if integration_readiness else {"status": "unavailable"}
-    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "green", "components": ["Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Metrics", "Runtime Stream"]}]}
+    return {"timestamp": utc_now(), "integrationStatus": integrations.get("status"), "layers": [{"name": "frontend", "status": "staging-ready", "components": ["Vite", "Operator Console"]}, {"name": "api", "status": "online", "components": ["FastAPI", "Operator Router"]}, {"name": "memory", "status": "local-first", "components": ["Memory Vault", "Token Compression"]}, {"name": "ci", "status": "live-adapter-ready", "components": ["GitHub Actions", "Build", "Testing", "CodeQL", "Secrets"]}, {"name": "observability", "status": "live-adapter-ready", "components": ["Prometheus", "Redis", "Metrics", "Runtime Stream"]}]}
 
 
 @router.websocket("/runtime/stream")
 async def operator_runtime_stream(websocket: WebSocket) -> None:
     await websocket.accept()
     event_index = 0
-    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "alerts", "graph", "integrations"]
+    surfaces = ["agents", "queues", "memory", "dag", "gitnexus", "observability", "alerts", "graph", "integrations", "ci"]
     try:
         await websocket.send_json({"type": "operator.connected", "timestamp": utc_now(), "message": "Operator runtime stream connected.", "severity": "info"})
         while True:
