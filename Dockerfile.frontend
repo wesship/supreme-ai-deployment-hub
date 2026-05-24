@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Use npm ci for deterministic, reproducible installs
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
