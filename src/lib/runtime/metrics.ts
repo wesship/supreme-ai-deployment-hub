@@ -28,7 +28,7 @@ export const MetricsResponseSchema = z.object({
       name: z.string(),
       type: z.enum(["counter", "gauge"]),
       value: z.number(),
-      labels: z.record(z.string()),
+      labels: z.record(z.string(), z.string()),
       description: z.string(),
       updated_at: z.string().datetime(),
     }),
