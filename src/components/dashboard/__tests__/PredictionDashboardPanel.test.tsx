@@ -13,9 +13,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { waitFor } from '@testing-library/react';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Prediction, RecoveryAdvisory, RiskLevel } from '@/hooks/useOperatorPredictions';
+import PredictionDashboardPanel from '@/components/dashboard/PredictionDashboardPanel';
 
 // ---------------------------------------------------------------------------
 // Inline mock for useOperatorPredictions — avoids module resolution issues
@@ -113,8 +115,6 @@ describe('PredictionDashboardPanel', () => {
 
   it('shows warm-up empty state when no predictions and not loading', () => {
     setMockState({ predictions: [], advisories: [], isLoading: false });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.getByText(/prediction engine warming up/i)).toBeInTheDocument();
     expect(screen.getByText(/no predictions yet/i)).toBeInTheDocument();
@@ -122,8 +122,6 @@ describe('PredictionDashboardPanel', () => {
 
   it('does not show warm-up state when predictions exist', () => {
     setMockState({ predictions: [makePrediction()], advisories: [], isLoading: false });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.queryByText(/prediction engine warming up/i)).not.toBeInTheDocument();
   });
@@ -137,8 +135,6 @@ describe('PredictionDashboardPanel', () => {
       isLoading: false,
       error: 'ECONNREFUSED: Connection refused to backend on port 8000',
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.getByText(/ECONNREFUSED/i)).toBeInTheDocument();
   });
@@ -150,12 +146,11 @@ describe('PredictionDashboardPanel', () => {
       isLoading: false,
       error: 'Backend unavailable at https://devonn-api.example.com/api/operator/predictions — <html>noise</html>',
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     expect(() => render(<PredictionDashboardPanel />)).not.toThrow();
-    // Error message should be displayed, not raw HTML
+    // Error message should be displayed as escaped text, not rendered as HTML tags
     expect(screen.getByText(/Backend unavailable/i)).toBeInTheDocument();
-    expect(screen.queryByText(/<html>/i)).not.toBeInTheDocument();
+    // Verify no actual <html> DOM element was injected (i.e., not dangerouslySetInnerHTML)
+    expect(document.querySelector('html > body > div html')).toBeNull();
   });
 
   // --- Predictions render correctly ---
@@ -170,8 +165,6 @@ describe('PredictionDashboardPanel', () => {
       advisories: [],
       isLoading: false,
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
 
     expect(screen.getByText('Deployment Instability')).toBeInTheDocument();
@@ -192,8 +185,6 @@ describe('PredictionDashboardPanel', () => {
       advisories: [],
       isLoading: false,
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
 
     // Critical card shows "2"
@@ -217,8 +208,6 @@ describe('PredictionDashboardPanel', () => {
       advisories: [],
       isLoading: false,
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
 
     const criticalEls = screen.getAllByText('0').filter((el) => el.closest('[class*="bg-red"]') !== null);
@@ -236,8 +225,6 @@ describe('PredictionDashboardPanel', () => {
       ],
       isLoading: false,
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
 
     expect(screen.getByText('Dead Letter Queue Alert')).toBeInTheDocument();
@@ -253,8 +240,6 @@ describe('PredictionDashboardPanel', () => {
       ],
       isLoading: false,
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
 
     expect(screen.getAllByText('manual review')).toHaveLength(1);
@@ -264,8 +249,6 @@ describe('PredictionDashboardPanel', () => {
 
   it('always shows the advisory boundary notice', () => {
     setMockState({ predictions: [], advisories: [], isLoading: false });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.getByText(/advisory only/i)).toBeInTheDocument();
     expect(screen.getByText(/no infrastructure is mutated/i)).toBeInTheDocument();
@@ -273,8 +256,6 @@ describe('PredictionDashboardPanel', () => {
 
   it('shows advisory notice even when backend is down', () => {
     setMockState({ predictions: [], advisories: [], isLoading: false, error: 'Backend unavailable' });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.getByText(/advisory only/i)).toBeInTheDocument();
   });
@@ -294,15 +275,13 @@ describe('PredictionDashboardPanel', () => {
       advisories: [],
       isLoading: false,
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
 
-    const cardHeader = screen.getByText('Queue Saturation').closest('button')!;
+        const cardHeader = screen.getByText('Queue Saturation').closest('button')!;
     await user.click(cardHeader);
-
-    expect(screen.getByText('queue/taskQueue.json')).toBeInTheDocument();
-    expect(screen.getByText('Consider scaling consumer agents.')).toBeInTheDocument();
+    // watchSurfaces are rendered inside Badge elements — use getAllByText for partial match
+    expect(screen.getByText((content) => content.includes('queue/taskQueue.json'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Consider scaling consumer agents.'))).toBeInTheDocument();
   });
 
   it('collapses an expanded prediction card on second click', async () => {
@@ -318,32 +297,28 @@ describe('PredictionDashboardPanel', () => {
       advisories: [],
       isLoading: false,
     });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
 
     const cardHeader = screen.getByText('Queue Saturation').closest('button')!;
+        await user.click(cardHeader);
+    expect(screen.getByText((content) => content.includes('Guidance text'))).toBeInTheDocument();
     await user.click(cardHeader);
-    expect(screen.getByText('Guidance text')).toBeInTheDocument();
-
-    await user.click(cardHeader);
-    expect(screen.queryByText('Guidance text')).not.toBeInTheDocument();
+    // AnimatePresence uses async exit animations; waitFor handles the async removal
+    await waitFor(() => {
+      expect(screen.queryByText((content) => content.includes('Guidance text'))).not.toBeInTheDocument();
+    });
   });
 
   // --- Likelihood display ---
 
   it('displays likelihood as a percentage', () => {
     setMockState({ predictions: [makePrediction({ id: 'p1', likelihood: 0.73 })], advisories: [], isLoading: false });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.getByText('73% likelihood')).toBeInTheDocument();
   });
 
   it('displays 0% likelihood correctly', () => {
     setMockState({ predictions: [makePrediction({ id: 'p1', likelihood: 0.0 })], advisories: [], isLoading: false });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.getByText('0% likelihood')).toBeInTheDocument();
   });
@@ -353,8 +328,6 @@ describe('PredictionDashboardPanel', () => {
   it('shows last refreshed time when data has loaded', () => {
     const now = new Date();
     setMockState({ predictions: [makePrediction()], advisories: [], isLoading: false, lastRefreshed: now });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { default: PredictionDashboardPanel } = require('@/components/dashboard/PredictionDashboardPanel');
     render(<PredictionDashboardPanel />);
     expect(screen.getByText(new RegExp(`Updated ${now.toLocaleTimeString()}`))).toBeInTheDocument();
   });
