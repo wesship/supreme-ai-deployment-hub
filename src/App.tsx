@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { FloatingChatWidget } from "./components/ai/FloatingChatWidget";
 import "./App.css";
 import Navbar from "./components/Navbar";
 import { Toaster } from "./components/ui/sonner";
@@ -37,6 +38,7 @@ const StatusDashboard = lazy(() => import("./pages/StatusDashboard"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
+const ChatPage = lazy(() => import("./pages/Chat"));
 
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -80,11 +82,13 @@ function App() {
                       <Route path="/terms" element={<Terms />} />
                       <Route path="/privacy" element={<Privacy />} />
                       <Route path="/privacy-policy" element={<Privacy />} />
+                      <Route path="/chat" element={<ChatPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>
                 </main>
               </Router>
+              <FloatingChatWidget />
               <Toaster />
               <Analytics />
             </AGUIProvider>
