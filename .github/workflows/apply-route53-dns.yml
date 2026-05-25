@@ -1,0 +1,166 @@
+name: Apply Route 53 DNS Records
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run only — print changes without applying'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  apply-dns:
+    name: UPSERT devonn.ai DNS records in Route 53
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Locate devonn.ai hosted zone
+        id: find-zone
+        run: |
+          ZONE_ID=$(aws route53 list-hosted-zones-by-name \
+            --dns-name "devonn.ai." \
+            --query "HostedZones[?Name=='devonn.ai.'].Id" \
+            --output text | sed 's|/hostedzone/||')
+
+          if [ -z "$ZONE_ID" ]; then
+            echo "ERROR: No hosted zone found for devonn.ai"
+            exit 1
+          fi
+
+          echo "Found hosted zone: $ZONE_ID"
+          echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Show existing records (before)
+        run: |
+          echo "=== Current A / CNAME records for devonn.ai ==="
+          aws route53 list-resource-record-sets \
+            --hosted-zone-id "${{ steps.find-zone.outputs.zone_id }}" \
+            --query "ResourceRecordSets[?Type=='A' || Type=='CNAME']" \
+            --output table
+
+      - name: Build change batch
+        id: build-batch
+        run: |
+          cat > /tmp/dns-change-batch.json << 'EOF'
+          {
+            "Comment": "Vercel frontend DNS records for devonn.ai — applied by CI",
+            "Changes": [
+              {
+                "Action": "UPSERT",
+                "ResourceRecordSet": {
+                  "Name": "devonn.ai.",
+                  "Type": "A",
+                  "TTL": 300,
+                  "ResourceRecords": [
+                    { "Value": "76.76.21.21" }
+                  ]
+                }
+              },
+              {
+                "Action": "UPSERT",
+                "ResourceRecordSet": {
+                  "Name": "www.devonn.ai.",
+                  "Type": "CNAME",
+                  "TTL": 300,
+                  "ResourceRecords": [
+                    { "Value": "cname.vercel-dns.com" }
+                  ]
+                }
+              },
+              {
+                "Action": "UPSERT",
+                "ResourceRecordSet": {
+                  "Name": "app.devonn.ai.",
+                  "Type": "CNAME",
+                  "TTL": 300,
+                  "ResourceRecords": [
+                    { "Value": "cname.vercel-dns.com" }
+                  ]
+                }
+              }
+            ]
+          }
+          EOF
+          echo "Change batch written to /tmp/dns-change-batch.json"
+          cat /tmp/dns-change-batch.json
+
+      - name: Apply DNS records (UPSERT)
+        if: ${{ inputs.dry_run == 'false' }}
+        id: apply
+        run: |
+          CHANGE_ID=$(aws route53 change-resource-record-sets \
+            --hosted-zone-id "${{ steps.find-zone.outputs.zone_id }}" \
+            --change-batch file:///tmp/dns-change-batch.json \
+            --query "ChangeInfo.Id" \
+            --output text)
+
+          echo "Change submitted: $CHANGE_ID"
+          echo "change_id=$CHANGE_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for propagation
+        if: ${{ inputs.dry_run == 'false' }}
+        run: |
+          echo "Waiting for Route 53 change to propagate..."
+          aws route53 wait resource-record-sets-changed \
+            --id "${{ steps.apply.outputs.change_id }}"
+          echo "Route 53 change status: INSYNC"
+
+      - name: Show updated records (after)
+        if: ${{ inputs.dry_run == 'false' }}
+        run: |
+          echo "=== Updated A / CNAME records for devonn.ai ==="
+          aws route53 list-resource-record-sets \
+            --hosted-zone-id "${{ steps.find-zone.outputs.zone_id }}" \
+            --query "ResourceRecordSets[?Type=='A' || Type=='CNAME']" \
+            --output table
+
+      - name: Verify DNS resolution
+        if: ${{ inputs.dry_run == 'false' }}
+        run: |
+          echo "Waiting 30s for global DNS propagation..."
+          sleep 30
+
+          echo ""
+          echo "=== DNS Resolution Check ==="
+          for domain in devonn.ai www.devonn.ai app.devonn.ai; do
+            result=$(nslookup "$domain" 8.8.8.8 2>&1 | grep -E "Address|CNAME" | grep -v "#53" | head -2)
+            echo "$domain -> $result"
+          done
+
+          echo ""
+          echo "=== HTTP Status Check ==="
+          for domain in devonn.ai www.devonn.ai app.devonn.ai; do
+            status=$(curl -sI --max-time 15 "https://$domain" 2>/dev/null | head -1)
+            echo "https://$domain -> $status"
+          done
+
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "=========================================="
+          echo "  Devonn.ai DNS Apply — Complete"
+          echo "=========================================="
+          echo ""
+          echo "Records applied:"
+          echo "  A     devonn.ai     -> 76.76.21.21"
+          echo "  CNAME www.devonn.ai -> cname.vercel-dns.com"
+          echo "  CNAME app.devonn.ai -> cname.vercel-dns.com"
+          echo ""
+          echo "Vercel will auto-issue SSL certificates."
+          echo "Frontend will be live at https://devonn.ai"
