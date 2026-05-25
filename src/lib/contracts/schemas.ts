@@ -36,20 +36,20 @@ export const RunLogSchema = z.object({
   timestamp: z.string().datetime({ message: "timestamp must be ISO 8601" }),
   level: LogLevelSchema,
   message: z.string().min(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const RunSchema = z.object({
   run_id: z.string().uuid({ message: "run_id must be a UUID" }),
   status: RunStatusSchema,
   job_type: JobTypeSchema,
-  parameters: z.record(z.unknown()),
+  parameters: z.record(z.string(), z.unknown()),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   started_at: z.string().datetime().optional(),
   finished_at: z.string().datetime().optional(),
   logs: z.array(RunLogSchema),
-  result: z.record(z.unknown()).optional(),
+  result: z.record(z.string(), z.unknown()).optional(),
   error: z.string().optional(),
   progress: z.number().min(0).max(100).optional(),
   current_step: z.string().optional(),
@@ -59,7 +59,7 @@ export const RunSchema = z.object({
 
 export const RunPayloadSchema = z.object({
   job_type: JobTypeSchema,
-  parameters: z.record(z.unknown()),
+  parameters: z.record(z.string(), z.unknown()),
   agent_id: z.string().optional(),
   workflow_id: z.string().optional(),
   n8n_webhook_url: z.string().url().optional(),
@@ -84,7 +84,7 @@ export const LogRunResponseSchema = z.object({
 
 export const FinishRunRequestSchema = z.object({
   run_id: z.string().uuid(),
-  result_data: z.record(z.unknown()),
+  result_data: z.record(z.string(), z.unknown()),
   status: z.enum(["completed", "failed"]),
   error: z.string().optional(),
 });
@@ -126,13 +126,13 @@ export const AgentSchema = z.object({
   status: AgentStatusSchema,
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const CreateAgentRequestSchema = z.object({
   name: z.string().min(1).max(128),
   description: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const CreateAgentResponseSchema = z.object({
@@ -156,7 +156,7 @@ export const GovernanceDecisionSchema = z.enum([
 export const GovernanceArbitrationRequestSchema = z.object({
   agent_id: z.string().uuid(),
   action: z.string().min(1),
-  context: z.record(z.unknown()),
+  context: z.record(z.string(), z.unknown()),
   priority: z.number().int().min(0).max(100).optional(),
 });
 
@@ -182,7 +182,7 @@ export const ServiceHealthSchema = z.object({
   status: ServiceHealthStatusSchema,
   latency_ms: z.number().nonnegative().optional(),
   last_checked: z.string().datetime(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const HealthCheckResponseSchema = z.object({
@@ -220,7 +220,7 @@ export const ApiErrorResponseSchema = z.object({
   error: z.object({
     code: ErrorCodeSchema,
     message: z.string().min(1),
-    details: z.record(z.unknown()).optional(),
+    details: z.record(z.string(), z.unknown()).optional(),
     request_id: z.string().optional(),
     timestamp: z.string().datetime(),
   }),
