@@ -24,6 +24,7 @@ export interface OrchestratorConfig {
   maxTokens?: number;
   temperature?: number;
   stream?: boolean;
+  signal?: AbortSignal;
 }
 
 export const DEVONN_SYSTEM_PROMPT = `You are Devonn, the AI core of the Devonn.ai Supreme AI Deployment Hub — an advanced multi-agent orchestration platform built for enterprise AI operations.
@@ -56,6 +57,10 @@ async function* streamOpenAI(
   messages: ChatMessage[],
   config: OrchestratorConfig
 ): AsyncGenerator<StreamChunk> {
+  if (config.signal?.aborted) {
+    yield { delta: '', done: true };
+    return;
+  }
   const apiKey = config.apiKey || import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) {
     yield { delta: '', done: true, error: 'No OpenAI API key configured' };
@@ -66,6 +71,7 @@ async function* streamOpenAI(
 
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
+    signal: config.signal,
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
@@ -90,6 +96,7 @@ async function* streamOpenAI(
   let buffer = '';
 
   while (true) {
+    if (config.signal?.aborted) break;
     const { value, done } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });

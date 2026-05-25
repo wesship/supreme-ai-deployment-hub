@@ -360,6 +360,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          messages: Json
           metadata: Json | null
           title: string | null
           updated_at: string
@@ -368,6 +369,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          messages?: Json
           metadata?: Json | null
           title?: string | null
           updated_at?: string
@@ -376,6 +378,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          messages?: Json
           metadata?: Json | null
           title?: string | null
           updated_at?: string

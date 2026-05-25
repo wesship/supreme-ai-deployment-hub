@@ -152,7 +152,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
       let finalModel = '';
 
       try {
-        for await (const chunk of streamChat(history, config)) {
+        for await (const chunk of streamChat(history, { ...config, signal: abortRef.current.signal })) {
           if (chunk.error) {
             setMessages(prev =>
               prev.map(m =>
