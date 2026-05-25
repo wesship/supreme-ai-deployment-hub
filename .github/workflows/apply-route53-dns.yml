@@ -19,7 +19,7 @@ jobs:
   apply-dns:
     name: UPSERT devonn.ai DNS records in Route 53
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Configure AWS credentials
@@ -53,53 +53,164 @@ jobs:
             --query "ResourceRecordSets[?Type=='A' || Type=='CNAME']" \
             --output table
 
-      - name: Build change batch
+      - name: Resolve existing ALIAS records to delete
+        id: resolve-aliases
+        run: |
+          ZONE_ID="${{ steps.find-zone.outputs.zone_id }}"
+
+          # Fetch the full record set as JSON for precise deletion payloads
+          aws route53 list-resource-record-sets \
+            --hosted-zone-id "$ZONE_ID" \
+            --output json > /tmp/all-records.json
+
+          # Extract the ALIAS target for devonn.ai (root A ALIAS)
+          ROOT_ALB=$(python3 -c "
+          import json
+          data = json.load(open('/tmp/all-records.json'))
+          for r in data['ResourceRecordSets']:
+              if r['Name'] == 'devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
+                  print(r['AliasTarget']['DNSName'])
+                  break
+          " 2>/dev/null || echo "")
+
+          # Extract the ALIAS target for app.devonn.ai
+          APP_ALB=$(python3 -c "
+          import json
+          data = json.load(open('/tmp/all-records.json'))
+          for r in data['ResourceRecordSets']:
+              if r['Name'] == 'app.devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
+                  print(r['AliasTarget']['DNSName'])
+                  break
+          " 2>/dev/null || echo "")
+
+          # Extract the hosted zone ID of the ALB alias targets
+          ROOT_ALB_ZONE=$(python3 -c "
+          import json
+          data = json.load(open('/tmp/all-records.json'))
+          for r in data['ResourceRecordSets']:
+              if r['Name'] == 'devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
+                  print(r['AliasTarget']['HostedZoneId'])
+                  break
+          " 2>/dev/null || echo "")
+
+          APP_ALB_ZONE=$(python3 -c "
+          import json
+          data = json.load(open('/tmp/all-records.json'))
+          for r in data['ResourceRecordSets']:
+              if r['Name'] == 'app.devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
+                  print(r['AliasTarget']['HostedZoneId'])
+                  break
+          " 2>/dev/null || echo "")
+
+          echo "root_alb=$ROOT_ALB"
+          echo "root_alb_zone=$ROOT_ALB_ZONE"
+          echo "app_alb=$APP_ALB"
+          echo "app_alb_zone=$APP_ALB_ZONE"
+
+          echo "root_alb=$ROOT_ALB" >> "$GITHUB_OUTPUT"
+          echo "root_alb_zone=$ROOT_ALB_ZONE" >> "$GITHUB_OUTPUT"
+          echo "app_alb=$APP_ALB" >> "$GITHUB_OUTPUT"
+          echo "app_alb_zone=$APP_ALB_ZONE" >> "$GITHUB_OUTPUT"
+
+      - name: Build change batch (delete ALIAS + create Vercel records)
         id: build-batch
         run: |
-          cat > /tmp/dns-change-batch.json << 'EOF'
-          {
-            "Comment": "Vercel frontend DNS records for devonn.ai — applied by CI",
-            "Changes": [
-              {
-                "Action": "UPSERT",
-                "ResourceRecordSet": {
+          ROOT_ALB="${{ steps.resolve-aliases.outputs.root_alb }}"
+          ROOT_ALB_ZONE="${{ steps.resolve-aliases.outputs.root_alb_zone }}"
+          APP_ALB="${{ steps.resolve-aliases.outputs.app_alb }}"
+          APP_ALB_ZONE="${{ steps.resolve-aliases.outputs.app_alb_zone }}"
+
+          # Build the changes array dynamically
+          python3 << 'PYEOF'
+          import json
+
+          changes = []
+
+          # 1. DELETE existing devonn.ai ALIAS -> ALB (if it exists)
+          root_alb = "$ROOT_ALB"
+          root_alb_zone = "$ROOT_ALB_ZONE"
+          if root_alb and root_alb_zone:
+              changes.append({
+                  "Action": "DELETE",
+                  "ResourceRecordSet": {
+                      "Name": "devonn.ai.",
+                      "Type": "A",
+                      "AliasTarget": {
+                          "HostedZoneId": root_alb_zone,
+                          "DNSName": root_alb,
+                          "EvaluateTargetHealth": False
+                      }
+                  }
+              })
+              print(f"Will DELETE: devonn.ai ALIAS -> {root_alb}")
+
+          # 2. DELETE existing app.devonn.ai ALIAS -> ALB (if it exists)
+          app_alb = "$APP_ALB"
+          app_alb_zone = "$APP_ALB_ZONE"
+          if app_alb and app_alb_zone:
+              changes.append({
+                  "Action": "DELETE",
+                  "ResourceRecordSet": {
+                      "Name": "app.devonn.ai.",
+                      "Type": "A",
+                      "AliasTarget": {
+                          "HostedZoneId": app_alb_zone,
+                          "DNSName": app_alb,
+                          "EvaluateTargetHealth": False
+                      }
+                  }
+              })
+              print(f"Will DELETE: app.devonn.ai ALIAS -> {app_alb}")
+
+          # 3. CREATE devonn.ai A -> Vercel IP
+          changes.append({
+              "Action": "CREATE",
+              "ResourceRecordSet": {
                   "Name": "devonn.ai.",
                   "Type": "A",
                   "TTL": 300,
-                  "ResourceRecords": [
-                    { "Value": "76.76.21.21" }
-                  ]
-                }
-              },
-              {
-                "Action": "UPSERT",
-                "ResourceRecordSet": {
+                  "ResourceRecords": [{"Value": "76.76.21.21"}]
+              }
+          })
+          print("Will CREATE: devonn.ai A -> 76.76.21.21")
+
+          # 4. UPSERT www.devonn.ai CNAME -> Vercel
+          changes.append({
+              "Action": "UPSERT",
+              "ResourceRecordSet": {
                   "Name": "www.devonn.ai.",
                   "Type": "CNAME",
                   "TTL": 300,
-                  "ResourceRecords": [
-                    { "Value": "cname.vercel-dns.com" }
-                  ]
-                }
-              },
-              {
-                "Action": "UPSERT",
-                "ResourceRecordSet": {
+                  "ResourceRecords": [{"Value": "cname.vercel-dns.com"}]
+              }
+          })
+          print("Will UPSERT: www.devonn.ai CNAME -> cname.vercel-dns.com")
+
+          # 5. CREATE app.devonn.ai CNAME -> Vercel
+          changes.append({
+              "Action": "CREATE",
+              "ResourceRecordSet": {
                   "Name": "app.devonn.ai.",
                   "Type": "CNAME",
                   "TTL": 300,
-                  "ResourceRecords": [
-                    { "Value": "cname.vercel-dns.com" }
-                  ]
-                }
+                  "ResourceRecords": [{"Value": "cname.vercel-dns.com"}]
               }
-            ]
-          }
-          EOF
-          echo "Change batch written to /tmp/dns-change-batch.json"
-          cat /tmp/dns-change-batch.json
+          })
+          print("Will CREATE: app.devonn.ai CNAME -> cname.vercel-dns.com")
 
-      - name: Apply DNS records (UPSERT)
+          batch = {
+              "Comment": "Migrate devonn.ai and app.devonn.ai from AWS ALB ALIAS to Vercel — applied by CI",
+              "Changes": changes
+          }
+
+          with open('/tmp/dns-change-batch.json', 'w') as f:
+              json.dump(batch, f, indent=2)
+
+          print("\nFinal change batch:")
+          print(json.dumps(batch, indent=2))
+          PYEOF
+
+      - name: Apply DNS records
         if: ${{ inputs.dry_run == 'false' }}
         id: apply
         run: |
@@ -112,10 +223,10 @@ jobs:
           echo "Change submitted: $CHANGE_ID"
           echo "change_id=$CHANGE_ID" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for propagation
+      - name: Wait for Route 53 propagation
         if: ${{ inputs.dry_run == 'false' }}
         run: |
-          echo "Waiting for Route 53 change to propagate..."
+          echo "Waiting for Route 53 change to reach INSYNC..."
           aws route53 wait resource-record-sets-changed \
             --id "${{ steps.apply.outputs.change_id }}"
           echo "Route 53 change status: INSYNC"
@@ -137,30 +248,37 @@ jobs:
 
           echo ""
           echo "=== DNS Resolution Check ==="
-          for domain in devonn.ai www.devonn.ai app.devonn.ai; do
-            result=$(nslookup "$domain" 8.8.8.8 2>&1 | grep -E "Address|CNAME" | grep -v "#53" | head -2)
+          for domain in devonn.ai www.devonn.ai app.devonn.ai api.devonn.ai; do
+            result=$(nslookup "$domain" 8.8.8.8 2>&1 | grep -E "Address|CNAME|Name" | grep -v "#53" | head -2 | tr '\n' ' ')
             echo "$domain -> $result"
           done
 
           echo ""
           echo "=== HTTP Status Check ==="
           for domain in devonn.ai www.devonn.ai app.devonn.ai; do
-            status=$(curl -sI --max-time 15 "https://$domain" 2>/dev/null | head -1)
-            echo "https://$domain -> $status"
+            status=$(curl -sI --max-time 15 "https://$domain" 2>/dev/null | head -1 | tr -d '\r')
+            echo "https://$domain -> ${status:-TIMEOUT/NO_RESPONSE}"
           done
+
+          echo ""
+          echo "api.devonn.ai (backend — should still be on AWS):"
+          nslookup api.devonn.ai 8.8.8.8 2>&1 | grep -E "Address|CNAME" | grep -v "#53" | head -2
 
       - name: Summary
         if: always()
         run: |
           echo ""
           echo "=========================================="
-          echo "  Devonn.ai DNS Apply — Complete"
+          echo "  Devonn.ai DNS Migration — Complete"
           echo "=========================================="
           echo ""
-          echo "Records applied:"
+          echo "Migrated to Vercel:"
           echo "  A     devonn.ai     -> 76.76.21.21"
           echo "  CNAME www.devonn.ai -> cname.vercel-dns.com"
           echo "  CNAME app.devonn.ai -> cname.vercel-dns.com"
+          echo ""
+          echo "Preserved on AWS ALB:"
+          echo "  ALIAS api.devonn.ai -> AWS EKS ALB (unchanged)"
           echo ""
           echo "Vercel will auto-issue SSL certificates."
           echo "Frontend will be live at https://devonn.ai"
