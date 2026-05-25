@@ -88,3 +88,12 @@ export const useChat = () => {
   }
   return context;
 };
+
+// Safe variant: returns the real chat context when available,
+// falls back to the no-op mock context when used outside ChatProvider.
+export const useSafeChat = (): ChatContextType => {
+  const real = useContext(ChatContext);
+  const mock = useContext(MockChatContext);
+  return real ?? mock;
+};
+
