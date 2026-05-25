@@ -24,9 +24,9 @@ export function validate<T>(schema: ZodSchema<T>, value: unknown): ValidationRes
   if (result.success) {
     return { ok: true, data: result.data };
   }
-  const issues = result.error.issues ?? result.error.errors ?? [];
+  const issues = result.error.issues ?? [];
   const summary = issues
-    .map((e: { path: (string | number)[]; message: string }) => `${e.path.join(".")}: ${e.message}`)
+    .map((e) => `${e.path.map(String).join(".")}: ${e.message}`)
     .join("; ");
   return { ok: false, error: result.error, summary };
 }
