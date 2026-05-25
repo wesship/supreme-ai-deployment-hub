@@ -53,116 +53,53 @@ jobs:
             --query "ResourceRecordSets[?Type=='A' || Type=='CNAME']" \
             --output table
 
-      - name: Resolve existing ALIAS records to delete
-        id: resolve-aliases
+      - name: Build change batch and apply DNS records
+        if: ${{ inputs.dry_run == 'false' }}
+        id: apply
         run: |
           ZONE_ID="${{ steps.find-zone.outputs.zone_id }}"
 
-          # Fetch the full record set as JSON for precise deletion payloads
+          # Fetch all current records
           aws route53 list-resource-record-sets \
             --hosted-zone-id "$ZONE_ID" \
             --output json > /tmp/all-records.json
 
-          # Extract the ALIAS target for devonn.ai (root A ALIAS)
-          ROOT_ALB=$(python3 -c "
-          import json
+          # Build the change batch using Python — reads the JSON directly
+          python3 - << 'EOF'
+          import json, subprocess, sys
+
           data = json.load(open('/tmp/all-records.json'))
-          for r in data['ResourceRecordSets']:
-              if r['Name'] == 'devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
-                  print(r['AliasTarget']['DNSName'])
-                  break
-          " 2>/dev/null || echo "")
-
-          # Extract the ALIAS target for app.devonn.ai
-          APP_ALB=$(python3 -c "
-          import json
-          data = json.load(open('/tmp/all-records.json'))
-          for r in data['ResourceRecordSets']:
-              if r['Name'] == 'app.devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
-                  print(r['AliasTarget']['DNSName'])
-                  break
-          " 2>/dev/null || echo "")
-
-          # Extract the hosted zone ID of the ALB alias targets
-          ROOT_ALB_ZONE=$(python3 -c "
-          import json
-          data = json.load(open('/tmp/all-records.json'))
-          for r in data['ResourceRecordSets']:
-              if r['Name'] == 'devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
-                  print(r['AliasTarget']['HostedZoneId'])
-                  break
-          " 2>/dev/null || echo "")
-
-          APP_ALB_ZONE=$(python3 -c "
-          import json
-          data = json.load(open('/tmp/all-records.json'))
-          for r in data['ResourceRecordSets']:
-              if r['Name'] == 'app.devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
-                  print(r['AliasTarget']['HostedZoneId'])
-                  break
-          " 2>/dev/null || echo "")
-
-          echo "root_alb=$ROOT_ALB"
-          echo "root_alb_zone=$ROOT_ALB_ZONE"
-          echo "app_alb=$APP_ALB"
-          echo "app_alb_zone=$APP_ALB_ZONE"
-
-          echo "root_alb=$ROOT_ALB" >> "$GITHUB_OUTPUT"
-          echo "root_alb_zone=$ROOT_ALB_ZONE" >> "$GITHUB_OUTPUT"
-          echo "app_alb=$APP_ALB" >> "$GITHUB_OUTPUT"
-          echo "app_alb_zone=$APP_ALB_ZONE" >> "$GITHUB_OUTPUT"
-
-      - name: Build change batch (delete ALIAS + create Vercel records)
-        id: build-batch
-        run: |
-          ROOT_ALB="${{ steps.resolve-aliases.outputs.root_alb }}"
-          ROOT_ALB_ZONE="${{ steps.resolve-aliases.outputs.root_alb_zone }}"
-          APP_ALB="${{ steps.resolve-aliases.outputs.app_alb }}"
-          APP_ALB_ZONE="${{ steps.resolve-aliases.outputs.app_alb_zone }}"
-
-          # Build the changes array dynamically
-          python3 << 'PYEOF'
-          import json
-
           changes = []
 
-          # 1. DELETE existing devonn.ai ALIAS -> ALB (if it exists)
-          root_alb = "$ROOT_ALB"
-          root_alb_zone = "$ROOT_ALB_ZONE"
-          if root_alb and root_alb_zone:
-              changes.append({
-                  "Action": "DELETE",
-                  "ResourceRecordSet": {
-                      "Name": "devonn.ai.",
-                      "Type": "A",
-                      "AliasTarget": {
-                          "HostedZoneId": root_alb_zone,
-                          "DNSName": root_alb,
-                          "EvaluateTargetHealth": False
+          # Find and DELETE devonn.ai ALIAS -> ALB
+          for r in data['ResourceRecordSets']:
+              if r['Name'] == 'devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
+                  changes.append({
+                      "Action": "DELETE",
+                      "ResourceRecordSet": {
+                          "Name": "devonn.ai.",
+                          "Type": "A",
+                          "AliasTarget": r['AliasTarget']
                       }
-                  }
-              })
-              print(f"Will DELETE: devonn.ai ALIAS -> {root_alb}")
+                  })
+                  print(f"Will DELETE: devonn.ai ALIAS -> {r['AliasTarget']['DNSName']}")
+                  break
 
-          # 2. DELETE existing app.devonn.ai ALIAS -> ALB (if it exists)
-          app_alb = "$APP_ALB"
-          app_alb_zone = "$APP_ALB_ZONE"
-          if app_alb and app_alb_zone:
-              changes.append({
-                  "Action": "DELETE",
-                  "ResourceRecordSet": {
-                      "Name": "app.devonn.ai.",
-                      "Type": "A",
-                      "AliasTarget": {
-                          "HostedZoneId": app_alb_zone,
-                          "DNSName": app_alb,
-                          "EvaluateTargetHealth": False
+          # Find and DELETE app.devonn.ai ALIAS -> ALB
+          for r in data['ResourceRecordSets']:
+              if r['Name'] == 'app.devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
+                  changes.append({
+                      "Action": "DELETE",
+                      "ResourceRecordSet": {
+                          "Name": "app.devonn.ai.",
+                          "Type": "A",
+                          "AliasTarget": r['AliasTarget']
                       }
-                  }
-              })
-              print(f"Will DELETE: app.devonn.ai ALIAS -> {app_alb}")
+                  })
+                  print(f"Will DELETE: app.devonn.ai ALIAS -> {r['AliasTarget']['DNSName']}")
+                  break
 
-          # 3. CREATE devonn.ai A -> Vercel IP
+          # CREATE devonn.ai A -> Vercel IP
           changes.append({
               "Action": "CREATE",
               "ResourceRecordSet": {
@@ -174,7 +111,7 @@ jobs:
           })
           print("Will CREATE: devonn.ai A -> 76.76.21.21")
 
-          # 4. UPSERT www.devonn.ai CNAME -> Vercel
+          # UPSERT www.devonn.ai CNAME -> Vercel
           changes.append({
               "Action": "UPSERT",
               "ResourceRecordSet": {
@@ -186,7 +123,7 @@ jobs:
           })
           print("Will UPSERT: www.devonn.ai CNAME -> cname.vercel-dns.com")
 
-          # 5. CREATE app.devonn.ai CNAME -> Vercel
+          # CREATE app.devonn.ai CNAME -> Vercel
           changes.append({
               "Action": "CREATE",
               "ResourceRecordSet": {
@@ -199,23 +136,22 @@ jobs:
           print("Will CREATE: app.devonn.ai CNAME -> cname.vercel-dns.com")
 
           batch = {
-              "Comment": "Migrate devonn.ai and app.devonn.ai from AWS ALB ALIAS to Vercel — applied by CI",
+              "Comment": "Migrate devonn.ai and app.devonn.ai from AWS ALB ALIAS to Vercel",
               "Changes": changes
           }
+
+          print("\nFinal change batch:")
+          print(json.dumps(batch, indent=2))
 
           with open('/tmp/dns-change-batch.json', 'w') as f:
               json.dump(batch, f, indent=2)
 
-          print("\nFinal change batch:")
-          print(json.dumps(batch, indent=2))
-          PYEOF
+          print("\nChange batch written to /tmp/dns-change-batch.json")
+          EOF
 
-      - name: Apply DNS records
-        if: ${{ inputs.dry_run == 'false' }}
-        id: apply
-        run: |
+          # Apply the change batch
           CHANGE_ID=$(aws route53 change-resource-record-sets \
-            --hosted-zone-id "${{ steps.find-zone.outputs.zone_id }}" \
+            --hosted-zone-id "$ZONE_ID" \
             --change-batch file:///tmp/dns-change-batch.json \
             --query "ChangeInfo.Id" \
             --output text)
