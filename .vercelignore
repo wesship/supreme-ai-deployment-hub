@@ -41,10 +41,10 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# Infrastructure and deployment
-infrastructure/
-deployment/
-terraform/
+# Infrastructure and deployment (root-level only)
+/infrastructure/
+/deployment/
+/terraform/
 *.tfstate
 *.tfstate.*
 .terraform/
