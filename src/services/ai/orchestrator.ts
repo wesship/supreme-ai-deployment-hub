@@ -2,7 +2,9 @@
  * Devonn.ai AI Orchestrator
  * Multi-provider LLM routing with streaming, fallback, and tool-calling support.
  * Providers: OpenAI (primary) → api.devonn.ai (secondary) → future: Ollama, Gemini, DeepSeek
+ * Phase 2: RAG context injection via Pinecone vector retrieval.
  */
+import { retrieveContext, isRAGAvailable } from './ragService';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -25,6 +27,8 @@ export interface OrchestratorConfig {
   temperature?: number;
   stream?: boolean;
   signal?: AbortSignal;
+  /** When true, retrieves relevant document context from Pinecone before responding */
+  useRAG?: boolean;
 }
 
 export const DEVONN_SYSTEM_PROMPT = `You are Devonn, the AI core of the Devonn.ai Supreme AI Deployment Hub — an advanced multi-agent orchestration platform built for enterprise AI operations.
@@ -185,11 +189,25 @@ export async function* streamChat(
 ): AsyncGenerator<StreamChunk> {
   const provider = config.provider || 'openai';
 
+  // ── RAG: retrieve relevant context for the latest user message ──────────
+  let ragContext = '';
+  if (config.useRAG !== false && isRAGAvailable()) {
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
+    if (lastUserMsg) {
+      ragContext = await retrieveContext(lastUserMsg.content);
+    }
+  }
+
+  // Build system prompt — inject RAG context when available
+  const systemContent = ragContext
+    ? `${DEVONN_SYSTEM_PROMPT}\n\n---\n\n## Retrieved Context (from your document store)\n\nThe following excerpts are relevant to the user's question. Use them to inform your response:\n\n${ragContext}\n\n---`
+    : DEVONN_SYSTEM_PROMPT;
+
   // Prepend system prompt if not already present
   const fullMessages: ChatMessage[] =
     messages[0]?.role === 'system'
-      ? messages
-      : [{ role: 'system', content: DEVONN_SYSTEM_PROMPT }, ...messages];
+      ? [{ role: 'system', content: systemContent }, ...messages.slice(1)]
+      : [{ role: 'system', content: systemContent }, ...messages];
 
   try {
     if (provider === 'openai') {

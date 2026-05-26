@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
+import { FileUploadHandler } from '@/components/ai/FileUploadHandler';
+import { IngestResult } from '@/services/ai/ragService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, StopCircle, Plus, Trash2, MessageSquare, ChevronLeft,
@@ -31,9 +33,10 @@ const ChatPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState('gpt-4.1-mini');
+  const [showUploadPanel, setShowUploadPanel] = useState(false);
+  const [lastIngestResult, setLastIngestResult] = useState<IngestResult | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auth check
   useEffect(() => {
@@ -350,6 +353,45 @@ const ChatPage: React.FC = () => {
           }}
         >
           <div className="max-w-3xl mx-auto">
+            {/* Upload panel */}
+            {showUploadPanel && (
+              <div
+                style={{
+                  marginBottom: '8px',
+                  background: 'rgba(7,13,26,0.95)',
+                  border: '1px solid rgba(59,255,122,0.2)',
+                  padding: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#3BFF7A' }}>INGEST DOCUMENTS INTO MEMORY</span>
+                  <button onClick={() => setShowUploadPanel(false)} style={{ color: '#475569', fontSize: '16px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+                </div>
+                <FileUploadHandler
+                  userId={userId}
+                  onIngestComplete={result => {
+                    setLastIngestResult(result);
+                    if (result.success) {
+                      setTimeout(() => setLastIngestResult(null), 5000);
+                    }
+                  }}
+                />
+              </div>
+            )}
+            {/* Ingest success toast */}
+            {lastIngestResult?.success && (
+              <div style={{
+                marginBottom: '8px',
+                padding: '8px 12px',
+                background: 'rgba(5,150,105,0.15)',
+                border: '1px solid rgba(59,255,122,0.3)',
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                color: '#3BFF7A',
+              }}>
+                [INDEXED] {lastIngestResult.filename} — {lastIngestResult.chunksIngested} chunks in memory. Ask me anything about it.
+              </div>
+            )}
             <div
               className="flex items-end gap-3 rounded-2xl px-4 py-3"
               style={{
@@ -358,15 +400,15 @@ const ChatPage: React.FC = () => {
                 boxShadow: '0 0 20px rgba(59, 255, 122, 0.04)',
               }}
             >
-              {/* File upload */}
+              {/* File upload toggle */}
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-1 text-white/25 hover:text-white/60 transition-colors flex-shrink-0 mb-0.5"
-                title="Upload file (coming soon)"
+                onClick={() => setShowUploadPanel(p => !p)}
+                className="p-1 flex-shrink-0 mb-0.5 transition-colors"
+                title="Upload file to memory"
+                style={{ color: showUploadPanel ? '#3BFF7A' : 'rgba(255,255,255,0.25)' }}
               >
                 <Upload className="w-4 h-4" />
               </button>
-              <input ref={fileInputRef} type="file" className="hidden" multiple />
 
               {/* Text input */}
               <textarea
