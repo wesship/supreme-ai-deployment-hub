@@ -4,3 +4,10 @@ packages:
   - 'integrations/*'
   - 'sdk/*'
   - 'packages/*'
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  onnxruntime-node: false
+  protobufjs: true
+  puppeteer: false
+  sharp: true

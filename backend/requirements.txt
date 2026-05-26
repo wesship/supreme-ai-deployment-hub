@@ -37,7 +37,7 @@ celery==5.4.0
 kombu==5.4.2
 
 # ── Utilities ──────────────────────────────────────────────────────────────
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 structlog==24.4.0
 tenacity==9.0.0
 

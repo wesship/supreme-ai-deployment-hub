@@ -43,3 +43,4 @@ secrets.json
 *.cer
 .vault-token
 *.kubeconfig
+.vercel
