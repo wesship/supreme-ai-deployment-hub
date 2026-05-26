@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # ── npm (frontend + workspace root) ───────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -34,14 +35,24 @@ updates:
         patterns:
           - "typescript"
           - "@types/*"
-    # Ignore major/minor bumps for infrastructure-critical packages
+      vite-ecosystem:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "esbuild"
+    # Ignore major bumps for build-tool and infrastructure-critical packages
+    # to prevent breaking changes from auto-merging
     ignore:
       - dependency-name: "jsdom"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "canvas"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "esbuild"
+        update-types: ["version-update:semver-major"]
 
-  # ── pip (Python backend) ───────────────────────────────────────────────────
+  # ── pip (Python backend — FastAPI proxy + app routers) ────────────────────
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
@@ -53,7 +64,16 @@ updates:
       - "dependencies"
       - "security"
       - "python"
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    ignore:
+      - dependency-name: "fastapi"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pydantic"
+        update-types: ["version-update:semver-major"]
 
+  # ── pip (root — devonn coordinator scripts) ───────────────────────────────
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
@@ -66,6 +86,7 @@ updates:
       - "security"
       - "python"
 
+  # ── pip (ML model inference — Mistral-7B) ─────────────────────────────────
   - package-ecosystem: "pip"
     directory: "/models/llm/mistral-7b"
     schedule:
@@ -76,7 +97,14 @@ updates:
     labels:
       - "dependencies"
       - "ml-models"
+    # torch and transformers major bumps require manual validation
+    ignore:
+      - dependency-name: "torch"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "transformers"
+        update-types: ["version-update:semver-major"]
 
+  # ── GitHub Actions ─────────────────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
