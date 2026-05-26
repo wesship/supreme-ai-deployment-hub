@@ -125,20 +125,18 @@ async function runAgent(
   const useTools = toolEnabledAgents.includes(node.type);
 
   if (useTools) {
-    // Non-streaming tool-calling round
-    const apiKey = config.apiKey || import.meta.env.VITE_OPENAI_API_KEY;
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Non-streaming tool-calling round — proxied through api.devonn.ai
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+    const response = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: config.model || 'gpt-4.1-mini',
         messages,
         tools: toOpenAITools(),
         tool_choice: 'auto',
         max_tokens: 1024,
+        stream: false,
       }),
     });
 
@@ -203,21 +201,18 @@ async function runOrchestratorAgent(
   graph: AgentGraph,
   options: AgentRouterOptions
 ): Promise<string> {
-  const apiKey = options.config?.apiKey || import.meta.env.VITE_OPENAI_API_KEY;
+  // Orchestration plan — proxied through api.devonn.ai
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
 
-  // Get orchestration plan
   const planMessages: ChatMessage[] = [
     { role: 'system', content: AGENT_PROMPTS.orchestrator },
     ...conversationHistory.slice(-4),
     { role: 'user', content: task },
   ];
 
-  const planResp = await fetch('https://api.openai.com/v1/chat/completions', {
+  const planResp = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: options.config?.model || 'gpt-4.1-mini',
       messages: planMessages,

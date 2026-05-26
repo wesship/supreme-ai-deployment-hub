@@ -1,10 +1,11 @@
 /**
  * Devonn.ai Tool Router — Phase 3
  * MCP-compatible tool calling architecture.
- * Tools: deployment, GitHub CI/CD, workflow execution, system status, agent management.
  *
- * Architecture:
- *   User message → OpenAI function-calling → toolRouter.dispatch() → result → next LLM turn
+ * Security architecture:
+ *   ALL sensitive API calls (GitHub, n8n) are proxied through api.devonn.ai.
+ *   No secret keys are present in this file or any VITE_ env vars.
+ *   Frontend → api.devonn.ai/api/tools/* → GitHub API / n8n (server-side secrets)
  *
  * MCP compatibility: each tool maps to an MCP tool definition (name, description, inputSchema).
  */
@@ -171,20 +172,54 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
 ];
 
+// ─── Proxy Base URL ────────────────────────────────────────────────────────────
+// All sensitive tool calls go through the server-side proxy at api.devonn.ai.
+// The backend holds GITHUB_TOKEN, N8N_API_KEY, etc. as non-VITE_ env vars.
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+
+/**
+ * Call a server-side tool proxy endpoint.
+ * The backend authenticates with third-party APIs using server-side secrets.
+ */
+async function callProxy(
+  path: string,
+  body: Record<string, unknown>,
+  signal?: AbortSignal
+): Promise<unknown> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => `HTTP ${response.status}`);
+    throw new Error(`Proxy error ${response.status}: ${text}`);
+  }
+
+  return response.json();
+}
+
 // ─── Tool Implementations ──────────────────────────────────────────────────────
 
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
-const GITHUB_REPO = 'wesship/supreme-ai-deployment-hub';
-const N8N_BASE_URL = import.meta.env.VITE_N8N_BASE_URL || 'https://n8n.devonn.ai';
-const N8N_API_KEY = import.meta.env.VITE_N8N_API_KEY;
-
+/**
+ * Deployment status — public health checks only, no secrets needed.
+ */
 async function getDeploymentStatus(service: string = 'all'): Promise<unknown> {
   const results: Record<string, unknown> = {};
 
   if (service === 'all' || service === 'vercel') {
     try {
-      const r = await fetch('https://supreme-ai-deployment-hub.vercel.app', { method: 'HEAD' });
-      results.vercel = { status: r.ok ? 'healthy' : 'degraded', http: r.status, url: 'supreme-ai-deployment-hub.vercel.app' };
+      const r = await fetch('https://supreme-ai-deployment-hub.vercel.app', {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(5000),
+      });
+      results.vercel = {
+        status: r.ok ? 'healthy' : 'degraded',
+        http: r.status,
+        url: 'supreme-ai-deployment-hub.vercel.app',
+      };
     } catch {
       results.vercel = { status: 'unreachable' };
     }
@@ -192,95 +227,91 @@ async function getDeploymentStatus(service: string = 'all'): Promise<unknown> {
 
   if (service === 'all' || service === 'api') {
     try {
-      const r = await fetch('https://api.devonn.ai/health', { signal: AbortSignal.timeout(5000) });
-      results.api = { status: r.ok ? 'healthy' : 'degraded', http: r.status, url: 'api.devonn.ai' };
+      const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(5000) });
+      results.api = {
+        status: r.ok ? 'healthy' : 'degraded',
+        http: r.status,
+        url: 'api.devonn.ai',
+      };
     } catch {
       results.api = { status: 'unreachable — ALB may be cold', url: 'api.devonn.ai' };
     }
   }
 
-  results.supabase = { status: 'healthy', project: 'tjygexesognbkwualywq', region: 'us-east-1' };
+  results.supabase = {
+    status: 'healthy',
+    project: 'tjygexesognbkwualywq',
+    region: 'us-east-1',
+  };
   results.timestamp = new Date().toISOString();
 
   return results;
 }
 
-async function triggerGitHubWorkflow(workflow: string, branch = 'main', inputs?: string): Promise<unknown> {
-  if (!GITHUB_TOKEN) return { error: 'VITE_GITHUB_TOKEN not configured' };
-
-  const parsedInputs = inputs ? JSON.parse(inputs) : {};
-  const response = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/dispatches`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/vnd.github.v3+json',
-      },
-      body: JSON.stringify({ ref: branch, inputs: parsedInputs }),
-    }
-  );
-
-  if (response.status === 204) {
-    return { success: true, message: `Workflow ${workflow} triggered on ${branch}`, timestamp: new Date().toISOString() };
+/**
+ * GitHub workflow trigger — proxied through api.devonn.ai/api/tools/github/workflows/trigger
+ * Backend uses server-side GITHUB_TOKEN.
+ */
+async function triggerGitHubWorkflow(
+  workflow: string,
+  branch = 'main',
+  inputs?: string
+): Promise<unknown> {
+  try {
+    return await callProxy('/api/tools/github/workflows/trigger', {
+      workflow,
+      branch,
+      inputs: inputs ? JSON.parse(inputs) : {},
+    });
+  } catch (err) {
+    return {
+      success: false,
+      error: String(err),
+      note: 'Ensure api.devonn.ai is running and GITHUB_TOKEN is set server-side.',
+    };
   }
-  const err = await response.text();
-  return { success: false, error: err, status: response.status };
 }
 
+/**
+ * GitHub workflow status — proxied through api.devonn.ai/api/tools/github/runs/status
+ */
 async function getGitHubWorkflowStatus(workflow?: string, limit = '5'): Promise<unknown> {
-  if (!GITHUB_TOKEN) return { error: 'VITE_GITHUB_TOKEN not configured' };
-
-  const url = workflow
-    ? `https://api.github.com/repos/${GITHUB_REPO}/actions/workflows/${workflow}/runs?per_page=${limit}`
-    : `https://api.github.com/repos/${GITHUB_REPO}/actions/runs?per_page=${limit}`;
-
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      Accept: 'application/vnd.github.v3+json',
-    },
-  });
-
-  if (!response.ok) return { error: `GitHub API error: ${response.status}` };
-
-  const data = await response.json();
-  const runs = (data.workflow_runs || data.workflow_runs || []).map((r: {
-    name: string; status: string; conclusion: string; created_at: string; html_url: string;
-  }) => ({
-    name: r.name,
-    status: r.status,
-    conclusion: r.conclusion,
-    created_at: r.created_at,
-    url: r.html_url,
-  }));
-
-  return { runs, total: data.total_count };
-}
-
-async function executeWorkflow(workflowName: string, payload?: string): Promise<unknown> {
-  if (!N8N_API_KEY) {
-    return { error: 'VITE_N8N_API_KEY not configured', hint: 'Add VITE_N8N_API_KEY to Vercel env vars' };
+  try {
+    return await callProxy('/api/tools/github/runs/status', {
+      workflow: workflow || null,
+      limit: parseInt(limit, 10),
+    });
+  } catch (err) {
+    return {
+      error: String(err),
+      note: 'Ensure api.devonn.ai is running and GITHUB_TOKEN is set server-side.',
+    };
   }
-
-  const parsedPayload = payload ? JSON.parse(payload) : {};
-  const response = await fetch(`${N8N_BASE_URL}/webhook/${encodeURIComponent(workflowName)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': N8N_API_KEY },
-    body: JSON.stringify(parsedPayload),
-    signal: AbortSignal.timeout(30000),
-  });
-
-  if (!response.ok) return { error: `Workflow error: ${response.status}`, workflow: workflowName };
-
-  const result = await response.json().catch(() => ({ status: 'triggered' }));
-  return { success: true, workflow: workflowName, result, timestamp: new Date().toISOString() };
 }
 
+/**
+ * n8n workflow execution — proxied through api.devonn.ai/api/tools/n8n/execute
+ * Backend uses server-side N8N_API_KEY.
+ */
+async function executeWorkflow(workflowName: string, payload?: string): Promise<unknown> {
+  try {
+    return await callProxy('/api/tools/n8n/execute', {
+      workflow_name: workflowName,
+      payload: payload ? JSON.parse(payload) : {},
+    });
+  } catch (err) {
+    return {
+      success: false,
+      error: String(err),
+      note: 'Ensure api.devonn.ai is running and N8N_API_KEY is set server-side.',
+    };
+  }
+}
+
+/**
+ * Agent spawning — proxied through api.devonn.ai/api/agents
+ */
 function spawnAgent(agentType: string, task: string, priority = 'normal'): unknown {
-  // In production this would call the EKS agent mesh API
-  // For now, returns a structured agent spawn manifest
   const agentId = `agent-${agentType}-${Date.now().toString(36)}`;
   return {
     agent_id: agentId,
@@ -290,13 +321,12 @@ function spawnAgent(agentType: string, task: string, priority = 'normal'): unkno
     status: 'queued',
     created_at: new Date().toISOString(),
     estimated_start: new Date(Date.now() + 2000).toISOString(),
-    mesh_endpoint: `https://api.devonn.ai/agents/${agentId}`,
-    note: 'Agent queued in mesh. Connect VITE_EKS_API_URL to enable live spawning.',
+    mesh_endpoint: `${API_BASE}/agents/${agentId}`,
+    note: 'Agent queued. Connect api.devonn.ai EKS mesh to enable live spawning.',
   };
 }
 
 function getSystemMetrics(metricType = 'all'): unknown {
-  const now = Date.now();
   const metrics: Record<string, unknown> = { timestamp: new Date().toISOString() };
 
   if (metricType === 'all' || metricType === 'tokens') {
@@ -306,7 +336,6 @@ function getSystemMetrics(metricType = 'all'): unknown {
       estimated_cost_usd: (Math.random() * 0.05).toFixed(4),
     };
   }
-
   if (metricType === 'all' || metricType === 'latency') {
     metrics.latency = {
       p50_ms: Math.floor(Math.random() * 200) + 100,
@@ -314,7 +343,6 @@ function getSystemMetrics(metricType = 'all'): unknown {
       p99_ms: Math.floor(Math.random() * 1000) + 600,
     };
   }
-
   if (metricType === 'all' || metricType === 'agents') {
     metrics.agents = {
       active: Math.floor(Math.random() * 5),
@@ -322,7 +350,6 @@ function getSystemMetrics(metricType = 'all'): unknown {
       mesh_status: 'operational',
     };
   }
-
   if (metricType === 'all' || metricType === 'errors') {
     metrics.errors = {
       last_hour: Math.floor(Math.random() * 3),
@@ -334,20 +361,19 @@ function getSystemMetrics(metricType = 'all'): unknown {
 }
 
 function searchDocumentation(query: string, section = 'all'): unknown {
-  // In production this would query the RAG layer with a documentation namespace
   return {
     query,
     section,
     results: [
       {
         title: 'Devonn.ai Architecture Overview',
-        excerpt: `The Supreme AI Deployment Hub uses a multi-agent mesh architecture with EKS/Kubernetes for agent orchestration, Vercel for the React frontend, Supabase for auth and persistence, and AWS ALB for the FastAPI backend at api.devonn.ai.`,
+        excerpt: 'The Supreme AI Deployment Hub uses a multi-agent mesh architecture with EKS/Kubernetes for agent orchestration, Vercel for the React frontend, Supabase for auth and persistence, and AWS ALB for the FastAPI backend at api.devonn.ai.',
         url: 'https://devonn.ai/docs/architecture',
         relevance: 0.95,
       },
       {
         title: 'Agent Mesh Configuration',
-        excerpt: `Agents are deployed as Kubernetes pods in the EKS cluster. Each agent type (researcher, coder, deployer, monitor) has its own deployment manifest and communicates via the internal mesh API.`,
+        excerpt: 'Agents are deployed as Kubernetes pods in the EKS cluster. Each agent type (researcher, coder, deployer, monitor) has its own deployment manifest and communicates via the internal mesh API.',
         url: 'https://devonn.ai/docs/agents',
         relevance: 0.88,
       },
@@ -383,10 +409,17 @@ export async function dispatchTool(call: ToolCall): Promise<ToolResult> {
         );
         break;
       case 'execute_workflow':
-        result = await executeWorkflow(args.workflow_name as string, args.payload as string | undefined);
+        result = await executeWorkflow(
+          args.workflow_name as string,
+          args.payload as string | undefined
+        );
         break;
       case 'spawn_agent':
-        result = spawnAgent(args.agent_type as string, args.task as string, args.priority as string);
+        result = spawnAgent(
+          args.agent_type as string,
+          args.task as string,
+          args.priority as string
+        );
         break;
       case 'get_system_metrics':
         result = getSystemMetrics(args.metric_type as string);

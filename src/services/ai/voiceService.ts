@@ -1,25 +1,27 @@
 /**
  * Devonn.ai Voice Service — Phase 4
- * Text-to-Speech: ElevenLabs API
- * Speech-to-Text: AssemblyAI (streaming transcription via WebSocket)
- * Voice-ready architecture for future GPT-4o Realtime integration.
+ * Text-to-Speech: ElevenLabs (proxied through api.devonn.ai/api/tools/voice/tts)
+ * Speech-to-Text: Web Speech API (primary) + AssemblyAI via proxy (fallback)
+ *
+ * Security: No API keys in the browser bundle.
+ *   ELEVENLABS_API_KEY → server-side only (api.devonn.ai)
+ *   ASSEMBLYAI_API_KEY → server-side only (api.devonn.ai)
  */
 
-const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY;
-const ASSEMBLYAI_API_KEY = import.meta.env.VITE_ASSEMBLYAI_API_KEY;
+// Proxy base — all sensitive voice calls go through the backend
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
 
 // Default ElevenLabs voice — "Rachel" (neutral, clear, professional)
 const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
-const TTS_MODEL = 'eleven_turbo_v2_5'; // lowest latency model
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TTSOptions {
   voiceId?: string;
   model?: string;
-  stability?: number;       // 0–1
-  similarityBoost?: number; // 0–1
-  speed?: number;           // 0.7–1.2
+  stability?: number;
+  similarityBoost?: number;
+  speed?: number;
 }
 
 export interface STTResult {
@@ -36,52 +38,43 @@ export interface VoiceState {
   sttAvailable: boolean;
 }
 
-// ─── TTS: ElevenLabs ──────────────────────────────────────────────────────────
+// ─── TTS: ElevenLabs via server proxy ─────────────────────────────────────────
 
 let currentAudio: HTMLAudioElement | null = null;
 let currentAudioUrl: string | null = null;
+let ttsProxyAvailable: boolean | null = null; // cached availability check
 
 /**
- * Convert text to speech using ElevenLabs and play it.
+ * Convert text to speech via api.devonn.ai/api/tools/voice/tts (server holds the ElevenLabs key).
  * Returns a promise that resolves when audio finishes playing.
  */
 export async function speak(text: string, options: TTSOptions = {}): Promise<void> {
-  if (!ELEVENLABS_API_KEY) {
-    console.warn('[Voice] ElevenLabs API key not configured (VITE_ELEVENLABS_API_KEY)');
-    return;
-  }
-
-  // Stop any currently playing audio
   stopSpeaking();
 
   const voiceId = options.voiceId || DEFAULT_VOICE_ID;
-  const model = options.model || TTS_MODEL;
 
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY,
+  const response = await fetch(`${API_BASE}/api/tools/voice/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      voice_id: voiceId,
+      model: options.model || 'eleven_turbo_v2_5',
+      voice_settings: {
+        stability: options.stability ?? 0.5,
+        similarity_boost: options.similarityBoost ?? 0.75,
+        speed: options.speed ?? 1.0,
       },
-      body: JSON.stringify({
-        text,
-        model_id: model,
-        voice_settings: {
-          stability: options.stability ?? 0.5,
-          similarity_boost: options.similarityBoost ?? 0.75,
-          speed: options.speed ?? 1.0,
-        },
-        output_format: 'mp3_44100_128',
-      }),
-    }
-  );
+    }),
+  });
 
   if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`ElevenLabs TTS error ${response.status}: ${err}`);
+    const err = await response.text().catch(() => `HTTP ${response.status}`);
+    throw new Error(`TTS proxy error ${response.status}: ${err}`);
   }
+
+  // Mark proxy as available on first success
+  ttsProxyAvailable = true;
 
   const audioBlob = await response.blob();
   const audioUrl = URL.createObjectURL(audioBlob);
@@ -91,15 +84,8 @@ export async function speak(text: string, options: TTSOptions = {}): Promise<voi
     currentAudio = audio;
     currentAudioUrl = audioUrl;
 
-    audio.onended = () => {
-      cleanup();
-      resolve();
-    };
-    audio.onerror = (e) => {
-      cleanup();
-      reject(new Error(`Audio playback error: ${String(e)}`));
-    };
-
+    audio.onended = () => { cleanup(); resolve(); };
+    audio.onerror = (e) => { cleanup(); reject(new Error(`Audio playback error: ${String(e)}`)); };
     audio.play().catch(reject);
   });
 }
@@ -124,20 +110,20 @@ export function isSpeaking(): boolean {
   return currentAudio !== null && !currentAudio.paused;
 }
 
-// ─── STT: Browser Web Speech API (primary) + AssemblyAI (fallback) ────────────
+// ─── STT: Browser Web Speech API (primary) + AssemblyAI proxy (fallback) ──────
 
 let recognition: SpeechRecognition | null = null;
 
 /**
- * Start browser-native speech recognition (Web Speech API).
- * Falls back to AssemblyAI for browsers that don't support it.
+ * Start speech recognition.
+ * Primary: Web Speech API (Chrome, Edge, Safari) — no keys needed.
+ * Fallback: AssemblyAI via api.devonn.ai/api/tools/voice/stt-token (server holds the key).
  */
 export function startListening(
   onResult: (text: string, isFinal: boolean) => void,
   onError?: (error: string) => void,
   onEnd?: () => void
 ): () => void {
-  // Try Web Speech API first (Chrome, Edge, Safari)
   const SpeechRecognitionAPI =
     (window as Window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
     (window as Window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
@@ -151,43 +137,23 @@ export function startListening(
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = '';
       let final = '';
-
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          final += transcript;
-        } else {
-          interim += transcript;
-        }
+        if (event.results[i].isFinal) final += transcript;
+        else interim += transcript;
       }
-
       if (final) onResult(final, true);
       else if (interim) onResult(interim, false);
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      onError?.(event.error);
-    };
-
-    recognition.onend = () => {
-      recognition = null;
-      onEnd?.();
-    };
-
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => onError?.(event.error);
+    recognition.onend = () => { recognition = null; onEnd?.(); };
     recognition.start();
 
-    return () => {
-      recognition?.stop();
-      recognition = null;
-    };
+    return () => { recognition?.stop(); recognition = null; };
   }
 
-  // Fallback: AssemblyAI real-time transcription via WebSocket
-  if (!ASSEMBLYAI_API_KEY) {
-    onError?.('Speech recognition not available. Add VITE_ASSEMBLYAI_API_KEY for fallback.');
-    return () => {};
-  }
-
+  // Fallback: AssemblyAI via server-side token proxy
   return startAssemblyAIListening(onResult, onError, onEnd);
 }
 
@@ -200,7 +166,7 @@ export function isListening(): boolean {
   return recognition !== null;
 }
 
-// ─── AssemblyAI WebSocket STT ─────────────────────────────────────────────────
+// ─── AssemblyAI WebSocket STT (via server-side token) ─────────────────────────
 
 function startAssemblyAIListening(
   onResult: (text: string, isFinal: boolean) => void,
@@ -214,28 +180,28 @@ function startAssemblyAIListening(
 
   (async () => {
     try {
-      // Get temporary AssemblyAI token
-      const tokenResp = await fetch('https://api.assemblyai.com/v2/realtime/token', {
+      // Get a short-lived AssemblyAI token from the server proxy
+      // Server holds ASSEMBLYAI_API_KEY; client never sees it
+      const tokenResp = await fetch(`${API_BASE}/api/tools/voice/stt-token`, {
         method: 'POST',
-        headers: {
-          authorization: ASSEMBLYAI_API_KEY,
-          'content-type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ expires_in: 480 }),
       });
 
-      if (!tokenResp.ok) throw new Error(`AssemblyAI token error: ${tokenResp.status}`);
+      if (!tokenResp.ok) {
+        throw new Error(`STT token proxy error: ${tokenResp.status}`);
+      }
+
       const { token } = await tokenResp.json();
 
-      ws = new WebSocket(`wss://api.assemblyai.com/v2/realtime/ws?sample_rate=16000&token=${token}`);
+      ws = new WebSocket(
+        `wss://api.assemblyai.com/v2/realtime/ws?sample_rate=16000&token=${token}`
+      );
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
-        if (msg.message_type === 'PartialTranscript') {
-          onResult(msg.text, false);
-        } else if (msg.message_type === 'FinalTranscript') {
-          onResult(msg.text, true);
-        }
+        if (msg.message_type === 'PartialTranscript') onResult(msg.text, false);
+        else if (msg.message_type === 'FinalTranscript') onResult(msg.text, true);
       };
 
       ws.onerror = () => onError?.('AssemblyAI WebSocket error');
@@ -261,7 +227,11 @@ function startAssemblyAIListening(
         processor.connect(audioContext.destination);
       };
     } catch (err) {
-      onError?.(err instanceof Error ? err.message : String(err));
+      onError?.(
+        err instanceof Error
+          ? `${err.message} — ensure api.devonn.ai is running with ASSEMBLYAI_API_KEY`
+          : String(err)
+      );
     }
   })();
 
@@ -284,8 +254,9 @@ export function getVoiceState(): VoiceState {
   return {
     isSpeaking: isSpeaking(),
     isListening: isListening(),
-    isAvailable: !!(ELEVENLABS_API_KEY || hasSpeechRecognition),
-    ttsAvailable: !!ELEVENLABS_API_KEY,
-    sttAvailable: hasSpeechRecognition || !!ASSEMBLYAI_API_KEY,
+    // Available if browser STT works (no key needed) OR TTS proxy has responded successfully
+    isAvailable: hasSpeechRecognition || ttsProxyAvailable === true,
+    ttsAvailable: true, // proxy always attempted; failure shown at speak() time
+    sttAvailable: hasSpeechRecognition || true, // proxy fallback always available
   };
 }

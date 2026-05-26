@@ -1,8 +1,14 @@
 /**
  * Devonn.ai AI Orchestrator
  * Multi-provider LLM routing with streaming, fallback, and tool-calling support.
- * Providers: OpenAI (primary) → api.devonn.ai (secondary) → future: Ollama, Gemini, DeepSeek
+ *
+ * Security architecture:
+ *   ALL LLM calls are proxied through api.devonn.ai/api/chat.
+ *   OPENAI_API_KEY is a server-side secret only — never in the browser bundle.
+ *   Frontend → api.devonn.ai/api/chat (SSE streaming) → OpenAI / Gemini / Ollama
+ *
  * Phase 2: RAG context injection via Pinecone vector retrieval.
+ * Phase 3: Tool-calling support via server-side function dispatch.
  */
 import { retrieveContext, isRAGAvailable } from './ragService';
 
@@ -22,6 +28,7 @@ export interface StreamChunk {
 export interface OrchestratorConfig {
   provider?: 'openai' | 'devonn' | 'gemini' | 'ollama';
   model?: string;
+  /** @deprecated — never pass API keys from the frontend. Use server-side secrets. */
   apiKey?: string;
   maxTokens?: number;
   temperature?: number;
@@ -51,13 +58,20 @@ When users ask about deployments, agents, workflows, or infrastructure — you h
 
 Current platform status: Production deployment active at devonn.ai via Vercel + AWS EKS backend.`;
 
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const DEVONN_API_URL = `${import.meta.env.VITE_API_URL || 'https://api.devonn.ai'}/api/chat`;
+// ─── Proxy endpoint ────────────────────────────────────────────────────────────
+// All LLM calls go through the server-side proxy. The backend holds OPENAI_API_KEY.
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+const CHAT_PROXY_URL = `${API_BASE}/api/chat`;
 
 /**
- * Stream a chat response from OpenAI with SSE parsing
+ * Stream a chat response via the api.devonn.ai proxy (SSE).
+ * The proxy forwards to OpenAI (or other providers) using server-side secrets.
+ *
+ * Expected SSE format from proxy:
+ *   data: {"delta":"token","done":false,"provider":"openai","model":"gpt-4.1-mini"}
+ *   data: {"delta":"","done":true,"provider":"openai","model":"gpt-4.1-mini"}
  */
-async function* streamOpenAI(
+async function* streamProxy(
   messages: ChatMessage[],
   config: OrchestratorConfig
 ): AsyncGenerator<StreamChunk> {
@@ -65,33 +79,33 @@ async function* streamOpenAI(
     yield { delta: '', done: true };
     return;
   }
-  const apiKey = config.apiKey || import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    yield { delta: '', done: true, error: 'No OpenAI API key configured' };
+
+  const model = config.model || 'gpt-4.1-mini';
+  const provider = config.provider || 'openai';
+
+  let response: Response;
+  try {
+    response = await fetch(CHAT_PROXY_URL, {
+      method: 'POST',
+      signal: config.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages,
+        model,
+        provider,
+        stream: true,
+        max_tokens: config.maxTokens || 2048,
+        temperature: config.temperature ?? 0.7,
+      }),
+    });
+  } catch (err) {
+    yield { delta: '', done: true, error: `Proxy connection failed: ${String(err)}` };
     return;
   }
 
-  const model = config.model || 'gpt-4.1-mini';
-
-  const response = await fetch(OPENAI_API_URL, {
-    method: 'POST',
-    signal: config.signal,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: true,
-      max_tokens: config.maxTokens || 2048,
-      temperature: config.temperature ?? 0.7,
-    }),
-  });
-
   if (!response.ok) {
-    const err = await response.text();
-    yield { delta: '', done: true, error: `OpenAI error ${response.status}: ${err}` };
+    const errText = await response.text().catch(() => `HTTP ${response.status}`);
+    yield { delta: '', done: true, error: `Proxy error ${response.status}: ${errText}` };
     return;
   }
 
@@ -110,19 +124,34 @@ async function* streamOpenAI(
 
     for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed === 'data: [DONE]') {
-        if (trimmed === 'data: [DONE]') {
-          yield { delta: '', done: true, provider: 'openai', model };
-          return;
-        }
-        continue;
+      if (!trimmed) continue;
+
+      // Handle OpenAI-compatible SSE format
+      if (trimmed === 'data: [DONE]') {
+        yield { delta: '', done: true, provider, model };
+        return;
       }
+
       if (trimmed.startsWith('data: ')) {
         try {
           const json = JSON.parse(trimmed.slice(6));
+
+          // Devonn proxy format: { delta, done, provider, model }
+          if ('delta' in json) {
+            if (json.done) {
+              yield { delta: '', done: true, provider: json.provider || provider, model: json.model || model };
+              return;
+            }
+            if (json.delta) {
+              yield { delta: json.delta, done: false, provider: json.provider || provider, model: json.model || model };
+            }
+            continue;
+          }
+
+          // OpenAI passthrough format: { choices: [{ delta: { content } }] }
           const delta = json.choices?.[0]?.delta?.content || '';
           if (delta) {
-            yield { delta, done: false, provider: 'openai', model };
+            yield { delta, done: false, provider, model };
           }
         } catch {
           // skip malformed chunks
@@ -130,65 +159,17 @@ async function* streamOpenAI(
       }
     }
   }
-  yield { delta: '', done: true, provider: 'openai', model };
+
+  yield { delta: '', done: true, provider, model };
 }
 
 /**
- * Stream from Devonn backend (fallback)
- */
-async function* streamDevonn(
-  messages: ChatMessage[],
-  config: OrchestratorConfig
-): AsyncGenerator<StreamChunk> {
-  try {
-    const response = await fetch(DEVONN_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, model: config.model || 'gpt-4.1-mini', stream: true }),
-    });
-
-    if (!response.ok) throw new Error(`Devonn API error: ${response.status}`);
-
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data: ')) {
-          try {
-            const json = JSON.parse(trimmed.slice(6));
-            if (json.done) {
-              yield { delta: '', done: true, provider: 'devonn' };
-              return;
-            }
-            if (json.delta) yield { delta: json.delta, done: false, provider: 'devonn' };
-          } catch { /* skip */ }
-        }
-      }
-    }
-    yield { delta: '', done: true, provider: 'devonn' };
-  } catch (err) {
-    yield { delta: '', done: true, error: String(err) };
-  }
-}
-
-/**
- * Main orchestrator: routes to primary provider with automatic fallback
+ * Main orchestrator: routes through server-side proxy with RAG injection.
  */
 export async function* streamChat(
   messages: ChatMessage[],
   config: OrchestratorConfig = {}
 ): AsyncGenerator<StreamChunk> {
-  const provider = config.provider || 'openai';
-
   // ── RAG: retrieve relevant context for the latest user message ──────────
   let ragContext = '';
   if (config.useRAG !== false && isRAGAvailable()) {
@@ -210,23 +191,7 @@ export async function* streamChat(
       : [{ role: 'system', content: systemContent }, ...messages];
 
   try {
-    if (provider === 'openai') {
-      let hasContent = false;
-      for await (const chunk of streamOpenAI(fullMessages, config)) {
-        if (chunk.error && !hasContent) {
-          // Fallback to devonn backend
-          yield { delta: '[Falling back to Devonn backend...]\n', done: false };
-          yield* streamDevonn(fullMessages, config);
-          return;
-        }
-        hasContent = hasContent || !!chunk.delta;
-        yield chunk;
-      }
-    } else if (provider === 'devonn') {
-      yield* streamDevonn(fullMessages, config);
-    } else {
-      yield { delta: '', done: true, error: `Provider "${provider}" not yet implemented` };
-    }
+    yield* streamProxy(fullMessages, config);
   } catch (err) {
     yield { delta: '', done: true, error: String(err) };
   }
