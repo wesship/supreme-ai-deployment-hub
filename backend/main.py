@@ -128,6 +128,17 @@ except ImportError:
 # API Routers
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Proxy router — /api/chat, /api/rag/*, /api/tools/*
+# ---------------------------------------------------------------------------
+try:
+    from backend.app.routers import proxy_router  # type: ignore
+
+    app.include_router(proxy_router)
+    logger.info("Proxy router registered: /api/chat, /api/rag/*, /api/tools/*")
+except ImportError as _proxy_err:
+    logger.warning("Proxy router not found — skipping. (%s)", _proxy_err)
+
 try:
     from backend.api.v1.router import router as v1_router  # type: ignore
 

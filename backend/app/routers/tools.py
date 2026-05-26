@@ -1,0 +1,318 @@
+"""
+Devonn.ai Backend Proxy — /api/tools
+Secure proxy routes for voice (ElevenLabs TTS, AssemblyAI STT),
+GitHub CI/CD (workflow trigger, run status), and n8n workflow execution.
+All API keys are server-side only.
+"""
+import logging
+from datetime import datetime, timezone
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import Response, StreamingResponse
+
+from app.config import get_settings
+from app.middleware.auth import get_current_user_id
+from app.middleware.rate_limit import rate_limit
+from app.models.proxy import (
+    GitHubRunsStatusResponse,
+    GitHubWorkflowTriggerRequest,
+    GitHubWorkflowTriggerResponse,
+    N8NExecuteRequest,
+    N8NExecuteResponse,
+    STTTokenRequest,
+    STTTokenResponse,
+    TTSRequest,
+    WorkflowRun,
+)
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+
+# ─── Voice: ElevenLabs TTS ────────────────────────────────────────────────────
+
+@router.post(
+    "/tools/voice/tts",
+    summary="Text-to-Speech (ElevenLabs)",
+    description="Convert text to speech using ElevenLabs. Returns audio/mpeg binary.",
+    response_class=Response,
+)
+async def voice_tts(
+    request: TTSRequest,
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(30)),
+) -> Response:
+    settings = get_settings()
+
+    if not settings.elevenlabs_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="TTS service not configured (ELEVENLABS_API_KEY missing on server)",
+        )
+
+    voice_id = request.voice_id or settings.elevenlabs_default_voice_id
+    model = request.model or settings.elevenlabs_default_model
+
+    payload = {
+        "text": request.text,
+        "model_id": model,
+        "voice_settings": request.voice_settings.model_dump(),
+    }
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            json=payload,
+            headers={
+                "xi-api-key": settings.elevenlabs_api_key,
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg",
+            },
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"ElevenLabs TTS error {resp.status_code}: {resp.text[:300]}",
+        )
+
+    logger.info("voice_tts user=%s chars=%d voice=%s", user_id, len(request.text), voice_id)
+    return Response(content=resp.content, media_type="audio/mpeg")
+
+
+# ─── Voice: AssemblyAI STT Token ─────────────────────────────────────────────
+
+@router.post(
+    "/tools/voice/stt-token",
+    response_model=STTTokenResponse,
+    summary="AssemblyAI STT Temporary Token",
+    description="Issue a short-lived AssemblyAI token for real-time transcription in the browser.",
+)
+async def voice_stt_token(
+    request: STTTokenRequest,
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(20)),
+) -> STTTokenResponse:
+    settings = get_settings()
+
+    if not settings.assemblyai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="STT service not configured (ASSEMBLYAI_API_KEY missing on server)",
+        )
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(
+            "https://api.assemblyai.com/v2/realtime/token",
+            json={"expires_in": request.expires_in},
+            headers={
+                "Authorization": settings.assemblyai_api_key,
+                "Content-Type": "application/json",
+            },
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AssemblyAI token error {resp.status_code}: {resp.text[:300]}",
+        )
+
+    token = resp.json().get("token", "")
+    logger.info("voice_stt_token user=%s expires_in=%d", user_id, request.expires_in)
+    return STTTokenResponse(token=token)
+
+
+# ─── GitHub: Trigger Workflow ─────────────────────────────────────────────────
+
+@router.post(
+    "/tools/github/workflows/trigger",
+    response_model=GitHubWorkflowTriggerResponse,
+    summary="GitHub Actions Workflow Trigger",
+    description="Trigger a GitHub Actions workflow dispatch event on the configured repo.",
+)
+async def github_trigger_workflow(
+    request: GitHubWorkflowTriggerRequest,
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(10)),
+) -> GitHubWorkflowTriggerResponse:
+    settings = get_settings()
+
+    if not settings.github_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GitHub CI/CD not configured (GITHUB_TOKEN missing on server)",
+        )
+
+    url = f"https://api.github.com/repos/{settings.github_repo}/actions/workflows/{request.workflow}/dispatches"
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(
+            url,
+            json={"ref": request.branch, "inputs": request.inputs},
+            headers={
+                "Authorization": f"Bearer {settings.github_token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+
+    if resp.status_code not in (200, 204):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"GitHub API error {resp.status_code}: {resp.text[:300]}",
+        )
+
+    ts = datetime.now(timezone.utc).isoformat()
+    logger.info("github_trigger user=%s workflow=%s branch=%s", user_id, request.workflow, request.branch)
+    return GitHubWorkflowTriggerResponse(
+        success=True,
+        message=f"Workflow '{request.workflow}' triggered on branch '{request.branch}'",
+        timestamp=ts,
+    )
+
+
+# ─── GitHub: Workflow Run Status ──────────────────────────────────────────────
+
+@router.get(
+    "/tools/github/runs/status",
+    response_model=GitHubRunsStatusResponse,
+    summary="GitHub Actions Run Status",
+    description="Fetch recent workflow run statuses from the configured repo.",
+)
+async def github_runs_status(
+    workflow: str | None = None,
+    limit: int = 5,
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(30)),
+) -> GitHubRunsStatusResponse:
+    settings = get_settings()
+
+    if not settings.github_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GitHub CI/CD not configured (GITHUB_TOKEN missing on server)",
+        )
+
+    if workflow:
+        url = f"https://api.github.com/repos/{settings.github_repo}/actions/workflows/{workflow}/runs"
+    else:
+        url = f"https://api.github.com/repos/{settings.github_repo}/actions/runs"
+
+    params = {"per_page": min(limit, 50)}
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            url,
+            params=params,
+            headers={
+                "Authorization": f"Bearer {settings.github_token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"GitHub API error {resp.status_code}: {resp.text[:300]}",
+        )
+
+    data = resp.json()
+    runs_raw = data.get("workflow_runs", [])
+    runs = [
+        WorkflowRun(
+            name=r.get("name", ""),
+            status=r.get("status", ""),
+            conclusion=r.get("conclusion"),
+            created_at=r.get("created_at", ""),
+            url=r.get("html_url", ""),
+        )
+        for r in runs_raw[:limit]
+    ]
+
+    return GitHubRunsStatusResponse(runs=runs, total=data.get("total_count", len(runs)))
+
+
+# ─── n8n: Execute Workflow ────────────────────────────────────────────────────
+
+@router.post(
+    "/tools/n8n/execute",
+    response_model=N8NExecuteResponse,
+    summary="n8n Workflow Execution",
+    description="Trigger an n8n workflow by name via the n8n REST API.",
+)
+async def n8n_execute(
+    request: N8NExecuteRequest,
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(20)),
+) -> N8NExecuteResponse:
+    settings = get_settings()
+
+    if not settings.n8n_api_key or not settings.n8n_base_url:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="n8n not configured (N8N_API_KEY or N8N_BASE_URL missing on server)",
+        )
+
+    ts = datetime.now(timezone.utc).isoformat()
+
+    try:
+        # First, find the workflow ID by name
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            list_resp = await client.get(
+                f"{settings.n8n_base_url}/api/v1/workflows",
+                headers={"X-N8N-API-KEY": settings.n8n_api_key},
+                params={"name": request.workflow_name},
+            )
+
+        if list_resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"n8n API error {list_resp.status_code}: {list_resp.text[:300]}",
+            )
+
+        workflows = list_resp.json().get("data", [])
+        matched = [w for w in workflows if w.get("name") == request.workflow_name]
+
+        if not matched:
+            return N8NExecuteResponse(
+                success=False,
+                workflow=request.workflow_name,
+                timestamp=ts,
+                error=f"Workflow '{request.workflow_name}' not found in n8n",
+            )
+
+        workflow_id = matched[0]["id"]
+
+        # Execute the workflow
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            exec_resp = await client.post(
+                f"{settings.n8n_base_url}/api/v1/workflows/{workflow_id}/execute",
+                json={"data": request.payload},
+                headers={
+                    "X-N8N-API-KEY": settings.n8n_api_key,
+                    "Content-Type": "application/json",
+                },
+            )
+
+        if exec_resp.status_code not in (200, 201):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"n8n execution error {exec_resp.status_code}: {exec_resp.text[:300]}",
+            )
+
+        result = exec_resp.json()
+        logger.info("n8n_execute user=%s workflow=%s id=%s", user_id, request.workflow_name, workflow_id)
+        return N8NExecuteResponse(success=True, workflow=request.workflow_name, result=result, timestamp=ts)
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("n8n_execute error: %s", exc)
+        return N8NExecuteResponse(
+            success=False,
+            workflow=request.workflow_name,
+            timestamp=ts,
+            error=str(exc),
+        )
