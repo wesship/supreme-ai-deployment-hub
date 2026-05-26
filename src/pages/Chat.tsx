@@ -5,6 +5,8 @@
 
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { FileUploadHandler } from '@/components/ai/FileUploadHandler';
+import { AgentConsole } from '@/components/ai/AgentConsole';
+import { VoiceControls } from '@/components/ai/VoiceControls';
 import { IngestResult } from '@/services/ai/ragService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -35,6 +37,8 @@ const ChatPage: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState('gpt-4.1-mini');
   const [showUploadPanel, setShowUploadPanel] = useState(false);
   const [lastIngestResult, setLastIngestResult] = useState<IngestResult | null>(null);
+  const [agentConsoleCollapsed, setAgentConsoleCollapsed] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -64,6 +68,7 @@ const ChatPage: React.FC = () => {
     conversations,
     activeConversationId,
     conversationTitle,
+    activeAgentGraph,
     sendMessage,
     stopStreaming,
     clearMessages,
@@ -72,7 +77,11 @@ const ChatPage: React.FC = () => {
   } = useDevonnChat({
     userId,
     config: { model: selectedModel },
+    agentMode: true,
   });
+
+  // Last assistant message for TTS
+  const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant' && !m.streaming)?.content;
 
   // Scroll to bottom
   useEffect(() => {
@@ -300,23 +309,33 @@ const ChatPage: React.FC = () => {
                   </div>
 
                   {/* Bubble */}
-                  <div
-                    className={`flex-1 max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-green-500/10 border border-green-500/15 text-white ml-auto'
-                        : 'bg-white/4 border border-white/8 text-white/90'
-                    } ${(msg as any).error ? 'border-red-500/30 bg-red-500/8' : ''}`}
-                  >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                    {msg.streaming && (
-                      <span className="inline-block w-2 h-4 bg-green-400 ml-0.5 animate-pulse rounded-sm" />
+                  <div className="flex-1 max-w-[85%]">
+                    {/* Agent console for this message */}
+                    {(msg as any).agentGraph && (
+                      <AgentConsole
+                        graph={(msg as any).agentGraph}
+                        collapsed={agentConsoleCollapsed}
+                        onToggle={() => setAgentConsoleCollapsed(c => !c)}
+                      />
                     )}
-                    {/* Provider badge */}
-                    {msg.provider && !msg.streaming && (
-                      <p className="text-white/20 text-[10px] mt-2 font-mono">
-                        {msg.provider} · {msg.model}
-                      </p>
-                    )}
+                    <div
+                      className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-green-500/10 border border-green-500/15 text-white ml-auto'
+                          : 'bg-white/4 border border-white/8 text-white/90'
+                      } ${(msg as any).error ? 'border-red-500/30 bg-red-500/8' : ''}`}
+                    >
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                      {msg.streaming && (
+                        <span className="inline-block w-2 h-4 bg-green-400 ml-0.5 animate-pulse rounded-sm" />
+                      )}
+                      {/* Provider badge */}
+                      {msg.provider && !msg.streaming && (
+                        <p className="text-white/20 text-[10px] mt-2 font-mono">
+                          {msg.provider} · {msg.model}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -413,14 +432,27 @@ const ChatPage: React.FC = () => {
               {/* Text input */}
               <textarea
                 ref={inputRef}
-                value={input}
+                value={interimTranscript ? `${input}${interimTranscript}` : input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Message Devonn... (Shift+Enter for new line)"
                 rows={1}
                 className="flex-1 bg-transparent text-white text-sm placeholder-white/25 outline-none resize-none leading-relaxed"
-                style={{ maxHeight: '160px' }}
+                style={{ maxHeight: '160px', opacity: interimTranscript ? 0.7 : 1 }}
               />
+
+              {/* Voice controls */}
+              <div className="flex-shrink-0 mb-0.5">
+                <VoiceControls
+                  lastAssistantMessage={lastAssistantMessage}
+                  onTranscript={(text) => {
+                    setInput(prev => prev + text + ' ');
+                    setInterimTranscript('');
+                  }}
+                  onInterimTranscript={(text) => setInterimTranscript(text)}
+                  isStreaming={isStreaming}
+                />
+              </div>
 
               {/* Send / Stop */}
               <div className="flex-shrink-0 mb-0.5">

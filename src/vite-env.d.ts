@@ -16,6 +16,15 @@ interface ImportMetaEnv {
 
   // Backend
   readonly VITE_API_URL?: string;
+
+  // Voice (Phase 4)
+  readonly VITE_ELEVENLABS_API_KEY?: string;
+  readonly VITE_ASSEMBLYAI_API_KEY?: string;
+
+  // Tools (Phase 3)
+  readonly VITE_GITHUB_TOKEN?: string;
+  readonly VITE_N8N_BASE_URL?: string;
+  readonly VITE_N8N_API_KEY?: string;
 }
 
 interface ImportMeta {

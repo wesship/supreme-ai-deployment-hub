@@ -1,6 +1,9 @@
 /**
  * useDevonnChat — core hook for Devonn.ai conversational AI
  * Powers both the FloatingWidget and the /chat workspace page.
+ * Phase 3: Tool-calling via agent mode routing
+ * Phase 4: Voice transcript injection
+ * Phase 5: Multi-agent graph execution
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -13,6 +16,7 @@ import {
   getConversations,
   generateTitle,
 } from '@/services/ai/conversationStore';
+import { routeToAgents, shouldUseAgentMode, AgentGraph } from '@/services/ai/agentRouter';
 
 export interface UIMessage {
   id: string;
@@ -23,6 +27,7 @@ export interface UIMessage {
   provider?: string;
   model?: string;
   error?: boolean;
+  agentGraph?: AgentGraph;
 }
 
 export interface UseDevonnChatOptions {
@@ -30,10 +35,12 @@ export interface UseDevonnChatOptions {
   conversationId?: string;
   config?: OrchestratorConfig;
   maxHistory?: number;
+  /** Enable multi-agent routing for operational messages */
+  agentMode?: boolean;
 }
 
 export function useDevonnChat(options: UseDevonnChatOptions = {}) {
-  const { userId, config = {}, maxHistory = 20 } = options;
+  const { userId, config = {}, maxHistory = 20, agentMode = true } = options;
 
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -42,6 +49,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
     options.conversationId || uuidv4()
   );
   const [conversationTitle, setConversationTitle] = useState('New conversation');
+  const [activeAgentGraph, setActiveAgentGraph] = useState<AgentGraph | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // Load conversation history on mount
@@ -72,6 +80,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
     setActiveConversationId(uuidv4());
     setConversationTitle('New conversation');
     setMessages([]);
+    setActiveAgentGraph(null);
   }, []);
 
   // Persist current conversation
@@ -133,6 +142,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
       const updatedMessages = [...messages, userMsg];
       setMessages([...updatedMessages, assistantMsg]);
       setIsStreaming(true);
+      setActiveAgentGraph(null);
 
       // Update title from first user message
       let title = conversationTitle;
@@ -141,7 +151,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
         setConversationTitle(title);
       }
 
-      // Build message history for LLM (trim to maxHistory)
+      // Build message history for LLM
       const history: ChatMessage[] = updatedMessages
         .slice(-maxHistory)
         .map(m => ({ role: m.role, content: m.content }));
@@ -151,38 +161,81 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
       let finalProvider = '';
       let finalModel = '';
 
+      // Determine routing: agent mode for operational messages, direct for conversational
+      const useAgents = agentMode && shouldUseAgentMode(text);
+
       try {
-        for await (const chunk of streamChat(history, { ...config, signal: abortRef.current.signal })) {
-          if (chunk.error) {
+        if (useAgents) {
+          // ── Phase 5: Multi-agent routing ──────────────────────────────────
+          for await (const { chunk, graph } of routeToAgents(text, history, {
+            config: { ...config, signal: abortRef.current.signal },
+            onAgentUpdate: (g) => {
+              setActiveAgentGraph({ ...g });
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantId ? { ...m, agentGraph: { ...g } } : m
+                )
+              );
+            },
+          })) {
+            if (abortRef.current.signal.aborted) break;
+            fullContent += chunk;
+            finalProvider = 'agent-mesh';
+            finalModel = config.model || 'gpt-4.1-mini';
+
             setMessages(prev =>
               prev.map(m =>
                 m.id === assistantId
-                  ? { ...m, content: `Error: ${chunk.error}`, streaming: false, error: true }
+                  ? {
+                      ...m,
+                      content: fullContent,
+                      streaming: true,
+                      provider: finalProvider,
+                      model: finalModel,
+                      agentGraph: graph,
+                    }
                   : m
               )
             );
-            break;
           }
+        } else {
+          // ── Direct streaming (Phase 1 + RAG) ──────────────────────────────
+          for await (const chunk of streamChat(history, {
+            ...config,
+            signal: abortRef.current.signal,
+            useRAG: true,
+          })) {
+            if (chunk.error) {
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === assistantId
+                    ? { ...m, content: `Error: ${chunk.error}`, streaming: false, error: true }
+                    : m
+                )
+              );
+              break;
+            }
 
-          fullContent += chunk.delta;
-          if (chunk.provider) finalProvider = chunk.provider;
-          if (chunk.model) finalModel = chunk.model;
+            fullContent += chunk.delta;
+            if (chunk.provider) finalProvider = chunk.provider;
+            if (chunk.model) finalModel = chunk.model;
 
-          setMessages(prev =>
-            prev.map(m =>
-              m.id === assistantId
-                ? {
-                    ...m,
-                    content: fullContent,
-                    streaming: !chunk.done,
-                    provider: finalProvider,
-                    model: finalModel,
-                  }
-                : m
-            )
-          );
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      content: fullContent,
+                      streaming: !chunk.done,
+                      provider: finalProvider,
+                      model: finalModel,
+                    }
+                  : m
+              )
+            );
 
-          if (chunk.done) break;
+            if (chunk.done) break;
+          }
         }
       } catch (err) {
         setMessages(prev =>
@@ -194,6 +247,12 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
         );
       } finally {
         setIsStreaming(false);
+        // Mark streaming done
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === assistantId ? { ...m, streaming: false } : m
+          )
+        );
         // Persist after streaming completes
         const finalMessages: UIMessage[] = [
           ...updatedMessages,
@@ -209,7 +268,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
         await persistConversation(finalMessages, title);
       }
     },
-    [messages, isStreaming, config, maxHistory, conversationTitle, persistConversation]
+    [messages, isStreaming, config, maxHistory, conversationTitle, persistConversation, agentMode]
   );
 
   const stopStreaming = useCallback(() => {
@@ -222,6 +281,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
+    setActiveAgentGraph(null);
     newConversation();
   }, [newConversation]);
 
@@ -231,6 +291,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
     conversations,
     activeConversationId,
     conversationTitle,
+    activeAgentGraph,
     sendMessage,
     stopStreaming,
     clearMessages,
