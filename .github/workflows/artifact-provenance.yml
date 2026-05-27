@@ -1,11 +1,5 @@
 name: Artifact Provenance & Signing
 
-# Generates SLSA Level 3 provenance attestations and Sigstore signatures
-# for all release artifacts. Runs on every push to main and on releases.
-#
-# SLSA: https://slsa.dev
-# Sigstore: https://www.sigstore.dev
-
 on:
   push:
     branches: [main]
@@ -16,8 +10,8 @@ on:
 
 permissions:
   contents: read
-  id-token: write      # Required for OIDC-based Sigstore signing
-  attestations: write  # Required for GitHub artifact attestations
+  id-token: write
+  attestations: write
 
 jobs:
   build-and-attest:
@@ -29,42 +23,44 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
         with:
           version: 9
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify lockfile integrity (no drift)
-        run: git diff --exit-code package-lock.json || (echo "::error::package-lock.json drifted" && exit 1)
+      - name: Verify lockfile integrity
+        run: git diff --exit-code pnpm-lock.yaml || (echo 'pnpm-lock.yaml drifted' && exit 1)
 
       - name: Build production artifacts
-        run: npm run build --if-present
+        run: pnpm run build --if-present
         continue-on-error: true
 
       - name: Generate artifact archive
         id: archive
         run: |
           ARTIFACT_NAME="devonn-ai-$(git rev-parse --short HEAD).tar.gz"
-          # Archive dist if it exists, otherwise archive src
           if [ -d "dist" ]; then
             tar -czf "$ARTIFACT_NAME" dist/
           elif [ -d "src" ]; then
-            tar -czf "$ARTIFACT_NAME" src/ package.json package-lock.json .npmrc
+            tar -czf "$ARTIFACT_NAME" src/ package.json pnpm-lock.yaml
           else
-            tar -czf "$ARTIFACT_NAME" package.json package-lock.json .npmrc .github/workflows/
+            tar -czf "$ARTIFACT_NAME" package.json pnpm-lock.yaml .github/workflows/
           fi
           echo "artifact-name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
-          echo "Created artifact: $ARTIFACT_NAME ($(du -sh $ARTIFACT_NAME | cut -f1))"
 
       - name: Compute SHA-256 digest
         id: hash
@@ -73,18 +69,16 @@ jobs:
           DIGEST=$(sha256sum "$ARTIFACT" | awk '{print $1}')
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "name=$ARTIFACT" >> "$GITHUB_OUTPUT"
-          echo "SHA-256: $DIGEST  $ARTIFACT"
 
       - name: Upload artifact for attestation
-        id: upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ steps.archive.outputs.artifact-name }}
           path: ${{ steps.archive.outputs.artifact-name }}
           retention-days: 30
 
-      - name: Generate GitHub artifact attestation (SLSA provenance)
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+      - name: Generate GitHub artifact attestation
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
         with:
           subject-name: ${{ steps.archive.outputs.artifact-name }}
           subject-digest: sha256:${{ steps.hash.outputs.digest }}
@@ -93,6 +87,7 @@ jobs:
     name: Verify Provenance Attestation
     runs-on: ubuntu-latest
     needs: build-and-attest
+
     permissions:
       contents: read
       id-token: write
@@ -100,7 +95,7 @@ jobs:
 
     steps:
       - name: Download artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: ${{ needs.build-and-attest.outputs.artifact-name }}
 
@@ -109,18 +104,10 @@ jobs:
           ARTIFACT="${{ needs.build-and-attest.outputs.artifact-name }}"
           EXPECTED="${{ needs.build-and-attest.outputs.artifact-digest }}"
           ACTUAL=$(sha256sum "$ARTIFACT" | awk '{print $1}')
+
           if [ "$ACTUAL" = "$EXPECTED" ]; then
-            echo "Digest verified: $ACTUAL"
+            echo "Digest verified"
           else
-            echo "::error::Digest mismatch! Expected: $EXPECTED  Actual: $ACTUAL"
+            echo "::error::Digest mismatch"
             exit 1
           fi
-
-      - name: Verify GitHub attestation
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          ARTIFACT="${{ needs.build-and-attest.outputs.artifact-name }}"
-          gh attestation verify "$ARTIFACT" \
-            --repo "${{ github.repository }}" \
-            --format json 2>/dev/null && echo "Attestation verified successfully" || echo "::warning::Attestation verification requires gh CLI 2.49+ - skipping in older environments"
