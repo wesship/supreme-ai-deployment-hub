@@ -33,13 +33,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a3252b01235470b1f1e74b32c5c6e4b9a8a7e5b7  # v4.1.0
+        with:
+          version: 9
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Verify lockfile integrity
-        run: git diff --exit-code package-lock.json || (echo "package-lock.json changed after npm ci" && exit 1)
+        run: git diff --exit-code package-lock.json || (echo "package-lock.json changed after pnpm install --frozen-lockfile" && exit 1)
 
       - name: TypeScript noEmit check
         run: npm run typecheck
@@ -60,10 +64,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a3252b01235470b1f1e74b32c5c6e4b9a8a7e5b7  # v4.1.0
+        with:
+          version: 9
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests with coverage
         run: npm run test:coverage
@@ -96,10 +104,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a3252b01235470b1f1e74b32c5c6e4b9a8a7e5b7  # v4.1.0
+        with:
+          version: 9
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: npm run build
