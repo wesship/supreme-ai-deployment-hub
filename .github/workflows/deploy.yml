@@ -38,22 +38,21 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-        with:
-          version: 9
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
           cache: 'pnpm'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck deployment candidate
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Build deployment candidate
-        run: npm run build
+        run: pnpm run build
         env:
           NODE_ENV: development
           VITE_API_URL: https://staging-api.devonn.ai
@@ -69,18 +68,18 @@ jobs:
       startsWith(github.ref, 'refs/heads/release/')
     environment:
       name: ${{ github.event.inputs.environment || 'production' }}
+
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-        with:
-          version: 9
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
           cache: 'pnpm'
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -107,7 +106,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Build extension
-        run: npm run build -- --mode ${{ steps.env.outputs.name }}
+        run: pnpm run build -- --mode ${{ steps.env.outputs.name }}
         env:
           NODE_ENV: ${{ steps.env.outputs.name }}
           VITE_API_URL: ${{ steps.env.outputs.api_url }}
@@ -161,6 +160,7 @@ jobs:
       always() &&
       needs.deploy.result == 'success' &&
       (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
+
     steps:
       - name: Verify deployment
         continue-on-error: true
