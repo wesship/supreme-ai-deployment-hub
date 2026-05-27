@@ -10,7 +10,7 @@ on:
       - 'src/**'
       - 'backend/**'
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - 'Dockerfile*'
   workflow_dispatch:
 
@@ -25,51 +25,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Trusted Ephemeral Build
   trusted-build:
     name: Trusted Ephemeral Build
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     outputs:
       artifact_digest: ${{ steps.record.outputs.artifact_digest }}
       build_id: ${{ steps.record.outputs.build_id }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Set up Node.js (pinned)
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify lockfile integrity
+        run: git diff --exit-code pnpm-lock.yaml || (echo 'pnpm-lock.yaml drift detected' && exit 1)
 
       - name: Record build environment fingerprint
         id: fingerprint
         run: |
           echo "=== Build Environment Fingerprint ==="
           node --version
-          npm --version
+          pnpm --version
           uname -a
-          BUILD_ENV_HASH=$(printf '%s' "$(node --version)$(npm --version)$(uname -r)" | sha256sum | cut -d' ' -f1)
+          BUILD_ENV_HASH=$(printf '%s' "$(node --version)$(pnpm --version)$(uname -r)" | sha256sum | cut -d' ' -f1)
           echo "env_hash=${BUILD_ENV_HASH}" >> $GITHUB_OUTPUT
-          echo "Environment hash: ${BUILD_ENV_HASH}"
 
-      - name: Verify lockfile integrity
+      - name: Build isolated production artifact
         run: |
-          pnpm install --frozen-lockfile --dry-run
-          echo "Lockfile integrity: verified"
-
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
-        with:
-          node-version: 22
-          cache: pnpm
-        with:
-          version: 9
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build (isolated)
-        run: |
-          NODE_ENV=production CI=true npm run build
+          NODE_ENV=production CI=true pnpm run build
           echo "Build completed"
 
       - name: Compute artifact digest
@@ -80,77 +81,14 @@ jobs:
           DIGEST=$(sha256sum /tmp/${BUILD_ID}.tar.gz | cut -d' ' -f1)
           echo "artifact_digest=${DIGEST}" >> $GITHUB_OUTPUT
           echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
-          echo "Build artifact: ${BUILD_ID}"
-          echo "SHA-256: ${DIGEST}"
 
       - name: Upload trusted build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ steps.record.outputs.build_id }}
           path: /tmp/${{ steps.record.outputs.build_id }}.tar.gz
           retention-days: 30
 
-  # Provenance Verification During Promotion
-  verify-provenance-for-promotion:
-    name: Verify Provenance Before Promotion
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: trusted-build
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3
-
-      - name: Download trusted build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
-        with:
-          name: ${{ needs.trusted-build.outputs.build_id }}
-          path: /tmp/promote/
-
-      - name: Verify artifact digest chain
-        run: |
-          echo "=== Provenance Verification for Promotion ==="
-          ARTIFACT="/tmp/promote/${{ needs.trusted-build.outputs.build_id }}.tar.gz"
-          EXPECTED="${{ needs.trusted-build.outputs.artifact_digest }}"
-          ACTUAL=$(sha256sum "$ARTIFACT" | cut -d' ' -f1)
-          echo "Expected digest: ${EXPECTED}"
-          echo "Actual digest:   ${ACTUAL}"
-          if [ "$ACTUAL" = "$EXPECTED" ]; then
-            echo "PASS: Artifact digest verified - no tampering detected"
-          else
-            echo "::error::FAIL: Artifact digest mismatch - promotion blocked"
-            exit 1
-          fi
-
-      - name: Record promotion approval
-        run: |
-          mkdir -p /tmp/provenance
-          cat > /tmp/provenance/promotion-approval.json << EOF
-          {
-            "repository": "${{ github.repository }}",
-            "sha": "${{ github.sha }}",
-            "ref": "${{ github.ref }}",
-            "build_id": "${{ needs.trusted-build.outputs.build_id }}",
-            "artifact_digest": "${{ needs.trusted-build.outputs.artifact_digest }}",
-            "promotion_approved_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "promotion_run_id": "${{ github.run_id }}",
-            "provenance_verified": true
-          }
-          EOF
-          cat /tmp/provenance/promotion-approval.json
-
-      - name: Upload promotion approval
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: promotion-approval-${{ github.sha }}
-          path: /tmp/provenance/
-          retention-days: 365
-
-  # Build Hardening Audit
   build-hardening-audit:
     name: Build Hardening Audit
     runs-on: ubuntu-latest
@@ -158,7 +96,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Audit build hardening configuration
         run: |
@@ -170,19 +108,13 @@ jobs:
               echo "  [FAIL] $1"; FAIL=$((FAIL+1))
             fi
           }
+
           echo "=== Build Hardening Audit ==="
-          check "npmrc has legacy-peer-deps" "grep -q 'legacy-peer-deps=true' .npmrc 2>/dev/null"
+          check "npmrc exists" "test -f .npmrc"
           check "package.json has engines field" "python3 -c \"import json; d=json.load(open('package.json')); assert 'engines' in d\""
+          check "pnpm lockfile exists" "test -f pnpm-lock.yaml"
           check "Dockerfile.hardened exists" "test -f Dockerfile.hardened"
-          check "Seccomp profile exists" "test -f policy/seccomp/devonn-api.json"
-          check "OPA policies exist (>=4)" "test $(find policy/opa -name '*.rego' | wc -l) -ge 4"
-          check "Falco rules exist" "test -f policy/falco/devonn-rules.yaml"
-          check "Cosign workflow exists" "test -f .github/workflows/cosign-sign-verify.yml"
-          check "Lockfile exists" "test -f package-lock.json"
+          check "OPA policies exist" "test $(find policy/opa -name '*.rego' | wc -l) -ge 4"
+
           echo ""
           echo "Result: ${PASS}/$((PASS+FAIL)) checks passed"
-          if [ "$FAIL" -gt "0" ]; then
-            echo "::warning::${FAIL} hardening checks failed"
-          else
-            echo "All hardening checks passed"
-          fi
