@@ -1,21 +1,17 @@
 name: Lockfile Integrity
 
-# Runs on every push and PR to main to catch package-lock.json drift early.
-# A drifted lockfile means the installed dependency graph differs from what
-# was committed, leading to non-reproducible builds and potential supply-chain risk.
-
 on:
   push:
     branches: [main]
     paths:
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - '.npmrc'
   pull_request:
     branches: [main]
     paths:
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
       - '.npmrc'
 
 permissions:
@@ -23,39 +19,43 @@ permissions:
 
 jobs:
   lockfile-check:
-    name: Verify lockfile is in sync with package.json
+    name: Verify pnpm lockfile integrity
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Set up Node.js
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-
-      - name: Install dependencies (pnpm install --frozen-lockfile)
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version: 22
-          cache: pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
         with:
           version: 9
 
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify lockfile integrity (no drift)
+      - name: Verify lockfile integrity
         run: |
-          if ! git diff --exit-code package-lock.json; then
-            echo "::error::package-lock.json has drifted from package.json."
-            echo "::error::Run 'npm install' locally and commit the updated lockfile."
-            git diff --stat package-lock.json
+          if ! git diff --exit-code pnpm-lock.yaml; then
+            echo "::error::pnpm-lock.yaml has drifted from package.json."
+            echo "::error::Run 'pnpm install' locally and commit the updated lockfile."
+            git diff --stat pnpm-lock.yaml
             exit 1
           fi
-          echo "Lockfile integrity verified - no drift detected."
+          echo "PNPM lockfile integrity verified."
 
       - name: Validate dependency tree
         run: |
-          npm ls --depth=0 2>&1 | grep -E "UNMET|MISSING|invalid" && {
-            echo "::error::Dependency tree has unmet or missing peer dependencies."
+          pnpm list --depth=0 || {
+            echo "::error::Dependency tree validation failed."
             exit 1
-          } || echo "Dependency tree is clean."
+          }
