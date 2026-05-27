@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 
 from ..middleware.auth import get_current_user_id
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SERVICE_KEY  = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -40,10 +40,19 @@ async def _query(table: str, params: str = "") -> list:
         return r.json()
 
 
+# Set ALLOW_DEV_ADMIN_BYPASS=true ONLY in local dev; never in production.
+_DEV_BYPASS = os.getenv("ALLOW_DEV_ADMIN_BYPASS", "false").lower() == "true"
+
+
 async def _require_admin(user_id: str = Depends(get_current_user_id)) -> str:
     """Verify the caller has admin role via Supabase auth.users metadata."""
     if not SUPABASE_URL or not SERVICE_KEY:
-        return user_id  # dev mode — skip check
+        if _DEV_BYPASS:
+            return user_id  # explicit dev-only bypass
+        raise HTTPException(
+            status_code=503,
+            detail="Admin auth not configured — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY",
+        )
     async with httpx.AsyncClient(timeout=5) as client:
         r = await client.get(
             f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
@@ -273,7 +282,7 @@ async def get_plans(
 @router.patch("/plans/{user_id}")
 async def update_user_plan(
     user_id: str,
-    plan: str = Query(..., regex="^(free|pro|business|enterprise)$"),
+    plan: str = Query(..., pattern="^(free|pro|business|enterprise)$"),
     _: str = Depends(_require_admin),
 ):
     LIMITS = {
