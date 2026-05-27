@@ -46,7 +46,7 @@ jobs:
       - name: Verify lockfile integrity
         run: |
           # Ensure lockfile matches package.json exactly
-          pnpm install --frozen-lockfile --no-audit --no-fund --dry-run
+          pnpm install --frozen-lockfile --dry-run
           echo "Lockfile integrity verified"
 
       - name: Install dependencies (hermetic - no network after this)
@@ -57,7 +57,7 @@ jobs:
         with:
           version: 9
 
-        run: pnpm install --frozen-lockfile --legacy-peer-deps --no-audit --no-fund
+        run: pnpm install --frozen-lockfile
 
       - name: Record pre-build environment fingerprint
         id: env-fingerprint
@@ -129,7 +129,7 @@ jobs:
 
       - name: Perform second independent build
         run: |
-          pnpm install --frozen-lockfile --no-audit --no-fund
+          pnpm install --frozen-lockfile
           NODE_ENV=production CI=true npm run build
           tar czf /tmp/second-build.tar.gz dist/
           SECOND_SHA=$(sha256sum /tmp/second-build.tar.gz | cut -d' ' -f1)

@@ -45,7 +45,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --no-audit --no-fund
+        run: pnpm install --frozen-lockfile
 
       - name: Install Syft (Anchore SBOM generator)
         uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0  # v0.18.0
@@ -139,7 +139,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --no-audit --no-fund
+        run: pnpm install --frozen-lockfile
 
       - name: Run npm audit (informational)
         continue-on-error: true

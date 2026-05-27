@@ -42,7 +42,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --no-audit --no-fund
+        run: pnpm install --frozen-lockfile
 
       - name: Verify lockfile integrity (no drift)
         run: git diff --exit-code package-lock.json || (echo "::error::package-lock.json drifted" && exit 1)
