@@ -19,7 +19,7 @@ on:
         type: string
         default: '22'
       run-install:
-        description: 'Whether to run npm ci'
+        description: 'Whether to run pnpm install --frozen-lockfile'
         type: boolean
         default: true
       working-directory:
@@ -46,10 +46,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Set up Node.js ${{ inputs.node-version }}
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version: ${{ inputs.node-version }}
-          cache: npm
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
 
       - name: Cache node_modules
         id: cache
@@ -65,7 +63,14 @@ jobs:
       - name: Install dependencies
         if: ${{ inputs.run-install && steps.cache.outputs.cache-hit != 'true' }}
         working-directory: ${{ inputs.working-directory }}
-        run: npm ci --no-audit --no-fund
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+        with:
+          version: 9
+
+        run: pnpm install --frozen-lockfile
 
       - name: Verify lockfile integrity (no drift)
         if: ${{ inputs.run-install }}

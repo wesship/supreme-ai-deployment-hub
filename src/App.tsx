@@ -39,6 +39,7 @@ const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
 const ChatPage = lazy(() => import("./pages/Chat"));
+const AdminPage = lazy(() => import("./pages/Admin"));
 
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -83,6 +84,7 @@ function App() {
                       <Route path="/privacy" element={<Privacy />} />
                       <Route path="/privacy-policy" element={<Privacy />} />
                       <Route path="/chat" element={<ChatPage />} />
+                      <Route path="/admin" element={<AdminPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>

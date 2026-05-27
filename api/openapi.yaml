@@ -6,6 +6,9 @@ info:
   contact:
     name: Devonn.AI Platform Team
     url: https://github.com/wesship/supreme-ai-deployment-hub
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
 
 servers:
   - url: https://api.devonn.ai/v1
@@ -15,12 +18,17 @@ servers:
   - url: http://localhost:8000/v1
     description: Local development
 
+# Root-level security: all operations require bearer auth unless overridden
+security:
+  - bearerAuth: []
+
 paths:
   /health:
     get:
       summary: Health check
       operationId: getHealth
       tags: [System]
+      security: []  # Health check is public
       responses:
         "200":
           description: Service is healthy
@@ -107,6 +115,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Agent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -124,6 +134,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModelList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /mesh/status:
     get:
@@ -139,6 +151,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MeshStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Mesh unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   securitySchemes:

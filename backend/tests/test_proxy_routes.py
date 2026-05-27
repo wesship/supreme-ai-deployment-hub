@@ -4,13 +4,10 @@ Covers all proxy routes: /api/chat, /api/rag/*, /api/tools/*.
 Uses httpx.AsyncClient with FastAPI's ASGI transport (no real network calls).
 External API calls are mocked with unittest.mock.patch.
 """
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
 
 # ── App import ────────────────────────────────────────────────────────────────
 # Import the FastAPI app. We patch settings to disable auth and inject test keys.
@@ -192,9 +189,6 @@ class TestRAGProxy:
 
     def test_rag_retrieve_success(self, client):
         """RAG retrieve returns context results."""
-        mock_results = [
-            {"text": "Devonn.ai is an AI platform.", "source": "test.txt", "score": 0.92}
-        ]
         with patch("app.routers.rag._embed_texts", new_callable=AsyncMock) as mock_embed, \
              patch("app.routers.rag._pinecone_query", new_callable=AsyncMock) as mock_query:
 

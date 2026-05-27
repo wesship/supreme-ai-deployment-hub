@@ -76,7 +76,7 @@ class TestTenantResolution:
     @pytest.mark.asyncio
     async def test_default_tenant_returned_when_no_slug(self):
         try:
-            from tenancy.models import get_tenant_by_slug, Tenant
+            from tenancy.models import get_tenant_by_slug
         except ImportError:
             pytest.skip("tenancy.models not available")
         result = await get_tenant_by_slug("nonexistent-slug-xyz")

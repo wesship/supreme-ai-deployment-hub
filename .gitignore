@@ -44,3 +44,8 @@ secrets.json
 .vault-token
 *.kubeconfig
 .vercel
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

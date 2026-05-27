@@ -74,9 +74,16 @@ jobs:
               print(f"YAML parse error: {e}")
               sys.exit(1)
           
+          # Flatten docs: Falco rules files are a single YAML document that is a list
+          items = []
+          for doc in docs:
+              if isinstance(doc, list):
+                  items.extend(doc)
+              elif isinstance(doc, dict):
+                  items.append(doc)
           # Validate rule structure
-          rules = [d for d in docs if d and d.get('rule')]
-          macros = [d for d in docs if d and d.get('macro')]
+          rules = [d for d in items if d and isinstance(d, dict) and d.get('rule')]
+          macros = [d for d in items if d and isinstance(d, dict) and d.get('macro')]
           
           print(f"Rules: {len(rules)}")
           print(f"Macros: {len(macros)}")
@@ -112,8 +119,14 @@ jobs:
 
           with open("policy/falco/devonn-rules.yaml") as f:
               docs = list(yaml.safe_load_all(f.read()))
-          
-          rules = [d for d in docs if d and d.get('rule')]
+          # Flatten: Falco rules files are a single YAML list document
+          items = []
+          for doc in docs:
+              if isinstance(doc, list):
+                  items.extend(doc)
+              elif isinstance(doc, dict):
+                  items.append(doc)
+          rules = [d for d in items if d and isinstance(d, dict) and d.get('rule')]
           all_tags = set()
           for r in rules:
               all_tags.update(r.get('tags', []))
