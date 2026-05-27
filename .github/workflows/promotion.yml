@@ -1,17 +1,6 @@
 name: Environment Promotion
 
 # Manages the promotion pipeline: development → staging → production
-#
-# Flow:
-#   1. Every push to `main` automatically deploys to development
-#   2. After development passes smoke tests, a manual approval promotes to staging
-#   3. After staging passes load tests, a manual approval promotes to production
-#
-# Required secrets:
-#   VERCEL_TOKEN           - Vercel API token
-#   VERCEL_ORG_ID          - Vercel organization ID
-#   VERCEL_PROJECT_ID      - Vercel project ID
-#   SLACK_WEBHOOK_DEPLOYS  - Slack webhook for deploy notifications
 
 on:
   push:
@@ -26,13 +15,12 @@ on:
 
 concurrency:
   group: promotion-${{ github.ref }}
-  cancel-in-progress: false   # Never cancel in-progress promotions
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  # ── Stage 1: Deploy to Development ──────────────────────────────────────────
   deploy-development:
     name: Deploy → Development
     runs-on: ubuntu-latest
@@ -44,26 +32,25 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-        with:
-          version: 9
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
         env:
           VITE_ENVIRONMENT: development
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
@@ -78,9 +65,10 @@ jobs:
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
+
       - name: Deploy to Vercel (Development)
         if: steps.vercel-check.outputs.skip != 'true'
-        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9  # v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -92,7 +80,7 @@ jobs:
         if: steps.vercel-check.outputs.skip != 'true'
         continue-on-error: true
         run: |
-          sleep 30  # Wait for deployment to propagate
+          sleep 30
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.devonn.ai || echo "000")
           if [ "$STATUS" != "200" ]; then
             echo "::warning::Development smoke test returned HTTP $STATUS - deployment may still be propagating"
@@ -103,7 +91,7 @@ jobs:
       - name: Notify Slack
         continue-on-error: true
         if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
           webhook-type: incoming-webhook
@@ -112,7 +100,6 @@ jobs:
               "text": "${{ job.status == 'success' && '✅' || '❌' }} *Development* deploy ${{ job.status }} - <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
             }
 
-  # ── Stage 2: Promote to Staging (manual approval) ───────────────────────────
   promote-staging:
     name: Promote → Staging
     runs-on: ubuntu-latest
@@ -124,35 +111,32 @@ jobs:
     environment:
       name: staging
       url: https://staging.devonn.ai
-    # This environment requires a manual approval in GitHub
-    # Configure at: Settings → Environments → staging → Required reviewers
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-        with:
-          version: 9
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build for staging
-        run: npm run build
+        run: pnpm run build
         env:
           VITE_ENVIRONMENT: staging
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_VERSION: ${{ github.sha }}
 
       - name: Deploy to Vercel (Staging)
-        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9  # v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -174,7 +158,7 @@ jobs:
       - name: Notify Slack
         continue-on-error: true
         if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
           webhook-type: incoming-webhook
@@ -183,7 +167,6 @@ jobs:
               "text": "${{ job.status == 'success' && '✅' || '❌' }} *Staging* deploy ${{ job.status }} - <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>"
             }
 
-  # ── Stage 3: Promote to Production (manual approval) ────────────────────────
   promote-production:
     name: Promote → Production
     runs-on: ubuntu-latest
@@ -195,35 +178,32 @@ jobs:
     environment:
       name: production
       url: https://devonn.ai
-    # This environment requires a manual approval in GitHub
-    # Configure at: Settings → Environments → production → Required reviewers
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-        with:
-          version: 9
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build for production
-        run: npm run build
+        run: pnpm run build
         env:
           VITE_ENVIRONMENT: production
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_VERSION: ${{ github.ref_name }}
 
       - name: Deploy to Vercel (Production)
-        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9  # v25
+        uses: amondnet/vercel-action@16e87c0a08142b0d0d33b76aeaf20823c381b9b9
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -243,7 +223,7 @@ jobs:
       - name: Notify Slack - Production Deploy
         continue-on-error: true
         if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
           webhook-type: incoming-webhook
