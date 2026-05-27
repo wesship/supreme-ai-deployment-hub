@@ -8,8 +8,8 @@ import logging
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import Response, StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response
 
 from app.config import get_settings
 from app.middleware.auth import get_current_user_id

@@ -9,7 +9,6 @@ from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 
 from ..middleware.auth import get_current_user_id
 

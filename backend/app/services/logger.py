@@ -7,9 +7,8 @@ block the main request path.
 from __future__ import annotations
 
 import os
-import time
 import uuid
-from typing import Any, Optional
+from typing import Optional
 
 import httpx
 

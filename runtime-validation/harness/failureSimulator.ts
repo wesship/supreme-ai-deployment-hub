@@ -419,17 +419,20 @@ export class CausalGraphBuilder {
 
     // Derive implicit causal links from parentSpanId relationships
     const implicitLinks: CausalLink[] = [];
-    for (const event of events) {
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
       if (event.parentSpanId) {
-        // Find the most recent event with the parent span ID
+        // Find the most recent event with the parent span ID that appears
+        // BEFORE this event in the event array (index-based ordering is
+        // more reliable than timestamp comparison when events are fast)
         const parentEvent = events
+          .slice(0, i)
           .filter(
             (e) =>
               e.spanId === event.parentSpanId &&
-              e.timestamp <= event.timestamp &&
               e.id !== event.id
           )
-          .sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+          .at(-1); // last matching event before current index
         if (parentEvent) {
           implicitLinks.push({
             causeEventId: parentEvent.id,
