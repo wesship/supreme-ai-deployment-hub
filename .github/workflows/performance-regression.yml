@@ -43,10 +43,10 @@ jobs:
           cache: pnpm
 
       - name: Verify lockfile integrity (no drift)
-        run: pnpm install --frozen-lockfile --dry-run --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Build and analyze bundle
         run: |

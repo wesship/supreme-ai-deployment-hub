@@ -46,7 +46,7 @@ jobs:
       - name: Verify lockfile integrity
         run: |
           # Ensure lockfile matches package.json exactly
-          pnpm install --frozen-lockfile --dry-run
+          pnpm install --frozen-lockfile
           echo "Lockfile integrity verified"
 
       - name: Install dependencies (hermetic - no network after this)

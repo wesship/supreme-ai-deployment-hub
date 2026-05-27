@@ -50,7 +50,7 @@ jobs:
         with:
           version: 9
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Run runtime validation scenarios
         id: run-scenarios
@@ -124,7 +124,7 @@ jobs:
         with:
           version: 9
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Run memory continuity scenarios
         run: |
@@ -184,7 +184,7 @@ jobs:
         with:
           version: 9
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Run failure recovery and replay integrity scenarios
         run: |
@@ -248,7 +248,7 @@ jobs:
         with:
           version: 9
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Run governance arbitration scenarios
         run: |
@@ -314,7 +314,7 @@ jobs:
         with:
           version: 9
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Run observability intelligence scenarios
         run: |
@@ -380,7 +380,7 @@ jobs:
         with:
           version: 9
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --legacy-peer-deps
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck harness primitives
         run: |
