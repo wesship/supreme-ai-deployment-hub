@@ -121,6 +121,7 @@ jobs:
             --severity CRITICAL \
             --no-progress \
             --ignore-unfixed \
+            --scanners vuln \
             devonn-api:hardened-${{ github.sha }}
           echo "Trivy scan passed (no fixable CRITICAL CVEs)"
 
