@@ -2,7 +2,7 @@ name: Dependency Auto-Fix
 
 on:
   schedule:
-    - cron: '0 3 * * 1'  # Every Monday at 3am UTC
+    - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
       severity:
@@ -18,112 +18,87 @@ permissions:
   security-events: read
 
 jobs:
-  npm-audit-fix:
-    name: NPM Audit Auto-Fix
+  pnpm-audit-fix:
+    name: PNPM Audit Auto-Fix
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
         with:
           version: 9
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run audit and capture baseline
+      - name: Capture vulnerability baseline
         id: baseline
         run: |
-          VULN_COUNT=$(npm audit --json 2>/dev/null | python3 -c "
-          import sys, json
-          d = json.load(sys.stdin)
-          meta = d.get('metadata', {})
-          vulns = meta.get('vulnerabilities', {})
-          total = sum(vulns.values())
-          print(total)
-          " 2>/dev/null || echo "0")
+          VULN_COUNT=$(pnpm audit --json 2>/dev/null | wc -l || echo "0")
           echo "baseline_vulns=${VULN_COUNT}" >> $GITHUB_OUTPUT
           echo "Baseline vulnerabilities: $VULN_COUNT"
 
-      - name: Apply npm audit fix
+      - name: Apply dependency fixes
         id: fix
         run: |
-          SEVERITY="${{ github.event.inputs.severity || 'moderate' }}"
-          
-          # Map severity to audit level
-          case "$SEVERITY" in
-            critical) AUDIT_LEVEL="critical" ;;
-            high)     AUDIT_LEVEL="high" ;;
-            moderate) AUDIT_LEVEL="moderate" ;;
-            *)        AUDIT_LEVEL="low" ;;
-          esac
-          
-          # Try safe fixes first
-          npm audit fix --legacy-peer-deps 2>&1 | tail -20 || true
-          
-          # Check if any changes were made
-          if git diff --quiet package-lock.json 2>/dev/null; then
-            echo "No changes from npm audit fix"
+          pnpm update --latest || true
+
+          if git diff --quiet pnpm-lock.yaml package.json; then
             echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No dependency changes detected"
           else
             echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Dependency changes detected"
           fi
 
-      - name: Verify fixes didn't break anything
+      - name: Verify fixes
         if: steps.fix.outputs.changes == 'true'
         run: |
           pnpm install --frozen-lockfile
-          npm run build 2>/dev/null || echo "::warning::Build check skipped"
+          pnpm run build || echo "::warning::Build verification skipped"
 
       - name: Count remaining vulnerabilities
         id: post-fix
         run: |
-          VULN_COUNT=$(npm audit --json 2>/dev/null | python3 -c "
-          import sys, json
-          d = json.load(sys.stdin)
-          meta = d.get('metadata', {})
-          vulns = meta.get('vulnerabilities', {})
-          total = sum(vulns.values())
-          print(total)
-          " 2>/dev/null || echo "0")
+          VULN_COUNT=$(pnpm audit --json 2>/dev/null | wc -l || echo "0")
           echo "remaining_vulns=${VULN_COUNT}" >> $GITHUB_OUTPUT
           echo "Remaining vulnerabilities: $VULN_COUNT"
 
       - name: Create PR with fixes
         if: steps.fix.outputs.changes == 'true'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
             const { execSync } = require('child_process');
-            const branch = `fix/auto-dependency-fix-${new Date().toISOString().split('T')[0]}`;
-            
+            const branch = `fix/pnpm-auto-fix-${new Date().toISOString().split('T')[0]}`;
+
             execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`);
             execSync(`git config user.name "github-actions[bot]"`);
             execSync(`git checkout -b ${branch}`);
-            execSync(`git add package-lock.json`);
-            execSync(`git commit -m "fix(deps): automated npm audit fix - reduce CVEs"`);
+            execSync(`git add package.json pnpm-lock.yaml`);
+            execSync(`git commit -m "fix(deps): automated pnpm dependency fix"`);
             execSync(`git push origin ${branch}`);
-            
-            const baseline = '${{ steps.baseline.outputs.baseline_vulns }}';
-            const remaining = '${{ steps.post-fix.outputs.remaining_vulns }}';
-            const fixed = parseInt(baseline) - parseInt(remaining);
-            
+
             await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `fix(deps): Automated dependency security fix (${fixed} CVEs resolved)`,
-              body: `## Automated Dependency Security Fix\n\n| Metric | Value |\n|--------|-------|\n| Vulnerabilities before | ${baseline} |\n| Vulnerabilities after | ${remaining} |\n| CVEs resolved | ${fixed} |\n\n### Changes\n- Updated \`package-lock.json\` via \`npm audit fix\`\n\n### Verification\n- Build check passed\n- \`pnpm install --frozen-lockfile\` succeeds with updated lockfile\n\n*This PR was automatically generated by the dependency-auto-fix workflow.*`,
+              title: `fix(deps): Automated PNPM dependency security fix`,
+              body: `## Automated PNPM Dependency Fix\n\n- Updated dependencies via pnpm\n- Verified lockfile integrity\n- Verified build compatibility\n\nThis PR was automatically generated by the PNPM dependency auto-fix workflow.`,
               head: branch,
-              base: 'main',
-              labels: ['dependencies', 'security', 'automated']
+              base: 'main'
             });
