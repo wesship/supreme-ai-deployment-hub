@@ -24,17 +24,17 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
       - name: Install dependencies and measure install time
         id: install-time
         run: |
           START=$(date +%s)
-          npm ci --legacy-peer-deps 2>&1 | tail -5
+          pnpm install --frozen-lockfile 2>&1 | tail -5
           END=$(date +%s)
           DURATION=$((END - START))
           echo "install_duration=${DURATION}" >> $GITHUB_OUTPUT
-          echo "npm ci completed in ${DURATION}s"
+          echo "pnpm install --frozen-lockfile completed in ${DURATION}s"
 
       - name: Measure build time
         id: build-time
@@ -136,7 +136,7 @@ jobs:
           # SLO breach detection
           BREACHES=0
           if [ "${{ steps.install-time.outputs.install_duration }}" -gt 120 ]; then
-            echo "::warning::SLO BREACH: npm ci took ${{ steps.install-time.outputs.install_duration }}s (threshold: 120s)"
+            echo "::warning::SLO BREACH: pnpm install --frozen-lockfile took ${{ steps.install-time.outputs.install_duration }}s (threshold: 120s)"
             BREACHES=$((BREACHES + 1))
           fi
           if [ "${{ steps.workflow-metrics.outputs.yaml_errors }}" -gt 0 ]; then
