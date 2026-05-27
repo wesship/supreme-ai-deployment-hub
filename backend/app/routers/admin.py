@@ -5,7 +5,9 @@ All routes require admin role (Supabase JWT role claim = 'admin').
 from __future__ import annotations
 
 import os
+import re
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -17,6 +19,36 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SERVICE_KEY  = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
+# Compile the allowed Supabase host pattern once at module load time.
+# Only *.supabase.co and *.supabase.in domains are permitted.
+_ALLOWED_HOST_RE = re.compile(
+    r"^[a-zA-Z0-9-]+\.(supabase\.co|supabase\.in)$"
+)
+
+
+def _validated_supabase_base() -> str:
+    """Return the validated Supabase base URL, raising 503 if misconfigured.
+
+    This function pins the outbound HTTP requests to the operator-configured
+    Supabase project host, preventing partial SSRF: even if SUPABASE_URL were
+    tampered with at runtime, requests can only reach *.supabase.co or
+    *.supabase.in origins.
+    """
+    if not SUPABASE_URL or not SERVICE_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin backend not configured — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY",
+        )
+    parsed = urlparse(SUPABASE_URL)
+    host = parsed.hostname or ""
+    if parsed.scheme not in ("https",) or not _ALLOWED_HOST_RE.match(host):
+        raise HTTPException(
+            status_code=503,
+            detail="SUPABASE_URL must be an https://*.supabase.co or https://*.supabase.in URL",
+        )
+    # Return the scheme+host only — no path, no query, no fragment.
+    return f"https://{host}"
+
 
 def _supa_headers() -> dict[str, str]:
     return {
@@ -26,14 +58,36 @@ def _supa_headers() -> dict[str, str]:
     }
 
 
+def _rest_url(table: str, params: str = "") -> str:
+    """Build a validated Supabase REST URL for *table*.
+
+    The table name is restricted to alphanumeric + underscore characters so
+    it cannot be used to inject path traversal sequences.
+    """
+    base = _validated_supabase_base()
+    if not re.match(r"^[a-zA-Z0-9_]+$", table):
+        raise HTTPException(status_code=400, detail=f"Invalid table name: {table!r}")
+    path = f"/rest/v1/{table}"
+    return f"{base}{path}?{params}" if params else f"{base}{path}"
+
+
+def _auth_url(user_id: str) -> str:
+    """Build a validated Supabase Auth admin URL for *user_id*.
+
+    user_id is a UUID; restrict it to UUID characters only.
+    """
+    base = _validated_supabase_base()
+    if not re.match(r"^[a-fA-F0-9\-]{36}$", user_id):
+        raise HTTPException(status_code=400, detail="Invalid user_id format")
+    return f"{base}/auth/v1/admin/users/{user_id}"
+
+
 async def _query(table: str, params: str = "") -> list:
     if not SUPABASE_URL or not SERVICE_KEY:
         return []
+    url = _rest_url(table, params)
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            f"{SUPABASE_URL}/rest/v1/{table}?{params}",
-            headers=_supa_headers(),
-        )
+        r = await client.get(url, headers=_supa_headers())
         if r.status_code != 200:
             return []
         return r.json()
@@ -52,11 +106,9 @@ async def _require_admin(user_id: str = Depends(get_current_user_id)) -> str:
             status_code=503,
             detail="Admin auth not configured — set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY",
         )
+    url = _auth_url(user_id)
     async with httpx.AsyncClient(timeout=5) as client:
-        r = await client.get(
-            f"{SUPABASE_URL}/auth/v1/admin/users/{user_id}",
-            headers=_supa_headers(),
-        )
+        r = await client.get(url, headers=_supa_headers())
         if r.status_code != 200:
             raise HTTPException(status_code=403, detail="Admin access required")
         user_data = r.json()
@@ -85,7 +137,7 @@ async def get_overview(_: str = Depends(_require_admin)):
     ai_errors    = sum(1 for r in ai_logs if r.get("status") == "error")
     tool_errors  = sum(1 for r in tool_logs if r.get("status") == "error")
 
-    plan_counts = {}
+    plan_counts: dict = {}
     for p in plans:
         plan_counts[p["plan"]] = plan_counts.get(p["plan"], 0) + 1
 
@@ -113,11 +165,10 @@ async def get_ai_logs(
     offset: int = Query(0),
     _: str = Depends(_require_admin),
 ):
-    rows = await _query(
+    return await _query(
         "ai_request_logs",
         f"select=*&order=created_at.desc&limit={limit}&offset={offset}",
     )
-    return rows
 
 
 @router.get("/ai-costs")
@@ -187,12 +238,9 @@ async def get_rag_documents(
 async def delete_rag_document(doc_id: str, _: str = Depends(_require_admin)):
     if not SUPABASE_URL or not SERVICE_KEY:
         return {"deleted": False}
+    url = _rest_url("rag_documents", f"id=eq.{doc_id}")
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.patch(
-            f"{SUPABASE_URL}/rest/v1/rag_documents?id=eq.{doc_id}",
-            headers=_supa_headers(),
-            json={"status": "deleted"},
-        )
+        r = await client.patch(url, headers=_supa_headers(), json={"status": "deleted"})
     return {"deleted": r.status_code in (200, 204)}
 
 
@@ -214,15 +262,16 @@ async def get_approvals(
 @router.patch("/approvals/{approval_id}")
 async def review_approval(
     approval_id: str,
-    decision: str = Query(..., regex="^(approved|rejected)$"),
+    decision: str = Query(..., pattern="^(approved|rejected)$"),
     note: Optional[str] = Query(None),
     admin_id: str = Depends(_require_admin),
 ):
     if not SUPABASE_URL or not SERVICE_KEY:
         raise HTTPException(status_code=503, detail="Supabase not configured")
+    url = _rest_url("approval_queue", f"id=eq.{approval_id}")
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.patch(
-            f"{SUPABASE_URL}/rest/v1/approval_queue?id=eq.{approval_id}",
+            url,
             headers=_supa_headers(),
             json={
                 "status": decision,
@@ -254,12 +303,9 @@ async def get_errors(
 async def resolve_error(error_id: str, _: str = Depends(_require_admin)):
     if not SUPABASE_URL or not SERVICE_KEY:
         raise HTTPException(status_code=503, detail="Supabase not configured")
+    url = _rest_url("error_logs", f"id=eq.{error_id}")
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.patch(
-            f"{SUPABASE_URL}/rest/v1/error_logs?id=eq.{error_id}",
-            headers=_supa_headers(),
-            json={"resolved": True},
-        )
+        r = await client.patch(url, headers=_supa_headers(), json={"resolved": True})
     return {"resolved": r.status_code in (200, 204)}
 
 
@@ -292,9 +338,10 @@ async def update_user_plan(
     }
     if not SUPABASE_URL or not SERVICE_KEY:
         raise HTTPException(status_code=503, detail="Supabase not configured")
+    url = _rest_url("user_plans", f"user_id=eq.{user_id}")
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.patch(
-            f"{SUPABASE_URL}/rest/v1/user_plans?user_id=eq.{user_id}",
+            url,
             headers=_supa_headers(),
             json={"plan": plan, "updated_at": "now()", **LIMITS[plan]},
         )
