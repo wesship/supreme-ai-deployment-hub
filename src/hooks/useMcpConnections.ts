@@ -92,7 +92,6 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
         server_type: server.type,
         gateway_url: server.gatewayUrl ?? null,
         category: server.category,
-        api_token_encrypted: apiToken ?? null, // In production, encrypt this
         custom_config: server.env ?? {},
         is_active: true,
         last_connected_at: new Date().toISOString(),
