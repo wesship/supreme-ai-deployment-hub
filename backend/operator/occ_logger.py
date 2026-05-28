@@ -47,24 +47,31 @@ from backend.operator.occ_models import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Configuration
+# Configuration — read at call time so tests can patch env vars freely
 # ---------------------------------------------------------------------------
-SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").rstrip("/")
-SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 _TIMEOUT = 8.0  # seconds — generous but bounded
 
 
+def _supabase_url() -> str:
+    return os.getenv("SUPABASE_URL", "").rstrip("/")
+
+
+def _service_role_key() -> str:
+    return os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+
 def _headers() -> dict[str, str]:
+    key = _service_role_key()
     return {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Prefer": "return=minimal",  # don't return the inserted row (faster)
     }
 
 
 def _is_configured() -> bool:
-    return bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+    return bool(_supabase_url() and _service_role_key())
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +92,7 @@ async def _insert(table: str, payload: Dict[str, Any]) -> bool:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(
-                f"{SUPABASE_URL}/rest/v1/{table}",
+                f"{_supabase_url()}/rest/v1/{table}",
                 headers=_headers(),
                 json=clean,
             )
@@ -114,7 +121,7 @@ async def _upsert(table: str, payload: Dict[str, Any], on_conflict: str) -> bool
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.post(
-                f"{SUPABASE_URL}/rest/v1/{table}",
+                f"{_supabase_url()}/rest/v1/{table}",
                 headers={
                     **_headers(),
                     "Prefer": f"resolution=merge-duplicates,return=minimal",

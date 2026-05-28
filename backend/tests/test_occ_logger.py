@@ -54,8 +54,17 @@ from backend.operator.occ_models import (
 # Helper
 # ---------------------------------------------------------------------------
 def run(coro):
-    """Run an async coroutine in a test."""
-    return asyncio.get_event_loop().run_until_complete(coro)
+    """Run an async coroutine in a test using a fresh event loop.
+
+    Using asyncio.get_event_loop() is fragile when other test modules call
+    asyncio.run() first, which closes the default loop. Creating a new loop
+    explicitly avoids the 'There is no current event loop' RuntimeError.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
 
 
 # ---------------------------------------------------------------------------

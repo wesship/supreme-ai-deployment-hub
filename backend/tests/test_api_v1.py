@@ -111,9 +111,12 @@ class TestAgentMesh:
     @pytest.mark.asyncio
     async def test_agent_mesh_dispatch_unknown_agent(self):
         try:
-            from mesh.agent_mesh import AgentMesh
+            from backend.mesh.agent_mesh import AgentMesh, AgentTask  # type: ignore
         except ImportError:
             pytest.skip("agent_mesh not available")
         mesh = AgentMesh()
-        result = await mesh.dispatch("nonexistent-agent", {"test": True})
-        assert result.get("status") in ("error", "failed", None)
+        task = AgentTask(agent_name="nonexistent-agent", action="ping")
+        result = await mesh.dispatch(task)
+        # AgentResult.success should be False for an unknown agent
+        assert result.success is False
+        assert "nonexistent-agent" in (result.error or "")
