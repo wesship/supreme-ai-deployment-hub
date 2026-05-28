@@ -188,6 +188,25 @@ async def readiness_check():
     return {"status": "ready"}
 
 
+@app.get("/health/deep", tags=["ops"])
+async def health_deep():
+    """Deep health check — returns service-level status for monitoring."""
+    supabase_configured = bool(
+        os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    )
+    openai_configured = bool(os.getenv("OPENAI_API_KEY"))
+    return {
+        "status": "ok",
+        "version": app.version,
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "services": {
+            "api": "healthy",
+            "supabase": "configured" if supabase_configured else "not_configured",
+            "openai": "configured" if openai_configured else "not_configured",
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # Global exception handler
 # ---------------------------------------------------------------------------
