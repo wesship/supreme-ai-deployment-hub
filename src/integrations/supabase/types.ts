@@ -360,7 +360,6 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          messages: Json
           metadata: Json | null
           title: string | null
           updated_at: string
@@ -369,7 +368,6 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
-          messages?: Json
           metadata?: Json | null
           title?: string | null
           updated_at?: string
@@ -378,7 +376,6 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
-          messages?: Json
           metadata?: Json | null
           title?: string | null
           updated_at?: string
@@ -747,7 +744,6 @@ export type Database = {
       }
       mcp_connections: {
         Row: {
-          api_token_encrypted: string | null
           category: string
           created_at: string
           custom_config: Json | null
@@ -762,7 +758,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          api_token_encrypted?: string | null
           category: string
           created_at?: string
           custom_config?: Json | null
@@ -777,7 +772,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          api_token_encrypted?: string | null
           category?: string
           created_at?: string
           custom_config?: Json | null
