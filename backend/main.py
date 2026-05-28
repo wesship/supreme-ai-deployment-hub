@@ -195,6 +195,14 @@ try:
 except ImportError as _occ_err:
     logger.warning("backend.operator.occ_router not found — skipping OCC router. (%s)", _occ_err)
 
+try:
+    from backend.rag.router import router as rag_router  # type: ignore
+
+    app.include_router(rag_router)
+    logger.info("RAG ingestion router registered at /api/rag/*")
+except ImportError as _rag_err:
+    logger.warning("backend.rag.router not found — skipping RAG router. (%s)", _rag_err)
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------
@@ -219,6 +227,7 @@ async def health_deep():
         os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     )
     openai_configured = bool(os.getenv("OPENAI_API_KEY"))
+    pinecone_configured = bool(os.getenv("PINECONE_API_KEY") and os.getenv("PINECONE_INDEX"))
     return {
         "status": "ok",
         "version": app.version,
@@ -227,6 +236,7 @@ async def health_deep():
             "api": "healthy",
             "supabase": "configured" if supabase_configured else "not_configured",
             "openai": "configured" if openai_configured else "not_configured",
+            "pinecone": "configured" if pinecone_configured else "not_configured",
         },
     }
 
