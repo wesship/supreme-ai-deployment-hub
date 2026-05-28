@@ -11,7 +11,7 @@ export interface McpConnection {
   server_type: "stdio" | "http" | "sse";
   gateway_url: string | null;
   category: string;
-  api_token_encrypted: string | null;
+  
   custom_config: Record<string, unknown> | null;
   is_active: boolean;
   last_connected_at: string | null;
