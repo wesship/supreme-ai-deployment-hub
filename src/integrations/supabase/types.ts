@@ -744,7 +744,6 @@ export type Database = {
       }
       mcp_connections: {
         Row: {
-          api_token_encrypted: string | null
           category: string
           created_at: string
           custom_config: Json | null
@@ -759,7 +758,6 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          api_token_encrypted?: string | null
           category: string
           created_at?: string
           custom_config?: Json | null
@@ -774,7 +772,6 @@ export type Database = {
           user_id: string
         }
         Update: {
-          api_token_encrypted?: string | null
           category?: string
           created_at?: string
           custom_config?: Json | null
