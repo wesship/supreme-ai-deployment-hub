@@ -81,8 +81,8 @@ export async function getSupabaseConversations(userId: string): Promise<Conversa
 
     return (data || []).map(row => ({
       id: row.id,
-      title: row.title,
-      messages: row.messages as StoredMessage[],
+      title: row.title ?? 'Untitled',
+      messages: ((row.metadata as { messages?: StoredMessage[] } | null)?.messages ?? []) as StoredMessage[],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       userId: row.user_id,
