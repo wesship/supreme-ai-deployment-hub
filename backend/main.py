@@ -85,7 +85,7 @@ app = FastAPI(
 
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,https://devonn.ai",
+    "http://localhost:5173,http://localhost:3000,https://devonn.ai,https://www.devonn.ai,https://app.devonn.ai,https://supreme-ai-deployment-hub.vercel.app",
 ).split(",")
 
 app.add_middleware(
