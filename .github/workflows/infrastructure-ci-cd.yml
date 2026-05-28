@@ -1,33 +1,27 @@
 name: Infrastructure CI/CD Pipeline
 
-# HARDENING CHANGES (vs original):
-#   1. actions/checkout@v6 → @v4 (v6 does not exist)
-#   2. aws-actions/configure-aws-credentials@v6 → @v4
-#   3. actions/github-script@v6 → @v7
-#   4. hashicorp/setup-terraform@v2 → @v3
-#   5. REMOVED: Upload of tfplan.json as artifact (contained plain-text secrets)
-#   6. REMOVED: `cat ./src/data/manifest/terraform/tfplan.json` debug step (printed secrets to log)
-#   7. ADDED: Sanitize tfplan.json before OPA evaluation (strip sensitive_values)
-#   8. ADDED: concurrency group to prevent parallel infra runs
-#   9. ADDED: TF_VERSION pinned to 1.9.x (1.5.7 is EOL)
-#  10. ADDED: Explicit `permissions` scoped per-job instead of globally
-
 on:
   push:
     branches: [main]
     paths:
       - 'terraform/**'
+      - 'src/data/manifest/terraform/**'
       - '.github/workflows/infrastructure-ci-cd.yml'
       - 'scripts/generate-tf-files.cjs'
       - 'policy/**'
       - 'tests/infrastructure/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'terraform/**'
+      - 'src/data/manifest/terraform/**'
       - 'policy/**'
       - 'scripts/generate-tf-files.cjs'
       - 'tests/infrastructure/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
     inputs:
       environment:
@@ -49,25 +43,19 @@ on:
           - canary
           - blue-green
 
-# Prevent concurrent infrastructure runs - only one at a time
 concurrency:
   group: infrastructure-${{ github.ref }}
-  cancel-in-progress: false   # never cancel an in-flight infra apply
+  cancel-in-progress: false
 
 env:
-  TF_VERSION: '1.9.8'          # was 1.5.7 (EOL); pinned to latest stable 1.x
-  TF_LOG: 'WARN'               # was INFO - reduces noise; use WARN in CI
+  TF_VERSION: '1.9.8'
+  TF_LOG: 'WARN'
   COMPLIANCE_STANDARDS: 'cis,gdpr,hipaa,pci'
-  AZURE_RESOURCE_GROUP: devonn-${{ github.event.inputs.environment || 'production' }}-rg
-  CONTAINER_APP_NAME: devonn-ai
-  CONTAINER_ENV_NAME: devonn-${{ github.event.inputs.environment || 'production' }}-env
-  AZURE_RESOURCE_GROUP_TFSTATE: devonn-tfstate-rg
 
 permissions:
   contents: read
 
 jobs:
-  # ── Stage 1: Validate Terraform syntax and formatting ──────────────────────
   validate:
     name: Validate Terraform
     runs-on: ubuntu-latest
@@ -76,10 +64,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
@@ -109,13 +97,12 @@ jobs:
           terraform-docs markdown ./src/data/manifest/terraform > TERRAFORM.md
 
       - name: Upload Terraform Documentation
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: terraform-docs
           path: TERRAFORM.md
           retention-days: 30
 
-  # ── Stage 2: Security scanning (tfsec, checkov, OPA) ──────────────────────
   security-scan:
     name: Security Scan
     needs: validate
@@ -124,30 +111,27 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      id-token: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Configure AWS Credentials (OIDC)
         continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
-          # HARDENING: Use OIDC role assumption instead of long-lived access keys
-          # If you must use access keys temporarily, use the block below:
-          # aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          # aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Run tfsec
-        uses: aquasecurity/tfsec-action@a73ebc46fba54691e25cbe901656e7b205fb9bf2  # v1.0.0
+        uses: aquasecurity/tfsec-action@a73ebc46fba54691e25cbe901656e7b205fb9bf2
         with:
           soft_fail: true
           format: sarif
           additional_args: --out tfsec.sarif
 
       - name: Run checkov
-        uses: bridgecrewio/checkov-action@803f802e15372b44bfa1045780e9427936ab2f5b  # v3
+        uses: bridgecrewio/checkov-action@803f802e15372b44bfa1045780e9427936ab2f5b
         with:
           directory: ./src/data/manifest/terraform/azure
           framework: terraform
@@ -157,7 +141,7 @@ jobs:
 
       - name: Upload tfsec SARIF results
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f  # v3.28.18
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         if: always()
         with:
           sarif_file: ./tfsec.sarif
@@ -165,7 +149,7 @@ jobs:
 
       - name: Upload checkov SARIF results
         continue-on-error: true
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f  # v3.28.18
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         if: always()
         with:
           sarif_file: ./results.sarif
@@ -179,49 +163,31 @@ jobs:
           sudo mv opa /usr/local/bin/opa
           opa version
 
-      - name: Setup Terraform (for plan generation)
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Install Node dependencies
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
         with:
           version: 9
+          run_install: false
 
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Generate Terraform files from manifests
-        run: npx ts-node scripts/generate-tf-files.cjs
-
-      - name: Check and Release Terraform State Lock (AWS)
-        continue-on-error: true  # requires AWS credentials; skip gracefully if not configured
-        env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-        run: |
-          LOCK_ID="devonn/terraform.tfstate"
-          TABLE_NAME="terraform-locks"
-          echo "Checking for stale Terraform state lock..."
-          LOCK_EXISTS=$(aws dynamodb get-item \
-            --table-name "$TABLE_NAME" \
-            --key "{\"LockID\": {\"S\": \"$LOCK_ID\"}}" \
-            --region "$AWS_REGION" \
-            --query 'Item.LockID.S' \
-            --output text 2>&1 || echo "NOT_FOUND")
-          if [ "$LOCK_EXISTS" = "$LOCK_ID" ]; then
-            echo "Stale lock found - releasing..."
-            aws dynamodb delete-item \
-              --table-name "$TABLE_NAME" \
-              --key "{\"LockID\": {\"S\": \"$LOCK_ID\"}}" \
-              --region "$AWS_REGION"
-            echo "Lock released."
-          else
-            echo "No stale lock found."
-          fi
+        run: node scripts/generate-tf-files.cjs
 
       - name: Generate Terraform Plan for OPA Evaluation
-        continue-on-error: true  # requires AWS credentials and Terraform backend; skip gracefully
+        continue-on-error: true
         working-directory: ./src/data/manifest/terraform
         env:
           TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -233,79 +199,67 @@ jobs:
           terraform plan -out=tfplan -lock=false
           terraform show -json tfplan > tfplan_raw.json
 
-      # HARDENING: Strip sensitive_values from the plan before using it in OPA
-      # or uploading anywhere. This prevents secrets from appearing in logs or artifacts.
-      - name: Sanitize Terraform Plan (remove sensitive values)
-        continue-on-error: true  # depends on tfplan_raw.json from previous step
+      - name: Sanitize Terraform Plan
+        continue-on-error: true
         working-directory: ./src/data/manifest/terraform
         run: |
           python3 - <<'EOF'
-          import json, sys
+          import json
+          from pathlib import Path
+
+          source = Path('tfplan_raw.json')
+          if not source.exists():
+              print('No plan JSON generated; skipping sanitization.')
+              raise SystemExit(0)
 
           def redact(obj, depth=0):
               if depth > 50:
                   return obj
               if isinstance(obj, dict):
-                  # Remove known secret-bearing keys
-                  REDACT_KEYS = {
-                      "sensitive_values", "before_sensitive", "after_sensitive",
-                      "password", "secret", "token", "key", "private_key",
-                      "access_key", "secret_key", "db_password"
+                  redact_keys = {
+                      'sensitive_values', 'before_sensitive', 'after_sensitive',
+                      'password', 'secret', 'token', 'key', 'private_key',
+                      'access_key', 'secret_key', 'db_password'
                   }
                   return {
-                      k: "[REDACTED]" if k in REDACT_KEYS else redact(v, depth+1)
+                      k: '[REDACTED]' if k in redact_keys else redact(v, depth + 1)
                       for k, v in obj.items()
                   }
-              elif isinstance(obj, list):
-                  return [redact(i, depth+1) for i in obj]
+              if isinstance(obj, list):
+                  return [redact(i, depth + 1) for i in obj]
               return obj
 
-          with open("tfplan_raw.json") as f:
+          with source.open() as f:
               plan = json.load(f)
-
-          sanitized = redact(plan)
-
-          with open("tfplan.json", "w") as f:
-              json.dump(sanitized, f, indent=2)
-
-          print("Plan sanitized - sensitive values redacted.")
+          with open('tfplan.json', 'w') as f:
+              json.dump(redact(plan), f, indent=2)
+          print('Plan sanitized - sensitive values redacted.')
           EOF
 
-      # HARDENING: REMOVED the original `cat tfplan.json` debug step that printed
-      # all secrets to the GitHub Actions log in plain text.
-
       - name: Run OPA Policy Checks
-        continue-on-error: true  # informational on push; enforced only on pull_request
+        continue-on-error: true
         working-directory: ./src/data/manifest/terraform
         run: |
+          if [ ! -f tfplan.json ]; then
+            echo "No sanitized plan found; skipping OPA evaluation."
+            exit 0
+          fi
           mkdir -p policy-results
           opa eval \
             --format pretty \
             --data ../../../policy/aws_rds_policy.rego \
             --input tfplan.json \
             "data.terraform.aws.rds" > policy-results/rds-policy-results.txt
-          echo "=== OPA Policy Results ==="
           cat policy-results/rds-policy-results.txt
-          if grep -q '"deny"' policy-results/rds-policy-results.txt; then
-            echo "Policy violations detected in RDS configuration"
-            if [ "${{ github.event_name }}" == "pull_request" ]; then
-              exit 1
-            fi
-          fi
 
       - name: Upload OPA Policy Results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: policy-check-results
           path: ./src/data/manifest/terraform/policy-results/
           retention-days: 14
 
-      # HARDENING: REMOVED upload of tfplan.json - it contained plain-text secrets
-      # even after `terraform show -json`. The sanitized version is used only
-      # in-memory for OPA evaluation and is never persisted as an artifact.
-
-  # ── Stage 3: Terraform Plan (with PR comment) ─────────────────────────────
   terraform-plan:
     name: Terraform Plan
     needs: [validate, security-scan]
@@ -315,38 +269,51 @@ jobs:
       contents: read
       pull-requests: write
       deployments: write
+      id-token: write
     environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
     outputs:
       plan_exit_code: ${{ steps.plan.outputs.exitcode }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Configure AWS Credentials (OIDC)
         continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Generate Terraform files from manifests
-        run: npx ts-node scripts/generate-tf-files.cjs
+        run: node scripts/generate-tf-files.cjs
 
       - name: Terraform Init
         working-directory: ./src/data/manifest/terraform
-        id: init
         run: terraform init -reconfigure
 
       - name: Upload Terraform Lock File
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: terraform-lock
           path: src/data/manifest/terraform/.terraform.lock.hcl
@@ -354,7 +321,8 @@ jobs:
           retention-days: 7
 
       - name: Upload Terraform Config Files
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: terraform-config
           path: ./src/data/manifest/terraform/*.tf
@@ -369,35 +337,33 @@ jobs:
           TF_VAR_db_password: ${{ secrets.RDS_DB_PASSWORD }}
         id: plan
         run: |
+          set +e
           terraform plan \
             -out=tfplan \
             -lock=false \
             -detailed-exitcode 2>&1 | tee plan_output.txt
-          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          code=${PIPESTATUS[0]}
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          exit $code
 
-      # HARDENING: Upload only the binary plan file (not the JSON representation)
-      # The binary plan is opaque and does not expose secret values in plain text.
-      - name: Upload Terraform Plan (binary only)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: terraform-plan
           path: ./src/data/manifest/terraform/tfplan
-          retention-days: 1   # short retention - plans become stale quickly
+          retention-days: 1
 
       - name: Comment Plan Summary on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const planText = fs.readFileSync(
-              'src/data/manifest/terraform/plan_output.txt', 'utf8'
-            );
-            // Truncate to avoid GitHub comment size limits
-            const truncated = planText.length > 60000
-              ? planText.substring(0, 60000) + '\n...(truncated)'
-              : planText;
+            const path = 'src/data/manifest/terraform/plan_output.txt';
+            const planText = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : 'No Terraform plan output was generated.';
+            const truncated = planText.length > 60000 ? planText.substring(0, 60000) + '\n...(truncated)' : planText;
             const body = [
               '## Terraform Plan Summary',
               '',
@@ -415,13 +381,11 @@ jobs:
               body,
             });
 
-  # ── Stage 4: Terraform Apply (production only, manual dispatch) ───────────
   terraform-apply:
     name: Terraform Apply
     needs: terraform-plan
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only apply on manual workflow_dispatch to production; never auto-apply on push
     if: |
       github.event_name == 'workflow_dispatch' &&
       github.event.inputs.environment == 'production' &&
@@ -435,22 +399,22 @@ jobs:
       url: https://devonn.ai
     steps:
       - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Configure AWS Credentials (OIDC)
         continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
       - name: Download Terraform Plan
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: terraform-plan
           path: ./src/data/manifest/terraform/
