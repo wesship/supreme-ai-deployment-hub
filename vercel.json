@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run typecheck && npm run build",
+  "buildCommand": "pnpm run typecheck && pnpm run build",
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
@@ -53,5 +53,6 @@
       "NODE_ENV": "production",
       "VITE_ENVIRONMENT": "production"
     }
-  }
+  },
+  "installCommand": "pnpm install --frozen-lockfile"
 }
