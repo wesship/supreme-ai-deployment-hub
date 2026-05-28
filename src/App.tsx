@@ -13,6 +13,7 @@ import { Analytics } from "@vercel/analytics/react";
 
 // Critical path — loaded eagerly (needed on first paint)
 import Index from "./pages/Index";
+import AdminRoute from "./components/auth/AdminRoute";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -41,6 +42,7 @@ const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiag
 const ChatPage = lazy(() => import("./pages/Chat"));
 const AdminPage = lazy(() => import("./pages/Admin"));
 const OperatorCommandCenter = lazy(() => import("./pages/OperatorCommandCenter"));
+const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -86,7 +88,15 @@ function App() {
                       <Route path="/privacy-policy" element={<Privacy />} />
                       <Route path="/chat" element={<ChatPage />} />
                       <Route path="/admin" element={<AdminPage />} />
-                      <Route path="/occ" element={<OperatorCommandCenter />} />
+                      <Route
+                        path="/occ"
+                        element={
+                          <AdminRoute>
+                            <OperatorCommandCenter />
+                          </AdminRoute>
+                        }
+                      />
+                      <Route path="/unauthorized" element={<Unauthorized />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>

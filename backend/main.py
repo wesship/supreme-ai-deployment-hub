@@ -179,6 +179,14 @@ try:
 except ImportError:
     logger.warning("backend.intelligence.api_router not found — skipping intelligence router.")
 
+try:
+    from backend.operator.occ_router import router as occ_router  # type: ignore
+
+    app.include_router(occ_router)
+    logger.info("OCC Supabase data router registered at /api/occ/*")
+except ImportError as _occ_err:
+    logger.warning("backend.operator.occ_router not found — skipping OCC router. (%s)", _occ_err)
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------
