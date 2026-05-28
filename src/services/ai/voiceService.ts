@@ -112,7 +112,9 @@ export function isSpeaking(): boolean {
 
 // ─── STT: Browser Web Speech API (primary) + AssemblyAI proxy (fallback) ──────
 
-let recognition: SpeechRecognition | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SpeechRecognitionInstance = any;
+let recognition: SpeechRecognitionInstance | null = null;
 
 /**
  * Start speech recognition.
@@ -124,9 +126,8 @@ export function startListening(
   onError?: (error: string) => void,
   onEnd?: () => void
 ): () => void {
-  const SpeechRecognitionAPI =
-    (window as Window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
-    (window as Window & { SpeechRecognition?: typeof SpeechRecognition; webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+  const win = window as unknown as { SpeechRecognition?: new () => SpeechRecognitionInstance; webkitSpeechRecognition?: new () => SpeechRecognitionInstance };
+  const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
 
   if (SpeechRecognitionAPI) {
     recognition = new SpeechRecognitionAPI();
