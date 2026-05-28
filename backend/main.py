@@ -171,6 +171,14 @@ try:
 except ImportError:
     logger.warning("backend.operator.router not found — skipping operator router.")
 
+try:
+    from backend.intelligence.api_router import router as intelligence_router  # type: ignore
+
+    app.include_router(intelligence_router, prefix="/api", tags=["intelligence"])
+    logger.info("Intelligence layer router registered at /api/intelligence")
+except ImportError:
+    logger.warning("backend.intelligence.api_router not found — skipping intelligence router.")
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------
