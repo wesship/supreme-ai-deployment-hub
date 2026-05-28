@@ -101,6 +101,14 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 try:
+    from backend.middleware.request_context import RequestContextMiddleware  # type: ignore
+
+    app.add_middleware(RequestContextMiddleware)
+    logger.info("RequestContextMiddleware registered.")
+except ImportError:
+    logger.warning("RequestContextMiddleware not found — skipping.")
+
+try:
     from backend.middleware.logging import LoggingMiddleware  # type: ignore
 
     app.add_middleware(LoggingMiddleware)
@@ -231,6 +239,26 @@ async def health_deep():
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception: %s", exc)
+
+    # Fire-and-forget OCC error log (never blocks the response)
+    try:
+        import traceback as _tb
+        from backend.operator.occ_logger import fire_log_error  # type: ignore
+        from backend.middleware.request_context import get_request_id  # type: ignore
+
+        fire_log_error(
+            error_type="runtime",
+            message=str(exc),
+            exc=exc,
+            severity="error",
+            service="backend",
+            endpoint=str(request.url.path),
+            request_id=get_request_id(),
+            metadata={"method": request.method, "url": str(request.url)},
+        )
+    except Exception:
+        pass  # OCC logging must never crash the error handler
+
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error. The incident has been logged."},
