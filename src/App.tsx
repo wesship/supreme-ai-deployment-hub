@@ -40,6 +40,7 @@ const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
 const ChatPage = lazy(() => import("./pages/Chat"));
 const AdminPage = lazy(() => import("./pages/Admin"));
+const OperatorCommandCenter = lazy(() => import("./pages/OperatorCommandCenter"));
 
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -85,6 +86,7 @@ function App() {
                       <Route path="/privacy-policy" element={<Privacy />} />
                       <Route path="/chat" element={<ChatPage />} />
                       <Route path="/admin" element={<AdminPage />} />
+                      <Route path="/occ" element={<OperatorCommandCenter />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>
