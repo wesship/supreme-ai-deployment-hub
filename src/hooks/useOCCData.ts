@@ -148,13 +148,13 @@ export function useOCCData() {
         planRes,
         ragRes,
       ] = await Promise.all([
-        supabase.from('ai_request_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('tool_call_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('agent_activity_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('error_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('approval_queue').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('user_plans').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('rag_documents').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('ai_request_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('tool_call_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('agent_activity_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('error_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('approval_queue').select('*').order('created_at', { ascending: false }).limit(50),
+        (supabase as any).from('user_plans').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('rag_documents').select('*').order('created_at', { ascending: false }).limit(100),
       ]);
 
       if (aiRes.error) throw new Error(`AI logs: ${aiRes.error.message}`);

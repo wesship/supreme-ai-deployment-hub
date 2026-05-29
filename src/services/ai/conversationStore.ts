@@ -98,7 +98,7 @@ export async function saveSupabaseConversation(
   userId: string
 ): Promise<void> {
   try {
-    await supabase.from('conversations').upsert({
+    await (supabase as any).from('conversations').upsert({
       id: conversation.id,
       title: conversation.title,
       messages: conversation.messages,
