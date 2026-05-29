@@ -47,16 +47,27 @@ def _not_configured() -> dict[str, Any]:
     }
 
 
+# Tables that use a non-standard timestamp column for ordering
+_TABLE_ORDER_COLUMN: dict[str, str] = {
+    "approval_queue": "requested_at",
+}
+
+
 async def _query_table(
     table: str,
     select: str = "*",
-    order: str = "created_at.desc",
+    order: str | None = None,
     limit: int = 100,
     filters: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Generic Supabase REST query helper."""
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
         return []
+
+    # Use table-specific order column if not explicitly provided
+    if order is None:
+        ts_col = _TABLE_ORDER_COLUMN.get(table, "created_at")
+        order = f"{ts_col}.desc"
 
     url = f"{SUPABASE_URL}/rest/v1/{table}"
     params: dict[str, str] = {
