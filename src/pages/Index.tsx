@@ -18,6 +18,7 @@ import IntegrationPartners from '@/components/index/IntegrationPartners';
 import Testimonials from '@/components/index/Testimonials';
 import ManifestSection from '@/components/index/ManifestSection';
 import CTASection from '@/components/index/CTASection';
+import AuthNavButton from '@/components/AuthNavButton';
 
 // AI & platform sections
 import AIFeatureShowcase from '@/components/index/AIFeatureShowcase';
