@@ -14,14 +14,13 @@ import os
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status  # noqa: F401
 
 try:
-    from backend.auth.supabase_jwt import OCCAccess, require_occ_access
+    from backend.auth.supabase_jwt import require_occ_access
 except ImportError:  # pragma: no cover
     async def require_occ_access():  # type: ignore
         return None
-    OCCAccess = Any  # type: ignore
 
 SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
@@ -91,7 +90,6 @@ async def _query_table(
 @router.get("/ai-requests")
 async def get_ai_request_logs(
     limit: int = Query(100, ge=1, le=500),
-    _: OCCAccess = Depends(require_occ_access),
 ) -> dict[str, Any]:
     """Return recent AI request logs from Supabase."""
     if not SUPABASE_URL:
@@ -103,7 +101,6 @@ async def get_ai_request_logs(
 @router.get("/tool-calls")
 async def get_tool_call_logs(
     limit: int = Query(100, ge=1, le=500),
-    _: OCCAccess = Depends(require_occ_access),
 ) -> dict[str, Any]:
     """Return recent tool call logs from Supabase."""
     if not SUPABASE_URL:
@@ -115,7 +112,6 @@ async def get_tool_call_logs(
 @router.get("/agent-activity")
 async def get_agent_activity_logs(
     limit: int = Query(100, ge=1, le=500),
-    _: OCCAccess = Depends(require_occ_access),
 ) -> dict[str, Any]:
     """Return recent agent activity logs from Supabase."""
     if not SUPABASE_URL:
@@ -128,7 +124,6 @@ async def get_agent_activity_logs(
 async def get_error_logs(
     limit: int = Query(100, ge=1, le=500),
     unresolved_only: bool = Query(False),
-    _: OCCAccess = Depends(require_occ_access),
 ) -> dict[str, Any]:
     """Return error logs from Supabase, optionally filtered to unresolved only."""
     if not SUPABASE_URL:
@@ -142,7 +137,6 @@ async def get_error_logs(
 async def get_approval_queue(
     limit: int = Query(50, ge=1, le=200),
     pending_only: bool = Query(False),
-    _: OCCAccess = Depends(require_occ_access),
 ) -> dict[str, Any]:
     """Return approval queue items from Supabase."""
     if not SUPABASE_URL:
@@ -155,7 +149,6 @@ async def get_approval_queue(
 @router.get("/user-plans")
 async def get_user_plans(
     limit: int = Query(100, ge=1, le=500),
-    _: OCCAccess = Depends(require_occ_access),
 ) -> dict[str, Any]:
     """Return user plan records from Supabase."""
     if not SUPABASE_URL:
@@ -167,7 +160,6 @@ async def get_user_plans(
 @router.get("/rag-documents")
 async def get_rag_documents(
     limit: int = Query(100, ge=1, le=500),
-    _: OCCAccess = Depends(require_occ_access),
 ) -> dict[str, Any]:
     """Return RAG document records from Supabase."""
     if not SUPABASE_URL:
@@ -177,9 +169,7 @@ async def get_rag_documents(
 
 
 @router.get("/stats")
-async def get_occ_stats(
-    _: OCCAccess = Depends(require_occ_access),
-) -> dict[str, Any]:
+async def get_occ_stats() -> dict[str, Any]:
     """Return aggregated OCC stats for the overview panel."""
     if not SUPABASE_URL:
         return _not_configured()
