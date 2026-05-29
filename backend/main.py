@@ -211,6 +211,14 @@ try:
 except ImportError as _hermes_err:
     logger.warning("backend.operator.hermes_router not found — skipping Hermes router. (%s)", _hermes_err)
 
+try:
+    from backend.hermes.router import router as hermes_tasks_router  # type: ignore
+
+    app.include_router(hermes_tasks_router)
+    logger.info("Hermes Task Engine router registered at /api/hermes/tasks/*")
+except ImportError as _hermes_tasks_err:
+    logger.warning("backend.hermes.router not found — skipping Hermes task engine. (%s)", _hermes_tasks_err)
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------
