@@ -144,12 +144,12 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
     updates: Partial<Pick<McpConnection, "is_active" | "gateway_url" | "last_connected_at">>
   ) => {
     try {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from("mcp_connections")
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
-        } as Record<string, unknown>)
+        })
         .eq("id", connectionId);
 
       if (updateError) throw updateError;
