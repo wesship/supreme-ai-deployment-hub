@@ -1,8 +1,8 @@
 {
-  "buildCommand": "./node_modules/.bin/vite build",
+  "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "installCommand": "npm install -g pnpm@9.15.9 && pnpm store prune && pnpm install --no-frozen-lockfile",
+  "installCommand": "pnpm install --frozen-lockfile",
   "rewrites": [
     {
       "source": "/(.*)",
