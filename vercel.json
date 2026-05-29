@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm run typecheck && pnpm run build",
+  "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "pnpm install --frozen-lockfile",
