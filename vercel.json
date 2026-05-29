@@ -2,7 +2,7 @@
   "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "npm install -g pnpm@9.15.9 && pnpm install --no-frozen-lockfile",
   "rewrites": [
     {
       "source": "/(.*)",
