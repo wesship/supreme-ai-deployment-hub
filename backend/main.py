@@ -203,6 +203,14 @@ try:
 except ImportError as _rag_err:
     logger.warning("backend.rag.router not found — skipping RAG router. (%s)", _rag_err)
 
+try:
+    from backend.operator.hermes_router import router as hermes_router  # type: ignore
+
+    app.include_router(hermes_router)
+    logger.info("Hermes Intelligence Fabric router registered at /api/hermes/*")
+except ImportError as _hermes_err:
+    logger.warning("backend.operator.hermes_router not found — skipping Hermes router. (%s)", _hermes_err)
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------

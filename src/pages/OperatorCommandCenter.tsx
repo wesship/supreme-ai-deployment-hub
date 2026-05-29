@@ -6,6 +6,7 @@ import {
   Activity,
   AlertTriangle,
   Bot,
+  Brain,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
@@ -26,6 +27,7 @@ const OCCErrorLogs = lazy(() => import('@/components/occ/OCCErrorLogs'));
 const OCCApprovalQueue = lazy(() => import('@/components/occ/OCCApprovalQueue'));
 const OCCUserPlans = lazy(() => import('@/components/occ/OCCUserPlans'));
 const OCCRAGDocuments = lazy(() => import('@/components/occ/OCCRAGDocuments'));
+const OCCHermes = lazy(() => import('@/components/occ/OCCHermes').then(m => ({ default: m.OCCHermes })));
 
 type View =
   | 'overview'
@@ -35,7 +37,8 @@ type View =
   | 'errors'
   | 'approvals'
   | 'user-plans'
-  | 'rag-docs';
+  | 'rag-docs'
+  | 'hermes';
 
 interface NavItem {
   id: View;
@@ -90,6 +93,11 @@ const NAV_ITEMS: NavItem[] = [
     label: 'RAG Documents',
     icon: <FileText className="h-4 w-4" />,
     badge: d => d.stats.totalRAGDocs > 0 ? d.stats.totalRAGDocs : null,
+  },
+  {
+    id: 'hermes',
+    label: 'Hermes Fabric',
+    icon: <Brain className="h-4 w-4" />,
   },
 ];
 
@@ -161,6 +169,12 @@ export default function OperatorCommandCenter() {
         return (
           <Suspense fallback={<PanelLoader />}>
             <OCCRAGDocuments docs={data.ragDocs} />
+          </Suspense>
+        );
+      case 'hermes':
+        return (
+          <Suspense fallback={<PanelLoader />}>
+            <OCCHermes />
           </Suspense>
         );
       default:
