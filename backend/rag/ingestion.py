@@ -179,23 +179,27 @@ def build_vector_records(
     records: list[VectorRecord] = []
     created_at = utc_now_iso()
     for chunk, embedding in zip(chunks, embeddings):
+        # Pinecone rejects None/null metadata values — strip them out before upsert
+        raw_metadata = {
+            "document_id": document_id,
+            "filename": filename,
+            "file_type": file_type,
+            "chunk_index": chunk.index,
+            "text": chunk.text,
+            "start_char": chunk.start_char,
+            "end_char": chunk.end_char,
+            "namespace": namespace,
+            "user_id": user_id or "",
+            "tenant_id": tenant_id or "",
+            "created_at": created_at,
+        }
+        # Remove any keys with None values to prevent Pinecone 400 errors
+        metadata = {k: v for k, v in raw_metadata.items() if v is not None}
         records.append(
             VectorRecord(
                 id=f"{document_id}:chunk:{chunk.index}",
                 values=embedding,
-                metadata={
-                    "document_id": document_id,
-                    "filename": filename,
-                    "file_type": file_type,
-                    "chunk_index": chunk.index,
-                    "text": chunk.text,
-                    "start_char": chunk.start_char,
-                    "end_char": chunk.end_char,
-                    "namespace": namespace,
-                    "user_id": user_id,
-                    "tenant_id": tenant_id,
-                    "created_at": created_at,
-                },
+                metadata=metadata,
             )
         )
     return records
