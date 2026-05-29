@@ -67,6 +67,9 @@ const Index = () => {
         style={{ scaleX }}
       />
 
+      {/* Auth nav (Sign In / Dashboard / Sign Out) */}
+      <AuthNavButton />
+
       {/* Live deployment status banner */}
       <LiveDeploymentBanner />
 
