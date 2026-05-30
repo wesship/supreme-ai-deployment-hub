@@ -116,8 +116,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov httpx fastapi uvicorn pydantic
+          pip install pytest pytest-asyncio pytest-cov httpx anyio fastapi uvicorn pydantic
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
       - name: Verify OpenAI key is present
         run: test -n "$OPENAI_API_KEY" && echo "OPENAI_API_KEY is set" || echo "OPENAI_API_KEY not set - skipping key-dependent tests"
         env:
