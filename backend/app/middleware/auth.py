@@ -10,7 +10,7 @@ import httpx
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.config import get_settings
+from backend.app.config import get_settings
 
 logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
