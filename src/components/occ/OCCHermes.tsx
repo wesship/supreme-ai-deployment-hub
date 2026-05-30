@@ -117,12 +117,11 @@ export function OCCHermes() {
     setLoading(true);
     setError(null);
     try {
-      const sb = supabase as any;
       const [goalsRes, tasksRes, interruptsRes, checkpointsRes] = await Promise.all([
-        sb.from("hermes_goals").select("*").order("created_at", { ascending: false }).limit(50),
-        sb.from("hermes_tasks").select("*").order("created_at", { ascending: false }).limit(100),
-        sb.from("hermes_interrupts").select("*").order("created_at", { ascending: false }).limit(50),
-        sb.from("hermes_checkpoints").select("*").order("created_at", { ascending: false }).limit(30),
+        supabase.from("hermes_goals").select("*").order("created_at", { ascending: false }).limit(50),
+        supabase.from("hermes_tasks").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("hermes_interrupts").select("*").order("created_at", { ascending: false }).limit(50),
+        supabase.from("hermes_checkpoints").select("*").order("created_at", { ascending: false }).limit(30),
       ]);
 
       if (goalsRes.error) throw goalsRes.error;
