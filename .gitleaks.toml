@@ -22,6 +22,8 @@ paths = [
   '''\.env\.example''',
   # Source code that detects tokens (not contains them)
   '''src/components/git/AddRepositoryDialog\.tsx''',
+  # Security incident documentation with (hopefully rotated) secrets
+  '''SECURITY-INCIDENT\.md''',
 ]
 
 [[rules]]
