@@ -23,23 +23,42 @@ const FilmPage = () => {
 
     setLoading(true);
     try {
+      const handleFnError = async (err: any, fallback: string) => {
+        // supabase.functions.invoke wraps non-2xx in FunctionsHttpError with a Response on .context
+        let payload: any = null;
+        try {
+          if (err?.context && typeof err.context.json === 'function') {
+            payload = await err.context.json();
+          }
+        } catch { /* ignore */ }
+        const code = payload?.error;
+        const message = payload?.message;
+        if (code === 'PAYMENT_REQUIRED') {
+          toast.error('Out of AI credits', { description: message ?? 'Add credits in Lovable: Settings → Workspace → Usage.' });
+        } else if (code === 'RATE_LIMITED') {
+          toast.error('Rate limited', { description: message ?? 'Please wait a moment and try again.' });
+        } else {
+          toast.error(message || err?.message || fallback);
+        }
+      };
+
       // Generate screenplay using Lovable AI
       const { data: screenplayData, error: screenplayError } = await supabase.functions.invoke('generate-screenplay', {
         body: { idea }
       });
 
-      if (screenplayError) throw screenplayError;
+      if (screenplayError) { await handleFnError(screenplayError, 'Failed to generate screenplay'); return; }
       setScreenplay(screenplayData.screenplay);
 
       // Generate video description
       toast.success('Screenplay generated! Now creating your film...');
-      
+
       const { data: videoData, error: videoError } = await supabase.functions.invoke('generate-film', {
         body: { screenplay: screenplayData.screenplay }
       });
 
-      if (videoError) throw videoError;
-      
+      if (videoError) { await handleFnError(videoError, 'Failed to generate film'); return; }
+
       setVideoUrl(videoData.videoUrl);
       toast.success('Film created successfully!');
     } catch (error: any) {
