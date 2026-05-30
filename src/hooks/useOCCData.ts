@@ -148,13 +148,13 @@ export function useOCCData() {
         planRes,
         ragRes,
       ] = await Promise.all([
-        (supabase as any).from('ai_request_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        (supabase as any).from('tool_call_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        (supabase as any).from('agent_activity_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        (supabase as any).from('error_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        (supabase as any).from('approval_queue').select('*').order('created_at', { ascending: false }).limit(50),
-        (supabase as any).from('user_plans').select('*').order('created_at', { ascending: false }).limit(100),
-        (supabase as any).from('rag_documents').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('ai_request_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('tool_call_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('agent_activity_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('error_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('approval_queue').select('*').order('created_at', { ascending: false }).limit(50),
+        supabase.from('user_plans').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('rag_documents').select('*').order('created_at', { ascending: false }).limit(100),
       ]);
 
       if (aiRes.error) throw new Error(`AI logs: ${aiRes.error.message}`);
@@ -212,9 +212,25 @@ export function useOCCData() {
 
   useEffect(() => {
     fetchAll();
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 30 seconds as a safety net
     const interval = setInterval(fetchAll, 30_000);
-    return () => clearInterval(interval);
+
+    // Realtime: refetch on any change across OCC tables
+    const channel = supabase
+      .channel('occ-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_request_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tool_call_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_activity_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'error_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'approval_queue' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_plans' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rag_documents' }, () => fetchAll())
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchAll]);
 
   return {

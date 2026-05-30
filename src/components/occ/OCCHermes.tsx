@@ -117,12 +117,11 @@ export function OCCHermes() {
     setLoading(true);
     setError(null);
     try {
-      const sb = supabase as any;
       const [goalsRes, tasksRes, interruptsRes, checkpointsRes] = await Promise.all([
-        sb.from("hermes_goals").select("*").order("created_at", { ascending: false }).limit(50),
-        sb.from("hermes_tasks").select("*").order("created_at", { ascending: false }).limit(100),
-        sb.from("hermes_interrupts").select("*").order("created_at", { ascending: false }).limit(50),
-        sb.from("hermes_checkpoints").select("*").order("created_at", { ascending: false }).limit(30),
+        supabase.from("hermes_goals").select("*").order("created_at", { ascending: false }).limit(50),
+        supabase.from("hermes_tasks").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("hermes_interrupts").select("*").order("created_at", { ascending: false }).limit(50),
+        supabase.from("hermes_checkpoints").select("*").order("created_at", { ascending: false }).limit(30),
       ]);
 
       if (goalsRes.error) throw goalsRes.error;
@@ -164,10 +163,10 @@ export function OCCHermes() {
     // Realtime: refetch on any change to Hermes tables
     const channel = supabase
       .channel("occ-hermes-live")
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_goals" }, () => fetchData())
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_tasks" }, () => fetchData())
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_interrupts" }, () => fetchData())
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_checkpoints" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_goals" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_tasks" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_interrupts" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_checkpoints" }, () => fetchData())
       .subscribe();
 
     return () => {
