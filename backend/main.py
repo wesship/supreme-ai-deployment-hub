@@ -20,6 +20,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from backend.observability.wandb_weave import init_weave
+
 # ---------------------------------------------------------------------------
 # Sentry initialisation (must happen before app creation)
 # ---------------------------------------------------------------------------
@@ -42,6 +44,9 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Manage application lifecycle: connect pools on startup, close on shutdown."""
     logger.info("Devonn.AI backend starting up…")
+    if init_weave():
+        logger.info("W&B Weave initialized successfully.")
+
     # Import here to avoid circular imports at module load time
     try:
         from backend.db.pool import init_pool, close_pool  # type: ignore
