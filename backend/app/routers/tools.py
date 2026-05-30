@@ -30,12 +30,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ─── Voice: ElevenLabs TTS ────────────────────────────────────────────────────
+# ─── Voice: TTS (ElevenLabs primary, OpenAI fallback) ────────────────────────
 
 @router.post(
     "/tools/voice/tts",
-    summary="Text-to-Speech (ElevenLabs)",
-    description="Convert text to speech using ElevenLabs. Returns audio/mpeg binary.",
+    summary="Text-to-Speech",
+    description="Convert text to speech. Uses ElevenLabs if configured, falls back to OpenAI TTS. Returns audio/mpeg binary.",
     response_class=Response,
 )
 async def voice_tts(
@@ -45,40 +45,73 @@ async def voice_tts(
 ) -> Response:
     settings = get_settings()
 
-    if not settings.elevenlabs_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="TTS service not configured (ELEVENLABS_API_KEY missing on server)",
+    # ── ElevenLabs path (preferred) ──────────────────────────────────────────
+    if settings.elevenlabs_api_key:
+        voice_id = request.voice_id or settings.elevenlabs_default_voice_id
+        model = request.model or settings.elevenlabs_default_model
+        payload = {
+            "text": request.text,
+            "model_id": model,
+            "voice_settings": request.voice_settings.model_dump(),
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                json=payload,
+                headers={
+                    "xi-api-key": settings.elevenlabs_api_key,
+                    "Content-Type": "application/json",
+                    "Accept": "audio/mpeg",
+                },
+            )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"ElevenLabs TTS error {resp.status_code}: {resp.text[:300]}",
+            )
+        logger.info("voice_tts provider=elevenlabs user=%s chars=%d", user_id, len(request.text))
+        return Response(content=resp.content, media_type="audio/mpeg")
+
+    # ── OpenAI TTS fallback ──────────────────────────────────────────────────
+    if settings.openai_api_key:
+        # Map ElevenLabs voice names to OpenAI voices
+        openai_voice_map = {
+            "21m00Tcm4TlvDq8ikWAM": "alloy",  # ElevenLabs default → OpenAI alloy
+            "9BWtsMINqrJLrRacOk9x": "nova",   # Aria → nova
+            "CwhRBWXzGAHq8TQ4Fs17": "echo",   # Roger → echo
+            "EXAVITQu4vr4xnSDxMaL": "shimmer", # Sarah → shimmer
+        }
+        openai_voice = openai_voice_map.get(
+            request.voice_id or settings.elevenlabs_default_voice_id, "alloy"
         )
+        payload = {
+            "model": "tts-1",
+            "input": request.text,
+            "voice": openai_voice,
+            "response_format": "mp3",
+        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                "https://api.openai.com/v1/audio/speech",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"OpenAI TTS error {resp.status_code}: {resp.text[:300]}",
+            )
+        logger.info("voice_tts provider=openai user=%s chars=%d voice=%s", user_id, len(request.text), openai_voice)
+        return Response(content=resp.content, media_type="audio/mpeg")
 
-    voice_id = request.voice_id or settings.elevenlabs_default_voice_id
-    model = request.model or settings.elevenlabs_default_model
-
-    payload = {
-        "text": request.text,
-        "model_id": model,
-        "voice_settings": request.voice_settings.model_dump(),
-    }
-
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
-            json=payload,
-            headers={
-                "xi-api-key": settings.elevenlabs_api_key,
-                "Content-Type": "application/json",
-                "Accept": "audio/mpeg",
-            },
-        )
-
-    if resp.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"ElevenLabs TTS error {resp.status_code}: {resp.text[:300]}",
-        )
-
-    logger.info("voice_tts user=%s chars=%d voice=%s", user_id, len(request.text), voice_id)
-    return Response(content=resp.content, media_type="audio/mpeg")
+    # ── No TTS provider configured ───────────────────────────────────────────
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="TTS service not configured (set ELEVENLABS_API_KEY or OPENAI_API_KEY on server)",
+    )
 
 
 # ─── Voice: AssemblyAI STT Token ─────────────────────────────────────────────
