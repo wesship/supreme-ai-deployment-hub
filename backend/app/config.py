@@ -58,7 +58,12 @@ class Settings(BaseSettings):
         "https://devonn.ai,"
         "https://www.devonn.ai,"
         "https://app.devonn.ai,"
-        "https://supreme-ai-deployment-hub.vercel.app"
+        "https://supreme-ai-deployment-hub.vercel.app,"
+        "https://supreme-ai-deployment-hub.lovable.app"
+    )
+    # Regex matches all Lovable preview/published URLs and Vercel previews.
+    allowed_origin_regex: str = (
+        r"https://([a-z0-9-]+\.)*(lovable\.app|lovableproject\.com|vercel\.app)"
     )
 
     @property
