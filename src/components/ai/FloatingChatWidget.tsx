@@ -9,6 +9,7 @@ import { MessageSquare, X, Send, Minimize2, Maximize2, Loader2, StopCircle, Exte
 import { Link } from 'react-router-dom';
 import { useDevonnChat } from '@/hooks/useDevonnChat';
 import { supabase } from '@/integrations/supabase/client';
+import { VoiceControls } from './VoiceControls';
 
 interface WidgetMessage {
   id: string;
@@ -51,6 +52,9 @@ export const FloatingChatWidget: React.FC = () => {
     userId,
     config,
   });
+
+  // Last assistant message for TTS
+  const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant' && !m.streaming)?.content;
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -249,6 +253,17 @@ export const FloatingChatWidget: React.FC = () => {
                   disabled={isLimitReached}
                   className="flex-1 bg-transparent text-white text-sm placeholder-white/25 outline-none disabled:opacity-40"
                 />
+                {/* Voice controls */}
+                <div className="flex-shrink-0">
+                  <VoiceControls
+                    lastAssistantMessage={lastAssistantMessage}
+                    onTranscript={(text) => {
+                      setInput(prev => prev + text + ' ');
+                    }}
+                    isStreaming={isStreaming}
+                  />
+                </div>
+
                 {isStreaming ? (
                   <button
                     onClick={stopStreaming}
