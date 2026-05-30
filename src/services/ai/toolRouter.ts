@@ -186,9 +186,17 @@ async function callProxy(
   body: Record<string, unknown>,
   signal?: AbortSignal
 ): Promise<unknown> {
+  // Get Supabase session for auth
+  const { data: { session } } = await (await import('../../integrations/supabase/client')).supabase.auth.getSession();
+  
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(body),
     signal,
   });
@@ -311,53 +319,75 @@ async function executeWorkflow(workflowName: string, payload?: string): Promise<
 /**
  * Agent spawning — proxied through api.devonn.ai/api/agents
  */
-function spawnAgent(agentType: string, task: string, priority = 'normal'): unknown {
-  const agentId = `agent-${agentType}-${Date.now().toString(36)}`;
-  return {
-    agent_id: agentId,
-    type: agentType,
-    task,
-    priority,
-    status: 'queued',
-    created_at: new Date().toISOString(),
-    estimated_start: new Date(Date.now() + 2000).toISOString(),
-    mesh_endpoint: `${API_BASE}/agents/${agentId}`,
-    note: 'Agent queued. Connect api.devonn.ai EKS mesh to enable live spawning.',
-  };
+/**
+ * Spawn a new Hermes goal and task.
+ * This bridges the frontend to the real Hermes Task Engine in the backend.
+ */
+async function spawnAgent(agentType: string, task: string, priority = 'normal'): Promise<unknown> {
+  try {
+    // 1. Create a Goal first
+    const goal = await callProxy('/api/hermes/goals', {
+      title: `Agent Task: ${agentType}`,
+      description: task,
+      metadata: { agent_type: agentType, priority }
+    }) as any;
+
+    const goalId = goal?.[0]?.id || goal?.id;
+    if (!goalId) throw new Error("Failed to create Hermes goal");
+
+    // 2. Enqueue the Task
+    const result = await callProxy('/api/hermes/enqueue', {
+      kind: `tars.${agentType === 'researcher' ? 'research' : 'plan'}`,
+      goal_id: goalId,
+      title: `Execute: ${task.substring(0, 50)}...`,
+      description: task,
+      task_payload: { agent_type: agentType, priority },
+      max_depth: 3
+    });
+
+    return {
+      status: 'success',
+      message: 'Hermes agent task enqueued successfully',
+      goal_id: goalId,
+      result
+    };
+  } catch (err) {
+    return {
+      status: 'error',
+      message: 'Failed to bridge to Hermes Task Engine',
+      error: String(err),
+      fallback: {
+        agent_id: `mock-${agentType}-${Date.now().toString(36)}`,
+        status: 'queued_local_fallback'
+      }
+    };
+  }
 }
 
-function getSystemMetrics(metricType = 'all'): unknown {
-  const metrics: Record<string, unknown> = { timestamp: new Date().toISOString() };
-
-  if (metricType === 'all' || metricType === 'tokens') {
-    metrics.tokens = {
-      session_tokens_used: Math.floor(Math.random() * 5000) + 1000,
-      model: 'gpt-4.1-mini',
-      estimated_cost_usd: (Math.random() * 0.05).toFixed(4),
+/**
+ * Get real system metrics from the Hermes stats endpoint.
+ */
+async function getSystemMetrics(metricType = 'all'): Promise<unknown> {
+  try {
+    const stats = await callProxy('/api/hermes/stats', {}) as any;
+    return {
+      ...stats,
+      metric_type: metricType,
+      source: 'Hermes Intelligence Fabric',
+      timestamp: new Date().toISOString()
+    };
+  } catch (err) {
+    // Fallback to simulated metrics if backend is cold
+    return {
+      error: 'Backend stats unreachable',
+      timestamp: new Date().toISOString(),
+      simulated_metrics: {
+        tokens: { session_tokens_used: 1240, model: 'gpt-4.1-mini' },
+        latency: { p50_ms: 142 },
+        agents: { active: 5, mesh_status: 'degraded_fallback' }
+      }
     };
   }
-  if (metricType === 'all' || metricType === 'latency') {
-    metrics.latency = {
-      p50_ms: Math.floor(Math.random() * 200) + 100,
-      p95_ms: Math.floor(Math.random() * 500) + 300,
-      p99_ms: Math.floor(Math.random() * 1000) + 600,
-    };
-  }
-  if (metricType === 'all' || metricType === 'agents') {
-    metrics.agents = {
-      active: Math.floor(Math.random() * 5),
-      queued: Math.floor(Math.random() * 3),
-      mesh_status: 'operational',
-    };
-  }
-  if (metricType === 'all' || metricType === 'errors') {
-    metrics.errors = {
-      last_hour: Math.floor(Math.random() * 3),
-      error_rate_pct: (Math.random() * 0.5).toFixed(2),
-    };
-  }
-
-  return metrics;
 }
 
 function searchDocumentation(query: string, section = 'all'): unknown {
@@ -415,14 +445,14 @@ export async function dispatchTool(call: ToolCall): Promise<ToolResult> {
         );
         break;
       case 'spawn_agent':
-        result = spawnAgent(
+        result = await spawnAgent(
           args.agent_type as string,
           args.task as string,
           args.priority as string
         );
         break;
       case 'get_system_metrics':
-        result = getSystemMetrics(args.metric_type as string);
+        result = await getSystemMetrics(args.metric_type as string);
         break;
       case 'search_documentation':
         result = searchDocumentation(args.query as string, args.section as string);
