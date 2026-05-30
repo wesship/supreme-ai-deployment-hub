@@ -15,13 +15,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 try:
-    from backend.operator.auth import require_operator_access
+    from backend.occ_operator.auth import require_operator_access
 except ImportError:  # pragma: no cover
     async def require_operator_access():  # type: ignore
         return None
 
 try:
-    from backend.operator.integrations import (
+    from backend.occ_operator.integrations import (
         github_actions_runs,
         integration_readiness,
         loki_operator_logs,
@@ -38,13 +38,13 @@ except ImportError:  # pragma: no cover
     redis_queue_depths = None  # type: ignore
 
 try:
-    from backend.operator.supervision import supervise_runtime, supervision_timeline
+    from backend.occ_operator.supervision import supervise_runtime, supervision_timeline
 except ImportError:  # pragma: no cover
     supervise_runtime = None  # type: ignore
     supervision_timeline = None  # type: ignore
 
 try:
-    from backend.operator.prediction import predict_runtime_anomalies, recovery_advisory
+    from backend.occ_operator.prediction import predict_runtime_anomalies, recovery_advisory
 except ImportError:  # pragma: no cover
     predict_runtime_anomalies = None  # type: ignore
     recovery_advisory = None  # type: ignore

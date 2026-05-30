@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 try:
-    from backend.operator.integrations import (
+    from backend.occ_operator.integrations import (
         github_actions_runs,
         integration_readiness,
         loki_operator_logs,

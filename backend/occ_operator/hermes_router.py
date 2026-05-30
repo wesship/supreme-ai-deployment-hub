@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.auth.supabase_jwt import OCCPrincipal, require_occ_access
-from backend.operator.occ_logger import log_error
+from backend.occ_operator.occ_logger import log_error
 
 router = APIRouter(prefix="/api/hermes", tags=["hermes"])
 

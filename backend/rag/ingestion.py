@@ -18,7 +18,7 @@ from typing import Any
 import httpx
 from fastapi import UploadFile
 
-from backend.operator.occ_logger import log_error, log_rag_document
+from backend.occ_operator.occ_logger import log_error, log_rag_document
 from backend.rag.pinecone_client import DevonnPineconeClient, VectorRecord, namespace_for_user
 
 EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")

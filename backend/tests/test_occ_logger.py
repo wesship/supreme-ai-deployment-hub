@@ -29,7 +29,7 @@ os.environ.pop("SUPABASE_SERVICE_ROLE_KEY", None)
 # ---------------------------------------------------------------------------
 # Import after clearing env vars
 # ---------------------------------------------------------------------------
-from backend.operator.occ_logger import (
+from backend.occ_operator.occ_logger import (
     create_approval_request,
     fire_log_error,
     log_agent_activity,
@@ -39,7 +39,7 @@ from backend.operator.occ_logger import (
     log_tool_call,
     upsert_user_plan,
 )
-from backend.operator.occ_models import (
+from backend.occ_operator.occ_models import (
     AgentActivityLogInsert,
     AIRequestLogInsert,
     ApprovalQueueInsert,
@@ -213,7 +213,7 @@ class TestLoggerWithMockedSupabase:
         monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
         # Reload module to pick up new env vars
         import importlib
-        import backend.operator.occ_logger as mod
+        import backend.occ_operator.occ_logger as mod
         importlib.reload(mod)
         # Re-import the functions after reload
         self.log_ai_request = mod.log_ai_request

@@ -172,7 +172,7 @@ except ImportError:
     logger.warning("backend.agents.router not found — skipping agent router.")
 
 try:
-    from backend.operator.router import router as operator_router  # type: ignore
+    from backend.occ_operator.router import router as operator_router  # type: ignore
 
     app.include_router(operator_router, prefix="/api/operator", tags=["operator"])
     logger.info("Operator console router registered at /api/operator")
@@ -188,7 +188,7 @@ except ImportError:
     logger.warning("backend.intelligence.api_router not found — skipping intelligence router.")
 
 try:
-    from backend.operator.occ_router import router as occ_router  # type: ignore
+    from backend.occ_operator.occ_router import router as occ_router  # type: ignore
 
     app.include_router(occ_router)
     logger.info("OCC Supabase data router registered at /api/occ/*")
@@ -204,7 +204,7 @@ except ImportError as _rag_err:
     logger.warning("backend.rag.router not found — skipping RAG router. (%s)", _rag_err)
 
 try:
-    from backend.operator.hermes_router import router as hermes_router  # type: ignore
+    from backend.occ_operator.hermes_router import router as hermes_router  # type: ignore
 
     app.include_router(hermes_router)
     logger.info("Hermes Intelligence Fabric router registered at /api/hermes/*")
@@ -269,7 +269,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     # Fire-and-forget OCC error log (never blocks the response)
     try:
         import traceback as _tb
-        from backend.operator.occ_logger import fire_log_error  # type: ignore
+        from backend.occ_operator.occ_logger import fire_log_error  # type: ignore
         from backend.middleware.request_context import get_request_id  # type: ignore
 
         fire_log_error(

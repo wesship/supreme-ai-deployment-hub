@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from pydantic import BaseModel, Field
 
 from backend.auth.supabase_jwt import OCCPrincipal, require_occ_access
-from backend.operator.occ_logger import log_error, log_rag_document
+from backend.occ_operator.occ_logger import log_error, log_rag_document
 from backend.rag.ingestion import RAGIngestionError, ingest_upload, query_rag, utc_now_iso
 from backend.rag.pinecone_client import DevonnPineconeClient, namespace_for_user
 

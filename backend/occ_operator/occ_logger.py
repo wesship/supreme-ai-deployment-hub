@@ -10,7 +10,7 @@ OCC tables. All functions are:
   - Secret-safe: uses SUPABASE_SERVICE_ROLE_KEY server-side only.
 
 Usage:
-    from backend.operator.occ_logger import (
+    from backend.occ_operator.occ_logger import (
         log_ai_request, log_tool_call, log_agent_activity,
         log_error, create_approval_request, log_rag_document,
         upsert_user_plan,
@@ -34,7 +34,7 @@ from typing import Any, Dict, Optional
 
 import httpx
 
-from backend.operator.occ_models import (
+from backend.occ_operator.occ_models import (
     AgentActivityLogInsert,
     AIRequestLogInsert,
     ApprovalQueueInsert,

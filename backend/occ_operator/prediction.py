@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 try:
-    from backend.operator.supervision import supervise_runtime
+    from backend.occ_operator.supervision import supervise_runtime
 except ImportError:  # pragma: no cover
     supervise_runtime = None  # type: ignore
 
