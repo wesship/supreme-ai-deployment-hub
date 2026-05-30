@@ -20,7 +20,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.observability.wandb_weave import init_weave
+try:
+    from backend.observability.wandb_weave import init_weave
+except ModuleNotFoundError:  # Allows `cd backend && uvicorn main:app` local startup.
+    from observability.wandb_weave import init_weave
 
 # ---------------------------------------------------------------------------
 # Sentry initialisation (must happen before app creation)
