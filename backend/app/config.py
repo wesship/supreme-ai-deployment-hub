@@ -2,7 +2,9 @@
 Devonn.ai Backend Proxy — Configuration
 All secrets loaded from environment variables only. Never hardcoded.
 """
+import json
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,12 +51,30 @@ class Settings(BaseSettings):
     require_auth: bool = True
 
     # ── CORS ───────────────────────────────────────────────────────────────────
-    allowed_origins: list[str] = [
-        "https://devonn.ai",
-        "https://www.devonn.ai",
-        "https://app.devonn.ai",
-        "https://supreme-ai-deployment-hub.vercel.app",
-    ]
+    # Stored as a raw string to avoid pydantic-settings JSON-parsing a
+    # comma-separated env var.  Use the `allowed_origins` property below.
+    # In Railway, set ALLOWED_ORIGINS_RAW to a comma-separated list or JSON array.
+    allowed_origins_raw: str = (
+        "https://devonn.ai,"
+        "https://www.devonn.ai,"
+        "https://app.devonn.ai,"
+        "https://supreme-ai-deployment-hub.vercel.app"
+    )
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Return CORS origins as a list.
+
+        Accepts either a JSON array (["https://a.com","https://b.com"])
+        or a comma-separated string (https://a.com,https://b.com).
+        """
+        raw = self.allowed_origins_raw.strip()
+        if raw.startswith("["):
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                pass
+        return [o.strip() for o in raw.split(",") if o.strip()]
 
     # ── Rate limiting ──────────────────────────────────────────────────────────
     rate_limit_per_minute: int = 60
