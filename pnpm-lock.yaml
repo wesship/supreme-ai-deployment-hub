@@ -349,7 +349,7 @@ importers:
         specifier: ^3.4.11
         version: 3.4.19(yaml@2.9.0)
       typescript:
-        specifier: ^5.5.3
+        specifier: ^5.9.3
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.0.1
