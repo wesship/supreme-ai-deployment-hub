@@ -212,9 +212,25 @@ export function useOCCData() {
 
   useEffect(() => {
     fetchAll();
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 30 seconds as a safety net
     const interval = setInterval(fetchAll, 30_000);
-    return () => clearInterval(interval);
+
+    // Realtime: refetch on any change across OCC tables
+    const channel = supabase
+      .channel('occ-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_request_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tool_call_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_activity_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'error_logs' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'approval_queue' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_plans' }, () => fetchAll())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rag_documents' }, () => fetchAll())
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchAll]);
 
   return {
