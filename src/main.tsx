@@ -5,7 +5,11 @@ import './index.css';
 import { initSentry } from './lib/sentry';
 
 // Initialize Sentry error tracking before rendering
-initSentry();
+try {
+  initSentry();
+} catch (err) {
+  console.error("Sentry initialization failed:", err);
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
