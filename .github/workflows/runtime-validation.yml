@@ -47,8 +47,6 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-        with:
-          version: 9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -121,8 +119,6 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-        with:
-          version: 9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -181,8 +177,6 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-        with:
-          version: 9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -245,8 +239,6 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-        with:
-          version: 9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -311,8 +303,6 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-        with:
-          version: 9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -377,8 +367,6 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-        with:
-          version: 9
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
