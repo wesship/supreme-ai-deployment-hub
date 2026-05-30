@@ -40,6 +40,27 @@ serve(async (req) => {
       }),
     });
 
+    if (!promptResponse.ok) {
+      const errorText = await promptResponse.text();
+      console.error('AI API error:', promptResponse.status, errorText);
+      if (promptResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'PAYMENT_REQUIRED', message: 'AI credits exhausted. Please add credits in Lovable: Settings → Workspace → Usage.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (promptResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'RATE_LIMITED', message: 'Too many requests. Please wait a moment and try again.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: 'AI_GATEWAY_ERROR', status: promptResponse.status, details: errorText.slice(0, 500) }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const promptData = await promptResponse.json();
     const videoPrompt = promptData.choices[0].message.content;
 
