@@ -160,7 +160,20 @@ export function OCCHermes() {
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30_000);
-    return () => clearInterval(interval);
+
+    // Realtime: refetch on any change to Hermes tables
+    const channel = supabase
+      .channel("occ-hermes-live")
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_goals" }, () => fetchData())
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_tasks" }, () => fetchData())
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_interrupts" }, () => fetchData())
+      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_checkpoints" }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [fetchData]);
 
   return (
