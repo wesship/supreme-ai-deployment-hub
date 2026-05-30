@@ -95,4 +95,13 @@ export class SpeechSynthesisService {
   }
 }
 
+export const speechSynthesisService = new SpeechSynthesisService();
+
+export const speak = (
+  text: string,
+  options?: SpeechSynthesisOptions
+): void => {
+  speechSynthesisService.speak(text, options);
+};
+
 export default SpeechSynthesisService;
