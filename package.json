@@ -15,7 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "test:extension": "vitest run src/extension/__tests__/ --passWithNoTests",
     "test:e2e": "echo \"No E2E tests specified\" && exit 0",
-    "typecheck": "pnpm exec tsc --noEmit",
+    "typecheck": "npx tsc --noEmit",
     "ci:doctor": "bash scripts/ci-doctor.sh",
     "workflow:audit": "bash scripts/workflow-audit.sh",
     "workflow:classify": "bash scripts/workflow-classifier.sh",
