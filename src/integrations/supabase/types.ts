@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_activity_logs: {
+        Row: {
+          agent_id: string
+          agent_name: string | null
+          cost_usd: number | null
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          event_type: string
+          id: string
+          session_id: string | null
+          status: string
+          tokens_used: number | null
+          user_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          agent_name?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          tokens_used?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          agent_name?: string | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          tokens_used?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       agent_earnings: {
         Row: {
           agent_id: string
@@ -174,6 +219,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_request_logs: {
+        Row: {
+          completion_tokens: number | null
+          cost_usd: number | null
+          created_at: string
+          duration_ms: number | null
+          endpoint: string | null
+          error_message: string | null
+          id: string
+          model: string
+          prompt_tokens: number | null
+          request_id: string | null
+          status: string
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Insert: {
+          completion_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: string | null
+          error_message?: string | null
+          id?: string
+          model: string
+          prompt_tokens?: number | null
+          request_id?: string | null
+          status?: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          completion_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: string | null
+          error_message?: string | null
+          id?: string
+          model?: string
+          prompt_tokens?: number | null
+          request_id?: string | null
+          status?: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       api_connections: {
         Row: {
           auth_type: Database["public"]["Enums"]["auth_type"]
@@ -231,6 +324,51 @@ export type Database = {
           event_type?: string
           id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      approval_queue: {
+        Row: {
+          action_type: string
+          created_at: string
+          description: string
+          expires_at: string | null
+          id: string
+          payload: Json
+          priority: string
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          description: string
+          expires_at?: string | null
+          id?: string
+          payload?: Json
+          priority?: string
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          description?: string
+          expires_at?: string | null
+          id?: string
+          payload?: Json
+          priority?: string
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -613,6 +751,271 @@ export type Database = {
           },
         ]
       }
+      error_logs: {
+        Row: {
+          created_at: string
+          endpoint: string | null
+          error_type: string
+          id: string
+          last_seen_at: string
+          message: string
+          occurrence_count: number
+          resolved: boolean
+          resolved_at: string | null
+          service: string | null
+          severity: string
+          stack_trace: string | null
+        }
+        Insert: {
+          created_at?: string
+          endpoint?: string | null
+          error_type: string
+          id?: string
+          last_seen_at?: string
+          message: string
+          occurrence_count?: number
+          resolved?: boolean
+          resolved_at?: string | null
+          service?: string | null
+          severity?: string
+          stack_trace?: string | null
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string | null
+          error_type?: string
+          id?: string
+          last_seen_at?: string
+          message?: string
+          occurrence_count?: number
+          resolved?: boolean
+          resolved_at?: string | null
+          service?: string | null
+          severity?: string
+          stack_trace?: string | null
+        }
+        Relationships: []
+      }
+      hermes_checkpoints: {
+        Row: {
+          content: string
+          created_at: string
+          goal_id: string
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          goal_id: string
+          id?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          goal_id?: string
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hermes_checkpoints_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "hermes_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hermes_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          goal_id: string | null
+          id: string
+          payload: Json
+          task_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          goal_id?: string | null
+          id?: string
+          payload?: Json
+          task_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          goal_id?: string | null
+          id?: string
+          payload?: Json
+          task_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hermes_events_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "hermes_goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hermes_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hermes_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hermes_goals: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      hermes_interrupts: {
+        Row: {
+          created_at: string
+          goal_id: string
+          id: string
+          prompt: string
+          resolved_at: string | null
+          response: string | null
+          status: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal_id: string
+          id?: string
+          prompt: string
+          resolved_at?: string | null
+          response?: string | null
+          status?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          goal_id?: string
+          id?: string
+          prompt?: string
+          resolved_at?: string | null
+          response?: string | null
+          status?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hermes_interrupts_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "hermes_goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hermes_interrupts_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hermes_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hermes_tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          depth: number
+          error_message: string | null
+          goal_id: string
+          id: string
+          kind: string
+          parent_task_id: string | null
+          payload: Json
+          result: Json | null
+          status: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          depth?: number
+          error_message?: string | null
+          goal_id: string
+          id?: string
+          kind?: string
+          parent_task_id?: string | null
+          payload?: Json
+          result?: Json | null
+          status?: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          depth?: number
+          error_message?: string | null
+          goal_id?: string
+          id?: string
+          kind?: string
+          parent_task_id?: string | null
+          payload?: Json
+          result?: Json | null
+          status?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hermes_tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "hermes_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_graph_entities: {
         Row: {
           conversation_id: string
@@ -915,6 +1318,57 @@ export type Database = {
         }
         Relationships: []
       }
+      rag_documents: {
+        Row: {
+          chunk_count: number | null
+          created_at: string
+          description: string | null
+          file_name: string | null
+          file_size_bytes: number | null
+          file_type: string | null
+          id: string
+          indexed_at: string | null
+          namespace: string | null
+          status: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          chunk_count?: number | null
+          created_at?: string
+          description?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          indexed_at?: string | null
+          namespace?: string | null
+          status?: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          chunk_count?: number | null
+          created_at?: string
+          description?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          indexed_at?: string | null
+          namespace?: string | null
+          status?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       subscription_tiers: {
         Row: {
           created_at: string
@@ -948,6 +1402,45 @@ export type Database = {
         }
         Relationships: []
       }
+      tool_call_logs: {
+        Row: {
+          agent_id: string
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          payload: Json
+          session_id: string | null
+          status: string
+          tool_name: string
+          user_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          session_id?: string | null
+          status?: string
+          tool_name: string
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          session_id?: string | null
+          status?: string
+          tool_name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_features: {
         Row: {
           created_at: string
@@ -971,6 +1464,48 @@ export type Database = {
           feature_name?: string
           id?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_plans: {
+        Row: {
+          created_at: string
+          id: string
+          plan_name: string
+          plan_tier: number
+          requests_limit: number
+          requests_used: number
+          reset_at: string | null
+          status: string
+          tokens_limit: number
+          tokens_used: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_name?: string
+          plan_tier?: number
+          requests_limit?: number
+          requests_used?: number
+          reset_at?: string | null
+          status?: string
+          tokens_limit?: number
+          tokens_used?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_name?: string
+          plan_tier?: number
+          requests_limit?: number
+          requests_used?: number
+          reset_at?: string | null
+          status?: string
+          tokens_limit?: number
+          tokens_used?: number
           user_id?: string
         }
         Relationships: []
