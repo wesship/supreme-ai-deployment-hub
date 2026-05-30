@@ -83,14 +83,26 @@ app = FastAPI(
 # CORS
 # ---------------------------------------------------------------------------
 
-ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,https://devonn.ai,https://www.devonn.ai,https://app.devonn.ai,https://supreme-ai-deployment-hub.vercel.app",
-).split(",")
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://localhost:3000,https://devonn.ai,https://www.devonn.ai,https://app.devonn.ai,https://supreme-ai-deployment-hub.vercel.app,https://supreme-ai-deployment-hub.lovable.app",
+    ).split(",")
+    if o.strip()
+]
+
+# Regex covers all Lovable preview/published URLs (id-preview--*, feature branches, etc.)
+# and all Vercel preview deploys, without requiring future code edits.
+ALLOWED_ORIGIN_REGEX = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"https://([a-z0-9-]+\.)*(lovable\.app|lovableproject\.com|vercel\.app)",
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
