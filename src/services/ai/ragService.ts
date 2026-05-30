@@ -105,9 +105,15 @@ export async function ingestDocument(
       return { success: false, chunksIngested: 0, filename, error: 'Document too short to ingest' };
     }
 
+    const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     const response = await fetch(`${API_BASE}/api/rag/ingest`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ chunks, filename, userId }),
     });
 
@@ -135,9 +141,15 @@ export async function ingestDocument(
  */
 export async function retrieveContext(query: string): Promise<string> {
   try {
+    const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     const response = await fetch(`${API_BASE}/api/rag/retrieve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ query, topK: TOP_K, minScore: MIN_SCORE }),
     });
 
@@ -171,9 +183,15 @@ export function isRAGAvailable(): boolean {
  * Delete all vectors for a specific file from the index via server proxy.
  */
 export async function deleteDocument(filename: string): Promise<void> {
+  const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
+
   const response = await fetch(`${API_BASE}/api/rag/delete`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ filename }),
   });
 

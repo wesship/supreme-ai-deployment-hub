@@ -127,9 +127,15 @@ async function runAgent(
   if (useTools) {
     // Non-streaming tool-calling round — proxied through api.devonn.ai
     const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+    const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     const response = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model: config.model || 'gpt-4.1-mini',
         messages,
@@ -203,6 +209,11 @@ async function runOrchestratorAgent(
 ): Promise<string> {
   // Orchestration plan — proxied through api.devonn.ai
   const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+  const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
 
   const planMessages: ChatMessage[] = [
     { role: 'system', content: AGENT_PROMPTS.orchestrator },
@@ -212,7 +223,7 @@ async function runOrchestratorAgent(
 
   const planResp = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       model: options.config?.model || 'gpt-4.1-mini',
       messages: planMessages,

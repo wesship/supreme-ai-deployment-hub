@@ -85,10 +85,16 @@ async function* streamProxy(
 
   let response: Response;
   try {
+    const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+
     response = await fetch(CHAT_PROXY_URL, {
       method: 'POST',
       signal: config.signal,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         messages,
         model,

@@ -15,6 +15,7 @@ import {
   isListening,
   getVoiceState,
 } from '../../services/ai/voiceService';
+import { speak as speakBrowser } from '../../services/speech/speechSynthesisService';
 
 interface VoiceControlsProps {
   /** Text to speak when TTS button is clicked */
@@ -64,9 +65,16 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
 
     setTtsLoading(true);
     try {
+      // Primary: Premium ElevenLabs via backend proxy
       await speak(lastAssistantMessage);
     } catch (err) {
-      console.error('[VoiceControls] TTS error:', err);
+      console.warn('[VoiceControls] Premium TTS failed, falling back to browser speech:', err);
+      try {
+        // Fallback: Standard browser speech synthesis
+        await speakBrowser(lastAssistantMessage);
+      } catch (fallbackError) {
+        console.error('[VoiceControls] All TTS methods failed:', fallbackError);
+      }
     } finally {
       setTtsLoading(false);
       setTtsSpeaking(false);

@@ -51,11 +51,16 @@ let ttsProxyAvailable: boolean | null = null; // cached availability check
 export async function speak(text: string, options: TTSOptions = {}): Promise<void> {
   stopSpeaking();
 
-  const voiceId = options.voiceId || DEFAULT_VOICE_ID;
+    const voiceId = options.voiceId || DEFAULT_VOICE_ID;
+  const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
 
   const response = await fetch(`${API_BASE}/api/tools/voice/tts`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({
       text,
       voice_id: voiceId,
