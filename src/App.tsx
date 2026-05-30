@@ -101,8 +101,8 @@ function App() {
                     </Routes>
                   </Suspense>
                 </main>
+                <FloatingChatWidget />
               </Router>
-              <FloatingChatWidget />
               <Toaster />
               <Analytics />
             </AGUIProvider>
