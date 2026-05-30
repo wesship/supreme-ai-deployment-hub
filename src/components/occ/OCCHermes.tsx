@@ -163,10 +163,10 @@ export function OCCHermes() {
     // Realtime: refetch on any change to Hermes tables
     const channel = supabase
       .channel("occ-hermes-live")
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_goals" }, () => fetchData())
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_tasks" }, () => fetchData())
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_interrupts" }, () => fetchData())
-      .on("postgres_changes" as any, { event: "*", schema: "public", table: "hermes_checkpoints" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_goals" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_tasks" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_interrupts" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "hermes_checkpoints" }, () => fetchData())
       .subscribe();
 
     return () => {
