@@ -142,3 +142,71 @@ interface VoiceProvider {
 - Memory decay policy — exponential half-life vs. importance-weighted?
 - Constitutional layer — embed OPA in adapter, or call hermes/v3 firewall?
 - Multi-tenant billing — meter per `voice_sessions.id` or per minute?
+
+---
+
+# Vapi–Hermes Compliance Gate
+
+**Status:** Pre-activation checklist — Vapi integration must NOT move from “parked” to “active” until every item below is implemented and verified with live evidence (logs, screenshots, recordings).
+
+**Why this exists:** AI-generated voice calls are regulated under TCPA/FCC rules (prerecorded/artificial voice), FTC telemarketing rules, and Colorado AI-disclosure + insurance-specific requirements. Hermes must not be permitted to trigger outbound Vapi calls in an insurance context until these controls are live.
+
+## 1. Consent Gate (blocks outbound dialing)
+
+- [ ] Every lead record has a `consent_status` field (`granted` / `none` / `revoked`) with timestamp and source of consent
+- [ ] Hermes dispatch logic checks `consent_status == granted` before queuing any outbound Vapi call for marketing/insurance purposes
+- [ ] A purchased lead list alone does NOT set `consent_status = granted` — must be explicit, documented consumer opt-in
+- [ ] Inbound (consumer-initiated) calls bypass this gate; outbound does not
+- [ ] Unit/integration test: Hermes refuses to dispatch a call when `consent_status != granted`
+
+## 2. DNC Scrubbing
+
+- [ ] Outbound number list is checked against the National Do Not Call Registry before dispatch
+- [ ] Internal company-specific do-not-call list is maintained and checked
+- [ ] Scrub step runs as part of the Hermes pre-dispatch pipeline, not as a manual/offline step
+- [ ] Scrub results are logged (number checked, result, timestamp)
+
+## 3. Call Hours Enforcement
+
+- [ ] Hermes computes recipient local time before dispatch (not server/operator time)
+- [ ] Calls blocked outside permitted hours (generally 8am–9pm recipient local time)
+- [ ] Blocked-call attempts are logged with reason
+
+## 4. AI Disclosure (Vapi assistant config)
+
+- [ ] Vapi assistant’s first utterance includes AI disclosure, e.g.:
+
+> “Hello, I’m an automated AI assistant working on behalf of Wesley Little and his agency. I can provide general information and help schedule an appointment. I am not a licensed insurance producer, and I cannot recommend, approve, or bind insurance coverage.”
+
+- [ ] Disclosure is present in both inbound and outbound assistant configs
+- [ ] Disclosure text is version-controlled in the blueprint repo, not only in the Vapi dashboard
+
+## 5. Scope Restrictions (assistant prompt/tools)
+
+- [ ] Assistant prompt explicitly forbids: policy recommendations, coverage interpretation, negotiating/binding coverage, completing/signing applications, underwriting/pricing/approval statements, promising returns/coverage/approval
+- [ ] Assistant is restricted to: info collection, scheduling, FAQ (approved list), escalation to licensed human
+- [ ] Escalation path defined: under what conditions does the assistant transfer/flag to a human producer
+
+## 6. Opt-Out Handling
+
+- [ ] Vapi call flow includes a working opt-out mechanism (verbal or DTMF)
+- [ ] Opt-out triggers immediate `consent_status = revoked` update in the lead record
+- [ ] Revoked numbers are excluded from future Hermes dispatch (re-check against #1)
+
+## 7. Audit Logging
+
+- [ ] Every Hermes-triggered Vapi call logs: timestamp, recipient number (or hashed ID), consent basis, DNC scrub result, call-hours check result, assistant config version, call recording/transcript reference, outcome
+- [ ] Logs are retained per data-retention policy and accessible for compliance review
+
+## 8. End-to-End Smoke Test (before activation)
+
+- [ ] Proxy routes verified live (not just deployed)
+- [ ] Vapi credentials/webhook secret confirmed working (`VAPI_WEBHOOK_SECRET` in Supabase tested against real webhook event)
+- [ ] Phone number provisioned and confirmed receiving/placing calls
+- [ ] One full inbound call tested end-to-end (disclosure plays, scope respected, transcript logged)
+- [ ] One full outbound call tested end-to-end with a consented test number (consent gate, DNC scrub, hours check, disclosure, opt-out, logging all verified in sequence)
+- [ ] Results captured as proof artifacts (curl output, logs, recordings) per existing gate-discipline standard (no green without live proof)
+
+## Activation Sign-off
+
+Vapi integration may move from “parked” to “active” only when all checkboxes above are complete and proof artifacts are attached to the corresponding PR.
