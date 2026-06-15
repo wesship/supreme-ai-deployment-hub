@@ -1,0 +1,1 @@
+window.CAMPAIGN_CONFIG={campaignName:"Family Financial Readiness Challenge",apiUrl:"/api/leads/family-readiness",bookingUrl:"",representativeName:"Wesley Little",licensedSupervisorName:"",territory:"Colorado",consentVersion:"2026-06-15-v1"};
