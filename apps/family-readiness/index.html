@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Take the free three-minute Family Financial Readiness Challenge.">
+  <title>Family Financial Readiness Challenge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="#top"><span class="brand-mark">⌂</span><span>Family Financial<br><strong>Readiness Challenge</strong></span></a>
+  <button class="button small" data-start>Get My Score</button>
+</header>
+<main id="top">
+  <section class="hero">
+    <div>
+      <span class="eyebrow">Free 3-minute household assessment</span>
+      <h1>How financially prepared is your <em>household?</em></h1>
+      <p>Answer seven educational questions and receive a readiness score, practical checklist, and optional review.</p>
+      <button class="button" data-start>Start My Free Assessment →</button>
+      <div class="trust"><span>✓ Education first</span><span>✓ No purchase required</span><span>✓ Phone optional</span></div>
+    </div>
+    <div class="readiness-card" aria-label="Example readiness gauge">
+      <span>HOUSEHOLD READINESS</span><strong>72</strong><small>EXAMPLE SCORE</small>
+      <div class="meter"><i></i></div>
+    </div>
+  </section>
+
+  <section class="benefits"><div><b>3 minutes</b><span>Simple assessment</span></div><div><b>Personalized</b><span>Readiness score</span></div><div><b>Practical</b><span>Household checklist</span></div><div><b>Optional</b><span>Educational review</span></div></section>
+
+  <section id="assessment" class="assessment" hidden>
+    <div class="shell">
+      <div class="progress-meta"><span id="progress-label">Question 1 of 7</span><span id="progress-percent">14%</span></div>
+      <div class="progress"><span id="progress-bar"></span></div>
+      <form id="quiz-form" novalidate><div id="question-stage"></div><div class="actions"><button type="button" class="button secondary" id="back-button">Back</button><button type="button" class="button" id="next-button">Continue</button></div></form>
+
+      <form id="lead-form" hidden novalidate>
+        <span class="eyebrow">Your result is ready</span><h2>Where should we send your score?</h2>
+        <div class="grid"><label>First name<input name="firstName" autocomplete="given-name" required></label><label>Email<input type="email" name="email" autocomplete="email" required></label><label>ZIP code<input name="zip" inputmode="numeric" pattern="[0-9]{5}(-[0-9]{4})?" required></label><label>State<select name="state" required><option value="">Select</option><option value="Colorado">Colorado</option></select></label><label class="full">Phone (optional)<input type="tel" name="phone" autocomplete="tel"></label></div>
+        <label class="check"><input type="checkbox" name="emailConsent" required> Send my score and related educational email. I may unsubscribe at any time.</label>
+        <label class="check"><input type="checkbox" name="smsConsent"> I separately agree to texts at the number provided. Consent is not required. Message/data rates may apply. Reply STOP to opt out.</label>
+        <label class="check"><input type="checkbox" name="privacy" required> I accept the <a href="privacy.html" target="_blank">Privacy Notice</a>.</label>
+        <p id="lead-error" class="error" role="alert"></p><button class="button" type="submit">Show My Score →</button>
+      </form>
+
+      <section id="result" hidden aria-live="polite">
+        <span class="eyebrow">Your readiness result</span><h2 id="result-title"></h2>
+        <div class="score"><strong id="score-number">0</strong><span>/ 14</span><div><h3 id="score-category"></h3><p id="score-summary"></p></div></div>
+        <h3>Priority areas</h3><ul id="priority-list"></ul>
+        <div class="actions"><button class="button" id="download-report">Download Checklist</button><a class="button secondary" id="book-review" href="#" target="_blank" rel="noopener">Request a Review</a></div>
+        <p class="fine">Educational purposes only. This is not financial, legal, tax, insurance, underwriting, or product advice. Product-specific discussions must be handled by an appropriately licensed representative.</p>
+      </section>
+    </div>
+  </section>
+</main>
+<footer><strong>Family Financial Readiness Challenge</strong><p><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a></p><p class="fine">Campaign materials require applicable company supervision or compliance approval before public or paid use.</p></footer>
+<script src="config.js"></script><script src="app.js"></script>
+</body>
+</html>
