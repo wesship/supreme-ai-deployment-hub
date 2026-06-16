@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://devonn.ai/schemas/relationship.schema.json",
+  "title": "PRIMETIME Concept Relationship",
+  "type": "object",
+  "required": ["relationshipId", "workspaceId", "fromConceptId", "toConceptId", "type", "status", "confidence", "evidenceIds", "version"],
+  "properties": {
+    "relationshipId": {"type": "string", "minLength": 8},
+    "workspaceId": {"type": "string", "minLength": 1},
+    "fromConceptId": {"type": "string", "minLength": 8},
+    "toConceptId": {"type": "string", "minLength": 8},
+    "type": {"type": "string", "enum": ["RELATES_TO", "DEPENDS_ON", "SUPPORTS", "CONTRADICTS", "DERIVED_FROM", "MENTIONED_IN", "OWNED_BY", "REQUIRES", "BLOCKED_BY", "APPROVED_BY", "ROUTED_TO", "GENERATED_BY", "PART_OF", "PRECEDES", "FOLLOWS", "HAS_RISK", "HAS_GAP", "BRIDGES"]},
+    "description": {"type": "string", "maxLength": 5000},
+    "status": {"type": "string", "enum": ["DISCOVERED", "EXTRACTED", "NORMALIZED", "VALIDATION_REQUIRED", "VALIDATED", "APPROVED", "CANONICAL", "REJECTED", "SUPERSEDED", "ARCHIVED"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "evidenceIds": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "createdBy": {"type": "string"},
+    "approvedBy": {"type": ["string", "null"]},
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1},
+    "metadata": {"type": "object", "additionalProperties": true}
+  },
+  "allOf": [
+    {"not": {"properties": {"fromConceptId": {"const": {"$data": "1/toConceptId"}}}}}
+  ],
+  "additionalProperties": false
+}
