@@ -55,4 +55,6 @@ export function parseCommand(raw: string, registry: CommandRegistry = defaultReg
 }
 
 export { defaultRegistry as registry };
+export { routeCommand, routedAgents } from './routing2.js';
+export type { RoutedAgent } from './routing2.js';
 export type { ApprovalLevel, CommandDefinition, CommandRegistry, ParsedCommand } from './types.js';
