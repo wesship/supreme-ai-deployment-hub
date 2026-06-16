@@ -16,12 +16,14 @@ from intelligence.commands import parse_command
 from intelligence.executor.agent_executor import agent_executor
 from intelligence.memory.memory import conversation_memory, long_term_memory
 from intelligence.orchestration.orchestrator import orchestrator
+from intelligence.plan_api2 import router as command_plan_router
 from intelligence.prompts.engine import prompt_engine
 from intelligence.router.router import tool_router
 from intelligence.workflows.engine import workflow_engine
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/intelligence", tags=["intelligence"])
+router.include_router(command_plan_router)
 
 
 class RouteRequest(BaseModel):
@@ -71,7 +73,6 @@ async def parse_primetime_command(
     body: CommandParseRequest,
     user_id: str = Depends(get_current_user_id),
 ):
-    """Parse, expand, and evaluate a PRIMETIME command without executing it."""
     result = parse_command(body.command)
     logger.info(
         "PRIMETIME command parsed",
