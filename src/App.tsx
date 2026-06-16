@@ -11,13 +11,11 @@ import { APIProvider } from "./contexts/APIContext";
 import { AGUIProvider } from "./contexts/agui/AGUIContext";
 import { Analytics } from "@vercel/analytics/react";
 
-// Critical path — loaded eagerly (needed on first paint)
 import Index from "./pages/Index";
 import AdminRoute from "./components/auth/AdminRoute";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
-// All other pages are lazy-loaded to reduce the initial bundle
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FilmPage = lazy(() => import("./pages/Film"));
 const WorkflowManagement = lazy(() => import("./pages/WorkflowManagement"));
@@ -37,6 +35,7 @@ const AgentMarketplace = lazy(() => import("./pages/AgentMarketplace"));
 const McpPage = lazy(() => import("./pages/McpPage"));
 const StatusDashboard = lazy(() => import("./pages/StatusDashboard"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+const PrimetimeCommandConsole = lazy(() => import("./pages/PrimetimeCommandConsole"));
 const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
 const ChatPage = lazy(() => import("./pages/Chat"));
@@ -81,6 +80,7 @@ function App() {
                       <Route path="/manifest" element={<ManifestPage />} />
                       <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
                       <Route path="/command-center" element={<CommandCenter />} />
+                      <Route path="/primetime-commands" element={<PrimetimeCommandConsole />} />
                       <Route path="/about" element={<About />} />
                       <Route path="/contact" element={<Contact />} />
                       <Route path="/terms" element={<Terms />} />
