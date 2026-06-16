@@ -21,8 +21,5 @@
     "version": {"type": "integer", "minimum": 1},
     "metadata": {"type": "object", "additionalProperties": true}
   },
-  "allOf": [
-    {"not": {"properties": {"fromConceptId": {"const": {"$data": "1/toConceptId"}}}}}
-  ],
   "additionalProperties": false
 }
