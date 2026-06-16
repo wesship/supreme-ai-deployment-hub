@@ -20,7 +20,7 @@ hiredis==3.0.0
 # ── Authentication ─────────────────────────────────────────────────────────
 python-jose[cryptography]==3.4.0
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.29
+python-multipart==0.0.31
 
 # ── HTTP client ────────────────────────────────────────────────────────────
 httpx==0.28.1
