@@ -10,8 +10,8 @@ test('expands CONCEPT-360 and requires canonical approval', () => {
   assert.equal(result.humanApprovalRequired, true);
 });
 
-test('routes concept work through the supervisor until a dedicated router is added', () => {
+test('routes concept work to the concept intelligence agent', () => {
   const plan = routeCommand(parseCommand('CONCEPT-GAP + CONCEPT-BRIDGE: Find missing links.'));
   assert.equal(plan.status, 'draft-ready');
-  assert.equal(plan.primaryAgent.id, 'primetime-supervisor');
+  assert.equal(plan.primaryAgent.id, 'concept-intelligence');
 });
