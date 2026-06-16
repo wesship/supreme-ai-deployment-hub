@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Copy, Play, ShieldCheck } from "lucide-react";
 import { parseCommand, registry } from "../../packages/primetime-command-engine/src/index";
 
@@ -116,7 +116,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-xl border border-slate-800 bg-slate-900 p-4"><p className="text-xs uppercase tracking-wider text-slate-500">{label}</p><p className="mt-1 text-xl font-bold">{value}</p></div>;
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, children }: { title: string; children: ReactNode }) {
   return <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><h2 className="mb-4 text-xl font-bold">{title}</h2>{children}</div>;
 }
 
