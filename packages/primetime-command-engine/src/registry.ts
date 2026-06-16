@@ -3,7 +3,7 @@ import type { CommandRegistry } from './types.js';
 const c = (code: string, category: string, description: string, approvalLevel: 0|1|2|3, extra: Partial<{regulated:boolean;aliases:string[];conflictsWith:string[]}> = {}) => ({ code, category, description, approvalLevel, ...extra });
 
 export const registry: CommandRegistry = {
-  version: '1.1.0',
+  version: '1.2.0',
   commands: [
     c('PRIMETIME','project','Apply complete PRIMETIME project context.',0),
     c('PROJECT-SCAN','project','Review related modules, plans, workflows, and decisions.',0),
@@ -68,6 +68,26 @@ export const registry: CommandRegistry = {
     c('REVENUE-MODEL','analytics','Create a revenue projection.',0),
     c('BOTTLENECK','analysis','Find the largest operational constraint.',0),
     c('WEEKLY-REPORT','analytics','Create a weekly business report.',0),
+    c('CONCEPT-READ','concept','Read a source and identify concepts and candidate relationships.',1),
+    c('CONCEPT-IMPORT','concept','Import an external map into draft graph records.',2),
+    c('CONCEPT-NORMALIZE','concept','Normalize names, aliases, types, and edge labels.',1),
+    c('CONCEPT-DEDUPE','concept','Detect duplicate concepts and prepare merge candidates.',2),
+    c('CONCEPT-SOURCE','concept','Attach source evidence and provenance.',1),
+    c('CONCEPT-CONFIDENCE','concept','Calculate concept and relationship confidence.',1),
+    c('CONCEPT-CLUSTER','concept','Detect concept communities and topic clusters.',1),
+    c('CONCEPT-CENTRALITY','concept','Find structurally influential concepts.',1),
+    c('CONCEPT-GAP','concept','Detect missing or weak connections.',1),
+    c('CONCEPT-BRIDGE','concept','Generate and rank bridge concepts and questions.',1),
+    c('CONCEPT-CONTRADICTION','concept','Identify conflicting claims and relationships.',2),
+    c('CONCEPT-COMPARE','concept','Compare graph versions or knowledge domains.',1),
+    c('CONCEPT-MERGE','concept','Merge approved concept maps.',2),
+    c('CONCEPT-CANON','concept','Promote validated graph records to canonical status.',3),
+    c('CONCEPT-TRACE','concept','Show concept provenance and version history.',0),
+    c('CONCEPT-EXPORT','concept','Export approved graph data to visualization tools.',1),
+    c('INFRANODUS-ANALYZE','concept','Run approved text-network structural analysis through InfraNodus.',2),
+    c('HEPTABASE-REVIEW','concept','Send draft concepts to a human visual review workspace.',2),
+    c('ALGOR-EXTRACT','concept','Extract educational concept structures from approved materials.',1),
+    c('GRAPH-RAG-BUILD','concept','Build graph-grounded retrieval context.',2),
     c('TABLE','format','Return a table.',0,{conflictsWith:['JSON','YAML']}),
     c('JSON','format','Return JSON.',0,{conflictsWith:['TABLE','YAML']}),
     c('YAML','format','Return YAML.',0,{conflictsWith:['TABLE','JSON']}),
@@ -83,6 +103,7 @@ export const registry: CommandRegistry = {
     'AGENT-360':['AGENT-DESIGN','AGENT-SOUL','AGENT-TOOLS','AGENT-MEMORY','AGENT-WORKFLOW','AGENT-GUARDRAILS','AGENT-TEST','AGENT-SCORECARD'],
     'LEADS-360':['TOP25','LEAD-GEN','LEAD-QUALIFY','LEAD-NURTURE','APPOINTMENT-SET','FOLLOWUP-PLAN','REFERRAL-ENGINE','CONVERSION-AUDIT'],
     'DEPLOY-360':['ARCHITECTURE','ENV-CHECK','SECURITY-AUDIT','TEST-BUILD','CI-CD','DEPLOYMENT','BACKUP-PLAN','PRODUCTION-READY'],
-    'BUSINESS-360':['KPI-BUILD','FUNNEL-METRICS','TEAM-PERFORMANCE','COST-MODEL','REVENUE-MODEL','BOTTLENECK','WEEKLY-REPORT','PROJECT-NEXT']
+    'BUSINESS-360':['KPI-BUILD','FUNNEL-METRICS','TEAM-PERFORMANCE','COST-MODEL','REVENUE-MODEL','BOTTLENECK','WEEKLY-REPORT','PROJECT-NEXT'],
+    'CONCEPT-360':['CONCEPT-READ','CONCEPT-NORMALIZE','CONCEPT-DEDUPE','CONCEPT-SOURCE','CONCEPT-CLUSTER','CONCEPT-GAP','CONCEPT-BRIDGE','CONCEPT-CONFIDENCE','HUMAN-APPROVAL','CONCEPT-CANON']
   }
 };
