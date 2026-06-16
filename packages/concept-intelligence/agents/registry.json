@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "agents": [
+    {"id": "concept-reader", "code": "AGENT-CONCEPT-READER", "purpose": "Extract concepts, claims, questions, entities, and candidate relationships from approved sources.", "approvalLevel": 1},
+    {"id": "concept-normalizer", "code": "AGENT-CONCEPT-NORMALIZER", "purpose": "Normalize names, aliases, types, and relationship labels.", "approvalLevel": 1},
+    {"id": "concept-dedupe", "code": "AGENT-CONCEPT-DEDUPE", "purpose": "Detect likely duplicate concepts and prepare merge candidates without auto-merging canonical records.", "approvalLevel": 2},
+    {"id": "graph-builder", "code": "AGENT-GRAPH-BUILDER", "purpose": "Create draft graph nodes and edges from validated extraction output.", "approvalLevel": 2},
+    {"id": "gap-detector", "code": "AGENT-GAP-DETECTOR", "purpose": "Detect isolated concepts, weak links, missing dependencies, and incomplete coverage.", "approvalLevel": 1},
+    {"id": "bridge-question", "code": "AGENT-BRIDGE-QUESTION", "purpose": "Generate and rank questions that connect disconnected concept clusters.", "approvalLevel": 1},
+    {"id": "evidence-validator", "code": "AGENT-EVIDENCE-VALIDATOR", "purpose": "Verify that every material concept and relationship has traceable evidence.", "approvalLevel": 2},
+    {"id": "contradiction", "code": "AGENT-CONTRADICTION", "purpose": "Identify conflicting claims and impacted workflows without silently resolving them.", "approvalLevel": 2},
+    {"id": "graph-governor", "code": "AGENT-GRAPH-GOVERNOR", "purpose": "Apply lifecycle, approval, compliance, and canonical-promotion rules.", "approvalLevel": 3},
+    {"id": "graph-reporter", "code": "AGENT-GRAPH-REPORTER", "purpose": "Produce technical, executive, study, and operational graph reports.", "approvalLevel": 1}
+  ]
+}
