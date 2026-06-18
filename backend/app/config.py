@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     elevenlabs_default_model: str = "eleven_turbo_v2_5"
     assemblyai_api_key: str = ""
 
+    # ── Speech Intelligence ────────────────────────────────────────────────────
+    # External Whisper/Distil-Whisper microservice. Keep this service separately
+    # scalable because model loading and GPU/CPU requirements differ from the
+    # normal Devonn backend proxy.
+    speech_intelligence_base_url: str = ""
+    speech_intelligence_api_key: str = ""
+    speech_intelligence_timeout_seconds: int = 900
+    speech_intelligence_max_upload_mb: int = 250
+
     # ── CI/CD ──────────────────────────────────────────────────────────────────
     github_token: str = ""
     github_repo: str = "wesship/supreme-ai-deployment-hub"
