@@ -42,6 +42,7 @@ const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiag
 const ChatPage = lazy(() => import("./pages/Chat"));
 const AdminPage = lazy(() => import("./pages/Admin"));
 const OperatorCommandCenter = lazy(() => import("./pages/OperatorCommandCenter"));
+const SpeechIntelligence = lazy(() => import("./pages/SpeechIntelligence"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 
 const PageLoader = () => (
@@ -88,6 +89,7 @@ function App() {
                       <Route path="/privacy-policy" element={<Privacy />} />
                       <Route path="/chat" element={<ChatPage />} />
                       <Route path="/admin" element={<AdminPage />} />
+                      <Route path="/intelligence/speech" element={<SpeechIntelligence />} />
                       <Route
                         path="/occ"
                         element={
