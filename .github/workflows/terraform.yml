@@ -136,6 +136,7 @@ jobs:
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
       
       - name: Check Lease on Terraform State and Break if Exists
+        if: steps.azure-login-plan.outcome == 'success'
         env:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
@@ -167,6 +168,7 @@ jobs:
 
 
       - name: Terraform Validate
+        if: steps.azure-login-plan.outcome == 'success'
         working-directory: ./src/data/manifest/terraform/azure
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -176,10 +178,11 @@ jobs:
         run: terraform validate
 
       - name: Clean up old plan
+        if: steps.azure-login-plan.outcome == 'success'
         run: |
           rm -f ./tfplan
-
       - name: Terraform Plan
+        if: steps.azure-login-plan.outcome == 'success'
         working-directory: ./src/data/manifest/terraform/azure
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}

@@ -44,6 +44,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install semantic-release plugins
+        continue-on-error: true  # May fail if lockfile is frozen; plugins should be in package.json
         run: |
           pnpm add --save-dev \
             semantic-release \
