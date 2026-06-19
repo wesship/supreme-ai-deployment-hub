@@ -239,10 +239,10 @@ class TestToolsProxy:
         assert resp.content == b"fake-audio-bytes"
 
     def test_tts_missing_key_returns_503(self, client):
-        """TTS returns 503 if ELEVENLABS_API_KEY is missing."""
+        """TTS returns 503 if both ELEVENLABS and OPENAI keys are missing."""
         no_key = _test_settings()
         no_key.elevenlabs_api_key = ""
-
+        no_key.openai_api_key = ""
         with patch("app.routers.tools.get_settings", return_value=no_key):
             resp = client.post("/api/tools/voice/tts", json={"text": "Hello."})
         assert resp.status_code == 503

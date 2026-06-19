@@ -70,10 +70,10 @@ async def list_prompts(user_id: str = Depends(get_current_user_id)):
 # ── Tool Router ───────────────────────────────────────────────────────────────
 
 @router.post("/route")
-@rate_limit(max_calls=30, window_seconds=60)
 async def route_request(
     body: RouteRequest,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(30)),
 ):
     """Route a user request to the best tool."""
     result = await tool_router.route_request(body.request, body.context)
@@ -83,10 +83,10 @@ async def route_request(
 # ── Agent Executor ────────────────────────────────────────────────────────────
 
 @router.post("/execute")
-@rate_limit(max_calls=10, window_seconds=60)
 async def execute_task(
     body: ExecuteRequest,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(10)),
 ):
     """Execute a task autonomously using the agent executor."""
     result = await agent_executor.execute(body.task, body.context)
@@ -96,10 +96,10 @@ async def execute_task(
 # ── Orchestrator ──────────────────────────────────────────────────────────────
 
 @router.post("/orchestrate")
-@rate_limit(max_calls=5, window_seconds=60)
 async def orchestrate_goal(
     body: OrchestrateRequest,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(5)),
 ):
     """Orchestrate a complex goal using multi-agent coordination."""
     run = await orchestrator.run(
@@ -132,10 +132,10 @@ async def list_workflows(user_id: str = Depends(get_current_user_id)):
 
 
 @router.post("/workflows/run")
-@rate_limit(max_calls=10, window_seconds=60)
 async def run_workflow(
     body: WorkflowRunRequest,
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    _rate: None = Depends(rate_limit(10)),
 ):
     """Execute a registered workflow by name."""
     try:

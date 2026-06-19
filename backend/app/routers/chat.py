@@ -11,10 +11,10 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from backend.app.config import get_settings
-from backend.app.middleware.auth import get_current_user_id
-from backend.app.middleware.rate_limit import rate_limit
-from backend.app.models.proxy import ChatRequest
+from app.config import get_settings
+from app.middleware.auth import get_current_user_id
+from app.middleware.rate_limit import rate_limit
+from app.models.proxy import ChatRequest
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
