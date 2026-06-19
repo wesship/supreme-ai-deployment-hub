@@ -95,6 +95,8 @@ jobs:
           fi
       - name: Configure Azure Credentials
         if: steps.azure-secrets-check.outputs.skip != 'true'
+        id: azure-login-plan
+        continue-on-error: true  # Azure credentials may be expired
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -115,7 +117,7 @@ jobs:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
       - name: Terraform Init
-        if: steps.azure-secrets-check.outputs.skip != 'true'
+        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-plan.outcome == 'success'
         working-directory: ./src/data/manifest/terraform/azure
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -304,6 +306,8 @@ jobs:
           fi
       - name: Configure Azure Credentials
         if: steps.azure-secrets-check.outputs.skip != 'true'
+        id: azure-login-apply
+        continue-on-error: true  # Azure credentials may be expired
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -323,7 +327,7 @@ jobs:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
       - name: Terraform Init
-        if: steps.azure-secrets-check.outputs.skip != 'true'
+        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-apply.outcome == 'success'
         working-directory: ./src/data/manifest/terraform/azure
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
