@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install CycloneDX
+        run: pnpm add --save-dev @cyclonedx/cyclonedx-npm || npm install -g @cyclonedx/cyclonedx-npm
+
       - name: Generate SBOM (CycloneDX)
         run: |
           pnpm exec cyclonedx-npm \

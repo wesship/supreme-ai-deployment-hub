@@ -202,6 +202,7 @@ jobs:
             -out=tfplan
 
       - name: Find Terraform Plan File
+        if: steps.azure-login-plan.outcome == 'success'
         run: |
           echo "Searching for the tfplan file..."
           find . -name "tfplan" 
@@ -209,12 +210,14 @@ jobs:
           ls -l ./src/data/manifest/terraform/azure
 
       - name: Publish Terraform Plan
+        if: steps.azure-login-plan.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: tfplan
           path: ./
 
       - name: Create String Output
+        if: steps.azure-login-plan.outcome == 'success'
         id: tf-plan-string
         run: |
           TERRAFORM_PLAN=$(terraform show -no-color tfplan)
@@ -232,6 +235,7 @@ jobs:
         working-directory: ./src/data/manifest/terraform/azure
 
       - name: Publish Terraform Plan to Task Summary
+        if: steps.azure-login-plan.outcome == 'success'
         env:
           SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
         run: |
