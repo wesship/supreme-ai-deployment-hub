@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# ── Stage 2: Runtime image ────────────────────────────────────────────────────
+# ── Stage 2: Runtime image ───────────────────────────────────────────────────
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -27,8 +27,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install curl for HEALTHCHECK only
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# Install healthcheck dependency and pull patched runtime packages before scanning.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    --only-upgrade \
+    libc6 \
+    libgssapi-krb5-2 \
+    libk5crypto3 \
+    libkrb5-3 \
+    libkrb5support0 \
+    libpython3.11-minimal \
+    libpython3.11-stdlib \
+    libssl3 \
+    python3.11-minimal \
+    && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed packages from builder stage
