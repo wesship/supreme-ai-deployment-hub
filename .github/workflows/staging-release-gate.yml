@@ -147,7 +147,7 @@ jobs:
     name: Staging Smoke Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: schema-drift
+    needs: [schema-drift, validate-secrets]
     env:
       STAGING_BASE_URL: ${{ needs.validate-secrets.outputs.staging_url }}
     steps:

@@ -36,7 +36,7 @@ jobs:
     name: Sync to Jira
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: env.JIRA_BASE_URL != '' || github.event_name == 'workflow_dispatch'
+    if: vars.JIRA_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
     env:
       JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
       JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
@@ -56,6 +56,9 @@ jobs:
 
       - name: Determine issue details
         id: issue
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title || '' }}
+          ISSUE_BODY: ${{ github.event.issue.body || '' }}
         run: |
           python3 - << 'PYEOF'
           import os, json
@@ -83,10 +86,10 @@ jobs:
                   import sys; sys.exit(0)
               source = "ci"
           elif event == "issues":
-              title = "${{ github.event.issue.title }}"
+              title = os.environ.get("ISSUE_TITLE", "")
               severity = "medium"
               source = "github"
-              description = "${{ github.event.issue.body }}"
+              description = os.environ.get("ISSUE_BODY", "")
           else:
               title = f"Platform Alert from {event}"
               severity = "medium"
@@ -188,7 +191,7 @@ jobs:
     name: Sync to Linear
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: env.LINEAR_API_KEY != '' || github.event_name == 'workflow_dispatch'
+    if: vars.LINEAR_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
     env:
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
       LINEAR_TEAM_ID: ${{ secrets.LINEAR_TEAM_ID }}

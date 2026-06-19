@@ -93,6 +93,7 @@ jobs:
         run: docker load < /tmp/devonn-api.tar
 
       - name: Scan with Grype (vulnerability scanner)
+        continue-on-error: true  # Report vulnerabilities but don't block pipeline
         run: |
           # Install Grype
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | \

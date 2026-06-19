@@ -127,8 +127,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const severity = '${{ needs.slo-monitoring.outputs.breach_severity || github.event.inputs.incident_severity || "P2" }}';
-            const details = '${{ needs.slo-monitoring.outputs.breach_details || github.event.inputs.incident_description || "Manual trigger" }}';
+            const severity = '${{ needs.slo-monitoring.outputs.breach_severity || github.event.inputs.incident_severity || 'P2' }}';
+            const details = '${{ needs.slo-monitoring.outputs.breach_details || github.event.inputs.incident_description || 'Manual trigger' }}';
             const now = new Date().toISOString();
 
             const severityEmoji = { P1: '🔴', P2: '🟠', P3: '🟡' }[severity] || '🟡';

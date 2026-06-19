@@ -90,7 +90,7 @@ jobs:
 
       - name: Notify Slack
         continue-on-error: true
-        if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
+        if: always()
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
@@ -157,7 +157,7 @@ jobs:
 
       - name: Notify Slack
         continue-on-error: true
-        if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
+        if: always()
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}
@@ -222,7 +222,7 @@ jobs:
 
       - name: Notify Slack - Production Deploy
         continue-on-error: true
-        if: always() && secrets.SLACK_WEBHOOK_DEPLOYS != ''
+        if: always()
         uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_DEPLOYS }}

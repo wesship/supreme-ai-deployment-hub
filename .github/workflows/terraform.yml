@@ -107,7 +107,9 @@ jobs:
         # Hardening: removed `continue-on-error: true`. The `if:` guard already
         # skips this step when GCP_CREDENTIALS_JSON is absent, so any failure
         # now is a real auth failure and MUST fail the job.
-        if: steps.azure-secrets-check.outputs.skip != 'true' && secrets.GCP_CREDENTIALS_JSON != ''
+        if: steps.azure-secrets-check.outputs.skip != 'true' && env.GCP_CREDS_SET == 'true'
+        env:
+          GCP_CREDS_SET: ${{ secrets.GCP_CREDENTIALS_JSON != '' && 'true' || 'false' }}
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
@@ -186,7 +188,7 @@ jobs:
         run: |
           terraform plan \
             -var="resource_group_name=${{ env.AZURE_RESOURCE_GROUP }}" \
-            -var="location=${{ github.event.inputs.deploy_region || 'eastus' }}" \
+            -var="location=eastus" \
             -var="container_app_environment_name=${{ env.CONTAINER_ENV_NAME }}" \
             -var="container_app_name=${{ env.CONTAINER_APP_NAME }}" \
             -var="backend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:backend-latest" \
@@ -313,7 +315,9 @@ jobs:
       - name: Configure GCP Credentials
         # Hardening: removed `continue-on-error: true` (apply job). GCP auth
         # failures during apply must hard-fail to prevent partial deploys.
-        if: steps.azure-secrets-check.outputs.skip != 'true' && secrets.GCP_CREDENTIALS_JSON != ''
+        if: steps.azure-secrets-check.outputs.skip != 'true' && env.GCP_CREDS_SET == 'true'
+        env:
+          GCP_CREDS_SET: ${{ secrets.GCP_CREDENTIALS_JSON != '' && 'true' || 'false' }}
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
@@ -360,7 +364,7 @@ jobs:
         run: |
           terraform destroy -auto-approve \
             -var="resource_group_name=${{ env.AZURE_RESOURCE_GROUP }}" \
-            -var="location=${{ github.event.inputs.deploy_region || 'eastus' }}" \
+            -var="location=eastus" \
             -var="container_app_environment_name=${{ env.CONTAINER_ENV_NAME }}" \
             -var="container_app_name=${{ env.CONTAINER_APP_NAME }}" \
             -var="backend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:backend-latest" \

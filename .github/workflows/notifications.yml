@@ -14,7 +14,7 @@ on:
     tags:
       - 'platform-v*'
   pull_request:
-    types: [opened, merged]
+    types: [opened, closed]
   workflow_dispatch:
     inputs:
       message:

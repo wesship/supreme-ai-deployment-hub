@@ -36,7 +36,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --include=dev
+        run: pnpm install --frozen-lockfile
 
       - name: Generate SBOM (CycloneDX)
         run: |
