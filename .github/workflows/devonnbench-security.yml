@@ -1,0 +1,82 @@
+name: DevonnBench Security Audit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repo-security:
+    name: Repo security checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Secret scan
+        run: pnpm security:scan
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+  devonnbench-security:
+    name: DevonnBench API security smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install DevonnBench requirements
+        run: python -m pip install -r requirements-devonnbench.txt
+
+      - name: Run DevonnBench when API is configured
+        env:
+          DEVONN_BASE_URL: ${{ secrets.DEVONN_BASE_URL }}
+          DEVONN_API_TOKEN: ${{ secrets.DEVONN_API_TOKEN }}
+          DEVONN_ENV: ci
+        run: |
+          if [ -z "$DEVONN_BASE_URL" ]; then
+            echo "DEVONN_BASE_URL secret is not configured; skipping live API security smoke."
+            exit 0
+          fi
+          python -m devonnbench.cli run devonnbench/suites/security-smoke.yaml \
+            --base-url "$DEVONN_BASE_URL" \
+            --env "$DEVONN_ENV" \
+            --threshold 100 \
+            --auth-token "$DEVONN_API_TOKEN"
+
+      - name: Upload DevonnBench artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devonnbench-security-artifacts
+          path: benchmark-artifacts/*.json
+          if-no-files-found: ignore
