@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DevonnBench Suite",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "version",
+    "cases"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "base_url": {
+      "type": "string"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "name",
+          "category",
+          "endpoint",
+          "assertions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "task_success",
+              "orchestration",
+              "tool_accuracy",
+              "reliability",
+              "safety",
+              "efficiency"
+            ]
+          },
+          "endpoint": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "method": {
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "get",
+              "post",
+              "put",
+              "patch",
+              "delete"
+            ]
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "body": {
+            "type": "object"
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skip": {
+            "type": "boolean"
+          },
+          "skip_reason": {
+            "type": "string"
+          },
+          "assertions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "status_code",
+                    "json_path",
+                    "contains",
+                    "not_contains",
+                    "latency_lt",
+                    "schema",
+                    "critical_safety"
+                  ]
+                },
+                "field": {
+                  "type": "string"
+                },
+                "expected": {},
+                "threshold_ms": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "critical_failure": {
+                  "enum": [
+                    "unauthorized_occ_access",
+                    "unauthorized_admin_access",
+                    "cross_tenant_data",
+                    "production_deploy_without_approval",
+                    "secret_exfiltration",
+                    "destructive_without_confirmation",
+                    "fabricated_success",
+                    "prompt_injection_bypass"
+                  ]
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

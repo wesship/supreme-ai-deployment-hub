@@ -1,0 +1,329 @@
+name: DevonnBench
+
+on:
+  push:
+    branches: [main, staging, "rc-*"]
+  pull_request:
+    branches: [main, staging]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production, local]
+      suite:
+        description: "Suite to run"
+        required: true
+        default: smoke
+        type: choice
+        options: [smoke, regression]
+      threshold:
+        description: "Minimum passing score (0-100)"
+        required: false
+        default: "80"
+
+# Cancel in-progress runs on the same branch to avoid queue pile-up
+concurrency:
+  group: devonnbench-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # -------------------------------------------------------------------------
+  # 1. Unit tests for the harness itself
+  # -------------------------------------------------------------------------
+  unit:
+    name: DevonnBench / unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-devonnbench.txt
+
+      - name: Run harness unit tests
+        run: pytest tests/devonnbench/ -v --tb=short
+
+  # -------------------------------------------------------------------------
+  # 2. Schema validation — all suites must be valid
+  # -------------------------------------------------------------------------
+  validate:
+    name: DevonnBench / validate-suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-devonnbench.txt
+
+      - name: Validate smoke suite
+        run: |
+          python - <<'PY'
+          import json
+          import jsonschema
+          import yaml
+
+          schema = json.load(open('devonnbench/schema.json'))
+          suite = yaml.safe_load(open('suites/smoke.yaml'))
+          jsonschema.validate(suite, schema)
+          print('smoke.yaml: VALID')
+          PY
+
+      - name: Validate regression template
+        run: |
+          python - <<'PY'
+          import json
+          import jsonschema
+          import yaml
+
+          schema = json.load(open('devonnbench/schema.json'))
+          suite = yaml.safe_load(open('suites/regression-template.yaml'))
+          jsonschema.validate(suite, schema)
+          print('regression-template.yaml: VALID')
+          PY
+
+  # -------------------------------------------------------------------------
+  # 3. Smoke benchmark — runs on PRs and pushes
+  # -------------------------------------------------------------------------
+  smoke:
+    name: DevonnBench / smoke
+    needs: [unit, validate]
+    runs-on: ubuntu-latest
+    # Draft mode: non-blocking on PRs until first clean run is established.
+    # Remove continue-on-error once baseline is confirmed.
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
+
+    env:
+      DEVONN_ENV: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'staging' || 'staging') }}
+      DEVONN_BASE_URL: ${{ secrets.DEVONN_STAGING_BASE_URL }}
+      DEVONN_API_TOKEN: ${{ secrets.DEVONN_API_TOKEN }}
+      DEVONN_VERSION: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-devonnbench.txt
+
+      - name: Run smoke benchmark
+        id: smoke_run
+        run: |
+          python -m devonnbench.cli run suites/smoke.yaml \
+            --base-url "$DEVONN_BASE_URL" \
+            --env "$DEVONN_ENV" \
+            --threshold ${{ github.event.inputs.threshold || '80' }} \
+            --auth-token "$DEVONN_API_TOKEN" \
+            --output-dir benchmark-artifacts \
+            --git-commit "$GITHUB_SHA" \
+            --devonn-version "$DEVONN_VERSION"
+
+      - name: Upload benchmark artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: devonnbench-smoke-${{ github.sha }}
+          path: benchmark-artifacts/
+          retention-days: 90
+
+      - name: Post summary to job summary
+        if: always()
+        run: |
+          echo "## DevonnBench Smoke Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Score | ${{ steps.smoke_run.outputs.overall_score }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Passed | ${{ steps.smoke_run.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Run ID | ${{ steps.smoke_run.outputs.run_id }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ steps.smoke_run.outputs.critical_failures }}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **CRITICAL SAFETY FAILURES: ${{ steps.smoke_run.outputs.critical_failures }}**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # -------------------------------------------------------------------------
+  # 4. Regression benchmark — main branch and RCs only
+  # -------------------------------------------------------------------------
+  regression:
+    name: DevonnBench / regression
+    needs: [smoke]
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/rc-')
+    runs-on: ubuntu-latest
+
+    env:
+      DEVONN_ENV: ${{ startsWith(github.ref, 'refs/heads/rc-') && 'staging' || 'staging' }}
+      DEVONN_BASE_URL: ${{ secrets.DEVONN_STAGING_BASE_URL }}
+      DEVONN_API_TOKEN: ${{ secrets.DEVONN_API_TOKEN }}
+      DEVONN_VERSION: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-devonnbench.txt
+
+      - name: Run regression benchmark
+        id: regression_run
+        run: |
+          python -m devonnbench.cli run suites/regression-template.yaml \
+            --base-url "$DEVONN_BASE_URL" \
+            --env "$DEVONN_ENV" \
+            --threshold 85 \
+            --auth-token "$DEVONN_API_TOKEN" \
+            --output-dir benchmark-artifacts \
+            --git-commit "$GITHUB_SHA"
+
+      - name: Upload regression artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: devonnbench-regression-${{ github.sha }}
+          path: benchmark-artifacts/
+          retention-days: 90
+
+      - name: Upload to Supabase benchmark history
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'EOF'
+          import os, json, glob, httpx
+          if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_SERVICE_ROLE_KEY"):
+              print("Supabase secrets are not configured; skipping history upload")
+              exit(0)
+          artifacts = glob.glob("benchmark-artifacts/*.json")
+          if not artifacts:
+              print("No artifacts to upload")
+              exit(0)
+          artifact_path = sorted(artifacts)[-1]
+          with open(artifact_path) as f:
+              data = json.load(f)
+          base_url = os.environ["SUPABASE_URL"].rstrip("/") + "/rest/v1"
+          headers = {
+              "apikey": os.environ["SUPABASE_SERVICE_ROLE_KEY"],
+              "Authorization": f"Bearer {os.environ['SUPABASE_SERVICE_ROLE_KEY']}",
+              "Content-Type": "application/json",
+              "Prefer": "return=minimal,resolution=merge-duplicates",
+          }
+          run_payload = {
+              "run_id": data["run_id"],
+              "suite_name": data["suite_name"],
+              "suite_version": data["suite_version"],
+              "devonn_version": data.get("devonn_version"),
+              "git_commit": data.get("git_commit"),
+              "environment": data["environment"],
+              "overall_score": data["overall_score"],
+              "passed": data["passed"],
+              "critical_failures": data.get("critical_failures", []),
+              "category_scores": data.get("category_scores", []),
+              "total_cases": data["total_cases"],
+              "executed_cases": data.get("executed_cases", data["total_cases"] - data.get("skipped_cases", 0)),
+              "passed_cases": data["passed_cases"],
+              "failed_cases": data.get("failed_cases", 0),
+              "skipped_cases": data.get("skipped_cases", 0),
+              "total_latency_ms": data.get("total_latency_ms"),
+              "estimated_cost_usd": data.get("estimated_total_cost_usd"),
+              "threshold": data["threshold"],
+              "started_at": data["started_at"],
+              "finished_at": data["finished_at"],
+              "duration_seconds": data.get("duration_seconds"),
+              "artifact_path": data.get("artifact_path"),
+          }
+          r = httpx.post(f"{base_url}/devonn_benchmark_runs?on_conflict=run_id", json=run_payload, headers=headers)
+          if r.status_code not in (200, 201, 204):
+              print(f"Supabase run upload failed: {r.status_code} {r.text}")
+              exit(1)
+          case_payloads = []
+          for case in data.get("case_results", []):
+              case_payloads.append({
+                  "run_id": data["run_id"],
+                  "case_id": case["case_id"],
+                  "case_name": case["case_name"],
+                  "category": case["category"],
+                  "passed": case["passed"],
+                  "score": case["score"],
+                  "skipped": case.get("skipped", False),
+                  "skip_reason": case.get("skip_reason"),
+                  "http_status": case.get("http_status"),
+                  "latency_ms": case.get("latency_ms"),
+                  "assertion_results": case.get("assertion_results", []),
+                  "critical_failure": case.get("critical_failure"),
+                  "estimated_cost_usd": case.get("estimated_cost_usd"),
+                  "response_excerpt": case.get("response_excerpt"),
+                  "execution_error": case.get("execution_error"),
+              })
+          if case_payloads:
+              r = httpx.post(f"{base_url}/devonn_benchmark_cases", json=case_payloads, headers=headers)
+              if r.status_code not in (200, 201, 204):
+                  print(f"Supabase case upload failed: {r.status_code} {r.text}")
+                  exit(1)
+          print(f"Uploaded run {data['run_id']} and {len(case_payloads)} cases to Supabase")
+          EOF
+
+  # -------------------------------------------------------------------------
+  # 5. Release candidate gate — zero critical failures required
+  # -------------------------------------------------------------------------
+  release-gate:
+    name: DevonnBench / release-gate
+    needs: [regression]
+    if: startsWith(github.ref, 'refs/heads/rc-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download regression artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: devonnbench-regression-${{ github.sha }}
+          path: benchmark-artifacts/
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-devonnbench.txt
+
+      - name: Enforce release gate — zero critical failures
+        run: |
+          python - <<'EOF'
+          import json, glob, sys
+          artifacts = sorted(glob.glob("benchmark-artifacts/*.json"))
+          if not artifacts:
+              print("No benchmark artifacts found — GATE FAILED")
+              sys.exit(1)
+          data = json.load(open(artifacts[-1]))
+          if data["critical_failures"]:
+              print(f"RELEASE BLOCKED — critical failures: {data['critical_failures']}")
+              sys.exit(1)
+          if not data["passed"]:
+              print(f"RELEASE BLOCKED — score {data['overall_score']} below threshold {data['threshold']}")
+              sys.exit(1)
+          print(f"Release gate PASSED — score {data['overall_score']}, zero critical failures")
+          EOF
