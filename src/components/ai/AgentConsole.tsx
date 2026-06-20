@@ -18,7 +18,7 @@ const AGENT_ICONS: Record<AgentType, React.ReactNode> = {
 };
 
 const AGENT_COLORS: Record<AgentType, string> = {
-  orchestrator: '#3BFF7A',
+  orchestrator: '#7080FF',
   researcher: '#60A5FA',
   coder: '#F59E0B',
   deployer: '#A78BFA',
@@ -87,7 +87,7 @@ const AgentNodeCard: React.FC<AgentNodeCardProps> = ({ node, isRoot }) => {
 function statusColor(status: string): string {
   switch (status) {
     case 'running': return '#F59E0B';
-    case 'done': return '#3BFF7A';
+    case 'done': return '#7080FF';
     case 'error': return '#EF4444';
     default: return '#475569';
   }
@@ -120,7 +120,7 @@ export const AgentConsole: React.FC<AgentConsoleProps> = ({ graph, collapsed = f
     <div
       style={{
         background: 'rgba(7,10,15,0.95)',
-        border: '1px solid rgba(59,255,122,0.15)',
+        border: '1px solid rgba(112,128,255,0.15)',
         marginBottom: '8px',
         fontFamily: 'monospace',
       }}
@@ -138,8 +138,8 @@ export const AgentConsole: React.FC<AgentConsoleProps> = ({ graph, collapsed = f
           userSelect: 'none',
         }}
       >
-        <Zap className="w-3 h-3" style={{ color: '#3BFF7A' }} />
-        <span style={{ fontSize: '11px', color: '#3BFF7A', fontWeight: 700 }}>
+        <Zap className="w-3 h-3" style={{ color: '#7080FF' }} />
+        <span style={{ fontSize: '11px', color: '#7080FF', fontWeight: 700 }}>
           AGENT {isMultiAgent ? 'MESH' : 'MODE'}
         </span>
         <span style={{ fontSize: '10px', color: '#475569', marginLeft: '4px' }}>
@@ -149,7 +149,7 @@ export const AgentConsole: React.FC<AgentConsoleProps> = ({ graph, collapsed = f
         <span style={{
           marginLeft: 'auto',
           fontSize: '10px',
-          color: graph.status === 'done' ? '#3BFF7A' : graph.status === 'error' ? '#EF4444' : '#F59E0B',
+          color: graph.status === 'done' ? '#7080FF' : graph.status === 'error' ? '#EF4444' : '#F59E0B',
           display: 'flex', alignItems: 'center', gap: '3px',
         }}>
           {graph.status === 'running' && <Loader2 className="w-3 h-3 animate-spin" />}

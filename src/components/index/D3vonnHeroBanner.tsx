@@ -29,7 +29,7 @@ const D3vonnHeroBanner: React.FC = () => {
         className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-30"
         style={{
           backgroundImage:
-            'repeating-linear-gradient(0deg, rgba(59,255,122,0.06) 0px, rgba(59,255,122,0.06) 1px, transparent 1px, transparent 3px)',
+            'repeating-linear-gradient(0deg, rgba(112,128,255,0.06) 0px, rgba(112,128,255,0.06) 1px, transparent 1px, transparent 3px)',
         }}
         aria-hidden="true"
       />
@@ -39,7 +39,7 @@ const D3vonnHeroBanner: React.FC = () => {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.6 }}
-        className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full border border-primary/40 bg-black/60 backdrop-blur-md text-[10px] sm:text-xs tracking-[0.25em] uppercase text-primary shadow-[0_0_20px_rgba(59,255,122,0.35)]"
+        className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full border border-primary/40 bg-black/60 backdrop-blur-md text-[10px] sm:text-xs tracking-[0.25em] uppercase text-primary shadow-[0_0_20px_rgba(112,128,255,0.35)]"
       >
         devonn.ai → D3VONN.IO · Now Live
       </motion.div>

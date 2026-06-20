@@ -35,11 +35,11 @@
     --popover-foreground: 0 0% 100%;
     
     /* === PRIMARY (ACCENT GREEN - Luxury Matrix) === */
-    --primary: 235 100% 72%;           /* #3BFF7A */
+    --primary: 235 100% 72%;           /* #7080FF */
     --primary-foreground: 217 45% 8%;
     
     /* === ACCENT (Controlled neon green) === */
-    --accent: 235 100% 72%;            /* #3BFF7A */
+    --accent: 235 100% 72%;            /* #7080FF */
     --accent-foreground: 217 45% 8%;
     --accent-hover: 235 90% 65%;       /* #2BE96A */
     --accent-active: 235 80% 58%;      /* #1ED25A */
@@ -67,7 +67,7 @@
     --ring: 235 100% 72%;
     
     /* === STATUS COLORS === */
-    --status-success: 235 100% 72%;    /* #3BFF7A */
+    --status-success: 235 100% 72%;    /* #7080FF */
     --status-warning: 43 100% 69%;     /* #FFD45C */
     --status-danger: 350 100% 69%;     /* #FF5C7A */
     --status-info: 199 100% 69%;       /* #5CC8FF */

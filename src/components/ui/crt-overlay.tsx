@@ -40,7 +40,7 @@ export const CRTOverlay: React.FC<CRTOverlayProps> = ({
       
       {/* Horizontal scan beam */}
       <div 
-        className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#3BFF7A]/20 to-transparent"
+        className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#7080FF]/20 to-transparent"
         style={{
           animation: 'scanBeam 8s linear infinite'
         }}
@@ -100,7 +100,7 @@ export const CRTOverlay: React.FC<CRTOverlayProps> = ({
       <div 
         className="absolute inset-0"
         style={{
-          boxShadow: 'inset 0 0 100px rgba(59, 255, 122, 0.05), inset 0 0 50px rgba(59, 255, 122, 0.03)'
+          boxShadow: 'inset 0 0 100px rgba(112, 128, 255, 0.05), inset 0 0 50px rgba(112, 128, 255, 0.03)'
         }}
       />
 

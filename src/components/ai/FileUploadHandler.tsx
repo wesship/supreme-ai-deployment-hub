@@ -153,8 +153,8 @@ export const FileUploadHandler: React.FC<FileUploadHandlerProps> = ({
         onDragLeave={handleDragLeave}
         onClick={() => inputRef.current?.click()}
         style={{
-          border: `2px dashed ${isDragging ? '#3BFF7A' : '#334155'}`,
-          background: isDragging ? 'rgba(59,255,122,0.05)' : 'rgba(15,23,42,0.6)',
+          border: `2px dashed ${isDragging ? '#7080FF' : '#334155'}`,
+          background: isDragging ? 'rgba(112,128,255,0.05)' : 'rgba(15,23,42,0.6)',
           padding: '16px',
           cursor: 'pointer',
           transition: 'border-color 0.2s, background 0.2s',
@@ -170,7 +170,7 @@ export const FileUploadHandler: React.FC<FileUploadHandlerProps> = ({
           onChange={e => handleFiles(e.target.files)}
         />
         <div style={{ fontFamily: 'monospace', fontSize: '13px', color: '#94A3B8' }}>
-          <span style={{ color: '#3BFF7A', fontSize: '20px' }}>+</span>
+          <span style={{ color: '#7080FF', fontSize: '20px' }}>+</span>
           <br />
           Drop files to ingest into memory
           <br />
@@ -198,7 +198,7 @@ export const FileUploadHandler: React.FC<FileUploadHandlerProps> = ({
               }}
             >
               <span style={{
-                color: u.status === 'done' ? '#3BFF7A' : u.status === 'error' ? '#EF4444' : '#F59E0B',
+                color: u.status === 'done' ? '#7080FF' : u.status === 'error' ? '#EF4444' : '#F59E0B',
               }}>
                 {u.status === 'done' ? '[DONE]' : u.status === 'error' ? '[ERR]' : '[...]'}
               </span>

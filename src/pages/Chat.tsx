@@ -136,17 +136,17 @@ const ChatPage: React.FC = () => {
             className="flex-shrink-0 flex flex-col overflow-hidden border-r"
             style={{
               background: 'linear-gradient(180deg, #070d1a 0%, #0a1628 100%)',
-              borderColor: 'rgba(59, 255, 122, 0.1)',
+              borderColor: 'rgba(112, 128, 255, 0.1)',
             }}
           >
             {/* Sidebar header */}
-            <div className="p-4 border-b" style={{ borderColor: 'rgba(59, 255, 122, 0.1)' }}>
+            <div className="p-4 border-b" style={{ borderColor: 'rgba(112, 128, 255, 0.1)' }}>
               <button
                 onClick={newConversation}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors"
                 style={{
-                  background: 'rgba(59, 255, 122, 0.08)',
-                  border: '1px solid rgba(59, 255, 122, 0.2)',
+                  background: 'rgba(112, 128, 255, 0.08)',
+                  border: '1px solid rgba(112, 128, 255, 0.2)',
                 }}
               >
                 <Plus className="w-4 h-4 text-green-400" />
@@ -185,7 +185,7 @@ const ChatPage: React.FC = () => {
             {/* User info */}
             <div
               className="p-3 border-t text-xs"
-              style={{ borderColor: 'rgba(59, 255, 122, 0.1)' }}
+              style={{ borderColor: 'rgba(112, 128, 255, 0.1)' }}
             >
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
@@ -205,7 +205,7 @@ const ChatPage: React.FC = () => {
           className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0"
           style={{
             background: 'rgba(7, 13, 26, 0.95)',
-            borderColor: 'rgba(59, 255, 122, 0.1)',
+            borderColor: 'rgba(112, 128, 255, 0.1)',
           }}
         >
           <div className="flex items-center gap-3">
@@ -271,8 +271,8 @@ const ChatPage: React.FC = () => {
                       border: '1px solid rgba(255,255,255,0.07)',
                     }}
                     onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59, 255, 122, 0.2)';
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(59, 255, 122, 0.04)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(112, 128, 255, 0.2)';
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(112, 128, 255, 0.04)';
                     }}
                     onMouseLeave={e => {
                       (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)';
@@ -368,7 +368,7 @@ const ChatPage: React.FC = () => {
           className="flex-shrink-0 border-t px-4 py-4"
           style={{
             background: 'rgba(7, 13, 26, 0.98)',
-            borderColor: 'rgba(59, 255, 122, 0.1)',
+            borderColor: 'rgba(112, 128, 255, 0.1)',
           }}
         >
           <div className="max-w-3xl mx-auto">
@@ -378,12 +378,12 @@ const ChatPage: React.FC = () => {
                 style={{
                   marginBottom: '8px',
                   background: 'rgba(7,13,26,0.95)',
-                  border: '1px solid rgba(59,255,122,0.2)',
+                  border: '1px solid rgba(112,128,255,0.2)',
                   padding: '12px',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#3BFF7A' }}>INGEST DOCUMENTS INTO MEMORY</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#7080FF' }}>INGEST DOCUMENTS INTO MEMORY</span>
                   <button onClick={() => setShowUploadPanel(false)} style={{ color: '#475569', fontSize: '16px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
                 </div>
                 <FileUploadHandler
@@ -403,10 +403,10 @@ const ChatPage: React.FC = () => {
                 marginBottom: '8px',
                 padding: '8px 12px',
                 background: 'rgba(5,150,105,0.15)',
-                border: '1px solid rgba(59,255,122,0.3)',
+                border: '1px solid rgba(112,128,255,0.3)',
                 fontFamily: 'monospace',
                 fontSize: '12px',
-                color: '#3BFF7A',
+                color: '#7080FF',
               }}>
                 [INDEXED] {lastIngestResult.filename} — {lastIngestResult.chunksIngested} chunks in memory. Ask me anything about it.
               </div>
@@ -415,8 +415,8 @@ const ChatPage: React.FC = () => {
               className="flex items-end gap-3 rounded-2xl px-4 py-3"
               style={{
                 background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(59, 255, 122, 0.15)',
-                boxShadow: '0 0 20px rgba(59, 255, 122, 0.04)',
+                border: '1px solid rgba(112, 128, 255, 0.15)',
+                boxShadow: '0 0 20px rgba(112, 128, 255, 0.04)',
               }}
             >
               {/* File upload toggle */}
@@ -424,7 +424,7 @@ const ChatPage: React.FC = () => {
                 onClick={() => setShowUploadPanel(p => !p)}
                 className="p-1 flex-shrink-0 mb-0.5 transition-colors"
                 title="Upload file to memory"
-                style={{ color: showUploadPanel ? '#3BFF7A' : 'rgba(255,255,255,0.25)' }}
+                style={{ color: showUploadPanel ? '#7080FF' : 'rgba(255,255,255,0.25)' }}
               >
                 <Upload className="w-4 h-4" />
               </button>
@@ -469,8 +469,8 @@ const ChatPage: React.FC = () => {
                     disabled={!input.trim()}
                     className="p-2 rounded-xl transition-all disabled:opacity-30"
                     style={{
-                      background: input.trim() ? 'rgba(59, 255, 122, 0.15)' : 'rgba(255,255,255,0.05)',
-                      border: input.trim() ? '1px solid rgba(59, 255, 122, 0.3)' : '1px solid rgba(255,255,255,0.08)',
+                      background: input.trim() ? 'rgba(112, 128, 255, 0.15)' : 'rgba(255,255,255,0.05)',
+                      border: input.trim() ? '1px solid rgba(112, 128, 255, 0.3)' : '1px solid rgba(255,255,255,0.08)',
                     }}
                   >
                     <Send className={`w-4 h-4 ${input.trim() ? 'text-green-400' : 'text-white/30'}`} />

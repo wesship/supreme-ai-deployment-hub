@@ -62,7 +62,7 @@ const HeroSection: React.FC = () => {
       <MatrixRain 
         speed={1.2} 
         density={0.6} 
-        color="#3BFF7A" 
+        color="#7080FF" 
         glowColor="#00FF41"
         size={16} 
         opacity={0.5}
@@ -98,7 +98,7 @@ const HeroSection: React.FC = () => {
               
               <AnimatedText 
                 text="devonn.ai"
-                gradientColors="linear-gradient(90deg, hsl(142 100% 62%), hsl(142 85% 54%), hsl(142 100% 62%))"
+                gradientColors="linear-gradient(90deg, hsl(235 100% 72%), hsl(235 90% 65%), hsl(235 100% 72%))"
                 gradientAnimationDuration={3}
                 hoverEffect={true}
                 className="py-2 justify-start"
