@@ -17,6 +17,7 @@ import CommandCenterAgents from "@/components/command-center/CommandCenterAgents
 import CommandCenterMcp from "@/components/command-center/CommandCenterMcp";
 import CommandCenterMarketplace from "@/components/command-center/CommandCenterMarketplace";
 import CommandCenterSettings from "@/components/command-center/CommandCenterSettings";
+import D3vonnPageBanner from "@/components/index/D3vonnPageBanner";
 
 type View = "overview" | "agents" | "mcp" | "marketplace" | "settings";
 
@@ -44,6 +45,7 @@ export default function CommandCenter() {
 
   return (
     <TooltipProvider delayDuration={0}>
+      <D3vonnPageBanner title="Command Center" />
       <div className="min-h-screen bg-background pt-16 flex">
         {/* Sidebar */}
         <aside

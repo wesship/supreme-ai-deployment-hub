@@ -9,6 +9,7 @@ import { ManifestSearch } from '@/components/index/manifest/ManifestSearch';
 import { yamlCode, deploymentFiles } from '@/data/manifest/index.cjs';
 import { Button } from '@/components/ui/button';
 import Footer from '@/components/Footer';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const ManifestPage: React.FC = () => {
   // Combine all manifest content for searching
@@ -22,6 +23,7 @@ const ManifestPage: React.FC = () => {
       transition={{ duration: 0.5 }}
       className="min-h-screen flex flex-col pt-20"
     >
+      <D3vonnPageBanner title="Deployment Manifest" />
       <Container maxWidth="2xl" className="flex-1 py-12">
         {/* Back Button */}
         <Link to="/">
