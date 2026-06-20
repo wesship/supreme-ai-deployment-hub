@@ -31,6 +31,7 @@ import PricingSection from '@/components/index/PricingSection';
 import HermesStatusSection from '@/components/index/HermesStatusSection';
 import ProductionStackSection from '@/components/index/ProductionStackSection';
 import LiveDeploymentBanner from '@/components/index/LiveDeploymentBanner';
+import D3vonnHeroBanner from '@/components/index/D3vonnHeroBanner';
 
 const Index = () => {
   const { scrollYProgress } = useScroll();
@@ -72,6 +73,9 @@ const Index = () => {
 
       {/* Live deployment status banner */}
       <LiveDeploymentBanner />
+
+      {/* D3VONN.IO futuristic rebrand hero banner */}
+      <D3vonnHeroBanner />
 
       {/* Hero */}
       <HeroSection />
