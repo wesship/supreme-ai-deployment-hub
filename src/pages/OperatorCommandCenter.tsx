@@ -186,7 +186,7 @@ export default function OperatorCommandCenter() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="min-h-screen bg-background pt-16 flex">
+      <div className="min-h-screen bg-background flex">
         {/* ── Sidebar ───────────────────────────────────── */}
         <aside
           className={`sticky top-16 h-[calc(100vh-4rem)] border-r border-border bg-card/50 flex flex-col transition-all duration-300 ${

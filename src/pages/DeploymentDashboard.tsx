@@ -1,7 +1,5 @@
-
 import React from 'react';
 import DeploymentPage from '@/components/deployment/DeploymentPage';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { DeploymentProvider } from '@/contexts/DeploymentContext';
@@ -16,7 +14,6 @@ const DeploymentDashboard: React.FC = () => {
         transition={{ duration: 0.3 }}
         className="min-h-screen"
       >
-        <Navbar />
         <D3vonnPageBanner title="Deployment Dashboard" />
         <DeploymentPage />
         <Footer />
@@ -26,3 +23,4 @@ const DeploymentDashboard: React.FC = () => {
 };
 
 export default DeploymentDashboard;
+

@@ -76,7 +76,7 @@ export default function StatusDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12">
+    <div className="min-h-screen bg-background pb-12">
       <D3vonnPageBanner title="Service Status" />
       <div className="container mx-auto px-4 max-w-6xl">
         {/* Header */}

@@ -59,7 +59,7 @@ function App() {
             <AGUIProvider>
               <Router>
                 <Navbar />
-                <main className="min-h-screen">
+                <main className="min-h-screen pt-16">
                   <Suspense fallback={<PageLoader />}>
                     <Routes>
                       <Route path="/" element={<Index />} />
