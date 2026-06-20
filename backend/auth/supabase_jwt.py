@@ -1,21 +1,4 @@
-"""
-backend/auth/supabase_jwt.py — Supabase JWT verification for OCC API routes.
-
-Verifies Supabase-issued JWTs (RS256, signed with Supabase's JWT secret) and
-enforces admin/operator role checks via the public.user_roles table.
-
-Usage:
-    from backend.auth.supabase_jwt import require_occ_access, OCCPrincipal
-
-    @router.get("/occ/logs")
-    async def get_logs(principal: OCCPrincipal = Depends(require_occ_access)):
-        ...
-
-Environment variables required:
-    SUPABASE_URL              — e.g. https://xxxx.supabase.co
-    SUPABASE_SERVICE_ROLE_KEY — service role key (bypasses RLS for role check)
-    JWT_SECRET                — your Supabase JWT secret (from project settings)
-"""
+"""Supabase JWT verification and OCC role authorization."""
 from __future__ import annotations
 
 import os
@@ -26,32 +9,21 @@ import httpx
 import jwt as pyjwt
 from fastapi import Depends, Header, HTTPException, status
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
 SUPABASE_URL: str = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 JWT_SECRET: str = os.getenv("JWT_SECRET", "")
 
-# Roles that are allowed to access OCC endpoints
 OCC_ALLOWED_ROLES: frozenset[str] = frozenset({"admin", "operator"})
 
 
-# ---------------------------------------------------------------------------
-# Principal dataclass
-# ---------------------------------------------------------------------------
 @dataclass(frozen=True)
 class OCCPrincipal:
     user_id: str
     email: str | None
-    role: str  # 'admin' | 'operator'
+    role: str
 
 
-# ---------------------------------------------------------------------------
-# JWT verification
-# ---------------------------------------------------------------------------
 def _decode_supabase_jwt(authorization: str | None) -> Dict[str, Any]:
-    """Extract and decode a Supabase Bearer JWT from the Authorization header."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,14 +46,13 @@ def _decode_supabase_jwt(authorization: str | None) -> Dict[str, Any]:
         )
 
     try:
-        payload = pyjwt.decode(
+        return pyjwt.decode(
             token,
             JWT_SECRET,
             algorithms=["HS256"],
             options={"require": ["exp", "sub"]},
             audience="authenticated",
         )
-        return payload
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -89,15 +60,13 @@ def _decode_supabase_jwt(authorization: str | None) -> Dict[str, Any]:
             headers={"WWW-Authenticate": "Bearer"},
         )
     except pyjwt.InvalidAudienceError:
-        # Try without audience claim (some Supabase configs omit it)
         try:
-            payload = pyjwt.decode(
+            return pyjwt.decode(
                 token,
                 JWT_SECRET,
                 algorithms=["HS256"],
                 options={"require": ["exp", "sub"], "verify_aud": False},
             )
-            return payload
         except pyjwt.InvalidTokenError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -112,19 +81,12 @@ def _decode_supabase_jwt(authorization: str | None) -> Dict[str, Any]:
         )
 
 
-# ---------------------------------------------------------------------------
-# Role check via Supabase REST API (service role bypasses RLS)
-# ---------------------------------------------------------------------------
 async def _get_user_occ_role(user_id: str) -> str | None:
-    """
-    Query public.user_roles for the user's highest OCC-allowed role.
-    Uses service_role key to bypass RLS.
-    Returns 'admin', 'operator', or None if no OCC role found.
-    """
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
-        # If Supabase is not configured, fall back to allowing access
-        # (prevents hard lock-out during initial setup)
-        return "operator"
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="OCC authorization is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
+        )
 
     url = f"{SUPABASE_URL}/rest/v1/user_roles"
     headers = {
@@ -143,30 +105,20 @@ async def _get_user_occ_role(user_id: str) -> str | None:
             if resp.status_code != 200:
                 return None
             rows = resp.json()
-            # Prefer admin > operator > viewer > user
             roles = {row["role"] for row in rows if isinstance(row, dict)}
             for preferred in ("admin", "operator"):
                 if preferred in roles:
                     return preferred
             return None
+    except HTTPException:
+        raise
     except Exception:
         return None
 
 
-# ---------------------------------------------------------------------------
-# FastAPI dependency
-# ---------------------------------------------------------------------------
 async def require_occ_access(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ) -> OCCPrincipal:
-    """
-    FastAPI dependency that:
-    1. Verifies the Supabase JWT
-    2. Checks the user has admin or operator role in user_roles
-    3. Returns an OCCPrincipal if authorized
-
-    Raises HTTP 401 if unauthenticated, HTTP 403 if insufficient role.
-    """
     payload = _decode_supabase_jwt(authorization)
 
     user_id: str = payload.get("sub", "")
@@ -183,12 +135,10 @@ async def require_occ_access(
     if role not in OCC_ALLOWED_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access OCC endpoints. "
-                   "Admin or operator role required.",
+            detail="You do not have permission to access OCC endpoints. Admin or operator role required.",
         )
 
     return OCCPrincipal(user_id=user_id, email=email, role=role)
 
 
-# Convenience type alias for route signatures
 OCCAccess = Annotated[OCCPrincipal, Depends(require_occ_access)]
