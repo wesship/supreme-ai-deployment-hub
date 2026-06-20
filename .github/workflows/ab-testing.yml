@@ -179,7 +179,7 @@ jobs:
       - name: Validate A/B experiment design
         run: |
           python3 - <<'PYEOF'
-          import yaml, sys, math
+          import sys, math
 
           print("=== A/B Experiment Design Validation ===")
 
