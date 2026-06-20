@@ -35,16 +35,16 @@
     --popover-foreground: 0 0% 100%;
     
     /* === PRIMARY (ACCENT GREEN - Luxury Matrix) === */
-    --primary: 142 100% 62%;           /* #3BFF7A */
+    --primary: 235 100% 72%;           /* #3BFF7A */
     --primary-foreground: 217 45% 8%;
     
     /* === ACCENT (Controlled neon green) === */
-    --accent: 142 100% 62%;            /* #3BFF7A */
+    --accent: 235 100% 72%;            /* #3BFF7A */
     --accent-foreground: 217 45% 8%;
-    --accent-hover: 142 85% 54%;       /* #2BE96A */
-    --accent-active: 142 75% 47%;      /* #1ED25A */
-    --accent-subtle-bg: 142 100% 62% / 0.10;
-    --accent-subtle-border: 142 100% 62% / 0.22;
+    --accent-hover: 235 90% 65%;       /* #2BE96A */
+    --accent-active: 235 80% 58%;      /* #1ED25A */
+    --accent-subtle-bg: 235 100% 72% / 0.10;
+    --accent-subtle-border: 235 100% 72% / 0.22;
     
     /* === SECONDARY === */
     --secondary: 217 51% 13%;
@@ -64,10 +64,10 @@
     --border-default: 0 0% 100% / 0.12;
     --border-strong: 0 0% 100% / 0.18;
     --input: 0 0% 100% / 0.12;
-    --ring: 142 100% 62%;
+    --ring: 235 100% 72%;
     
     /* === STATUS COLORS === */
-    --status-success: 142 100% 62%;    /* #3BFF7A */
+    --status-success: 235 100% 72%;    /* #3BFF7A */
     --status-warning: 43 100% 69%;     /* #FFD45C */
     --status-danger: 350 100% 69%;     /* #FF5C7A */
     --status-info: 199 100% 69%;       /* #5CC8FF */
@@ -81,12 +81,12 @@
     /* === SIDEBAR === */
     --sidebar-background: 217 45% 8%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 142 100% 62%;
+    --sidebar-primary: 235 100% 72%;
     --sidebar-primary-foreground: 217 45% 8%;
     --sidebar-accent: 217 51% 13%;
     --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 0 0% 100% / 0.12;
-    --sidebar-ring: 142 100% 62%;
+    --sidebar-ring: 235 100% 72%;
   }
 
   .light {
@@ -99,39 +99,39 @@
     --popover: 0 0% 100%;
     --popover-foreground: 217 45% 8%;
     
-    --primary: 142 75% 35%;
+    --primary: 235 80% 55%;
     --primary-foreground: 0 0% 100%;
     
-    --accent: 142 75% 35%;
+    --accent: 235 80% 55%;
     --accent-foreground: 0 0% 100%;
-    --accent-hover: 142 70% 30%;
-    --accent-active: 142 65% 25%;
+    --accent-hover: 235 75% 48%;
+    --accent-active: 235 70% 42%;
     
-    --secondary: 142 20% 94%;
-    --secondary-foreground: 142 50% 20%;
+    --secondary: 235 25% 95%;
+    --secondary-foreground: 235 60% 30%;
     
-    --muted: 142 20% 94%;
+    --muted: 235 25% 95%;
     --muted-foreground: 0 0% 40%;
     
     --destructive: 350 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
-    --border: 142 20% 75%;
-    --input: 142 20% 75%;
-    --ring: 142 75% 35%;
+    --border: 235 25% 80%;
+    --input: 235 25% 80%;
+    --ring: 235 80% 55%;
     
     --surface-1: 0 0% 98%;
     --surface-2: 0 0% 96%;
     --surface-3: 0 0% 94%;
     
-    --sidebar-background: 142 20% 96%;
+    --sidebar-background: 235 25% 97%;
     --sidebar-foreground: 217 45% 8%;
-    --sidebar-primary: 142 75% 35%;
+    --sidebar-primary: 235 80% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 142 20% 92%;
+    --sidebar-accent: 235 25% 92%;
     --sidebar-accent-foreground: 217 45% 8%;
-    --sidebar-border: 142 20% 75%;
-    --sidebar-ring: 142 75% 35%;
+    --sidebar-border: 235 25% 80%;
+    --sidebar-ring: 235 80% 55%;
   }
 }
 
@@ -149,7 +149,7 @@
   }
 
   ::selection {
-    background: hsl(142 100% 62% / 0.22);
+    background: hsl(235 100% 72% / 0.22);
   }
 
   a {
@@ -182,7 +182,7 @@
   /* === FOCUS STATES (Accessible) === */
   :focus-visible {
     @apply outline-none;
-    box-shadow: 0 0 0 3px hsl(142 100% 62% / 0.25);
+    box-shadow: 0 0 0 3px hsl(235 100% 72% / 0.25);
   }
 
   /* === TYPOGRAPHY SCALE === */
@@ -248,7 +248,7 @@
   /* === HERO BACKGROUND (Luxury Matrix) === */
   .devonn-hero-bg {
     background:
-      radial-gradient(1200px circle at 20% 10%, hsl(142 100% 62% / 0.18), transparent 55%),
+      radial-gradient(1200px circle at 20% 10%, hsl(235 100% 72% / 0.18), transparent 55%),
       radial-gradient(1000px circle at 80% 0%, hsl(199 100% 69% / 0.12), transparent 50%),
       linear-gradient(180deg, hsl(0 0% 100% / 0.04), hsl(0 0% 100% / 0)),
       hsl(var(--bg-0));
@@ -263,16 +263,16 @@
 
   /* === ACCENT UTILITIES === */
   .accent-subtle-bg {
-    background-color: hsl(142 100% 62% / 0.10);
+    background-color: hsl(235 100% 72% / 0.10);
   }
   
   .accent-subtle-border {
-    border-color: hsl(142 100% 62% / 0.22);
+    border-color: hsl(235 100% 72% / 0.22);
   }
 
   /* === STATUS BACKGROUNDS === */
   .status-success-bg {
-    background-color: hsl(142 100% 62% / 0.12);
+    background-color: hsl(235 100% 72% / 0.12);
   }
   
   .status-warning-bg {
@@ -322,7 +322,7 @@
   /* === HERO OVERLAY GRADIENT === */
   .hero-overlay {
     background: 
-      radial-gradient(1200px circle at 20% 10%, hsl(142 100% 62% / 0.18), transparent 55%),
+      radial-gradient(1200px circle at 20% 10%, hsl(235 100% 72% / 0.18), transparent 55%),
       radial-gradient(1000px circle at 80% 0%, hsl(199 100% 69% / 0.12), transparent 50%);
   }
   
@@ -341,7 +341,7 @@
   }
   
   .shadow-focus-glow {
-    box-shadow: 0 0 0 3px hsl(142 100% 62% / 0.25);
+    box-shadow: 0 0 0 3px hsl(235 100% 72% / 0.25);
   }
   
   .shadow-modal {
@@ -353,7 +353,7 @@
   }
   
   .shadow-accent-glow {
-    box-shadow: 0 0 20px hsl(142 100% 62% / 0.6);
+    box-shadow: 0 0 20px hsl(235 100% 72% / 0.6);
   }
 
   /* === MICRO INTERACTIONS === */
