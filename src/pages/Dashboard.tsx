@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { 
-import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
   Film, DollarSign, Brain, Crown, Music, Network, 
   TrendingUp, Glasses, LogOut, Sparkles 
 } from 'lucide-react';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
