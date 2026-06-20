@@ -10,6 +10,7 @@ import VoiceInterface from '@/components/voice/VoiceInterface';
 import { LLMConfig, LLMMessage, LLMResponse } from '@/types/llm';
 import { UnifiedLLMClient } from '@/services/llm/client';
 import { toast } from 'sonner';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const EnhancedAgentDemo = () => {
   const [messages, setMessages] = useState<LLMMessage[]>([]);
@@ -114,6 +115,7 @@ const EnhancedAgentDemo = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      <D3vonnPageBanner title="Enhanced Agent Demo" />
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Enhanced AI Agent Platform</h1>

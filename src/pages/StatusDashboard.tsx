@@ -31,6 +31,7 @@ import {
   Globe,
 } from "lucide-react";
 import { useServiceHealth, type ServiceEndpoint } from "@/hooks/useServiceHealth";
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 export default function StatusDashboard() {
   const {
@@ -76,6 +77,7 @@ export default function StatusDashboard() {
 
   return (
     <div className="min-h-screen bg-background pt-20 pb-12">
+      <D3vonnPageBanner title="Service Status" />
       <div className="container mx-auto px-4 max-w-6xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">

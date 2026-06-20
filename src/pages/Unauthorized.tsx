@@ -2,10 +2,12 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 export default function Unauthorized() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <D3vonnPageBanner title="Access Restricted" />
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}

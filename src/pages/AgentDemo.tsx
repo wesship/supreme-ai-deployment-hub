@@ -1,10 +1,12 @@
 
 import React from 'react';
 import AgentChatInterface from '@/components/agui/AgentChatInterface';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const AgentDemo = () => {
   return (
     <div className="container mx-auto py-6">
+      <D3vonnPageBanner title="Agent Demo" />
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">AG-UI Demo</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, ExternalLink, Github, AlertTriangle, ArrowRight } from "lucide-react";
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 type ScreenId =
   | "authorize"
@@ -167,6 +168,7 @@ export default function GitHubConnectorDiagnostic() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-10 space-y-6">
+      <D3vonnPageBanner title="GitHub Connector" />
       <div className="flex items-center gap-3">
         <Github className="h-8 w-8" />
         <div>

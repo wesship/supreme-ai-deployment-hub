@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const FilmPage = () => {
   const navigate = useNavigate();
@@ -80,6 +81,7 @@ const FilmPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950">
+      <D3vonnPageBanner title="D3VONN.IO Film Studio" />
       {/* Header */}
       <div className="border-b border-purple-500/20 bg-slate-900/50 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4">
