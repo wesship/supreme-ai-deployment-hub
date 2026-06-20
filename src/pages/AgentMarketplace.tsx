@@ -8,6 +8,7 @@ import AgentCard from '@/components/marketplace/AgentCard';
 import AgentDetailModal from '@/components/marketplace/AgentDetailModal';
 import DeployAgentModal from '@/components/marketplace/DeployAgentModal';
 import { toast } from '@/hooks/use-toast';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const AgentMarketplace: React.FC = () => {
   const [filters, setFilters] = useState<FilterType>({ sortBy: 'popular' });
@@ -95,6 +96,7 @@ const AgentMarketplace: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <D3vonnPageBanner title="Agent Marketplace" />
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <MarketplaceHeader

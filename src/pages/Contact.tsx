@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { MailIcon, MapPin, Phone, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const Contact: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
@@ -19,6 +20,7 @@ const Contact: React.FC = () => {
 
   return (
     <>
+      <D3vonnPageBanner title="Contact D3VONN.IO" />
       <Helmet>
         <title>Contact Us - D3VONN.IO</title>
       </Helmet>

@@ -8,10 +8,12 @@ import { Shield, Lock, Eye, FileText, Bell, Users, BrainCircuit, Database, Serve
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { staggerContainer, slideUp } from '@/lib/animations';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const Privacy: React.FC = () => {
   return (
     <>
+      <D3vonnPageBanner title="Privacy at D3VONN.IO" />
       <Helmet>
         <title>Privacy Policy - D3VONN.IO</title>
       </Helmet>

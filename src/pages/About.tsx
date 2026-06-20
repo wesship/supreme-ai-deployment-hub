@@ -6,6 +6,7 @@ import SectionHeading from '@/components/SectionHeading';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { Users2, Award, Target, Coffee } from 'lucide-react';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const About: React.FC = () => {
   const teamMembers = [
@@ -31,6 +32,7 @@ const About: React.FC = () => {
 
   return (
     <>
+      <D3vonnPageBanner title="About D3VONN.IO" />
       <Helmet>
         <title>About D3VONN.IO</title>
       </Helmet>

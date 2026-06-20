@@ -7,6 +7,7 @@ import DocumentationTabs from '@/components/documentation/DocumentationTabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen, Code, Server, Sparkles } from 'lucide-react';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const Documentation: React.FC = () => {
   const docTypes = [
@@ -38,6 +39,7 @@ const Documentation: React.FC = () => {
 
   return (
     <div className="py-16">
+      <D3vonnPageBanner title="D3VONN.IO Documentation" />
       <Container maxWidth="2xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
