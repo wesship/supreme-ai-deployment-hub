@@ -124,7 +124,7 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
             background: 'none',
             border: 'none',
             cursor: ttsLoading || isStreaming ? 'not-allowed' : 'pointer',
-            color: ttsSpeaking ? '#3BFF7A' : ttsLoading ? '#F59E0B' : 'rgba(255,255,255,0.3)',
+            color: ttsSpeaking ? '#7080FF' : ttsLoading ? '#F59E0B' : 'rgba(255,255,255,0.3)',
             transition: 'color 0.2s',
             display: 'flex',
             alignItems: 'center',
@@ -147,10 +147,10 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
         title={sttActive ? 'Stop listening' : 'Speak your message'}
         style={{
           padding: '4px',
-          background: sttActive ? 'rgba(59,255,122,0.1)' : 'none',
-          border: sttActive ? '1px solid rgba(59,255,122,0.3)' : '1px solid transparent',
+          background: sttActive ? 'rgba(112,128,255,0.1)' : 'none',
+          border: sttActive ? '1px solid rgba(112,128,255,0.3)' : '1px solid transparent',
           cursor: isStreaming ? 'not-allowed' : 'pointer',
-          color: sttActive ? '#3BFF7A' : 'rgba(255,255,255,0.3)',
+          color: sttActive ? '#7080FF' : 'rgba(255,255,255,0.3)',
           transition: 'all 0.2s',
           display: 'flex',
           alignItems: 'center',

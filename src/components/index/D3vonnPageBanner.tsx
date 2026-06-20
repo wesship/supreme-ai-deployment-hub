@@ -48,7 +48,7 @@ const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
         className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-30"
         style={{
           backgroundImage:
-            'repeating-linear-gradient(0deg, rgba(59,255,122,0.06) 0px, rgba(59,255,122,0.06) 1px, transparent 1px, transparent 3px)',
+            'repeating-linear-gradient(0deg, rgba(112,128,255,0.06) 0px, rgba(112,128,255,0.06) 1px, transparent 1px, transparent 3px)',
         }}
         aria-hidden="true"
       />
@@ -64,7 +64,7 @@ const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="mb-5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/40 bg-black/60 backdrop-blur-md text-[10px] sm:text-xs tracking-[0.25em] uppercase text-primary shadow-[0_0_20px_rgba(59,255,122,0.35)]"
+          className="mb-5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/40 bg-black/60 backdrop-blur-md text-[10px] sm:text-xs tracking-[0.25em] uppercase text-primary shadow-[0_0_20px_rgba(112,128,255,0.35)]"
         >
           <span className="inline-block h-2 w-2 rounded-full bg-primary animate-pulse" />
           D3VONN.IO · Live
@@ -75,7 +75,7 @@ const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.7 }}
-            className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white drop-shadow-[0_0_20px_rgba(59,255,122,0.25)]"
+            className="text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white drop-shadow-[0_0_20px_rgba(112,128,255,0.25)]"
           >
             {title}
           </motion.h1>
