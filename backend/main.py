@@ -1,14 +1,5 @@
 """
 backend/main.py — Devonn.AI FastAPI Application Entry Point
-
-This is the canonical backend entry point for the supreme-ai-deployment-hub.
-It registers all API routers, middleware, and lifecycle hooks.
-
-Run locally:
-    uvicorn backend.main:app --reload --port 8000
-
-Run in Docker:
-    CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 """
 
 import logging
@@ -22,12 +13,9 @@ from fastapi.responses import JSONResponse
 
 try:
     from backend.observability.wandb_weave import init_weave
-except ModuleNotFoundError:  # Allows `cd backend && uvicorn main:app` local startup.
+except ModuleNotFoundError:
     from observability.wandb_weave import init_weave
 
-# ---------------------------------------------------------------------------
-# Sentry initialisation (must happen before app creation)
-# ---------------------------------------------------------------------------
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 if SENTRY_DSN:
     sentry_sdk.init(
@@ -38,19 +26,13 @@ if SENTRY_DSN:
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Lifespan — startup / shutdown hooks
-# ---------------------------------------------------------------------------
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage application lifecycle: connect pools on startup, close on shutdown."""
     logger.info("Devonn.AI backend starting up…")
     if init_weave():
         logger.info("W&B Weave initialized successfully.")
 
-    # Import here to avoid circular imports at module load time
     try:
         from backend.db.pool import init_pool, close_pool  # type: ignore
 
@@ -70,10 +52,6 @@ async def lifespan(app: FastAPI):
         pass
 
 
-# ---------------------------------------------------------------------------
-# Application factory
-# ---------------------------------------------------------------------------
-
 app = FastAPI(
     title="Devonn.AI API",
     description=(
@@ -87,38 +65,33 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ---------------------------------------------------------------------------
-# CORS
-# ---------------------------------------------------------------------------
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 
 ALLOWED_ORIGINS = [
     o.strip()
     for o in os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:5173,http://localhost:3000,https://devonn.ai,https://www.devonn.ai,https://app.devonn.ai,https://supreme-ai-deployment-hub.vercel.app,https://supreme-ai-deployment-hub.lovable.app",
+        "http://localhost:5173,http://localhost:3000,https://devonn.ai,https://www.devonn.ai,https://app.devonn.ai,https://supreme-ai-deployment-hub.vercel.app",
     ).split(",")
     if o.strip()
 ]
 
-# Regex covers all Lovable preview/published URLs (id-preview--*, feature branches, etc.)
-# and all Vercel preview deploys, without requiring future code edits.
-ALLOWED_ORIGIN_REGEX = os.getenv(
-    "ALLOWED_ORIGIN_REGEX",
-    r"https://([a-z0-9-]+\.)*(lovable\.app|lovableproject\.com|vercel\.app)",
-)
+# Preview URLs are useful in non-production only. Production should be exact-origin.
+ALLOWED_ORIGIN_REGEX = None
+if ENVIRONMENT != "production":
+    ALLOWED_ORIGIN_REGEX = os.getenv(
+        "ALLOWED_ORIGIN_REGEX",
+        r"https://([a-z0-9-]+\.)*(lovable\.app|lovableproject\.com|vercel\.app)",
+    )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "x-client-info", "apikey"],
 )
-
-# ---------------------------------------------------------------------------
-# Custom middleware (order matters — outermost first)
-# ---------------------------------------------------------------------------
 
 try:
     from backend.middleware.request_context import RequestContextMiddleware  # type: ignore
@@ -152,13 +125,6 @@ try:
 except ImportError:
     logger.warning("MultiTenancyMiddleware not found — skipping.")
 
-# ---------------------------------------------------------------------------
-# API Routers
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Proxy router — /api/chat, /api/rag/*, /api/tools/*
-# ---------------------------------------------------------------------------
 try:
     from backend.app.routers import proxy_router  # type: ignore
 
@@ -239,26 +205,19 @@ try:
 except ImportError as _hermes_tasks_err:
     logger.warning("backend.hermes.router not found — skipping Hermes task engine. (%s)", _hermes_tasks_err)
 
-# ---------------------------------------------------------------------------
-# Health & readiness endpoints
-# ---------------------------------------------------------------------------
-
 
 @app.get("/health", tags=["ops"])
 async def health_check():
-    """Liveness probe — returns 200 when the process is alive."""
     return {"status": "ok", "version": app.version}
 
 
 @app.get("/ready", tags=["ops"])
 async def readiness_check():
-    """Readiness probe — returns 200 when the app is ready to serve traffic."""
     return {"status": "ready"}
 
 
 @app.get("/health/deep", tags=["ops"])
 async def health_deep():
-    """Deep health check — returns service-level status for monitoring."""
     supabase_configured = bool(
         os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     )
@@ -277,18 +236,11 @@ async def health_deep():
     }
 
 
-# ---------------------------------------------------------------------------
-# Global exception handler
-# ---------------------------------------------------------------------------
-
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception: %s", exc)
 
-    # Fire-and-forget OCC error log (never blocks the response)
     try:
-        import traceback as _tb
         from backend.occ_operator.occ_logger import fire_log_error  # type: ignore
         from backend.middleware.request_context import get_request_id  # type: ignore
 
@@ -303,7 +255,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             metadata={"method": request.method, "url": str(request.url)},
         )
     except Exception:
-        pass  # OCC logging must never crash the error handler
+        pass
 
     return JSONResponse(
         status_code=500,
