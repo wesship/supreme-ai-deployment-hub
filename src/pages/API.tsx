@@ -10,6 +10,7 @@ import APIPlaygroundTab from '@/components/api/APIPlaygroundTab';
 import SavedResponsesTab from '@/components/api/SavedResponsesTab';
 import APIKeysDemo from '@/components/api/APIKeysDemo';
 import { useSavedResponses } from '@/hooks/useSavedResponses';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const API: React.FC = () => {
   const { 
@@ -21,6 +22,7 @@ const API: React.FC = () => {
 
   return (
     <>
+      <D3vonnPageBanner title="API Management" />
       <Helmet>
         <title>API Management - D3VONN.IO</title>
       </Helmet>

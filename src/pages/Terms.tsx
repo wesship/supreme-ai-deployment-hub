@@ -4,10 +4,12 @@ import { Helmet } from 'react-helmet';
 import Container from '@/components/Container';
 import SectionHeading from '@/components/SectionHeading';
 import { motion } from 'framer-motion';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const Terms: React.FC = () => {
   return (
     <>
+      <D3vonnPageBanner title="Terms of Service" />
       <Helmet>
         <title>Terms of Service - D3VONN.IO</title>
       </Helmet>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import { 
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
   Film, DollarSign, Brain, Crown, Music, Network, 
   TrendingUp, Glasses, LogOut, Sparkles 
 } from 'lucide-react';
@@ -98,6 +99,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950">
+      <D3vonnPageBanner title="D3VONN.IO Dashboard" />
       {/* Header */}
       <div className="border-b border-purple-500/20 bg-slate-900/50 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4">

@@ -10,10 +10,12 @@ import PredictionDashboardPanel from '@/components/dashboard/PredictionDashboard
 import SkillParser from '@/components/skills/SkillParser';
 import ChatUI from '@/components/chat/ChatUI';
 import { toast } from 'sonner';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const DevonnDashboard = () => {
   return (
     <div className="py-8">
+      <D3vonnPageBanner title="D3VONN.IO Control Room" />
       <Container>
         <SectionHeading
           tag="Beta"
