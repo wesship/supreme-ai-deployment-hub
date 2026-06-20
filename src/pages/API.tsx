@@ -22,11 +22,11 @@ const API: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>API Management - DEVONN.AI</title>
+        <title>API Management - D3VONN.IO</title>
       </Helmet>
       <Container>
         <SectionHeading
-          subheading="Connect DEVONN.AI to external services and APIs to extend its capabilities."
+          subheading="Connect D3VONN.IO to external services and APIs to extend its capabilities."
         >
           API Management
         </SectionHeading>

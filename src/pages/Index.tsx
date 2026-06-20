@@ -42,7 +42,7 @@ const Index = () => {
   });
 
   useEffect(() => {
-    toast('Welcome to DEVONN.AI', {
+    toast('Welcome to D3VONN.IO', {
       description: 'The autonomous AI deployment platform — powered by Hermes Intelligence Fabric',
       position: 'bottom-right',
       duration: 5000,
