@@ -6,8 +6,8 @@ export const commonConfigYaml = `# --- Common Terraform Configuration ---
 # Terraform configuration for setting up AWS infrastructure
 # To use this file:
 # 1. Install Terraform CLI (https://learn.hashicorp.com/tutorials/terraform/install-cli)
-# 2. Configure AWS credentials using AWS CLI:
-#    $ aws configure
+# 2. Configure AWS credentials using AWS CLI, environment variables, or GitHub OIDC.
+#    Do not hard-code AWS credentials in Terraform provider blocks.
 # 3. Run the following commands in the directory containing these Terraform files:
 #    $ terraform init
 #    $ terraform plan -out=tfplan -var-file="environments/\${ENV:-prod}.tfvars"
@@ -65,19 +65,22 @@ export const commonConfigYaml = `# --- Common Terraform Configuration ---
 # Recommended: Use S3 backend for team collaboration
 terraform {
   backend "s3" {
-    bucket = "devonn-terraform-statefile"
-    key    = "terraform.tfstate"
-    region = "us-west-2"
+    bucket         = "devonn-terraform-statefile"
+    key            = "terraform.tfstate"
+    region         = "us-west-2"
     dynamodb_table = "terraform-locks"
-    encrypt = true
+    encrypt        = true
   }
 }
 
-# Define the AWS provider and region
+# Define the AWS provider and region.
+# Credentials are intentionally omitted so Terraform uses the standard AWS
+# provider credential chain: GitHub OIDC, environment variables, shared config,
+# or instance profile. This prevents static secrets from being embedded in the
+# generated Terraform configuration.
 provider "aws" {
   region = var.aws_region
-  access_key = var.aws_access_key
-  secret_key = var.aws_secret_key
+
   default_tags {
     tags = {
       Project     = "DevonnAI"
@@ -87,12 +90,11 @@ provider "aws" {
     }
   }
 }
-  
+   
 provider "aws" {
   alias  = "dr_region"
   region = var.dr_region
-  access_key = var.aws_access_key
-  secret_key = var.aws_secret_key
+
   default_tags {
     tags = {
       Project     = "DevonnAI"
