@@ -32,11 +32,11 @@ const About: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>About DEVONN.AI</title>
+        <title>About D3VONN.IO</title>
       </Helmet>
       <Container>
         <SectionHeading
-          subheading="Learn about our mission and the team behind DEVONN.AI"
+          subheading="Learn about our mission and the team behind D3VONN.IO"
         >
           About Us
         </SectionHeading>
@@ -49,7 +49,7 @@ const About: React.FC = () => {
           >
             <h2 className="text-2xl font-display font-semibold mb-4">Our Mission</h2>
             <p className="text-muted-foreground mb-4">
-              DEVONN.AI was founded in 2023 with a simple but powerful mission: to make AI deployment accessible, reliable, and efficient for organizations of all sizes.
+              D3VONN.IO was founded in 2023 with a simple but powerful mission: to make AI deployment accessible, reliable, and efficient for organizations of all sizes.
             </p>
             <p className="text-muted-foreground mb-4">
               We believe that the future of AI lies not just in model development, but in creating robust infrastructure that allows those models to deliver real value in production environments.
@@ -101,7 +101,7 @@ const About: React.FC = () => {
         
         <SectionHeading
           tag="Our Team"
-          subheading="Meet the experts behind DEVONN.AI"
+          subheading="Meet the experts behind D3VONN.IO"
           centered
         >
           Leadership Team

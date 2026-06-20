@@ -13,7 +13,7 @@ const Privacy: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>Privacy Policy - DEVONN.AI</title>
+        <title>Privacy Policy - D3VONN.IO</title>
       </Helmet>
       
       {/* Hero section */}
@@ -37,7 +37,7 @@ const Privacy: React.FC = () => {
                 Protecting Your Data in the AI Era
               </SectionHeading>
               <p className="text-center text-muted-foreground mt-4 max-w-2xl mx-auto">
-                At DEVONN.AI, we prioritize the protection of your personal information and AI training data with advanced encryption and security measures.
+                At D3VONN.IO, we prioritize the protection of your personal information and AI training data with advanced encryption and security measures.
               </p>
             </motion.div>
           </motion.div>
@@ -114,7 +114,7 @@ const Privacy: React.FC = () => {
               AI Data Processing
             </h2>
             <p>
-              At DEVONN.AI, we understand the unique privacy considerations that come with AI systems. Our privacy practices are designed specifically for the AI era, ensuring that your data is processed ethically and securely while still allowing our systems to learn and improve.
+              At D3VONN.IO, we understand the unique privacy considerations that come with AI systems. Our privacy practices are designed specifically for the AI era, ensuring that your data is processed ethically and securely while still allowing our systems to learn and improve.
             </p>
             <ul>
               <li>We use anonymization techniques to protect personal identifiers in training data</li>
@@ -126,7 +126,7 @@ const Privacy: React.FC = () => {
           
           <h2 className="flex items-center gap-2"><FileText className="text-primary" /> Introduction</h2>
           <p>
-            DEVONN.AI ("we," "our," or "us") respects your privacy and is committed to protecting it through our compliance with this policy. This privacy policy describes the types of information we may collect from you or that you may provide when you visit our website and our practices for collecting, using, maintaining, protecting, and disclosing that information.
+            D3VONN.IO ("we," "our," or "us") respects your privacy and is committed to protecting it through our compliance with this policy. This privacy policy describes the types of information we may collect from you or that you may provide when you visit our website and our practices for collecting, using, maintaining, protecting, and disclosing that information.
           </p>
           
           <h2 className="flex items-center gap-2"><Users className="text-primary" /> Information We Collect</h2>

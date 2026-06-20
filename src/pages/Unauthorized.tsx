@@ -42,7 +42,7 @@ export default function Unauthorized() {
 
         {/* Footer note */}
         <p className="text-xs text-gray-600 mt-8">
-          Devonn.AI · Operator Command Center · Admin Access Required
+          D3VONN.IO · Operator Command Center · Admin Access Required
         </p>
       </motion.div>
     </div>

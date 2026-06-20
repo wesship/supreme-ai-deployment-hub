@@ -286,7 +286,7 @@ export default function OperatorCommandCenter() {
                 {NAV_ITEMS.find(n => n.id === activeView)?.label ?? 'Operator Command Center'}
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
-                Devonn.ai · Production · Auto-refreshes every 30s
+                D3VONN.IO · Production · Auto-refreshes every 30s
               </p>
             </div>
 

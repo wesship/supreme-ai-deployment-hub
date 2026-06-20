@@ -119,7 +119,7 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-green-400 font-mono text-sm font-semibold">DEVONN.AI OPERATOR COMMAND CENTER</span>
+            <span className="text-green-400 font-mono text-sm font-semibold">D3VONN.IO OPERATOR COMMAND CENTER</span>
           </div>
           <button
             onClick={refresh}

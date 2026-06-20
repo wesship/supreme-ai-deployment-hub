@@ -20,7 +20,7 @@ const Contact: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>Contact Us - DEVONN.AI</title>
+        <title>Contact Us - D3VONN.IO</title>
       </Helmet>
       <Container>
         <SectionHeading

@@ -1,5 +1,5 @@
 /**
- * Devonn.ai /chat — Full AI Workspace
+ * D3VONN.IO /chat — Full AI Workspace
  * Advanced conversation interface with history sidebar, streaming, auth gating, and agent mode.
  */
 
@@ -21,7 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const SUGGESTED_PROMPTS = [
   'What is the current deployment status of the platform?',
-  'Explain the Devonn.ai multi-agent orchestration architecture',
+  'Explain the D3VONN.IO multi-agent orchestration architecture',
   'How do I add a new agent to the marketplace?',
   'Show me how to configure a LangGraph workflow',
   'What are the EKS cluster health metrics?',
@@ -255,7 +255,7 @@ const ChatPage: React.FC = () => {
                 <h2 className="text-white text-xl font-semibold mb-2">Devonn AI Workspace</h2>
                 <p className="text-white/40 text-sm max-w-md">
                   Your AI operator for the Supreme Deployment Hub. Ask about deployments,
-                  agents, workflows, infrastructure, or anything in the Devonn.ai ecosystem.
+                  agents, workflows, infrastructure, or anything in the D3VONN.IO ecosystem.
                 </p>
               </div>
 

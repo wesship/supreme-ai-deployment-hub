@@ -18,7 +18,7 @@ const Documentation: React.FC = () => {
     },
     { 
       title: "API Reference", 
-      description: "Complete reference for the DEVONN.AI framework API", 
+      description: "Complete reference for the D3VONN.IO framework API", 
       icon: <Code className="h-5 w-5" />,
       color: "bg-purple-500/10 text-purple-500 border-purple-500/20" 
     },
@@ -30,7 +30,7 @@ const Documentation: React.FC = () => {
     },
     { 
       title: "Examples", 
-      description: "Real-world examples of AI systems built with DEVONN.AI", 
+      description: "Real-world examples of AI systems built with D3VONN.IO", 
       icon: <Sparkles className="h-5 w-5" />,
       color: "bg-green-500/10 text-green-500 border-green-500/20" 
     }
@@ -46,10 +46,10 @@ const Documentation: React.FC = () => {
         >
           <SectionHeading 
             tag="Documentation" 
-            subheading="Comprehensive guides and reference materials for DEVONN.AI"
+            subheading="Comprehensive guides and reference materials for D3VONN.IO"
           >
             <div className="flex items-center gap-2">
-              DEVONN.AI Documentation
+              D3VONN.IO Documentation
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.2 }}

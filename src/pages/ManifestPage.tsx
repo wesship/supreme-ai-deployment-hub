@@ -36,7 +36,7 @@ const ManifestPage: React.FC = () => {
           <SectionHeading 
             animate 
             tag="Documentation"
-            subheading="Complete Kubernetes deployment manifest for the DEVONN.AI Framework including Terraform, Istio, Kong, and observability stack configurations."
+            subheading="Complete Kubernetes deployment manifest for the D3VONN.IO Framework including Terraform, Istio, Kong, and observability stack configurations."
           >
             Deployment Manifest
           </SectionHeading>

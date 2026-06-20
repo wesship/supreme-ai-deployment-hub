@@ -21,7 +21,7 @@ const DevonnDashboard = () => {
           className="mb-8"
           subheading="Build, deploy, and manage AI agents with OpenManus"
         >
-          Devonn.AI Dashboard
+          D3VONN.IO Dashboard
         </SectionHeading>
         
         <Tabs defaultValue="dashboard" className="space-y-6">

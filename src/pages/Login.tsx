@@ -42,7 +42,7 @@ const Login = () => {
         <div className="bg-slate-900/50 backdrop-blur-xl border border-purple-500/20 rounded-2xl p-8 shadow-2xl shadow-purple-500/20">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent mb-2">
-              Devonn.AI
+              D3VONN.IO
             </h1>
             <p className="text-slate-400">Enter the AI Ecosystem</p>
           </div>
