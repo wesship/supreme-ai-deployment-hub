@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useOCCData } from '@/hooks/useOCCData';
 import OCCOverview from '@/components/occ/OCCOverview';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 // Lazy-load heavy panels
 const OCCAIRequestLogs = lazy(() => import('@/components/occ/OCCAIRequestLogs'));
@@ -104,6 +105,7 @@ const NAV_ITEMS: NavItem[] = [
 function PanelLoader() {
   return (
     <div className="flex items-center justify-center py-20 text-gray-500 text-sm">
+      <D3vonnPageBanner title="Operator Command Center" />
       Loading panel…
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAdminData } from '@/hooks/useAdminData';
 import { supabase } from '@/integrations/supabase/client';
 import { Navigate } from 'react-router-dom';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 // ─── Stat Card ───────────────────────────────────────────────
 function StatCard({ label, value, sub, accent = false }: {
@@ -9,6 +10,7 @@ function StatCard({ label, value, sub, accent = false }: {
 }) {
   return (
     <div className={`rounded-lg border p-4 ${accent ? 'border-green-500/50 bg-green-500/5' : 'border-white/10 bg-white/5'}`}>
+      <D3vonnPageBanner title="Admin Console" />
       <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">{label}</p>
       <p className={`text-2xl font-bold font-mono ${accent ? 'text-green-400' : 'text-white'}`}>{value}</p>
       {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}

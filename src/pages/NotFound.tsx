@@ -3,6 +3,7 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Home, FileText, Database, Terminal } from "lucide-react";
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const NotFound = () => {
   const location = useLocation();
@@ -16,6 +17,7 @@ const NotFound = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+      <D3vonnPageBanner title="Lost in the Grid" />
       <div className="text-center max-w-md px-4">
         <h1 className="text-6xl font-bold mb-4 text-primary">404</h1>
         <p className="text-2xl text-foreground mb-4">Page Not Found</p>

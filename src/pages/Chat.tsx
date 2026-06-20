@@ -18,6 +18,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDevonnChat } from '@/hooks/useDevonnChat';
 import { Conversation } from '@/services/ai/conversationStore';
 import { supabase } from '@/integrations/supabase/client';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const SUGGESTED_PROMPTS = [
   'What is the current deployment status of the platform?',
@@ -118,6 +119,7 @@ const ChatPage: React.FC = () => {
   if (!userId) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#070A0F]">
+        <D3vonnPageBanner title="D3VONN.IO Chat" />
         <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
       </div>
     );

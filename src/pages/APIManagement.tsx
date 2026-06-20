@@ -4,10 +4,12 @@ import { Helmet } from 'react-helmet';
 import Container from '@/components/Container';
 import SectionHeading from '@/components/SectionHeading';
 import APIConnectionsTab from '@/components/api/APIConnectionsTab';
+import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const APIManagement: React.FC = () => {
   return (
     <>
+      <D3vonnPageBanner title="API Management" />
       <Helmet>
         <title>API Management - D3VONN.IO</title>
       </Helmet>
