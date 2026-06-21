@@ -95,7 +95,7 @@ ALLOWED_ORIGINS = [
     o.strip()
     for o in os.getenv(
         "ALLOWED_ORIGINS",
-        "http://localhost:5173,http://localhost:3000,https://devonn.ai,https://www.devonn.ai,https://app.devonn.ai,https://supreme-ai-deployment-hub.vercel.app,https://supreme-ai-deployment-hub.lovable.app",
+        "http://localhost:5173,http://localhost:3000,https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io,https://supreme-ai-deployment-hub.vercel.app,https://supreme-ai-deployment-hub.lovable.app",
     ).split(",")
     if o.strip()
 ]

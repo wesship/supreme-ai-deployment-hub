@@ -1,7 +1,7 @@
-"""DNS + service status endpoints for devonn.ai.
+"""DNS + service status endpoints for d3vonn.io.
 
 Exposes:
-  GET /status/dns-status  - resolves devonn.ai + api.devonn.ai
+  GET /status/dns-status  - resolves d3vonn.io + api.d3vonn.io
   GET /status/health      - shallow liveness
   GET /status/health/deep - deep dependency check
   GET /status/metrics     - lightweight metrics snapshot
@@ -12,8 +12,8 @@ import time
 
 router = APIRouter()
 
-FRONTEND_DOMAIN = "devonn.ai"
-API_DOMAIN = "api.devonn.ai"
+FRONTEND_DOMAIN = "d3vonn.io"
+API_DOMAIN = "api.d3vonn.io"
 
 
 def _resolve(host: str) -> str:

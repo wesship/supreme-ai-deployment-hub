@@ -10,7 +10,7 @@
 
 'use strict';
 
-const DEFAULT_API_URL = 'https://api.devonn.ai';
+const DEFAULT_API_URL = 'https://api.d3vonn.io';
 const HEALTH_CHECK_INTERVAL_MINUTES = 5;
 const AGENT_UPDATE_INTERVAL_MINUTES = 15;
 const REQUEST_TIMEOUT_MS = 30_000;

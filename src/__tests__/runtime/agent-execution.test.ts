@@ -29,7 +29,7 @@ import type { AgentRunConfig } from "@/lib/mcp/agentTypes";
 const baseConfig = (overrides: Partial<AgentRunConfig> = {}): AgentRunConfig => ({
   agentId: "agent-test",
   name: "Test Agent",
-  goal: "search for devonn.ai status",
+  goal: "search for d3vonn.io status",
   mcpGatewayUrl: "http://mock",
   maxSteps: 8,
   ...overrides,

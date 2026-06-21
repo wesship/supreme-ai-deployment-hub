@@ -8,7 +8,7 @@ Usage:
     payload = verify_jwt("Bearer eyJ...")
 
     # Create a new JWT (for testing / service-to-service)
-    token = create_jwt({"sub": "user-123", "email": "user@devonn.ai"})
+    token = create_jwt({"sub": "user-123", "email": "user@d3vonn.io"})
 """
 from __future__ import annotations
 

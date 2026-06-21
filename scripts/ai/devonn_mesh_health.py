@@ -28,9 +28,9 @@ import httpx
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 SERVICES = [
-    {"name": "devonn-api",       "url": "https://api.devonn.ai/status/health",      "critical": True},
-    {"name": "devonn-api-deep",  "url": "https://api.devonn.ai/status/health/deep", "critical": True},
-    {"name": "devonn-frontend",  "url": "https://devonn.ai",                         "critical": True},
+    {"name": "devonn-api",       "url": "https://api.d3vonn.io/status/health",      "critical": True},
+    {"name": "devonn-api-deep",  "url": "https://api.d3vonn.io/status/health/deep", "critical": True},
+    {"name": "devonn-frontend",  "url": "https://d3vonn.io",                         "critical": True},
     {"name": "supabase",         "url": os.getenv("SUPABASE_URL", "") + "/health",   "critical": True},
     {"name": "openai",           "url": "https://api.openai.com/v1/models",          "critical": False},
 ]

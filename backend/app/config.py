@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # ── Automation ─────────────────────────────────────────────────────────────
     n8n_api_key: str = ""
-    n8n_base_url: str = "https://n8n.devonn.ai"
+    n8n_base_url: str = "https://n8n.d3vonn.io"
 
     # ── Vector DB ──────────────────────────────────────────────────────────────
     pinecone_api_key: str = ""
@@ -55,9 +55,9 @@ class Settings(BaseSettings):
     # comma-separated env var.  Use the `allowed_origins` property below.
     # In Railway, set ALLOWED_ORIGINS_RAW to a comma-separated list or JSON array.
     allowed_origins_raw: str = (
-        "https://devonn.ai,"
-        "https://www.devonn.ai,"
-        "https://app.devonn.ai,"
+        "https://d3vonn.io,"
+        "https://www.d3vonn.io,"
+        "https://app.d3vonn.io,"
         "https://supreme-ai-deployment-hub.vercel.app,"
         "https://supreme-ai-deployment-hub.lovable.app"
     )

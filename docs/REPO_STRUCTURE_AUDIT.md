@@ -10,7 +10,7 @@ purpose, and governance status relative to `GOVERNANCE_LOCK_MANIFEST.md`.
 | `src/` | React 18 + Vite frontend (TypeScript). Pages, components, hooks, services. | Open to edits via PR |
 | `src/integrations/supabase/` | **Auto-generated** Lovable Cloud client + types. | **Protected** — never edit |
 | `supabase/` | Edge functions, migrations, `config.toml`. | Migrations protected; `project_id` locked |
-| `backend/` | FastAPI orchestration layer (`api.devonn.ai`). Agents, mesh, auth, tenancy. | Open to PR |
+| `backend/` | FastAPI orchestration layer (`api.d3vonn.io`). Agents, mesh, auth, tenancy. | Open to PR |
 | `scaffold/` | Coordinator / hub / bridge service scaffolds (FastAPI). | Open to PR |
 | `k8s/`, `infrastructure/`, `gitops/`, `infra/` | Kubernetes manifests, Helm values, Argo apps. | Infra workflows only run on `main` |
 | `terraform/aws/` | IaC: EKS, ECR, network, bootstrap backend. | Drift-detected by CI |
@@ -55,7 +55,7 @@ purpose, and governance status relative to `GOVERNANCE_LOCK_MANIFEST.md`.
 ## Hybrid backend
 
 - **Supabase** (Lovable Cloud) — auth, RLS-protected data, edge functions, storage
-- **FastAPI** (`api.devonn.ai`) — agent mesh, multi-tenant orchestration, long-running tasks
+- **FastAPI** (`api.d3vonn.io`) — agent mesh, multi-tenant orchestration, long-running tasks
 - **n8n** — workflow automation, 1100+ templates
 - **MCP servers** — Hostinger, Vercel, AWS via `public.mcp_connections`
 

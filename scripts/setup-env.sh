@@ -30,8 +30,8 @@ fi
 echo -e "\n${BLUE}Setting up API URLs...${NC}"
 echo "# API URLs for different environments" >> .env
 echo "DEV_API_URL=http://localhost:8000" >> .env
-echo "STAGING_API_URL=https://staging-api.devonn.ai" >> .env
-echo "PRODUCTION_API_URL=https://api.devonn.ai" >> .env
+echo "STAGING_API_URL=https://staging-api.d3vonn.io" >> .env
+echo "PRODUCTION_API_URL=https://api.d3vonn.io" >> .env
 
 # OpenAI API Key
 echo -e "\n${BLUE}Setting up OpenAI API...${NC}"

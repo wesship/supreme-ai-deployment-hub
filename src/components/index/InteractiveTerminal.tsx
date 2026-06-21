@@ -37,14 +37,14 @@ const InteractiveTerminal = () => {
               <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
               <div className="w-3 h-3 rounded-full bg-green-500"></div>
             </div>
-            <div className="ml-3 text-xs font-mono text-[#00FF41]">devonn.ai Framework</div>
+            <div className="ml-3 text-xs font-mono text-[#00FF41]">d3vonn.io Framework</div>
           </div>
           
           <div className="rounded bg-black/70 p-4 backdrop-blur-sm border border-[#00FF41]/10">
             <pre className="text-xs sm:text-sm text-[#00FF41] font-mono overflow-x-auto">
               <TypewriterEffect 
                 text={[
-                  "$ initializing devonn.ai framework...",
+                  "$ initializing d3vonn.io framework...",
                   "Loading AI components...",
                   "Configuring neural networks...",
                   "System ready for deployment",

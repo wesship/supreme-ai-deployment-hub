@@ -21,7 +21,7 @@ vi.mock('@sentry/react', () => ({
 // Mock env to avoid missing env var errors in tests
 vi.mock('@/lib/env', () => ({
   env: {
-    apiUrl: 'https://api.devonn.ai',
+    apiUrl: 'https://api.d3vonn.io',
     supabaseUrl: 'https://test.supabase.co',
     supabaseAnonKey: 'test-anon-key',
     sentryDsn: '',

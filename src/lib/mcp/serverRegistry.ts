@@ -241,7 +241,7 @@ export const MCP_SERVER_REGISTRY: McpServerConfig[] = [
     description: "Connect to DEVONN.AI's central MCP gateway for unified tool access",
     category: "ai",
     type: "http",
-    gatewayUrl: "https://api.devonn.ai/mcp",
+    gatewayUrl: "https://api.d3vonn.io/mcp",
     auth: {
       type: "api_token",
       envVar: "DEVONN_API_KEY",

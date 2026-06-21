@@ -3,9 +3,9 @@
  * Multi-provider LLM routing with streaming, fallback, and tool-calling support.
  *
  * Security architecture:
- *   ALL LLM calls are proxied through api.devonn.ai/api/chat.
+ *   ALL LLM calls are proxied through api.d3vonn.io/api/chat.
  *   OPENAI_API_KEY is a server-side secret only — never in the browser bundle.
- *   Frontend → api.devonn.ai/api/chat (SSE streaming) → OpenAI / Gemini / Ollama
+ *   Frontend → api.d3vonn.io/api/chat (SSE streaming) → OpenAI / Gemini / Ollama
  *
  * Phase 2: RAG context injection via Pinecone vector retrieval.
  * Phase 3: Tool-calling support via server-side function dispatch.
@@ -56,15 +56,15 @@ Your personality:
 
 When users ask about deployments, agents, workflows, or infrastructure — you have full context of the platform and can guide, execute, or explain any operation.
 
-Current platform status: Production deployment active at devonn.ai via Vercel + AWS EKS backend.`;
+Current platform status: Production deployment active at d3vonn.io via Vercel + AWS EKS backend.`;
 
 // ─── Proxy endpoint ────────────────────────────────────────────────────────────
 // All LLM calls go through the server-side proxy. The backend holds OPENAI_API_KEY.
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 const CHAT_PROXY_URL = `${API_BASE}/api/chat`;
 
 /**
- * Stream a chat response via the api.devonn.ai proxy (SSE).
+ * Stream a chat response via the api.d3vonn.io proxy (SSE).
  * The proxy forwards to OpenAI (or other providers) using server-side secrets.
  *
  * Expected SSE format from proxy:

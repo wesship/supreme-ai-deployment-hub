@@ -198,7 +198,7 @@ const Privacy: React.FC = () => {
           
           <h2 className="flex items-center gap-2"><FileText className="text-primary" /> Contact Information</h2>
           <p>
-            To ask questions or comment about this privacy policy and our privacy practices, contact us at: privacy@devonn.ai
+            To ask questions or comment about this privacy policy and our privacy practices, contact us at: privacy@d3vonn.io
           </p>
           
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">

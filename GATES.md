@@ -17,7 +17,7 @@ No assumed success. No theoretical pass. No downstream approval without evidence
 Required proof:
 - Route 53 hosted zone NS records are known.
 - Registrar nameservers match the Route 53 NS records.
-- `api.devonn.ai` resolves publicly.
+- `api.d3vonn.io` resolves publicly.
 
 Accepted evidence:
 - DNS lookup output
@@ -27,7 +27,7 @@ Accepted evidence:
 ### Health
 
 Required proof:
-- `curl https://api.devonn.ai/health` returns HTTP 200 OK.
+- `curl https://api.d3vonn.io/health` returns HTTP 200 OK.
 
 Accepted evidence:
 - curl output

@@ -30,7 +30,7 @@ Recommended:
 Required env:
 
 ```bash
-VITE_API_BASE_URL=https://staging-api.devonn.ai
+VITE_API_BASE_URL=https://staging-api.d3vonn.io
 ```
 
 ### Backend API
@@ -72,7 +72,7 @@ Deploy FastAPI first.
 Validate:
 
 ```bash
-curl -i https://staging-api.devonn.ai/health
+curl -i https://staging-api.d3vonn.io/health
 ```
 
 Then validate protected Operator API:
@@ -80,7 +80,7 @@ Then validate protected Operator API:
 ```bash
 curl -H "Authorization: Bearer $OPERATOR_API_TOKEN" \
   -H "X-Operator-Role: operator" \
-  https://staging-api.devonn.ai/api/operator/status
+  https://staging-api.d3vonn.io/api/operator/status
 ```
 
 Expected:
@@ -93,28 +93,28 @@ Validate metrics:
 
 ```bash
 curl -H "Authorization: Bearer $OPERATOR_API_TOKEN" \
-  https://staging-api.devonn.ai/api/operator/metrics
+  https://staging-api.d3vonn.io/api/operator/metrics
 ```
 
 Validate logs:
 
 ```bash
 curl -H "Authorization: Bearer $OPERATOR_API_TOKEN" \
-  https://staging-api.devonn.ai/api/operator/logs
+  https://staging-api.d3vonn.io/api/operator/logs
 ```
 
 Validate traces:
 
 ```bash
 curl -H "Authorization: Bearer $OPERATOR_API_TOKEN" \
-  https://staging-api.devonn.ai/api/operator/traces
+  https://staging-api.d3vonn.io/api/operator/traces
 ```
 
 Validate queues:
 
 ```bash
 curl -H "Authorization: Bearer $OPERATOR_API_TOKEN" \
-  https://staging-api.devonn.ai/api/operator/queues
+  https://staging-api.d3vonn.io/api/operator/queues
 ```
 
 ### Step 3 — Frontend Staging
@@ -124,7 +124,7 @@ Deploy frontend after backend is reachable.
 Set:
 
 ```bash
-VITE_API_BASE_URL=https://staging-api.devonn.ai
+VITE_API_BASE_URL=https://staging-api.d3vonn.io
 ```
 
 Validate:
@@ -139,7 +139,7 @@ Validate:
 Validate WebSocket endpoint:
 
 ```bash
-wscat -c wss://staging-api.devonn.ai/api/operator/runtime/stream
+wscat -c wss://staging-api.d3vonn.io/api/operator/runtime/stream
 ```
 
 Expected:

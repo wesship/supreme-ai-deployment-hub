@@ -24,7 +24,7 @@ GitHub repository → Settings → Secrets and variables → Actions → Reposit
 Use the public API URL for `DEVONN_BASE_URL`, for example:
 
 ```text
-https://api.devonn.ai
+https://api.d3vonn.io
 ```
 
 Never commit the real `DEVONN_API_TOKEN` to the repository.

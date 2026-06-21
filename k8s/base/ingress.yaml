@@ -12,7 +12,7 @@ metadata:
     alb.ingress.kubernetes.io/certificate-arn: REPLACE_ACM_CERT_ARN
 spec:
   rules:
-    - host: api.devonn.ai
+    - host: api.d3vonn.io
       http:
         paths:
           - path: /

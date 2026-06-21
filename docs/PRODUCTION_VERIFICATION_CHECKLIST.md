@@ -33,7 +33,7 @@ Use a clean browser path:
 
 1. Open Chrome or Edge in Incognito / Private mode.
 2. Disable extensions, ad blockers, privacy blockers, VPN, and tracking protection for the test.
-3. Visit `https://devonn.ai`.
+3. Visit `https://d3vonn.io`.
 4. Open DevTools → Console.
 5. Run:
 
@@ -67,17 +67,17 @@ The backend must be verified against live production routing. Test both the runb
 ### Runbook route family
 
 ```bash
-curl -i https://api.devonn.ai/status/health
-curl -i https://api.devonn.ai/status/health/deep
-curl -i https://api.devonn.ai/status/dns-status
+curl -i https://api.d3vonn.io/status/health
+curl -i https://api.d3vonn.io/status/health/deep
+curl -i https://api.d3vonn.io/status/dns-status
 ```
 
 ### Canonical FastAPI route family
 
 ```bash
-curl -i https://api.devonn.ai/health
-curl -i https://api.devonn.ai/health/deep
-curl -i https://api.devonn.ai/ready
+curl -i https://api.d3vonn.io/health
+curl -i https://api.d3vonn.io/health/deep
+curl -i https://api.d3vonn.io/ready
 ```
 
 Green conditions:
@@ -114,7 +114,7 @@ Green conditions:
 Recommended verification flow:
 
 ```bash
-curl -i https://api.devonn.ai/health/deep
+curl -i https://api.d3vonn.io/health/deep
 ```
 
 Then run one real chat or agent request from the Devonn.ai frontend and verify no quota, billing, or authentication error appears.
@@ -125,7 +125,7 @@ A private beta cannot be approved until one real production user flow succeeds.
 
 Minimum flow:
 
-1. Visit `https://devonn.ai`.
+1. Visit `https://d3vonn.io`.
 2. Log in or enter the main app flow.
 3. Submit a real chat/agent request.
 4. Confirm the backend responds successfully.

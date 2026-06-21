@@ -8,11 +8,11 @@ const DomainConfigTab: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Domain Configuration</CardTitle>
-          <CardDescription>Set up your DEVONN.AI Framework on devonn.ai domain</CardDescription>
+          <CardDescription>Set up your DEVONN.AI Framework on d3vonn.io domain</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <h3 className="text-lg font-semibold">DNS Configuration</h3>
-          <p>To point your devonn.ai domain to your Kubernetes cluster, you'll need to update your DNS settings:</p>
+          <p>To point your d3vonn.io domain to your Kubernetes cluster, you'll need to update your DNS settings:</p>
           
           <div className="bg-secondary p-4 rounded-md mt-2 mb-4">
             <p className="font-semibold">Current nameservers:</p>
@@ -26,7 +26,7 @@ const DomainConfigTab: React.FC = () => {
           <h3 className="text-lg font-semibold mt-4">AWS Route53 Configuration</h3>
           <p>For AWS deployment, set up Route53:</p>
           <ol className="list-decimal pl-6 space-y-2">
-            <li>Create a hosted zone for devonn.ai in Route53</li>
+            <li>Create a hosted zone for d3vonn.io in Route53</li>
             <li>Note the 4 nameservers assigned to your hosted zone</li>
             <li>Update your domain registrar to use these nameservers</li>
             <li>Create required DNS records:</li>
@@ -34,16 +34,16 @@ const DomainConfigTab: React.FC = () => {
           
           <pre className="bg-secondary p-4 rounded-md overflow-x-auto mt-2">
             <code>{`# A record for apex domain
-devonn.ai.                 300    IN    A    <ELB-IP>
+d3vonn.io.                 300    IN    A    <ELB-IP>
 
 # CNAME for www subdomain
-www.devonn.ai.             300    IN    CNAME    devonn.ai.
+www.d3vonn.io.             300    IN    CNAME    d3vonn.io.
 
 # TXT record for domain verification
-devonn.ai.                 300    IN    TXT    "v=spf1 include:_spf.google.com ~all"
+d3vonn.io.                 300    IN    TXT    "v=spf1 include:_spf.google.com ~all"
 
 # For automatic SSL with cert-manager
-_acme-challenge.devonn.ai. 300    IN    TXT    <ACME-CHALLENGE-VALUE>`}</code>
+_acme-challenge.d3vonn.io. 300    IN    TXT    <ACME-CHALLENGE-VALUE>`}</code>
           </pre>
           
           <h3 className="text-lg font-semibold mt-4">Kubernetes Ingress Configuration</h3>
@@ -61,7 +61,7 @@ metadata:
     alb.ingress.kubernetes.io/certificate-arn: "<ACM-CERTIFICATE-ARN>"
 spec:
   rules:
-  - host: devonn.ai
+  - host: d3vonn.io
     http:
       paths:
       - path: /
@@ -71,7 +71,7 @@ spec:
             name: frontend-service
             port:
               number: 80
-  - host: www.devonn.ai
+  - host: www.d3vonn.io
     http:
       paths:
       - path: /
@@ -81,7 +81,7 @@ spec:
             name: frontend-service
             port:
               number: 80
-  - host: api.devonn.ai
+  - host: api.d3vonn.io
     http:
       paths:
       - path: /
@@ -93,9 +93,9 @@ spec:
               number: 8080
   tls:
   - hosts:
-    - devonn.ai
-    - www.devonn.ai
-    - api.devonn.ai
+    - d3vonn.io
+    - www.d3vonn.io
+    - api.d3vonn.io
     secretName: devonn-ai-tls`}</code>
           </pre>
           
@@ -114,9 +114,9 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-  - devonn.ai
-  - www.devonn.ai
-  - api.devonn.ai`}</code>
+  - d3vonn.io
+  - www.d3vonn.io
+  - api.d3vonn.io`}</code>
           </pre>
           
           <h3 className="text-lg font-semibold mt-4">Terraform DNS Configuration</h3>
@@ -125,7 +125,7 @@ spec:
           <pre className="bg-secondary p-4 rounded-md overflow-x-auto mt-2">
             <code>{`# Create Route53 zone
 resource "aws_route53_zone" "devonn_ai" {
-  name = "devonn.ai"
+  name = "d3vonn.io"
   
   tags = {
     Project = "DevonnAI"
@@ -135,7 +135,7 @@ resource "aws_route53_zone" "devonn_ai" {
 # Create A record pointing to ALB
 resource "aws_route53_record" "devonn_ai_a" {
   zone_id = aws_route53_zone.devonn_ai.zone_id
-  name    = "devonn.ai"
+  name    = "d3vonn.io"
   type    = "A"
   
   alias {
@@ -148,10 +148,10 @@ resource "aws_route53_record" "devonn_ai_a" {
 # Create www CNAME
 resource "aws_route53_record" "www_devonn_ai" {
   zone_id = aws_route53_zone.devonn_ai.zone_id
-  name    = "www.devonn.ai"
+  name    = "www.d3vonn.io"
   type    = "CNAME"
   ttl     = 300
-  records = ["devonn.ai"]
+  records = ["d3vonn.io"]
 }
 
 # Output nameservers to update with registrar
@@ -166,7 +166,7 @@ output "nameservers" {
               <li>After updating nameservers, DNS propagation may take up to 48 hours</li>
               <li>Always test your SSL configuration before going live</li>
               <li>Set up monitoring for certificate expiration</li>
-              <li>The domain devonn.ai is valid until 2026-04-04 with auto-renewal enabled</li>
+              <li>The domain d3vonn.io is valid until 2026-04-04 with auto-renewal enabled</li>
             </ul>
           </div>
         </CardContent>

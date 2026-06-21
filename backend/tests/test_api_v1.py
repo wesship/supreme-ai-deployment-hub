@@ -14,7 +14,7 @@ def mock_token():
 
 @pytest.fixture
 def mock_user():
-    return {"sub": "user-123", "email": "test@devonn.ai"}
+    return {"sub": "user-123", "email": "test@d3vonn.io"}
 
 
 class TestHealthEndpoint:

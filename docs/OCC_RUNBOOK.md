@@ -89,7 +89,7 @@ Run these after every production deployment.
 ### 1. Confirm frontend is reachable
 
 ```bash
-curl -I https://devonn.ai
+curl -I https://d3vonn.io
 ```
 
 Expected: `200`, `301`, or `308` depending on hosting redirect behavior.
@@ -97,7 +97,7 @@ Expected: `200`, `301`, or `308` depending on hosting redirect behavior.
 ### 2. Confirm public admin API does not leak data
 
 ```bash
-curl -i https://devonn.ai/api/admin/overview
+curl -i https://d3vonn.io/api/admin/overview
 ```
 
 Expected: `401`, `403`, or `503`.
@@ -109,7 +109,7 @@ Do not accept a response containing real admin metrics without authentication.
 ```bash
 curl -i \
   -H "Authorization: Bearer <non-admin-user-jwt>" \
-  https://devonn.ai/api/admin/overview
+  https://d3vonn.io/api/admin/overview
 ```
 
 Expected: `403 Admin access required`.
@@ -119,7 +119,7 @@ Expected: `403 Admin access required`.
 ```bash
 curl -i \
   -H "Authorization: Bearer <admin-user-jwt>" \
-  https://devonn.ai/api/admin/overview
+  https://d3vonn.io/api/admin/overview
 ```
 
 Expected: `200` with dashboard summary fields.

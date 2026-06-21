@@ -22,7 +22,7 @@ const environments = {
   
   // Staging environment (testing)
   staging: {
-    apiUrl: 'https://staging-api.devonn.ai',
+    apiUrl: 'https://staging-api.d3vonn.io',
     logLevel: 'info',
     features: {
       experimentalTools: true,
@@ -33,7 +33,7 @@ const environments = {
   
   // Production environment (public)
   production: {
-    apiUrl: 'https://api.devonn.ai',
+    apiUrl: 'https://api.d3vonn.io',
     logLevel: 'error',
     features: {
       experimentalTools: false,

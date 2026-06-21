@@ -4,7 +4,7 @@ import { isValidUrl, isValidEmail, isValidApiKey, isEmptyString } from '../setti
 describe('settingsValidation', () => {
   describe('isValidUrl', () => {
     it('should validate correct URLs', () => {
-      expect(isValidUrl('https://api.devonn.ai')).toBe(true);
+      expect(isValidUrl('https://api.d3vonn.io')).toBe(true);
       expect(isValidUrl('http://localhost:3000')).toBe(true);
       expect(isValidUrl('https://sub.domain.com/path?query=value')).toBe(true);
     });

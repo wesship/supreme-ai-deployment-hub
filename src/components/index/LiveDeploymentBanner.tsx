@@ -12,7 +12,7 @@ interface ServiceStatus {
 
 const LiveDeploymentBanner: React.FC = () => {
   const [services, setServices] = useState<ServiceStatus[]>([
-    { name: 'Frontend', url: 'https://devonn.ai', status: 'online' },
+    { name: 'Frontend', url: 'https://d3vonn.io', status: 'online' },
     { name: 'API', url: RAILWAY_URL, status: 'checking' },
     { name: 'Database', url: '', status: 'online' },
     { name: 'Hermes', url: '', status: 'checking' },

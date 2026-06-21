@@ -4,8 +4,8 @@ Production playbook for the split-stack architecture:
 
 ```
 User
- └─ devonn.ai          (Lovable frontend)
-     └─ api.devonn.ai  (AWS ALB → EKS → FastAPI → Devonn AI Agents)
+ └─ d3vonn.io          (Lovable frontend)
+     └─ api.d3vonn.io  (AWS ALB → EKS → FastAPI → Devonn AI Agents)
 ```
 
 ---
@@ -23,10 +23,10 @@ GitHub Actions → Docker build → Push to ECR → `kubectl rollout restart dep
 ## 🔍 Verify
 
 ```bash
-curl https://api.devonn.ai/status/health
-curl https://api.devonn.ai/status/health/deep
-curl https://api.devonn.ai/status/dns-status
-curl https://devonn.ai
+curl https://api.d3vonn.io/status/health
+curl https://api.d3vonn.io/status/health/deep
+curl https://api.d3vonn.io/status/dns-status
+curl https://d3vonn.io
 ```
 
 Expected: HTTP 200 from all four.
@@ -45,9 +45,9 @@ kubectl rollout status deployment/devonn-api
 ## 🌐 DNS Check
 
 ```bash
-dig devonn.ai +short
-dig api.devonn.ai +short
-dig NS devonn.ai +short   # must show ns-*.awsdns-* after registrar flip
+dig d3vonn.io +short
+dig api.d3vonn.io +short
+dig NS d3vonn.io +short   # must show ns-*.awsdns-* after registrar flip
 ```
 
 ACM certificate status:

@@ -59,7 +59,7 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}🎉 Your Devonn.AI platform now has real AWS EKS deployment capabilities!${NC}"
     echo ""
     echo "Next steps:"
-    echo "  1. Go to https://devonn.ai/deployment"
+    echo "  1. Go to https://d3vonn.io/deployment"
     echo "  2. Click 'Start Deployment'"
     echo "  3. Watch your real AWS infrastructure deploy!"
     echo ""

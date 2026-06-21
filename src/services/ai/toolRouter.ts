@@ -3,9 +3,9 @@
  * MCP-compatible tool calling architecture.
  *
  * Security architecture:
- *   ALL sensitive API calls (GitHub, n8n) are proxied through api.devonn.ai.
+ *   ALL sensitive API calls (GitHub, n8n) are proxied through api.d3vonn.io.
  *   No secret keys are present in this file or any VITE_ env vars.
- *   Frontend → api.devonn.ai/api/tools/* → GitHub API / n8n (server-side secrets)
+ *   Frontend → api.d3vonn.io/api/tools/* → GitHub API / n8n (server-side secrets)
  *
  * MCP compatibility: each tool maps to an MCP tool definition (name, description, inputSchema).
  */
@@ -173,9 +173,9 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
 ];
 
 // ─── Proxy Base URL ────────────────────────────────────────────────────────────
-// All sensitive tool calls go through the server-side proxy at api.devonn.ai.
+// All sensitive tool calls go through the server-side proxy at api.d3vonn.io.
 // The backend holds GITHUB_TOKEN, N8N_API_KEY, etc. as non-VITE_ env vars.
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 
 /**
  * Call a server-side tool proxy endpoint.
@@ -239,10 +239,10 @@ async function getDeploymentStatus(service: string = 'all'): Promise<unknown> {
       results.api = {
         status: r.ok ? 'healthy' : 'degraded',
         http: r.status,
-        url: 'api.devonn.ai',
+        url: 'api.d3vonn.io',
       };
     } catch {
-      results.api = { status: 'unreachable — ALB may be cold', url: 'api.devonn.ai' };
+      results.api = { status: 'unreachable — ALB may be cold', url: 'api.d3vonn.io' };
     }
   }
 
@@ -257,7 +257,7 @@ async function getDeploymentStatus(service: string = 'all'): Promise<unknown> {
 }
 
 /**
- * GitHub workflow trigger — proxied through api.devonn.ai/api/tools/github/workflows/trigger
+ * GitHub workflow trigger — proxied through api.d3vonn.io/api/tools/github/workflows/trigger
  * Backend uses server-side GITHUB_TOKEN.
  */
 async function triggerGitHubWorkflow(
@@ -275,13 +275,13 @@ async function triggerGitHubWorkflow(
     return {
       success: false,
       error: String(err),
-      note: 'Ensure api.devonn.ai is running and GITHUB_TOKEN is set server-side.',
+      note: 'Ensure api.d3vonn.io is running and GITHUB_TOKEN is set server-side.',
     };
   }
 }
 
 /**
- * GitHub workflow status — proxied through api.devonn.ai/api/tools/github/runs/status
+ * GitHub workflow status — proxied through api.d3vonn.io/api/tools/github/runs/status
  */
 async function getGitHubWorkflowStatus(workflow?: string, limit = '5'): Promise<unknown> {
   try {
@@ -292,13 +292,13 @@ async function getGitHubWorkflowStatus(workflow?: string, limit = '5'): Promise<
   } catch (err) {
     return {
       error: String(err),
-      note: 'Ensure api.devonn.ai is running and GITHUB_TOKEN is set server-side.',
+      note: 'Ensure api.d3vonn.io is running and GITHUB_TOKEN is set server-side.',
     };
   }
 }
 
 /**
- * n8n workflow execution — proxied through api.devonn.ai/api/tools/n8n/execute
+ * n8n workflow execution — proxied through api.d3vonn.io/api/tools/n8n/execute
  * Backend uses server-side N8N_API_KEY.
  */
 async function executeWorkflow(workflowName: string, payload?: string): Promise<unknown> {
@@ -311,13 +311,13 @@ async function executeWorkflow(workflowName: string, payload?: string): Promise<
     return {
       success: false,
       error: String(err),
-      note: 'Ensure api.devonn.ai is running and N8N_API_KEY is set server-side.',
+      note: 'Ensure api.d3vonn.io is running and N8N_API_KEY is set server-side.',
     };
   }
 }
 
 /**
- * Agent spawning — proxied through api.devonn.ai/api/agents
+ * Agent spawning — proxied through api.d3vonn.io/api/agents
  */
 /**
  * Spawn a new Hermes goal and task.
@@ -397,14 +397,14 @@ function searchDocumentation(query: string, section = 'all'): unknown {
     results: [
       {
         title: 'Devonn.ai Architecture Overview',
-        excerpt: 'The Supreme AI Deployment Hub uses a multi-agent mesh architecture with EKS/Kubernetes for agent orchestration, Vercel for the React frontend, Supabase for auth and persistence, and AWS ALB for the FastAPI backend at api.devonn.ai.',
-        url: 'https://devonn.ai/docs/architecture',
+        excerpt: 'The Supreme AI Deployment Hub uses a multi-agent mesh architecture with EKS/Kubernetes for agent orchestration, Vercel for the React frontend, Supabase for auth and persistence, and AWS ALB for the FastAPI backend at api.d3vonn.io.',
+        url: 'https://d3vonn.io/docs/architecture',
         relevance: 0.95,
       },
       {
         title: 'Agent Mesh Configuration',
         excerpt: 'Agents are deployed as Kubernetes pods in the EKS cluster. Each agent type (researcher, coder, deployer, monitor) has its own deployment manifest and communicates via the internal mesh API.',
-        url: 'https://devonn.ai/docs/agents',
+        url: 'https://d3vonn.io/docs/agents',
         relevance: 0.88,
       },
     ],

@@ -32,7 +32,7 @@ export interface RuntimeHealthData {
 }
 
 export interface RuntimeHealthPanelProps {
-  /** Base URL for the runtime API (e.g. https://api.devonn.ai) */
+  /** Base URL for the runtime API (e.g. https://api.d3vonn.io) */
   apiBaseUrl: string;
   /** Poll interval in milliseconds. Default: 30000 */
   pollIntervalMs?: number;

@@ -4,16 +4,16 @@
  * and retrieval-augmented generation (query → nearest-neighbor search → context injection).
  *
  * Security architecture:
- *   ALL embedding and Pinecone calls are proxied through api.devonn.ai.
+ *   ALL embedding and Pinecone calls are proxied through api.d3vonn.io.
  *   OPENAI_API_KEY and PINECONE_API_KEY are server-side secrets only.
  *
- *   Frontend → api.devonn.ai/api/rag/ingest   → OpenAI embeddings + Pinecone upsert
- *   Frontend → api.devonn.ai/api/rag/retrieve  → OpenAI embed query + Pinecone query
- *   Frontend → api.devonn.ai/api/rag/delete    → Pinecone delete by filename
+ *   Frontend → api.d3vonn.io/api/rag/ingest   → OpenAI embeddings + Pinecone upsert
+ *   Frontend → api.d3vonn.io/api/rag/retrieve  → OpenAI embed query + Pinecone query
+ *   Frontend → api.d3vonn.io/api/rag/delete    → Pinecone delete by filename
  */
 
 // ─── Proxy base ────────────────────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 
 // Only non-secret index metadata is read from VITE_ vars
 const PINECONE_HOST = import.meta.env.VITE_PINECONE_HOST as string;

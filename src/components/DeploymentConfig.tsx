@@ -122,13 +122,13 @@ GRAFANA_URL=http://grafana:3000`;
               <div>
                 <h3 className="text-sm font-medium mb-2">Domain Configuration</h3>
                 <p className="text-sm mb-3">
-                  Configure the devonn.ai domain to point to your Kubernetes deployment.
+                  Configure the d3vonn.io domain to point to your Kubernetes deployment.
                 </p>
                 
                 <CodeDisplay 
                   code={`# Route53 DNS Configuration
 aws route53domains update-domain-nameservers \\
-  --domain-name devonn.ai \\
+  --domain-name d3vonn.io \\
   --nameservers \\
     Name=ns-xxxx.awsdns-xx.com \\
     Name=ns-xxxx.awsdns-xx.net \\

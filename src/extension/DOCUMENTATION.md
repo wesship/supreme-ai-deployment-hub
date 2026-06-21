@@ -22,7 +22,7 @@ The Devonn.AI Chrome Extension provides seamless access to Devonn.AI functionali
 ### API Connection
 | Setting | Description | Default Value |
 |---------|-------------|---------------|
-| API URL | The URL for the Devonn.AI backend API | https://api.devonn.ai |
+| API URL | The URL for the Devonn.AI backend API | https://api.d3vonn.io |
 | User ID | Your unique Devonn.AI user identifier | N/A (Required) |
 
 ### Notification Settings
@@ -110,7 +110,7 @@ The extension uses Chrome's `storage.local` API with the following structure:
 ```json
 {
   "settings": {
-    "apiUrl": "https://api.devonn.ai",
+    "apiUrl": "https://api.d3vonn.io",
     "userId": "user-guid",
     "notifications": {
       "taskComplete": true,
@@ -134,7 +134,7 @@ The extension uses Chrome's `storage.local` API with the following structure:
 
 ## Support & Resources
 
-- [Official Documentation](https://docs.devonn.ai/extension)
+- [Official Documentation](https://docs.d3vonn.io/extension)
 - [GitHub Repository](https://github.com/devonn-ai/chrome-extension)
 - [Issue Tracker](https://github.com/devonn-ai/chrome-extension/issues)
-- [Community Forum](https://community.devonn.ai)
+- [Community Forum](https://community.d3vonn.io)

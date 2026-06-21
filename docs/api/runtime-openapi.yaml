@@ -9,9 +9,9 @@ info:
     name: Devonn.AI Platform Team
     url: https://github.com/wesship/supreme-ai-deployment-hub
 servers:
-  - url: https://api.devonn.ai/v1/runtime
+  - url: https://api.d3vonn.io/v1/runtime
     description: Production Runtime Gateway
-  - url: https://staging-api.devonn.ai/v1/runtime
+  - url: https://staging-api.d3vonn.io/v1/runtime
     description: Staging Runtime Gateway
 paths:
   /runs:

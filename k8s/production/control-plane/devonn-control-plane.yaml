@@ -13,8 +13,8 @@ metadata:
     app.kubernetes.io/managed-by: gitops
   annotations:
     # Increment this version whenever a change is made to enforce audit trail.
-    devonn.ai/config-version: "1.0.0"
-    devonn.ai/last-updated-by: "gitops"
+    d3vonn.io/config-version: "1.0.0"
+    d3vonn.io/last-updated-by: "gitops"
 data:
   # ── Canary Traffic Control ─────────────────────────────────────────────────
   # CANARY_ENABLED: Set to "true" to activate canary routing.

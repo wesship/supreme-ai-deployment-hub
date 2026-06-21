@@ -70,7 +70,7 @@ const Contact: React.FC = () => {
                     <div>
                       <p className="font-medium">Email</p>
                       <p className="text-sm text-muted-foreground">
-                        info@devonn.ai
+                        info@d3vonn.io
                       </p>
                     </div>
                   </div>
@@ -80,7 +80,7 @@ const Contact: React.FC = () => {
                     <div>
                       <p className="font-medium">Website</p>
                       <p className="text-sm text-muted-foreground">
-                        www.devonn.ai
+                        www.d3vonn.io
                       </p>
                     </div>
                   </div>

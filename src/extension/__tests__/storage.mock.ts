@@ -4,7 +4,7 @@ import { DevonnSettings } from '../storage';
 
 // Mock settings data
 const mockSettings: DevonnSettings = {
-  apiUrl: 'https://api.devonn.ai',
+  apiUrl: 'https://api.d3vonn.io',
   userId: 'test-user',
   notifications: {
     taskComplete: true,

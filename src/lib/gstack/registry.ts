@@ -4,13 +4,13 @@ export const GSTACK_GATE_REQUIREMENTS: readonly GStackGateRequirement[] = [
   {
     key: 'dns',
     label: 'DNS delegation',
-    requiredProof: 'Registrar nameservers match Route 53 hosted zone NS records and api.devonn.ai resolves.',
+    requiredProof: 'Registrar nameservers match Route 53 hosted zone NS records and api.d3vonn.io resolves.',
     blocksShip: true,
   },
   {
     key: 'health',
     label: 'Backend health',
-    requiredProof: 'curl https://api.devonn.ai/health returns HTTP 200 OK.',
+    requiredProof: 'curl https://api.d3vonn.io/health returns HTTP 200 OK.',
     blocksShip: true,
   },
   {
@@ -197,7 +197,7 @@ export const GSTACK_AGENT_REGISTRY: readonly GStackAgentDefinition[] = [
     name: 'QA',
     layer: 'quality-security',
     role: 'Real browser QA and gate validation',
-    devonnContext: 'Headless Chromium checks against api.devonn.ai and ION dashboard.',
+    devonnContext: 'Headless Chromium checks against api.d3vonn.io and ION dashboard.',
     defaultInputs: ['target URL', 'test plan', 'expected proof'],
     defaultOutputs: ['QA report', 'failure evidence', 'gate recommendation'],
     allowedActions: ['run non-destructive QA', 'validate health endpoints', 'collect evidence'],

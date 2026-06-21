@@ -1,4 +1,4 @@
-// Agent Marketplace Types for agents.devonn.ai
+// Agent Marketplace Types for agents.d3vonn.io
 
 export type AgentCategory = 
   | 'security'

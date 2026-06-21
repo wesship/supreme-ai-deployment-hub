@@ -8,7 +8,7 @@
  */
 export const REQUIRED_PERMISSIONS = {
   permissions: ['storage', 'notifications', 'tabs'],
-  origins: ['https://api.devonn.ai/*', 'https://staging-api.devonn.ai/*']
+  origins: ['https://api.d3vonn.io/*', 'https://staging-api.d3vonn.io/*']
 };
 
 /**

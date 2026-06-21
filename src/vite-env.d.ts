@@ -16,12 +16,12 @@
  *   VITE_PINECONE_DIMENSION  — Embedding dimension (not a secret)
  *
  * ❌ NEVER IN FRONTEND (server-side only, no VITE_ prefix):
- *   OPENAI_API_KEY        → api.devonn.ai/api/chat proxy
- *   ELEVENLABS_API_KEY    → api.devonn.ai/api/tools/voice/tts proxy
- *   ASSEMBLYAI_API_KEY    → api.devonn.ai/api/tools/voice/stt-token proxy
- *   GITHUB_TOKEN          → api.devonn.ai/api/tools/github/* proxy
- *   N8N_API_KEY           → api.devonn.ai/api/tools/n8n/execute proxy
- *   PINECONE_API_KEY      → api.devonn.ai or server-side RAG pipeline
+ *   OPENAI_API_KEY        → api.d3vonn.io/api/chat proxy
+ *   ELEVENLABS_API_KEY    → api.d3vonn.io/api/tools/voice/tts proxy
+ *   ASSEMBLYAI_API_KEY    → api.d3vonn.io/api/tools/voice/stt-token proxy
+ *   GITHUB_TOKEN          → api.d3vonn.io/api/tools/github/* proxy
+ *   N8N_API_KEY           → api.d3vonn.io/api/tools/n8n/execute proxy
+ *   PINECONE_API_KEY      → api.d3vonn.io or server-side RAG pipeline
  */
 
 interface ImportMetaEnv {

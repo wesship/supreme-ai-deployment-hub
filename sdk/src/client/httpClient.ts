@@ -7,7 +7,7 @@ import type { DevonnClientConfig, ApiError } from "../types/index.js";
 import { DevonnApiError } from "../types/index.js";
 import { withRetry, RetryableError, NetworkError, isRetryableStatusCode } from "../utils/retry.js";
 
-const DEFAULT_BASE_URL = "https://api.devonn.ai/v1/runtime";
+const DEFAULT_BASE_URL = "https://api.d3vonn.io/v1/runtime";
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;

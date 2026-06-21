@@ -342,13 +342,13 @@ gcloud run services update-traffic devonn-ai-backend \
 
 **Backend API:**
 ```bash
-curl https://api.devonn.ai/health
-curl https://api.devonn.ai/docs  # API documentation
+curl https://api.d3vonn.io/health
+curl https://api.d3vonn.io/docs  # API documentation
 ```
 
 **Frontend:**
 ```bash
-curl https://devonn.ai
+curl https://d3vonn.io
 ```
 
 ### Logs

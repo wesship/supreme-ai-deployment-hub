@@ -111,10 +111,10 @@ The OCC admin API now includes these protections:
 ## Production verification checklist
 
 ```bash
-curl -I https://devonn.ai
-curl -i https://devonn.ai/api/admin/overview
-curl -i -H "Authorization: Bearer <non-admin-user-jwt>" https://devonn.ai/api/admin/overview
-curl -i -H "Authorization: Bearer <admin-user-jwt>" https://devonn.ai/api/admin/overview
+curl -I https://d3vonn.io
+curl -i https://d3vonn.io/api/admin/overview
+curl -i -H "Authorization: Bearer <non-admin-user-jwt>" https://d3vonn.io/api/admin/overview
+curl -i -H "Authorization: Bearer <admin-user-jwt>" https://d3vonn.io/api/admin/overview
 ```
 
 Expected behavior:

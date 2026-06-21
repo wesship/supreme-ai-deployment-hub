@@ -83,7 +83,7 @@ Supabase (PostgreSQL) has automated daily backups with 30-day retention (configu
 supabase db push --project-ref <project-id>
 
 # Run smoke tests
-curl https://api.devonn.ai/status/health/deep
+curl https://api.d3vonn.io/status/health/deep
 ```
 
 ---
@@ -95,7 +95,7 @@ In the event of a full AWS us-east-1 outage, the Vercel frontend remains availab
 **Immediate actions (0–15 minutes):**
 1. Confirm the outage is AWS-wide via the [AWS Service Health Dashboard](https://health.aws.amazon.com/).
 2. Enable maintenance mode on the frontend by setting the `VITE_MAINTENANCE_MODE=true` environment variable in Vercel and redeploying.
-3. Post a status update to the [status page](https://status.devonn.ai) and Slack.
+3. Post a status update to the [status page](https://status.d3vonn.io) and Slack.
 
 **Failover to us-west-2 (15–240 minutes):**
 ```bash

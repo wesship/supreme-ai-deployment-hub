@@ -392,7 +392,7 @@ terraform apply
 ## 📞 Support
 
 For infrastructure support:
-- 📧 Email: devops@devonn.ai
+- 📧 Email: devops@d3vonn.io
 - 💬 Slack: #infrastructure
 - 🎫 GitHub Issues: Create with `infrastructure` label
 
