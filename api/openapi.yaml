@@ -11,9 +11,9 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: https://api.devonn.ai/v1
+  - url: https://api.d3vonn.io/v1
     description: Production
-  - url: https://staging-api.devonn.ai/v1
+  - url: https://staging-api.d3vonn.io/v1
     description: Staging
   - url: http://localhost:8000/v1
     description: Local development

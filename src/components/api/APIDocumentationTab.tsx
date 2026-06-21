@@ -22,7 +22,7 @@ const APIDocumentationTab: React.FC = () => {
           <h3 className="text-lg font-semibold">Base URL</h3>
           <p>All API endpoints are relative to the following base URL:</p>
           <pre className="bg-secondary p-4 rounded-md overflow-x-auto">
-            <code>{"https://api.devonn.ai/v1"}</code>
+            <code>{"https://api.d3vonn.io/v1"}</code>
           </pre>
         </div>
         

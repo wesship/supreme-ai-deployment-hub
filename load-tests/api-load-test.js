@@ -9,7 +9,7 @@
  *   4. Spike test    — instant spike to 500 VUs (test auto-scaling)
  *
  * Usage:
- *   k6 run --env BASE_URL=https://devonn.ai load-tests/api-load-test.js
+ *   k6 run --env BASE_URL=https://d3vonn.io load-tests/api-load-test.js
  *   k6 run --env BASE_URL=http://localhost:8000 --env SCENARIO=smoke load-tests/api-load-test.js
  *
  * Install k6: https://k6.io/docs/getting-started/installation/

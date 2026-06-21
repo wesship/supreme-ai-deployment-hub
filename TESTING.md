@@ -54,7 +54,7 @@ Unit tests are written using Jest and React Testing Library. They focus on testi
 ```javascript
 describe('Settings Validation', () => {
   it('validates API URL format', () => {
-    expect(validateApiUrl('https://api.devonn.ai')).toBe(true);
+    expect(validateApiUrl('https://api.d3vonn.io')).toBe(true);
     expect(validateApiUrl('not-a-url')).toBe(false);
   });
 });

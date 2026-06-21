@@ -38,7 +38,7 @@ test.describe('Settings Screen E2E Tests', () => {
   test('should validate email format', async ({ page }) => {
     // Set valid URL first
     await page.locator('#api-url').clear();
-    await page.locator('#api-url').fill('https://api.devonn.ai');
+    await page.locator('#api-url').fill('https://api.d3vonn.io');
     
     // Set invalid email
     await page.locator('#user-id').clear();
@@ -55,7 +55,7 @@ test.describe('Settings Screen E2E Tests', () => {
   test('should save valid settings', async ({ page }) => {
     // Set valid values
     await page.locator('#api-url').clear();
-    await page.locator('#api-url').fill('https://api.devonn.ai');
+    await page.locator('#api-url').fill('https://api.d3vonn.io');
     await page.locator('#user-id').clear();
     await page.locator('#user-id').fill('user@example.com');
     

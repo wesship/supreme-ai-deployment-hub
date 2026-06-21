@@ -15,13 +15,13 @@ The Devonn.AI Chrome Extension supports three deployment environments:
 
 ### Staging
 - **Purpose**: QA testing and pre-release verification
-- **API URL**: https://staging-api.devonn.ai
+- **API URL**: https://staging-api.d3vonn.io
 - **Features**: Beta features enabled for testing
 - **Audience**: Internal testers and select beta users
 
 ### Production
 - **Purpose**: Public release
-- **API URL**: https://api.devonn.ai
+- **API URL**: https://api.d3vonn.io
 - **Features**: Only stable features enabled
 - **Audience**: End users via Chrome Web Store
 

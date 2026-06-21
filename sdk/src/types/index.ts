@@ -95,7 +95,7 @@ export class DevonnApiError extends Error {
 // ---------------------------------------------------------------------------
 
 export interface DevonnClientConfig {
-  /** Base URL of the Runtime Gateway (default: https://api.devonn.ai/v1/runtime) */
+  /** Base URL of the Runtime Gateway (default: https://api.d3vonn.io/v1/runtime) */
   baseUrl?: string;
   /** Bearer token for authentication */
   apiKey: string;

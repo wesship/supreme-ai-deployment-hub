@@ -18,7 +18,7 @@ The SDK provides two clients: `DevonnClient` (base) and `TenantAwareClient` (for
 import { DevonnClient } from "@devonn/sdk";
 
 const client = new DevonnClient({
-  baseUrl: "https://api.devonn.ai/v1",
+  baseUrl: "https://api.d3vonn.io/v1",
   apiKey: "your-api-key"
 });
 
@@ -41,7 +41,7 @@ The `TenantAwareClient` automatically handles API key prefixing, rate limit dete
 import { TenantAwareClient } from "@devonn/sdk";
 
 const client = new TenantAwareClient({
-  baseUrl: "https://api.devonn.ai/v1",
+  baseUrl: "https://api.d3vonn.io/v1",
   apiKey: process.env.DEVONN_API_KEY, // e.g., dvn_pro_123456...
   autoRetryRateLimits: true,          // Automatically wait and retry on 429
   maxRateLimitWaitMs: 60000,          // Max time to wait before throwing

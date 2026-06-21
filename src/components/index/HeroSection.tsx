@@ -97,7 +97,7 @@ const HeroSection: React.FC = () => {
               </span>
               
               <AnimatedText 
-                text="devonn.ai"
+                text="d3vonn.io"
                 gradientColors="linear-gradient(90deg, hsl(235 100% 72%), hsl(235 90% 65%), hsl(235 100% 72%))"
                 gradientAnimationDuration={3}
                 hoverEffect={true}

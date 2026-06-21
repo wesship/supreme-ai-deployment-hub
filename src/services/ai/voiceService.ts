@@ -1,15 +1,15 @@
 /**
  * Devonn.ai Voice Service — Phase 4
- * Text-to-Speech: ElevenLabs (proxied through api.devonn.ai/api/tools/voice/tts)
+ * Text-to-Speech: ElevenLabs (proxied through api.d3vonn.io/api/tools/voice/tts)
  * Speech-to-Text: Web Speech API (primary) + AssemblyAI via proxy (fallback)
  *
  * Security: No API keys in the browser bundle.
- *   ELEVENLABS_API_KEY → server-side only (api.devonn.ai)
- *   ASSEMBLYAI_API_KEY → server-side only (api.devonn.ai)
+ *   ELEVENLABS_API_KEY → server-side only (api.d3vonn.io)
+ *   ASSEMBLYAI_API_KEY → server-side only (api.d3vonn.io)
  */
 
 // Proxy base — all sensitive voice calls go through the backend
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 
 // Default ElevenLabs voice — "Rachel" (neutral, clear, professional)
 const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
@@ -45,7 +45,7 @@ let currentAudioUrl: string | null = null;
 let ttsProxyAvailable: boolean | null = null; // cached availability check
 
 /**
- * Convert text to speech via api.devonn.ai/api/tools/voice/tts (server holds the ElevenLabs key).
+ * Convert text to speech via api.d3vonn.io/api/tools/voice/tts (server holds the ElevenLabs key).
  * Returns a promise that resolves when audio finishes playing.
  */
 export async function speak(text: string, options: TTSOptions = {}): Promise<void> {
@@ -124,7 +124,7 @@ let recognition: SpeechRecognitionInstance | null = null;
 /**
  * Start speech recognition.
  * Primary: Web Speech API (Chrome, Edge, Safari) — no keys needed.
- * Fallback: AssemblyAI via api.devonn.ai/api/tools/voice/stt-token (server holds the key).
+ * Fallback: AssemblyAI via api.d3vonn.io/api/tools/voice/stt-token (server holds the key).
  */
 export function startListening(
   onResult: (text: string, isFinal: boolean) => void,
@@ -235,7 +235,7 @@ function startAssemblyAIListening(
     } catch (err) {
       onError?.(
         err instanceof Error
-          ? `${err.message} — ensure api.devonn.ai is running with ASSEMBLYAI_API_KEY`
+          ? `${err.message} — ensure api.d3vonn.io is running with ASSEMBLYAI_API_KEY`
           : String(err)
       );
     }

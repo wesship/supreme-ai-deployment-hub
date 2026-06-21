@@ -2,7 +2,7 @@
  * Memory persistence service contract.
  *
  * Validates the wire-level contract between the agent UI and the FastAPI
- * memory backend at api.devonn.ai. We mock the HTTP layer and pin the
+ * memory backend at api.d3vonn.io. We mock the HTTP layer and pin the
  * URL shape + request/response semantics — drift here breaks memory
  * continuity across agent restarts.
  */

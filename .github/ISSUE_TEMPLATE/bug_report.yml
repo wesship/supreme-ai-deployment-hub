@@ -44,7 +44,7 @@ body:
     attributes:
       label: Environment
       options:
-        - Production (devonn.ai)
+        - Production (d3vonn.io)
         - Staging
         - Local development
     validations:

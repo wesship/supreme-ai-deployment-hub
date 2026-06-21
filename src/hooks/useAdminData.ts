@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 
 async function adminFetch(path: string) {
   const { data: { session } } = await supabase.auth.getSession();

@@ -38,9 +38,9 @@ def client() -> TestClient:
 ALLOWED_STATIC_ORIGINS = [
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://devonn.ai",
-    "https://www.devonn.ai",
-    "https://app.devonn.ai",
+    "https://d3vonn.io",
+    "https://www.d3vonn.io",
+    "https://app.d3vonn.io",
     "https://supreme-ai-deployment-hub.vercel.app",
     "https://supreme-ai-deployment-hub.lovable.app",
 ]
@@ -56,7 +56,7 @@ ALLOWED_REGEX_ORIGINS = [
 # Origins that MUST NOT be allowed
 DISALLOWED_ORIGINS = [
     "https://evil.example.com",
-    "http://devonn.ai.attacker.com",
+    "http://d3vonn.io.attacker.com",
     "https://lovable.app.evil.com",
 ]
 

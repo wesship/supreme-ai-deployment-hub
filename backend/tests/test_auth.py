@@ -22,7 +22,7 @@ class TestVerifyJWT:
 
         payload = {
             "sub": "user-123",
-            "email": "test@devonn.ai",
+            "email": "test@d3vonn.io",
             "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
         }
         with patch("auth.jwt.JWT_SECRET", "test-secret"):

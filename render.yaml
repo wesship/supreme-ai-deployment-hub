@@ -68,7 +68,7 @@ services:
         value: "8000"
 
       - key: CORS_ORIGINS
-        value: "https://devonn.ai,https://www.devonn.ai,https://supreme-ai-deployment-hub.vercel.app"
+        value: "https://d3vonn.io,https://www.d3vonn.io,https://supreme-ai-deployment-hub.vercel.app"
 
   # ── Background Worker (Agent Task Queue) ─────────────────────────────────────
   - type: worker

@@ -176,7 +176,7 @@ class AgentMesh:
         mesh = AgentMesh()
         mesh.register(AgentRegistration(
             name="devonn-coordinator",
-            base_url="https://coordinator.devonn.ai",
+            base_url="https://coordinator.d3vonn.io",
             capabilities=["plan", "orchestrate", "summarize"],
         ))
         result = await mesh.dispatch(AgentTask(

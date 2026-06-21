@@ -55,7 +55,7 @@ Required for production:
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 OPENAI_API_KEY=
-ALLOWED_ORIGINS=https://devonn.ai,https://www.devonn.ai,https://supreme-ai-deployment-hub.vercel.app
+ALLOWED_ORIGINS=https://d3vonn.io,https://www.d3vonn.io,https://supreme-ai-deployment-hub.vercel.app
 REQUIRE_AUTH=true
 ALLOW_DEV_ADMIN_BYPASS=false
 ```
@@ -150,7 +150,7 @@ VITE_ENVIRONMENT=production
 Then redeploy frontend and confirm:
 
 ```bash
-curl -I https://devonn.ai
+curl -I https://d3vonn.io
 ```
 
 ## Phase 7 — OCC UI verification
@@ -183,7 +183,7 @@ Watch for:
 - RAG document manager failures.
 - Approval queue stale items.
 - Backend memory/cpu spikes.
-- CORS failures from `devonn.ai`.
+- CORS failures from `d3vonn.io`.
 - CI failures introduced after release tag.
 
 ## Go / no-go gate

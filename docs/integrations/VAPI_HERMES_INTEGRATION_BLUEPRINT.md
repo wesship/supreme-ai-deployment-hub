@@ -37,7 +37,7 @@ plane.
 |---|---|---|---|
 | 1 | Voice surface | Vapi Web SDK + PSTN | `@vapi-ai/web` |
 | 2 | Adapter | `hermes-voice-adapter` edge fn | Supabase Edge Functions |
-| 3 | Orchestrator | Hermes ReAct + swarm dispatch | FastAPI `api.devonn.ai` |
+| 3 | Orchestrator | Hermes ReAct + swarm dispatch | FastAPI `api.d3vonn.io` |
 | 4 | Memory fabric | Transcript → embeddings → graph | pgvector + Neo4j |
 | 5 | Tool mesh | MCP gateway, n8n, direct REST | `mcp_connections`, n8n |
 | 6 | RAG | Voice-time knowledge retrieval | pgvector, Qdrant |

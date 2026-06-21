@@ -20,7 +20,7 @@ set -euo pipefail
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
 BACKEND_URL="${BACKEND_URL:-https://devonn-ai-backend.onrender.com}"
-FRONTEND_URL="${FRONTEND_URL:-https://devonn.ai}"
+FRONTEND_URL="${FRONTEND_URL:-https://d3vonn.io}"
 FAIL_COUNT=0
 PASS_COUNT=0
 

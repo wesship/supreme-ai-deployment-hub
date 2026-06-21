@@ -41,7 +41,7 @@ const DeploymentGuideTab: React.FC = () => {
                   <li>
                     <p className="font-medium">Add the DEVONN.AI Helm repository:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                      <code>helm repo add devonn https://charts.devonn.ai
+                      <code>helm repo add devonn https://charts.d3vonn.io
 helm repo update</code>
                     </pre>
                   </li>
@@ -371,12 +371,12 @@ volumes:
                   <TabsContent value="script" className="space-y-4 mt-4">
                     <p>The easiest way to install DEVONN.AI on-premises is using our installation script:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto">
-                      <code>curl -sSL https://install.devonn.ai | sudo bash</code>
+                      <code>curl -sSL https://install.d3vonn.io | sudo bash</code>
                     </pre>
                     <p>The script will check system requirements, install dependencies, and set up DEVONN.AI with default configurations.</p>
                     <p>For custom installations, use the configuration options:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto">
-                      <code>curl -sSL https://install.devonn.ai | sudo bash -s -- --data-dir /opt/devonn-data --port 8080</code>
+                      <code>curl -sSL https://install.d3vonn.io | sudo bash -s -- --data-dir /opt/devonn-data --port 8080</code>
                     </pre>
                   </TabsContent>
                   
@@ -417,7 +417,7 @@ nano .env  # Edit configuration as needed</code>
                       <li>
                         <p className="font-medium">Download the offline installation package from a connected system:</p>
                         <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                          <code>curl -sSL https://download.devonn.ai/offline-installer/latest -o devonn-offline.tar.gz</code>
+                          <code>curl -sSL https://download.d3vonn.io/offline-installer/latest -o devonn-offline.tar.gz</code>
                         </pre>
                       </li>
                       <li>
@@ -533,7 +533,7 @@ sudo ./install.sh</code>
             <li>
               <span className="font-medium">API URL</span>
               <p className="text-sm">The URL of your DEVONN.AI API instance. For on-premises installations, set this to your server address.</p>
-              <p className="text-xs text-muted-foreground">Default: https://api.devonn.ai</p>
+              <p className="text-xs text-muted-foreground">Default: https://api.d3vonn.io</p>
             </li>
             <li>
               <span className="font-medium">User ID</span>

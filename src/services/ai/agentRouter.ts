@@ -125,8 +125,8 @@ async function runAgent(
   const useTools = toolEnabledAgents.includes(node.type);
 
   if (useTools) {
-    // Non-streaming tool-calling round — proxied through api.devonn.ai
-    const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+    // Non-streaming tool-calling round — proxied through api.d3vonn.io
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
     const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (session?.access_token) {
@@ -207,8 +207,8 @@ async function runOrchestratorAgent(
   graph: AgentGraph,
   options: AgentRouterOptions
 ): Promise<string> {
-  // Orchestration plan — proxied through api.devonn.ai
-  const API_BASE = import.meta.env.VITE_API_URL || 'https://api.devonn.ai';
+  // Orchestration plan — proxied through api.d3vonn.io
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
   const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (session?.access_token) {

@@ -208,7 +208,7 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   rules:
-  - host: api.devonn.ai
+  - host: api.d3vonn.io
     http:
       paths:
       - path: /
@@ -220,7 +220,7 @@ spec:
               number: 80
   tls:
   - hosts:
-    - api.devonn.ai
+    - api.d3vonn.io
     secretName: devonn-tls-cert
 ```
 
@@ -516,10 +516,10 @@ metadata:
       proxy_cache_valid 200 302 30d;
       proxy_cache_valid 404 1m;
       add_header X-Cache-Status $upstream_cache_status;
-    external-dns.alpha.kubernetes.io/hostname: assets.devonn.ai
+    external-dns.alpha.kubernetes.io/hostname: assets.d3vonn.io
 spec:
   rules:
-  - host: assets.devonn.ai
+  - host: assets.d3vonn.io
     http:
       paths:
       - path: /

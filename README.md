@@ -142,13 +142,13 @@ Production must have `ALLOW_DEV_ADMIN_BYPASS=false` or unset.
 Run after each production deployment.
 
 ```bash
-curl -I https://devonn.ai
+curl -I https://d3vonn.io
 ```
 
 Expected: successful site response or expected hosting redirect.
 
 ```bash
-curl -i https://devonn.ai/api/admin/overview
+curl -i https://d3vonn.io/api/admin/overview
 ```
 
 Expected: `401`, `403`, or `503`. Public requests must never return admin data.
@@ -156,7 +156,7 @@ Expected: `401`, `403`, or `503`. Public requests must never return admin data.
 ```bash
 curl -i \
   -H "Authorization: Bearer <non-admin-user-jwt>" \
-  https://devonn.ai/api/admin/overview
+  https://d3vonn.io/api/admin/overview
 ```
 
 Expected: `403 Admin access required`.
@@ -164,7 +164,7 @@ Expected: `403 Admin access required`.
 ```bash
 curl -i \
   -H "Authorization: Bearer <admin-user-jwt>" \
-  https://devonn.ai/api/admin/overview
+  https://d3vonn.io/api/admin/overview
 ```
 
 Expected: `200` with OCC summary data.

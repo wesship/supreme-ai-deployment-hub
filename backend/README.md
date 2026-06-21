@@ -5,9 +5,9 @@ Production-ready FastAPI backend that acts as the **secure execution layer** for
 ## Architecture
 
 ```
-devonn.ai frontend (Vite + React)
+d3vonn.io frontend (Vite + React)
         ↓  VITE_API_URL only
-api.devonn.ai  ← this service
+api.d3vonn.io  ← this service
         ↓  server-side env vars only
 OpenAI / Pinecone / GitHub / n8n / ElevenLabs / AssemblyAI
 ```
@@ -65,7 +65,7 @@ All 16 tests should pass. Tests mock all external API calls — no real keys nee
 
 ## Setting Backend Environment Variables
 
-### On AWS ECS / EC2 (api.devonn.ai)
+### On AWS ECS / EC2 (api.d3vonn.io)
 
 Add these as **task definition environment variables** or **Secrets Manager** references:
 

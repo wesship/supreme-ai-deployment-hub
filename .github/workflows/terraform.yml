@@ -1,42 +1,33 @@
-name: Terraform Deployment Pipeline
+name: Terraform Validation Pipeline
 
 on:
-  push:
-    branches: [main]
   pull_request:
+    branches: [main]
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
+        description: 'Environment to validate'
         required: true
         default: 'staging'
         type: choice
         options:
           - staging
           - production
-      destroy:
-        description: 'Destroy infrastructure'
-        required: false
-        default: false
-        type: boolean
 
 env:
-  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   TF_VERSION: '1.5.0'
   TF_LOG: INFO
   AZURE_RESOURCE_GROUP: devonn-${{ github.event.inputs.environment || 'production' }}-rg
   CONTAINER_APP_NAME: devonn-ai
-  CONTAINER_ENV_NAME: devonn-${{ github.event.inputs.environment || 'production' }}-env  
-  AZURE_RESOURCE_GROUP_TFSTATE: devonn-tfstate-rg  
+  CONTAINER_ENV_NAME: devonn-${{ github.event.inputs.environment || 'production' }}-env
+  AZURE_RESOURCE_GROUP_TFSTATE: devonn-tfstate-rg
 
 permissions:
-  id-token: write
   contents: read
-  packages: write
+  pull-requests: write
+  issues: write
 
 jobs:
   check-azure-secrets:
@@ -53,7 +44,7 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
           if [ -z "${AZURE_SUBSCRIPTION_ID}" ] || [ -z "${AZURE_CLIENT_ID}" ]; then
-            echo "::warning::Azure secrets not configured - skipping Terraform deployment"
+            echo "::warning::Azure secrets not configured - skipping Terraform validation"
             echo "has_secrets=false" >> $GITHUB_OUTPUT
           else
             echo "has_secrets=true" >> $GITHUB_OUTPUT
@@ -65,9 +56,7 @@ jobs:
     timeout-minutes: 30
     needs: [check-azure-secrets]
     if: needs.check-azure-secrets.outputs.has_secrets == 'true'
-    outputs:
-      tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -77,26 +66,20 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
       - name: Validate Azure Secrets
         id: azure-secrets-check
         run: |
           if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET_VALUE }}" ]; then
-            echo "⚠️  Azure secrets not configured - skipping Azure deployment steps"
+            echo "⚠️  Azure secrets not configured - skipping Azure validation steps"
             echo "skip=true" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
+
       - name: Configure Azure Credentials
         if: steps.azure-secrets-check.outputs.skip != 'true'
         id: azure-login-plan
-        continue-on-error: true  # Azure credentials may be expired
+        continue-on-error: true
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -104,17 +87,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           auth-type: SERVICE_PRINCIPAL
-
-      - name: Configure GCP Credentials
-        # Hardening: removed `continue-on-error: true`. The `if:` guard already
-        # skips this step when GCP_CREDENTIALS_JSON is absent, so any failure
-        # now is a real auth failure and MUST fail the job.
-        if: steps.azure-secrets-check.outputs.skip != 'true' && env.GCP_CREDS_SET == 'true'
-        env:
-          GCP_CREDS_SET: ${{ secrets.GCP_CREDENTIALS_JSON != '' && 'true' || 'false' }}
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
       - name: Terraform Init
         if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-plan.outcome == 'success'
@@ -126,70 +98,26 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           terraform init \
-            -backend-config="resource_group_name=${{ env.AZURE_RESOURCE_GROUP_TFSTATE }}" \
-            -backend-config="storage_account_name=${{ secrets.AZURE_STORAGE_ACCOUNT }}" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ github.event.inputs.environment || 'production' }}.terraform.tfstate"  
-
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-      
-      - name: Check Lease on Terraform State and Break if Exists
-        if: steps.azure-login-plan.outcome == 'success'
-        env:
-          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-        run: |
-          set -uo pipefail
-          # Set default environment if not provided
-          ENVIRONMENT=${{ github.event.inputs.environment || 'production' }}
-
-          # Hardening: do NOT blanket-swallow errors with `|| true`. Capture
-          # exit code explicitly so only the known "no lease present" case
-          # is treated as success; every other non-zero exit fails the job.
-          set +e
-          LEASE_BREAK_OUTPUT=$(az storage blob lease break --blob-name "${ENVIRONMENT}.terraform.tfstate" \
-            --container-name tfstate \
-            --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} \
-            --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-            --output tsv --only-show-errors 2>&1)
-          LEASE_BREAK_RC=$?
-          set -e
-
-          if [[ "$LEASE_BREAK_OUTPUT" == *"LeaseNotPresentWithLeaseOperation"* ]]; then
-            echo "No lease found, skipping lease break."
-          elif [[ "$LEASE_BREAK_OUTPUT" == *"Lease broken"* ]] || [[ $LEASE_BREAK_RC -eq 0 ]]; then
-            echo "Lease found and broken."
-          else
-            echo "::error::Unexpected lease-break failure (rc=$LEASE_BREAK_RC): $LEASE_BREAK_OUTPUT"
-            exit 1
-          fi
-
+            -backend=false
 
       - name: Terraform Validate
-        if: steps.azure-login-plan.outcome == 'success'
+        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-plan.outcome == 'success'
         working-directory: ./src/data/manifest/terraform/azure
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}      
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: terraform validate
 
-      - name: Clean up old plan
-        if: steps.azure-login-plan.outcome == 'success'
-        run: |
-          rm -f ./tfplan
-      - name: Terraform Plan
-        if: steps.azure-login-plan.outcome == 'success'
+      - name: Terraform Plan Advisory
+        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-plan.outcome == 'success'
         working-directory: ./src/data/manifest/terraform/azure
         env:
           ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
           ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}      
-        id: tf-plan
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
           terraform plan \
             -var="resource_group_name=${{ env.AZURE_RESOURCE_GROUP }}" \
@@ -199,237 +127,10 @@ jobs:
             -var="backend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:backend-latest" \
             -var="frontend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:frontend-latest" \
             -var="environment=${{ github.event.inputs.environment || 'production' }}" \
-            -out=tfplan
+            -no-color
 
-      - name: Find Terraform Plan File
-        if: steps.azure-login-plan.outcome == 'success'
-        run: |
-          echo "Searching for the tfplan file..."
-          find . -name "tfplan" 
-          echo "Listing all files in ./src/data/manifest/terraform/azure..."
-          ls -l ./src/data/manifest/terraform/azure
-
-      - name: Publish Terraform Plan
-        if: steps.azure-login-plan.outcome == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
-        with:
-          name: tfplan
-          path: ./
-
-      - name: Create String Output
-        if: steps.azure-login-plan.outcome == 'success'
-        id: tf-plan-string
-        run: |
-          TERRAFORM_PLAN=$(terraform show -no-color tfplan)
-          
-          delimiter="$(openssl rand -hex 8)"
-          echo "summary<<${delimiter}" >> $GITHUB_OUTPUT
-          echo "## Terraform Plan Output" >> $GITHUB_OUTPUT
-          echo "<details><summary>Click to expand</summary>" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          echo '```terraform' >> $GITHUB_OUTPUT
-          echo "$TERRAFORM_PLAN" >> $GITHUB_OUTPUT
-          echo '```' >> $GITHUB_OUTPUT
-          echo "</details>" >> $GITHUB_OUTPUT
-          echo "${delimiter}" >> $GITHUB_OUTPUT
-        working-directory: ./src/data/manifest/terraform/azure
-
-      - name: Publish Terraform Plan to Task Summary
-        if: steps.azure-login-plan.outcome == 'success'
-        env:
-          SUMMARY: ${{ steps.tf-plan-string.outputs.summary }}
-        run: |
-          echo "$SUMMARY" >> $GITHUB_STEP_SUMMARY
-      - name: Comment PR
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
-        if: github.event_name == 'pull_request'
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            })
-            
-            const botComment = comments.find(comment => {
-              return comment.user.type === 'Bot' && comment.body.includes('Terraform Plan Output')
-            })
-            
-            const output = `#### Terraform Plan Output
-               ${{ steps.tf-plan-string.outputs.summary }}
-               
-               *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
-               
-            if (botComment) {
-              github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: output
-              })
-            } else {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: output
-              })
-            }
-  terraform-apply:
-    name: Terraform Apply
-    if: needs.terraform-plan.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: 
-      name: ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'production' }}
-      # url: https://${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'prod' }}.devonn.ai
-    needs: [terraform-plan]
-    
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Validate Azure Secrets
-        id: azure-secrets-check
-        run: |
-          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET_VALUE }}" ]; then
-            echo "⚠️  Azure secrets not configured - skipping Azure deployment steps"
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Configure Azure Credentials
-        if: steps.azure-secrets-check.outputs.skip != 'true'
-        id: azure-login-apply
-        continue-on-error: true  # Azure credentials may be expired
-        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          auth-type: SERVICE_PRINCIPAL
-
-      - name: Configure GCP Credentials
-        # Hardening: removed `continue-on-error: true` (apply job). GCP auth
-        # failures during apply must hard-fail to prevent partial deploys.
-        if: steps.azure-secrets-check.outputs.skip != 'true' && env.GCP_CREDS_SET == 'true'
-        env:
-          GCP_CREDS_SET: ${{ secrets.GCP_CREDENTIALS_JSON != '' && 'true' || 'false' }}
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
-        with:
-          credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
-
-      - name: Terraform Init
-        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-apply.outcome == 'success'
-        working-directory: ./src/data/manifest/terraform/azure
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}      
-        run: |
-          terraform init \
-            -backend-config="resource_group_name=${{ env.AZURE_RESOURCE_GROUP_TFSTATE }}" \
-            -backend-config="storage_account_name=${{ secrets.AZURE_STORAGE_ACCOUNT }}" \
-            -backend-config="container_name=tfstate" \
-            -backend-config="key=${{ github.event.inputs.environment || 'production' }}.terraform.tfstate"  
-
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
-        with:
-          name: tfplan
-          path: ./
-
-      - name: Terraform Apply
-        if: github.event.inputs.destroy != 'true'
-        working-directory: ./src/data/manifest/terraform/azure
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}        
-        run: terraform apply -auto-approve ./tfplan
-
-      - name: Terraform Destroy
-        if: github.event.inputs.destroy == 'true'
-        working-directory: ./src/data/manifest/terraform/azure
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}        
-        run: |
-          terraform destroy -auto-approve \
-            -var="resource_group_name=${{ env.AZURE_RESOURCE_GROUP }}" \
-            -var="location=eastus" \
-            -var="container_app_environment_name=${{ env.CONTAINER_ENV_NAME }}" \
-            -var="container_app_name=${{ env.CONTAINER_APP_NAME }}" \
-            -var="backend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:backend-latest" \
-            -var="frontend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:frontend-latest" \
-            -var="environment=${{ github.event.inputs.environment || 'production' }}"
-
-      - name: Run Verification Script
-        if: github.event.inputs.destroy != 'true'
-        run: |
-          if [ -f "./scripts/verify-completion.sh" ]; then
-            chmod +x ./scripts/verify-completion.sh
-            ./scripts/verify-completion.sh
-          else
-            echo "No verification script found"
-          fi
-      - name: Slack Success Notification
-        if: success()
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e  # v3
-        with:
-          status: success
-          channel: '#deployments'
-          text: "✅ Terraform deployment successful to ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'production' }}"
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      - name: Slack Failure Notification
-        if: failure()
-        uses: 8398a7/action-slack@77eaa4f1c608a7d68b38af4e3f739dcd8cba273e  # v3
-        with:
-          status: failure
-          channel: '#deployments'
-          text: "❌ Terraform deployment failed to ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'production' }}"
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      - name: Email Notification
-        # Justified `if: always()`: notification must fire on both success and
-        # failure for audit traceability. Does not affect deploy outcome.
+      - name: PR Summary
         if: always()
-        uses: dawidd6/action-send-mail@d38f3f7cd391cdebfe0d38efc3998b935e951c4f  # v16
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "Terraform Deployment ${{ job.status }} - ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'production' }}"
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
-          from: 'Devonn.AI CI/CD <noreply@devonn.ai>'
-          body: |
-            Terraform deployment ${{ job.status }} for environment: ${{ github.event.inputs.environment != '' && github.event.inputs.environment || 'production' }}
-            
-            Repository: ${{ github.repository }}
-            Commit: ${{ github.sha }}
-            Author: ${{ github.actor }}
-            Workflow: ${{ github.workflow }}
-            
-            View logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          echo "Terraform validation workflow completed."
+          echo "This PR workflow is validation-only and does not change infrastructure."

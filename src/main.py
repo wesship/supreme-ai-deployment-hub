@@ -129,12 +129,12 @@ async def dispatch_to_n8n(run_id: str, payload: RunPayload):
     """Dispatch job to n8n workflow via webhook"""
     n8n_webhook_url = payload.n8n_webhook_url or os.getenv(
         "N8N_WEBHOOK_URL", 
-        "https://n8n.devonn.ai/webhook/run-job"
+        "https://n8n.d3vonn.io/webhook/run-job"
     )
     
     callback_url = payload.callback_url or os.getenv(
         "API_CALLBACK_URL",
-        "https://api.devonn.ai"
+        "https://api.d3vonn.io"
     )
     
     dispatch_payload = {
@@ -362,7 +362,7 @@ async def retry_run(run_id: str, background_tasks: BackgroundTasks):
 @app.post("/n8n/dispatch")
 async def dispatch_to_n8n_endpoint(payload: N8nDispatchPayload):
     """Proxy endpoint to dispatch jobs to n8n"""
-    n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "https://n8n.devonn.ai/webhook/run-job")
+    n8n_webhook_url = os.getenv("N8N_WEBHOOK_URL", "https://n8n.d3vonn.io/webhook/run-job")
     
     async with httpx.AsyncClient() as client:
         try:
@@ -392,7 +392,7 @@ async def dispatch_to_n8n_endpoint(payload: N8nDispatchPayload):
 @app.get("/n8n/execution/{execution_id}")
 async def get_n8n_execution(execution_id: str):
     """Get n8n execution status"""
-    n8n_base_url = os.getenv("N8N_BASE_URL", "https://n8n.devonn.ai")
+    n8n_base_url = os.getenv("N8N_BASE_URL", "https://n8n.d3vonn.io")
     n8n_api_key = get_api_key("N8N_API_KEY")
     
     if not n8n_api_key:
