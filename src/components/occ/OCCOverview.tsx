@@ -47,7 +47,7 @@ export default function OCCOverview({ stats, lastRefreshed }: OCCOverviewProps) 
         <div>
           <h2 className="text-xl font-semibold text-white">System Overview</h2>
           <p className="text-sm text-gray-400 mt-0.5">
-            Real-time metrics from the Devonn.ai production backend
+            Real-time metrics from the DEVONN production backend
           </p>
         </div>
         {lastRefreshed && (
@@ -119,7 +119,7 @@ export default function OCCOverview({ stats, lastRefreshed }: OCCOverviewProps) 
         <div>
           <p className="text-sm font-medium text-green-400">Production Backend Online</p>
           <p className="text-xs text-gray-400 mt-0.5">
-            <span className="font-mono">https://devonn-ai-api-production.up.railway.app</span>
+            <span className="font-mono">https://api.d3vonn.io</span>
             {' · '}All systems operational
           </p>
         </div>
