@@ -5,6 +5,7 @@ import "./App.css";
 import Navbar from "./components/Navbar";
 import ScrollToTop from "./components/ScrollToTop";
 import RouteTransition from "./components/RouteTransition";
+import SkipToContent from "./components/SkipToContent";
 import { Toaster } from "./components/ui/sonner";
 import { ChatProvider } from "./contexts/ChatContext";
 import { ThemeProvider } from 'next-themes';
@@ -61,8 +62,9 @@ function App() {
             <AGUIProvider>
               <Router>
                 <ScrollToTop />
+                <SkipToContent />
                 <Navbar />
-                <main className="min-h-screen pt-16">
+                <main id="main-content" tabIndex={-1} className="min-h-screen pt-16 focus:outline-none">
                   <Suspense fallback={<PageLoader />}>
                     <RouteTransition>
                       <Routes>
