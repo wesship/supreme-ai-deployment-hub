@@ -1,6 +1,21 @@
 # DEVONN Canonical Domain Migration to d3vonn.io
 
-`devonn.ai` is currently treated as unavailable/expired. Until it is recovered, `d3vonn.io` is the canonical production domain for the DEVONN platform. This runbook captures the DNS, platform, and application settings needed to complete the cutover safely.
+`devonn.ai` has expired and is no longer under our control. `d3vonn.io` is the canonical production domain for the DEVONN platform going forward. This runbook captures the DNS, platform, and application settings needed to complete the cutover safely.
+
+## Frontend hosting: Lovable
+
+The frontend is hosted on Lovable. To attach `d3vonn.io`:
+
+1. In Lovable: **Project Settings → Project → Domains → Connect Domain**, enter `d3vonn.io`.
+2. Add `www.d3vonn.io` as a separate entry (Lovable does not auto-add `www`).
+3. At Hostinger DNS, set:
+   - `A   @    → 185.158.133.1`
+   - `A   www  → 185.158.133.1`
+   - `TXT _lovable → <value shown by Lovable>`
+4. Remove any conflicting A/CNAME records for `@` or `www` (including the old Vercel `76.76.21.21` record if present).
+5. Wait for DNS propagation. Lovable auto-provisions SSL.
+
+The Vercel-based records below are deprecated and only kept for historical reference if you decide to move hosting off Lovable.
 
 ## Production Domain Topology
 
