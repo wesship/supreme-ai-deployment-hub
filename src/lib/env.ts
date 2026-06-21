@@ -25,7 +25,7 @@ function requireEnv(key: string): string {
   if (!value) {
     throw new Error(
       `[env] Missing required environment variable: ${key}\n` +
-      `Add it to your .env.local (development) or Vercel Environment Variables (production).`
+      `Add it to your .env.local (development) or deployment environment variables (production).`
     );
   }
   return value as string;
@@ -62,4 +62,4 @@ export const env = {
 } as const;
 
 export type Env = typeof env;
-// Production API: https://devonn-ai-api-production.up.railway.app
+// Production API: https://api.d3vonn.io
