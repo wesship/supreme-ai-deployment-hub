@@ -218,7 +218,7 @@ const ChatPage: React.FC = () => {
               {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </button>
             <div>
-              <h1 className="text-white text-sm font-semibold">{conversationTitle}</h1>
+              <h2 className="text-white text-sm font-semibold">{conversationTitle}</h2>
               <p className="text-white/30 text-xs font-mono">Devonn AI · {selectedModel}</p>
             </div>
           </div>
