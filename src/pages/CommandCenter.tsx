@@ -92,7 +92,7 @@ export default function CommandCenter() {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
+        <section aria-label="Command Center content" className="flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeView}
@@ -105,7 +105,7 @@ export default function CommandCenter() {
               <ActiveComponent onNavigate={(v) => setActiveView(v as View)} />
             </motion.div>
           </AnimatePresence>
-        </main>
+        </section>
       </div>
     </TooltipProvider>
   );

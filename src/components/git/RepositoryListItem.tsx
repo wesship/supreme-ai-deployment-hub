@@ -31,15 +31,21 @@ const RepositoryListItem = ({
     <Card key={repo.id} className={`border-border ${activeRepositoryId === repo.id ? 'border-primary' : ''}`}>
       <CardHeader className="py-3">
         <div className="flex justify-between items-center">
-          <div className="cursor-pointer" onClick={() => onRepositorySelect(repo.id)}>
+          <button
+            type="button"
+            onClick={() => onRepositorySelect(repo.id)}
+            aria-pressed={activeRepositoryId === repo.id}
+            aria-label={`Select repository ${repo.name}`}
+            className="text-left cursor-pointer rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
             <div className="text-base flex items-center gap-2 font-medium">
-              {isGitHub ? <Github className="h-4 w-4" /> : <GitBranch className="h-4 w-4" />}
+              {isGitHub ? <Github className="h-4 w-4" aria-hidden="true" /> : <GitBranch className="h-4 w-4" aria-hidden="true" />}
               {repo.name}
             </div>
             <div className="text-xs truncate max-w-64 text-muted-foreground">
               {repo.url}
             </div>
-          </div>
+          </button>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
