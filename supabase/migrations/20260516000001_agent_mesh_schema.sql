@@ -99,6 +99,6 @@ CREATE POLICY "agent_results_select_own" ON public.agent_results
 -- ── Seed default agents ───────────────────────────────────────────────────────
 INSERT INTO public.agents (name, base_url, capabilities, status)
 VALUES
-  ('devonn-coordinator', 'https://coordinator.d3vonn.io', ARRAY['plan','orchestrate','summarize','review'], 'offline'),
-  ('openclaw-bridge',    'https://openclaw.d3vonn.io',    ARRAY['code_generate','code_review','test_generate'], 'offline')
+  ('devonn-coordinator', 'https://coordinator.devonn.ai', ARRAY['plan','orchestrate','summarize','review'], 'offline'),
+  ('openclaw-bridge',    'https://openclaw.devonn.ai',    ARRAY['code_generate','code_review','test_generate'], 'offline')
 ON CONFLICT (name) DO NOTHING;
