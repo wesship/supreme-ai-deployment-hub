@@ -118,7 +118,7 @@ const EnhancedAgentDemo = () => {
       <D3vonnPageBanner title="Enhanced Agent Demo" />
       <div className="max-w-6xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Enhanced AI Agent Platform</h1>
+          <h2 className="text-3xl font-bold mb-2">Enhanced AI Agent Platform</h2>
           <p className="text-muted-foreground">
             Multi-provider LLM support with voice capabilities and advanced features
           </p>
