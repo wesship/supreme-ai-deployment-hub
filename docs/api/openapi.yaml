@@ -6,7 +6,7 @@ info:
 servers:
   - url: https://api.d3vonn.io
     description: Production server
-  - url: https://api.staging.d3vonn.io
+  - url: https://staging-api.d3vonn.io
     description: Staging server
 paths:
   /api/v1/health:
