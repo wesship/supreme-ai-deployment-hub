@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 
-const RAILWAY_URL = 'https://devonn-ai-api-production.up.railway.app';
+const API_URL = 'https://api.d3vonn.io';
 
 interface ServiceStatus {
   name: string;
@@ -13,7 +13,7 @@ interface ServiceStatus {
 const LiveDeploymentBanner: React.FC = () => {
   const [services, setServices] = useState<ServiceStatus[]>([
     { name: 'Frontend', url: 'https://d3vonn.io', status: 'online' },
-    { name: 'API', url: RAILWAY_URL, status: 'checking' },
+    { name: 'API', url: API_URL, status: 'checking' },
     { name: 'Database', url: '', status: 'online' },
     { name: 'Hermes', url: '', status: 'checking' },
   ]);
@@ -27,7 +27,7 @@ const LiveDeploymentBanner: React.FC = () => {
     const checkHealth = async () => {
       let nextStatus: ServiceStatus['status'] = 'offline';
       try {
-        const res = await fetch(`${RAILWAY_URL}/health`, {
+        const res = await fetch(`${API_URL}/health`, {
           signal: AbortSignal.timeout(5000),
         });
         if (res.ok) {
@@ -39,7 +39,7 @@ const LiveDeploymentBanner: React.FC = () => {
           failures += 1;
         }
       } catch {
-        // Network/timeout — Railway service is unreachable. Mark offline and back off.
+        // Network/timeout — API custom domain is unreachable. Mark offline and back off.
         nextStatus = 'offline';
         failures += 1;
       }
@@ -105,7 +105,7 @@ const LiveDeploymentBanner: React.FC = () => {
             Updated {lastChecked.toLocaleTimeString()}
           </span>
           <a
-            href="https://devonn-ai-api-production.up.railway.app/health/deep"
+            href="https://api.d3vonn.io/health/deep"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-600 hover:text-gray-400 transition-colors"
