@@ -64,8 +64,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
               </span>
             </div>
             <SheetClose asChild>
-              <NavButton variant="ghost" size="icon" className="text-white/70 hover:text-white">
-                <X className="h-5 w-5" />
+              <NavButton variant="ghost" size="icon" aria-label="Close menu" className="text-white/70 hover:text-white">
+                <X className="h-5 w-5" aria-hidden="true" />
               </NavButton>
             </SheetClose>
           </div>
