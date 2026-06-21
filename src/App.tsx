@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { FloatingChatWidget } from "./components/ai/FloatingChatWidget";
 import "./App.css";
 import Navbar from "./components/Navbar";
+import ScrollToTop from "./components/ScrollToTop";
+import RouteTransition from "./components/RouteTransition";
 import { Toaster } from "./components/ui/sonner";
 import { ChatProvider } from "./contexts/ChatContext";
 import { ThemeProvider } from 'next-themes';
@@ -58,47 +60,50 @@ function App() {
           <ChatProvider>
             <AGUIProvider>
               <Router>
+                <ScrollToTop />
                 <Navbar />
                 <main className="min-h-screen pt-16">
                   <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                      <Route path="/login" element={<Login />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/film" element={<FilmPage />} />
-                      <Route path="/deployment" element={<DeploymentDashboard />} />
-                      <Route path="/api" element={<APIManagement />} />
-                      <Route path="/documentation" element={<Documentation />} />
-                      <Route path="/agents" element={<AgentDashboard />} />
-                      <Route path="/devonn" element={<DevonnDashboard />} />
-                      <Route path="/flow" element={<FlowEditor />} />
-                      <Route path="/workflows" element={<WorkflowManagement />} />
-                      <Route path="/agent-demo" element={<AgentDemo />} />
-                      <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
-                      <Route path="/marketplace" element={<AgentMarketplace />} />
-                      <Route path="/mcp" element={<McpPage />} />
-                      <Route path="/status" element={<StatusDashboard />} />
-                      <Route path="/manifest" element={<ManifestPage />} />
-                      <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
-                      <Route path="/command-center" element={<CommandCenter />} />
-                      <Route path="/about" element={<About />} />
-                      <Route path="/contact" element={<Contact />} />
-                      <Route path="/terms" element={<Terms />} />
-                      <Route path="/privacy" element={<Privacy />} />
-                      <Route path="/privacy-policy" element={<Privacy />} />
-                      <Route path="/chat" element={<ChatPage />} />
-                      <Route path="/admin" element={<AdminPage />} />
-                      <Route
-                        path="/occ"
-                        element={
-                          <AdminRoute>
-                            <OperatorCommandCenter />
-                          </AdminRoute>
-                        }
-                      />
-                      <Route path="/unauthorized" element={<Unauthorized />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
+                    <RouteTransition>
+                      <Routes>
+                        <Route path="/" element={<Index />} />
+                        <Route path="/login" element={<Login />} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/film" element={<FilmPage />} />
+                        <Route path="/deployment" element={<DeploymentDashboard />} />
+                        <Route path="/api" element={<APIManagement />} />
+                        <Route path="/documentation" element={<Documentation />} />
+                        <Route path="/agents" element={<AgentDashboard />} />
+                        <Route path="/devonn" element={<DevonnDashboard />} />
+                        <Route path="/flow" element={<FlowEditor />} />
+                        <Route path="/workflows" element={<WorkflowManagement />} />
+                        <Route path="/agent-demo" element={<AgentDemo />} />
+                        <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
+                        <Route path="/marketplace" element={<AgentMarketplace />} />
+                        <Route path="/mcp" element={<McpPage />} />
+                        <Route path="/status" element={<StatusDashboard />} />
+                        <Route path="/manifest" element={<ManifestPage />} />
+                        <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
+                        <Route path="/command-center" element={<CommandCenter />} />
+                        <Route path="/about" element={<About />} />
+                        <Route path="/contact" element={<Contact />} />
+                        <Route path="/terms" element={<Terms />} />
+                        <Route path="/privacy" element={<Privacy />} />
+                        <Route path="/privacy-policy" element={<Privacy />} />
+                        <Route path="/chat" element={<ChatPage />} />
+                        <Route path="/admin" element={<AdminPage />} />
+                        <Route
+                          path="/occ"
+                          element={
+                            <AdminRoute>
+                              <OperatorCommandCenter />
+                            </AdminRoute>
+                          }
+                        />
+                        <Route path="/unauthorized" element={<Unauthorized />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </RouteTransition>
                   </Suspense>
                 </main>
                 <FloatingChatWidget />
