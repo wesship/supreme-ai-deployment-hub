@@ -20,31 +20,47 @@ const LiveDeploymentBanner: React.FC = () => {
   const [lastChecked, setLastChecked] = useState<Date>(new Date());
 
   useEffect(() => {
+    let cancelled = false;
+    let failures = 0;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     const checkHealth = async () => {
+      let nextStatus: ServiceStatus['status'] = 'offline';
       try {
         const res = await fetch(`${RAILWAY_URL}/health`, {
           signal: AbortSignal.timeout(5000),
         });
-        const data = await res.json();
-        const isOk = data?.status === 'ok';
-        setServices(prev => prev.map(s => {
-          if (s.name === 'API') return { ...s, status: isOk ? 'online' : 'degraded' };
-          if (s.name === 'Hermes') return { ...s, status: isOk ? 'online' : 'degraded' };
-          return s;
-        }));
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          nextStatus = data?.status === 'ok' ? 'online' : 'degraded';
+          failures = 0;
+        } else {
+          nextStatus = 'degraded';
+          failures += 1;
+        }
       } catch {
-        setServices(prev => prev.map(s => {
-          if (s.name === 'API') return { ...s, status: 'degraded' };
-          if (s.name === 'Hermes') return { ...s, status: 'degraded' };
-          return s;
-        }));
+        // Network/timeout — Railway service is unreachable. Mark offline and back off.
+        nextStatus = 'offline';
+        failures += 1;
       }
+
+      if (cancelled) return;
+      setServices(prev => prev.map(s => {
+        if (s.name === 'API' || s.name === 'Hermes') return { ...s, status: nextStatus };
+        return s;
+      }));
       setLastChecked(new Date());
+
+      // Adaptive polling: 30s normally, back off to 5min after 3 consecutive failures
+      const delay = failures >= 3 ? 5 * 60 * 1000 : 30 * 1000;
+      timer = setTimeout(checkHealth, delay);
     };
 
     checkHealth();
-    const interval = setInterval(checkHealth, 30000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const allOnline = services.every(s => s.status === 'online');
