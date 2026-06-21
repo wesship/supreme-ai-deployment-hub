@@ -28,7 +28,7 @@ export default function CommandCenterSettings({ onNavigate }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
         <p className="text-muted-foreground mt-1">Manage MCP connections and API keys</p>
       </div>
 
