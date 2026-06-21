@@ -82,11 +82,11 @@ const Navbar = ({
             
             <div className="flex items-center space-x-4">
               <ThemeToggle />
-              <a 
-                href="https://github.com/devonn-ai/framework" 
-                target="_blank" 
+              <a
+                href="https://github.com/devonn-ai/framework"
+                target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 text-white/70 hover:text-white transition-colors"
+                className="p-2 text-white/70 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:rounded-lg"
                 aria-label="GitHub Repository"
               >
                 <Github className="h-5 w-5" />
