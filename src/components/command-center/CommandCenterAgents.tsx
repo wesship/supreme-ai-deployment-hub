@@ -8,7 +8,7 @@ export default function CommandCenterAgents({ onNavigate }: Props) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Agent Management</h1>
+        <h2 className="text-2xl font-bold tracking-tight">Agent Management</h2>
         <p className="text-muted-foreground mt-1">Deploy, monitor, and orchestrate your AI agents</p>
       </div>
       <AgentManager />
