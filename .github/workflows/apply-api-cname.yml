@@ -1,141 +1,28 @@
-name: Apply api.devonn.ai CNAME (Railway)
+name: Deprecated api.devonn.ai Route 53 CNAME
 
 on:
   workflow_dispatch:
     inputs:
-      target:
-        description: 'Railway hostname to point api.devonn.ai at'
-        required: true
-        default: 'devonn-ai-api-production.up.railway.app'
-        type: string
-      dry_run:
-        description: 'Dry run only — print changes without applying'
+      reason:
+        description: 'This workflow is deprecated. Configure api.d3vonn.io in Hostinger/Railway instead.'
         required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
+        default: 'deprecated'
 
 permissions:
   contents: read
 
 jobs:
-  apply-cname:
-    name: UPSERT api.devonn.ai CNAME in Route 53
+  deprecated:
+    name: Deprecated API DNS workflow guard
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 5
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Locate devonn.ai hosted zone
-        id: find-zone
+      - name: Stop obsolete api.devonn.ai workflow
         run: |
-          ZONE_ID=$(aws route53 list-hosted-zones-by-name \
-            --dns-name "devonn.ai." \
-            --query "HostedZones[?Name=='devonn.ai.'].Id" \
-            --output text | sed 's|/hostedzone/||')
-
-          if [ -z "$ZONE_ID" ]; then
-            echo "ERROR: No hosted zone found for devonn.ai"
-            exit 1
-          fi
-          echo "Found hosted zone: $ZONE_ID"
-          echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Show existing api.devonn.ai records (before)
-        run: |
-          aws route53 list-resource-record-sets \
-            --hosted-zone-id "${{ steps.find-zone.outputs.zone_id }}" \
-            --query "ResourceRecordSets[?Name=='api.devonn.ai.']" \
-            --output table
-
-      - name: Build and apply CNAME change
-        if: ${{ inputs.dry_run == 'false' }}
-        id: apply
-        run: |
-          TARGET="${{ inputs.target }}"
-          ZONE_ID="${{ steps.find-zone.outputs.zone_id }}"
-
-          # If an A/ALIAS record currently occupies api.devonn.ai, delete it
-          # before creating the CNAME (Route 53 forbids coexistence).
-          aws route53 list-resource-record-sets \
-            --hosted-zone-id "$ZONE_ID" \
-            --output json > /tmp/all-records.json
-
-          python3 - << EOF
-          import json
-          data = json.load(open('/tmp/all-records.json'))
-          changes = []
-          for r in data['ResourceRecordSets']:
-              if r['Name'] == 'api.devonn.ai.' and r['Type'] == 'A':
-                  rec = {"Name": "api.devonn.ai.", "Type": "A"}
-                  if 'AliasTarget' in r:
-                      rec['AliasTarget'] = r['AliasTarget']
-                  else:
-                      rec['TTL'] = r.get('TTL', 300)
-                      rec['ResourceRecords'] = r['ResourceRecords']
-                  changes.append({"Action": "DELETE", "ResourceRecordSet": rec})
-                  print(f"Will DELETE existing A record on api.devonn.ai")
-
-          changes.append({
-              "Action": "UPSERT",
-              "ResourceRecordSet": {
-                  "Name": "api.devonn.ai.",
-                  "Type": "CNAME",
-                  "TTL": 300,
-                  "ResourceRecords": [{"Value": "${TARGET}"}]
-              }
-          })
-          print(f"Will UPSERT: api.devonn.ai CNAME -> ${TARGET}")
-
-          json.dump({
-              "Comment": "Point api.devonn.ai at Railway backend",
-              "Changes": changes
-          }, open('/tmp/dns-change-batch.json', 'w'), indent=2)
-          EOF
-
-          cat /tmp/dns-change-batch.json
-
-          CHANGE_ID=$(aws route53 change-resource-record-sets \
-            --hosted-zone-id "$ZONE_ID" \
-            --change-batch file:///tmp/dns-change-batch.json \
-            --query "ChangeInfo.Id" \
-            --output text)
-
-          echo "Change submitted: $CHANGE_ID"
-          echo "change_id=$CHANGE_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Wait for Route 53 propagation
-        if: ${{ inputs.dry_run == 'false' }}
-        run: |
-          aws route53 wait resource-record-sets-changed \
-            --id "${{ steps.apply.outputs.change_id }}"
-          echo "Route 53 status: INSYNC"
-
-      - name: Verify DNS + HTTPS
-        if: ${{ inputs.dry_run == 'false' }}
-        run: |
-          echo "Sleeping 30s for global DNS propagation..."
-          sleep 30
-          echo "=== nslookup ==="
-          nslookup api.devonn.ai 8.8.8.8 || true
-          echo
-          echo "=== HTTPS health (may 502 until Railway issues TLS cert for custom domain) ==="
-          curl -i --max-time 15 https://api.devonn.ai/health || true
-
-      - name: Summary
-        if: always()
-        run: |
-          echo "=========================================="
-          echo " api.devonn.ai -> ${{ inputs.target }}"
-          echo "=========================================="
-          echo "NEXT: In Railway → Service → Settings → Networking,"
-          echo "      add custom domain 'api.devonn.ai' so Railway issues"
-          echo "      the TLS certificate. HTTPS will fail until this is done."
+          echo "This workflow is intentionally disabled."
+          echo "devonn.ai is expired and no longer canonical."
+          echo "Use api.d3vonn.io for the production API."
+          echo "If the API remains on Railway, attach api.d3vonn.io in Railway first."
+          echo "Then configure Hostinger DNS for api.d3vonn.io as Railway instructs."
+          echo "Do not recreate Route 53 records for api.devonn.ai."
+          exit 1
