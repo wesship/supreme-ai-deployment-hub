@@ -41,7 +41,7 @@ const D3vonnHeroBanner: React.FC = () => {
         transition={{ delay: 0.6, duration: 0.6 }}
         className="absolute top-3 left-1/2 -translate-x-1/2 z-10 px-4 py-1.5 rounded-full border border-primary/40 bg-black/60 backdrop-blur-md text-[10px] sm:text-xs tracking-[0.25em] uppercase text-primary shadow-[0_0_20px_rgba(112,128,255,0.35)]"
       >
-        d3vonn.io → D3VONN.IO · Now Live
+        devonn.ai → D3VONN.IO · Now Live
       </motion.div>
     </section>
   );
