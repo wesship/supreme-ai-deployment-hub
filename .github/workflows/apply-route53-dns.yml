@@ -1,220 +1,30 @@
-name: Apply Route 53 DNS Records
+name: Deprecated Route 53 DNS Records
 
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Dry run only — print changes without applying'
+      reason:
+        description: 'This workflow is deprecated. Use Hostinger + Lovable DNS setup for d3vonn.io.'
         required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
+        default: 'deprecated'
 
 permissions:
   contents: read
 
 jobs:
-  apply-dns:
-    name: UPSERT devonn.ai DNS records in Route 53
+  deprecated:
+    name: Deprecated DNS workflow guard
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 5
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Locate devonn.ai hosted zone
-        id: find-zone
+      - name: Stop obsolete devonn.ai DNS workflow
         run: |
-          ZONE_ID=$(aws route53 list-hosted-zones-by-name \
-            --dns-name "devonn.ai." \
-            --query "HostedZones[?Name=='devonn.ai.'].Id" \
-            --output text | sed 's|/hostedzone/||')
-
-          if [ -z "$ZONE_ID" ]; then
-            echo "ERROR: No hosted zone found for devonn.ai"
-            exit 1
-          fi
-
-          echo "Found hosted zone: $ZONE_ID"
-          echo "zone_id=$ZONE_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Show existing records (before)
-        run: |
-          echo "=== Current A / CNAME records for devonn.ai ==="
-          aws route53 list-resource-record-sets \
-            --hosted-zone-id "${{ steps.find-zone.outputs.zone_id }}" \
-            --query "ResourceRecordSets[?Type=='A' || Type=='CNAME']" \
-            --output table
-
-      - name: Build change batch and apply DNS records
-        if: ${{ inputs.dry_run == 'false' }}
-        id: apply
-        run: |
-          ZONE_ID="${{ steps.find-zone.outputs.zone_id }}"
-
-          # Fetch all current records
-          aws route53 list-resource-record-sets \
-            --hosted-zone-id "$ZONE_ID" \
-            --output json > /tmp/all-records.json
-
-          # Build the change batch using Python — reads the JSON directly
-          python3 - << 'EOF'
-          import json, subprocess, sys
-
-          data = json.load(open('/tmp/all-records.json'))
-          changes = []
-
-          # Find and DELETE devonn.ai ALIAS -> ALB
-          for r in data['ResourceRecordSets']:
-              if r['Name'] == 'devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
-                  changes.append({
-                      "Action": "DELETE",
-                      "ResourceRecordSet": {
-                          "Name": "devonn.ai.",
-                          "Type": "A",
-                          "AliasTarget": r['AliasTarget']
-                      }
-                  })
-                  print(f"Will DELETE: devonn.ai ALIAS -> {r['AliasTarget']['DNSName']}")
-                  break
-
-          # Find and DELETE app.devonn.ai ALIAS -> ALB
-          for r in data['ResourceRecordSets']:
-              if r['Name'] == 'app.devonn.ai.' and r['Type'] == 'A' and 'AliasTarget' in r:
-                  changes.append({
-                      "Action": "DELETE",
-                      "ResourceRecordSet": {
-                          "Name": "app.devonn.ai.",
-                          "Type": "A",
-                          "AliasTarget": r['AliasTarget']
-                      }
-                  })
-                  print(f"Will DELETE: app.devonn.ai ALIAS -> {r['AliasTarget']['DNSName']}")
-                  break
-
-          # CREATE devonn.ai A -> Vercel IP
-          changes.append({
-              "Action": "CREATE",
-              "ResourceRecordSet": {
-                  "Name": "devonn.ai.",
-                  "Type": "A",
-                  "TTL": 300,
-                  "ResourceRecords": [{"Value": "76.76.21.21"}]
-              }
-          })
-          print("Will CREATE: devonn.ai A -> 76.76.21.21")
-
-          # UPSERT www.devonn.ai CNAME -> Vercel
-          changes.append({
-              "Action": "UPSERT",
-              "ResourceRecordSet": {
-                  "Name": "www.devonn.ai.",
-                  "Type": "CNAME",
-                  "TTL": 300,
-                  "ResourceRecords": [{"Value": "cname.vercel-dns.com"}]
-              }
-          })
-          print("Will UPSERT: www.devonn.ai CNAME -> cname.vercel-dns.com")
-
-          # CREATE app.devonn.ai CNAME -> Vercel
-          changes.append({
-              "Action": "CREATE",
-              "ResourceRecordSet": {
-                  "Name": "app.devonn.ai.",
-                  "Type": "CNAME",
-                  "TTL": 300,
-                  "ResourceRecords": [{"Value": "cname.vercel-dns.com"}]
-              }
-          })
-          print("Will CREATE: app.devonn.ai CNAME -> cname.vercel-dns.com")
-
-          batch = {
-              "Comment": "Migrate devonn.ai and app.devonn.ai from AWS ALB ALIAS to Vercel",
-              "Changes": changes
-          }
-
-          print("\nFinal change batch:")
-          print(json.dumps(batch, indent=2))
-
-          with open('/tmp/dns-change-batch.json', 'w') as f:
-              json.dump(batch, f, indent=2)
-
-          print("\nChange batch written to /tmp/dns-change-batch.json")
-          EOF
-
-          # Apply the change batch
-          CHANGE_ID=$(aws route53 change-resource-record-sets \
-            --hosted-zone-id "$ZONE_ID" \
-            --change-batch file:///tmp/dns-change-batch.json \
-            --query "ChangeInfo.Id" \
-            --output text)
-
-          echo "Change submitted: $CHANGE_ID"
-          echo "change_id=$CHANGE_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Wait for Route 53 propagation
-        if: ${{ inputs.dry_run == 'false' }}
-        run: |
-          echo "Waiting for Route 53 change to reach INSYNC..."
-          aws route53 wait resource-record-sets-changed \
-            --id "${{ steps.apply.outputs.change_id }}"
-          echo "Route 53 change status: INSYNC"
-
-      - name: Show updated records (after)
-        if: ${{ inputs.dry_run == 'false' }}
-        run: |
-          echo "=== Updated A / CNAME records for devonn.ai ==="
-          aws route53 list-resource-record-sets \
-            --hosted-zone-id "${{ steps.find-zone.outputs.zone_id }}" \
-            --query "ResourceRecordSets[?Type=='A' || Type=='CNAME']" \
-            --output table
-
-      - name: Verify DNS resolution
-        if: ${{ inputs.dry_run == 'false' }}
-        run: |
-          echo "Waiting 30s for global DNS propagation..."
-          sleep 30
-
-          echo ""
-          echo "=== DNS Resolution Check ==="
-          for domain in devonn.ai www.devonn.ai app.devonn.ai api.devonn.ai; do
-            result=$(nslookup "$domain" 8.8.8.8 2>&1 | grep -E "Address|CNAME|Name" | grep -v "#53" | head -2 | tr '\n' ' ')
-            echo "$domain -> $result"
-          done
-
-          echo ""
-          echo "=== HTTP Status Check ==="
-          for domain in devonn.ai www.devonn.ai app.devonn.ai; do
-            status=$(curl -sI --max-time 15 "https://$domain" 2>/dev/null | head -1 | tr -d '\r')
-            echo "https://$domain -> ${status:-TIMEOUT/NO_RESPONSE}"
-          done
-
-          echo ""
-          echo "api.devonn.ai (backend — should still be on AWS):"
-          nslookup api.devonn.ai 8.8.8.8 2>&1 | grep -E "Address|CNAME" | grep -v "#53" | head -2
-
-      - name: Summary
-        if: always()
-        run: |
-          echo ""
-          echo "=========================================="
-          echo "  Devonn.ai DNS Migration — Complete"
-          echo "=========================================="
-          echo ""
-          echo "Migrated to Vercel:"
-          echo "  A     devonn.ai     -> 76.76.21.21"
-          echo "  CNAME www.devonn.ai -> cname.vercel-dns.com"
-          echo "  CNAME app.devonn.ai -> cname.vercel-dns.com"
-          echo ""
-          echo "Preserved on AWS ALB:"
-          echo "  ALIAS api.devonn.ai -> AWS EKS ALB (unchanged)"
-          echo ""
-          echo "Vercel will auto-issue SSL certificates."
-          echo "Frontend will be live at https://devonn.ai"
+          echo "This workflow is intentionally disabled."
+          echo "devonn.ai is expired and no longer canonical."
+          echo "d3vonn.io uses Hostinger DNS and Lovable frontend hosting."
+          echo "Required Hostinger records:"
+          echo "  A   @       185.158.133.1"
+          echo "  A   www     185.158.133.1"
+          echo "  TXT _lovable <value shown by Lovable>"
+          echo "Do not recreate Vercel or Route 53 records for devonn.ai."
+          exit 1
