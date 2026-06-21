@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -24,12 +23,12 @@ const DomainConfigTab: React.FC = () => {
               <li><code>A @ → 185.158.133.1</code> for the Lovable apex frontend.</li>
               <li><code>A www → 185.158.133.1</code> for the www alias.</li>
               <li><code>TXT _lovable → &lt;value shown in Lovable&gt;</code> for domain verification.</li>
-              <li><code>CNAME api → devonn-ai-api-production.up.railway.app</code> for the Railway API service.</li>
+              <li><code>CNAME api → devonn-ai-api-production.up.railway.app</code> for the Railway API service, if retained.</li>
             </ul>
           </div>
 
           <h3 className="text-lg font-semibold mt-4">Hostinger DNS Records</h3>
-          <p>Remove any conflicting parking or stale records (including any old Vercel <code>76.76.21.21</code> A records) for the apex, <code>www</code>, or <code>api</code> hosts before saving these values.</p>
+          <p>Remove any conflicting parking or stale records, especially old Vercel apex or www records, before saving these values.</p>
 
           <pre className="bg-secondary p-4 rounded-md overflow-x-auto mt-2">
             <code>{`Type    Host       Value
@@ -48,7 +47,7 @@ www.d3vonn.io`}</code>
           </pre>
 
           <h3 className="text-lg font-semibold mt-4">Railway API Domain</h3>
-          <p>Attach the API service custom domain in Railway:</p>
+          <p>Attach the API service custom domain in Railway if the backend remains there:</p>
 
           <pre className="bg-secondary p-4 rounded-md overflow-x-auto mt-2">
             <code>{`api.d3vonn.io`}</code>
@@ -68,9 +67,9 @@ curl https://api.d3vonn.io/health`}</code>
             <h4 className="font-semibold text-amber-800">Important Notes:</h4>
             <ul className="list-disc pl-6 text-amber-900 mt-2">
               <li>DNS propagation can vary by resolver and network.</li>
-              <li>Always verify SSL status in both Vercel and Railway before announcing cutover completion.</li>
+              <li>Always verify SSL status in Lovable and Railway before announcing cutover completion.</li>
               <li>Use registrar and Hostinger dashboard evidence instead of hardcoded domain-expiry assumptions.</li>
-              <li>Do not start production cutover until PR #249 review items and release gates are resolved.</li>
+              <li>Do not start production cutover until release gates are resolved.</li>
             </ul>
           </div>
         </CardContent>
