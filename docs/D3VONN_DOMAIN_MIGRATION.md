@@ -7,24 +7,22 @@
 The frontend is hosted on Lovable. To attach `d3vonn.io`:
 
 1. In Lovable: **Project Settings → Project → Domains → Connect Domain**, enter `d3vonn.io`.
-2. Add `www.d3vonn.io` as a separate entry (Lovable does not auto-add `www`).
+2. Add `www.d3vonn.io` as a separate entry.
 3. At Hostinger DNS, set:
    - `A   @    → 185.158.133.1`
    - `A   www  → 185.158.133.1`
    - `TXT _lovable → <value shown by Lovable>`
-4. Remove any conflicting A/CNAME records for `@` or `www` (including the old Vercel `76.76.21.21` record if present).
-5. Wait for DNS propagation. Lovable auto-provisions SSL.
-
-The Vercel-based records below are deprecated and only kept for historical reference if you decide to move hosting off Lovable.
+4. Remove conflicting A/CNAME records for `@` or `www`, especially old Vercel records such as `76.76.21.21` or `cname.vercel-dns.com`.
+5. Wait for DNS propagation. Lovable auto-provisions SSL after the domain verifies.
 
 ## Production Domain Topology
 
 | Hostname | Role | Platform |
 |---|---|---|
-| `d3vonn.io` | Primary public frontend | Vercel |
-| `www.d3vonn.io` | Frontend alias / redirect | Vercel |
-| `api.d3vonn.io` | Production API | Railway |
-| `app.d3vonn.io` | Optional future application subdomain | Vercel |
+| `d3vonn.io` | Primary public frontend | Lovable |
+| `www.d3vonn.io` | Frontend alias / redirect | Lovable |
+| `api.d3vonn.io` | Production API | Railway, if retained |
+| `app.d3vonn.io` | Optional future application subdomain | Lovable or reserved |
 
 ## Hostinger DNS Records
 
@@ -32,23 +30,25 @@ Create these records in Hostinger DNS for `d3vonn.io` and remove any conflicting
 
 | Type | Host | Value | Purpose |
 |---|---|---|---|
-| `A` | `@` | `76.76.21.21` | Root domain to Vercel |
-| `CNAME` | `www` | `cname.vercel-dns.com` | `www.d3vonn.io` to Vercel |
-| `CNAME` | `api` | `devonn-ai-api-production.up.railway.app` | `api.d3vonn.io` to Railway |
+| `A` | `@` | `185.158.133.1` | Root domain to Lovable |
+| `A` | `www` | `185.158.133.1` | `www.d3vonn.io` to Lovable |
+| `TXT` | `_lovable` | `<value shown by Lovable>` | Lovable domain verification |
+| `CNAME` | `api` | `devonn-ai-api-production.up.railway.app` | `api.d3vonn.io` to Railway, if the API remains on Railway |
 
 Optional later:
 
 | Type | Host | Value | Purpose |
 |---|---|---|---|
-| `CNAME` | `app` | `cname.vercel-dns.com` | Future application subdomain |
+| `A` | `app` | `185.158.133.1` | Optional Lovable app subdomain, only if Lovable asks for it |
 
 ## Platform Settings
 
 | Platform | Required change |
 |---|---|
-| Vercel | Add `d3vonn.io` and `www.d3vonn.io` to the frontend project. |
-| Railway | Add `api.d3vonn.io` as the custom domain for the API service. |
-| Supabase Auth | Set Site URL to `https://d3vonn.io` and add `https://d3vonn.io/**` to redirect URLs. |
+| Lovable | Add `d3vonn.io` and `www.d3vonn.io` to the frontend project. Copy the exact `_lovable` TXT value Lovable shows. |
+| Hostinger | Remove Vercel-era apex/www records and set the Lovable A/TXT records above. |
+| Railway | Add `api.d3vonn.io` as the custom domain for the API service, if the API remains on Railway. |
+| Supabase Auth | Set Site URL to `https://d3vonn.io` and add `https://d3vonn.io/**` plus `https://www.d3vonn.io/**` to redirect URLs. |
 | OAuth providers | Update callback and allowed-origin URLs to `https://d3vonn.io` and any specific callback paths used by the app. |
 | GitHub Actions / deployment secrets | Replace production `devonn.ai` URLs with `d3vonn.io` equivalents. Do not commit secret values. |
 
@@ -69,9 +69,9 @@ Expected routing:
 
 | Hostname | Expected result |
 |---|---|
-| `d3vonn.io` | Vercel frontend over HTTPS |
-| `www.d3vonn.io` | Vercel frontend alias or redirect over HTTPS |
-| `api.d3vonn.io/health` | Railway API health response over HTTPS |
+| `d3vonn.io` | Lovable frontend over HTTPS |
+| `www.d3vonn.io` | Lovable frontend alias or redirect over HTTPS |
+| `api.d3vonn.io/health` | Railway API health response over HTTPS, if configured |
 
 ## Notes
 
