@@ -7,7 +7,7 @@ export function McpDashboard() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">MCP Gateway Control Center</h1>
+        <h2 className="text-3xl font-bold mb-2">MCP Gateway Control Center</h2>
         <p className="text-muted-foreground">
           Connect to Docker MCP Gateway, explore tools, and run autonomous agents
         </p>
