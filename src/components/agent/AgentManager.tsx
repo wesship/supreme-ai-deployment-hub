@@ -77,7 +77,7 @@ steps:
     <div className="container mx-auto p-4">
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">AI Agent Manager</h1>
+          <h2 className="text-3xl font-bold">AI Agent Manager</h2>
           <Button variant="outline" onClick={refreshAgents} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh Agents
