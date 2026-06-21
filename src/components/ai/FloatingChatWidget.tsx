@@ -251,7 +251,7 @@ export const FloatingChatWidget: React.FC = () => {
                       : 'Ask Devonn...'
                   }
                   disabled={isLimitReached}
-                  className="flex-1 bg-transparent text-white text-sm placeholder-white/25 outline-none disabled:opacity-40"
+                  className="flex-1 bg-transparent text-white text-sm placeholder-white/25 focus-visible:outline-none focus-visible:shadow-focus-glow disabled:opacity-40"
                 />
                 {/* Voice controls */}
                 <div className="flex-shrink-0">

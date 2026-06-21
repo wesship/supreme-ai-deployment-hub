@@ -228,7 +228,7 @@ const ChatPage: React.FC = () => {
             <select
               value={selectedModel}
               onChange={e => setSelectedModel(e.target.value)}
-              className="text-xs bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white/60 hover:border-green-500/30 transition-colors outline-none cursor-pointer"
+              className="text-xs bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white/60 hover:border-green-500/30 transition-colors focus-visible:outline-none focus-visible:border-primary/50 focus-visible:shadow-focus-glow cursor-pointer"
             >
               <option value="gpt-4.1-mini" className="bg-[#0a1628]">GPT-4.1 Mini</option>
               <option value="gpt-4o" className="bg-[#0a1628]">GPT-4o</option>
@@ -237,8 +237,9 @@ const ChatPage: React.FC = () => {
 
             <button
               onClick={clearMessages}
-              className="p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+              className="p-1.5 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:rounded-lg"
               title="Clear conversation"
+              aria-label="Clear conversation"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -439,7 +440,7 @@ const ChatPage: React.FC = () => {
                 onKeyDown={handleKeyDown}
                 placeholder="Message Devonn... (Shift+Enter for new line)"
                 rows={1}
-                className="flex-1 bg-transparent text-white text-sm placeholder-white/25 outline-none resize-none leading-relaxed"
+                className="flex-1 bg-transparent text-white text-sm placeholder-white/25 focus-visible:outline-none focus-visible:shadow-focus-glow resize-none leading-relaxed"
                 style={{ maxHeight: '160px', opacity: interimTranscript ? 0.7 : 1 }}
               />
 
