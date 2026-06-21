@@ -54,13 +54,13 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
           </svg>
         </NavButton>
       </SheetTrigger>
-      <SheetContent side="right" className="bg-black/95 border-l border-[#00FF41]/30">
+      <SheetContent side="right" className="bg-black/95 border-l border-primary/30">
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
-              <Bot className="w-6 h-6 mr-2 text-[#00FF41]" />
+              <Bot className="w-6 h-6 mr-2 text-primary" />
               <span className="text-lg font-display font-semibold text-white">
-                DEVONN<span className="text-[#00FF41]">.AI</span>
+                D3VONN<span className="text-primary">.IO</span>
               </span>
             </div>
             <SheetClose asChild>
@@ -78,7 +78,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
                   className={cn(
                     "px-2 py-1.5 rounded-md text-sm font-medium transition-colors",
                     location.pathname === item.path
-                      ? "bg-[#00FF41]/10 text-[#00FF41] border-l-2 border-[#00FF41] pl-3"
+                      ? "bg-primary/10 text-primary border-l-2 border-primary pl-3"
                       : "text-white/70 hover:bg-white/5 hover:text-white"
                   )}
                 >
