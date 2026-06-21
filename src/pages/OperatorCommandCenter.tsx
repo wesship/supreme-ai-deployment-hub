@@ -280,7 +280,7 @@ export default function OperatorCommandCenter() {
         </aside>
 
         {/* ── Main content ──────────────────────────────── */}
-        <main className="flex-1 overflow-auto">
+        <section aria-label="Operator Command Center content" className="flex-1 overflow-auto">
           <div className="max-w-7xl mx-auto px-6 py-8">
             {/* Page title */}
             <div className="mb-6">
@@ -319,7 +319,7 @@ export default function OperatorCommandCenter() {
               </AnimatePresence>
             )}
           </div>
-        </main>
+        </section>
       </div>
     </TooltipProvider>
   );
