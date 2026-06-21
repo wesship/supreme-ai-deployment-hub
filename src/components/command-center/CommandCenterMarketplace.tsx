@@ -31,7 +31,7 @@ export default function CommandCenterMarketplace({ onNavigate }: Props) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Agent Marketplace</h1>
+          <h2 className="text-2xl font-bold tracking-tight">Agent Marketplace</h2>
           <p className="text-muted-foreground mt-1">Browse and deploy pre-built agent templates</p>
         </div>
       </div>

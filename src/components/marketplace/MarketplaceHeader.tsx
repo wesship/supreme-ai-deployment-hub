@@ -23,9 +23,9 @@ const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+              <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
                 Agent Marketplace
-              </h1>
+              </h2>
               <Badge variant="secondary" className="animate-pulse">
                 <Sparkles className="w-3 h-3 mr-1" />
                 Beta

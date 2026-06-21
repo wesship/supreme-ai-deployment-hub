@@ -82,10 +82,10 @@ export default function StatusDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
               <Activity className="h-8 w-8 text-primary" />
               Service Status
-            </h1>
+            </h2>
             <p className="text-muted-foreground mt-1">
               Monitor your Docker services and infrastructure endpoints
             </p>

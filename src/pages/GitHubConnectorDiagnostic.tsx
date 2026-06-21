@@ -172,7 +172,7 @@ export default function GitHubConnectorDiagnostic() {
       <div className="flex items-center gap-3">
         <Github className="h-8 w-8" />
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">GitHub Connector Diagnostic</h1>
+          <h2 className="text-3xl font-bold tracking-tight">GitHub Connector Diagnostic</h2>
           <p className="text-muted-foreground">Tell me which GitHub screen you're on — I'll tell you exactly what to click next.</p>
         </div>
       </div>

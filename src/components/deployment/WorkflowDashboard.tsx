@@ -162,7 +162,7 @@ const WorkflowDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Workflow Dashboard</h1>
+          <h2 className="text-3xl font-bold">Workflow Dashboard</h2>
           <p className="text-muted-foreground mt-1">
             Monitor and manage your deployment pipelines
           </p>

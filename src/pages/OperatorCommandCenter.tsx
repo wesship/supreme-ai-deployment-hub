@@ -284,9 +284,9 @@ export default function OperatorCommandCenter() {
           <div className="max-w-7xl mx-auto px-6 py-8">
             {/* Page title */}
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-white tracking-tight">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
                 {NAV_ITEMS.find(n => n.id === activeView)?.label ?? 'Operator Command Center'}
-              </h1>
+              </h2>
               <p className="text-sm text-gray-500 mt-0.5">
                 D3VONN.IO · Production · Auto-refreshes every 30s
               </p>

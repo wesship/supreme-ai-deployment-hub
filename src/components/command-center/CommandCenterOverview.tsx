@@ -25,7 +25,7 @@ export default function CommandCenterOverview({ onNavigate }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
+        <h2 className="text-3xl font-bold tracking-tight">Command Center</h2>
         <p className="text-muted-foreground mt-1">
           Unified control hub for agents, tools, and infrastructure
         </p>
