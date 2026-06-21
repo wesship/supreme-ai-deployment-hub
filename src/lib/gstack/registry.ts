@@ -34,13 +34,13 @@ export const GSTACK_GATE_REQUIREMENTS: readonly GStackGateRequirement[] = [
   {
     key: 'hmac',
     label: 'Zero-Trust HMAC',
-    requiredProof: 'Protected routes reject unsigned traffic and accept valid HMAC signatures.',
+    requiredProof: 'HMAC verification evidence exists for protected routes.',
     blocksShip: true,
   },
   {
     key: 'hitl',
     label: 'Hermes HITL approval',
-    requiredProof: 'Telegram/Hermes approval exists before high-impact actions.',
+    requiredProof: 'Human approval evidence exists before high-impact actions.',
     blocksShip: true,
   },
 ];
@@ -48,52 +48,64 @@ export const GSTACK_GATE_REQUIREMENTS: readonly GStackGateRequirement[] = [
 const shippingGates = ['dns', 'health', 'ci', 'sentry', 'bundle', 'hmac'] as const;
 const approvalRequiredActions = ['merge to main', 'run migration', 'production deploy'] as const;
 
+function agent(
+  command: string,
+  name: string,
+  layer: GStackAgentDefinition['layer'],
+  role: string,
+  requiredGates: readonly GStackGateRequirement['key'][] = []
+): GStackAgentDefinition {
+  return {
+    command,
+    name,
+    layer,
+    role,
+    devonnContext: 'DEVONN.AI d3vonn.io platform operations, repository workflow, and agent coordination.',
+    defaultInputs: ['objective', 'context', 'constraints'],
+    defaultOutputs: ['recommendation', 'next steps', 'evidence'],
+    allowedActions: ['review', 'plan', 'summarize', 'recommend'],
+    blockedWithoutApproval: approvalRequiredActions,
+    requiredGates,
+    status: command.includes('ios') ? 'standby' : 'active',
+  };
+}
+
 export const GSTACK_AGENT_REGISTRY: readonly GStackAgentDefinition[] = [
+  agent('/ceo', 'CEO', 'strategic', 'Product vision and POL loop owner'),
+  agent('/plan', 'Planner', 'strategic', 'RIPE spec writer'),
+  agent('/office-hours', 'Office Hours', 'strategic', 'Idea pressure-test partner'),
+  agent('/eng-manager', 'Engineering Manager', 'engineering', 'Architecture lock and technical sequencing', ['ci']),
+  agent('/build', 'Builder', 'engineering', 'Implementation agent', ['ci']),
+  agent('/pair-agent', 'Pair Agent', 'engineering', 'Coding partner', ['ci']),
+  agent('/plan-devex', 'Developer Experience Planner', 'engineering', 'DX review'),
+  agent('/plan-eng', 'Engineering Planner', 'engineering', 'Pre-change architecture reviewer', ['ci']),
+  agent('/designer', 'Designer', 'design', 'UI and UX review partner', ['bundle']),
+  agent('/plan-design', 'Design Planner', 'design', 'Design review', ['bundle']),
+  agent('/ios-design-review', 'iOS Design Reviewer', 'design', 'iOS interface review', ['bundle']),
+  agent('/qa', 'QA', 'quality-security', 'Real browser QA and gate validation', ['dns', 'health', 'ci']),
+  agent('/ios-qa', 'iOS QA', 'quality-security', 'iPhone IDE QA', ['ci']),
+  agent('/ios-fix', 'iOS Fixer', 'quality-security', 'iOS issue resolution agent', ['ci']),
+  agent('/ios-clean', 'iOS Cleaner', 'quality-security', 'iOS cleanup', ['ci']),
+  agent('/ios-sync', 'iOS Sync', 'quality-security', 'iOS/runtime sync', ['ci']),
+  agent('/security', 'Security', 'quality-security', 'Application control reviewer', ['hmac', 'ci', 'sentry']),
+  agent('/investigate', 'Investigator', 'quality-security', 'Debug deep dives'),
   {
-    command: '/release',
-    name: 'Release',
-    layer: 'shipping',
-    role: 'PR ship and changelog owner',
+    ...agent('/release', 'Release', 'shipping', 'PR ship and changelog owner', shippingGates),
     devonnContext: 'Railway deploy, Hostinger DNS gate, Sentry verification, and bundle budget enforcement.',
     defaultInputs: ['release candidate', 'changelog', 'gate evidence'],
     defaultOutputs: ['release notes', 'gate report', 'rollback plan'],
     allowedActions: ['prepare release notes', 'verify gates', 'recommend release readiness'],
-    blockedWithoutApproval: approvalRequiredActions,
-    requiredGates: shippingGates,
-    status: 'active',
   },
-  {
-    command: '/ship',
-    name: 'Ship',
-    layer: 'shipping',
-    role: 'Close issue and merge coordinator',
-    devonnContext: 'Merges only after all required gates pass; never skips gate discipline.',
-    defaultInputs: ['approved PR', 'gate evidence', 'rollback plan'],
-    defaultOutputs: ['ship decision', 'merge checklist', 'post-ship monitoring plan'],
-    allowedActions: ['evaluate merge readiness', 'close shipped issue', 'write handoff'],
-    blockedWithoutApproval: approvalRequiredActions,
-    requiredGates: [...shippingGates, 'hitl'],
-    status: 'active',
-  },
-  {
-    command: '/review',
-    name: 'Reviewer',
-    layer: 'shipping',
-    role: 'Code and PR reviewer',
-    devonnContext: 'Reviews PRs on wesship/supreme-ai-deployment-hub and related Wesship repositories.',
-    defaultInputs: ['PR diff', 'acceptance criteria', 'gate status'],
-    defaultOutputs: ['review findings', 'approval blockers', 'suggested patch'],
-    allowedActions: ['review code', 'flag risks', 'recommend tests'],
-    blockedWithoutApproval: approvalRequiredActions,
-    requiredGates: ['ci', 'sentry'],
-    status: 'active',
-  },
+  agent('/ship', 'Ship', 'shipping', 'Close issue and merge coordinator', [...shippingGates, 'hitl']),
+  agent('/plan-ceo-review', 'CEO Review Planner', 'shipping', 'CEO sign-off preparation', shippingGates),
+  agent('/review', 'Reviewer', 'shipping', 'Code and PR reviewer', ['ci', 'sentry']),
+  agent('/retro', 'Retro', 'shipping', 'Weekly retrospective'),
 ];
 
 export function getGStackAgent(command: string): GStackAgentDefinition | undefined {
-  return GSTACK_AGENT_REGISTRY.find((agent) => agent.command === command.trim());
+  return GSTACK_AGENT_REGISTRY.find((item) => item.command === command.trim());
 }
 
 export function listGStackCommands(): readonly string[] {
-  return GSTACK_AGENT_REGISTRY.map((agent) => agent.command);
+  return GSTACK_AGENT_REGISTRY.map((item) => item.command);
 }
