@@ -97,9 +97,9 @@ const FilmPage = () => {
             </Button>
             <div className="flex items-center gap-3">
               <Film className="w-6 h-6 text-purple-400" />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                 AI Filmmaker
-              </h1>
+              </h2>
             </div>
           </div>
         </div>
