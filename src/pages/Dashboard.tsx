@@ -77,7 +77,7 @@ const Dashboard = () => {
       description: '1100+ n8n templates',
       path: '/workflows',
       gradient: 'from-indigo-500 to-purple-500',
-      available: false,
+      available: true,
     },
     {
       icon: TrendingUp,
