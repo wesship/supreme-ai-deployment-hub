@@ -46,6 +46,12 @@ const ChatPage = lazy(() => import("./pages/Chat"));
 const AdminPage = lazy(() => import("./pages/Admin"));
 const OperatorCommandCenter = lazy(() => import("./pages/OperatorCommandCenter"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
+const MoneyHub = lazy(() => import("./pages/MoneyHub"));
+const AITherapy = lazy(() => import("./pages/AITherapy"));
+const SovereigntyMatrix = lazy(() => import("./pages/SovereigntyMatrix"));
+const Music = lazy(() => import("./pages/Music"));
+const Backtesting = lazy(() => import("./pages/Backtesting"));
+const JetsonControl = lazy(() => import("./pages/JetsonControl"));
 
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -103,6 +109,15 @@ function App() {
                           }
                         />
                         <Route path="/unauthorized" element={<Unauthorized />} />
+                        <Route path="/moneyhub" element={<MoneyHub />} />
+                        <Route path="/ai-therapy" element={<AITherapy />} />
+                        <Route path="/therapy" element={<AITherapy />} />
+                        <Route path="/sovereignty" element={<SovereigntyMatrix />} />
+                        <Route path="/sovereignty-matrix" element={<SovereigntyMatrix />} />
+                        <Route path="/music" element={<Music />} />
+                        <Route path="/backtesting" element={<Backtesting />} />
+                        <Route path="/jetson" element={<JetsonControl />} />
+                        <Route path="/jetson-control" element={<JetsonControl />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </RouteTransition>

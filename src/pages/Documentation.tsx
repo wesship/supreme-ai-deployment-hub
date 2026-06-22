@@ -68,7 +68,8 @@ const Documentation: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+          id="features"
+          className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 scroll-mt-24"
         >
           {docTypes.map((type, i) => (
             <motion.div
