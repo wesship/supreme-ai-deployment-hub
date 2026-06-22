@@ -118,15 +118,15 @@ const ChatPage: React.FC = () => {
 
   if (!userId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#070A0F]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <D3vonnPageBanner title="D3VONN.IO Chat" />
-        <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-[#070A0F] overflow-hidden" style={{ paddingTop: '64px' }}>
+    <div className="flex h-screen bg-background overflow-hidden" style={{ paddingTop: '64px' }}>
       {/* Sidebar */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -151,7 +151,7 @@ const ChatPage: React.FC = () => {
                   border: '1px solid rgba(112, 128, 255, 0.2)',
                 }}
               >
-                <Plus className="w-4 h-4 text-green-400" />
+                <Plus className="w-4 h-4 text-primary" />
                 New conversation
               </button>
             </div>
@@ -169,7 +169,7 @@ const ChatPage: React.FC = () => {
                   onClick={() => loadConversation(conv)}
                   className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors group ${
                     conv.id === activeConversationId
-                      ? 'bg-green-500/10 border border-green-500/20 text-white'
+                      ? 'bg-primary/10 border border-primary/20 text-white'
                       : 'text-white/50 hover:text-white/80 hover:bg-white/5'
                   }`}
                 >
@@ -190,8 +190,8 @@ const ChatPage: React.FC = () => {
               style={{ borderColor: 'rgba(112, 128, 255, 0.1)' }}
             >
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
-                  <User className="w-3 h-3 text-green-400" />
+                <div className="w-6 h-6 rounded-full bg-primary/15 border border-green-500/25 flex items-center justify-center">
+                  <User className="w-3 h-3 text-primary" />
                 </div>
                 <span className="text-white/40 truncate">{userEmail}</span>
               </div>
@@ -228,11 +228,11 @@ const ChatPage: React.FC = () => {
             <select
               value={selectedModel}
               onChange={e => setSelectedModel(e.target.value)}
-              className="text-xs bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white/60 hover:border-green-500/30 transition-colors focus-visible:outline-none focus-visible:border-primary/50 focus-visible:shadow-focus-glow cursor-pointer"
+              className="text-xs bg-transparent border border-white/10 rounded-lg px-2 py-1 text-white/60 hover:border-primary/30 transition-colors focus-visible:outline-none focus-visible:border-primary/50 focus-visible:shadow-focus-glow cursor-pointer"
             >
-              <option value="gpt-4.1-mini" className="bg-[#0a1628]">GPT-4.1 Mini</option>
-              <option value="gpt-4o" className="bg-[#0a1628]">GPT-4o</option>
-              <option value="gpt-4.1-2025-04-14" className="bg-[#0a1628]">GPT-4.1 Turbo</option>
+              <option value="gpt-4.1-mini" className="bg-card">GPT-4.1 Mini</option>
+              <option value="gpt-4o" className="bg-card">GPT-4o</option>
+              <option value="gpt-4.1-2025-04-14" className="bg-card">GPT-4.1 Turbo</option>
             </select>
 
             <button
@@ -252,8 +252,8 @@ const ChatPage: React.FC = () => {
             <div className="flex flex-col items-center justify-center h-full gap-8 px-6 py-12">
               {/* Hero */}
               <div className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Brain className="w-8 h-8 text-green-400" />
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
+                  <Brain className="w-8 h-8 text-primary" />
                 </div>
                 <h2 className="text-white text-xl font-semibold mb-2">Devonn AI Workspace</h2>
                 <p className="text-white/40 text-sm max-w-md">
@@ -301,13 +301,13 @@ const ChatPage: React.FC = () => {
                     className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
                       msg.role === 'user'
                         ? 'bg-white/8 border border-white/12'
-                        : 'bg-green-500/10 border border-green-500/25'
+                        : 'bg-primary/10 border border-green-500/25'
                     }`}
                   >
                     {msg.role === 'user' ? (
                       <User className="w-4 h-4 text-white/50" />
                     ) : (
-                      <Bot className="w-4 h-4 text-green-400" />
+                      <Bot className="w-4 h-4 text-primary" />
                     )}
                   </div>
 
@@ -324,7 +324,7 @@ const ChatPage: React.FC = () => {
                     <div
                       className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                         msg.role === 'user'
-                          ? 'bg-green-500/10 border border-green-500/15 text-white ml-auto'
+                          ? 'bg-primary/10 border border-primary/15 text-white ml-auto'
                           : 'bg-white/4 border border-white/8 text-white/90'
                       } ${(msg as any).error ? 'border-red-500/30 bg-red-500/8' : ''}`}
                     >
@@ -346,8 +346,8 @@ const ChatPage: React.FC = () => {
               {/* Streaming indicator */}
               {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-green-500/10 border border-green-500/25 flex items-center justify-center">
-                    <Bot className="w-4 h-4 text-green-400" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 border border-green-500/25 flex items-center justify-center">
+                    <Bot className="w-4 h-4 text-primary" />
                   </div>
                   <div className="flex items-center gap-1 px-4 py-3 rounded-2xl bg-white/4 border border-white/8">
                     {[0, 1, 2].map(i => (
@@ -476,7 +476,7 @@ const ChatPage: React.FC = () => {
                       border: input.trim() ? '1px solid rgba(112, 128, 255, 0.3)' : '1px solid rgba(255,255,255,0.08)',
                     }}
                   >
-                    <Send className={`w-4 h-4 ${input.trim() ? 'text-green-400' : 'text-white/30'}`} />
+                    <Send className={`w-4 h-4 ${input.trim() ? 'text-primary' : 'text-white/30'}`} />
                   </button>
                 )}
               </div>

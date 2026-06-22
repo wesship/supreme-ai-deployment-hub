@@ -56,7 +56,7 @@ const Documentation: React.FC = () => {
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.2 }}
               >
-                <Badge className="ml-2 bg-[#00FF41]/20 text-[#00FF41] border border-[#00FF41]/30 hover:bg-[#00FF41]/30">
+                <Badge className="ml-2 bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30">
                   v2.1.0
                 </Badge>
               </motion.div>
@@ -75,7 +75,7 @@ const Documentation: React.FC = () => {
               key={i}
               whileHover={{ y: -5, transition: { duration: 0.2 } }}
             >
-              <Card className="border border-primary/10 bg-black/20 backdrop-blur-sm hover:border-primary/20 transition-colors h-full">
+              <Card className="border border-primary/10 bg-card/40 backdrop-blur-sm hover:border-primary/20 transition-colors h-full">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-3">
                     <div className={`p-2 rounded-full ${type.color}`}>
@@ -96,7 +96,7 @@ const Documentation: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-10 border border-primary/10 rounded-lg bg-black/20 backdrop-blur-sm"
+          className="mt-10 border border-primary/10 rounded-lg bg-card/40 backdrop-blur-sm"
         >
           <DocumentationTabs />
         </motion.div>
