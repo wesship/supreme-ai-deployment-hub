@@ -1573,6 +1573,13 @@ export type Database = {
             referencedRelation: "subscription_tiers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_subscriptions_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_tiers_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       videos: {
@@ -1745,6 +1752,41 @@ export type Database = {
       }
     }
     Views: {
+      agent_reviews_public: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: string | null
+          rating: number | null
+          template_id: string | null
+          title: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: string | null
+          rating?: number | null
+          template_id?: string | null
+          title?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: string | null
+          rating?: number | null
+          template_id?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_reviews_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "agent_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_connections_safe: {
         Row: {
           auth_type: Database["public"]["Enums"]["auth_type"] | null
@@ -1853,6 +1895,33 @@ export type Database = {
           server_type?: string | null
           updated_at?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      subscription_tiers_public: {
+        Row: {
+          created_at: string | null
+          features: Json | null
+          id: string | null
+          name: string | null
+          price_monthly: number | null
+          price_yearly: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          features?: Json | null
+          id?: string | null
+          name?: string | null
+          price_monthly?: number | null
+          price_yearly?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          features?: Json | null
+          id?: string | null
+          name?: string | null
+          price_monthly?: number | null
+          price_yearly?: number | null
         }
         Relationships: []
       }
