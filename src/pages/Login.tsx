@@ -33,7 +33,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <D3vonnPageBanner title="Welcome to D3VONN.IO" />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -41,18 +41,19 @@ const Login = () => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-purple-500/20 rounded-2xl p-8 shadow-2xl shadow-purple-500/20">
+        <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-8 shadow-2xl">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent mb-2">
+            <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">
               D3VONN.IO
             </h1>
-            <p className="text-slate-400">Enter the AI Ecosystem</p>
+            <p className="text-muted-foreground">Enter the AI Ecosystem</p>
           </div>
-          
+
           <Button
             onClick={handleGoogle}
             disabled={googleLoading}
-            className="w-full mb-4 bg-white text-slate-900 hover:bg-slate-100 font-medium"
+            variant="outline"
+            className="w-full mb-4 font-medium"
           >
             <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -63,12 +64,12 @@ const Login = () => {
             {googleLoading ? 'Redirecting…' : 'Continue with Google'}
           </Button>
           {googleError && (
-            <p className="text-sm text-red-400 mb-3 text-center">{googleError}</p>
+            <p className="text-sm text-destructive mb-3 text-center">{googleError}</p>
           )}
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-px flex-1 bg-purple-500/20" />
-            <span className="text-xs text-slate-500 uppercase tracking-wider">or email</span>
-            <div className="h-px flex-1 bg-purple-500/20" />
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground uppercase tracking-wider">or email</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
 
           <Auth
@@ -78,19 +79,18 @@ const Login = () => {
               variables: {
                 default: {
                   colors: {
-                    brand: '#a855f7',
-                    brandAccent: '#9333ea',
+                    brand: '#7080FF',
+                    brandAccent: '#5C6FFF',
                     inputBackground: 'rgba(15, 23, 42, 0.5)',
                     inputText: 'white',
-                    inputBorder: 'rgba(168, 85, 247, 0.3)',
-                    inputBorderFocus: 'rgba(168, 85, 247, 0.8)',
+                    inputBorder: 'rgba(112, 128, 255, 0.3)',
+                    inputBorderFocus: 'rgba(112, 128, 255, 0.8)',
                   },
                 },
               },
               className: {
                 container: 'space-y-4',
-                button: 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600',
-                input: 'bg-slate-900/50 border-purple-500/30 text-white',
+                input: 'bg-background/50 border-border text-foreground',
               },
             }}
             providers={[]}
