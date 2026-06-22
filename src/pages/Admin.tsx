@@ -9,10 +9,10 @@ function StatCard({ label, value, sub, accent = false }: {
   label: string; value: string | number; sub?: string; accent?: boolean;
 }) {
   return (
-    <div className={`rounded-lg border p-4 ${accent ? 'border-green-500/50 bg-green-500/5' : 'border-white/10 bg-white/5'}`}>
+    <div className={`rounded-lg border p-4 ${accent ? 'border-primary/50 bg-primary/5' : 'border-white/10 bg-white/5'}`}>
       <D3vonnPageBanner title="Admin Console" />
       <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-2xl font-bold font-mono ${accent ? 'text-green-400' : 'text-white'}`}>{value}</p>
+      <p className={`text-2xl font-bold font-mono ${accent ? 'text-primary' : 'text-white'}`}>{value}</p>
       {sub && <p className="text-xs text-gray-500 mt-1">{sub}</p>}
     </div>
   );
@@ -24,7 +24,7 @@ function SectionHeader({ title, count }: { title: string; count?: number }) {
     <div className="flex items-center gap-3 mb-4">
       <h2 className="text-lg font-semibold text-white">{title}</h2>
       {count !== undefined && (
-        <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full border border-green-500/30">
+        <span className="text-xs bg-green-500/20 text-primary px-2 py-0.5 rounded-full border border-green-500/30">
           {count}
         </span>
       )}
@@ -64,13 +64,13 @@ function DataTable({ cols, rows }: { cols: string[]; rows: (string | number | Re
 // ─── Status Badge ────────────────────────────────────────────
 function Badge({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    success: 'text-green-400 bg-green-500/10 border-green-500/30',
+    success: 'text-primary bg-green-500/10 border-green-500/30',
     error: 'text-red-400 bg-red-500/10 border-red-500/30',
     pending: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
-    approved: 'text-green-400 bg-green-500/10 border-green-500/30',
+    approved: 'text-primary bg-green-500/10 border-green-500/30',
     rejected: 'text-red-400 bg-red-500/10 border-red-500/30',
     indexed: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-    completed: 'text-green-400 bg-green-500/10 border-green-500/30',
+    completed: 'text-primary bg-green-500/10 border-green-500/30',
     free: 'text-gray-400 bg-gray-500/10 border-gray-500/30',
     pro: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
     business: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
@@ -106,7 +106,7 @@ export default function AdminPage() {
     approveAction, resolveError, deleteRagDoc, updatePlan,
   } = useAdminData();
 
-  if (authLoading) return <div className="min-h-screen bg-black flex items-center justify-center"><span className="text-green-400 font-mono animate-pulse">Authenticating…</span></div>;
+  if (authLoading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-primary font-mono animate-pulse">Authenticating…</span></div>;
   if (!user) return <Navigate to="/login" replace />;
 
   const fmt = (n: number) => n.toLocaleString();
@@ -115,17 +115,17 @@ export default function AdminPage() {
   const shortId = (s: string | null) => s ? s.slice(0, 8) + '…' : '—';
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-white">
       {/* Header */}
-      <div className="border-b border-white/10 bg-black/80 backdrop-blur sticky top-0 z-10">
+      <div className="border-b border-white/10 bg-card/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-green-400 font-mono text-sm font-semibold">D3VONN.IO OPERATOR COMMAND CENTER</span>
+            <span className="text-primary font-mono text-sm font-semibold">D3VONN.IO OPERATOR COMMAND CENTER</span>
           </div>
           <button
             onClick={refresh}
-            className="text-xs text-gray-400 hover:text-green-400 border border-white/10 hover:border-green-500/50 px-3 py-1.5 rounded transition-colors"
+            className="text-xs text-gray-400 hover:text-primary border border-white/10 hover:border-primary/50 px-3 py-1.5 rounded transition-colors"
           >
             ↻ Refresh
           </button>
@@ -148,7 +148,7 @@ export default function AdminPage() {
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 text-sm rounded-lg whitespace-nowrap transition-colors ${
                 activeTab === tab
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/40'
+                  ? 'bg-green-500/20 text-primary border border-green-500/40'
                   : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
               }`}
             >
@@ -169,7 +169,7 @@ export default function AdminPage() {
 
         {loading && (
           <div className="flex items-center justify-center py-20">
-            <div className="text-green-400 font-mono text-sm animate-pulse">Loading OCC data…</div>
+            <div className="text-primary font-mono text-sm animate-pulse">Loading OCC data…</div>
           </div>
         )}
 
@@ -328,7 +328,7 @@ export default function AdminPage() {
                         <div className="flex gap-3">
                           <button
                             onClick={() => approveAction(a.id, 'approved')}
-                            className="text-sm bg-green-500/20 text-green-400 border border-green-500/40 px-4 py-1.5 rounded hover:bg-green-500/30 transition-colors"
+                            className="text-sm bg-green-500/20 text-primary border border-green-500/40 px-4 py-1.5 rounded hover:bg-green-500/30 transition-colors"
                           >
                             ✓ Approve
                           </button>
@@ -360,7 +360,7 @@ export default function AdminPage() {
                         </div>
                         <button
                           onClick={() => resolveError(e.id)}
-                          className="text-xs text-green-400 border border-green-500/30 px-2 py-0.5 rounded hover:bg-green-500/10"
+                          className="text-xs text-primary border border-green-500/30 px-2 py-0.5 rounded hover:bg-green-500/10"
                         >
                           Resolve
                         </button>
