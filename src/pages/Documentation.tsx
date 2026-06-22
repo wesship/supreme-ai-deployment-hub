@@ -56,7 +56,7 @@ const Documentation: React.FC = () => {
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.2 }}
               >
-                <Badge className="ml-2 bg-[#00FF41]/20 text-[#00FF41] border border-[#00FF41]/30 hover:bg-[#00FF41]/30">
+                <Badge className="ml-2 bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30">
                   v2.1.0
                 </Badge>
               </motion.div>
