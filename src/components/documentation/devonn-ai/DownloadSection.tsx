@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-const REPO_BASE = 'https://github.com/d3vonn/devonn.ai';
+const REPO_BASE = 'https://github.com/wesship/supreme-ai-deployment-hub';
 
 const downloads = [
   {
