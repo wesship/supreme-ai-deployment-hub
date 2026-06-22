@@ -12,7 +12,7 @@
 #   - VERCEL_TOKEN set in environment
 #   - VERCEL_ORG_ID set in environment
 #   - VERCEL_PROJECT_ID set in environment
-#   - VITE_API_URL set (your backend URL, e.g. https://devonn-ai-backend.onrender.com)
+#   - VITE_API_URL set (your backend URL, e.g. https://api.d3vonn.io)
 #   - VITE_SUPABASE_URL set
 #   - VITE_SUPABASE_ANON_KEY set
 # ─────────────────────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ set_vercel_env() {
 }
 
 # Set all required frontend environment variables
-set_vercel_env "VITE_API_URL"           "${VITE_API_URL:-https://devonn-ai-backend.onrender.com}"
+set_vercel_env "VITE_API_URL"           "${VITE_API_URL:-https://api.d3vonn.io}"
 set_vercel_env "VITE_SUPABASE_URL"      "${VITE_SUPABASE_URL:-}"
 set_vercel_env "VITE_SUPABASE_ANON_KEY" "${VITE_SUPABASE_ANON_KEY:-}"
 set_vercel_env "VITE_SENTRY_DSN"        "${VITE_SENTRY_DSN:-}"
