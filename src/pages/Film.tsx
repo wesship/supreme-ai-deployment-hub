@@ -80,24 +80,24 @@ const FilmPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950">
+    <div className="min-h-screen bg-background">
       <D3vonnPageBanner title="D3VONN.IO Film Studio" />
       {/* Header */}
-      <div className="border-b border-purple-500/20 bg-slate-900/50 backdrop-blur-xl">
+      <div className="border-b border-border bg-card/50 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center gap-4">
             <Button
               onClick={() => navigate('/dashboard')}
               variant="ghost"
               size="sm"
-              className="text-purple-400 hover:text-purple-300"
+              className="text-primary hover:text-primary/80"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
             <div className="flex items-center gap-3">
-              <Film className="w-6 h-6 text-purple-400" />
-              <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <Film className="w-6 h-6 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">
                 AI Filmmaker
               </h2>
             </div>
@@ -114,25 +114,25 @@ const FilmPage = () => {
           className="max-w-4xl mx-auto"
         >
           <div className="text-center mb-8">
-            <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
+            <h2 className="text-4xl font-bold mb-4 text-foreground">
               Create Your AI Film
             </h2>
-            <p className="text-slate-400">
+            <p className="text-muted-foreground">
               Describe your idea and watch it come to life in 4K
             </p>
           </div>
 
-          <Card className="bg-slate-900/50 border-purple-500/20 p-6 mb-6">
+          <Card className="bg-card/50 border-border p-6 mb-6">
             <Textarea
               placeholder="Describe your film idea... (e.g., 'A futuristic city where AI and humans coexist, showing daily life and challenges')"
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
-              className="min-h-[150px] bg-slate-900/50 border-purple-500/30 text-white mb-4"
+              className="min-h-[150px] bg-background/50 border-border text-foreground mb-4"
             />
             <Button
               onClick={generateFilm}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              className="w-full"
             >
               <Sparkles className="w-4 h-4 mr-2" />
               {loading ? 'Creating Magic...' : 'Generate Film & Screenplay'}
@@ -145,20 +145,19 @@ const FilmPage = () => {
               animate={{ opacity: 1, y: 0 }}
               className="mb-6"
             >
-              <Card className="bg-slate-900/50 border-purple-500/20 p-6">
+              <Card className="bg-card/50 border-border p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-white">Screenplay</h3>
+                  <h3 className="text-xl font-bold text-foreground">Screenplay</h3>
                   <Button
                     onClick={downloadScreenplay}
                     variant="outline"
                     size="sm"
-                    className="border-purple-500/30"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>
                 </div>
-                <pre className="text-slate-300 whitespace-pre-wrap">{screenplay}</pre>
+                <pre className="text-muted-foreground whitespace-pre-wrap">{screenplay}</pre>
               </Card>
             </motion.div>
           )}
@@ -168,8 +167,8 @@ const FilmPage = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <Card className="bg-slate-900/50 border-purple-500/20 p-6">
-                <h3 className="text-xl font-bold text-white mb-4">Your Film</h3>
+              <Card className="bg-card/50 border-border p-6">
+                <h3 className="text-xl font-bold text-foreground mb-4">Your Film</h3>
                 <video
                   src={videoUrl}
                   controls
