@@ -45,15 +45,15 @@ const Dashboard = () => {
       description: '100+ earning agents',
       path: '/moneyhub',
       gradient: 'from-green-500 to-emerald-500',
-      available: false,
+      available: true,
     },
     {
       icon: Brain,
       title: 'AI Therapy',
       description: '4-level avatar therapy',
-      path: '/therapy',
+      path: '/ai-therapy',
       gradient: 'from-blue-500 to-cyan-500',
-      available: false,
+      available: true,
     },
     {
       icon: Crown,
@@ -61,7 +61,7 @@ const Dashboard = () => {
       description: 'O.P.I. scoring system',
       path: '/sovereignty',
       gradient: 'from-yellow-500 to-orange-500',
-      available: false,
+      available: true,
     },
     {
       icon: Music,
@@ -69,7 +69,7 @@ const Dashboard = () => {
       description: 'Full AI songs with lyrics',
       path: '/music',
       gradient: 'from-pink-500 to-rose-500',
-      available: false,
+      available: true,
     },
     {
       icon: Network,
@@ -85,15 +85,15 @@ const Dashboard = () => {
       description: 'Trading strategy analysis',
       path: '/backtesting',
       gradient: 'from-cyan-500 to-blue-500',
-      available: false,
+      available: true,
     },
     {
       icon: Glasses,
       title: 'Jetson Control',
       description: 'Smart glasses cluster',
-      path: '/jetson',
+      path: '/jetson-control',
       gradient: 'from-violet-500 to-purple-500',
-      available: false,
+      available: true,
     },
   ];
 
