@@ -16,7 +16,7 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <D3vonnPageBanner title="Lost in the Grid" />
       <div className="text-center max-w-md px-4">
         <h1 className="text-6xl font-bold mb-4 text-primary">404</h1>

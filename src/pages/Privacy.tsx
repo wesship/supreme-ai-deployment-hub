@@ -57,7 +57,7 @@ const Privacy: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
               <div className="p-6">
                 <h2 className="text-2xl font-bold text-white">Privacy Policy</h2>
-                <p className="text-white/80">Last Updated: August 1, 2023</p>
+                <p className="text-muted-foreground">Last Updated: August 1, 2023</p>
               </div>
             </div>
           </div>
@@ -68,7 +68,7 @@ const Privacy: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm flex flex-col items-center text-center group hover:shadow-md transition-all duration-200"
+            className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col items-center text-center group hover:shadow-md transition-all duration-200"
           >
             <div className="bg-blue-500/10 p-3 rounded-full mb-4">
               <Shield className="w-8 h-8 text-blue-500" />
@@ -81,7 +81,7 @@ const Privacy: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm flex flex-col items-center text-center group hover:shadow-md transition-all duration-200"
+            className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col items-center text-center group hover:shadow-md transition-all duration-200"
           >
             <div className="bg-purple-500/10 p-3 rounded-full mb-4">
               <Lock className="w-8 h-8 text-purple-500" />
@@ -94,7 +94,7 @@ const Privacy: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm flex flex-col items-center text-center group hover:shadow-md transition-all duration-200"
+            className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col items-center text-center group hover:shadow-md transition-all duration-200"
           >
             <div className="bg-green-500/10 p-3 rounded-full mb-4">
               <Eye className="w-8 h-8 text-green-500" />
