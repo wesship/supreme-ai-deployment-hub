@@ -457,7 +457,7 @@ const plans = [
 ];
 
 const Pricing: React.FC = () => (
-  <section className="relative py-24">
+  <section id="pricing" className="relative py-24 scroll-mt-24">
     <div className="container mx-auto px-6">
       <SectionHeader
         eyebrow="Pricing"
