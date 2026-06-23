@@ -2,55 +2,63 @@
 
 `devonn.ai` has expired and is no longer under our control. `d3vonn.io` is the canonical production domain for the DEVONN platform going forward. This runbook captures the DNS, platform, and application settings needed to complete the cutover safely.
 
-## Frontend hosting: Lovable
+## Frontend Hosting: Vercel
 
-The frontend is hosted on Lovable. To attach `d3vonn.io`:
+The frontend is hosted on **Vercel** via the `supreme-ai-deployment-hub` project. The deployment pipeline is:
 
-1. In Lovable: **Project Settings → Project → Domains → Connect Domain**, enter `d3vonn.io`.
-2. Add `www.d3vonn.io` as a separate entry.
-3. At Hostinger DNS, set:
-   - `A   @    → 185.158.133.1`
-   - `A   www  → 185.158.133.1`
-   - `TXT _lovable → <value shown by Lovable>`
-4. Remove conflicting A/CNAME records for `@` or `www`, especially old Vercel records such as `76.76.21.21` or `cname.vercel-dns.com`.
-5. Wait for DNS propagation. Lovable auto-provisions SSL after the domain verifies.
+```
+Lovable → GitHub (wesship/supreme-ai-deployment-hub) → Vercel auto-deploys → d3vonn.io
+```
+
+Domains configured in Vercel:
+- `d3vonn.io` — Production
+- `www.d3vonn.io` — Production
+- `app.d3vonn.io` — Production
+
+## Backend Hosting: Railway
+
+The API backend runs on **Railway** as the `devonn-ai-api` service:
+- Custom domain: `api.d3vonn.io` (port 8000, uvicorn)
+- Fallback domain: `devonn-ai-api-production.up.railway.app`
+- Start command: `sh -c 'uvicorn backend.main:app --host 0.0.0.0 --port $PORT'`
 
 ## Production Domain Topology
 
 | Hostname | Role | Platform |
 |---|---|---|
-| `d3vonn.io` | Primary public frontend | Lovable |
-| `www.d3vonn.io` | Frontend alias / redirect | Lovable |
-| `api.d3vonn.io` | Production API | Railway, if retained |
-| `app.d3vonn.io` | Optional future application subdomain | Lovable or reserved |
+| `d3vonn.io` | Primary public frontend | Vercel |
+| `www.d3vonn.io` | Frontend alias | Vercel |
+| `app.d3vonn.io` | User Dashboard | Vercel |
+| `api.d3vonn.io` | Production API | Railway |
 
 ## Hostinger DNS Records
 
-Create these records in Hostinger DNS for `d3vonn.io` and remove any conflicting parking records for the same hosts before saving. Keep Hostinger nameservers in place while Hostinger remains the DNS provider.
+Create these records in Hostinger DNS for `d3vonn.io` and remove any conflicting parking records for the same hosts before saving.
 
 | Type | Host | Value | Purpose |
 |---|---|---|---|
-| `A` | `@` | `185.158.133.1` | Root domain to Lovable |
-| `A` | `www` | `185.158.133.1` | `www.d3vonn.io` to Lovable |
-| `TXT` | `_lovable` | `<value shown by Lovable>` | Lovable domain verification |
-| `CNAME` | `api` | `devonn-ai-api-production.up.railway.app` | `api.d3vonn.io` to Railway, if the API remains on Railway |
+| `A` | `@` | `76.76.21.21` | Root domain to Vercel |
+| `CNAME` | `www` | `cname.vercel-dns.com` | `www.d3vonn.io` to Vercel |
+| `CNAME` | `app` | `cname.vercel-dns.com` | `app.d3vonn.io` to Vercel |
+| `CNAME` | `api` | `apiymvrdxe8.up.railway.app` | `api.d3vonn.io` to Railway |
+| `TXT` | `_railway-verify.api` | `railway-verify=d924ad5d5a80fe8e6c43d63927613e2cc7b7e145509732d87dd2fa5d59bf7e56` | Railway domain verification |
 
-Optional later:
+### Records to Remove
 
-| Type | Host | Value | Purpose |
+| Type | Host | Value | Reason |
 |---|---|---|---|
-| `A` | `app` | `185.158.133.1` | Optional Lovable app subdomain, only if Lovable asks for it |
+| `A` | `@` | `2.57.91.91` | Old Hostinger hosting IP, no longer used |
 
 ## Platform Settings
 
 | Platform | Required change |
 |---|---|
-| Lovable | Add `d3vonn.io` and `www.d3vonn.io` to the frontend project. Copy the exact `_lovable` TXT value Lovable shows. |
-| Hostinger | Remove Vercel-era apex/www records and set the Lovable A/TXT records above. |
-| Railway | Add `api.d3vonn.io` as the custom domain for the API service, if the API remains on Railway. |
-| Supabase Auth | Set Site URL to `https://d3vonn.io` and add `https://d3vonn.io/**` plus `https://www.d3vonn.io/**` to redirect URLs. |
-| OAuth providers | Update callback and allowed-origin URLs to `https://d3vonn.io` and any specific callback paths used by the app. |
-| GitHub Actions / deployment secrets | Replace production `devonn.ai` URLs with `d3vonn.io` equivalents. Do not commit secret values. |
+| Vercel | `d3vonn.io`, `www.d3vonn.io`, `app.d3vonn.io` added as Production domains ✓ |
+| Hostinger | Remove old A record (`2.57.91.91`), add Vercel A record and CNAMEs above |
+| Railway | `api.d3vonn.io` added as custom domain on port 8000 ✓ |
+| Supabase Auth | Set Site URL to `https://d3vonn.io` and add redirect URLs for `d3vonn.io/*`, `www.d3vonn.io/*`, `app.d3vonn.io/*` |
+| OAuth providers | Update callback and allowed-origin URLs to `https://d3vonn.io` |
+| GitHub Actions | All workflow URLs migrated from `devonn.ai` to `d3vonn.io` ✓ |
 
 ## Verification
 
@@ -59,9 +67,11 @@ After DNS propagates and the platform domains are attached, verify:
 ```bash
 nslookup d3vonn.io
 nslookup www.d3vonn.io
+nslookup app.d3vonn.io
 nslookup api.d3vonn.io
 curl -I https://d3vonn.io
 curl -I https://www.d3vonn.io
+curl -I https://app.d3vonn.io
 curl https://api.d3vonn.io/health
 ```
 
@@ -69,10 +79,28 @@ Expected routing:
 
 | Hostname | Expected result |
 |---|---|
-| `d3vonn.io` | Lovable frontend over HTTPS |
-| `www.d3vonn.io` | Lovable frontend alias or redirect over HTTPS |
-| `api.d3vonn.io/health` | Railway API health response over HTTPS, if configured |
+| `d3vonn.io` | Vercel frontend over HTTPS |
+| `www.d3vonn.io` | Vercel frontend over HTTPS |
+| `app.d3vonn.io` | Vercel user dashboard over HTTPS |
+| `api.d3vonn.io/health` | Railway API health response over HTTPS |
+
+## Environment Variables
+
+### Frontend (Vercel — VITE_ prefix)
+```
+VITE_API_URL=https://api.d3vonn.io
+VITE_APP_NAME="Supreme AI Deployment Hub"
+VITE_SUPABASE_URL=https://tjygexesognbkwualywq.supabase.co
+```
+
+### Backend (Railway — server-side only)
+```
+CORS_ORIGINS=https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io
+```
 
 ## Notes
 
-The Chrome Web Store privacy-policy URL is intentionally left as `https://devonn.ai/privacy-policy` because the extension listing currently depends on that URL. Update it only when the Chrome Web Store listing is migrated and approved for the new domain.
+- The Chrome Web Store privacy-policy URL is intentionally left as `https://devonn.ai/privacy-policy` because the extension listing currently depends on that URL. Update it only when the Chrome Web Store listing is migrated and approved for the new domain.
+- The `D3vonnHeroBanner.tsx` component displays a migration notice ("devonn.ai → D3VONN.IO · Now Live") — this is intentional UX messaging.
+- Deprecated workflow files (`apply-api-cname.yml`, `apply-route53-dns.yml`) retain `devonn.ai` references as guard clauses to prevent accidental re-creation of old DNS records.
+- The `e2e-smoke-tests.yml` contains a guard that skips tests if the URL still points to `devonn.ai`.

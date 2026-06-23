@@ -12,7 +12,7 @@ const DomainConfigTab: React.FC = () => {
         <CardContent className="space-y-4">
           <h3 className="text-lg font-semibold">Production DNS Configuration</h3>
           <p>
-            <code>devonn.ai</code> has expired and is no longer controlled by the team. The active
+            <code>devonn.ai</code> has expired and is no longer controlled by the team. The active production domain is now <code>d3vonn.io</code>. The
             production domain is <code>d3vonn.io</code>, hosted on Lovable with DNS managed at
             Hostinger.
           </p>
