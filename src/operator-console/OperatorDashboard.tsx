@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import CIWorkflowActivityPanel from './components/CIWorkflowActivityPanel';
 import ConnectorInventoryPanel from './components/ConnectorInventoryPanel';
@@ -30,19 +31,23 @@ import {
 
 import './operator-theme.css';
 
-const navItems = [
-  'Overview',
-  'Supervision',
-  'CI / CD',
-  'Memory Vault',
-  'Connectors',
-  'Deployments',
-  'Governance',
-  'Runtime',
-  'Agents Mesh',
-  'Observability',
-  'Topology',
-  'Settings',
+type NavTarget =
+  | { kind: 'scroll'; anchor: string }
+  | { kind: 'route'; path: string };
+
+const navItems: { label: string; target: NavTarget }[] = [
+  { label: 'Overview', target: { kind: 'scroll', anchor: 'op-overview' } },
+  { label: 'Supervision', target: { kind: 'scroll', anchor: 'op-supervision' } },
+  { label: 'CI / CD', target: { kind: 'scroll', anchor: 'op-ci' } },
+  { label: 'Memory Vault', target: { kind: 'scroll', anchor: 'op-memory' } },
+  { label: 'Connectors', target: { kind: 'scroll', anchor: 'op-connectors' } },
+  { label: 'Deployments', target: { kind: 'route', path: '/deployment' } },
+  { label: 'Governance', target: { kind: 'route', path: '/admin' } },
+  { label: 'Runtime', target: { kind: 'scroll', anchor: 'op-runtime' } },
+  { label: 'Agents Mesh', target: { kind: 'route', path: '/agents' } },
+  { label: 'Observability', target: { kind: 'scroll', anchor: 'op-observability' } },
+  { label: 'Topology', target: { kind: 'scroll', anchor: 'op-topology' } },
+  { label: 'Settings', target: { kind: 'route', path: '/admin' } },
 ];
 
 function OperatorDashboardInner() {
