@@ -244,7 +244,7 @@ const agents = [
 ];
 
 const MarketplacePreview: React.FC = () => (
-  <section className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent">
+  <section id="marketplace" className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent scroll-mt-24">
     <div className="container mx-auto px-6">
       <SectionHeader
         eyebrow="Agent Marketplace"
