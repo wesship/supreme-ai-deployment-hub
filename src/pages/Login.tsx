@@ -1,7 +1,6 @@
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -14,6 +13,10 @@ const Login = () => {
   const [googleError, setGoogleError] = useState<string | null>(null);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate('/dashboard');
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) navigate('/dashboard');
     });
@@ -23,11 +26,23 @@ const Login = () => {
   const handleGoogle = async () => {
     setGoogleLoading(true);
     setGoogleError(null);
-    const result = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
+
+    const origin = window.location.origin;
+    const redirectTo = `${origin}/dashboard`;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
     });
-    if (result.error) {
-      setGoogleError(result.error.message ?? 'Google sign-in failed');
+
+    if (error) {
+      setGoogleError(error.message ?? 'Google sign-in failed');
       setGoogleLoading(false);
     }
   };
@@ -95,6 +110,7 @@ const Login = () => {
             }}
             providers={[]}
             view="sign_in"
+            redirectTo={`${window.location.origin}/dashboard`}
           />
         </div>
       </motion.div>
