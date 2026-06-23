@@ -244,7 +244,7 @@ const agents = [
 ];
 
 const MarketplacePreview: React.FC = () => (
-  <section className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent">
+  <section id="marketplace" className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent scroll-mt-24">
     <div className="container mx-auto px-6">
       <SectionHeader
         eyebrow="Agent Marketplace"
@@ -298,7 +298,7 @@ const MarketplacePreview: React.FC = () => (
 /* -------------------------------------------------------------------------- */
 
 const CommandCenterPreview: React.FC = () => (
-  <section className="relative py-24">
+  <section id="command-center" className="relative py-24 scroll-mt-24">
     <div className="container mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
       <div>
         <SectionHeader
@@ -396,7 +396,7 @@ const CommandCenterPreview: React.FC = () => (
 /* -------------------------------------------------------------------------- */
 
 const Vault: React.FC = () => (
-  <section className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent">
+  <section id="vault" className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent scroll-mt-24">
     <div className="container mx-auto px-6">
       <SectionHeader
         eyebrow="Sovereignty Vault"
@@ -457,7 +457,7 @@ const plans = [
 ];
 
 const Pricing: React.FC = () => (
-  <section className="relative py-24">
+  <section id="pricing" className="relative py-24 scroll-mt-24">
     <div className="container mx-auto px-6">
       <SectionHeader
         eyebrow="Pricing"
