@@ -64,4 +64,4 @@ purpose, and governance status relative to `GOVERNANCE_LOCK_MANIFEST.md`.
 1. Configure `GH_PAT` secret (use `ci-auth-debugger.yml` to verify)
 2. Tag canonical release `v1.0-prod-lock` after `production-lock.sh` passes
 3. Enable branch protection on `main` (require: governance-drift, ci-auth-debugger, final-green-check)
-4. Submit Chrome extension (privacy URL now live: `https://devonn.ai/privacy-policy`)
+4. Submit Chrome extension (privacy URL now live: `https://d3vonn.io/privacy-policy`)
