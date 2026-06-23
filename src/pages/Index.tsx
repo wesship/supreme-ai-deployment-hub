@@ -565,6 +565,17 @@ const Index: React.FC = () => {
       transition={{ duration: 0.6 }}
       className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden"
     >
+      <Helmet>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={url} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={url} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+      </Helmet>
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-primary z-50 origin-left shadow-[0_0_12px_rgba(112,128,255,0.7)]"
         style={{ scaleX }}
