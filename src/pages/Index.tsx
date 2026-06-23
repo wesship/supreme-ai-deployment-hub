@@ -553,17 +553,10 @@ const Index: React.FC = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
-  useEffect(() => {
-    document.title = 'D3VONN.IO — AI Business Operating System';
-    const meta =
-      document.querySelector('meta[name="description"]') ||
-      Object.assign(document.createElement('meta'), { name: 'description' });
-    meta.setAttribute(
-      'content',
-      'D3VONN.IO is the AI Business Operating System — orchestrate your AI workforce, automate workflows, and command an autonomous enterprise.',
-    );
-    if (!meta.parentNode) document.head.appendChild(meta);
-  }, []);
+  const title = 'D3VONN.IO — AI Business Operating System';
+  const description =
+    'D3VONN.IO is the AI Business Operating System — orchestrate your AI workforce, automate workflows, and command an autonomous enterprise from one console.';
+  const url = 'https://d3vonn.io/';
 
   return (
     <motion.div
