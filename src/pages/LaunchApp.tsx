@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import {
   Activity, Bot, CheckCircle2, Workflow, Database, Gauge, HeartPulse, Plus, ArrowRight,
 } from 'lucide-react';
@@ -54,6 +55,16 @@ const LaunchApp: React.FC = () => {
       transition={{ duration: 0.5 }}
       className="min-h-screen bg-[radial-gradient(circle_at_70%_0%,rgba(112,128,255,0.18),transparent_40%),linear-gradient(180deg,#02030a_0%,#070817_100%)] text-foreground"
     >
+      <Helmet>
+        <title>Launch App — D3VONN.IO Command Dashboard</title>
+        <meta name="description" content="Your D3VONN.IO command dashboard — active agents, workflows, knowledge vault, and system health at a glance." />
+        <link rel="canonical" href="https://d3vonn.io/app" />
+        <meta property="og:title" content="Launch App — D3VONN.IO" />
+        <meta property="og:description" content="Active agents, workflows, knowledge vault, and system health at a glance." />
+        <meta property="og:url" content="https://d3vonn.io/app" />
+        <meta name="robots" content="noindex,follow" />
+      </Helmet>
+
       <div className="container mx-auto px-6 py-10">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">

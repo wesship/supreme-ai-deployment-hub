@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   ArrowRight, Bot, ShieldCheck, Network, Zap, Sparkles, Cpu, Database,
   Workflow, Lock, Activity, Globe, Layers, Rocket, Brain, KeySquare,
@@ -552,17 +553,10 @@ const Index: React.FC = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
-  useEffect(() => {
-    document.title = 'D3VONN.IO — AI Business Operating System';
-    const meta =
-      document.querySelector('meta[name="description"]') ||
-      Object.assign(document.createElement('meta'), { name: 'description' });
-    meta.setAttribute(
-      'content',
-      'D3VONN.IO is the AI Business Operating System — orchestrate your AI workforce, automate workflows, and command an autonomous enterprise.',
-    );
-    if (!meta.parentNode) document.head.appendChild(meta);
-  }, []);
+  const title = 'D3VONN.IO — AI Business Operating System';
+  const description =
+    'D3VONN.IO is the AI Business Operating System — orchestrate your AI workforce, automate workflows, and command an autonomous enterprise from one console.';
+  const url = 'https://d3vonn.io/';
 
   return (
     <motion.div
@@ -571,6 +565,17 @@ const Index: React.FC = () => {
       transition={{ duration: 0.6 }}
       className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden"
     >
+      <Helmet>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={url} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={url} />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+      </Helmet>
       <motion.div
         className="fixed top-0 left-0 right-0 h-1 bg-primary z-50 origin-left shadow-[0_0_12px_rgba(112,128,255,0.7)]"
         style={{ scaleX }}
