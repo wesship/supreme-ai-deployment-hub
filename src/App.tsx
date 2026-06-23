@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { FloatingChatWidget } from "./components/ai/FloatingChatWidget";
 import "./App.css";
 import Navbar from "./components/Navbar";
