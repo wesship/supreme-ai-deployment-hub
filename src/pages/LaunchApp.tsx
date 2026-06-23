@@ -54,6 +54,7 @@ const LaunchApp: React.FC = () => {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
       className="min-h-screen bg-[radial-gradient(circle_at_70%_0%,rgba(112,128,255,0.18),transparent_40%),linear-gradient(180deg,#02030a_0%,#070817_100%)] text-foreground"
+    >
       <Helmet>
         <title>Launch App — D3VONN.IO Command Dashboard</title>
         <meta name="description" content="Your D3VONN.IO command dashboard — active agents, workflows, knowledge vault, and system health at a glance." />
