@@ -396,7 +396,7 @@ const CommandCenterPreview: React.FC = () => (
 /* -------------------------------------------------------------------------- */
 
 const Vault: React.FC = () => (
-  <section className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent">
+  <section id="vault" className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent scroll-mt-24">
     <div className="container mx-auto px-6">
       <SectionHeader
         eyebrow="Sovereignty Vault"
