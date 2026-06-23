@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import CIWorkflowActivityPanel from './components/CIWorkflowActivityPanel';
 import ConnectorInventoryPanel from './components/ConnectorInventoryPanel';
@@ -30,22 +31,39 @@ import {
 
 import './operator-theme.css';
 
-const navItems = [
-  'Overview',
-  'Supervision',
-  'CI / CD',
-  'Memory Vault',
-  'Connectors',
-  'Deployments',
-  'Governance',
-  'Runtime',
-  'Agents Mesh',
-  'Observability',
-  'Topology',
-  'Settings',
+type NavTarget =
+  | { kind: 'scroll'; anchor: string }
+  | { kind: 'route'; path: string };
+
+const navItems: { label: string; target: NavTarget }[] = [
+  { label: 'Overview', target: { kind: 'scroll', anchor: 'op-overview' } },
+  { label: 'Supervision', target: { kind: 'scroll', anchor: 'op-supervision' } },
+  { label: 'CI / CD', target: { kind: 'scroll', anchor: 'op-ci' } },
+  { label: 'Memory Vault', target: { kind: 'scroll', anchor: 'op-memory' } },
+  { label: 'Connectors', target: { kind: 'scroll', anchor: 'op-connectors' } },
+  { label: 'Deployments', target: { kind: 'route', path: '/deployment' } },
+  { label: 'Governance', target: { kind: 'route', path: '/admin' } },
+  { label: 'Runtime', target: { kind: 'scroll', anchor: 'op-runtime' } },
+  { label: 'Agents Mesh', target: { kind: 'route', path: '/agents' } },
+  { label: 'Observability', target: { kind: 'scroll', anchor: 'op-observability' } },
+  { label: 'Topology', target: { kind: 'scroll', anchor: 'op-topology' } },
+  { label: 'Settings', target: { kind: 'route', path: '/admin' } },
 ];
 
 function OperatorDashboardInner() {
+  const navigate = useNavigate();
+  const [activeNav, setActiveNav] = useState(navItems[0].label);
+
+  const handleNav = (item: (typeof navItems)[number]) => {
+    setActiveNav(item.label);
+    if (item.target.kind === 'route') {
+      navigate(item.target.path);
+    } else {
+      const el = document.getElementById(item.target.anchor);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const [status, setStatus] = useState<OperatorStatus>(operatorFallbacks.status);
   const [ci, setCI] = useState<OperatorCI>(operatorFallbacks.ci);
   const [memory, setMemory] = useState<OperatorMemory>(operatorFallbacks.memory);
@@ -123,15 +141,19 @@ function OperatorDashboardInner() {
           </div>
 
           <nav className="operator-nav">
-            {navItems.map((item, index) => (
-              <div
-                key={item}
-                className={`operator-nav-item ${index === 0 ? 'active' : ''}`}
+            {navItems.map((item) => (
+              <button
+                type="button"
+                key={item.label}
+                onClick={() => handleNav(item)}
+                className={`operator-nav-item ${activeNav === item.label ? 'active' : ''}`}
+                style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', width: '100%' }}
               >
-                {item}
-              </div>
+                {item.label}
+              </button>
             ))}
           </nav>
+
         </aside>
 
         <main className="operator-main">
@@ -151,7 +173,7 @@ function OperatorDashboardInner() {
             </div>
           </div>
 
-          <section className="operator-grid">
+          <section className="operator-grid" id="op-overview">
             <OperatorStatusCard
               label="System Status"
               value="Operational"
@@ -193,27 +215,37 @@ function OperatorDashboardInner() {
               description={queues.redisReady ? 'Redis telemetry connected.' : 'Redis telemetry pending.'}
             />
 
-            <RuntimeSupervisionPanel />
+            <div id="op-supervision" style={{ display: 'contents' }}>
+              <RuntimeSupervisionPanel />
+              <SupervisionTimelinePanel />
+            </div>
 
-            <SupervisionTimelinePanel />
+            <div id="op-memory" style={{ display: 'contents' }}>
+              <MemoryVaultPanel memory={memory} />
+            </div>
 
-            <MemoryVaultPanel memory={memory} />
+            <div id="op-connectors" style={{ display: 'contents' }}>
+              <ConnectorInventoryPanel connectors={connectors} />
+            </div>
 
-            <ConnectorInventoryPanel connectors={connectors} />
+            <div id="op-observability" style={{ display: 'contents' }}>
+              <ObservabilityPanel metrics={metrics} />
+              <QueueActivityPanel queues={queues} />
+            </div>
 
-            <ObservabilityPanel metrics={metrics} />
+            <div id="op-ci" style={{ display: 'contents' }}>
+              <CIWorkflowActivityPanel ci={ci} />
+            </div>
 
-            <QueueActivityPanel queues={queues} />
+            <div id="op-runtime" style={{ display: 'contents' }}>
+              <RuntimeStreamPanel />
+              <LiveLogsPanel logs={logs} />
+              <TraceVisualizationPanel traces={traces} />
+            </div>
 
-            <CIWorkflowActivityPanel ci={ci} />
-
-            <RuntimeStreamPanel />
-
-            <LiveLogsPanel logs={logs} />
-
-            <TraceVisualizationPanel traces={traces} />
-
-            <TopologyVisualizationPanel graph={graph} topology={topology} />
+            <div id="op-topology" style={{ display: 'contents' }}>
+              <TopologyVisualizationPanel graph={graph} topology={topology} />
+            </div>
 
             <div className="operator-card wide">
               <div className="operator-label">Advisory Tooling</div>
@@ -228,6 +260,7 @@ function OperatorDashboardInner() {
               </div>
             </div>
           </section>
+
         </main>
       </div>
     </div>
