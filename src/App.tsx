@@ -120,6 +120,9 @@ function App() {
                         <Route path="/jetson" element={<JetsonControl />} />
                         <Route path="/jetson-control" element={<JetsonControl />} />
                         <Route path="/app" element={<LaunchApp />} />
+                        <Route path="/platform" element={<Navigate to="/#platform" replace />} />
+                        <Route path="/signin" element={<Navigate to="/login" replace />} />
+                        <Route path="/signup" element={<Navigate to="/login" replace />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </RouteTransition>
