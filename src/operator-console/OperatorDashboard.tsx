@@ -173,7 +173,7 @@ function OperatorDashboardInner() {
             </div>
           </div>
 
-          <section className="operator-grid">
+          <section className="operator-grid" id="op-overview">
             <OperatorStatusCard
               label="System Status"
               value="Operational"
@@ -215,27 +215,37 @@ function OperatorDashboardInner() {
               description={queues.redisReady ? 'Redis telemetry connected.' : 'Redis telemetry pending.'}
             />
 
-            <RuntimeSupervisionPanel />
+            <div id="op-supervision" style={{ display: 'contents' }}>
+              <RuntimeSupervisionPanel />
+              <SupervisionTimelinePanel />
+            </div>
 
-            <SupervisionTimelinePanel />
+            <div id="op-memory" style={{ display: 'contents' }}>
+              <MemoryVaultPanel memory={memory} />
+            </div>
 
-            <MemoryVaultPanel memory={memory} />
+            <div id="op-connectors" style={{ display: 'contents' }}>
+              <ConnectorInventoryPanel connectors={connectors} />
+            </div>
 
-            <ConnectorInventoryPanel connectors={connectors} />
+            <div id="op-observability" style={{ display: 'contents' }}>
+              <ObservabilityPanel metrics={metrics} />
+              <QueueActivityPanel queues={queues} />
+            </div>
 
-            <ObservabilityPanel metrics={metrics} />
+            <div id="op-ci" style={{ display: 'contents' }}>
+              <CIWorkflowActivityPanel ci={ci} />
+            </div>
 
-            <QueueActivityPanel queues={queues} />
+            <div id="op-runtime" style={{ display: 'contents' }}>
+              <RuntimeStreamPanel />
+              <LiveLogsPanel logs={logs} />
+              <TraceVisualizationPanel traces={traces} />
+            </div>
 
-            <CIWorkflowActivityPanel ci={ci} />
-
-            <RuntimeStreamPanel />
-
-            <LiveLogsPanel logs={logs} />
-
-            <TraceVisualizationPanel traces={traces} />
-
-            <TopologyVisualizationPanel graph={graph} topology={topology} />
+            <div id="op-topology" style={{ display: 'contents' }}>
+              <TopologyVisualizationPanel graph={graph} topology={topology} />
+            </div>
 
             <div className="operator-card wide">
               <div className="operator-label">Advisory Tooling</div>
@@ -250,6 +260,7 @@ function OperatorDashboardInner() {
               </div>
             </div>
           </section>
+
         </main>
       </div>
     </div>
