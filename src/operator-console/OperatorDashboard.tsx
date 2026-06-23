@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import CIWorkflowActivityPanel from './components/CIWorkflowActivityPanel';
 import ConnectorInventoryPanel from './components/ConnectorInventoryPanel';
@@ -52,17 +52,63 @@ const navItems: { label: string; target: NavTarget }[] = [
 
 function OperatorDashboardInner() {
   const navigate = useNavigate();
-  const [activeNav, setActiveNav] = useState(navItems[0].label);
+  const location = useLocation();
+
+  // Initialize active nav from URL hash so direct links highlight correctly.
+  const initialNav = (() => {
+    const id = location.hash.replace(/^#/, '');
+    const match = navItems.find(
+      (n) => n.target.kind === 'scroll' && n.target.anchor === id,
+    );
+    return match?.label ?? navItems[0].label;
+  })();
+  const [activeNav, setActiveNav] = useState(initialNav);
+
+  // Keep active state in sync with hash changes (back/forward, manual edits).
+  useEffect(() => {
+    const id = location.hash.replace(/^#/, '');
+    if (!id) return;
+    const match = navItems.find(
+      (n) => n.target.kind === 'scroll' && n.target.anchor === id,
+    );
+    if (match) setActiveNav(match.label);
+  }, [location.hash]);
+
+  // First-load deep-link scroll (retries while lazy panels mount).
+  useEffect(() => {
+    const id = location.hash.replace(/^#/, '');
+    if (!id) return;
+    let cancelled = false;
+    let attempt = 0;
+    const tick = () => {
+      if (cancelled) return;
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      if (attempt++ < 30) setTimeout(tick, 100);
+    };
+    tick();
+    return () => {
+      cancelled = true;
+    };
+    // Only run on initial mount; in-app nav uses handleNav directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNav = (item: (typeof navItems)[number]) => {
     setActiveNav(item.label);
     if (item.target.kind === 'route') {
       navigate(item.target.path);
-    } else {
-      const el = document.getElementById(item.target.anchor);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
     }
+    // Update URL hash so the section is deep-linkable / shareable.
+    navigate({ hash: `#${item.target.anchor}` }, { replace: false });
+    const el = document.getElementById(item.target.anchor);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
 
   const [status, setStatus] = useState<OperatorStatus>(operatorFallbacks.status);
   const [ci, setCI] = useState<OperatorCI>(operatorFallbacks.ci);
