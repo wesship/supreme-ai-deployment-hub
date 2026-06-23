@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 import {
   Activity, Bot, CheckCircle2, Workflow, Database, Gauge, HeartPulse, Plus, ArrowRight,
 } from 'lucide-react';
