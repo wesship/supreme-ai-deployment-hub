@@ -127,12 +127,12 @@ const Hero: React.FC = () => (
             Launch D3VONN
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
-          <a
-            href="#platform"
+          <Link
+            to="/platform"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/40 px-7 py-4 font-semibold text-white backdrop-blur transition hover:bg-white/10 hover:border-primary/40"
           >
             Explore Platform
-          </a>
+          </Link>
         </div>
 
         <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-white/70">
@@ -536,12 +536,12 @@ const FinalCTA: React.FC = () => (
           >
             Launch D3VONN <ArrowRight className="h-4 w-4" />
           </Link>
-          <a
-            href="#platform"
+          <Link
+            to="/platform"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/40 px-7 py-4 font-semibold text-white hover:bg-white/10 transition"
           >
             Explore Platform
-          </a>
+          </Link>
         </div>
       </GlassCard>
     </div>
