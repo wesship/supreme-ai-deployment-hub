@@ -51,6 +51,19 @@ const navItems: { label: string; target: NavTarget }[] = [
 ];
 
 function OperatorDashboardInner() {
+  const navigate = useNavigate();
+  const [activeNav, setActiveNav] = useState(navItems[0].label);
+
+  const handleNav = (item: (typeof navItems)[number]) => {
+    setActiveNav(item.label);
+    if (item.target.kind === 'route') {
+      navigate(item.target.path);
+    } else {
+      const el = document.getElementById(item.target.anchor);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const [status, setStatus] = useState<OperatorStatus>(operatorFallbacks.status);
   const [ci, setCI] = useState<OperatorCI>(operatorFallbacks.ci);
   const [memory, setMemory] = useState<OperatorMemory>(operatorFallbacks.memory);
@@ -128,15 +141,19 @@ function OperatorDashboardInner() {
           </div>
 
           <nav className="operator-nav">
-            {navItems.map((item, index) => (
-              <div
-                key={item}
-                className={`operator-nav-item ${index === 0 ? 'active' : ''}`}
+            {navItems.map((item) => (
+              <button
+                type="button"
+                key={item.label}
+                onClick={() => handleNav(item)}
+                className={`operator-nav-item ${activeNav === item.label ? 'active' : ''}`}
+                style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', width: '100%' }}
               >
-                {item}
-              </div>
+                {item.label}
+              </button>
             ))}
           </nav>
+
         </aside>
 
         <main className="operator-main">
