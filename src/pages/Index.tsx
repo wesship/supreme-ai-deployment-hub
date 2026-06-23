@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   ArrowRight, Bot, ShieldCheck, Network, Zap, Sparkles, Cpu, Database,
   Workflow, Lock, Activity, Globe, Layers, Rocket, Brain, KeySquare,
