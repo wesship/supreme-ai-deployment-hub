@@ -53,6 +53,8 @@ const Music = lazy(() => import("./pages/Music"));
 const Backtesting = lazy(() => import("./pages/Backtesting"));
 const JetsonControl = lazy(() => import("./pages/JetsonControl"));
 const LaunchApp = lazy(() => import("./pages/LaunchApp"));
+const AIAgents = lazy(() => import("./pages/AIAgents"));
+const BusinessAutomation = lazy(() => import("./pages/BusinessAutomation"));
 
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -120,6 +122,8 @@ function App() {
                         <Route path="/jetson" element={<JetsonControl />} />
                         <Route path="/jetson-control" element={<JetsonControl />} />
                         <Route path="/app" element={<LaunchApp />} />
+                        <Route path="/ai-agents" element={<AIAgents />} />
+                        <Route path="/business-automation" element={<BusinessAutomation />} />
                         <Route path="/platform" element={<Navigate to="/#platform" replace />} />
                         <Route path="/signin" element={<Navigate to="/login" replace />} />
                         <Route path="/signup" element={<Navigate to="/login" replace />} />
