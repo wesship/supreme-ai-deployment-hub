@@ -52,6 +52,7 @@ const SovereigntyMatrix = lazy(() => import("./pages/SovereigntyMatrix"));
 const Music = lazy(() => import("./pages/Music"));
 const Backtesting = lazy(() => import("./pages/Backtesting"));
 const JetsonControl = lazy(() => import("./pages/JetsonControl"));
+const LaunchApp = lazy(() => import("./pages/LaunchApp"));
 
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
@@ -118,6 +119,7 @@ function App() {
                         <Route path="/backtesting" element={<Backtesting />} />
                         <Route path="/jetson" element={<JetsonControl />} />
                         <Route path="/jetson-control" element={<JetsonControl />} />
+                        <Route path="/app" element={<LaunchApp />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </RouteTransition>
