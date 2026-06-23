@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Private dashboard — keep out of the index
+Disallow: /app
+Disallow: /admin
+Disallow: /occ
+Disallow: /login
+Disallow: /unauthorized
+
+Sitemap: https://d3vonn.io/sitemap.xml
