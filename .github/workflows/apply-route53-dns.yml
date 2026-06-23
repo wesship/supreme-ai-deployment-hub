@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       reason:
-        description: 'This workflow is deprecated. Use Hostinger + Lovable DNS setup for d3vonn.io.'
+        description: 'This workflow is deprecated. Use Hostinger + Vercel DNS setup for d3vonn.io.'
         required: false
         default: 'deprecated'
 
@@ -20,11 +20,11 @@ jobs:
       - name: Stop obsolete devonn.ai DNS workflow
         run: |
           echo "This workflow is intentionally disabled."
-          echo "devonn.ai is expired and no longer canonical."
-          echo "d3vonn.io uses Hostinger DNS and Lovable frontend hosting."
+          echo "devonn.ai is expired. d3vonn.io is the canonical domain."
+          echo "d3vonn.io uses Hostinger DNS and Vercel frontend hosting."
           echo "Required Hostinger records:"
-          echo "  A   @       185.158.133.1"
-          echo "  A   www     185.158.133.1"
-          echo "  TXT _lovable <value shown by Lovable>"
-          echo "Do not recreate Vercel or Route 53 records for devonn.ai."
+          echo "  A     @      76.76.21.21"
+          echo "  CNAME www    cname.vercel-dns.com"
+          echo "  CNAME app    cname.vercel-dns.com"
+          echo "Do not recreate Vercel or Route 53 records for devonn.ai. Use d3vonn.io instead."
           exit 1
