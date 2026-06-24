@@ -21,6 +21,14 @@ COPY . .
 # Set Python path
 ENV PYTHONPATH=/app
 
+# Create a non-root user for security hardening
+# Railway runs as root by default — this enforces least-privilege execution
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+
 # Health check using curl
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1

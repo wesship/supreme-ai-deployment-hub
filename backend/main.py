@@ -264,6 +264,22 @@ async def health_deep():
     )
     openai_configured = bool(os.getenv("OPENAI_API_KEY"))
     pinecone_configured = bool(os.getenv("PINECONE_API_KEY") and os.getenv("PINECONE_INDEX"))
+
+    # Proxy-vault readiness: check whether the vault file directory is writable
+    # and whether encryption is configured.  This never exposes key values.
+    vault_secret_set = bool(os.getenv("API_KEY_VAULT_SECRET"))
+    vault_dir = os.getenv("KEYS_FILE", ".devonn/api-vault/keys.json")
+    vault_dir_writable: bool
+    try:
+        import pathlib
+        pathlib.Path(vault_dir).parent.mkdir(parents=True, exist_ok=True)
+        vault_dir_writable = os.access(pathlib.Path(vault_dir).parent, os.W_OK)
+    except Exception:
+        vault_dir_writable = False
+
+    vault_status = "ready" if vault_dir_writable else "not_writable"
+    vault_encryption = "enabled" if vault_secret_set else "disabled (set API_KEY_VAULT_SECRET)"
+
     return {
         "status": "ok",
         "version": app.version,
@@ -273,6 +289,10 @@ async def health_deep():
             "supabase": "configured" if supabase_configured else "not_configured",
             "openai": "configured" if openai_configured else "not_configured",
             "pinecone": "configured" if pinecone_configured else "not_configured",
+        },
+        "proxy_vault": {
+            "status": vault_status,
+            "encryption": vault_encryption,
         },
     }
 

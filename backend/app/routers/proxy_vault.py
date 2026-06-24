@@ -11,6 +11,10 @@ The vault is backed by environment variables first, then an encrypted
 JSON file at KEYS_FILE (default: .devonn/api-vault/keys.json).
 API_KEY_VAULT_SECRET is the Fernet encryption key for the vault file.
 If it is not set the vault operates in env-only / plaintext mode.
+
+All mutating operations and config accesses emit structured audit log
+entries via backend.app.observability.audit_log. Key *values* are
+never logged.
 """
 from __future__ import annotations
 
@@ -20,10 +24,15 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from ..middleware.auth import get_current_user_id
+from ..observability.audit_log import (
+    log_vault_config_access,
+    log_vault_key_create,
+    log_vault_key_delete,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +89,14 @@ def _count_configured_keys() -> int:
     return len(names)
 
 
+def _request_id(request: Request) -> str | None:
+    """Extract the request ID from Railway / custom headers."""
+    return (
+        request.headers.get("x-request-id")
+        or request.headers.get("x-railway-request-id")
+    )
+
+
 # ---------------------------------------------------------------------------
 # Pydantic models
 # ---------------------------------------------------------------------------
@@ -111,15 +128,29 @@ class StoreKeyResponse(BaseModel):
 # Routes
 # ---------------------------------------------------------------------------
 @router.get("/config", response_model=ProxyConfigResponse)
-async def get_proxy_config(user_id: str = Depends(get_current_user_id)):
+async def get_proxy_config(
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+):
     """Return proxy/vault configuration metadata. Never exposes key values."""
     cipher = _get_cipher()
+    keys_configured = _count_configured_keys()
+    vault_encrypted = cipher is not None
+
+    # Audit log — no sensitive data included
+    log_vault_config_access(
+        user_id=user_id,
+        vault_encrypted=vault_encrypted,
+        keys_configured=keys_configured,
+        request_id=_request_id(request),
+    )
+
     return ProxyConfigResponse(
         mode="env-first" if not _VAULT_SECRET else "vault",
         status="active",
         vaultPath=str(_KEYS_FILE),
-        keysConfigured=_count_configured_keys(),
-        vaultEncrypted=cipher is not None,
+        keysConfigured=keys_configured,
+        vaultEncrypted=vault_encrypted,
     )
 
 
@@ -138,9 +169,10 @@ async def list_vault_keys(user_id: str = Depends(get_current_user_id)):
 @router.post("/vault/keys", response_model=StoreKeyResponse, status_code=status.HTTP_201_CREATED)
 async def store_vault_key(
     body: StoreKeyRequest,
+    request: Request,
     user_id: str = Depends(get_current_user_id),
 ):
-    """Store or rotate an API key in the vault file."""
+    """Store or rotate an API key in the vault file. Value is never logged."""
     cipher = _get_cipher()
     vault = _load_vault()
     if cipher:
@@ -155,14 +187,34 @@ async def store_vault_key(
         vault[body.name] = body.value
         encrypted = False
     _save_vault(vault)
+
+    # Audit log — key name only, value is never included
+    log_vault_key_create(
+        user_id=user_id,
+        key_name=body.name,
+        encrypted=encrypted,
+        request_id=_request_id(request),
+    )
+
     return StoreKeyResponse(success=True, name=body.name, encrypted=encrypted)
 
 
 @router.delete("/vault/keys/{name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_vault_key(name: str, user_id: str = Depends(get_current_user_id)):
+async def delete_vault_key(
+    name: str,
+    request: Request,
+    user_id: str = Depends(get_current_user_id),
+):
     """Remove a key from the vault file."""
     vault = _load_vault()
     if name not in vault:
         raise HTTPException(status_code=404, detail=f"Key '{name}' not found in vault")
     del vault[name]
     _save_vault(vault)
+
+    # Audit log
+    log_vault_key_delete(
+        user_id=user_id,
+        key_name=name,
+        request_id=_request_id(request),
+    )
