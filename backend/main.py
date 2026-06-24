@@ -329,3 +329,4 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error. The incident has been logged."},
     )
+# build-trigger: force Railway rebuild from d374e66 — 2026-06-24
