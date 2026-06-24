@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 from pydantic import BaseModel
 
-from app.config import get_settings
+from backend.app.config import get_settings
 from intelligence.prompts.engine import prompt_engine
 
 logger = logging.getLogger(__name__)

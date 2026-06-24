@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from app.middleware.auth import get_current_user_id
-from app.middleware.rate_limit import rate_limit
+from backend.app.middleware.auth import get_current_user_id
+from backend.app.middleware.rate_limit import rate_limit
 from intelligence.executor.agent_executor import agent_executor
 from intelligence.memory.memory import conversation_memory, long_term_memory
 from intelligence.orchestration.orchestrator import orchestrator

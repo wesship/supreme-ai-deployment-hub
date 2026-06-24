@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 from pydantic import BaseModel, Field
 
-from app.config import get_settings
+from backend.app.config import get_settings
 from intelligence.executor.agent_executor import AgentExecutor, AgentResult
 from intelligence.memory.memory import conversation_memory, long_term_memory
 from intelligence.router.router import tool_router

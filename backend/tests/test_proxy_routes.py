@@ -17,9 +17,9 @@ import os
 # Ensure the backend package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.config import Settings, get_settings
-from app.middleware.auth import get_current_user_id
-from app.routers import proxy_router
+from backend.app.config import Settings, get_settings
+from backend.app.middleware.auth import get_current_user_id
+from backend.app.routers import proxy_router
 from fastapi import FastAPI
 
 # Build a minimal test app with only the proxy router
@@ -65,9 +65,9 @@ def override_settings():
 
     ts = _test_settings()
     patches = [
-        patch("app.routers.chat.get_settings", return_value=ts),
-        patch("app.routers.rag.get_settings", return_value=ts),
-        patch("app.routers.tools.get_settings", return_value=ts),
+        patch("backend.app.routers.chat.get_settings", return_value=ts),
+        patch("backend.app.routers.rag.get_settings", return_value=ts),
+        patch("backend.app.routers.tools.get_settings", return_value=ts),
     ]
     for p in patches:
         p.start()
@@ -94,7 +94,7 @@ class TestChatProxy:
             "choices": [{"message": {"content": "Hello from Devonn!", "role": "assistant"}}],
             "model": "gpt-4.1-mini",
         }
-        with patch("app.routers.chat.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.chat.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_resp = MagicMock()
@@ -137,7 +137,7 @@ class TestChatProxy:
         no_key = _test_settings()
         no_key.openai_api_key = ""
 
-        with patch("app.routers.chat.get_settings", return_value=no_key):
+        with patch("backend.app.routers.chat.get_settings", return_value=no_key):
             resp = client.post(
                 "/api/chat",
                 json={"messages": [{"role": "user", "content": "Hi"}], "stream": False},
@@ -168,8 +168,8 @@ class TestRAGProxy:
 
     def test_rag_ingest_success(self, client):
         """RAG ingest returns success with chunk count."""
-        with patch("app.routers.rag._embed_texts", new_callable=AsyncMock) as mock_embed, \
-             patch("app.routers.rag._pinecone_upsert", new_callable=AsyncMock) as mock_upsert:
+        with patch("backend.app.routers.rag._embed_texts", new_callable=AsyncMock) as mock_embed, \
+             patch("backend.app.routers.rag._pinecone_upsert", new_callable=AsyncMock) as mock_upsert:
 
             mock_embed.return_value = [[0.1] * 768]
             mock_upsert.return_value = None
@@ -189,8 +189,8 @@ class TestRAGProxy:
 
     def test_rag_retrieve_success(self, client):
         """RAG retrieve returns context results."""
-        with patch("app.routers.rag._embed_texts", new_callable=AsyncMock) as mock_embed, \
-             patch("app.routers.rag._pinecone_query", new_callable=AsyncMock) as mock_query:
+        with patch("backend.app.routers.rag._embed_texts", new_callable=AsyncMock) as mock_embed, \
+             patch("backend.app.routers.rag._pinecone_query", new_callable=AsyncMock) as mock_query:
 
             mock_embed.return_value = [[0.1] * 768]
             mock_query.return_value = [
@@ -206,7 +206,7 @@ class TestRAGProxy:
 
     def test_rag_delete_success(self, client):
         """RAG delete returns success."""
-        with patch("app.routers.rag.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.rag.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_resp = MagicMock()
@@ -224,7 +224,7 @@ class TestRAGProxy:
 class TestToolsProxy:
     def test_tts_success(self, client):
         """TTS returns audio/mpeg binary."""
-        with patch("app.routers.tools.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.tools.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_resp = MagicMock()
@@ -243,13 +243,13 @@ class TestToolsProxy:
         no_key = _test_settings()
         no_key.elevenlabs_api_key = ""
         no_key.openai_api_key = ""
-        with patch("app.routers.tools.get_settings", return_value=no_key):
+        with patch("backend.app.routers.tools.get_settings", return_value=no_key):
             resp = client.post("/api/tools/voice/tts", json={"text": "Hello."})
         assert resp.status_code == 503
 
     def test_stt_token_success(self, client):
         """STT token endpoint returns a token string."""
-        with patch("app.routers.tools.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.tools.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_resp = MagicMock()
@@ -264,7 +264,7 @@ class TestToolsProxy:
 
     def test_github_trigger_success(self, client):
         """GitHub workflow trigger returns success."""
-        with patch("app.routers.tools.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.tools.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_resp = MagicMock()
@@ -295,7 +295,7 @@ class TestToolsProxy:
                 }
             ],
         }
-        with patch("app.routers.tools.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.tools.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_resp = MagicMock()
@@ -312,7 +312,7 @@ class TestToolsProxy:
 
     def test_n8n_execute_workflow_not_found(self, client):
         """n8n execute returns error when workflow not found."""
-        with patch("app.routers.tools.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.tools.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
             mock_resp = MagicMock()
@@ -332,7 +332,7 @@ class TestToolsProxy:
 
     def test_n8n_execute_success(self, client):
         """n8n execute returns success when workflow is found and executed."""
-        with patch("app.routers.tools.httpx.AsyncClient") as mock_client_cls:
+        with patch("backend.app.routers.tools.httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__.return_value = mock_client
 
