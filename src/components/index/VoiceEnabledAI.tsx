@@ -132,7 +132,7 @@ const VoiceEnabledAI: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-3xl font-bold mt-2"
             >
-              Control DEVONN.AI with Your Voice
+              Control D3VONN.IO with Your Voice
             </motion.h2>
             
             <motion.p
