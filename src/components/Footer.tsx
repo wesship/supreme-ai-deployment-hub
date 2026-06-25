@@ -1,9 +1,7 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { Bot, Database, Network, BrainCircuit, Code } from 'lucide-react';
-import logoAsset from '@/assets/d3vonn-logo.png.asset.json';
 
 interface FooterProps {
   className?: string;
