@@ -15,7 +15,7 @@ import { defineConfig, devices } from '@playwright/test';
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './e2e',
   testMatch: '**/*.spec.ts',
 
   // Run tests in parallel across workers
