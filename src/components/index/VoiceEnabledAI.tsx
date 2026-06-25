@@ -181,12 +181,15 @@ const VoiceEnabledAI: React.FC = () => {
                           }}
                           className="absolute inset-0 bg-primary/20 rounded-full"
                         />
-                        <div 
-                          className="relative z-10 bg-primary text-primary-foreground rounded-full w-24 h-24 flex items-center justify-center cursor-pointer"
+                        <button
+                          type="button"
+                          aria-label={isListening ? "Stop listening" : "Start listening"}
+                          aria-pressed={isListening}
                           onClick={toggleListening}
+                          className="relative z-10 bg-primary text-primary-foreground rounded-full w-24 h-24 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                           <Mic className="h-10 w-10" />
-                        </div>
+                        </button>
                       </div>
                     </motion.div>
                   ) : (
