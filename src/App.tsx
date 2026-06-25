@@ -80,29 +80,29 @@ function App() {
                       <Routes>
                         <Route path="/" element={<Index />} />
                         <Route path="/login" element={<Login />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/film" element={<FilmPage />} />
-                        <Route path="/deployment" element={<DeploymentDashboard />} />
-                        <Route path="/api" element={<APIManagement />} />
+                        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                        <Route path="/film" element={<ProtectedRoute><FilmPage /></ProtectedRoute>} />
+                        <Route path="/deployment" element={<ProtectedRoute><DeploymentDashboard /></ProtectedRoute>} />
+                        <Route path="/api" element={<ProtectedRoute><APIManagement /></ProtectedRoute>} />
                         <Route path="/documentation" element={<Documentation />} />
-                        <Route path="/agents" element={<AgentDashboard />} />
-                        <Route path="/devonn" element={<DevonnDashboard />} />
-                        <Route path="/flow" element={<FlowEditor />} />
-                        <Route path="/workflows" element={<WorkflowManagement />} />
-                        <Route path="/agent-demo" element={<AgentDemo />} />
-                        <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
-                        <Route path="/marketplace" element={<AgentMarketplace />} />
-                        <Route path="/mcp" element={<McpPage />} />
-                        <Route path="/status" element={<StatusDashboard />} />
-                        <Route path="/manifest" element={<ManifestPage />} />
-                        <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
-                        <Route path="/command-center" element={<CommandCenter />} />
+                        <Route path="/agents" element={<ProtectedRoute><AgentDashboard /></ProtectedRoute>} />
+                        <Route path="/devonn" element={<ProtectedRoute><DevonnDashboard /></ProtectedRoute>} />
+                        <Route path="/flow" element={<ProtectedRoute><FlowEditor /></ProtectedRoute>} />
+                        <Route path="/workflows" element={<ProtectedRoute><WorkflowManagement /></ProtectedRoute>} />
+                        <Route path="/agent-demo" element={<ProtectedRoute><AgentDemo /></ProtectedRoute>} />
+                        <Route path="/enhanced-agents" element={<ProtectedRoute><EnhancedAgentDemo /></ProtectedRoute>} />
+                        <Route path="/marketplace" element={<ProtectedRoute><AgentMarketplace /></ProtectedRoute>} />
+                        <Route path="/mcp" element={<ProtectedRoute><McpPage /></ProtectedRoute>} />
+                        <Route path="/status" element={<ProtectedRoute><StatusDashboard /></ProtectedRoute>} />
+                        <Route path="/manifest" element={<ProtectedRoute><ManifestPage /></ProtectedRoute>} />
+                        <Route path="/github-diagnostic" element={<ProtectedRoute><GitHubConnectorDiagnostic /></ProtectedRoute>} />
+                        <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
                         <Route path="/about" element={<About />} />
                         <Route path="/contact" element={<Contact />} />
                         <Route path="/terms" element={<Terms />} />
                         <Route path="/privacy" element={<Privacy />} />
                         <Route path="/privacy-policy" element={<Privacy />} />
-                        <Route path="/chat" element={<ChatPage />} />
+                        <Route path="/chat" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
                         <Route path="/admin" element={<AdminPage />} />
                         <Route
                           path="/occ"
@@ -113,16 +113,16 @@ function App() {
                           }
                         />
                         <Route path="/unauthorized" element={<Unauthorized />} />
-                        <Route path="/moneyhub" element={<MoneyHub />} />
-                        <Route path="/ai-therapy" element={<AITherapy />} />
-                        <Route path="/therapy" element={<AITherapy />} />
-                        <Route path="/sovereignty" element={<SovereigntyMatrix />} />
-                        <Route path="/sovereignty-matrix" element={<SovereigntyMatrix />} />
-                        <Route path="/music" element={<Music />} />
-                        <Route path="/backtesting" element={<Backtesting />} />
-                        <Route path="/jetson" element={<JetsonControl />} />
-                        <Route path="/jetson-control" element={<JetsonControl />} />
-                        <Route path="/app" element={<LaunchApp />} />
+                        <Route path="/moneyhub" element={<ProtectedRoute><MoneyHub /></ProtectedRoute>} />
+                        <Route path="/ai-therapy" element={<ProtectedRoute><AITherapy /></ProtectedRoute>} />
+                        <Route path="/therapy" element={<ProtectedRoute><AITherapy /></ProtectedRoute>} />
+                        <Route path="/sovereignty" element={<ProtectedRoute><SovereigntyMatrix /></ProtectedRoute>} />
+                        <Route path="/sovereignty-matrix" element={<ProtectedRoute><SovereigntyMatrix /></ProtectedRoute>} />
+                        <Route path="/music" element={<ProtectedRoute><Music /></ProtectedRoute>} />
+                        <Route path="/backtesting" element={<ProtectedRoute><Backtesting /></ProtectedRoute>} />
+                        <Route path="/jetson" element={<ProtectedRoute><JetsonControl /></ProtectedRoute>} />
+                        <Route path="/jetson-control" element={<ProtectedRoute><JetsonControl /></ProtectedRoute>} />
+                        <Route path="/app" element={<ProtectedRoute><LaunchApp /></ProtectedRoute>} />
                         <Route path="/ai-agents" element={<AIAgents />} />
                         <Route path="/business-automation" element={<BusinessAutomation />} />
                         <Route path="/platform" element={<Navigate to="/#platform" replace />} />
