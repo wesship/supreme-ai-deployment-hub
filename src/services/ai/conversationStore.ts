@@ -1,5 +1,5 @@
 /**
- * Devonn.ai Conversation Store
+ * D3VONN.IO Conversation Store
  * Persists conversations to Supabase (authenticated) or localStorage (anonymous/demo)
  */
 

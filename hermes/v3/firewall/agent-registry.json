@@ -1,5 +1,5 @@
 {
-  "_comment": "Devonn.AI Agent Permission Registry — managed by Hermes v3",
+  "_comment": "D3VONN.IO Agent Permission Registry — managed by Hermes v3",
   "_version": "3.0.0",
   "_tiers": {
     "read-only": "Can read repo state only",

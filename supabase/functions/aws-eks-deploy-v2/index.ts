@@ -682,7 +682,7 @@ async function createCluster(config: any, clusterName: string, nodeCount: number
       const createRoleResponse = await iamClient.send(new CreateRoleCommand({
         RoleName: roleName,
         AssumeRolePolicyDocument: JSON.stringify(assumeRolePolicy),
-        Description: `EKS cluster role for ${clusterName} - managed by Devonn.AI`
+        Description: `EKS cluster role for ${clusterName} - managed by D3VONN.IO`
       }))
       
       roleArn = createRoleResponse.Role!.Arn!

@@ -1,6 +1,6 @@
 # Agent Runtime Validation Harness (Phase B)
 
-Pins the behavioral contract of the Devonn.ai autonomous-agent runtime so
+Pins the behavioral contract of the D3VONN.IO autonomous-agent runtime so
 silent regressions in `AutonomousAgentExecutor`, the memory service, and the
 tool-permission boundary get caught by CI.
 

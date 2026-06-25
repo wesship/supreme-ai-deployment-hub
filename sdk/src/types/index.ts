@@ -1,5 +1,5 @@
 /**
- * Devonn.AI Runtime SDK — Type Definitions
+ * D3VONN.IO Runtime SDK — Type Definitions
  * Generated from docs/api/runtime-openapi.yaml v1.0.0
  */
 

@@ -1,6 +1,6 @@
 # Hermes v2 — Policy Gate
 
-Hermes is a deterministic CI policy decision engine for the Devonn.AI platform. It runs on every pull request and push, evaluating the git diff against a set of governance rules before allowing the pipeline to continue.
+Hermes is a deterministic CI policy decision engine for the D3VONN.IO platform. It runs on every pull request and push, evaluating the git diff against a set of governance rules before allowing the pipeline to continue.
 
 ## Architecture
 
@@ -58,4 +58,4 @@ node hermes/core/engine.js
 
 - **v2 (current):** OPA-compatible deterministic policy engine with structured risk signals
 - **v3:** Real OPA WASM runtime, PR comment bot, risk heatmaps, AWS IAM introspection
-- **v4:** Devonn.AI agent execution firewall integration
+- **v4:** D3VONN.IO agent execution firewall integration

@@ -1,12 +1,12 @@
 openapi: "3.1.0"
 info:
-  title: Devonn.AI Runtime Execution API
+  title: D3VONN.IO Runtime Execution API
   version: "1.0.0"
   description: |
     API surface for the Autonomous Runtime Execution Layer.
     Provides endpoints for executing agents, managing runs, and inspecting governance decisions.
   contact:
-    name: Devonn.AI Platform Team
+    name: D3VONN.IO Platform Team
     url: https://github.com/wesship/supreme-ai-deployment-hub
 servers:
   - url: https://api.d3vonn.io/v1/runtime

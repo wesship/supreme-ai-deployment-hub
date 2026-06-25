@@ -1,6 +1,6 @@
 # @devonn/sdk
 
-The official TypeScript SDK for the Devonn.ai Autonomous Runtime Platform.
+The official TypeScript SDK for the D3VONN.IO Autonomous Runtime Platform.
 
 ## Installation
 

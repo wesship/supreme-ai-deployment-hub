@@ -1,10 +1,10 @@
 openapi: "3.1.0"
 info:
-  title: Devonn.AI Platform API
+  title: D3VONN.IO Platform API
   version: "1.0.0"
   description: AI orchestration and deployment platform API
   contact:
-    name: Devonn.AI Platform Team
+    name: D3VONN.IO Platform Team
     url: https://github.com/wesship/supreme-ai-deployment-hub
   license:
     name: MIT

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This runbook defines the minimum live-staging activation sequence required before Devonn.ai can be treated as production-ready autonomous infrastructure.
+This runbook defines the minimum live-staging activation sequence required before D3VONN.IO can be treated as production-ready autonomous infrastructure.
 
 ## Activation Goal
 

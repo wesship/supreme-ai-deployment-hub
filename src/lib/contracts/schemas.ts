@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Canonical API Contract Schemas
+ * D3VONN.IO — Canonical API Contract Schemas
  *
  * Single source of truth for all request/response shapes.
  * All backend route handlers and frontend API clients MUST validate

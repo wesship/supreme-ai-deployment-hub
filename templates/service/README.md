@@ -1,6 +1,6 @@
-# Devonn.AI Golden Path: New Service Template
+# D3VONN.IO Golden Path: New Service Template
 
-This template provides a production-ready scaffold for new services on the Devonn.AI platform.
+This template provides a production-ready scaffold for new services on the D3VONN.IO platform.
 All security, observability, and compliance requirements are pre-wired.
 
 ## Quick Start

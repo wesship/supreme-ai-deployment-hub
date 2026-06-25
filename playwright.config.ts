@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright E2E Configuration — Devonn.AI
+ * Playwright E2E Configuration — D3VONN.IO
  *
  * Replaces the stub `test:e2e` script ("echo No E2E tests && exit 0").
  * Tests live in tests/e2e/ and run against the local Vite dev server.
@@ -16,7 +16,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: '**/*.spec.ts',
+  testMatch: '**/*.{spec,test}.ts',
 
   // Run tests in parallel across workers
   fullyParallel: true,

@@ -1,7 +1,7 @@
 
-# Devonn.AI Kubernetes Deployment Guide
+# D3VONN.IO Kubernetes Deployment Guide
 
-This comprehensive guide details how to deploy the Devonn.AI Chrome Extension backend infrastructure on Kubernetes, including advanced configurations and service mesh integration.
+This comprehensive guide details how to deploy the D3VONN.IO Chrome Extension backend infrastructure on Kubernetes, including advanced configurations and service mesh integration.
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
@@ -23,7 +23,7 @@ This comprehensive guide details how to deploy the Devonn.AI Chrome Extension ba
 
 ## Architecture Overview
 
-The Devonn.AI backend consists of several microservices deployed in Kubernetes:
+The D3VONN.IO backend consists of several microservices deployed in Kubernetes:
 
 ```
 ┌───────────────┐     ┌────────────────┐     ┌───────────────┐

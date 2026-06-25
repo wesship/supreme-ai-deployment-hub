@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This plan reduces Devonn.ai operational entropy before production hardening continues.
+This plan reduces D3VONN.IO operational entropy before production hardening continues.
 
 The goal is to make the platform easier to deploy, observe, recover, and govern.
 
@@ -92,4 +92,4 @@ Pause new feature work if:
 
 ## Production Readiness Rule
 
-Devonn.ai should not scale production autonomy until operational compression, runtime observability, retry governance, stale recovery, and rollback confidence are proven in staging.
+D3VONN.IO should not scale production autonomy until operational compression, runtime observability, retry governance, stale recovery, and rollback confidence are proven in staging.

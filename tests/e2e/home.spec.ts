@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures';
 
 /**
- * Devonn.AI — Homepage Smoke Tests
+ * D3VONN.IO — Homepage Smoke Tests
  *
  * These are the foundational E2E tests that must pass on every deployment.
  * They verify the app loads, renders without JS errors, and key UI elements

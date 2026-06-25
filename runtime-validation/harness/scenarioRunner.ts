@@ -1,7 +1,7 @@
 /**
  * runtime-validation/harness/scenarioRunner.ts
  *
- * Scenario Runner for the Devonn.AI Runtime Validation Harness.
+ * Scenario Runner for the D3VONN.IO Runtime Validation Harness.
  *
  * A scenario is a named, self-contained test that:
  *   1. Receives a fresh TraceEngine instance

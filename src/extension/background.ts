@@ -115,14 +115,14 @@ async function monitorConnection(): Promise<void> {
     if (settings.wasDisconnected && isConnected) {
       await notifications.showNotification(
         'Connection Restored', 
-        'Connection to Devonn.AI API has been restored'
+        'Connection to D3VONN.IO API has been restored'
       );
       await saveSettings({ wasDisconnected: false });
     } else if (!isConnected && !settings.wasDisconnected) {
       await saveSettings({ wasDisconnected: true });
       await notifications.showNotification(
         'Connection Lost', 
-        'Connection to Devonn.AI API has been lost'
+        'Connection to D3VONN.IO API has been lost'
       );
     }
   } catch (error) {
@@ -149,7 +149,7 @@ async function checkForAgentUpdates(): Promise<void> {
     
     if (data.updates && data.updates.length > 0) {
       await notifications.showNotification(
-        'Devonn.AI Updates Available',
+        'D3VONN.IO Updates Available',
         `${data.updates.length} agent updates available. Open the extension to refresh.`
       );
     }
@@ -225,7 +225,7 @@ async function handleCheckConnection(sendResponse: (response: any) => void): Pro
 
 // Initialize extension when installed
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log('Devonn.AI Assistant has been installed');
+  console.log('D3VONN.IO Assistant has been installed');
   
   // Initialize settings
   await saveSettings({

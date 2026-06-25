@@ -1,5 +1,5 @@
 /**
- * Devonn.ai RAG Service
+ * D3VONN.IO RAG Service
  * Handles document ingestion (chunking → embedding → Pinecone upsert)
  * and retrieval-augmented generation (query → nearest-neighbor search → context injection).
  *

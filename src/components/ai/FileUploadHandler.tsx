@@ -1,5 +1,5 @@
 /**
- * Devonn.ai File Upload Handler
+ * D3VONN.IO File Upload Handler
  * Handles drag-and-drop and click-to-upload for the /chat workspace.
  * Supported: .txt, .md, .csv, .json, .pdf (text extraction), .js, .ts, .py
  * On upload: reads text → ingestDocument() → Pinecone upsert

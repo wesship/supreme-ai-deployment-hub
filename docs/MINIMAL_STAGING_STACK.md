@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This blueprint defines the smallest live staging stack required to prove Devonn.ai runtime resilience before production promotion.
+This blueprint defines the smallest live staging stack required to prove D3VONN.IO runtime resilience before production promotion.
 
 ## Staging Objective
 

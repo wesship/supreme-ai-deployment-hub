@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 /**
- * Devonn.ai — Safe Frontend Environment Variables
+ * D3VONN.IO — Safe Frontend Environment Variables
  *
  * RULE: Only non-sensitive, public values use the VITE_ prefix.
  * Anything with VITE_ is bundled into the client JavaScript and visible to all users.

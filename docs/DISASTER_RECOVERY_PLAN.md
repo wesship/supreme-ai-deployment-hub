@@ -1,7 +1,7 @@
 
 # Disaster Recovery Plan
 
-This document outlines the disaster recovery (DR) procedures for Devonn.AI's production environment.
+This document outlines the disaster recovery (DR) procedures for D3VONN.IO's production environment.
 
 ## 1. Recovery Objectives
 

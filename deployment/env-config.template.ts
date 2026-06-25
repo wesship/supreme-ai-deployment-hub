@@ -1,6 +1,6 @@
 
 /**
- * Devonn.AI Environment Configuration
+ * D3VONN.IO Environment Configuration
  * 
  * Copy this file to env-config.ts and modify as needed for your local development.
  * Note: env-config.ts should be in .gitignore to avoid committing sensitive data.

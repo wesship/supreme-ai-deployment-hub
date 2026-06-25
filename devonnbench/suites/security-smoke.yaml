@@ -1,6 +1,6 @@
 name: devonnbench-security-smoke
 version: "1.1"
-description: Security and release-gate smoke checks for Devonn.AI API surfaces.
+description: Security and release-gate smoke checks for D3VONN.IO API surfaces.
 base_url: ""
 required_categories:
   - safety

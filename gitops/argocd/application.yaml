@@ -1,4 +1,4 @@
-# ArgoCD Application manifest for Devonn.AI
+# ArgoCD Application manifest for D3VONN.IO
 # Deploy with: kubectl apply -f gitops/argocd/application.yaml
 # Requires: ArgoCD installed in argocd namespace
 apiVersion: argoproj.io/v1alpha1
@@ -53,7 +53,7 @@ metadata:
   name: devonn-ai
   namespace: argocd
 spec:
-  description: Devonn.AI production platform
+  description: D3VONN.IO production platform
   sourceRepos:
     - https://github.com/wesship/supreme-ai-deployment-hub
   destinations:

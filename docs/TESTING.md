@@ -1,7 +1,7 @@
 
-# Devonn.AI Testing Guide
+# D3VONN.IO Testing Guide
 
-This document provides comprehensive guidance on testing the Devonn.AI Chrome Extension across various scenarios and environments.
+This document provides comprehensive guidance on testing the D3VONN.IO Chrome Extension across various scenarios and environments.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This document provides comprehensive guidance on testing the Devonn.AI Chrome Ex
 
 ## Overview
 
-Devonn.AI follows a comprehensive testing approach to ensure high quality and reliability:
+D3VONN.IO follows a comprehensive testing approach to ensure high quality and reliability:
 
 - **Unit Tests**: Small, focused tests that verify individual pieces of functionality
 - **Integration Tests**: Verify that different parts of the extension work together correctly
@@ -64,7 +64,7 @@ Example:
 // Example of an E2E test
 test('should open popup and display correct title', async ({ page }) => {
   await page.goto('chrome-extension://[id]/popup.html');
-  await expect(page.locator('h1')).toContainText('Devonn.AI');
+  await expect(page.locator('h1')).toContainText('D3VONN.IO');
 });
 ```
 
@@ -171,7 +171,7 @@ Key edge case categories:
 
 ## Performance Testing
 
-Devonn.AI uses several tools to measure and ensure good performance:
+D3VONN.IO uses several tools to measure and ensure good performance:
 
 1. **Lighthouse CI**
    - Measures page load performance

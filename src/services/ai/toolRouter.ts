@@ -1,5 +1,5 @@
 /**
- * Devonn.ai Tool Router — Phase 3
+ * D3VONN.IO Tool Router — Phase 3
  * MCP-compatible tool calling architecture.
  *
  * Security architecture:
@@ -41,7 +41,7 @@ export interface ToolResult {
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'get_deployment_status',
-    description: 'Get the current deployment status of the Devonn.ai platform, including Vercel frontend, production API service, and Supabase database.',
+    description: 'Get the current deployment status of the D3VONN.IO platform, including Vercel frontend, production API service, and Supabase database.',
     parameters: {
       type: 'object',
       properties: {
@@ -96,7 +96,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'execute_workflow',
-    description: 'Execute a Devonn.ai automation workflow by name (n8n or internal).',
+    description: 'Execute a D3VONN.IO automation workflow by name (n8n or internal).',
     parameters: {
       type: 'object',
       properties: {
@@ -114,7 +114,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'spawn_agent',
-    description: 'Spawn a new AI agent with a specific role and task in the Devonn.ai agent mesh.',
+    description: 'Spawn a new AI agent with a specific role and task in the D3VONN.IO agent mesh.',
     parameters: {
       type: 'object',
       properties: {
@@ -138,7 +138,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'get_system_metrics',
-    description: 'Get system health metrics for the Devonn.ai platform (token usage, API latency, error rates).',
+    description: 'Get system health metrics for the D3VONN.IO platform (token usage, API latency, error rates).',
     parameters: {
       type: 'object',
       properties: {
@@ -153,7 +153,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'search_documentation',
-    description: 'Search the Devonn.ai platform documentation and knowledge base.',
+    description: 'Search the D3VONN.IO platform documentation and knowledge base.',
     parameters: {
       type: 'object',
       properties: {
@@ -396,7 +396,7 @@ function searchDocumentation(query: string, section = 'all'): unknown {
     section,
     results: [
       {
-        title: 'Devonn.ai Architecture Overview',
+        title: 'D3VONN.IO Architecture Overview',
         excerpt: 'The Supreme AI Deployment Hub uses a multi-agent mesh architecture with a Vercel frontend, Supabase for auth and persistence, and the production API service at api.d3vonn.io.',
         url: 'https://d3vonn.io/docs/architecture',
         relevance: 0.95,

@@ -1,4 +1,4 @@
-// background.js — Devonn.AI Chrome Extension Service Worker (Hardened)
+// background.js — D3VONN.IO Chrome Extension Service Worker (Hardened)
 //
 // Fixes from audit:
 //   1. CRITICAL: checkForAgentUpdates() references `controller` and `timeoutId`
@@ -17,7 +17,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 
 // ── Initialization ────────────────────────────────────────────────────────────
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('[Devonn.AI] Extension installed');
+  console.log('[D3VONN.IO] Extension installed');
   chrome.storage.local.get(['apiUrl', 'userId'], (result) => {
     if (!result.apiUrl) {
       chrome.storage.local.set({
@@ -74,11 +74,11 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         chrome.storage.local.set({ connectionStatus: isConnected });
         chrome.storage.local.get(['wasDisconnected'], (result) => {
           if (result.wasDisconnected && isConnected) {
-            showNotification('Connection Restored', 'Connection to Devonn.AI API has been restored');
+            showNotification('Connection Restored', 'Connection to D3VONN.IO API has been restored');
             chrome.storage.local.set({ wasDisconnected: false });
           } else if (!isConnected && !result.wasDisconnected) {
             chrome.storage.local.set({ wasDisconnected: true });
-            showNotification('Connection Lost', 'Connection to Devonn.AI API has been lost');
+            showNotification('Connection Lost', 'Connection to D3VONN.IO API has been lost');
           }
         });
       })
@@ -169,7 +169,7 @@ async function checkForAgentUpdates() {
   if (data.updates && data.updates.length > 0) {
     chrome.storage.local.get(['notifications'], (s) => {
       if ((s.notifications || {}).taskComplete) {
-        showNotification('Devonn.AI Updates', `${data.updates.length} agent updates available`);
+        showNotification('D3VONN.IO Updates', `${data.updates.length} agent updates available`);
       }
     });
   }

@@ -1,6 +1,6 @@
-# Devonn.ai Production Verification Checklist
+# D3VONN.IO Production Verification Checklist
 
-This checklist controls the Devonn.ai private beta gate. Do not mark a gate green unless there is live proof from production, logs, Sentry, or the relevant provider dashboard.
+This checklist controls the D3VONN.IO private beta gate. Do not mark a gate green unless there is live proof from production, logs, Sentry, or the relevant provider dashboard.
 
 ## Locked Release Status
 
@@ -44,7 +44,7 @@ setTimeout(() => {
 ```
 
 6. Wait 30–90 seconds.
-7. Open the Devonn.ai frontend project in Sentry.
+7. Open the D3VONN.IO frontend project in Sentry.
 8. Search Issues or Events for:
 
 ```text
@@ -117,7 +117,7 @@ Recommended verification flow:
 curl -i https://api.d3vonn.io/health/deep
 ```
 
-Then run one real chat or agent request from the Devonn.ai frontend and verify no quota, billing, or authentication error appears.
+Then run one real chat or agent request from the D3VONN.IO frontend and verify no quota, billing, or authentication error appears.
 
 ## Live End-to-End Flow
 

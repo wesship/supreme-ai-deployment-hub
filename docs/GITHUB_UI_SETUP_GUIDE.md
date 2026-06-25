@@ -1,4 +1,4 @@
-# Devonn.AI — GitHub UI Configuration Guide
+# D3VONN.IO — GitHub UI Configuration Guide
 
 This document provides exact, step-by-step instructions for completing all
 remaining manual configuration in the GitHub UI. No credentials need to be

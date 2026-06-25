@@ -1,5 +1,5 @@
 /**
- * commitlint.config.js — Devonn.AI Commit Message Enforcement
+ * commitlint.config.js — D3VONN.IO Commit Message Enforcement
  *
  * Enforces Conventional Commits format on every commit.
  * This is required for semantic-release to correctly determine version bumps.

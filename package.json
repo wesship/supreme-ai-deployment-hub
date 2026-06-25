@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:extension": "vitest run src/extension/__tests__/ --passWithNoTests",
-    "test:e2e": "echo \"No E2E tests specified\" && exit 0",
+    "test:e2e": "playwright test --config playwright.config.ts",
     "typecheck": "npx tsc --noEmit",
     "ci:doctor": "bash scripts/ci-doctor.sh",
     "workflow:audit": "bash scripts/workflow-audit.sh",

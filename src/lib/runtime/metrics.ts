@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Runtime Metrics Module
+ * D3VONN.IO — Runtime Metrics Module
  *
  * Lightweight in-process counter/gauge registry.
  * Exposes a /metrics endpoint payload and a Prometheus-compatible

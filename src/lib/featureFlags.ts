@@ -1,5 +1,5 @@
 /**
- * featureFlags.ts — Devonn.AI Feature Flag System
+ * featureFlags.ts — D3VONN.IO Feature Flag System
  *
  * Provides a lightweight, type-safe feature flag system backed by Supabase.
  * Flags can be toggled remotely without a code deployment.

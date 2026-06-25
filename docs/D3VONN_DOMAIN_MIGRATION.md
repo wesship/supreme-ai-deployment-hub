@@ -1,6 +1,6 @@
 # DEVONN Canonical Domain Migration to d3vonn.io
 
-`devonn.ai` has expired and is no longer under our control. `d3vonn.io` is the canonical production domain for the DEVONN platform going forward. This runbook captures the DNS, platform, and application settings needed to complete the cutover safely.
+`d3vonn.io` has expired and is no longer under our control. `d3vonn.io` is the canonical production domain for the DEVONN platform going forward. This runbook captures the DNS, platform, and application settings needed to complete the cutover safely.
 
 ## Frontend Hosting: Vercel
 
@@ -58,7 +58,7 @@ Create these records in Hostinger DNS for `d3vonn.io` and remove any conflicting
 | Railway | `api.d3vonn.io` added as custom domain on port 8000 ✓ |
 | Supabase Auth | Set Site URL to `https://d3vonn.io` and add redirect URLs for `d3vonn.io/*`, `www.d3vonn.io/*`, `app.d3vonn.io/*` |
 | OAuth providers | Update callback and allowed-origin URLs to `https://d3vonn.io` |
-| GitHub Actions | All workflow URLs migrated from `devonn.ai` to `d3vonn.io` ✓ |
+| GitHub Actions | All workflow URLs migrated from `d3vonn.io` to `d3vonn.io` ✓ |
 
 ## Verification
 
@@ -100,7 +100,7 @@ CORS_ORIGINS=https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io
 
 ## Notes
 
-- The Chrome Web Store privacy-policy URL is intentionally left as `https://devonn.ai/privacy-policy` because the extension listing currently depends on that URL. Update it only when the Chrome Web Store listing is migrated and approved for the new domain.
-- The `D3vonnHeroBanner.tsx` component displays a migration notice ("devonn.ai → D3VONN.IO · Now Live") — this is intentional UX messaging.
-- Deprecated workflow files (`apply-api-cname.yml`, `apply-route53-dns.yml`) retain `devonn.ai` references as guard clauses to prevent accidental re-creation of old DNS records.
-- The `e2e-smoke-tests.yml` contains a guard that skips tests if the URL still points to `devonn.ai`.
+- The Chrome Web Store privacy-policy URL is intentionally left as `https://d3vonn.io/privacy-policy` because the extension listing currently depends on that URL. Update it only when the Chrome Web Store listing is migrated and approved for the new domain.
+- The `D3vonnHeroBanner.tsx` component displays a migration notice ("d3vonn.io → D3VONN.IO · Now Live") — this is intentional UX messaging.
+- Deprecated workflow files (`apply-api-cname.yml`, `apply-route53-dns.yml`) retain `d3vonn.io` references as guard clauses to prevent accidental re-creation of old DNS records.
+- The `e2e-smoke-tests.yml` contains a guard that skips tests if the URL still points to `d3vonn.io`.

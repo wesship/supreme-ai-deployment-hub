@@ -1,6 +1,6 @@
-# Devonn.ai Backend Proxy
+# D3VONN.IO Backend Proxy
 
-Production-ready FastAPI backend that acts as the **secure execution layer** for the Devonn.ai platform. All sensitive API keys are held server-side here — never in the browser bundle.
+Production-ready FastAPI backend that acts as the **secure execution layer** for the D3VONN.IO platform. All sensitive API keys are held server-side here — never in the browser bundle.
 
 ## Architecture
 

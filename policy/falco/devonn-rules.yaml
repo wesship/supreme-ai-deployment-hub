@@ -1,7 +1,7 @@
-# Falco Runtime Behavioral Detection Rules — Devonn.AI Platform
+# Falco Runtime Behavioral Detection Rules — D3VONN.IO Platform
 # https://falco.org/docs/rules/
 #
-# These rules detect anomalous behavior in the Devonn.AI API container
+# These rules detect anomalous behavior in the D3VONN.IO API container
 # and alert on potential exploitation, container escape, or data exfiltration.
 #
 # Severity levels: EMERGENCY, ALERT, CRITICAL, ERROR, WARNING, NOTICE, INFO, DEBUG

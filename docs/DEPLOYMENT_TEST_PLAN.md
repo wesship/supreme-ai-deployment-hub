@@ -1,7 +1,7 @@
 
 # Deployment Testing Plan
 
-This document outlines the step-by-step process for testing the Devonn.AI infrastructure deployment in a staging environment before promoting to production.
+This document outlines the step-by-step process for testing the D3VONN.IO infrastructure deployment in a staging environment before promoting to production.
 
 ## Pre-Deployment Setup
 

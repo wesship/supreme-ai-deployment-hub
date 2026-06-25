@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Devonn.AI — Staging Smoke Tests
+ * D3VONN.IO — Staging Smoke Tests
  *
  * Validates that the deployed staging environment:
  * 1. Returns valid responses from all health/readiness/metrics/version endpoints

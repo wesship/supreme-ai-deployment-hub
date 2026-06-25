@@ -1,7 +1,7 @@
 {
   "name": "@devonn/sdk",
   "version": "1.0.0",
-  "description": "TypeScript SDK for the Devonn.AI Runtime Execution API",
+  "description": "TypeScript SDK for the D3VONN.IO Runtime Execution API",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

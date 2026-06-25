@@ -1,9 +1,9 @@
 
-# Devonn.AI Chrome Extension Documentation
+# D3VONN.IO Chrome Extension Documentation
 
 ## Overview
 
-The Devonn.AI Chrome Extension provides seamless access to Devonn.AI functionality directly from your browser. This documentation covers installation, configuration, usage, and troubleshooting for end users and developers.
+The D3VONN.IO Chrome Extension provides seamless access to D3VONN.IO functionality directly from your browser. This documentation covers installation, configuration, usage, and troubleshooting for end users and developers.
 
 ## Installation
 
@@ -22,8 +22,8 @@ The Devonn.AI Chrome Extension provides seamless access to Devonn.AI functionali
 ### API Connection
 | Setting | Description | Default Value |
 |---------|-------------|---------------|
-| API URL | The URL for the Devonn.AI backend API | https://api.d3vonn.io |
-| User ID | Your unique Devonn.AI user identifier | N/A (Required) |
+| API URL | The URL for the D3VONN.IO backend API | https://api.d3vonn.io |
+| User ID | Your unique D3VONN.IO user identifier | N/A (Required) |
 
 ### Notification Settings
 | Setting | Description | Default Value |
@@ -40,7 +40,7 @@ The Devonn.AI Chrome Extension provides seamless access to Devonn.AI functionali
 ## Usage Guide
 
 ### Main Interface
-1. Click the Devonn.AI icon in your browser toolbar to open the extension popup
+1. Click the D3VONN.IO icon in your browser toolbar to open the extension popup
 2. The main interface displays:
    - Available agents
    - Recent tasks

@@ -1,4 +1,4 @@
-# kube-prometheus-stack Helm values — Devonn.AI Production
+# kube-prometheus-stack Helm values — D3VONN.IO Production
 # Install: helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
 #            -n monitoring --create-namespace -f helm-values/kube-prometheus-stack.yaml
 
@@ -30,7 +30,7 @@ grafana:
       providers:
         - name: devonn
           orgId: 1
-          folder: "Devonn.AI"
+          folder: "D3VONN.IO"
           type: file
           disableDeletion: false
           options:

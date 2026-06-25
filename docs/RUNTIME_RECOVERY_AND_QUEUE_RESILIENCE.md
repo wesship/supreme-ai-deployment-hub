@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the production reliability contract for Devonn.ai autonomous runtime execution.
+This document defines the production reliability contract for D3VONN.IO autonomous runtime execution.
 
 The goal is to prevent silent task loss, retry storms, duplicate execution, stale worker ownership, and replay corruption.
 
@@ -126,4 +126,4 @@ The runtime should emit metrics for:
 
 ## Production Readiness Rule
 
-Devonn.ai should not scale autonomous execution until retry caps, stale recovery, dedupe, dead-letter routing, and replay visibility are implemented and observable.
+D3VONN.IO should not scale autonomous execution until retry caps, stale recovery, dedupe, dead-letter routing, and replay visibility are implemented and observable.

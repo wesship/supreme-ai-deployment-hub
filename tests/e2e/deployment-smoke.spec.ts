@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures';
 
 /**
- * Devonn.AI — Deployment Smoke Tests
+ * D3VONN.IO — Deployment Smoke Tests
  *
  * These tests run against the live Vercel preview/production URL after every
  * deployment. Set PLAYWRIGHT_BASE_URL to the Vercel preview URL in CI.

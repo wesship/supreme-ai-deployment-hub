@@ -4,7 +4,7 @@ Last updated: October 6, 2025
 
 ## Summary
 
-This browser extension (Devonn.AI Assistant) collects only limited data needed to operate: user-provided API keys used to call model/provider APIs, and page text or selected content when you explicitly request processing. We do not sell user data.
+This browser extension (D3VONN.IO Assistant) collects only limited data needed to operate: user-provided API keys used to call model/provider APIs, and page text or selected content when you explicitly request processing. We do not sell user data.
 
 ## What we collect
 

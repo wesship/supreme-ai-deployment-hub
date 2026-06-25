@@ -6,6 +6,6 @@ describe("example", () => {
   });
 
   it("should handle string operations", () => {
-    expect("Devonn.AI").toContain("AI");
+    expect("D3VONN.IO").toContain("AI");
   });
 });

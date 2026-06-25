@@ -1,6 +1,6 @@
 # Hermes v3 — Autonomous Governance Layer
 
-Hermes v3 is the production-grade CI policy decision engine for the Devonn.AI platform. It runs on every pull request and push, evaluating the git diff against a multi-layer governance framework before the pipeline is permitted to continue.
+Hermes v3 is the production-grade CI policy decision engine for the D3VONN.IO platform. It runs on every pull request and push, evaluating the git diff against a multi-layer governance framework before the pipeline is permitted to continue.
 
 ## Architecture
 
@@ -11,7 +11,7 @@ Context Builder        (context/github-context.cjs)
    ├── Full PR metadata (title, labels, reviewers, draft status)
    ├── File risk classification (critical / high / medium / low)
    ├── Trufflehog-compatible secret signals
-   └── Devonn.AI agent execution context
+   └── D3VONN.IO agent execution context
         ↓
 ┌─────────────────────────────────────────────────────┐
 │                  Governance Pipeline                │
@@ -26,7 +26,7 @@ Context Builder        (context/github-context.cjs)
 │                                                     │
 │  3. Agent Firewall     (firewall/agent-firewall.cjs)│
 │     └── Permission tier enforcement for all         │
-│         Devonn.AI autonomous agents                 │
+│         D3VONN.IO autonomous agents                 │
 │                                                     │
 │  4. OPA Policy Engine  (core/opa.cjs)               │
 │     └── Deterministic rule evaluation against       │
@@ -57,7 +57,7 @@ PR Comment Bot         (bot/pr-comment.cjs)
 | `iam/aws-iam.cjs` | AWS IAM privilege escalation and wildcard grant detector |
 | `heatmap/risk-heatmap.cjs` | Per-file risk scoring and Markdown heatmap generator |
 | `bot/pr-comment.cjs` | GitHub API PR comment bot with rich Markdown formatting |
-| `firewall/agent-firewall.cjs` | Devonn.AI agent permission tier enforcement |
+| `firewall/agent-firewall.cjs` | D3VONN.IO agent permission tier enforcement |
 | `firewall/agent-registry.json` | Agent ID → permission tier registry |
 | `tests/hermes-v3.test.cjs` | 37-test unit suite (all passing) |
 
@@ -102,4 +102,4 @@ node hermes/v3/core/engine.cjs
 | v2 | Merged (PR #109) | OPA-compatible deterministic policy engine |
 | v3 | This PR | IAM introspection, PR comment bot, risk heatmaps, agent firewall |
 | v4 | Planned | Real OPA WASM runtime, risk trend dashboards, Slack/PagerDuty alerts |
-| v5 | Planned | Devonn.AI agent mesh integration, autonomous remediation |
+| v5 | Planned | D3VONN.IO agent mesh integration, autonomous remediation |

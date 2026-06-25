@@ -1,6 +1,6 @@
-# Devonn.AI PersonaLive Avatar Stack
+# D3VONN.IO PersonaLive Avatar Stack
 
-This folder contains an isolated Docker Compose stack for running PersonaLive beside Devonn.AI without touching the main app deployment.
+This folder contains an isolated Docker Compose stack for running PersonaLive beside D3VONN.IO without touching the main app deployment.
 
 ## Services
 

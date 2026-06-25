@@ -1,6 +1,6 @@
-# Devonn.ai — Supreme AI Deployment Hub
+# D3VONN.IO — Supreme AI Deployment Hub
 
-Devonn.ai is an AI-powered deployment, operations, and agent orchestration hub. This repository is the main application workspace for the Devonn.ai platform: a Vite/React operator frontend, FastAPI backend services, Supabase-backed authentication and logging, protected admin tooling, CI/security gates, and production deployment workflows.
+D3VONN.IO is an AI-powered deployment, operations, and agent orchestration hub. This repository is the main application workspace for the D3VONN.IO platform: a Vite/React operator frontend, FastAPI backend services, Supabase-backed authentication and logging, protected admin tooling, CI/security gates, and production deployment workflows.
 
 The current milestone is the merged Operator Command Center (OCC), delivered through PR #202.
 
@@ -19,7 +19,7 @@ The current milestone is the merged Operator Command Center (OCC), delivered thr
 
 ## What this repo contains
 
-Devonn.ai combines multiple production layers:
+D3VONN.IO combines multiple production layers:
 
 - **Operator Command Center (OCC):** protected admin dashboard for AI cost tracking, tool logs, agent logs, RAG document management, approvals, errors, and user plans.
 - **Frontend application:** Vite/React UI with production build tooling and dashboard routes.
@@ -200,7 +200,7 @@ This repository uses a hardened CI/governance posture. Core checks include:
 - Security Hardening
 - CI - Hardened Build Pipeline
 - API Contract Testing
-- Devonn.AI Testing
+- D3VONN.IO Testing
 - E2E Tests
 - Coverage Enforcement
 - Lighthouse CI

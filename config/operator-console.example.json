@@ -5,7 +5,7 @@
     "lastRun": "2026-05-23T00:00:00Z",
     "requiredChecks": [
       "CI - Hardened Build Pipeline",
-      "Devonn.AI Testing",
+      "D3VONN.IO Testing",
       "CodeQL SAST",
       "Secrets Elimination & Scanning",
       "Final Green Check"

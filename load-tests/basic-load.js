@@ -5,7 +5,7 @@ import { Counter, Rate, Trend } from 'k6/metrics';
 import { randomItem, randomIntBetween } from 'https://jslib.k6.io/k6-utils/1.2.0/index.js';
 
 /**
- * Comprehensive load test suite for Devonn.AI API
+ * Comprehensive load test suite for D3VONN.IO API
  * 
  * This script tests the API endpoints under various load scenarios
  * Run with: k6 run basic-load.js

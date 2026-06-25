@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the required secrets, environment separation rules, and deployment integrity expectations for Devonn.ai.
+This document defines the required secrets, environment separation rules, and deployment integrity expectations for D3VONN.IO.
 
 The goal is to prevent secret drift, production/staging mismatch, accidental client-side exposure, and unsafe deployment promotion.
 
@@ -102,4 +102,4 @@ Rotate immediately when:
 
 ## Production Readiness Rule
 
-Devonn.ai should not be promoted to production unless required secrets are present, scoped correctly, environment-separated, and not exposed to the frontend bundle.
+D3VONN.IO should not be promoted to production unless required secrets are present, scoped correctly, environment-separated, and not exposed to the frontend bundle.

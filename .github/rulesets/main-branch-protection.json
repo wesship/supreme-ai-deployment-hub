@@ -1,5 +1,5 @@
 {
-  "_comment": "Devonn.ai main branch protection ruleset. Apply via GitHub API or Settings > Rules > Rulesets.",
+  "_comment": "D3VONN.IO main branch protection ruleset. Apply via GitHub API or Settings > Rules > Rulesets.",
   "name": "main-branch-protection",
   "target": "branch",
   "enforcement": "active",

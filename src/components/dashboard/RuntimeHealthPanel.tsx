@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — RuntimeHealthPanel
+ * D3VONN.IO — RuntimeHealthPanel
  *
  * Operator dashboard panel showing live runtime health:
  * - API liveness status

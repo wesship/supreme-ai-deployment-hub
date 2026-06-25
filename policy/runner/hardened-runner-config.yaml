@@ -1,4 +1,4 @@
-# Hardened Runner Configuration for Devonn.AI CI/CD
+# Hardened Runner Configuration for D3VONN.IO CI/CD
 # Defines the security posture for GitHub Actions runners
 # Compatible with: StepSecurity Harden-Runner, self-hosted hardened runners,
 # and future Firecracker/gVisor sandboxed execution environments.

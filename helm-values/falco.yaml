@@ -1,4 +1,4 @@
-# falco.yaml — Hardened Falco Runtime Security for Devonn.AI
+# falco.yaml — Hardened Falco Runtime Security for D3VONN.IO
 # Replaces the missing/stub falco.yaml with production-grade rules.
 #
 # Install:
@@ -40,13 +40,13 @@ falcosidekick:
         Namespace: `{{ .OutputFields.k8s_ns_name }}`
         Message: {{ .Output }}
 
-# ── Custom Devonn.AI Rules ────────────────────────────────────────────────────
+# ── Custom D3VONN.IO Rules ────────────────────────────────────────────────────
 customRules:
   devonn-rules.yaml: |-
     # ── Rule: Detect shell spawned inside devonn containers ──────────────────
     - rule: Shell Spawned in Devonn Container
       desc: >
-        A shell was spawned inside a Devonn.AI container. This may indicate
+        A shell was spawned inside a D3VONN.IO container. This may indicate
         an attacker has achieved code execution via a vulnerability.
       condition: >
         spawned_process and container and

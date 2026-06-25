@@ -1,5 +1,5 @@
 /**
- * Low-level HTTP client for the Devonn.AI Runtime API.
+ * Low-level HTTP client for the D3VONN.IO Runtime API.
  * Handles authentication, serialization, error mapping, and retries.
  */
 

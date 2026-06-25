@@ -1,10 +1,10 @@
-# Devonn.ai Operator Command Center Runbook
+# D3VONN.IO Operator Command Center Runbook
 
 _Last updated: 2026-05-27_
 
 ## Purpose
 
-The Operator Command Center (OCC) is the admin-grade control layer for Devonn.ai. It provides a protected dashboard and backend API for monitoring AI usage, agent activity, tool calls, RAG documents, approvals, error logs, and user plan controls.
+The Operator Command Center (OCC) is the admin-grade control layer for D3VONN.IO. It provides a protected dashboard and backend API for monitoring AI usage, agent activity, tool calls, RAG documents, approvals, error logs, and user plan controls.
 
 This document explains how to verify, operate, and safely troubleshoot the OCC after PR #202.
 

@@ -1,7 +1,7 @@
 /**
  * runtime-validation/harness/memoryReplayValidator.ts
  *
- * Memory Replay Validator for the Devonn.AI Runtime Validation Harness.
+ * Memory Replay Validator for the D3VONN.IO Runtime Validation Harness.
  *
  * Core principle (from Wave 28 design):
  *   Memory should not be validated as "stored" — it should be validated as

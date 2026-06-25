@@ -4,14 +4,14 @@
     "name": "supreme-ai-deployment-hub",
     "branch": "main",
     "dest": "supreme-ai-deployment-hub",
-    "description": "Main Devonn.AI deployment hub"
+    "description": "Main D3VONN.IO deployment hub"
   },
   {
     "owner": "wesship",
     "name": "devonn-coordinator",
     "branch": "main",
     "dest": "devonn-coordinator",
-    "description": "Devonn.AI agent coordinator service"
+    "description": "D3VONN.IO agent coordinator service"
   },
   {
     "owner": "wesship",

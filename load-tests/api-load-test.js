@@ -1,5 +1,5 @@
 /**
- * api-load-test.js — Devonn.AI Production Load Test Suite
+ * api-load-test.js — D3VONN.IO Production Load Test Suite
  *
  * Replaces the stub basic-load.js and basic-test.js with a comprehensive
  * k6 load test that covers:
@@ -128,7 +128,7 @@ export function handleSummary(data) {
   const p95 = data.metrics.http_req_duration?.values?.['p(95)'] || 0;
   const errRate = data.metrics.error_rate?.values?.rate || 0;
 
-  console.log('\n=== Devonn.AI Load Test Summary ===');
+  console.log('\n=== D3VONN.IO Load Test Summary ===');
   console.log(`Scenario:       ${SCENARIO}`);
   console.log(`Total Requests: ${data.metrics.http_reqs?.values?.count || 0}`);
   console.log(`p(95) Latency:  ${p95.toFixed(2)}ms (threshold: 500ms)`);

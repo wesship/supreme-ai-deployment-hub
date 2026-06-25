@@ -4,7 +4,7 @@ import { DevonnSettings } from '../storage';
 describe('Chrome Extension Settings Documentation', () => {
   // Define the expected settings structure to ensure documentation stays in sync
   const expectedSettingsStructure: Record<keyof DevonnSettings, string> = {
-    apiUrl: 'API URL for connecting to the Devonn.AI backend',
+    apiUrl: 'API URL for connecting to the D3VONN.IO backend',
     userId: 'User identifier for authentication',
     notifications: 'Notification preferences configuration',
     lastCheck: 'Timestamp of the last check for updates',

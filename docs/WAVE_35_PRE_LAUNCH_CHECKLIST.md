@@ -4,7 +4,7 @@ _Last updated: 2026-05-27_
 
 ## Goal
 
-Move Devonn.ai from merged OCC milestone to production launch readiness by deploying the backend, applying the Supabase OCC migration, validating admin security, and tagging the OCC release.
+Move D3VONN.IO from merged OCC milestone to production launch readiness by deploying the backend, applying the Supabase OCC migration, validating admin security, and tagging the OCC release.
 
 ## Release candidate
 
@@ -169,7 +169,7 @@ After backend and OCC smoke tests pass:
 ```bash
 git checkout main
 git pull origin main
-git tag -a v1.1.0-occ -m "Devonn.ai Operator Command Center v1.1.0"
+git tag -a v1.1.0-occ -m "D3VONN.IO Operator Command Center v1.1.0"
 git push origin v1.1.0-occ
 ```
 

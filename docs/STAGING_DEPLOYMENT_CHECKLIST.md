@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This checklist defines the first live staging rollout sequence for Devonn.ai.
+This checklist defines the first live staging rollout sequence for D3VONN.IO.
 
 The goal is to prove the platform can deploy, expose health, emit telemetry, recover tasks, and preserve runtime lineage before production promotion.
 

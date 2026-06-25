@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This service defines the minimum recoverable execution lifecycle for Devonn.ai autonomous runtime work.
+This service defines the minimum recoverable execution lifecycle for D3VONN.IO autonomous runtime work.
 
 It is intentionally small and conservative. The goal is to prove survivability before scaling autonomy.
 

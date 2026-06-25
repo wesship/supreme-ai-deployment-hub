@@ -61,27 +61,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "NODE_ENV": "production",
-    "VITE_ENVIRONMENT": "production",
-    "VITE_API_URL": "https://api.d3vonn.io",
-    "VITE_APP_NAME": "D3VONN.IO",
-    "VITE_APP_VERSION": "1.0.0",
-    "VITE_SUPABASE_URL": "https://tjygexesognbkwualywq.supabase.co",
-    "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_3d8DsaV1npxHCOeIM7CPng_0ByAZSuw",
-    "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmVzb2duYmt3dWFseXdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjM3NTgsImV4cCI6MjA5NTIzOTc1OH0.0e8XGUNy6_d_cUwu7BMA6-zJXRpI9sArNyd_bJrumwg"
-  },
-  "build": {
-    "env": {
-      "NODE_ENV": "production",
-      "VITE_ENVIRONMENT": "production",
-      "VITE_API_URL": "https://api.d3vonn.io",
-      "VITE_APP_NAME": "Devonn.ai",
-      "VITE_APP_VERSION": "1.0.0",
-      "VITE_SUPABASE_URL": "https://tjygexesognbkwualywq.supabase.co",
-      "VITE_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_3d8DsaV1npxHCOeIM7CPng_0ByAZSuw",
-      "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmVzb2duYmt3dWFseXdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2NjM3NTgsImV4cCI6MjA5NTIzOTc1OH0.0e8XGUNy6_d_cUwu7BMA6-zJXRpI9sArNyd_bJrumwg"
-    }
-  }
+  ]
 }

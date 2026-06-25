@@ -1,4 +1,4 @@
-# pod-failure-test.yaml — Devonn.AI Chaos Engineering
+# pod-failure-test.yaml — D3VONN.IO Chaos Engineering
 #
 # Tests that the devonn-backend deployment recovers correctly when a pod is
 # randomly killed. This validates that:

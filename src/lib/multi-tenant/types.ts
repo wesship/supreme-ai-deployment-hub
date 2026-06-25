@@ -2,7 +2,7 @@
  * Multi-Tenant API Layer — Types
  *
  * Defines the core data structures for tenant isolation, API key management,
- * and usage metering across the Devonn.ai platform.
+ * and usage metering across the D3VONN.IO platform.
  */
 
 // ── Tenant ──────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 
 /**
- * Devonn.AI Environment Configuration
+ * D3VONN.IO Environment Configuration
  * 
  * This file defines the configuration for different deployment environments:
  * - development: Local development environment

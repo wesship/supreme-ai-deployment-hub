@@ -1,8 +1,8 @@
-# Unified Devonn.ai System Blueprint
+# Unified D3VONN.IO System Blueprint
 
 This blueprint turns the existing `supreme-ai-deployment-hub` repository into the deployment and control anchor for a unified stack composed of:
 
-- **Devonn.ai Coordinator** — orchestration, memory, policy, approvals, routing
+- **D3VONN.IO Coordinator** — orchestration, memory, policy, approvals, routing
 - **Supreme AI Deployment Hub** — build, release, deploy, rollback, scaling
 - **OpenClaw Bridge** — stable internal adapter to the OpenClaw gateway/runtime
 - **VisionClaw Bridge** — optional wearable and multimodal event ingress
@@ -10,7 +10,7 @@ This blueprint turns the existing `supreme-ai-deployment-hub` repository into th
 
 ## Role split
 
-### Devonn.ai Coordinator
+### D3VONN.IO Coordinator
 Owns:
 - orchestration
 - planning and routing
@@ -39,14 +39,14 @@ Owns:
 - multimodal event ingestion
 - audio/frame normalization
 - optional action handoff to OpenClaw
-- publication of structured events to Devonn.ai
+- publication of structured events to D3VONN.IO
 
 ## Topology
 
 ```text
 Users / Dashboard / VisionClaw
             ↓
-      Devonn.ai Coordinator
+      D3VONN.IO Coordinator
    ┌────────────┴────────────┐
    ↓                         ↓
 OpenClaw Bridge        Supreme Deployment Hub
@@ -164,10 +164,10 @@ Return normalized deployment logs.
 
 The stack is fully operational when:
 
-1. Devonn.ai accepts and routes tasks.
+1. D3VONN.IO accepts and routes tasks.
 2. Supreme Hub deploys at least one service to EKS successfully.
 3. OpenClaw executes at least one tool or channel action through the bridge.
-4. Callback results update run state in Devonn.ai.
+4. Callback results update run state in D3VONN.IO.
 5. Central logs are visible.
 6. Rollback succeeds.
 7. Secrets load cleanly.

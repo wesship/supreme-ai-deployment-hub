@@ -1,5 +1,5 @@
 /**
- * Devonn.ai Voice Controls — Phase 4
+ * D3VONN.IO Voice Controls — Phase 4
  * Mic button (STT) and speaker button (TTS) for the chat UI.
  * Works with voiceService.ts (ElevenLabs TTS + Web Speech API / AssemblyAI STT).
  */

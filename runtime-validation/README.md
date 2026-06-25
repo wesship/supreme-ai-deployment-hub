@@ -1,6 +1,6 @@
 # Runtime Validation Namespace
 
-This directory is the **dedicated runtime validation environment** for the Devonn.AI platform.
+This directory is the **dedicated runtime validation environment** for the D3VONN.IO platform.
 It is intentionally isolated from `production`, `canary`, and the main `src/__tests__/` tree
 to prevent remediation cross-talk, observability contamination, replay interference, and
 governance metric pollution.

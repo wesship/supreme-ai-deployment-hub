@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devonn.AI AWS Setup</title>
+    <title>D3VONN.IO AWS Setup</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
@@ -171,7 +171,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Devonn.AI AWS Setup</h1>
+        <h1>🚀 D3VONN.IO AWS Setup</h1>
         <p class="subtitle">Configure your AWS credentials for EKS deployment</p>
         
         <form id="setupForm">
@@ -225,7 +225,7 @@
             <p><strong>Provider:</strong> AWS</p>
             <p><strong>Region:</strong> <span id="displayRegion"></span></p>
             <p><strong>Status:</strong> Active</p>
-            <p style="margin-top: 15px; color: #28a745;">Your AWS credentials have been securely stored. You can now deploy to AWS EKS from your Devonn.AI dashboard!</p>
+            <p style="margin-top: 15px; color: #28a745;">Your AWS credentials have been securely stored. You can now deploy to AWS EKS from your D3VONN.IO dashboard!</p>
         </div>
     </div>
     
@@ -264,7 +264,7 @@
                 const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
                 
                 if (authError || !user) {
-                    showMessage('Please log in to your Devonn.AI account first, then refresh this page.', 'error');
+                    showMessage('Please log in to your D3VONN.IO account first, then refresh this page.', 'error');
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Configure AWS Credentials';
                     return;

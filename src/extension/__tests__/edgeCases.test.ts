@@ -18,7 +18,7 @@ vi.mock('../storage', () => {
   };
 });
 
-describe('Devonn.AI Edge Cases', () => {
+describe('D3VONN.IO Edge Cases', () => {
   // Reset all mocks before each test
   beforeEach(() => {
     vi.clearAllMocks();

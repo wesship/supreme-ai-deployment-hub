@@ -1,7 +1,7 @@
 /**
  * runtime-validation/harness/traceEngine.ts
  *
- * Execution Trace Engine for the Devonn.AI Runtime Validation Harness.
+ * Execution Trace Engine for the D3VONN.IO Runtime Validation Harness.
  *
  * Wave 27 responsibilities:
  *   - Capture every runtime event as a structured TraceEvent

@@ -1,5 +1,5 @@
 /**
- * useDevonnChat — core hook for Devonn.ai conversational AI
+ * useDevonnChat — core hook for D3VONN.IO conversational AI
  * Powers both the FloatingWidget and the /chat workspace page.
  * Phase 3: Tool-calling via agent mode routing
  * Phase 4: Voice transcript injection

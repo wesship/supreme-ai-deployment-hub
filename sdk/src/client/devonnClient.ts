@@ -1,5 +1,5 @@
 /**
- * Devonn.AI Runtime SDK — Main Client
+ * D3VONN.IO Runtime SDK — Main Client
  *
  * Usage:
  *   import { DevonnClient } from "@devonn/sdk";

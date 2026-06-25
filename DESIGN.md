@@ -38,7 +38,7 @@ This document serves as a comprehensive guide for the design system template for
 
 ## Compatibility Notes
 - **OpenClaw**: Ensure design components are flexible for integration with OpenClaw’s existing UI components.  
-- **Devonn.ai**: Maintain alignment with Devonn.ai's branding standards to ensure visual consistency across applications. 
+- **D3VONN.IO**: Maintain alignment with D3VONN.IO's branding standards to ensure visual consistency across applications. 
 
 ---
 This document is subject to updates as new components are added and existing components are refined.

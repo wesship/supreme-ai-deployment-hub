@@ -1,6 +1,6 @@
 # Comprehensive Deployment Guide
 
-This guide covers deployment procedures for the Devonn.AI platform across different environments and cloud providers.
+This guide covers deployment procedures for the D3VONN.IO platform across different environments and cloud providers.
 
 ## Table of Contents
 

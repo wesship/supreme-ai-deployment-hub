@@ -1,5 +1,5 @@
 ---
-# Devonn.AI Runtime Control Plane — Single Source of Truth
+# D3VONN.IO Runtime Control Plane — Single Source of Truth
 # All runtime switches are driven from this ConfigMap.
 # Changes take effect on next pod restart (or via live reload if watcher is active).
 apiVersion: v1

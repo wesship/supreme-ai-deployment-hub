@@ -1,6 +1,6 @@
-# Devonn.AI Disaster Recovery Runbook
+# D3VONN.IO Disaster Recovery Runbook
 
-This runbook defines the recovery procedures for all critical failure scenarios in the Devonn.AI production environment. It supersedes the basic `deployment_runbook.md` with structured RTO/RPO targets and step-by-step recovery procedures.
+This runbook defines the recovery procedures for all critical failure scenarios in the D3VONN.IO production environment. It supersedes the basic `deployment_runbook.md` with structured RTO/RPO targets and step-by-step recovery procedures.
 
 ## Recovery Objectives
 

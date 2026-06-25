@@ -1,5 +1,5 @@
 /**
- * Devonn.ai Floating Chat Widget
+ * D3VONN.IO Floating Chat Widget
  * Bottom-right persistent AI assistant — demo mode for guests, full mode for auth users.
  */
 
@@ -21,7 +21,7 @@ interface WidgetMessage {
 
 const DEMO_LIMIT = 3;
 
-const DEMO_SYSTEM = `You are Devonn, the AI assistant for Devonn.ai. You are in demo mode — keep responses brief (2-3 sentences max). After the user's ${DEMO_LIMIT}rd message, invite them to sign up for full access.`;
+const DEMO_SYSTEM = `You are Devonn, the AI assistant for D3VONN.IO. You are in demo mode — keep responses brief (2-3 sentences max). After the user's ${DEMO_LIMIT}rd message, invite them to sign up for full access.`;
 
 export const FloatingChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -282,7 +282,7 @@ export const FloatingChatWidget: React.FC = () => {
                 )}
               </div>
               <p className="text-center text-white/15 text-[10px] mt-1.5 font-mono">
-                Devonn.ai · Supreme AI Deployment Hub
+                D3VONN.IO · Supreme AI Deployment Hub
               </p>
             </div>
           </motion.div>

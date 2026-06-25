@@ -2,7 +2,7 @@
 #!/usr/bin/env node
 
 /**
- * Build script for Devonn.AI Chrome Extension
+ * Build script for D3VONN.IO Chrome Extension
  * 
  * This script builds the extension for a specific environment by:
  * 1. Setting environment-specific configuration
@@ -22,7 +22,7 @@ const { getEnvironmentConfig } = require('../deployment/environments');
 const env = process.argv[2] || 'development';
 const config = getEnvironmentConfig(env);
 
-console.log(`Building Devonn.AI extension for ${env} environment`);
+console.log(`Building D3VONN.IO extension for ${env} environment`);
 
 // Create a temporary config file with environment settings
 const tempConfigPath = path.join(__dirname, '../src/api/env-config.ts');

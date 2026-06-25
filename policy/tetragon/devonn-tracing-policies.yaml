@@ -28,7 +28,7 @@ spec:
 
 ---
 # Cilium Tetragon TracingPolicy: Network Connection Tracking
-# Monitors all outbound TCP connections from Devonn.AI containers,
+# Monitors all outbound TCP connections from D3VONN.IO containers,
 # enabling runtime network topology mapping and anomaly detection.
 apiVersion: cilium.io/v1alpha1
 kind: TracingPolicy

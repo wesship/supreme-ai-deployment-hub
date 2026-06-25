@@ -1,7 +1,7 @@
 
 # Cost Optimization Strategy
 
-This document outlines Devonn.AI's comprehensive strategy for AWS cost optimization while maintaining high availability and performance in production environments.
+This document outlines D3VONN.IO's comprehensive strategy for AWS cost optimization while maintaining high availability and performance in production environments.
 
 ## 1. Reserved Instances Strategy
 

@@ -1,11 +1,11 @@
 
-# Devonn.AI Chrome Extension Deployment Guide
+# D3VONN.IO Chrome Extension Deployment Guide
 
-This document outlines the deployment process for the Devonn.AI Chrome Extension across multiple environments.
+This document outlines the deployment process for the D3VONN.IO Chrome Extension across multiple environments.
 
 ## Deployment Environments
 
-The Devonn.AI Chrome Extension supports three deployment environments:
+The D3VONN.IO Chrome Extension supports three deployment environments:
 
 ### Development
 - **Purpose**: Local development and testing
@@ -128,7 +128,7 @@ The extension is published to the Chrome Web Store through:
 
 - Monitor user feedback and reviews in the Chrome Web Store
 - Track performance metrics through extension analytics
-- Monitor error reports through the Devonn.AI backend
+- Monitor error reports through the D3VONN.IO backend
 
 ### Rollback Procedure
 

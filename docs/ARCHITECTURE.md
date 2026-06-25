@@ -1,15 +1,15 @@
-# Devonn.AI System Architecture
+# D3VONN.IO System Architecture
 
 **Version:** 2.0.0
 **Last Updated:** 2026-05-16
 
-This document describes the high-level architecture of the Devonn.AI platform — a multi-agent AI orchestration system built for autonomous deployment, monitoring, and self-healing of cloud infrastructure.
+This document describes the high-level architecture of the D3VONN.IO platform — a multi-agent AI orchestration system built for autonomous deployment, monitoring, and self-healing of cloud infrastructure.
 
 ---
 
 ## System Overview
 
-Devonn.AI is composed of five primary layers: the **Frontend**, the **Backend API**, the **Agent Mesh**, the **Data Layer**, and the **Infrastructure Layer**. These layers communicate through a combination of REST APIs, WebSockets, and a Redis-backed task queue.
+D3VONN.IO is composed of five primary layers: the **Frontend**, the **Backend API**, the **Agent Mesh**, the **Data Layer**, and the **Infrastructure Layer**. These layers communicate through a combination of REST APIs, WebSockets, and a Redis-backed task queue.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

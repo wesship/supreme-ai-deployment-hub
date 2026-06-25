@@ -1,7 +1,7 @@
 /**
  * runtime-validation/harness/types.ts
  *
- * Shared types for the Devonn.AI Runtime Validation Harness.
+ * Shared types for the D3VONN.IO Runtime Validation Harness.
  * Waves 27-31: execution traces, memory continuity, failure recovery,
  * governance arbitration, and observability intelligence.
  * Intentionally decoupled from production src/ types.

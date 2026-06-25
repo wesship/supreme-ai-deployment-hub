@@ -1,4 +1,4 @@
-# loki.yaml — Devonn.AI Production Log Aggregation
+# loki.yaml — D3VONN.IO Production Log Aggregation
 # Upgrades from SingleBinary/filesystem (dev-only) to SimpleScalable/S3 (production)
 #
 # Install: helm upgrade --install loki grafana/loki \

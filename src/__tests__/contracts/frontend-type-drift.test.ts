@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Frontend Type Drift Detection Tests
+ * D3VONN.IO — Frontend Type Drift Detection Tests
  *
  * These tests verify that the legacy TypeScript interfaces in src/types/
  * have not drifted from the canonical Zod schemas in src/lib/contracts/.

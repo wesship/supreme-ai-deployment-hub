@@ -1,5 +1,5 @@
 /**
- * Devonn.AI Runtime SDK
+ * D3VONN.IO Runtime SDK
  * @module @devonn/sdk
  */
 export { DevonnClient } from "./client/devonnClient.js";

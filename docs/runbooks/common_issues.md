@@ -1,7 +1,7 @@
 
 # Common Issues Runbook
 
-This runbook provides step-by-step instructions for resolving common issues in the Devonn.AI infrastructure.
+This runbook provides step-by-step instructions for resolving common issues in the D3VONN.IO infrastructure.
 
 ## Database Connectivity Issues
 

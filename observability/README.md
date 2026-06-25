@@ -1,6 +1,6 @@
 # Observability Architecture
 
-This layer centralizes telemetry, tracing, metrics, logs, and operational visibility for Devonn.ai.
+This layer centralizes telemetry, tracing, metrics, logs, and operational visibility for D3VONN.IO.
 
 ## Planned Stack
 
@@ -12,7 +12,7 @@ This layer centralizes telemetry, tracing, metrics, logs, and operational visibi
 
 ## Production Objective
 
-Devonn.ai should not scale into full production unless the critical runtime paths are observable, correlated, and recoverable.
+D3VONN.IO should not scale into full production unless the critical runtime paths are observable, correlated, and recoverable.
 
 ## Required Telemetry Domains
 

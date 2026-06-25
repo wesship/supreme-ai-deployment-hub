@@ -1,5 +1,5 @@
 ---
-# render.yaml — Devonn.AI Backend Deployment on Render.com
+# render.yaml — D3VONN.IO Backend Deployment on Render.com
 # Deploy with: render deploy --service devonn-ai-backend
 # Or connect this repo to Render and it will auto-deploy on push to main.
 #

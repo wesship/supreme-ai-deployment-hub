@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Runtime Version Module
+ * D3VONN.IO — Runtime Version Module
  *
  * Exposes build metadata for the /version endpoint.
  * Populated from environment variables set at build time.

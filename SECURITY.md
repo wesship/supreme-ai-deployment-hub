@@ -12,7 +12,7 @@ Currently, only the `main` branch (production) and the `develop` branch (staging
 
 ## Reporting a Vulnerability
 
-We take the security of the Devonn.AI ecosystem seriously. If you discover a security vulnerability, please do **not** open a public issue.
+We take the security of the D3VONN.IO ecosystem seriously. If you discover a security vulnerability, please do **not** open a public issue.
 
 Instead, please report it via one of the following methods:
 

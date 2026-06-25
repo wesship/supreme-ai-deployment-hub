@@ -1,7 +1,7 @@
 
-# Devonn.AI Operational Procedures
+# D3VONN.IO Operational Procedures
 
-This document outlines standard operational procedures for managing the Devonn.AI infrastructure.
+This document outlines standard operational procedures for managing the D3VONN.IO infrastructure.
 
 ## Table of Contents
 

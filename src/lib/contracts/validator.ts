@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Contract Validator
+ * D3VONN.IO — Contract Validator
  *
  * Runtime validation utilities for API contracts.
  * Use these at API boundaries to catch schema drift immediately.
