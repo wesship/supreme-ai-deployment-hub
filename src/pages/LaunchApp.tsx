@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { Skeleton } from '@/components/ui/skeleton';
+import AppShell from '@/components/app/AppShell';
 
 const Stat: React.FC<{
   icon: React.ElementType;
@@ -69,6 +70,7 @@ const LaunchApp: React.FC = () => {
     healthPct > 0 ? 'text-red-300' : 'text-white/60';
 
   return (
+    <AppShell>
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
