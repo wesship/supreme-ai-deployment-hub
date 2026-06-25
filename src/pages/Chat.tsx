@@ -219,7 +219,7 @@ const ChatPage: React.FC = () => {
             </button>
             <div>
               <h2 className="text-white text-sm font-semibold">{conversationTitle}</h2>
-              <p className="text-white/30 text-xs font-mono">Devonn AI · {selectedModel}</p>
+              <p className="text-white/30 text-xs font-mono">D3VONN.IO · {selectedModel}</p>
             </div>
           </div>
 
@@ -255,7 +255,7 @@ const ChatPage: React.FC = () => {
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">
                   <Brain className="w-8 h-8 text-primary" />
                 </div>
-                <h2 className="text-white text-xl font-semibold mb-2">Devonn AI Workspace</h2>
+                <h2 className="text-white text-xl font-semibold mb-2">D3VONN.IO Workspace</h2>
                 <p className="text-white/40 text-sm max-w-md">
                   Your AI operator for the Supreme Deployment Hub. Ask about deployments,
                   agents, workflows, infrastructure, or anything in the D3VONN.IO ecosystem.
@@ -438,7 +438,7 @@ const ChatPage: React.FC = () => {
                 value={interimTranscript ? `${input}${interimTranscript}` : input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Message Devonn... (Shift+Enter for new line)"
+                placeholder="Message D3VONN.IO... (Shift+Enter for new line)"
                 rows={1}
                 className="flex-1 bg-transparent text-white text-sm placeholder-white/25 focus-visible:outline-none focus-visible:shadow-focus-glow resize-none leading-relaxed"
                 style={{ maxHeight: '160px', opacity: interimTranscript ? 0.7 : 1 }}
@@ -483,7 +483,7 @@ const ChatPage: React.FC = () => {
             </div>
 
             <p className="text-center text-white/15 text-[10px] mt-2 font-mono">
-              Devonn AI · Supreme Deployment Hub · {selectedModel}
+              D3VONN.IO · Supreme Deployment Hub · {selectedModel}
             </p>
           </div>
         </div>
