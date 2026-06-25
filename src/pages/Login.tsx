@@ -63,7 +63,15 @@ const Login = () => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <div className="bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-8 shadow-2xl">
+        <div className="relative bg-card/60 backdrop-blur-xl border border-border rounded-2xl p-8 shadow-2xl">
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close"
+            className="absolute top-3 right-3 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <X className="w-4 h-4" />
+          </button>
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-foreground mb-2 tracking-tight">
               D3VONN.IO
