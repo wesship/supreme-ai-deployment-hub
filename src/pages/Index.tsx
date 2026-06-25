@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import AuthNavButton from '@/components/AuthNavButton';
+import SmartLaunchLink from '@/components/SmartLaunchLink';
 
 /* -------------------------------------------------------------------------- */
 /*  Shared atoms                                                              */
