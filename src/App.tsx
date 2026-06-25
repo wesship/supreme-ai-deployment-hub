@@ -17,6 +17,7 @@ import { Analytics } from "@vercel/analytics/react";
 // Critical path — loaded eagerly (needed on first paint)
 import Index from "./pages/Index";
 import AdminRoute from "./components/auth/AdminRoute";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
