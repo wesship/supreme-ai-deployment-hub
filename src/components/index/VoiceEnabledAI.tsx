@@ -287,7 +287,7 @@ const VoiceEnabledAI: React.FC = () => {
                       <span>AI is speaking...</span>
                     </div>
                   ) : supportStatus.voiceOutput ? (
-                    <div className="flex items-center gap-2 text-sm text-green-500">
+                    <div className="flex items-center gap-2 text-sm text-primary">
                       <Check className="h-4 w-4" />
                       <span>Voice output ready</span>
                     </div>
