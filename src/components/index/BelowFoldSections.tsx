@@ -11,6 +11,8 @@ import {
   Cpu, Lock, Activity, ChevronRight, Infinity,
 } from 'lucide-react';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
+import LiveStatsBar from '@/components/index/LiveStatsBar';
+import LiveStatsCommandCenter from '@/components/index/LiveStatsCommandCenter';
 
 /* -------------------------------------------------------------------------- */
 /*  Shared atoms                                                              */
@@ -421,9 +423,9 @@ const FinalCTA: React.FC = () => (
 const BelowFoldSections: React.FC = () => (
   <>
     <PlatformSection />
-    <StatsBar />
+    <LiveStatsBar />
     <FeatureGrid />
-    <CommandCenterPreview />
+    <LiveStatsCommandCenter />
     <Pricing />
     <FinalCTA />
   </>

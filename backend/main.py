@@ -216,6 +216,14 @@ except ImportError as _occ_err:
     logger.warning("backend.operator.occ_router not found — skipping OCC router. (%s)", _occ_err)
 
 try:
+    from backend.occ_operator.public_stats_router import router as public_stats_router  # type: ignore
+
+    app.include_router(public_stats_router)
+    logger.info("Public stats router registered at /api/public/*")
+except ImportError as _pub_err:
+    logger.warning("backend.occ_operator.public_stats_router not found — skipping. (%s)", _pub_err)
+
+try:
     from backend.rag.router import router as rag_router  # type: ignore
 
     app.include_router(rag_router)
