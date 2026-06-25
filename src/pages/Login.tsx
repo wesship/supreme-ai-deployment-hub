@@ -1,9 +1,11 @@
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
+import { lovable } from '@/integrations/lovable';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
