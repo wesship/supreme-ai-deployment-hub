@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import AuthNavButton from '@/components/AuthNavButton';
+import SmartLaunchLink from '@/components/SmartLaunchLink';
 
 /* -------------------------------------------------------------------------- */
 /*  Shared atoms                                                              */
@@ -121,13 +122,13 @@ const Hero: React.FC = () => (
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row gap-4">
-          <Link
-            to="/app"
+          <SmartLaunchLink
+            authedTo="/app"
             className="group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-7 py-4 font-semibold text-primary-foreground shadow-[0_0_40px_rgba(112,128,255,0.55)] transition hover:scale-[1.02] hover:shadow-[0_0_60px_rgba(112,128,255,0.8)]"
           >
             Launch D3VONN
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
+          </SmartLaunchLink>
           <Link
             to="/platform"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/40 px-7 py-4 font-semibold text-white backdrop-blur transition hover:bg-white/10 hover:border-primary/40"
@@ -495,17 +496,31 @@ const Pricing: React.FC = () => (
                 </li>
               ))}
             </ul>
-            <Link
-              to={p.name === 'Enterprise' ? '/contact' : '/app'}
-              className={
-                'mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition ' +
-                (p.featured
-                  ? 'bg-primary text-primary-foreground shadow-[0_0_30px_rgba(112,128,255,0.5)] hover:scale-[1.02]'
-                  : 'border border-white/20 bg-black/40 text-white hover:bg-white/10')
-              }
-            >
-              {p.cta} <ArrowRight className="h-4 w-4" />
-            </Link>
+            {p.name === 'Enterprise' ? (
+              <Link
+                to="/contact"
+                className={
+                  'mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition ' +
+                  (p.featured
+                    ? 'bg-primary text-primary-foreground shadow-[0_0_30px_rgba(112,128,255,0.5)] hover:scale-[1.02]'
+                    : 'border border-white/20 bg-black/40 text-white hover:bg-white/10')
+                }
+              >
+                {p.cta} <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <SmartLaunchLink
+                authedTo="/app"
+                className={
+                  'mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition ' +
+                  (p.featured
+                    ? 'bg-primary text-primary-foreground shadow-[0_0_30px_rgba(112,128,255,0.5)] hover:scale-[1.02]'
+                    : 'border border-white/20 bg-black/40 text-white hover:bg-white/10')
+                }
+              >
+                {p.cta} <ArrowRight className="h-4 w-4" />
+              </SmartLaunchLink>
+            )}
           </GlassCard>
         ))}
       </div>
@@ -531,12 +546,12 @@ const FinalCTA: React.FC = () => (
           The future of work isn't headcount — it's orchestration. Start with D3VONN.IO today.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            to="/app"
+          <SmartLaunchLink
+            authedTo="/app"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-7 py-4 font-semibold text-primary-foreground shadow-[0_0_40px_rgba(112,128,255,0.55)] hover:scale-[1.02] transition"
           >
             Launch D3VONN <ArrowRight className="h-4 w-4" />
-          </Link>
+          </SmartLaunchLink>
           <Link
             to="/platform"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/40 px-7 py-4 font-semibold text-white hover:bg-white/10 transition"

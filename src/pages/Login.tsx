@@ -1,7 +1,7 @@
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -9,26 +9,28 @@ import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const Login = () => {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const redirect = params.get('redirect') || '/dashboard';
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate('/dashboard');
+      if (data.session) navigate(redirect);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate('/dashboard');
+      if (session) navigate(redirect);
     });
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, redirect]);
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
     setGoogleError(null);
 
     const origin = window.location.origin;
-    const redirectTo = `${origin}/dashboard`;
+    const redirectTo = `${origin}${redirect}`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
