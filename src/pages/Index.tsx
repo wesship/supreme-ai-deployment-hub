@@ -118,6 +118,52 @@ const Hero: React.FC = () => (
 );
 
 /* -------------------------------------------------------------------------- */
+/*  1b. How It Works — value proposition in 4 steps                           */
+/* -------------------------------------------------------------------------- */
+
+const howItWorksSteps = [
+  { step: '01', title: 'Describe Your Goal', desc: 'Tell Hermes what you want to achieve in plain language — a campaign, a report, a workflow, anything.' },
+  { step: '02', title: 'Hermes Creates a Plan', desc: 'Your AI executive assistant decomposes the goal into tasks, selects the right agents, and sequences execution.' },
+  { step: '03', title: 'Agents Execute', desc: 'Specialized AI workers (Strategist, Operator, Creator) carry out each task autonomously and in parallel.' },
+  { step: '04', title: 'Monitor & Iterate', desc: 'Watch progress in real time from the Command Center. Intervene, redirect, or approve — you stay in control.' },
+];
+
+const HowItWorks: React.FC = () => (
+  <section className="relative py-20 scroll-mt-24">
+    <div className="container mx-auto px-6">
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-xs uppercase tracking-[0.2em] text-blue-400 font-semibold">How It Works</p>
+        <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
+          From idea to execution in <span className="text-blue-400">seconds</span>
+        </h2>
+        <p className="mt-4 text-base text-white/70">
+          D3VONN.IO turns your business objectives into autonomous action — no code, no complexity.
+        </p>
+      </div>
+      <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {howItWorksSteps.map((s, i) => (
+          <motion.div
+            key={s.step}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-60px' }}
+            transition={{ duration: 0.5, delay: i * 0.1 }}
+          >
+            <GlassCard className="h-full text-center">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-blue-600/20 border border-blue-500/30 text-blue-400 font-black text-lg">
+                {s.step}
+              </div>
+              <h3 className="mt-5 text-lg font-bold text-white">{s.title}</h3>
+              <p className="mt-2 text-sm text-white/70">{s.desc}</p>
+            </GlassCard>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+/* -------------------------------------------------------------------------- */
 /*  2. Capabilities strip                                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -572,6 +618,7 @@ const Index: React.FC = () => {
 
       <main id="main-content">
         <Hero />
+        <HowItWorks />
         <CapabilitiesStrip />
         <PlatformSection />
         <StatsBar />
