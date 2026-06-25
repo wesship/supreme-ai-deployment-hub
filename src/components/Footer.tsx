@@ -1,9 +1,7 @@
-
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { Bot, Database, Network, BrainCircuit, Code } from 'lucide-react';
-import logoAsset from '@/assets/d3vonn-logo.png.asset.json';
 
 interface FooterProps {
   className?: string;
@@ -16,12 +14,7 @@ const Footer = ({ className }: FooterProps) => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-2">
             <Link to="/" className="flex items-center gap-3" aria-label="D3VONN.IO home">
-              <img
-                src={logoAsset.url}
-                alt="D3VONN.IO"
-                className="h-10 w-auto object-contain"
-                draggable={false}
-              />
+              <span className="text-lg font-bold text-white tracking-wide">D3VONN.IO</span>
             </Link>
             <p className="mt-4 text-sm text-white/70 max-w-md">
               The World's First AI Business Operating System. Orchestrate your AI workforce, 
