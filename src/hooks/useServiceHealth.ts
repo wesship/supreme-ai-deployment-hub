@@ -6,34 +6,85 @@ export interface ServiceEndpoint {
   url: string;
   description: string;
   icon: string;
+  category: 'frontend' | 'api' | 'database' | 'queue' | 'ai' | 'orchestration';
 }
 
 export interface ServiceStatus {
   id: string;
   name: string;
   url: string;
-  status: "online" | "offline" | "checking" | "unknown";
+  status: "online" | "offline" | "checking" | "degraded" | "unknown";
   latency: number | null;
   lastChecked: Date | null;
   error?: string;
+  details?: string;
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
+
 const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
-  { id: "fastapi", name: "FastAPI", url: "http://localhost:8000/health", description: "Main API orchestration service", icon: "⚡" },
-  { id: "n8n", name: "n8n Workflows", url: "http://localhost:5678/healthz", description: "Workflow automation engine", icon: "🔄" },
-  { id: "mcp-gateway", name: "MCP Gateway", url: "http://localhost:3001/health", description: "Model Context Protocol server", icon: "🔌" },
-  { id: "openclawd", name: "OpenClawd", url: "http://localhost:8080/health", description: "AI model inference service", icon: "🧠" },
-  { id: "postgres", name: "PostgreSQL", url: "http://localhost:5432", description: "Primary database", icon: "🗄️" },
-  { id: "redis", name: "Redis", url: "http://localhost:6379", description: "Cache & message broker", icon: "📦" },
+  {
+    id: "frontend",
+    name: "Frontend (d3vonn.io)",
+    url: "https://d3vonn.io",
+    description: "Main web application served via Vercel Edge Network",
+    icon: "🌐",
+    category: "frontend",
+  },
+  {
+    id: "api-health",
+    name: "API Gateway",
+    url: `${API_BASE}/health`,
+    description: "FastAPI backend orchestration service",
+    icon: "⚡",
+    category: "api",
+  },
+  {
+    id: "supabase",
+    name: "Supabase (Auth + DB)",
+    url: "https://sognbkwualywq.supabase.co/rest/v1/",
+    description: "Authentication, database, and real-time subscriptions",
+    icon: "🗄️",
+    category: "database",
+  },
+  {
+    id: "redis-queue",
+    name: "Redis / Queue",
+    url: `${API_BASE}/health`,
+    description: "Task queue and caching layer (checked via API health)",
+    icon: "📦",
+    category: "queue",
+  },
+  {
+    id: "ai-providers",
+    name: "AI Providers",
+    url: `${API_BASE}/health`,
+    description: "OpenAI, Anthropic, and HuggingFace model endpoints",
+    icon: "🧠",
+    category: "ai",
+  },
+  {
+    id: "hermes",
+    name: "Hermes Orchestration",
+    url: `${API_BASE}/health`,
+    description: "Intelligence fabric for cross-agent coordination",
+    icon: "🔮",
+    category: "orchestration",
+  },
 ];
 
-const STORAGE_KEY = "devonn-service-endpoints";
+const STORAGE_KEY = "devonn-service-endpoints-v2";
 
 export function useServiceHealth() {
   const [endpoints, setEndpoints] = useState<ServiceEndpoint[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_ENDPOINTS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Validate it has the category field (v2 format)
+        if (parsed[0]?.category) return parsed;
+      }
+      return DEFAULT_ENDPOINTS;
     } catch {
       return DEFAULT_ENDPOINTS;
     }
@@ -41,6 +92,7 @@ export function useServiceHealth() {
 
   const [statuses, setStatuses] = useState<Record<string, ServiceStatus>>({});
   const [isChecking, setIsChecking] = useState(false);
+  const [lastSuccessfulExecution, setLastSuccessfulExecution] = useState<Date | null>(null);
 
   const saveEndpoints = useCallback((eps: ServiceEndpoint[]) => {
     setEndpoints(eps);
@@ -51,16 +103,73 @@ export function useServiceHealth() {
     const start = performance.now();
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      
-      const response = await fetch(endpoint.url, {
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      // Use different strategies based on endpoint type
+      const fetchOptions: RequestInit = {
         method: "GET",
         signal: controller.signal,
-        mode: "no-cors",
-      });
-      clearTimeout(timeout);
+      };
 
+      // For same-origin or CORS-enabled endpoints, use cors mode
+      if (endpoint.url.includes('api.d3vonn.io') || endpoint.url.includes('d3vonn.io')) {
+        fetchOptions.mode = "cors";
+      } else if (endpoint.url.includes('supabase.co')) {
+        fetchOptions.mode = "cors";
+        fetchOptions.headers = { 'Accept': 'application/json' };
+      } else {
+        fetchOptions.mode = "no-cors";
+      }
+
+      const response = await fetch(endpoint.url, fetchOptions);
+      clearTimeout(timeout);
       const latency = Math.round(performance.now() - start);
+
+      // For CORS requests, we can check the actual status
+      if (fetchOptions.mode === "cors") {
+        if (response.ok) {
+          let details: string | undefined;
+          try {
+            const data = await response.json();
+            if (data.version) details = `v${data.version}`;
+            if (data.status === 'ok') details = details ? `${details} • healthy` : 'healthy';
+          } catch {
+            // Not JSON, but still OK
+          }
+          return {
+            id: endpoint.id,
+            name: endpoint.name,
+            url: endpoint.url,
+            status: "online",
+            latency,
+            lastChecked: new Date(),
+            details,
+          };
+        } else if (response.status === 401 || response.status === 403) {
+          // Auth-protected but responding = service is up
+          return {
+            id: endpoint.id,
+            name: endpoint.name,
+            url: endpoint.url,
+            status: "online",
+            latency,
+            lastChecked: new Date(),
+            details: "Protected endpoint responding",
+          };
+        } else {
+          return {
+            id: endpoint.id,
+            name: endpoint.name,
+            url: endpoint.url,
+            status: "degraded",
+            latency,
+            lastChecked: new Date(),
+            error: `HTTP ${response.status}`,
+          };
+        }
+      }
+
+      // For no-cors (opaque) responses, if we got here without error, it's up
       return {
         id: endpoint.id,
         name: endpoint.name,
@@ -71,8 +180,6 @@ export function useServiceHealth() {
       };
     } catch (err: any) {
       const latency = Math.round(performance.now() - start);
-      // no-cors requests that succeed will be opaque but won't throw
-      // AbortError = timeout, TypeError = network error
       return {
         id: endpoint.id,
         name: endpoint.name,
@@ -80,7 +187,7 @@ export function useServiceHealth() {
         status: "offline",
         latency: err.name === "AbortError" ? null : latency,
         lastChecked: new Date(),
-        error: err.name === "AbortError" ? "Timeout (5s)" : "Connection refused",
+        error: err.name === "AbortError" ? "Timeout (8s)" : "Connection failed",
       };
     }
   }, []);
@@ -90,7 +197,14 @@ export function useServiceHealth() {
     // Mark all as checking
     const checking: Record<string, ServiceStatus> = {};
     endpoints.forEach((ep) => {
-      checking[ep.id] = { id: ep.id, name: ep.name, url: ep.url, status: "checking", latency: null, lastChecked: null };
+      checking[ep.id] = {
+        id: ep.id,
+        name: ep.name,
+        url: ep.url,
+        status: "checking",
+        latency: null,
+        lastChecked: null,
+      };
     });
     setStatuses(checking);
 
@@ -99,6 +213,12 @@ export function useServiceHealth() {
     results.forEach((r) => { newStatuses[r.id] = r; });
     setStatuses(newStatuses);
     setIsChecking(false);
+
+    // Track last successful execution
+    const allOnline = results.every(r => r.status === 'online');
+    if (allOnline) {
+      setLastSuccessfulExecution(new Date());
+    }
   }, [endpoints, checkService]);
 
   const addEndpoint = useCallback((endpoint: Omit<ServiceEndpoint, "id">) => {
@@ -119,9 +239,11 @@ export function useServiceHealth() {
     saveEndpoints(DEFAULT_ENDPOINTS);
   }, [saveEndpoints]);
 
-  // Auto-check on mount
+  // Auto-check on mount and every 30 seconds
   useEffect(() => {
     checkAll();
+    const interval = setInterval(checkAll, 30_000);
+    return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
@@ -133,5 +255,6 @@ export function useServiceHealth() {
     updateEndpoint,
     removeEndpoint,
     resetToDefaults,
+    lastSuccessfulExecution,
   };
 }
