@@ -84,6 +84,12 @@ const LaunchApp: React.FC = () => {
         <meta property="og:title" content="Launch App — D3VONN.IO" />
         <meta property="og:description" content="Active agents, workflows, knowledge vault, and system health at a glance." />
         <meta property="og:url" content="https://d3vonn.io/app" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://d3vonn.io/og-image.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Launch App — D3VONN.IO" />
+        <meta name="twitter:description" content="Active agents, workflows, knowledge vault, and system health at a glance." />
+        <meta name="twitter:image" content="https://d3vonn.io/og-image.png" />
         <meta name="robots" content="noindex,follow" />
       </Helmet>
 
