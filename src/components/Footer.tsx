@@ -19,7 +19,8 @@ const Footer = ({ className }: FooterProps) => {
               <img
                 src={logoAsset.url}
                 alt="D3VONN.IO"
-                className="h-10 w-auto object-contain"
+                style={{ mixBlendMode: 'screen' }}
+                className="h-10 w-auto object-contain drop-shadow-[0_0_22px_rgba(112,128,255,0.7)]"
                 draggable={false}
               />
             </Link>
