@@ -60,7 +60,7 @@ function agent(
     name,
     layer,
     role,
-    devonnContext: 'DEVONN.AI d3vonn.io platform operations, repository workflow, and agent coordination.',
+    devonnContext: 'D3VONN.IO d3vonn.io platform operations, repository workflow, and agent coordination.',
     defaultInputs: ['objective', 'context', 'constraints'],
     defaultOutputs: ['recommendation', 'next steps', 'evidence'],
     allowedActions: ['review', 'plan', 'summarize', 'recommend'],

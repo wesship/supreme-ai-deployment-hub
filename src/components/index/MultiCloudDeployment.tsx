@@ -201,7 +201,7 @@ const MultiCloudDeployment: React.FC = () => {
                 <div className="mt-6">
                   <h4 className="text-sm font-medium mb-2">Auto-Switching Algorithm</h4>
                   <div className="text-xs text-muted-foreground">
-                    <p>DEVONN.AI automatically routes traffic to the provider with the lowest latency and highest availability. If a provider fails, traffic is instantly routed to the next best option.</p>
+                    <p>D3VONN.IO automatically routes traffic to the provider with the lowest latency and highest availability. If a provider fails, traffic is instantly routed to the next best option.</p>
                   </div>
                 </div>
               </motion.div>

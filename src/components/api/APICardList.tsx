@@ -21,7 +21,7 @@ const APICardList: React.FC<APICardListProps> = ({
     return (
       <div className="text-center py-8 text-muted-foreground">
         <p>No API connections configured yet.</p>
-        <p className="text-sm">Add an API connection to integrate external services with DEVONN.AI</p>
+        <p className="text-sm">Add an API connection to integrate external services with D3VONN.IO</p>
       </div>
     );
   }

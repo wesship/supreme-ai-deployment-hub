@@ -3,12 +3,15 @@ import { motion, useScroll, useSpring } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
-  ArrowRight, Bot, ShieldCheck, Network, Zap, Sparkles, Cpu, Database,
+  ArrowRight, ArrowLeft, Bot, ShieldCheck, Network, Zap, Cpu, Database,
   Workflow, Lock, Activity, Globe, Layers, Rocket, Brain, KeySquare,
+  Settings, Eye, BarChart3, Shield, Lightbulb, ChevronRight, Play,
+  Infinity, Key, Clock, Earth,
 } from 'lucide-react';
 import Footer from '@/components/Footer';
-import AuthNavButton from '@/components/AuthNavButton';
+import Navbar from '@/components/Navbar';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
+import heroAsset from '@/assets/d3vonn-home-hero.png.asset.json';
 
 /* -------------------------------------------------------------------------- */
 /*  Shared atoms                                                              */
@@ -23,175 +26,223 @@ const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
     {...rest}
     className={
       'relative rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl ' +
-      'shadow-[0_0_40px_-12px_rgba(112,128,255,0.35)] transition-all duration-300 ' +
-      'hover:border-primary/40 hover:shadow-[0_0_60px_-8px_rgba(112,128,255,0.55)] hover:-translate-y-0.5 ' +
+      'shadow-[0_0_40px_-12px_rgba(56,136,255,0.25)] transition-all duration-300 ' +
+      'hover:border-blue-500/40 hover:shadow-[0_0_60px_-8px_rgba(56,136,255,0.45)] hover:-translate-y-0.5 ' +
       className
     }
   >
-    {/* glow border */}
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-      style={{
-        background:
-          'linear-gradient(135deg, rgba(112,128,255,0.18), transparent 40%, rgba(112,128,255,0.18))',
-        WebkitMask:
-          'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
-        WebkitMaskComposite: 'xor',
-        padding: 1,
-      }}
-    />
     {children}
   </div>
 );
 
-const SectionHeader: React.FC<{
-  eyebrow?: string;
-  title: React.ReactNode;
-  subtitle?: React.ReactNode;
-  align?: 'left' | 'center';
-}> = ({ eyebrow, title, subtitle, align = 'center' }) => (
-  <div className={align === 'center' ? 'mx-auto max-w-3xl text-center' : 'max-w-3xl'}>
-    {eyebrow && (
-      <div
-        className={
-          'inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-3 py-1 ' +
-          'text-[10px] uppercase tracking-[0.25em] text-primary shadow-[0_0_18px_rgba(112,128,255,0.35)]'
-        }
-      >
-        <Sparkles className="h-3 w-3" />
-        {eyebrow}
-      </div>
-    )}
-    <h2 className="mt-5 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-      {title}
-    </h2>
-    {subtitle && (
-      <p className="mt-4 text-base sm:text-lg text-white/70">{subtitle}</p>
-    )}
-  </div>
-);
-
 /* -------------------------------------------------------------------------- */
-/*  1. Hero                                                                   */
+/*  1. Hero Section — matches mockup with hero image on right                 */
 /* -------------------------------------------------------------------------- */
 
 const Hero: React.FC = () => (
   <section
-    aria-label="D3VONN.IO — AI Business Operating System"
+    aria-label="D3VONN.IO — The World's First AI Business Operating System"
     className="relative isolate overflow-hidden min-h-[100svh] flex items-center"
   >
-    {/* Background field */}
-    <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_72%_30%,rgba(112,128,255,0.35),transparent_30%),radial-gradient(circle_at_15%_80%,rgba(0,200,255,0.18),transparent_28%),linear-gradient(135deg,#02030a_0%,#070817_50%,#000_100%)]" />
-    <div className="absolute inset-0 -z-10 opacity-20 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:48px_48px]" />
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 -z-10 mix-blend-overlay opacity-30"
-      style={{
-        backgroundImage:
-          'repeating-linear-gradient(0deg, rgba(112,128,255,0.06) 0px, rgba(112,128,255,0.06) 1px, transparent 1px, transparent 3px)',
-      }}
-    />
+    {/* Background */}
+    <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#020817] via-[#0a1628] to-[#000814]" />
+    <div className="absolute inset-0 -z-10 opacity-10 bg-[linear-gradient(rgba(56,136,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(56,136,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
-    {/* Orbit ring decoration */}
-    <div className="pointer-events-none absolute right-[-15%] top-[10%] hidden lg:block">
-      <div className="w-[640px] h-[640px] rounded-full border border-primary/30 shadow-[0_0_120px_rgba(112,128,255,0.35)]" />
-      <div className="absolute inset-12 rounded-full border border-primary/40" />
-      <div className="absolute inset-32 rounded-full border-2 border-primary/50 shadow-[inset_0_0_80px_rgba(112,128,255,0.35)]" />
+    {/* Hero image on the right */}
+    <div className="absolute right-0 top-0 bottom-0 w-[55%] hidden lg:block">
+      <img
+        src={heroAsset.url}
+        alt="D3VONN.IO AI Operating System - futuristic command interface"
+        className="h-full w-full object-cover object-left opacity-90"
+        draggable={false}
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/60 to-transparent" />
     </div>
 
-    <div className="container relative mx-auto px-6 py-24">
+    <div className="container relative mx-auto px-6 py-24 lg:py-32">
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7 }}
-        className="max-w-3xl"
+        className="max-w-2xl"
       >
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-4 py-2 text-[10px] sm:text-xs uppercase tracking-[0.25em] text-primary shadow-[0_0_24px_rgba(112,128,255,0.3)]">
-          <Bot className="h-4 w-4" />
-          AI Business Operating System
+        {/* Badge */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-950/40 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-blue-300">
+          <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
+          AI Workforce. Limitless Potential.
         </div>
 
-        <h1 className="mt-8 text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-white drop-shadow-[0_0_24px_rgba(255,255,255,0.15)]">
-          Welcome to <span className="block text-primary">D3VONN.IO</span>
+        {/* Headline */}
+        <h1 className="mt-8 font-black tracking-tight text-white">
+          <span className="block text-4xl sm:text-5xl lg:text-6xl uppercase">Welcome to</span>
+          <span className="block text-5xl sm:text-7xl lg:text-8xl uppercase mt-2">
+            D3VONN<span className="text-blue-400">.io</span>
+          </span>
         </h1>
 
-        <p className="mt-6 max-w-xl text-lg sm:text-xl text-white/85">
-          Orchestrate your AI workforce, automate every workflow, and command an
-          autonomous business — from one futuristic, enterprise-grade console.
+        {/* Subheadline */}
+        <p className="mt-6 text-xl sm:text-2xl font-semibold text-white/90">
+          The World's First AI Business Operating System
+        </p>
+        <p className="mt-3 max-w-lg text-base text-white/70">
+          Orchestrate your AI workforce. Automate everything.
+          <br />Scale without limits.
         </p>
 
+        {/* CTAs */}
         <div className="mt-10 flex flex-col sm:flex-row gap-4">
           <SmartLaunchLink
             authedTo="/app"
-            className="group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-7 py-4 font-semibold text-primary-foreground shadow-[0_0_40px_rgba(112,128,255,0.55)] transition hover:scale-[1.02] hover:shadow-[0_0_60px_rgba(112,128,255,0.8)]"
+            className="group inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-4 font-semibold text-white shadow-[0_0_30px_rgba(56,136,255,0.4)] transition hover:bg-blue-500 hover:scale-[1.02] hover:shadow-[0_0_50px_rgba(56,136,255,0.6)]"
           >
             Launch D3VONN
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </SmartLaunchLink>
           <Link
             to="/platform"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/40 px-7 py-4 font-semibold text-white backdrop-blur transition hover:bg-white/10 hover:border-primary/40"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-4 font-semibold text-white backdrop-blur transition hover:bg-white/10 hover:border-blue-400/40"
           >
+            <Play className="h-4 w-4" />
             Explore Platform
           </Link>
         </div>
 
-        <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-xs text-white/70">
-          <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Secure by design</span>
-          <span className="inline-flex items-center gap-2"><Network className="h-4 w-4 text-primary" /> Multi-agent orchestration</span>
-          <span className="inline-flex items-center gap-2"><Zap className="h-4 w-4 text-primary" /> Real-time intelligence</span>
-          <span className="inline-flex items-center gap-2"><Globe className="h-4 w-4 text-primary" /> Web3-ready vault</span>
+        {/* Trust badges */}
+        <div className="mt-8 flex items-center gap-2 text-xs text-white/60">
+          <ShieldCheck className="h-4 w-4 text-blue-400" />
+          <span>Secure. Private. Built for the Future.</span>
         </div>
       </motion.div>
     </div>
-
-    {/* Live ribbon */}
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6, duration: 0.6 }}
-      className="absolute top-20 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full border border-primary/40 bg-black/60 backdrop-blur-md text-[10px] sm:text-xs tracking-[0.25em] uppercase text-primary shadow-[0_0_20px_rgba(112,128,255,0.35)]"
-    >
-      D3VONN.IO · Now Live
-    </motion.div>
-
-    {/* Bottom fade */}
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-background" />
   </section>
 );
 
 /* -------------------------------------------------------------------------- */
-/*  2. Trust strip                                                            */
+/*  2. Capabilities strip                                                     */
 /* -------------------------------------------------------------------------- */
 
-const TrustStrip: React.FC = () => {
-  const partners = [
-    'Supabase', 'OpenAI', 'Anthropic', 'AWS', 'Vercel', 'Cloudflare', 'n8n', 'MCP',
-  ];
-  return (
-    <section className="relative border-y border-white/10 bg-black/40 py-10">
-      <div className="container mx-auto px-6">
-        <p className="text-center text-xs uppercase tracking-[0.3em] text-white/50">
-          Powering autonomous operations across the modern stack
-        </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-          {partners.map((p) => (
-            <span
-              key={p}
-              className="text-sm font-semibold text-white/70 hover:text-primary transition-colors"
-            >
-              {p}
-            </span>
-          ))}
+const capabilities = [
+  { icon: Settings, title: 'Multi-Agent Orchestration', desc: 'Deploy intelligent AI teams' },
+  { icon: Database, title: 'Memory & Knowledge', desc: 'Persistent. Private. Powerful.' },
+  { icon: Workflow, title: 'Automation at Scale', desc: 'Workflows that work for you' },
+  { icon: Shield, title: 'Secure by Design', desc: 'Enterprise-grade security' },
+  { icon: Lightbulb, title: 'Real-Time Intelligence', desc: 'Insights that drive impact' },
+];
+
+const CapabilitiesStrip: React.FC = () => (
+  <section className="relative border-y border-white/10 bg-[#0a1220]/80 py-8">
+    <div className="container mx-auto px-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        {capabilities.map((cap) => (
+          <div key={cap.title} className="flex flex-col items-center text-center gap-2">
+            <div className="h-10 w-10 rounded-full bg-blue-950/60 border border-blue-500/20 flex items-center justify-center">
+              <cap.icon className="h-5 w-5 text-blue-400" />
+            </div>
+            <h3 className="text-xs font-semibold text-white">{cap.title}</h3>
+            <p className="text-[10px] text-white/50">{cap.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+/* -------------------------------------------------------------------------- */
+/*  3. Platform section — "One Platform. Infinite Possibilities."             */
+/* -------------------------------------------------------------------------- */
+
+const agentCards = [
+  { name: 'Hermes', role: 'AI Executive Assistant', desc: 'Your always-on assistant that thinks, acts, and executes.' },
+  { name: 'Strategist', role: 'AI Business Strategist', desc: 'Market intelligence, strategy generation, and competitive advantage.' },
+  { name: 'Operator', role: 'AI Operations Agent', desc: 'Automate workflows, manage systems, and optimize operations.' },
+  { name: 'Creator', role: 'AI Content Studio', desc: 'Create content, visuals, code, and campaigns instantly.' },
+];
+
+const PlatformSection: React.FC = () => (
+  <section id="platform" className="relative py-24 scroll-mt-24">
+    <div className="container mx-auto px-6">
+      <div className="grid lg:grid-cols-[1fr_2fr] gap-12 items-start">
+        {/* Left text */}
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-blue-400 font-semibold">The D3VONN Platform</p>
+          <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">
+            One Platform.<br />
+            <span className="text-white/90">Infinite Possibilities.</span>
+          </h2>
+          <p className="mt-4 text-base text-white/70">
+            D3VONN.IO is more than software.<br />
+            It's your new operating system<br />
+            for the AI era.
+          </p>
+          <Link
+            to="/agents"
+            className="mt-8 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+          >
+            See All Agents <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        {/* Agent cards carousel */}
+        <div className="relative">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {agentCards.map((agent) => (
+              <GlassCard key={agent.name} className="group h-full bg-gradient-to-b from-white/[0.04] to-transparent">
+                <div className="h-32 rounded-xl bg-gradient-to-br from-blue-950/40 to-slate-900/40 border border-white/5 mb-4 flex items-center justify-center">
+                  <Bot className="h-12 w-12 text-blue-400/60" />
+                </div>
+                <h3 className="text-base font-bold text-blue-400">{agent.name}</h3>
+                <p className="text-[10px] uppercase tracking-wider text-white/50 mt-1">{agent.role}</p>
+                <p className="mt-3 text-xs text-white/70">{agent.desc}</p>
+                <div className="mt-4 flex justify-end">
+                  <ChevronRight className="h-4 w-4 text-white/40 group-hover:text-blue-400 transition-colors" />
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+          {/* Carousel arrows */}
+          <div className="absolute -top-12 right-0 flex gap-2">
+            <button className="h-8 w-8 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition" aria-label="Previous agents">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <button className="h-8 w-8 rounded-full border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:border-white/40 transition" aria-label="Next agents">
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
-    </section>
-  );
-};
+    </div>
+  </section>
+);
 
 /* -------------------------------------------------------------------------- */
-/*  3. Feature grid                                                           */
+/*  4. Stats bar                                                              */
+/* -------------------------------------------------------------------------- */
+
+const stats = [
+  { value: '99.9%', label: 'System Uptime' },
+  { icon: Infinity, value: '∞', label: 'Scalable Agents' },
+  { value: '256-bit', label: 'End-to-End Encryption' },
+  { value: '24/7', label: 'Autonomous Operations' },
+  { value: 'Global', label: 'Secure Infrastructure' },
+];
+
+const StatsBar: React.FC = () => (
+  <section className="relative border-y border-white/10 bg-[#0a1220]/60 py-10">
+    <div className="container mx-auto px-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
+        {stats.map((stat) => (
+          <div key={stat.label}>
+            <div className="text-2xl sm:text-3xl font-black text-white">{stat.value}</div>
+            <p className="mt-1 text-xs text-white/50">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+/* -------------------------------------------------------------------------- */
+/*  5. Feature grid — Everything an AI Business needs                         */
 /* -------------------------------------------------------------------------- */
 
 const features = [
@@ -204,13 +255,17 @@ const features = [
 ];
 
 const FeatureGrid: React.FC = () => (
-  <section id="platform" className="relative py-24 scroll-mt-24">
+  <section className="relative py-24 scroll-mt-24">
     <div className="container mx-auto px-6">
-      <SectionHeader
-        eyebrow="The Platform"
-        title={<>Everything an <span className="text-primary">AI Business</span> needs</>}
-        subtitle="One operating system for agents, workflows, memory, and signals — built for the autonomous enterprise."
-      />
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-xs uppercase tracking-[0.2em] text-blue-400 font-semibold">The Platform</p>
+        <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
+          Everything an <span className="text-blue-400">AI Business</span> needs
+        </h2>
+        <p className="mt-4 text-base text-white/70">
+          One operating system for agents, workflows, memory, and signals — built for the autonomous enterprise.
+        </p>
+      </div>
       <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {features.map((f, i) => (
           <motion.div
@@ -221,7 +276,7 @@ const FeatureGrid: React.FC = () => (
             transition={{ duration: 0.5, delay: i * 0.05 }}
           >
             <GlassCard className="group h-full">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary shadow-[0_0_24px_rgba(112,128,255,0.4)]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-950/60 border border-blue-500/20 text-blue-400">
                 <f.icon className="h-6 w-6" />
               </div>
               <h3 className="mt-5 text-xl font-semibold text-white">{f.title}</h3>
@@ -235,80 +290,20 @@ const FeatureGrid: React.FC = () => (
 );
 
 /* -------------------------------------------------------------------------- */
-/*  4. Marketplace preview                                                    */
-/* -------------------------------------------------------------------------- */
-
-const agents = [
-  { name: 'Atlas Researcher',  role: 'Web + doc intelligence', tag: 'Knowledge' },
-  { name: 'Helios Sales',      role: 'Outbound + CRM ops',     tag: 'Revenue' },
-  { name: 'Vault Sentinel',    role: 'Security + compliance',  tag: 'Security' },
-  { name: 'Forge Engineer',    role: 'Code + infra automation',tag: 'Engineering' },
-];
-
-const MarketplacePreview: React.FC = () => (
-  <section id="marketplace" className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent scroll-mt-24">
-    <div className="container mx-auto px-6">
-      <SectionHeader
-        eyebrow="Agent Marketplace"
-        title={<>Deploy a <span className="text-primary">workforce</span>, not a chatbot</>}
-        subtitle="Hand-curated agents ready to run inside your D3VONN command center."
-      />
-      <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {agents.map((a, i) => (
-          <motion.div
-            key={a.name}
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.5, delay: i * 0.05 }}
-          >
-            <GlassCard className="group h-full">
-              <div className="flex items-center justify-between">
-                <div className="h-10 w-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center shadow-[0_0_20px_rgba(112,128,255,0.4)]">
-                  <Bot className="h-5 w-5" />
-                </div>
-                <span className="text-[10px] uppercase tracking-widest text-primary/80 border border-primary/30 rounded-full px-2 py-0.5">
-                  {a.tag}
-                </span>
-              </div>
-              <h3 className="mt-5 text-lg font-semibold text-white">{a.name}</h3>
-              <p className="mt-1 text-sm text-white/70">{a.role}</p>
-              <Link
-                to="/marketplace"
-                className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-white transition-colors"
-              >
-                Deploy <ArrowRight className="h-3 w-3" />
-              </Link>
-            </GlassCard>
-          </motion.div>
-        ))}
-      </div>
-      <div className="mt-10 text-center">
-        <Link
-          to="/marketplace"
-          className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-black/40 px-6 py-3 text-sm font-semibold text-white hover:bg-primary/10 transition"
-        >
-          Browse full marketplace <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
-    </div>
-  </section>
-);
-
-/* -------------------------------------------------------------------------- */
-/*  5. Command Center preview                                                 */
+/*  6. Command Center preview                                                 */
 /* -------------------------------------------------------------------------- */
 
 const CommandCenterPreview: React.FC = () => (
   <section id="command-center" className="relative py-24 scroll-mt-24">
     <div className="container mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
       <div>
-        <SectionHeader
-          align="left"
-          eyebrow="Command Center"
-          title={<>One console. <span className="text-primary">Total control.</span></>}
-          subtitle="Supervise every agent, workflow, and signal in real time — with surgical precision."
-        />
+        <p className="text-xs uppercase tracking-[0.2em] text-blue-400 font-semibold">Command Center</p>
+        <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
+          One console. <span className="text-blue-400">Total control.</span>
+        </h2>
+        <p className="mt-4 text-base text-white/70">
+          Supervise every agent, workflow, and signal in real time — with surgical precision.
+        </p>
         <ul className="mt-8 space-y-4 text-sm text-white/80">
           {[
             'Live agent supervision with intervention controls',
@@ -317,7 +312,7 @@ const CommandCenterPreview: React.FC = () => (
             'Encrypted audit trails for every decision',
           ].map((line) => (
             <li key={line} className="flex items-start gap-3">
-              <span className="mt-1 h-2 w-2 rounded-full bg-primary shadow-[0_0_10px_rgba(112,128,255,0.8)]" />
+              <span className="mt-1 h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_10px_rgba(56,136,255,0.8)]" />
               {line}
             </li>
           ))}
@@ -325,13 +320,13 @@ const CommandCenterPreview: React.FC = () => (
         <div className="mt-8 flex gap-3">
           <Link
             to="/occ"
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_0_30px_rgba(112,128,255,0.5)] hover:scale-[1.02] transition"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_30px_rgba(56,136,255,0.4)] hover:scale-[1.02] transition"
           >
             Open Command Center <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
             to="/command-center"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/40 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
+            className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
           >
             Tour the console
           </Link>
@@ -361,7 +356,7 @@ const CommandCenterPreview: React.FC = () => (
               { k: 'Mesh latency',    v: '42ms' },
             ].map((s) => (
               <div key={s.k} className="rounded-lg border border-white/10 bg-black/40 p-3">
-                <div className="text-xl font-bold text-primary">{s.v}</div>
+                <div className="text-xl font-bold text-blue-400">{s.v}</div>
                 <div className="mt-1 text-[10px] uppercase tracking-widest text-white/50">{s.k}</div>
               </div>
             ))}
@@ -380,7 +375,7 @@ const CommandCenterPreview: React.FC = () => (
                 </div>
                 <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-primary shadow-[0_0_10px_rgba(112,128,255,0.8)]"
+                    className="h-full rounded-full bg-blue-500 shadow-[0_0_10px_rgba(56,136,255,0.8)]"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -394,38 +389,7 @@ const CommandCenterPreview: React.FC = () => (
 );
 
 /* -------------------------------------------------------------------------- */
-/*  6. Vault ownership                                                        */
-/* -------------------------------------------------------------------------- */
-
-const Vault: React.FC = () => (
-  <section id="vault" className="relative py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent scroll-mt-24">
-    <div className="container mx-auto px-6">
-      <SectionHeader
-        eyebrow="Sovereignty Vault"
-        title={<>You own your <span className="text-primary">data, agents, and signals</span></>}
-        subtitle="Web3-ready ownership layer — without the crypto theatre. Portable, encrypted, yours."
-      />
-      <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { icon: KeySquare, title: 'Server-side encryption', desc: 'AES-GCM at rest, encrypted via Supabase RPC. Keys never touch the client.' },
-          { icon: Layers,    title: 'Portable agents',        desc: 'Export, fork, or migrate any agent definition with full provenance.' },
-          { icon: ShieldCheck, title: 'Audit-grade trails',   desc: 'Every action logged to immutable, query-friendly safe views.' },
-        ].map((b) => (
-          <GlassCard key={b.title} className="group h-full">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary shadow-[0_0_24px_rgba(112,128,255,0.4)]">
-              <b.icon className="h-6 w-6" />
-            </div>
-            <h3 className="mt-5 text-xl font-semibold text-white">{b.title}</h3>
-            <p className="mt-2 text-sm text-white/70">{b.desc}</p>
-          </GlassCard>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
-/* -------------------------------------------------------------------------- */
-/*  7. Pricing preview                                                        */
+/*  7. Pricing                                                                */
 /* -------------------------------------------------------------------------- */
 
 const plans = [
@@ -461,11 +425,15 @@ const plans = [
 const Pricing: React.FC = () => (
   <section id="pricing" className="relative py-24 scroll-mt-24">
     <div className="container mx-auto px-6">
-      <SectionHeader
-        eyebrow="Pricing"
-        title={<>Built for <span className="text-primary">every scale</span> of autonomy</>}
-        subtitle="Transparent tiers. Predictable economics. No surprise tokens."
-      />
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-xs uppercase tracking-[0.2em] text-blue-400 font-semibold">Pricing</p>
+        <h2 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
+          Built for <span className="text-blue-400">every scale</span> of autonomy
+        </h2>
+        <p className="mt-4 text-base text-white/70">
+          Transparent tiers. Predictable economics. No surprise tokens.
+        </p>
+      </div>
       <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans.map((p) => (
           <GlassCard
@@ -473,12 +441,12 @@ const Pricing: React.FC = () => (
             className={
               'flex flex-col h-full ' +
               (p.featured
-                ? 'border-primary/50 shadow-[0_0_60px_-8px_rgba(112,128,255,0.7)]'
+                ? 'border-blue-500/50 shadow-[0_0_60px_-8px_rgba(56,136,255,0.5)]'
                 : '')
             }
           >
             {p.featured && (
-              <div className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-1 text-[10px] uppercase tracking-widest text-primary-foreground shadow-[0_0_20px_rgba(112,128,255,0.7)]">
+              <div className="absolute -top-3 left-6 rounded-full bg-blue-600 px-3 py-1 text-[10px] uppercase tracking-widest text-white shadow-[0_0_20px_rgba(56,136,255,0.6)]">
                 Most popular
               </div>
             )}
@@ -491,7 +459,7 @@ const Pricing: React.FC = () => (
             <ul className="mt-5 space-y-2 text-sm text-white/80 flex-1">
               {p.features.map((f) => (
                 <li key={f} className="flex items-start gap-2">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(112,128,255,0.8)]" />
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(56,136,255,0.8)]" />
                   {f}
                 </li>
               ))}
@@ -502,8 +470,8 @@ const Pricing: React.FC = () => (
                 className={
                   'mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition ' +
                   (p.featured
-                    ? 'bg-primary text-primary-foreground shadow-[0_0_30px_rgba(112,128,255,0.5)] hover:scale-[1.02]'
-                    : 'border border-white/20 bg-black/40 text-white hover:bg-white/10')
+                    ? 'bg-blue-600 text-white shadow-[0_0_30px_rgba(56,136,255,0.4)] hover:scale-[1.02]'
+                    : 'border border-white/20 bg-white/5 text-white hover:bg-white/10')
                 }
               >
                 {p.cta} <ArrowRight className="h-4 w-4" />
@@ -514,8 +482,8 @@ const Pricing: React.FC = () => (
                 className={
                   'mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition ' +
                   (p.featured
-                    ? 'bg-primary text-primary-foreground shadow-[0_0_30px_rgba(112,128,255,0.5)] hover:scale-[1.02]'
-                    : 'border border-white/20 bg-black/40 text-white hover:bg-white/10')
+                    ? 'bg-blue-600 text-white shadow-[0_0_30px_rgba(56,136,255,0.4)] hover:scale-[1.02]'
+                    : 'border border-white/20 bg-white/5 text-white hover:bg-white/10')
                 }
               >
                 {p.cta} <ArrowRight className="h-4 w-4" />
@@ -529,18 +497,16 @@ const Pricing: React.FC = () => (
 );
 
 /* -------------------------------------------------------------------------- */
-/*  Final CTA + Page shell                                                    */
+/*  8. Final CTA                                                              */
 /* -------------------------------------------------------------------------- */
 
 const FinalCTA: React.FC = () => (
   <section className="relative py-24">
     <div className="container mx-auto px-6">
       <GlassCard className="text-center py-14">
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-primary shadow-[0_0_18px_rgba(112,128,255,0.35)]">
-          <Rocket className="h-3 w-3" /> Ready when you are
-        </div>
+        <p className="text-xs uppercase tracking-[0.2em] text-blue-400 font-semibold">Ready when you are</p>
         <h2 className="mt-5 text-3xl sm:text-5xl font-black text-white">
-          Launch your <span className="text-primary">autonomous business</span>.
+          Launch your <span className="text-blue-400">autonomous business</span>.
         </h2>
         <p className="mt-4 max-w-xl mx-auto text-white/70">
           The future of work isn't headcount — it's orchestration. Start with D3VONN.IO today.
@@ -548,13 +514,13 @@ const FinalCTA: React.FC = () => (
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
           <SmartLaunchLink
             authedTo="/app"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-7 py-4 font-semibold text-primary-foreground shadow-[0_0_40px_rgba(112,128,255,0.55)] hover:scale-[1.02] transition"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-4 font-semibold text-white shadow-[0_0_40px_rgba(56,136,255,0.4)] hover:scale-[1.02] transition"
           >
             Launch D3VONN <ArrowRight className="h-4 w-4" />
           </SmartLaunchLink>
           <Link
             to="/platform"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-black/40 px-7 py-4 font-semibold text-white hover:bg-white/10 transition"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-4 font-semibold text-white hover:bg-white/10 transition"
           >
             Explore Platform
           </Link>
@@ -564,13 +530,17 @@ const FinalCTA: React.FC = () => (
   </section>
 );
 
+/* -------------------------------------------------------------------------- */
+/*  Page shell                                                                */
+/* -------------------------------------------------------------------------- */
+
 const Index: React.FC = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
   const title = 'D3VONN.IO — AI Business Operating System';
   const description =
-    'D3VONN.IO is the AI Business Operating System — orchestrate your AI workforce, automate workflows, and command an autonomous enterprise from one console.';
+    'D3VONN.IO is the World\'s First AI Business Operating System — orchestrate your AI workforce, automate workflows, and command an autonomous enterprise from one console.';
   const url = 'https://d3vonn.io/';
 
   return (
@@ -578,7 +548,7 @@ const Index: React.FC = () => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
-      className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden"
+      className="min-h-screen flex flex-col bg-[#020817] text-white overflow-hidden"
     >
       <Helmet>
         <title>{title}</title>
@@ -591,20 +561,25 @@ const Index: React.FC = () => {
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
       </Helmet>
+
+      {/* Progress bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-primary z-50 origin-left shadow-[0_0_12px_rgba(112,128,255,0.7)]"
+        className="fixed top-0 left-0 right-0 h-1 bg-blue-500 z-50 origin-left shadow-[0_0_12px_rgba(56,136,255,0.7)]"
         style={{ scaleX }}
       />
-      <AuthNavButton />
 
-      <Hero />
-      <TrustStrip />
-      <FeatureGrid />
-      <MarketplacePreview />
-      <CommandCenterPreview />
-      <Vault />
-      <Pricing />
-      <FinalCTA />
+      <Navbar transparent />
+
+      <main id="main-content">
+        <Hero />
+        <CapabilitiesStrip />
+        <PlatformSection />
+        <StatsBar />
+        <FeatureGrid />
+        <CommandCenterPreview />
+        <Pricing />
+        <FinalCTA />
+      </main>
 
       <Footer />
     </motion.div>

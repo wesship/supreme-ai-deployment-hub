@@ -16,7 +16,7 @@ const DeploymentSummary = () => {
                            isDeploying ? 'in-progress' : 'idle';
 
   // Mock data for deployment details
-  const deploymentName = "DEVONN.AI Framework v1.0";
+  const deploymentName = "D3VONN.IO Framework v1.0";
   const deploymentEnv = "Production";
   
   // Find the first step that started and the last one that completed (if any)

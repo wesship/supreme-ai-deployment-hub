@@ -8,7 +8,7 @@ const GettingStartedTab: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Installation</CardTitle>
-          <CardDescription>Set up DEVONN.AI in your environment</CardDescription>
+          <CardDescription>Set up D3VONN.IO in your environment</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <h3 className="text-lg font-semibold">Requirements</h3>
@@ -20,14 +20,14 @@ const GettingStartedTab: React.FC = () => {
 
           <h3 className="text-lg font-semibold mt-4">Quick Install</h3>
           <pre className="bg-secondary p-4 rounded-md overflow-x-auto">
-            <code>npm install devonn-ai</code>
+            <code>npm install d3vonn-io</code>
           </pre>
 
           <h3 className="text-lg font-semibold mt-4">Basic Setup</h3>
-          <p>After installation, initialize DEVONN.AI in your project:</p>
+          <p>After installation, initialize D3VONN.IO in your project:</p>
           <pre className="bg-secondary p-4 rounded-md overflow-x-auto">
             <code>{`
-import { DevonnAI } from 'devonn-ai';
+import { DevonnAI } from 'd3vonn-io';
 
 // Initialize with your API key
 const ai = new DevonnAI({
@@ -47,12 +47,12 @@ const response = await ai.generate({
       <Card>
         <CardHeader>
           <CardTitle>Key Concepts</CardTitle>
-          <CardDescription>Understand the core principles behind DEVONN.AI</CardDescription>
+          <CardDescription>Understand the core principles behind D3VONN.IO</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">Intelligent Code Generation</h3>
-            <p>DEVONN.AI analyzes your project structure, coding style, and requirements to generate contextually appropriate code.</p>
+            <p>D3VONN.IO analyzes your project structure, coding style, and requirements to generate contextually appropriate code.</p>
           </div>
 
           <div className="space-y-2 mt-4">
@@ -62,7 +62,7 @@ const response = await ai.generate({
 
           <div className="space-y-2 mt-4">
             <h3 className="text-lg font-semibold">Framework Agnostic</h3>
-            <p>DEVONN.AI works with most popular frameworks and libraries, including React, Vue, Angular, and many more.</p>
+            <p>D3VONN.IO works with most popular frameworks and libraries, including React, Vue, Angular, and many more.</p>
           </div>
         </CardContent>
       </Card>

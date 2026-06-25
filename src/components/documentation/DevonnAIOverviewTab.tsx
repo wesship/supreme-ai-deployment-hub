@@ -8,7 +8,7 @@ import {
   DownloadSection,
   NextStepsSection,
   OptionalEnhancementsSection
-} from './devonn-ai';
+} from './d3vonn-io';
 
 const DevonnAIOverviewTab: React.FC = () => {
   return (

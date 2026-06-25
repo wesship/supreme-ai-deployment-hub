@@ -41,7 +41,7 @@ const GettingStartedSteps: React.FC = () => {
           centered 
           animate 
           tag="Quick Start"
-          subheading="Follow these steps to get started with DEVONN.AI Framework"
+          subheading="Follow these steps to get started with D3VONN.IO Framework"
         >
           Getting Started
         </SectionHeading>

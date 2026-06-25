@@ -8,7 +8,7 @@ const ProjectStructureTab: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Project Structure Overview</CardTitle>
-          <CardDescription>Understanding the architecture and organization of DEVONN.AI</CardDescription>
+          <CardDescription>Understanding the architecture and organization of D3VONN.IO</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -74,7 +74,7 @@ const ProjectStructureTab: React.FC = () => {
             <h3 className="text-lg font-semibold">Directory Structure</h3>
             <pre className="bg-secondary p-4 rounded-md overflow-x-auto text-xs">
               <code>{`
-devonn-ai/
+d3vonn-io/
 ├── components/
 │   ├── code-generation/
 │   │   ├── backend/

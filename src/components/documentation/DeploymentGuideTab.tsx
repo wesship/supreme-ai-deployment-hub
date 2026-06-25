@@ -11,7 +11,7 @@ const DeploymentGuideTab: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Deployment Guides</CardTitle>
-          <CardDescription>Comprehensive guides for deploying DEVONN.AI in various environments</CardDescription>
+          <CardDescription>Comprehensive guides for deploying D3VONN.IO in various environments</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="kubernetes">
@@ -30,7 +30,7 @@ const DeploymentGuideTab: React.FC = () => {
                 <ul className="list-disc pl-6 space-y-2">
                   <li>Kubernetes cluster (v1.19+)</li>
                   <li>kubectl CLI tool configured to connect to your cluster</li>
-                  <li>Helm (v3.0+) for using the DEVONN.AI Helm chart</li>
+                  <li>Helm (v3.0+) for using the D3VONN.IO Helm chart</li>
                   <li>Persistent storage provisioner for database persistence</li>
                 </ul>
               </div>
@@ -39,7 +39,7 @@ const DeploymentGuideTab: React.FC = () => {
                 <h4 className="text-lg font-medium">Deployment Steps</h4>
                 <ol className="list-decimal pl-6 space-y-4">
                   <li>
-                    <p className="font-medium">Add the DEVONN.AI Helm repository:</p>
+                    <p className="font-medium">Add the D3VONN.IO Helm repository:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
                       <code>helm repo add devonn https://charts.d3vonn.io
 helm repo update</code>
@@ -83,19 +83,19 @@ postgresql:
                     </pre>
                   </li>
                   <li>
-                    <p className="font-medium">Install the DEVONN.AI Helm chart:</p>
+                    <p className="font-medium">Install the D3VONN.IO Helm chart:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                      <code>helm install devonn devonn/devonn-ai -f values.yaml -n devonn-ai --create-namespace</code>
+                      <code>helm install devonn devonn/d3vonn-io -f values.yaml -n d3vonn-io --create-namespace</code>
                     </pre>
                   </li>
                   <li>
                     <p className="font-medium">Verify the deployment:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                      <code>kubectl get pods -n devonn-ai</code>
+                      <code>kubectl get pods -n d3vonn-io</code>
                     </pre>
                   </li>
                   <li>
-                    <p className="font-medium">Access the DEVONN.AI dashboard:</p>
+                    <p className="font-medium">Access the D3VONN.IO dashboard:</p>
                     <p className="mt-2">Once all pods are running, access the dashboard at https://devonn.example.com (or the hostname you configured)</p>
                   </li>
                 </ol>
@@ -133,7 +133,7 @@ postgresql:
                   <li>
                     <p className="font-medium">Create a new directory for your deployment:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                      <code>mkdir devonn-ai && cd devonn-ai</code>
+                      <code>mkdir d3vonn-io && cd d3vonn-io</code>
                     </pre>
                   </li>
                   <li>
@@ -201,7 +201,7 @@ volumes:
                     </pre>
                   </li>
                   <li>
-                    <p className="font-medium">Access the DEVONN.AI dashboard:</p>
+                    <p className="font-medium">Access the D3VONN.IO dashboard:</p>
                     <p className="mt-2">Access the dashboard at http://localhost (or the server IP)</p>
                   </li>
                 </ol>
@@ -229,7 +229,7 @@ volumes:
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p>Deploy DEVONN.AI on Amazon Web Services:</p>
+                    <p>Deploy D3VONN.IO on Amazon Web Services:</p>
                     <ul className="list-disc pl-6 space-y-1">
                       <li>EKS for Kubernetes deployments</li>
                       <li>ECS for container-based deployments</li>
@@ -248,7 +248,7 @@ volumes:
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p>Deploy DEVONN.AI on Microsoft Azure:</p>
+                    <p>Deploy D3VONN.IO on Microsoft Azure:</p>
                     <ul className="list-disc pl-6 space-y-1">
                       <li>AKS for Kubernetes deployments</li>
                       <li>App Service for container-based deployments</li>
@@ -267,7 +267,7 @@ volumes:
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p>Deploy DEVONN.AI on Google Cloud Platform:</p>
+                    <p>Deploy D3VONN.IO on Google Cloud Platform:</p>
                     <ul className="list-disc pl-6 space-y-1">
                       <li>GKE for Kubernetes deployments</li>
                       <li>Cloud Run for container-based deployments</li>
@@ -286,7 +286,7 @@ volumes:
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <p>Deploy DEVONN.AI on Digital Ocean:</p>
+                    <p>Deploy D3VONN.IO on Digital Ocean:</p>
                     <ul className="list-disc pl-6 space-y-1">
                       <li>DOKS for Kubernetes deployments</li>
                       <li>App Platform for container-based deployments</li>
@@ -299,7 +299,7 @@ volumes:
               </div>
               
               <h4 className="text-lg font-medium mt-8">Multi-Cloud Deployment</h4>
-              <p>For guidance on deploying DEVONN.AI across multiple cloud providers for high availability and disaster recovery, refer to our <a href="/documentation/multi-cloud" className="text-primary hover:underline">Multi-Cloud Deployment Guide</a>.</p>
+              <p>For guidance on deploying D3VONN.IO across multiple cloud providers for high availability and disaster recovery, refer to our <a href="/documentation/multi-cloud" className="text-primary hover:underline">Multi-Cloud Deployment Guide</a>.</p>
             </TabsContent>
             
             <TabsContent value="onprem" className="space-y-4">
@@ -369,11 +369,11 @@ volumes:
                   </TabsList>
                   
                   <TabsContent value="script" className="space-y-4 mt-4">
-                    <p>The easiest way to install DEVONN.AI on-premises is using our installation script:</p>
+                    <p>The easiest way to install D3VONN.IO on-premises is using our installation script:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto">
                       <code>curl -sSL https://install.d3vonn.io | sudo bash</code>
                     </pre>
-                    <p>The script will check system requirements, install dependencies, and set up DEVONN.AI with default configurations.</p>
+                    <p>The script will check system requirements, install dependencies, and set up D3VONN.IO with default configurations.</p>
                     <p>For custom installations, use the configuration options:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto">
                       <code>curl -sSL https://install.d3vonn.io | sudo bash -s -- --data-dir /opt/devonn-data --port 8080</code>
@@ -389,9 +389,9 @@ volumes:
                         </pre>
                       </li>
                       <li>
-                        <p className="font-medium">Clone the DEVONN.AI repository:</p>
+                        <p className="font-medium">Clone the D3VONN.IO repository:</p>
                         <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                          <code>git clone https://github.com/devonn-ai/devonn-on-prem.git
+                          <code>git clone https://github.com/d3vonn-io/devonn-on-prem.git
 cd devonn-on-prem</code>
                         </pre>
                       </li>
@@ -494,7 +494,7 @@ sudo ./install.sh</code>
       <Card>
         <CardHeader>
           <CardTitle>Extension Configuration Guide</CardTitle>
-          <CardDescription>Complete documentation for configuring the DEVONN.AI Chrome Extension</CardDescription>
+          <CardDescription>Complete documentation for configuring the D3VONN.IO Chrome Extension</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <h3 className="text-lg font-semibold">Installation Options</h3>
@@ -532,12 +532,12 @@ sudo ./install.sh</code>
           <ul className="list-disc pl-6 space-y-2">
             <li>
               <span className="font-medium">API URL</span>
-              <p className="text-sm">The URL of your DEVONN.AI API instance. For on-premises installations, set this to your server address.</p>
+              <p className="text-sm">The URL of your D3VONN.IO API instance. For on-premises installations, set this to your server address.</p>
               <p className="text-xs text-muted-foreground">Default: https://api.d3vonn.io</p>
             </li>
             <li>
               <span className="font-medium">User ID</span>
-              <p className="text-sm">Your unique DEVONN.AI user identifier. This is used for authentication and tracking your interactions.</p>
+              <p className="text-sm">Your unique D3VONN.IO user identifier. This is used for authentication and tracking your interactions.</p>
             </li>
             <li>
               <span className="font-medium">Notification Settings</span>

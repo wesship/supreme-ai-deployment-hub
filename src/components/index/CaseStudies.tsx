@@ -34,7 +34,7 @@ const CaseStudies: React.FC = () => {
         <SectionHeading 
           animate 
           tag="Success Stories"
-          subheading="Real-world applications of the DEVONN.AI Framework in production environments"
+          subheading="Real-world applications of the D3VONN.IO Framework in production environments"
         >
           Case Studies
         </SectionHeading>

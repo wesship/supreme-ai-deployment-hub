@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 
 const DeploymentConfig = () => {
   // Sample configurations from the deployment guide
-  const kubeClusterConfig = `gcloud container clusters create devonn-ai-cluster --num-nodes=3 --zone=us-central1-a`;
+  const kubeClusterConfig = `gcloud container clusters create d3vonn-io-cluster --num-nodes=3 --zone=us-central1-a`;
   
   const persistentStorageConfig = `apiVersion: v1
 kind: PersistentVolumeClaim
@@ -20,17 +20,17 @@ spec:
       storage: 5Gi`;
   
   const dockerBuildConfig = `# Backend
-docker build -t your-dockerhub-username/devonn-ai-backend ./backend
-docker push your-dockerhub-username/devonn-ai-backend
+docker build -t your-dockerhub-username/d3vonn-io-backend ./backend
+docker push your-dockerhub-username/d3vonn-io-backend
 
 # Frontend
-docker build -t your-dockerhub-username/devonn-ai-frontend ./frontend
-docker push your-dockerhub-username/devonn-ai-frontend`;
+docker build -t your-dockerhub-username/d3vonn-io-frontend ./frontend
+docker push your-dockerhub-username/d3vonn-io-frontend`;
   
-  const k8sDeploymentConfig = `kubectl apply -f infrastructure/kubernetes/devonn-ai-backend-deployment.yaml
-kubectl apply -f infrastructure/kubernetes/devonn-ai-frontend-deployment.yaml
-kubectl apply -f infrastructure/kubernetes/devonn-ai-inference-deployment.yaml
-kubectl apply -f infrastructure/kubernetes/devonn-ai-recommendations-deployment.yaml
+  const k8sDeploymentConfig = `kubectl apply -f infrastructure/kubernetes/d3vonn-io-backend-deployment.yaml
+kubectl apply -f infrastructure/kubernetes/d3vonn-io-frontend-deployment.yaml
+kubectl apply -f infrastructure/kubernetes/d3vonn-io-inference-deployment.yaml
+kubectl apply -f infrastructure/kubernetes/d3vonn-io-recommendations-deployment.yaml
 kubectl apply -f infrastructure/kubernetes/ingress.yaml`;
   
   const prometheusConfig = `apiVersion: v1

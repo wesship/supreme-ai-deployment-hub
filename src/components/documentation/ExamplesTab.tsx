@@ -14,7 +14,7 @@ const ExamplesTab: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border rounded-lg p-4">
               <h3 className="font-semibold">Todo App</h3>
-              <p className="text-sm text-muted-foreground mb-2">A simple todo application with React and DEVONN.AI</p>
+              <p className="text-sm text-muted-foreground mb-2">A simple todo application with React and D3VONN.IO</p>
               <a href="#" className="text-primary hover:underline text-sm">View Source</a>
             </div>
             <div className="border rounded-lg p-4">
@@ -47,7 +47,7 @@ const ExamplesTab: React.FC = () => {
               <h3 className="font-semibold mb-2">Authentication System</h3>
               <pre className="bg-secondary p-4 rounded-md overflow-x-auto">
                 <code>{`
-import { DevonnAI } from 'devonn-ai';
+import { DevonnAI } from 'd3vonn-io';
 
 const authSystem = await ai.generate({
   prompt: 'Create a secure authentication system with JWT',

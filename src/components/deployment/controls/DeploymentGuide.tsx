@@ -35,7 +35,7 @@ db_max_allocated_storage = 50`);
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Deployment Guide</AlertTitle>
         <AlertDescription>
-          Follow these steps to deploy DEVONN.AI to your AWS infrastructure:
+          Follow these steps to deploy D3VONN.IO to your AWS infrastructure:
         </AlertDescription>
       </Alert>
       
@@ -79,7 +79,7 @@ db_max_allocated_storage = 50`);
             <ol className="list-decimal ml-4 text-sm space-y-2">
               <li>Copy your kubeconfig content into the connection field below</li>
               <li>Click "Connect" to establish connection with your cluster</li>
-              <li>Use the "Start Deployment" button to begin deploying DEVONN.AI components</li>
+              <li>Use the "Start Deployment" button to begin deploying D3VONN.IO components</li>
               <li>Monitor progress in the Deployment Logs and Timeline sections</li>
             </ol>
           </AccordionContent>
@@ -93,7 +93,7 @@ db_max_allocated_storage = 50`);
             <p className="text-sm mb-2">After deployment completes successfully:</p>
             <ol className="list-decimal ml-4 text-sm space-y-2">
               <li>Check service status in the monitoring dashboard</li>
-              <li>Access DEVONN.AI through the LoadBalancer endpoint (available in deployment outputs)</li>
+              <li>Access D3VONN.IO through the LoadBalancer endpoint (available in deployment outputs)</li>
               <li>Set up DNS records to point to your new infrastructure</li>
             </ol>
           </AccordionContent>

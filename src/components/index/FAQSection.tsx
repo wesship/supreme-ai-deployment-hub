@@ -12,19 +12,19 @@ const faqData = [
     answer: "For local development, we recommend at least 16GB RAM, 4-core CPU, and 50GB storage. For production, a Kubernetes cluster with at least 3 nodes is recommended, each with 8 CPU cores and 32GB RAM."
   },
   {
-    question: "Does DEVONN.AI work with any cloud provider?",
-    answer: "Yes, DEVONN.AI is cloud-agnostic and works with all major cloud providers including AWS, GCP, Azure, and others. It can also be deployed on on-premises Kubernetes clusters."
+    question: "Does D3VONN.IO work with any cloud provider?",
+    answer: "Yes, D3VONN.IO is cloud-agnostic and works with all major cloud providers including AWS, GCP, Azure, and others. It can also be deployed on on-premises Kubernetes clusters."
   },
   {
     question: "How does the framework handle model versioning?",
-    answer: "DEVONN.AI includes built-in support for model versioning through its integration with MLflow. It tracks model versions, parameters, and metrics, and provides tools for model promotion through environments."
+    answer: "D3VONN.IO includes built-in support for model versioning through its integration with MLflow. It tracks model versions, parameters, and metrics, and provides tools for model promotion through environments."
   },
   {
     question: "Is there support for A/B testing AI models?",
     answer: "Yes, the framework supports A/B testing through the Argo Rollouts component, which allows for canary deployments and traffic splitting between different model versions."
   },
   {
-    question: "How is security handled in DEVONN.AI?",
+    question: "How is security handled in D3VONN.IO?",
     answer: "Security is implemented at multiple layers including network policies, Istio authorization policies, mTLS encryption, API authentication through Kong, and RBAC for Kubernetes resources."
   }
 ];
@@ -37,7 +37,7 @@ const FAQSection: React.FC = () => {
           centered
           animate 
           tag="FAQ"
-          subheading="Common questions about the DEVONN.AI Framework"
+          subheading="Common questions about the D3VONN.IO Framework"
         >
           Frequently Asked Questions
         </SectionHeading>

@@ -179,7 +179,7 @@ function OperatorDashboardInner() {
           <div className="operator-brand">
             <div className="operator-logo" />
             <div>
-              <div style={{ fontSize: '2rem', fontWeight: 700 }}>DEVONN.AI</div>
+              <div style={{ fontSize: '2rem', fontWeight: 700 }}>D3VONN.IO</div>
               <div style={{ color: 'var(--operator-muted)' }}>
                 Glass Operator Console
               </div>

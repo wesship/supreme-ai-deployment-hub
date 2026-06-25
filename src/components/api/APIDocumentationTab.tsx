@@ -6,8 +6,8 @@ const APIDocumentationTab: React.FC = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>DEVONN.AI API Reference</CardTitle>
-        <CardDescription>Complete documentation for the DEVONN.AI API</CardDescription>
+        <CardTitle>D3VONN.IO API Reference</CardTitle>
+        <CardDescription>Complete documentation for the D3VONN.IO API</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">

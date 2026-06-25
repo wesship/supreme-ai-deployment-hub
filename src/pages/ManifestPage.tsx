@@ -94,13 +94,13 @@ const ManifestPage: React.FC = () => {
           <ManifestCode 
             code={yamlCode}
             title="Deployment Manifest"
-            downloadFileName="devonn-ai-manifest.yaml"
+            downloadFileName="d3vonn-io-manifest.yaml"
           />
           
           <ManifestCode 
             code={deploymentFiles}
             title="Deployment File Manifest"
-            downloadFileName="devonn-ai-deployment-files.txt"
+            downloadFileName="d3vonn-io-deployment-files.txt"
           />
         </div>
       </Container>

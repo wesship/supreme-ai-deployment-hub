@@ -45,8 +45,8 @@ const HeroSection: React.FC = () => {
     setTimeout(() => {
       // Create a download link for a fictional framework package
       const link = document.createElement('a');
-      link.href = '/devonn-ai-framework.zip'; // This would be a real file in production
-      link.download = 'devonn-ai-framework.zip';
+      link.href = '/d3vonn-io-framework.zip'; // This would be a real file in production
+      link.download = 'd3vonn-io-framework.zip';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

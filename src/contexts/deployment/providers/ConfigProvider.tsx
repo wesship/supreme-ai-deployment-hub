@@ -58,7 +58,7 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({
       resourcePrefix: `devonn-${env}`,
       tags: {
         environment: env,
-        project: 'devonn-ai',
+        project: 'd3vonn-io',
         managedBy: 'devonn-dashboard'
       }
     });

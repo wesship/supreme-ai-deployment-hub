@@ -169,7 +169,7 @@ const PricingSection: React.FC = () => {
         
         <div className="mt-12 text-center">
           <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
-            All plans include the core DEVONN.AI framework features. Need a custom solution? 
+            All plans include the core D3VONN.IO framework features. Need a custom solution? 
             <a href="/contact" className="text-primary ml-1 hover:underline">Contact our sales team</a>.
           </p>
         </div>

@@ -27,7 +27,7 @@ const ProcessMonitorDialog: React.FC<ProcessMonitorDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>DEVONN.AI Process Monitor</DialogTitle>
+          <DialogTitle>D3VONN.IO Process Monitor</DialogTitle>
           <DialogDescription>
             Master Control Program (MCP) system processes
           </DialogDescription>

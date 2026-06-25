@@ -23,7 +23,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           <Bot className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="font-medium text-sm">DEVONN.AI Assistant</h3>
+          <h3 className="font-medium text-sm">D3VONN.IO Assistant</h3>
           <p className="text-xs text-muted-foreground">AI-powered help</p>
         </div>
       </div>

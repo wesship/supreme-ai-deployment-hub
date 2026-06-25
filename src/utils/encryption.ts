@@ -7,7 +7,7 @@
 
 // Use a combination of application-specific string and browser fingerprint
 const getEncryptionKey = (): string => {
-  const appPrefix = 'DEVONN_AI_SECURE_STORAGE';
+  const appPrefix = 'D3VONN_IO_SECURE_STORAGE';
   
   // Add some browser-specific information to make the key harder to guess
   const browserInfo = [

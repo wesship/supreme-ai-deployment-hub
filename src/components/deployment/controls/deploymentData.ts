@@ -143,7 +143,7 @@ export const deploymentCommandsData: DeploymentCommand[] = [
   {
     id: 'helm-install',
     title: 'Install Helm Chart',
-    description: 'Install the DEVONN.AI Helm chart',
-    command: 'helm install devonn-ai ./charts/devonn-ai --namespace devonn --create-namespace'
+    description: 'Install the D3VONN.IO Helm chart',
+    command: 'helm install d3vonn-io ./charts/d3vonn-io --namespace devonn --create-namespace'
   }
 ];

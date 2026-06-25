@@ -8,12 +8,12 @@ const GuidesTab: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Building Your First AI-Enhanced App</CardTitle>
-          <CardDescription>Step-by-step guide to creating an application with DEVONN.AI</CardDescription>
+          <CardDescription>Step-by-step guide to creating an application with D3VONN.IO</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">1. Project Setup</h3>
-            <p>Create a new project and install the DEVONN.AI package as described in the installation guide.</p>
+            <p>Create a new project and install the D3VONN.IO package as described in the installation guide.</p>
           </div>
 
           <div className="space-y-2 mt-4">
@@ -28,7 +28,7 @@ const GuidesTab: React.FC = () => {
 
           <div className="space-y-2 mt-4">
             <h3 className="text-lg font-semibold">4. Generate Initial Code</h3>
-            <p>Use the DEVONN.AI to generate the foundation of your application.</p>
+            <p>Use the D3VONN.IO to generate the foundation of your application.</p>
           </div>
 
           <div className="space-y-2 mt-4">

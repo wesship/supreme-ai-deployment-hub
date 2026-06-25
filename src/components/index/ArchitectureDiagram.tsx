@@ -12,7 +12,7 @@ const ArchitectureDiagram: React.FC = () => {
           centered
           animate 
           tag="Architecture"
-          subheading="Visual representation of the DEVONN.AI framework components and their interactions"
+          subheading="Visual representation of the D3VONN.IO framework components and their interactions"
         >
           Technical Architecture
         </SectionHeading>

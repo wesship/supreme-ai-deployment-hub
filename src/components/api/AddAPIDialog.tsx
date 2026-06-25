@@ -46,7 +46,7 @@ const AddAPIDialog: React.FC<AddAPIDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Add New API Connection</DialogTitle>
           <DialogDescription>
-            Configure a new API endpoint to connect with DEVONN.AI
+            Configure a new API endpoint to connect with D3VONN.IO
           </DialogDescription>
         </DialogHeader>
         

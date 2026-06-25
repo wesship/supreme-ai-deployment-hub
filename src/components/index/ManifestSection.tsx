@@ -13,7 +13,7 @@ const ManifestSection: React.FC = () => {
         <SectionHeading 
           animate 
           tag="Documentation"
-          subheading="Complete Kubernetes deployment manifest for the DEVONN.AI Framework."
+          subheading="Complete Kubernetes deployment manifest for the D3VONN.IO Framework."
         >
           Deployment Manifest
         </SectionHeading>

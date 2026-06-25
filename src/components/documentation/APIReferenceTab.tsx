@@ -10,7 +10,7 @@ const APIReferenceTab: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>API Reference Documentation</CardTitle>
-          <CardDescription>Detailed reference for all DEVONN.AI functions and methods</CardDescription>
+          <CardDescription>Detailed reference for all D3VONN.IO functions and methods</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="mb-4">Visit our <a href="/api" className="text-primary hover:underline">complete API documentation</a> for detailed information on all available endpoints and methods.</p>

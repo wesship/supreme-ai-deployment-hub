@@ -9,7 +9,7 @@ const OptionalEnhancementsSection: React.FC = () => {
     <section className="py-8">
       <SectionHeader
         title="Optional Enhancements"
-        description="Extend DEVONN.AI with these powerful optional modules to address specific needs of your implementation."
+        description="Extend D3VONN.IO with these powerful optional modules to address specific needs of your implementation."
       />
       <div className="mt-6">
         <EnhancementGrid enhancements={enhancementData} />

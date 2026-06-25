@@ -9,7 +9,7 @@ import { Sparkles } from 'lucide-react';
 
 const testimonialsData = [
   {
-    quote: "DEVONN.AI transformed how we deploy machine learning models. We reduced our deployment time from days to minutes.",
+    quote: "D3VONN.IO transformed how we deploy machine learning models. We reduced our deployment time from days to minutes.",
     name: "Sarah Johnson",
     role: "CTO, DataStream AI",
     logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMyMjIyMjIiLz48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtc2l6ZT0iMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGFsaWdubWVudC1iYXNlbGluZT0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZmlsbD0iIzAwRkY0MSI+RFM8L3RleHQ+PC9zdmc+",
@@ -23,7 +23,7 @@ const testimonialsData = [
     rating: 5
   },
   {
-    quote: "The security features of DEVONN.AI gave us the confidence to deploy sensitive financial models in production environments.",
+    quote: "The security features of D3VONN.IO gave us the confidence to deploy sensitive financial models in production environments.",
     name: "Elena Rodriguez",
     role: "Head of AI, FinTech Solutions",
     logo: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiM0NDQ0NDQiLz48dGV4dCB4PSI1MCIgeT0iNTAiIGZvbnQtc2l6ZT0iMTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGFsaWdubWVudC1iYXNlbGluZT0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZmlsbD0iIzAwRkY0MSI+RlM8L3RleHQ+PC9zdmc+",
@@ -53,7 +53,7 @@ const Testimonials: React.FC = () => {
           centered
           animate 
           tag="Testimonials"
-          subheading="What our users say about DEVONN.AI Framework"
+          subheading="What our users say about D3VONN.IO Framework"
         >
           <div className="flex items-center justify-center gap-2">
             User Feedback

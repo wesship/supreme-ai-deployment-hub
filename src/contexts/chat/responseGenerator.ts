@@ -56,7 +56,7 @@ export const generateResponse = (
   
   switch (intent.type) {
     case 'greeting':
-      response.content = sentimentModifier + "Hello! Welcome to DEVONN.AI. I'm your AI assistant for deploying AI systems and managing API integrations. How can I help you today?";
+      response.content = sentimentModifier + "Hello! Welcome to D3VONN.IO. I'm your AI assistant for deploying AI systems and managing API integrations. How can I help you today?";
       
       // If returning user (more than 5 messages), personalize greeting
       if (conversationContext.messageCount && conversationContext.messageCount > 5) {
@@ -92,7 +92,7 @@ export const generateResponse = (
       break;
       
     case 'pricing':
-      response.content = "DEVONN.AI offers several pricing tiers based on your deployment and integration needs:";
+      response.content = "D3VONN.IO offers several pricing tiers based on your deployment and integration needs:";
       response.type = 'links';
       response.links = [
         { url: "#", label: "Basic Plan - $99/month" },
@@ -102,7 +102,7 @@ export const generateResponse = (
       break;
       
     case 'features':
-      response.content = "DEVONN.AI offers the following key features:";
+      response.content = "D3VONN.IO offers the following key features:";
       response.type = 'text';
       response.content += "\n\n• Kubernetes deployment orchestration\n• External API integration\n• Service monitoring and observability\n• Istio service mesh integration\n• Kong API gateway management\n• Canary deployments with Argo Rollouts\n• Comprehensive logging system";
       break;
@@ -110,12 +110,12 @@ export const generateResponse = (
     case 'deployment':
       if (mentionedPlatforms.length > 0) {
         const platform = mentionedPlatforms[0];
-        response.content = `To deploy an AI system on ${platform}, you'll need to configure your DEVONN.AI settings for ${platform} integration. Would you like me to help you set up the ${platform} connection?`;
+        response.content = `To deploy an AI system on ${platform}, you'll need to configure your D3VONN.IO settings for ${platform} integration. Would you like me to help you set up the ${platform} connection?`;
       } else if (mentionedServices.length > 0) {
         const service = mentionedServices[0];
-        response.content = `Deploying with ${service} is a great choice! DEVONN.AI provides streamlined integration with ${service}. Would you like to see our ${service} deployment guide?`;
+        response.content = `Deploying with ${service} is a great choice! D3VONN.IO provides streamlined integration with ${service}. Would you like to see our ${service} deployment guide?`;
       } else {
-        response.content = "To deploy an AI system using DEVONN.AI, navigate to the Deployment Dashboard where you can connect to your Kubernetes cluster and follow our step-by-step deployment process. Would you like me to walk you through it?";
+        response.content = "To deploy an AI system using D3VONN.IO, navigate to the Deployment Dashboard where you can connect to your Kubernetes cluster and follow our step-by-step deployment process. Would you like me to walk you through it?";
       }
       
       if (isClusterConnected) {
@@ -147,7 +147,7 @@ export const generateResponse = (
       break;
 
     case 'status':
-      response.content = "Here's the current status of your DEVONN.AI system:\n\n";
+      response.content = "Here's the current status of your D3VONN.IO system:\n\n";
       
       // Add deployment status if available
       response.content += getDeploymentSummary() + "\n\n";
@@ -166,17 +166,17 @@ export const generateResponse = (
     case 'technical':
       if (mentionedServices.length > 0) {
         const services = mentionedServices.join(", ");
-        response.content = `I see you're interested in ${services}. DEVONN.AI provides robust support for ${services}. Would you like specific technical documentation or implementation guidance?`;
+        response.content = `I see you're interested in ${services}. D3VONN.IO provides robust support for ${services}. Would you like specific technical documentation or implementation guidance?`;
       } else if (mentionedPlatforms.length > 0) {
         const platforms = mentionedPlatforms.join(", ");
-        response.content = `DEVONN.AI can deploy to ${platforms} environments. Would you like information about our ${platforms} integration capabilities?`;
+        response.content = `D3VONN.IO can deploy to ${platforms} environments. Would you like information about our ${platforms} integration capabilities?`;
       } else {
-        response.content = "I understand you have a technical question. DEVONN.AI supports various technologies including Kubernetes, Istio, Kong, Prometheus, Grafana, Jaeger, and external API integrations. Could you provide more specific details about your question?";
+        response.content = "I understand you have a technical question. D3VONN.IO supports various technologies including Kubernetes, Istio, Kong, Prometheus, Grafana, Jaeger, and external API integrations. Could you provide more specific details about your question?";
       }
       break;
       
     case 'farewell':
-      response.content = "Thank you for using DEVONN.AI Assistant. If you need any further assistance with deployments or API integrations, feel free to ask. Have a great day!";
+      response.content = "Thank you for using D3VONN.IO Assistant. If you need any further assistance with deployments or API integrations, feel free to ask. Have a great day!";
       break;
       
     default:

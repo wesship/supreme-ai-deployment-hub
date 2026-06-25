@@ -116,7 +116,7 @@ export const createChatActions = ({
     const lowerMessage = userMessage.toLowerCase();
     
     if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return "Hello! I'm DEVONN.AI's assistant. How can I help you today?";
+      return "Hello! I'm D3VONN.IO's assistant. How can I help you today?";
     }
     
     if (lowerMessage.includes('deploy')) {
@@ -136,11 +136,11 @@ export const createChatActions = ({
     }
     
     if (lowerMessage.includes('help')) {
-      return "I can help you with deployments, API management, and general questions about DEVONN.AI. What specific area do you need assistance with?";
+      return "I can help you with deployments, API management, and general questions about D3VONN.IO. What specific area do you need assistance with?";
     }
     
     // Default response
-    return "I understand. Is there anything specific about DEVONN.AI that you'd like to know more about?";
+    return "I understand. Is there anything specific about D3VONN.IO that you'd like to know more about?";
   };
   
   // Provide feedback on a message

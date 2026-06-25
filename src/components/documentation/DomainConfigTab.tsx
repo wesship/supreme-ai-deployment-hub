@@ -12,7 +12,7 @@ const DomainConfigTab: React.FC = () => {
         <CardContent className="space-y-4">
           <h3 className="text-lg font-semibold">Production DNS Configuration</h3>
           <p>
-            <code>devonn.ai</code> has expired and is no longer controlled by the team. The active production domain is now <code>d3vonn.io</code>. The
+            <code>d3vonn.io</code> has expired and is no longer controlled by the team. The active production domain is now <code>d3vonn.io</code>. The
             production domain is <code>d3vonn.io</code>, hosted on Lovable with DNS managed at
             Hostinger.
           </p>
@@ -23,7 +23,7 @@ const DomainConfigTab: React.FC = () => {
               <li><code>A @ → 185.158.133.1</code> for the Lovable apex frontend.</li>
               <li><code>A www → 185.158.133.1</code> for the www alias.</li>
               <li><code>TXT _lovable → &lt;value shown in Lovable&gt;</code> for domain verification.</li>
-              <li><code>CNAME api → devonn-ai-api-production.up.railway.app</code> for the Railway API service, if retained.</li>
+              <li><code>CNAME api → d3vonn-io-api-production.up.railway.app</code> for the Railway API service, if retained.</li>
             </ul>
           </div>
 
@@ -35,7 +35,7 @@ const DomainConfigTab: React.FC = () => {
 A       @          185.158.133.1
 A       www        185.158.133.1
 TXT     _lovable   <value shown in Lovable>
-CNAME   api        devonn-ai-api-production.up.railway.app`}</code>
+CNAME   api        d3vonn-io-api-production.up.railway.app`}</code>
           </pre>
 
           <h3 className="text-lg font-semibold mt-4">Lovable Frontend Domains</h3>

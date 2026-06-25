@@ -119,7 +119,7 @@ const IntegrationPartners: React.FC = () => {
           centered
           animate 
           tag="Ecosystem"
-          subheading="DEVONN.AI integrates seamlessly with leading tools and platforms"
+          subheading="D3VONN.IO integrates seamlessly with leading tools and platforms"
         >
           Integration Partners
         </SectionHeading>

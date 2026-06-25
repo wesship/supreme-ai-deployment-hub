@@ -1,11 +1,9 @@
 
 export const navigationItems = [
-  { name: 'Home', path: '/' },
-  { name: 'Documentation', path: '/documentation' },
-  { name: 'Deployment', path: '/deployment' },
-  { name: 'Workflows', path: '/workflows' },
-  { name: 'Command Center', path: '/command-center' },
-  { name: 'API', path: '/api' },
-  { name: 'Status', path: '/status' },
+  { name: 'Platform', path: '/platform' },
+  { name: 'Solutions', path: '/solutions' },
+  { name: 'Agents', path: '/agents' },
+  { name: 'Resources', path: '/resources' },
+  { name: 'Pricing', path: '/pricing' },
   { name: 'About', path: '/about' },
 ];
