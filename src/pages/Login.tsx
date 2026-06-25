@@ -31,24 +31,27 @@ const Login = () => {
     setGoogleLoading(true);
     setGoogleError(null);
 
-    const origin = window.location.origin;
-    const redirectTo = `${origin}${redirect}`;
+    try {
+      const result = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
+      });
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
-      },
-    });
-
-    if (error) {
-      setGoogleError(error.message ?? 'Google sign-in failed');
+      if (result.error) {
+        setGoogleError(result.error.message ?? 'Google sign-in failed');
+        setGoogleLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      navigate(redirect);
+    } catch (err) {
+      setGoogleError(err instanceof Error ? err.message : 'Google sign-in failed');
       setGoogleLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate('/');
   };
 
   return (
