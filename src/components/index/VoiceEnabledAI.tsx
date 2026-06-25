@@ -132,7 +132,7 @@ const VoiceEnabledAI: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-3xl font-bold mt-2"
             >
-              Control DEVONN.AI with Your Voice
+              Control D3VONN.IO with Your Voice
             </motion.h2>
             
             <motion.p
@@ -181,12 +181,15 @@ const VoiceEnabledAI: React.FC = () => {
                           }}
                           className="absolute inset-0 bg-primary/20 rounded-full"
                         />
-                        <div 
-                          className="relative z-10 bg-primary text-primary-foreground rounded-full w-24 h-24 flex items-center justify-center cursor-pointer"
+                        <button
+                          type="button"
+                          aria-label={isListening ? "Stop listening" : "Start listening"}
+                          aria-pressed={isListening}
                           onClick={toggleListening}
+                          className="relative z-10 bg-primary text-primary-foreground rounded-full w-24 h-24 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                         >
                           <Mic className="h-10 w-10" />
-                        </div>
+                        </button>
                       </div>
                     </motion.div>
                   ) : (
@@ -197,12 +200,15 @@ const VoiceEnabledAI: React.FC = () => {
                       exit={{ scale: 0.8, opacity: 0 }}
                       className="absolute inset-0 flex items-center justify-center"
                     >
-                      <div 
-                        className="bg-secondary text-secondary-foreground rounded-full w-24 h-24 flex items-center justify-center cursor-pointer hover:bg-secondary/90 transition-colors"
+                      <button
+                        type="button"
+                        aria-label={isListening ? "Stop listening" : "Start listening"}
+                        aria-pressed={isListening}
                         onClick={toggleListening}
+                        className="bg-secondary text-secondary-foreground rounded-full w-24 h-24 flex items-center justify-center hover:bg-secondary/90 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                       >
                         <MicOff className="h-10 w-10" />
-                      </div>
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -281,7 +287,7 @@ const VoiceEnabledAI: React.FC = () => {
                       <span>AI is speaking...</span>
                     </div>
                   ) : supportStatus.voiceOutput ? (
-                    <div className="flex items-center gap-2 text-sm text-green-500">
+                    <div className="flex items-center gap-2 text-sm text-primary">
                       <Check className="h-4 w-4" />
                       <span>Voice output ready</span>
                     </div>
