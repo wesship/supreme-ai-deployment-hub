@@ -60,7 +60,7 @@ export function OperatorSessionGate({ children }: { children: ReactNode }) {
         }}
       >
         <div className="operator-label">Secure Operator Access</div>
-        <div className="operator-value operator-cyan">DEVONN.AI</div>
+        <div className="operator-value operator-cyan">D3VONN.IO</div>
 
         <p style={{ color: 'var(--operator-muted)', lineHeight: 1.7 }}>
           Enter the Operator API token for this browser session. The token is kept in
