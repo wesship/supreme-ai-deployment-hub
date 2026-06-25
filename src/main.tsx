@@ -3,14 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import App from './App.tsx';
 import './index.css';
-import { initSentry } from './lib/sentry';
-
-// Initialize Sentry error tracking before rendering
-try {
-  initSentry();
-} catch (err) {
-  console.error("Sentry initialization failed:", err);
-}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -19,6 +11,7 @@ if (!rootElement) {
   );
 }
 
+// Render immediately — don't block on Sentry
 createRoot(rootElement).render(
   <StrictMode>
     <HelmetProvider>
@@ -26,3 +19,18 @@ createRoot(rootElement).render(
     </HelmetProvider>
   </StrictMode>
 );
+
+// Initialize Sentry AFTER first paint (non-blocking)
+if ('requestIdleCallback' in window) {
+  (window as any).requestIdleCallback(() => {
+    import('./lib/sentry').then(({ initSentry }) => {
+      try { initSentry(); } catch (err) { console.error("Sentry init failed:", err); }
+    });
+  });
+} else {
+  setTimeout(() => {
+    import('./lib/sentry').then(({ initSentry }) => {
+      try { initSentry(); } catch (err) { console.error("Sentry init failed:", err); }
+    });
+  }, 2000);
+}

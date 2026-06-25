@@ -10,9 +10,11 @@
     <meta name="theme-color" content="#070A0F" />
     <meta name="google-site-verification" content="f_84nCXZ8sRJUtWoozt2hAMsSO9WoOerAWXWEGqld4U" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-
-    
-    
+    <!-- Performance: preconnect to critical origins -->
+    <link rel="preconnect" href="https://cdn.gpteng.co" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.gpteng.co" />
+    <link rel="preconnect" href="https://api.d3vonn.io" crossorigin />
+    <link rel="dns-prefetch" href="https://api.d3vonn.io" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="D3VONN.IO — AI Business Operating System" />
@@ -107,7 +109,7 @@
   <body>
     <div id="root"></div>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module" async></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

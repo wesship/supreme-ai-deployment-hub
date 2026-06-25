@@ -171,6 +171,10 @@ export default {
           from: { transform: "translateY(-10px)", opacity: "0" },
           to: { transform: "translateY(0)", opacity: "1" },
         },
+        "fadeInUp": {
+          from: { opacity: "0", transform: "translateY(18px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -180,6 +184,7 @@ export default {
         "scale-in": "scale-in 200ms cubic-bezier(0.2, 0.0, 0.0, 1.0)",
         "slide-up": "slide-up 0.6s ease-out",
         "slide-down": "slide-down 0.6s ease-out",
+        "[fadeInUp_0.6s_ease-out_both]": "fadeInUp 0.6s ease-out both",
       },
       backdropBlur: {
         xs: "2px",

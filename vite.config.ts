@@ -37,30 +37,50 @@ export default defineConfig(({ mode }) => ({
   // Add support for importing .tf files as raw text
   assetsInclude: ['**/*.tf'],
   build: {
+    // Target modern browsers for smaller output
+    target: 'es2020',
+    // Enable CSS code splitting
+    cssCodeSplit: true,
     // Split vendor chunks to reduce the main bundle size
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React runtime
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // UI component library
-          'vendor-ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-accordion',
-          ],
-          // Data fetching and state
-          'vendor-query': ['@tanstack/react-query'],
-          // Supabase client
-          'vendor-supabase': ['@supabase/supabase-js'],
-          // Monitoring
-          'vendor-sentry': ['@sentry/react'],
-          // Utilities
-          'vendor-utils': ['date-fns', 'clsx', 'class-variance-authority', 'tailwind-merge'],
+        manualChunks(id) {
+          // Core React runtime — always needed on first paint
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('react-router-dom')) {
+            return 'vendor-react';
+          }
+          // Framer Motion — heavy animation library, loaded async
+          if (id.includes('framer-motion')) {
+            return 'vendor-motion';
+          }
+          // Radix UI components
+          if (id.includes('@radix-ui')) {
+            return 'vendor-ui';
+          }
+          // Supabase — only needed for auth/data operations
+          if (id.includes('@supabase')) {
+            return 'vendor-supabase';
+          }
+          // Sentry — monitoring, not critical path
+          if (id.includes('@sentry')) {
+            return 'vendor-sentry';
+          }
+          // Tanstack Query
+          if (id.includes('@tanstack')) {
+            return 'vendor-query';
+          }
+          // Recharts + D3 — only used in dashboard pages
+          if (id.includes('recharts') || id.includes('d3-')) {
+            return 'vendor-charts';
+          }
+          // Lucide icons — tree-shakeable but still significant
+          if (id.includes('lucide-react')) {
+            return 'vendor-icons';
+          }
+          // Utility libraries
+          if (id.includes('date-fns') || id.includes('clsx') || id.includes('class-variance-authority') || id.includes('tailwind-merge')) {
+            return 'vendor-utils';
+          }
         },
       },
     },

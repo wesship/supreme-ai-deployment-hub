@@ -21,7 +21,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <NavButton variant="ghost" size="icon">
+        <NavButton variant="ghost" size="icon" aria-label="Open navigation menu">
           <span className="sr-only">Open menu</span>
           <svg
             width="24"

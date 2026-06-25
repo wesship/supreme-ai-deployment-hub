@@ -1,26 +1,48 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { FloatingChatWidget } from "./components/ai/FloatingChatWidget";
 import "./App.css";
-import Navbar from "./components/Navbar";
 import ScrollToTop from "./components/ScrollToTop";
-import RouteTransition from "./components/RouteTransition";
 import SkipToContent from "./components/SkipToContent";
-import { Toaster } from "./components/ui/sonner";
-import { ChatProvider } from "./contexts/ChatContext";
 import { ThemeProvider } from 'next-themes';
-import { DeploymentProvider } from "./contexts/DeploymentContext";
-import { APIProvider } from "./contexts/APIContext";
-import { AGUIProvider } from "./contexts/agui/AGUIContext";
-import { Analytics } from "@vercel/analytics/react";
 
 // Critical path — loaded eagerly (needed on first paint)
 import Index from "./pages/Index";
-import AdminRoute from "./components/auth/AdminRoute";
-import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
+// Lazy-load the floating chat widget (heavy: imports supabase, AI orchestrator, voice)
+const FloatingChatWidget = lazy(() =>
+  import("./components/ai/FloatingChatWidget").then(m => ({ default: m.FloatingChatWidget }))
+);
+
+// Lazy-load the Navbar (it imports supabase for auth state)
+const Navbar = lazy(() => import("./components/Navbar"));
+
+// Lazy-load context providers — they pull in axios, supabase, encryption, etc.
+const ChatProvider = lazy(() =>
+  import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider }))
+);
+const DeploymentProvider = lazy(() =>
+  import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider }))
+);
+const APIProvider = lazy(() =>
+  import("./contexts/APIContext").then(m => ({ default: m.APIProvider }))
+);
+const AGUIProvider = lazy(() =>
+  import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider }))
+);
+
+// Lazy-load non-critical UI
+const Toaster = lazy(() =>
+  import("./components/ui/sonner").then(m => ({ default: m.Toaster }))
+);
+
+// Lazy-load Vercel Analytics (non-critical)
+const Analytics = lazy(() =>
+  import("@vercel/analytics/react").then(m => ({ default: m.Analytics }))
+);
+
 // All other pages are lazy-loaded to reduce the initial bundle
+const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FilmPage = lazy(() => import("./pages/Film"));
 const WorkflowManagement = lazy(() => import("./pages/WorkflowManagement"));
@@ -44,7 +66,6 @@ const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
 const ChatPage = lazy(() => import("./pages/Chat"));
 const AdminPage = lazy(() => import("./pages/Admin"));
-const OperatorCommandCenter = lazy(() => import("./pages/OperatorCommandCenter"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 const MoneyHub = lazy(() => import("./pages/MoneyHub"));
 const AITherapy = lazy(() => import("./pages/AITherapy"));
@@ -56,90 +77,129 @@ const LaunchApp = lazy(() => import("./pages/LaunchApp"));
 const AIAgents = lazy(() => import("./pages/AIAgents"));
 const BusinessAutomation = lazy(() => import("./pages/BusinessAutomation"));
 
+// Wrapper for AdminRoute since lazy components can't directly accept children as JSX
+const AdminRouteWrapper = lazy(() =>
+  import("./components/auth/AdminRoute").then(mod => {
+    const AdminRoute = mod.default;
+    return import("./pages/OperatorCommandCenter").then(occMod => ({
+      default: () => <AdminRoute><occMod.default /></AdminRoute>
+    }));
+  })
+);
+
 const PageLoader = () => (
   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
     <span style={{ color: "#888", fontSize: "14px" }}>Loading...</span>
   </div>
 );
 
-function App() {
+/**
+ * DeferredProviders — wraps children in context providers but only mounts them
+ * after the initial paint (via idle callback) to avoid blocking FCP/LCP.
+ */
+function DeferredProviders({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    // Use requestIdleCallback if available, otherwise setTimeout
+    const id = ('requestIdleCallback' in window)
+      ? (window as any).requestIdleCallback(() => setReady(true))
+      : setTimeout(() => setReady(true), 50);
+    return () => {
+      if ('cancelIdleCallback' in window) {
+        (window as any).cancelIdleCallback(id);
+      } else {
+        clearTimeout(id);
+      }
+    };
+  }, []);
+
+  if (!ready) return <>{children}</>;
+
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <Suspense fallback={<>{children}</>}>
       <DeploymentProvider>
         <APIProvider>
           <ChatProvider>
             <AGUIProvider>
-              <Router>
-                <ScrollToTop />
-                <SkipToContent />
-                <Navbar />
-                <main id="main-content" tabIndex={-1} className="min-h-screen pt-16 focus:outline-none">
-                  <Suspense fallback={<PageLoader />}>
-                    <RouteTransition>
-                      <Routes>
-                        <Route path="/" element={<Index />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/film" element={<FilmPage />} />
-                        <Route path="/deployment" element={<DeploymentDashboard />} />
-                        <Route path="/api" element={<APIManagement />} />
-                        <Route path="/documentation" element={<Documentation />} />
-                        <Route path="/agents" element={<AgentDashboard />} />
-                        <Route path="/devonn" element={<DevonnDashboard />} />
-                        <Route path="/flow" element={<FlowEditor />} />
-                        <Route path="/workflows" element={<WorkflowManagement />} />
-                        <Route path="/agent-demo" element={<AgentDemo />} />
-                        <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
-                        <Route path="/marketplace" element={<AgentMarketplace />} />
-                        <Route path="/mcp" element={<McpPage />} />
-                        <Route path="/status" element={<StatusDashboard />} />
-                        <Route path="/manifest" element={<ManifestPage />} />
-                        <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
-                        <Route path="/command-center" element={<CommandCenter />} />
-                        <Route path="/about" element={<About />} />
-                        <Route path="/contact" element={<Contact />} />
-                        <Route path="/terms" element={<Terms />} />
-                        <Route path="/privacy" element={<Privacy />} />
-                        <Route path="/privacy-policy" element={<Privacy />} />
-                        <Route path="/chat" element={<ChatPage />} />
-                        <Route path="/admin" element={<AdminPage />} />
-                        <Route
-                          path="/occ"
-                          element={
-                            <AdminRoute>
-                              <OperatorCommandCenter />
-                            </AdminRoute>
-                          }
-                        />
-                        <Route path="/unauthorized" element={<Unauthorized />} />
-                        <Route path="/moneyhub" element={<MoneyHub />} />
-                        <Route path="/ai-therapy" element={<AITherapy />} />
-                        <Route path="/therapy" element={<AITherapy />} />
-                        <Route path="/sovereignty" element={<SovereigntyMatrix />} />
-                        <Route path="/sovereignty-matrix" element={<SovereigntyMatrix />} />
-                        <Route path="/music" element={<Music />} />
-                        <Route path="/backtesting" element={<Backtesting />} />
-                        <Route path="/jetson" element={<JetsonControl />} />
-                        <Route path="/jetson-control" element={<JetsonControl />} />
-                        <Route path="/app" element={<LaunchApp />} />
-                        <Route path="/ai-agents" element={<AIAgents />} />
-                        <Route path="/business-automation" element={<BusinessAutomation />} />
-                        <Route path="/platform" element={<Navigate to="/#platform" replace />} />
-                        <Route path="/signin" element={<Navigate to="/login" replace />} />
-                        <Route path="/signup" element={<Navigate to="/login" replace />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </RouteTransition>
-                  </Suspense>
-                </main>
-                <FloatingChatWidget />
-              </Router>
-              <Toaster />
-              <Analytics />
+              {children}
             </AGUIProvider>
           </ChatProvider>
         </APIProvider>
       </DeploymentProvider>
+    </Suspense>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <Router>
+        <ScrollToTop />
+        <SkipToContent />
+        <Suspense fallback={null}>
+          <Navbar />
+        </Suspense>
+        <DeferredProviders>
+          <main id="main-content" tabIndex={-1} className="min-h-screen pt-16 focus:outline-none">
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/film" element={<FilmPage />} />
+                <Route path="/deployment" element={<DeploymentDashboard />} />
+                <Route path="/api" element={<APIManagement />} />
+                <Route path="/documentation" element={<Documentation />} />
+                <Route path="/agents" element={<AgentDashboard />} />
+                <Route path="/devonn" element={<DevonnDashboard />} />
+                <Route path="/flow" element={<FlowEditor />} />
+                <Route path="/workflows" element={<WorkflowManagement />} />
+                <Route path="/agent-demo" element={<AgentDemo />} />
+                <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
+                <Route path="/marketplace" element={<AgentMarketplace />} />
+                <Route path="/mcp" element={<McpPage />} />
+                <Route path="/status" element={<StatusDashboard />} />
+                <Route path="/manifest" element={<ManifestPage />} />
+                <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
+                <Route path="/command-center" element={<CommandCenter />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/privacy-policy" element={<Privacy />} />
+                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/occ" element={<AdminRouteWrapper />} />
+                <Route path="/unauthorized" element={<Unauthorized />} />
+                <Route path="/moneyhub" element={<MoneyHub />} />
+                <Route path="/ai-therapy" element={<AITherapy />} />
+                <Route path="/therapy" element={<AITherapy />} />
+                <Route path="/sovereignty" element={<SovereigntyMatrix />} />
+                <Route path="/sovereignty-matrix" element={<SovereigntyMatrix />} />
+                <Route path="/music" element={<Music />} />
+                <Route path="/backtesting" element={<Backtesting />} />
+                <Route path="/jetson" element={<JetsonControl />} />
+                <Route path="/jetson-control" element={<JetsonControl />} />
+                <Route path="/app" element={<LaunchApp />} />
+                <Route path="/ai-agents" element={<AIAgents />} />
+                <Route path="/business-automation" element={<BusinessAutomation />} />
+                <Route path="/platform" element={<Navigate to="/#platform" replace />} />
+                <Route path="/signin" element={<Navigate to="/login" replace />} />
+                <Route path="/signup" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </main>
+          <Suspense fallback={null}>
+            <FloatingChatWidget />
+          </Suspense>
+        </DeferredProviders>
+        <Suspense fallback={null}>
+          <Toaster />
+          <Analytics />
+        </Suspense>
+      </Router>
     </ThemeProvider>
   );
 }
