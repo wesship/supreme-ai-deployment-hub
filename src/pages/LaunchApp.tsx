@@ -343,6 +343,7 @@ const LaunchApp: React.FC = () => {
         </div>
       </div>
     </motion.div>
+    </AppShell>
   );
 };
 
