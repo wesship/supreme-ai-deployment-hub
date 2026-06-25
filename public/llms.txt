@@ -1,0 +1,26 @@
+# D3VONN.IO
+
+> Orchestrate your AI workforce, automate every workflow, and command your business operating system from one dashboard.
+
+D3VONN.IO is an AI business operating system that helps entrepreneurs, agencies, and operators deploy autonomous AI agents, automate complex workflows, and manage their digital infrastructure from a single command dashboard.
+
+## Pages
+
+- [Home](/): AI Business Operating System — orchestrate agents, workflows, and infrastructure.
+- [AI Agents](/ai-agents): Hire AI agents that research, code, deploy, monitor, and analyze for you.
+- [Business Automation](/business-automation): Automate repetitive processes and connect tools with D3VONN workflows.
+- [Agent Marketplace](/marketplace): Browse and deploy pre-built AI agent templates.
+- [Command Center](/command-center): Central hub for monitoring agents, deployments, and system status.
+- [Workflows](/workflows): Build, run, and manage automation workflows.
+- [Agents](/agents): Manage your active AI agents and their tasks.
+- [MCP Tools](/mcp): Model Context Protocol integrations and tool connectors.
+- [Film](/film): D3VONN media and visual showcase.
+- [Documentation](/documentation): Guides, features, and API documentation.
+- [About](/about): About the D3VONN.IO platform and mission.
+- [Contact](/contact): Get in touch with the D3VONN team.
+- [Terms](/terms): Terms of service.
+- [Privacy](/privacy): Privacy policy.
+
+## Optional
+
+- [Status](/status): Live system health and status monitoring.
