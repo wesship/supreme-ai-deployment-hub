@@ -11,3 +11,10 @@ allowBuilds:
   protobufjs: true
   puppeteer: false
   sharp: true
+overrides:
+  form-data: '>=4.0.6'
+  protobufjs: '>=7.6.3'
+  tar: '>=7.5.16'
+  qs: '>=6.15.2'
+  '@babel/core': '>=7.29.6'
+  typed-rest-client>qs: '>=6.15.2'
