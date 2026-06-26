@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AgentTemplate, MarketplaceFilters as FilterType, AgentDeploymentConfig } from '@/types/marketplace';
 import { mockAgentTemplates } from '@/data/mockAgentTemplates';
+import { videoProductionAgentTemplates } from '@/data/videoIntelligenceLayer';
 import { brandForgeAgentTemplates } from '@/data/brandForgeLayer';
 import MarketplaceHeader from '@/components/marketplace/MarketplaceHeader';
 import MarketplaceFilters from '@/components/marketplace/MarketplaceFilters';
@@ -13,6 +14,7 @@ import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const marketplaceAgents: AgentTemplate[] = [
   ...brandForgeAgentTemplates,
+  ...videoProductionAgentTemplates,
   ...mockAgentTemplates,
 ];
 
