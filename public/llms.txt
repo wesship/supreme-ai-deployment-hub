@@ -1,26 +1,37 @@
 # D3VONN.IO
 
-> Orchestrate your AI workforce, automate every workflow, and command your business operating system from one dashboard.
+D3VONN.IO is an AI Business Operating System for supervised agent execution, workflow automation, persistent knowledge, and command-center visibility.
 
-D3VONN.IO is an AI business operating system that helps entrepreneurs, agencies, and operators deploy autonomous AI agents, automate complex workflows, and manage their digital infrastructure from a single command dashboard.
+## Core pages
 
-## Pages
+- Homepage: https://d3vonn.io/
+- Solutions: https://d3vonn.io/solutions
+- Pricing: https://d3vonn.io/pricing
+- Security & Trust: https://d3vonn.io/security
+- Resources: https://d3vonn.io/resources
+- Documentation: https://d3vonn.io/documentation
+- Marketplace: https://d3vonn.io/marketplace
+- Command Center: https://d3vonn.io/command-center
+- Status: https://d3vonn.io/status
 
-- [Home](/): AI Business Operating System — orchestrate agents, workflows, and infrastructure.
-- [AI Agents](/ai-agents): Hire AI agents that research, code, deploy, monitor, and analyze for you.
-- [Business Automation](/business-automation): Automate repetitive processes and connect tools with D3VONN workflows.
-- [Agent Marketplace](/marketplace): Browse and deploy pre-built AI agent templates.
-- [Command Center](/command-center): Central hub for monitoring agents, deployments, and system status.
-- [Workflows](/workflows): Build, run, and manage automation workflows.
-- [Agents](/agents): Manage your active AI agents and their tasks.
-- [MCP Tools](/mcp): Model Context Protocol integrations and tool connectors.
-- [Film](/film): D3VONN media and visual showcase.
-- [Documentation](/documentation): Guides, features, and API documentation.
-- [About](/about): About the D3VONN.IO platform and mission.
-- [Contact](/contact): Get in touch with the D3VONN team.
-- [Terms](/terms): Terms of service.
-- [Privacy](/privacy): Privacy policy.
+## Product summary
 
-## Optional
+D3VONN.IO helps users turn business goals into AI-assisted execution. Hermes acts as the orchestration layer, specialized agents perform work, workflows provide repeatable execution, the knowledge vault stores context, and the Command Center gives visibility into task state, approvals, and operational telemetry.
 
-- [Status](/status): Live system health and status monitoring.
+## Target users
+
+- Founders and operators building AI-powered businesses
+- Teams automating repeatable workflows
+- Enterprise buyers evaluating governed AI workforce systems
+- Developers and partners packaging specialized agents
+
+## Key concepts
+
+- AI Business Operating System
+- Hermes orchestration
+- Multi-agent workforce
+- Supervised autonomy
+- Workflow automation
+- RAG knowledge vault
+- Command-center observability
+- Security-first enterprise roadmap
