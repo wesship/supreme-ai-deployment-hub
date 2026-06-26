@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AgentTemplate, MarketplaceFilters as FilterType, AgentDeploymentConfig } from '@/types/marketplace';
 import { mockAgentTemplates } from '@/data/mockAgentTemplates';
+import { brandForgeAgentTemplates } from '@/data/brandForgeLayer';
 import MarketplaceHeader from '@/components/marketplace/MarketplaceHeader';
 import MarketplaceFilters from '@/components/marketplace/MarketplaceFilters';
 import FeaturedAgents from '@/components/marketplace/FeaturedAgents';
@@ -9,6 +10,11 @@ import AgentDetailModal from '@/components/marketplace/AgentDetailModal';
 import DeployAgentModal from '@/components/marketplace/DeployAgentModal';
 import { toast } from '@/hooks/use-toast';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
+
+const marketplaceAgents: AgentTemplate[] = [
+  ...brandForgeAgentTemplates,
+  ...mockAgentTemplates,
+];
 
 const AgentMarketplace: React.FC = () => {
   const [filters, setFilters] = useState<FilterType>({ sortBy: 'popular' });
@@ -19,7 +25,7 @@ const AgentMarketplace: React.FC = () => {
 
   // Filter and sort agents
   const filteredAgents = useMemo(() => {
-    let result = [...mockAgentTemplates];
+    let result = [...marketplaceAgents];
 
     // Apply category filter
     if (filters.category) {
@@ -68,7 +74,7 @@ const AgentMarketplace: React.FC = () => {
     return result;
   }, [filters]);
 
-  const featuredAgents = mockAgentTemplates.filter(a => a.featured);
+  const featuredAgents = marketplaceAgents.filter(a => a.featured);
 
   const handleViewAgent = (agent: AgentTemplate) => {
     setSelectedAgent(agent);
@@ -100,7 +106,7 @@ const AgentMarketplace: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <MarketplaceHeader
-          totalAgents={mockAgentTemplates.length}
+          totalAgents={marketplaceAgents.length}
           featuredCount={featuredAgents.length}
           onPublishClick={handlePublishClick}
         />
