@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { AgentTemplate, MarketplaceFilters as FilterType, AgentDeploymentConfig } from '@/types/marketplace';
 import { mockAgentTemplates } from '@/data/mockAgentTemplates';
 import { videoProductionAgentTemplates } from '@/data/videoIntelligenceLayer';
+import { brandForgeAgentTemplates } from '@/data/brandForgeLayer';
 import MarketplaceHeader from '@/components/marketplace/MarketplaceHeader';
 import MarketplaceFilters from '@/components/marketplace/MarketplaceFilters';
 import FeaturedAgents from '@/components/marketplace/FeaturedAgents';
@@ -12,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const marketplaceAgents: AgentTemplate[] = [
+  ...brandForgeAgentTemplates,
   ...videoProductionAgentTemplates,
   ...mockAgentTemplates,
 ];
@@ -23,21 +25,17 @@ const AgentMarketplace: React.FC = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
 
-  // Filter and sort agents
   const filteredAgents = useMemo(() => {
     let result = [...marketplaceAgents];
 
-    // Apply category filter
     if (filters.category) {
       result = result.filter(a => a.category === filters.category);
     }
 
-    // Apply pricing filter
     if (filters.pricing) {
       result = result.filter(a => a.pricing.model === filters.pricing);
     }
 
-    // Apply search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       result = result.filter(a => 
@@ -47,12 +45,10 @@ const AgentMarketplace: React.FC = () => {
       );
     }
 
-    // Apply rating filter
     if (filters.minRating) {
       result = result.filter(a => a.stats.avgRating >= filters.minRating!);
     }
 
-    // Apply sorting
     switch (filters.sortBy) {
       case 'popular':
         result.sort((a, b) => b.stats.activeInstalls - a.stats.activeInstalls);
@@ -88,7 +84,6 @@ const AgentMarketplace: React.FC = () => {
   };
 
   const handleDeployComplete = (agent: AgentTemplate, config: AgentDeploymentConfig) => {
-    // Here you would save to database and trigger actual deployment
     console.log('Deployed:', agent.name, config);
     setShowDeployModal(false);
   };
@@ -104,34 +99,29 @@ const AgentMarketplace: React.FC = () => {
     <div className="min-h-screen bg-background">
       <D3vonnPageBanner title="Agent Marketplace" />
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
         <MarketplaceHeader
           totalAgents={marketplaceAgents.length}
           featuredCount={featuredAgents.length}
           onPublishClick={handlePublishClick}
         />
 
-        {/* Featured Section */}
         <FeaturedAgents
           agents={featuredAgents}
           onView={handleViewAgent}
           onDeploy={handleDeployAgent}
         />
 
-        {/* Filters */}
         <MarketplaceFilters
           filters={filters}
           onFiltersChange={setFilters}
         />
 
-        {/* Results Count */}
         <div className="flex items-center justify-between my-6">
           <p className="text-sm text-muted-foreground">
             Showing <strong>{filteredAgents.length}</strong> agents
           </p>
         </div>
 
-        {/* Agent Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredAgents.map((agent) => (
             <AgentCard
@@ -143,7 +133,6 @@ const AgentMarketplace: React.FC = () => {
           ))}
         </div>
 
-        {/* Empty State */}
         {filteredAgents.length === 0 && (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">🔍</div>
@@ -154,7 +143,6 @@ const AgentMarketplace: React.FC = () => {
           </div>
         )}
 
-        {/* Modals */}
         <AgentDetailModal
           agent={selectedAgent}
           open={showDetailModal}
