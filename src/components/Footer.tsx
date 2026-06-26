@@ -17,39 +17,40 @@ const Footer = ({ className }: FooterProps) => {
               <span className="text-lg font-bold text-white tracking-wide">D3VONN.IO</span>
             </Link>
             <p className="mt-4 text-sm text-white/70 max-w-md">
-              The World's First AI Business Operating System. Orchestrate your AI workforce, 
-              automate everything, and scale without limits.
+              AI Business Operating System for supervised agent execution, workflow automation, knowledge, and command-center visibility.
             </p>
             <p className="mt-2 text-xs text-white/40 italic">
               You're here at an opportune time so Live
             </p>
             
             <div className="mt-6 flex space-x-4">
-              <a 
-                href="#" 
+              <Link 
+                to="/resources" 
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-blue-500/10 text-white/70 hover:text-blue-400 transition-colors border border-white/10 hover:border-blue-500/30"
-                aria-label="Database"
+                aria-label="Resources"
               >
                 <Database className="w-4 h-4" />
-              </a>
-              <a 
-                href="#" 
+              </Link>
+              <Link 
+                to="/solutions" 
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-blue-500/10 text-white/70 hover:text-blue-400 transition-colors border border-white/10 hover:border-blue-500/30"
-                aria-label="Network"
+                aria-label="Solutions"
               >
                 <Network className="w-4 h-4" />
-              </a>
-              <a 
-                href="#" 
+              </Link>
+              <Link 
+                to="/agents" 
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-blue-500/10 text-white/70 hover:text-blue-400 transition-colors border border-white/10 hover:border-blue-500/30"
-                aria-label="AI Intelligence"
+                aria-label="AI agents"
               >
                 <BrainCircuit className="w-4 h-4" />
-              </a>
+              </Link>
               <a 
-                href="#" 
+                href="https://github.com/wesship/supreme-ai-deployment-hub" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-blue-500/10 text-white/70 hover:text-blue-400 transition-colors border border-white/10 hover:border-blue-500/30"
-                aria-label="Source Code"
+                aria-label="Source code"
               >
                 <Code className="w-4 h-4" />
               </a>
@@ -63,18 +64,23 @@ const Footer = ({ className }: FooterProps) => {
             </h3>
             <ul className="space-y-2">
               <li>
+                <Link to="/resources" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
+                  Resource Hub
+                </Link>
+              </li>
+              <li>
                 <Link to="/documentation" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
                   Documentation
                 </Link>
               </li>
               <li>
-                <Link to="/platform" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
-                  Platform
+                <Link to="/security" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
+                  Security & Trust
                 </Link>
               </li>
               <li>
-                <Link to="/api" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
-                  API Reference
+                <Link to="/status" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
+                  Status
                 </Link>
               </li>
               <li>
@@ -87,10 +93,30 @@ const Footer = ({ className }: FooterProps) => {
           
           <div>
             <h3 className="text-sm font-semibold text-white mb-3 relative inline-block">
-              Company
+              Platform
               <span className="absolute -bottom-1 left-0 w-1/2 h-0.5 bg-blue-500/50"></span>
             </h3>
             <ul className="space-y-2">
+              <li>
+                <Link to="/solutions" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
+                  Solutions
+                </Link>
+              </li>
+              <li>
+                <Link to="/marketplace" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
+                  Marketplace
+                </Link>
+              </li>
+              <li>
+                <Link to="/agents" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
+                  Agents
+                </Link>
+              </li>
+              <li>
+                <Link to="/command-center" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
+                  Command Center
+                </Link>
+              </li>
               <li>
                 <Link to="/about" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
                   About
@@ -100,21 +126,6 @@ const Footer = ({ className }: FooterProps) => {
                 <Link to="/contact" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
                   Contact
                 </Link>
-              </li>
-              <li>
-                <Link to="/agents" className="text-sm text-white/70 hover:text-blue-400 transition-colors">
-                  Agents
-                </Link>
-              </li>
-              <li>
-                <a 
-                  href="https://github.com/wesship/supreme-ai-deployment-hub" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-white/70 hover:text-blue-400 transition-colors"
-                >
-                  GitHub
-                </a>
               </li>
             </ul>
           </div>
