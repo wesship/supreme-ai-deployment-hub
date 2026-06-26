@@ -247,6 +247,14 @@ try:
 except ImportError as _hermes_tasks_err:
     logger.warning("backend.hermes.router not found — skipping Hermes task engine. (%s)", _hermes_tasks_err)
 
+try:
+    from backend.knowledge.router import router as knowledge_router  # type: ignore
+
+    app.include_router(knowledge_router)
+    logger.info("DKOS Knowledge API router registered at /api/knowledge/*")
+except ImportError as _knowledge_err:
+    logger.warning("backend.knowledge.router not found — skipping DKOS Knowledge API. (%s)", _knowledge_err)
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------
