@@ -255,6 +255,14 @@ try:
 except ImportError as _knowledge_err:
     logger.warning("backend.knowledge.router not found — skipping DKOS Knowledge API. (%s)", _knowledge_err)
 
+try:
+    from backend.research_os.router import router as research_os_router  # type: ignore
+
+    app.include_router(research_os_router)
+    logger.info("Hermes Research OS router registered at /api/research/*")
+except ImportError as _research_os_err:
+    logger.warning("backend.research_os.router not found — skipping Research OS. (%s)", _research_os_err)
+
 # ---------------------------------------------------------------------------
 # Health & readiness endpoints
 # ---------------------------------------------------------------------------
