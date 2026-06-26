@@ -1,0 +1,6 @@
+Contact: mailto:security@d3vonn.io
+Preferred-Languages: en
+Canonical: https://d3vonn.io/.well-known/security.txt
+Policy: https://d3vonn.io/security
+Hiring: https://d3vonn.io/contact
+Expires: 2027-06-26T23:59:59Z
