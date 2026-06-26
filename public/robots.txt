@@ -1,11 +1,15 @@
 User-agent: *
 Allow: /
 
-# Private dashboard — keep out of the index
+# Private and authenticated surfaces — keep out of the index
 Disallow: /app
 Disallow: /admin
 Disallow: /occ
+Disallow: /dashboard
 Disallow: /login
+Disallow: /signin
+Disallow: /signup
 Disallow: /unauthorized
+Disallow: /github-diagnostic
 
 Sitemap: https://d3vonn.io/sitemap.xml
