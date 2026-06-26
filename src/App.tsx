@@ -80,6 +80,7 @@ const Solutions = lazy(() => import("./pages/Solutions"));
 const Resources = lazy(() => import("./pages/Resources"));
 const Security = lazy(() => import("./pages/Security"));
 const Pricing = lazy(() => import("./pages/Pricing"));
+const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
@@ -192,6 +193,7 @@ function App() {
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/security" element={<Security />} />
                 <Route path="/pricing" element={<Pricing />} />
+                <Route path="/research-os" element={<ResearchOS />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/signup" element={<Navigate to="/login" replace />} />
