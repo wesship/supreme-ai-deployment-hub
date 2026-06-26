@@ -1,7 +1,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { BookOpen, ShieldCheck, Activity, Network, Store, ArrowRight, FileText } from 'lucide-react';
+import { BookOpen, ShieldCheck, Activity, Network, Store, ArrowRight, FileText, Download } from 'lucide-react';
 
 const resources = [
   { icon: BookOpen, title: 'Documentation', body: 'Product docs, platform concepts, workflow setup, and implementation guidance.', href: '/documentation' },
@@ -51,6 +51,17 @@ const Resources: React.FC = () => {
               </span>
             </Link>
           ))}
+        </section>
+
+        <section className="mt-16 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-8 text-center">
+          <Download className="mx-auto h-10 w-10 text-blue-300" />
+          <h2 className="mt-4 text-3xl font-black">Pilot checklist</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-white/70">
+            Use the enterprise pilot checklist to turn D3VONN.IO into a measurable buyer conversation with one workflow, one outcome, and one repeatable demo.
+          </p>
+          <a href="/pilot-checklist.md" className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500">
+            Open checklist <ArrowRight className="h-4 w-4" />
+          </a>
         </section>
       </main>
     </div>
