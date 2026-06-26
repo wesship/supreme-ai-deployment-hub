@@ -25,9 +25,6 @@ try:
 except ModuleNotFoundError:  # Allows `cd backend && uvicorn main:app` local startup.
     from observability.wandb_weave import init_weave
 
-# ---------------------------------------------------------------------------
-# Sentry initialisation (must happen before app creation)
-# ---------------------------------------------------------------------------
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 if SENTRY_DSN:
     sentry_sdk.init(
@@ -38,10 +35,6 @@ if SENTRY_DSN:
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Lifespan — startup / shutdown hooks
-# ---------------------------------------------------------------------------
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -50,7 +43,6 @@ async def lifespan(app: FastAPI):
     if init_weave():
         logger.info("W&B Weave initialized successfully.")
 
-    # Import here to avoid circular imports at module load time
     try:
         from backend.db.pool import init_pool, close_pool  # type: ignore
 
@@ -70,10 +62,6 @@ async def lifespan(app: FastAPI):
         pass
 
 
-# ---------------------------------------------------------------------------
-# Application factory
-# ---------------------------------------------------------------------------
-
 app = FastAPI(
     title="Devonn.AI API",
     description=(
@@ -87,10 +75,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ---------------------------------------------------------------------------
-# CORS
-# ---------------------------------------------------------------------------
-
 ALLOWED_ORIGINS = [
     o.strip()
     for o in os.getenv(
@@ -100,8 +84,6 @@ ALLOWED_ORIGINS = [
     if o.strip()
 ]
 
-# Regex covers all Lovable preview/published URLs (id-preview--*, feature branches, etc.)
-# and all Vercel preview deploys, without requiring future code edits.
 ALLOWED_ORIGIN_REGEX = os.getenv(
     "ALLOWED_ORIGIN_REGEX",
     r"https://([a-z0-9-]+\.)*(lovable\.app|lovableproject\.com|vercel\.app)",
@@ -115,10 +97,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ---------------------------------------------------------------------------
-# Custom middleware (order matters — outermost first)
-# ---------------------------------------------------------------------------
 
 try:
     from backend.middleware.request_context import RequestContextMiddleware  # type: ignore
@@ -154,10 +132,6 @@ except ImportError:
 
 # ---------------------------------------------------------------------------
 # API Routers
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Proxy router — /api/chat, /api/rag/*, /api/tools/*
 # ---------------------------------------------------------------------------
 try:
     from backend.app.routers import proxy_router  # type: ignore
@@ -263,9 +237,13 @@ try:
 except ImportError as _research_os_err:
     logger.warning("backend.research_os.router not found — skipping Research OS. (%s)", _research_os_err)
 
-# ---------------------------------------------------------------------------
-# Health & readiness endpoints
-# ---------------------------------------------------------------------------
+try:
+    from backend.research_os.leads_router import router as research_os_leads_router  # type: ignore
+
+    app.include_router(research_os_leads_router)
+    logger.info("Hermes Research OS lead router registered at /api/leads/*")
+except ImportError as _research_os_leads_err:
+    logger.warning("backend.research_os.leads_router not found — skipping Research OS leads. (%s)", _research_os_leads_err)
 
 
 @app.get("/health", tags=["ops"])
@@ -289,8 +267,6 @@ async def health_deep():
     openai_configured = bool(os.getenv("OPENAI_API_KEY"))
     pinecone_configured = bool(os.getenv("PINECONE_API_KEY") and os.getenv("PINECONE_INDEX"))
 
-    # Proxy-vault readiness: check whether the vault file directory is writable
-    # and whether encryption is configured.  This never exposes key values.
     vault_secret_set = bool(os.getenv("API_KEY_VAULT_SECRET"))
     vault_dir = os.getenv("KEYS_FILE", ".devonn/api-vault/keys.json")
     vault_dir_writable: bool
@@ -321,18 +297,11 @@ async def health_deep():
     }
 
 
-# ---------------------------------------------------------------------------
-# Global exception handler
-# ---------------------------------------------------------------------------
-
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception: %s", exc)
 
-    # Fire-and-forget OCC error log (never blocks the response)
     try:
-        import traceback as _tb
         from backend.occ_operator.occ_logger import fire_log_error  # type: ignore
         from backend.middleware.request_context import get_request_id  # type: ignore
 
@@ -347,7 +316,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             metadata={"method": request.method, "url": str(request.url)},
         )
     except Exception:
-        pass  # OCC logging must never crash the error handler
+        pass
 
     return JSONResponse(
         status_code=500,
