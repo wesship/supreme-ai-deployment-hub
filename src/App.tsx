@@ -76,6 +76,10 @@ const JetsonControl = lazy(() => import("./pages/JetsonControl"));
 const LaunchApp = lazy(() => import("./pages/LaunchApp"));
 const AIAgents = lazy(() => import("./pages/AIAgents"));
 const BusinessAutomation = lazy(() => import("./pages/BusinessAutomation"));
+const Solutions = lazy(() => import("./pages/Solutions"));
+const Resources = lazy(() => import("./pages/Resources"));
+const Security = lazy(() => import("./pages/Security"));
+const Pricing = lazy(() => import("./pages/Pricing"));
 
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
@@ -184,6 +188,10 @@ function App() {
                 <Route path="/app" element={<LaunchApp />} />
                 <Route path="/ai-agents" element={<AIAgents />} />
                 <Route path="/business-automation" element={<BusinessAutomation />} />
+                <Route path="/solutions" element={<Solutions />} />
+                <Route path="/resources" element={<Resources />} />
+                <Route path="/security" element={<Security />} />
+                <Route path="/pricing" element={<Pricing />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/signup" element={<Navigate to="/login" replace />} />
