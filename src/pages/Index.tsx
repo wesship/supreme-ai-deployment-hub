@@ -6,7 +6,7 @@ import {
   ArrowRight, ArrowLeft, Bot, ShieldCheck, Network, Zap, Cpu, Database,
   Workflow, Lock, Activity, Globe, Layers, Rocket, Brain, KeySquare,
   Settings, Eye, BarChart3, Shield, Lightbulb, ChevronRight, Play,
-  Infinity, Key, Clock, Earth,
+  Key, Clock, Earth,
 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import Navbar from '@/components/Navbar';

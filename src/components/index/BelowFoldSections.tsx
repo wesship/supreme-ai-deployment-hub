@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, ArrowLeft, Bot, Brain, Workflow, Database,
-  Cpu, Lock, Activity, ChevronRight, Infinity, ShieldCheck,
+  Cpu, Lock, Activity, ChevronRight, ShieldCheck,
   Network, Server, KeyRound, FileCheck, MonitorCheck, GitBranch,
 } from 'lucide-react';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
