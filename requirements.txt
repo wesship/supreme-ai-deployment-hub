@@ -8,3 +8,4 @@ cryptography>=46.0.5
 python-multipart>=0.0.27
 python-dotenv>=1.0.0
 sse-starlette>=2.1.0
+agent-reach>=0.1.0
