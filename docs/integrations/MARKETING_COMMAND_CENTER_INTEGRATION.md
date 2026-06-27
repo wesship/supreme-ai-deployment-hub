@@ -9,6 +9,7 @@
 - Marketing domain types
 - Supabase schema for campaigns, assets, reviews, and metrics
 - FastAPI router stubs for Hermes-facing marketing operations
+- Backend router registration under `/api/marketing/*`
 - Marketing knowledge base and agent operating docs
 
 ## Frontend Route
@@ -19,6 +20,8 @@ The command center is available at:
 /marketing
 ```
 
+The route is lazy-loaded through `src/App.tsx` and linked from `src/components/navigation/navigationItems.ts`.
+
 ## Backend Router Wiring
 
 The router stub lives at:
@@ -27,12 +30,22 @@ The router stub lives at:
 backend/app/routers/marketing.py
 ```
 
-To activate it, include it in the backend app registration layer where other routers are mounted:
+It is registered defensively in:
 
-```python
-from backend.app.routers import marketing
+```txt
+backend/app/routers/__init__.py
+```
 
-app.include_router(marketing.router)
+Mounted endpoints:
+
+```txt
+POST /api/marketing/generate
+POST /api/marketing/rewrite
+POST /api/marketing/brand-check
+POST /api/marketing/claim-check
+POST /api/marketing/approve
+POST /api/marketing/prepare
+POST /api/marketing/analyze
 ```
 
 ## Hermes Wiring Targets
@@ -70,12 +83,12 @@ Tables:
 - Campaigns/assets are owner-scoped to `auth.uid()`.
 - Public channel movement remains human-approved.
 - Claim-sensitive content must pass claim review.
+- External posting/sending is intentionally not implemented in this PR.
 
 ## Next Implementation Steps
 
-1. Register `backend/app/routers/marketing.py` in the active FastAPI app.
-2. Replace deterministic endpoint stubs with Hermes agent calls.
-3. Move hardcoded UI content into Supabase-backed campaign records.
-4. Add admin/role gating if this route should be private.
-5. Add real analytics ingestion into `marketing_metrics`.
-6. Add optional scheduling adapters after approval workflow is stable.
+1. Replace deterministic endpoint stubs with Hermes agent calls.
+2. Move hardcoded UI content into Supabase-backed campaign records.
+3. Add admin/role gating if this route should be private.
+4. Add real analytics ingestion into `marketing_metrics`.
+5. Add optional scheduling adapters after approval workflow is stable.
