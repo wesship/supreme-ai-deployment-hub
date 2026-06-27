@@ -30,11 +30,11 @@ export function useAdminRole() {
       const user = sessionData.session.user;
       setUserId(user.id);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('user_roles')
         .select('role')
-        .eq('user_id' as any, user.id)
-        .eq('role' as any, 'admin')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
         .maybeSingle();
 
       if (error) {
