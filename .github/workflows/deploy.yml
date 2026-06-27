@@ -55,7 +55,7 @@ jobs:
         run: pnpm run build
         env:
           NODE_ENV: development
-          VITE_API_URL: https://staging-api.devonn.ai
+          VITE_API_URL: https://staging-api.d3vonn.io
 
   deploy:
     name: Deploy - ${{ github.event.inputs.environment || 'production' }}
@@ -90,8 +90,8 @@ jobs:
           echo "name=$ENV" >> $GITHUB_OUTPUT
           case "$ENV" in
             development) echo "api_url=http://localhost:8000" >> $GITHUB_OUTPUT ;;
-            staging)     echo "api_url=https://staging-api.devonn.ai" >> $GITHUB_OUTPUT ;;
-            *)           echo "api_url=https://api.devonn.ai" >> $GITHUB_OUTPUT ;;
+            staging)     echo "api_url=https://staging-api.d3vonn.io" >> $GITHUB_OUTPUT ;;
+            *)           echo "api_url=https://api.d3vonn.io" >> $GITHUB_OUTPUT ;;
           esac
 
       - name: Validate OpenAI API Key
