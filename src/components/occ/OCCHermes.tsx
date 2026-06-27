@@ -129,10 +129,10 @@ export function OCCHermes() {
       if (interruptsRes.error) throw interruptsRes.error;
       if (checkpointsRes.error) throw checkpointsRes.error;
 
-      const g = (goalsRes.data ?? []) as HermesGoal[];
-      const t = (tasksRes.data ?? []) as HermesTask[];
-      const i = (interruptsRes.data ?? []) as HermesInterrupt[];
-      const c = (checkpointsRes.data ?? []) as HermesCheckpoint[];
+      const g = (goalsRes.data ?? []) as unknown as HermesGoal[];
+      const t = (tasksRes.data ?? []) as unknown as HermesTask[];
+      const i = (interruptsRes.data ?? []) as unknown as HermesInterrupt[];
+      const c = (checkpointsRes.data ?? []) as unknown as HermesCheckpoint[];
 
       setGoals(g);
       setTasks(t);
