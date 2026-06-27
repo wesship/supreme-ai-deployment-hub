@@ -1,5 +1,5 @@
 # Railway-optimized backend Dockerfile
-# Single-stage, backend-only, uses $PORT from Railway
+# Backend-only image, uses $PORT from Railway
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -10,13 +10,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies first for better Docker layer caching
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source
+# Copy only runtime backend source; keep frontend/docs/dev tooling out of Railway image
 COPY backend/ ./backend/
-COPY . .
 
 # Set Python path
 ENV PYTHONPATH=/app
