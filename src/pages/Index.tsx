@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
-import heroAsset from '@/assets/d3vonn-home-hero.png.asset.json';
 
 const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className = '',
@@ -27,6 +26,30 @@ const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   </div>
 );
 
+const HeroLogoMark: React.FC = () => (
+  <div className="relative mx-auto aspect-square w-full max-w-[520px] overflow-hidden rounded-[2rem] border border-blue-300/15 bg-[#020817]/55 shadow-[0_0_90px_rgba(56,136,255,0.28)] backdrop-blur-sm">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_32%,rgba(56,136,255,0.34),transparent_38%),radial-gradient(circle_at_50%_70%,rgba(34,211,238,0.14),transparent_44%)]" />
+    <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(96,165,250,0.28)_1px,transparent_1px),linear-gradient(90deg,rgba(96,165,250,0.18)_1px,transparent_1px)] bg-[size:34px_34px]" />
+    <div className="absolute inset-x-10 top-8 h-40 overflow-hidden opacity-60 [mask-image:linear-gradient(to_bottom,transparent,#000_28%,#000_72%,transparent)]">
+      <div className="grid grid-cols-12 gap-2 text-[10px] font-semibold leading-4 text-blue-300/70">
+        {Array.from({ length: 96 }).map((_, i) => (
+          <span key={i}>{i % 3 === 0 ? '101' : i % 3 === 1 ? '011' : '110'}</span>
+        ))}
+      </div>
+    </div>
+    <div className="absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-3xl border border-cyan-200/40 bg-gradient-to-br from-blue-500/35 via-[#071d3a]/90 to-[#020817] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_0_70px_rgba(56,136,255,0.55)] rotate-45" />
+    <div className="absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/15 bg-[#020817]/70 rotate-45" />
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-7xl font-black tracking-[-0.08em] text-white drop-shadow-[0_0_28px_rgba(96,165,250,0.9)] sm:text-8xl">D3</div>
+        <div className="mt-3 text-2xl font-black tracking-[0.24em] text-blue-100 drop-shadow-[0_0_18px_rgba(96,165,250,0.7)] sm:text-3xl">VONN</div>
+        <div className="mt-2 text-sm font-bold tracking-[0.42em] text-cyan-200/90">.IO</div>
+      </div>
+    </div>
+    <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#020817] via-[#020817]/65 to-transparent" />
+  </div>
+);
+
 const Hero: React.FC = () => (
   <section
     aria-label="D3VONN.IO — AI Business Operating System"
@@ -35,20 +58,9 @@ const Hero: React.FC = () => (
     <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#020817] via-[#0a1628] to-[#000814]" />
     <div className="absolute inset-0 -z-10 opacity-10 bg-[linear-gradient(rgba(56,136,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(56,136,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
-    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] lg:block">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_66%_42%,rgba(56,136,255,0.26),transparent_42%)]" />
-      <img
-        src={heroAsset.url}
-        alt="D3VONN.IO metallic blue logo"
-        className="absolute inset-0 h-full w-full object-contain object-center opacity-100 drop-shadow-[0_0_55px_rgba(56,136,255,0.45)]"
-        draggable={false}
-        fetchPriority="high"
-        decoding="async"
-        width={960}
-        height={1080}
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/35 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#020817] to-transparent" />
+    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[52%] items-center justify-center pr-10 lg:flex">
+      <HeroLogoMark />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-transparent to-transparent" />
     </div>
 
     <div className="container relative mx-auto px-6 py-24 lg:py-32">
@@ -58,16 +70,8 @@ const Hero: React.FC = () => (
           AI Workforce Operating Layer
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-3xl border border-blue-400/15 bg-[#020817]/30 shadow-[0_0_60px_rgba(56,136,255,0.18)] lg:hidden">
-          <img
-            src={heroAsset.url}
-            alt="D3VONN.IO logo"
-            className="w-full object-contain opacity-100"
-            draggable={false}
-            decoding="async"
-            width={960}
-            height={640}
-          />
+        <div className="mt-8 lg:hidden">
+          <HeroLogoMark />
         </div>
 
         <h1 className="mt-8 text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
@@ -204,7 +208,6 @@ const Index: React.FC = () => {
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <link rel="preload" as="image" href={heroAsset.url} />
       </Helmet>
 
       <motion.div
