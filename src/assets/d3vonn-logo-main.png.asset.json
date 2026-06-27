@@ -1,11 +1,11 @@
 {
-  "version": 1,
-  "asset_id": "5dd8d16a-bf09-4b52-b06a-869e5c262702",
-  "project_id": "b5eb8a4d-3709-4e3f-930c-ab5ab4b96560",
-  "url": "/__l5e/assets-v1/5dd8d16a-bf09-4b52-b06a-869e5c262702/d3vonn-logo-main.png",
-  "r2_key": "a/v1/b5eb8a4d-3709-4e3f-930c-ab5ab4b96560/5dd8d16a-bf09-4b52-b06a-869e5c262702/d3vonn-logo-main.png",
-  "original_filename": "d3vonn-logo-main.png",
-  "size": 2611412,
+  "version": 2,
+  "asset_id": "public-og-image",
+  "project_id": "d3vonn-io",
+  "url": "/og-image.png",
+  "r2_key": null,
+  "original_filename": "og-image.png",
+  "size": null,
   "content_type": "image/png",
-  "created_at": "2026-06-27T22:14:37Z"
+  "created_at": "2026-06-27T00:00:00Z"
 }
