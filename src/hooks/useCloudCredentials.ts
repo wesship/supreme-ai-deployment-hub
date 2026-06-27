@@ -25,7 +25,7 @@ export const useCloudCredentials = () => {
   const fetchCredentials = useCallback(async (provider: CloudProvider) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('cloud_credentials')
         .select('*')
         .eq('provider', provider)
@@ -37,13 +37,14 @@ export const useCloudCredentials = () => {
       }
 
       if (data) {
+        const row = data as any;
         const cred: CloudCredentials = {
-          id: data.id,
-          provider: data.provider as CloudProvider,
-          region: data.region || '',
-          is_active: data.is_active,
-          last_validated_at: data.last_validated_at,
-          created_at: data.created_at,
+          id: row.id,
+          provider: row.provider as CloudProvider,
+          region: row.region || '',
+          is_active: row.is_active,
+          last_validated_at: row.last_validated_at,
+          created_at: row.created_at,
         };
         setCredentials(cred);
         return cred;
@@ -121,7 +122,7 @@ export const useCloudCredentials = () => {
 
       if (data.valid) {
         // Update last validated timestamp
-        await supabase
+        await (supabase as any)
           .from('cloud_credentials')
           .update({ last_validated_at: new Date().toISOString() })
           .eq('provider', provider)
@@ -145,7 +146,7 @@ export const useCloudCredentials = () => {
   const deleteCredentials = useCallback(async (provider: CloudProvider) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('cloud_credentials')
         .delete()
         .eq('provider', provider)
