@@ -27,6 +27,15 @@ const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   </div>
 );
 
+const proofPoints = [
+  '573 tests passing',
+  '41/41 CI checks',
+  'Railway API live',
+  'Vercel frontend live',
+  'Supabase + Pinecone RAG',
+  'Hermes orchestrator',
+];
+
 const Hero: React.FC = () => (
   <section
     aria-label="D3VONN.IO — AI Business Operating System"
@@ -61,19 +70,34 @@ const Hero: React.FC = () => (
         </h1>
 
         <p className="mt-6 max-w-2xl text-xl font-semibold text-white/90 sm:text-2xl">
-          D3VONN.IO turns business goals into supervised agent execution — planning, workflows, memory, approvals, and command-center visibility.
+          D3VONN.IO is an AI Business Operating System that lets founders deploy, monitor, and control autonomous AI workers across sales, support, research, DevOps, and operations.
         </p>
         <p className="mt-4 max-w-xl text-base text-white/70">
-          One operating system for autonomous business work: Hermes orchestrates, agents execute, and you stay in control.
+          Hermes orchestrates the work, agents execute the run, and your Command Center keeps every task visible, governed, and ready for human approval.
         </p>
 
+        <div className="mt-8 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3">
+          {proofPoints.map((point) => (
+            <div key={point} className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3 text-xs font-semibold text-white/75 backdrop-blur">
+              <span className="mr-2 inline-block h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_12px_rgba(96,165,250,0.8)]" />
+              {point}
+            </div>
+          ))}
+        </div>
+
         <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-          <SmartLaunchLink
-            authedTo="/app"
+          <Link
+            to="/demo"
             className="group inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-4 font-semibold text-white shadow-[0_0_30px_rgba(56,136,255,0.4)] transition hover:scale-[1.02] hover:bg-blue-500 hover:shadow-[0_0_50px_rgba(56,136,255,0.6)]"
           >
-            Launch D3VONN
+            Launch Command Center Demo
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Link>
+          <SmartLaunchLink
+            authedTo="/app"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-7 py-4 font-semibold text-white backdrop-blur transition hover:border-blue-400/40 hover:bg-white/10"
+          >
+            Launch D3VONN
           </SmartLaunchLink>
           <Link
             to="/solutions"
@@ -87,9 +111,15 @@ const Hero: React.FC = () => (
         <div className="mt-8 flex flex-wrap items-center gap-3 text-xs text-white/60">
           <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-blue-400" />Secure by design</span>
           <span className="hidden h-1 w-1 rounded-full bg-white/30 sm:inline-block" />
-          <span>Observable agent runs</span>
+          <Link to="/security" className="hover:text-blue-300">Security</Link>
           <span className="hidden h-1 w-1 rounded-full bg-white/30 sm:inline-block" />
-          <span>Enterprise pilot ready</span>
+          <Link to="/docs" className="hover:text-blue-300">Docs</Link>
+          <span className="hidden h-1 w-1 rounded-full bg-white/30 sm:inline-block" />
+          <Link to="/status" className="hover:text-blue-300">Status</Link>
+          <span className="hidden h-1 w-1 rounded-full bg-white/30 sm:inline-block" />
+          <Link to="/roadmap" className="hover:text-blue-300">Roadmap</Link>
+          <span className="hidden h-1 w-1 rounded-full bg-white/30 sm:inline-block" />
+          <Link to="/case-studies" className="hover:text-blue-300">Case Studies</Link>
         </div>
       </div>
     </div>
@@ -175,7 +205,7 @@ const Index: React.FC = () => {
 
   const title = 'D3VONN.IO — AI Business Operating System';
   const description =
-    'D3VONN.IO is an AI Business Operating System that turns business goals into supervised agent execution with Hermes orchestration, workflows, memory, and command-center visibility.';
+    'D3VONN.IO lets founders deploy, monitor, and control autonomous AI workers across sales, support, research, DevOps, and operations.';
   const url = 'https://d3vonn.io/';
 
   return (
