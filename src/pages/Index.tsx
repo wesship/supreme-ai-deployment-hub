@@ -27,6 +27,15 @@ const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   </div>
 );
 
+const logoBlendMask = {
+  WebkitMaskImage:
+    'radial-gradient(circle at 58% 46%, #000 0%, #000 58%, rgba(0,0,0,.82) 72%, transparent 100%), linear-gradient(to right, transparent 0%, #000 18%, #000 100%)',
+  maskImage:
+    'radial-gradient(circle at 58% 46%, #000 0%, #000 58%, rgba(0,0,0,.82) 72%, transparent 100%), linear-gradient(to right, transparent 0%, #000 18%, #000 100%)',
+  WebkitMaskComposite: 'source-in',
+  maskComposite: 'intersect',
+} as React.CSSProperties;
+
 const Hero: React.FC = () => (
   <section
     aria-label="D3VONN.IO — AI Business Operating System"
@@ -35,18 +44,21 @@ const Hero: React.FC = () => (
     <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#020817] via-[#0a1628] to-[#000814]" />
     <div className="absolute inset-0 -z-10 opacity-10 bg-[linear-gradient(rgba(56,136,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(56,136,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
-    <div className="absolute bottom-0 right-0 top-0 hidden w-[55%] lg:block">
+    <div className="absolute bottom-0 right-0 top-0 hidden w-[60%] lg:block">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_63%_42%,rgba(56,136,255,0.28),transparent_38%),radial-gradient(circle_at_76%_50%,rgba(0,8,20,0.86),transparent_50%)]" />
       <img
         src={heroAsset.url}
-        alt="D3VONN.IO AI Business Operating System command interface"
-        className="h-full w-full object-cover object-left opacity-90"
+        alt="D3VONN.IO metallic blue logo blended into the command interface background"
+        className="h-full w-full object-cover object-center opacity-95 mix-blend-screen drop-shadow-[0_0_45px_rgba(56,136,255,0.35)]"
+        style={logoBlendMask}
         draggable={false}
         fetchPriority="high"
         decoding="async"
         width={960}
         height={1080}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/72 to-transparent" />
+      <div className="absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-[#000814] via-[#000814]/60 to-transparent" />
     </div>
 
     <div className="container relative mx-auto px-6 py-24 lg:py-32">
@@ -54,6 +66,22 @@ const Hero: React.FC = () => (
         <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-950/40 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-blue-300">
           <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
           AI Workforce Operating Layer
+        </div>
+
+        <div className="mt-8 overflow-hidden rounded-3xl border border-blue-400/15 bg-[#020817]/30 shadow-[0_0_60px_rgba(56,136,255,0.18)] lg:hidden">
+          <img
+            src={heroAsset.url}
+            alt="D3VONN.IO logo"
+            className="w-full object-cover opacity-95 mix-blend-screen"
+            style={{
+              WebkitMaskImage: 'radial-gradient(circle at 50% 50%, #000 0%, #000 66%, transparent 100%)',
+              maskImage: 'radial-gradient(circle at 50% 50%, #000 0%, #000 66%, transparent 100%)',
+            }}
+            draggable={false}
+            decoding="async"
+            width={960}
+            height={640}
+          />
         </div>
 
         <h1 className="mt-8 text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">
