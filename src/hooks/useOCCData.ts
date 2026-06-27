@@ -148,13 +148,13 @@ export function useOCCData() {
         planRes,
         ragRes,
       ] = await Promise.all([
-        supabase.from('ai_request_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('tool_call_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('agent_activity_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('error_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('approval_queue').select('*').order('created_at', { ascending: false }).limit(50),
-        supabase.from('user_plans').select('*').order('created_at', { ascending: false }).limit(100),
-        supabase.from('rag_documents').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('ai_request_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('tool_call_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('agent_activity_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('error_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('approval_queue').select('*').order('created_at', { ascending: false }).limit(50),
+        (supabase as any).from('user_plans').select('*').order('created_at', { ascending: false }).limit(100),
+        (supabase as any).from('rag_documents').select('*').order('created_at', { ascending: false }).limit(100),
       ]);
 
       if (aiRes.error) throw new Error(`AI logs: ${aiRes.error.message}`);
@@ -165,13 +165,13 @@ export function useOCCData() {
       if (planRes.error) throw new Error(`User plans: ${planRes.error.message}`);
       if (ragRes.error) throw new Error(`RAG docs: ${ragRes.error.message}`);
 
-      const aiData = (aiRes.data ?? []) as AIRequestLog[];
-      const toolData = (toolRes.data ?? []) as ToolCallLog[];
-      const agentData = (agentRes.data ?? []) as AgentActivityLog[];
-      const errorData = (errorRes.data ?? []) as ErrorLog[];
-      const approvalData = (approvalRes.data ?? []) as ApprovalQueueItem[];
-      const planData = (planRes.data ?? []) as UserPlan[];
-      const ragData = (ragRes.data ?? []) as RAGDocument[];
+      const aiData = ((aiRes.data ?? []) as unknown) as AIRequestLog[];
+      const toolData = ((toolRes.data ?? []) as unknown) as ToolCallLog[];
+      const agentData = ((agentRes.data ?? []) as unknown) as AgentActivityLog[];
+      const errorData = ((errorRes.data ?? []) as unknown) as ErrorLog[];
+      const approvalData = ((approvalRes.data ?? []) as unknown) as ApprovalQueueItem[];
+      const planData = ((planRes.data ?? []) as unknown) as UserPlan[];
+      const ragData = ((ragRes.data ?? []) as unknown) as RAGDocument[];
 
       setAILogs(aiData);
       setToolLogs(toolData);
@@ -216,7 +216,7 @@ export function useOCCData() {
     const interval = setInterval(fetchAll, 30_000);
 
     // Realtime: refetch on any change across OCC tables
-    const channel = supabase
+    const channel = (supabase as any)
       .channel('occ-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ai_request_logs' }, () => fetchAll())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tool_call_logs' }, () => fetchAll())

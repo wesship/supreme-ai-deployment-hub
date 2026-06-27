@@ -70,7 +70,7 @@ export function deleteLocalConversation(id: string): void {
 
 export async function getSupabaseConversations(userId: string): Promise<Conversation[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('conversations')
       .select('*')
       .eq('user_id', userId)
@@ -79,7 +79,8 @@ export async function getSupabaseConversations(userId: string): Promise<Conversa
 
     if (error) throw error;
 
-    return (data || []).map(row => ({
+    const rows = (data || []) as any[];
+    return rows.map(row => ({
       id: row.id,
       title: row.title ?? 'Untitled',
       messages: ((row.metadata as { messages?: StoredMessage[] } | null)?.messages ?? []) as StoredMessage[],

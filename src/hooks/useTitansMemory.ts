@@ -90,7 +90,7 @@ export function useTitansMemory(options: UseTitansMemoryOptions = {}) {
   // Load memory from database
   const loadPersistedMemory = async (agentId: string, processor: ProcessorType) => {
     try {
-      const { data: memories, error } = await supabase
+      const { data: memories, error } = await (supabase as any)
         .from('mcp_connections')
         .select('custom_config')
         .eq('server_id', `titans_memory_${agentId}`)
@@ -101,8 +101,9 @@ export function useTitansMemory(options: UseTitansMemoryOptions = {}) {
         return;
       }
 
-      if (memories?.custom_config) {
-        const config = memories.custom_config as { memoryState?: MemoryState };
+      const memoryData = memories as { custom_config?: any } | null;
+      if (memoryData?.custom_config) {
+        const config = memoryData.custom_config as { memoryState?: MemoryState };
         if (config.memoryState) {
           if ('loadMemoryState' in processor && typeof processor.loadMemoryState === 'function') {
             processor.loadMemoryState(config.memoryState);
@@ -132,27 +133,29 @@ export function useTitansMemory(options: UseTitansMemoryOptions = {}) {
       }
 
       // Check if record exists first
-      const { data: existing } = await supabase
+      const { data: existing } = await (supabase as any)
         .from('mcp_connections')
         .select('id')
         .eq('server_id', `titans_memory_${agentId}`)
         .eq('user_id', session.session.user.id)
         .single();
 
-      if (existing) {
+      const existingId = (existing as any)?.id;
+
+      if (existingId) {
         // Update existing
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('mcp_connections')
           .update({
-            custom_config: { memoryState } as any,
+            custom_config: { memoryState },
             updated_at: new Date().toISOString(),
           })
-          .eq('id', existing.id);
+          .eq('id', existingId);
 
         if (error) console.error('Error updating memory:', error);
       } else {
         // Insert new
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('mcp_connections')
           .insert({
             server_id: `titans_memory_${agentId}`,
@@ -160,7 +163,7 @@ export function useTitansMemory(options: UseTitansMemoryOptions = {}) {
             server_type: 'memory',
             category: 'titans',
             user_id: session.session.user.id,
-            custom_config: { memoryState } as any,
+            custom_config: { memoryState },
           });
 
         if (error) console.error('Error inserting memory:', error);

@@ -103,7 +103,7 @@ const Login = () => {
           </div>
 
           <Auth
-            supabaseClient={supabase}
+            supabaseClient={supabase as any}
             appearance={{
               theme: ThemeSupa,
               variables: {

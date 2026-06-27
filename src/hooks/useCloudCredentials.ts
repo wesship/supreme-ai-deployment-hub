@@ -25,7 +25,7 @@ export const useCloudCredentials = () => {
   const fetchCredentials = useCallback(async (provider: CloudProvider) => {
     setIsLoading(true);
     try {
-      const { data, error } = await (supabase as any)
+      const { data: rawData, error } = await (supabase as any)
         .from('cloud_credentials')
         .select('*')
         .eq('provider', provider)
@@ -36,15 +36,15 @@ export const useCloudCredentials = () => {
         throw error;
       }
 
+      const data = rawData as any;
       if (data) {
-        const row = data as any;
         const cred: CloudCredentials = {
-          id: row.id,
-          provider: row.provider as CloudProvider,
-          region: row.region || '',
-          is_active: row.is_active,
-          last_validated_at: row.last_validated_at,
-          created_at: row.created_at,
+          id: data.id,
+          provider: data.provider as CloudProvider,
+          region: data.region || '',
+          is_active: data.is_active,
+          last_validated_at: data.last_validated_at,
+          created_at: data.created_at,
         };
         setCredentials(cred);
         return cred;

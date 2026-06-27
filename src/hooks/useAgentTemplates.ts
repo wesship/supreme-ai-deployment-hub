@@ -61,7 +61,7 @@ export function useAgentTemplates(filters?: AgentTemplateFilters) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as AgentTemplate[];
+      return ((data ?? []) as unknown) as AgentTemplate[];
     },
   });
 }
@@ -76,7 +76,7 @@ export function useAgentTemplate(id: string) {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as AgentTemplate;
+      return data as unknown as AgentTemplate;
     },
     enabled: !!id,
   });
@@ -91,7 +91,7 @@ export function useMyAgentTemplates() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as AgentTemplate[];
+      return ((data ?? []) as unknown) as AgentTemplate[];
     },
   });
 }

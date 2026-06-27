@@ -49,7 +49,7 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
         return;
       }
 
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await (supabase as any)
         .from("mcp_connections")
         .select("*")
         .eq("user_id", user.id)
@@ -57,7 +57,7 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
 
       if (fetchError) throw fetchError;
 
-      setConnections((data as McpConnection[]) ?? []);
+      setConnections(((data ?? []) as unknown) as McpConnection[]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to fetch connections";
       setError(message);
@@ -99,7 +99,7 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
 
       if (existing) {
         // Update existing connection
-        const { data, error: updateError } = await supabase
+        const { data, error: updateError } = await (supabase as any)
           .from("mcp_connections")
           .update({
             ...connectionData,
@@ -111,15 +111,16 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
 
         if (updateError) throw updateError;
 
+        const updated = data as unknown as McpConnection;
         setConnections((prev) =>
-          prev.map((c) => (c.id === existing.id ? (data as McpConnection) : c))
+          prev.map((c) => (c.id === existing.id ? updated : c))
         );
 
         toast.success(`Updated ${server.name} connection`);
-        return data as McpConnection;
+        return updated;
       } else {
         // Create new connection
-        const { data, error: insertError } = await supabase
+        const { data, error: insertError } = await (supabase as any)
           .from("mcp_connections")
           .insert(connectionData)
           .select()
@@ -127,9 +128,10 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
 
         if (insertError) throw insertError;
 
-        setConnections((prev) => [data as McpConnection, ...prev]);
+        const created = data as unknown as McpConnection;
+        setConnections((prev) => [created, ...prev]);
         toast.success(`Saved ${server.name} connection`);
-        return data as McpConnection;
+        return created;
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save connection";
@@ -166,7 +168,7 @@ export function useMcpConnections(): UseMcpConnectionsReturn {
 
   const deleteConnection = useCallback(async (connectionId: string) => {
     try {
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await (supabase as any)
         .from("mcp_connections")
         .delete()
         .eq("id", connectionId);

@@ -83,22 +83,22 @@ export function useDashboardData() {
     setError(null);
     try {
       const [agentsRes, wfRes, runsRes, activityRes] = await Promise.all([
-        supabase
+        (supabase as any)
           .from("deployed_agents")
           .select("id,name,status,health_score,total_runs,successful_runs,failed_runs,config")
           .order("deployed_at", { ascending: false })
           .limit(50),
-        supabase
+        (supabase as any)
           .from("workflows")
           .select("id,name,executor")
           .order("updated_at", { ascending: false })
           .limit(20),
-        supabase
+        (supabase as any)
           .from("workflow_runs")
           .select("id,workflow_id,status,started_at")
           .gte("started_at", new Date(Date.now() - 86_400_000).toISOString())
           .limit(1000),
-        supabase
+        (supabase as any)
           .from("agent_activity_logs")
           .select("id,agent_name,event_type,status,created_at")
           .order("created_at", { ascending: false })
