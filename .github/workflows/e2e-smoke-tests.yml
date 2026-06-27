@@ -37,44 +37,44 @@ jobs:
         id: env-config
         run: |
           if [ "$ENV" = "production" ]; then
-            echo "api_url=${{ vars.PRODUCTION_API_URL || 'https://api.devonn.ai/v1' }}" >> $GITHUB_OUTPUT
+            echo "api_url=${{ vars.PRODUCTION_API_URL || 'https://api.d3vonn.io/v1' }}" >> $GITHUB_OUTPUT
           else
-            echo "api_url=${{ vars.STAGING_API_URL || 'https://staging-api.devonn.ai/v1' }}" >> $GITHUB_OUTPUT
+            echo "api_url=${{ vars.STAGING_API_URL || 'https://staging-api.d3vonn.io/v1' }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Health check with SLO assertion
         id: health-check
         run: |
           API_URL="${{ steps.env-config.outputs.api_url }}"
-          
-          if [ -z "$API_URL" ] || [[ "$API_URL" == *"devonn.ai"* ]]; then
+
+          if [ -z "$API_URL" ]; then
             echo "::notice::API URL not configured for $ENV - skipping live smoke tests"
             echo "skipped=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           # SLO: Health endpoint must respond in < 2000ms
           START=$(date +%s%3N)
           HTTP_CODE=$(curl -s -o /tmp/health-response.json -w "%{http_code}" \
             --max-time 10 "$API_URL/health" || echo "000")
           END=$(date +%s%3N)
           LATENCY=$((END - START))
-          
+
           echo "HTTP Status: $HTTP_CODE"
           echo "Latency: ${LATENCY}ms"
           echo "latency=${LATENCY}" >> $GITHUB_OUTPUT
           echo "http_code=${HTTP_CODE}" >> $GITHUB_OUTPUT
-          
+
           if [ "$HTTP_CODE" != "200" ]; then
             echo "::error::Health check failed: HTTP $HTTP_CODE"
             cat /tmp/health-response.json 2>/dev/null || true
             exit 1
           fi
-          
+
           if [ "$LATENCY" -gt 2000 ]; then
             echo "::warning::Health check SLO breach: ${LATENCY}ms > 2000ms threshold"
           fi
-          
+
           echo "Health check passed: HTTP $HTTP_CODE in ${LATENCY}ms"
 
       - name: API endpoint smoke tests
@@ -85,21 +85,21 @@ jobs:
         run: |
           PASS=0
           FAIL=0
-          
+
           run_test() {
             local name="$1"
             local url="$2"
             local expected_code="$3"
             local auth="${4:-false}"
-            
+
             HEADERS="-H 'Content-Type: application/json'"
             if [ "$auth" = "true" ] && [ -n "$API_TOKEN" ]; then
               HEADERS="$HEADERS -H 'Authorization: Bearer $API_TOKEN'"
             fi
-            
+
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
               --max-time 10 "$url" || echo "000")
-            
+
             if [ "$HTTP_CODE" = "$expected_code" ]; then
               echo "  PASS: $name (HTTP $HTTP_CODE)"
               PASS=$((PASS + 1))
@@ -108,17 +108,17 @@ jobs:
               FAIL=$((FAIL + 1))
             fi
           }
-          
+
           echo "Running smoke tests against $API_URL..."
           run_test "Health endpoint"   "$API_URL/health"  "200"
           run_test "Models list (auth)" "$API_URL/models"  "401"
           run_test "Agents list (auth)" "$API_URL/agents"  "401"
           run_test "Mesh status (auth)" "$API_URL/mesh/status" "401"
           run_test "404 handling"      "$API_URL/nonexistent-endpoint-xyz" "404"
-          
+
           echo ""
           echo "Results: $PASS passed, $FAIL failed"
-          
+
           if [ "$FAIL" -gt 0 ]; then
             echo "::error::$FAIL smoke test(s) failed"
             exit 1
@@ -131,7 +131,7 @@ jobs:
           script: |
             const env = process.env.ENV || 'staging';
             const title = `[INCIDENT] Smoke test failure on ${env} - ${new Date().toISOString().split('T')[0]}`;
-            
+
             // Check if incident issue already open
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
@@ -139,7 +139,7 @@ jobs:
               state: 'open',
               labels: 'incident,smoke-test-failure'
             });
-            
+
             const existing = issues.data.find(i => i.title.includes(`on ${env}`));
             if (existing) {
               await github.rest.issues.createComment({
