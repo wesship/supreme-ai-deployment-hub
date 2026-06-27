@@ -40,20 +40,20 @@ export function useAgentTemplates(filters?: AgentTemplateFilters) {
   return useQuery({
     queryKey: ["agent-templates", filters],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from("agent_templates")
         .select("*")
-        .eq("status" as any, "published")
-        .order("downloads" as any, { ascending: false });
+        .eq("status", "published")
+        .order("downloads", { ascending: false });
 
       if (filters?.category && filters.category !== "all") {
-        query = query.eq("category" as any, filters.category);
+        query = query.eq("category", filters.category);
       }
       if (filters?.pricing_model) {
-        query = query.eq("pricing_model" as any, filters.pricing_model);
+        query = query.eq("pricing_model", filters.pricing_model);
       }
       if (filters?.is_featured) {
-        query = query.eq("is_featured" as any, true);
+        query = query.eq("is_featured", true);
       }
       if (filters?.search) {
         query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
@@ -61,7 +61,7 @@ export function useAgentTemplates(filters?: AgentTemplateFilters) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as unknown as AgentTemplate[];
+      return (data ?? []) as AgentTemplate[];
     },
   });
 }
@@ -70,13 +70,13 @@ export function useAgentTemplate(id: string) {
   return useQuery({
     queryKey: ["agent-template", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("agent_templates")
         .select("*")
-        .eq("id" as any, id)
+        .eq("id", id)
         .single();
       if (error) throw error;
-      return data as unknown as AgentTemplate;
+      return data as AgentTemplate;
     },
     enabled: !!id,
   });
@@ -86,12 +86,12 @@ export function useMyAgentTemplates() {
   return useQuery({
     queryKey: ["my-agent-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("agent_templates")
         .select("*")
-        .order("created_at" as any, { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as AgentTemplate[];
+      return (data ?? []) as AgentTemplate[];
     },
   });
 }
@@ -105,7 +105,7 @@ export function useCreateAgentTemplate() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("agent_templates")
         .insert({
           author_id: user.id,
@@ -125,7 +125,7 @@ export function useCreateAgentTemplate() {
           is_verified: template.is_verified,
           config_schema: template.config_schema,
           default_config: template.default_config,
-        } as any)
+        })
         .select()
         .single();
       if (error) throw error;
@@ -147,10 +147,10 @@ export function useUpdateAgentTemplate() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<AgentTemplate, 'id' | 'author_id' | 'created_at' | 'updated_at'>>) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("agent_templates")
-        .update(updates as any)
-        .eq("id" as any, id)
+        .update(updates)
+        .eq("id", id)
         .select()
         .single();
       if (error) throw error;
