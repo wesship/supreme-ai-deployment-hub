@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-06-26",
+  "campaigns": [
+    {
+      "id": "private-beta-launch",
+      "name": "DEVONN.AI Private Beta",
+      "status": "draft",
+      "primary_cta": "https://d3vonn.io",
+      "primary_message": "Sovereign AI infrastructure for builders who want control, auditability, and multi-agent orchestration.",
+      "channels": ["x-twitter", "linkedin", "tiktok", "email", "github"]
+    }
+  ],
+  "statuses": [
+    "IDEA",
+    "DRAFT",
+    "BRAND_REVIEW",
+    "CLAIM_CHECK",
+    "APPROVED",
+    "QUEUED",
+    "LIVE",
+    "MEASURED",
+    "REPURPOSED"
+  ]
+}
