@@ -43,17 +43,17 @@ export function useAgentTemplates(filters?: AgentTemplateFilters) {
       let query = supabase
         .from("agent_templates")
         .select("*")
-        .eq("status", "published")
-        .order("downloads", { ascending: false });
+        .eq("status" as any, "published")
+        .order("downloads" as any, { ascending: false });
 
       if (filters?.category && filters.category !== "all") {
-        query = query.eq("category", filters.category);
+        query = query.eq("category" as any, filters.category);
       }
       if (filters?.pricing_model) {
-        query = query.eq("pricing_model", filters.pricing_model);
+        query = query.eq("pricing_model" as any, filters.pricing_model);
       }
       if (filters?.is_featured) {
-        query = query.eq("is_featured", true);
+        query = query.eq("is_featured" as any, true);
       }
       if (filters?.search) {
         query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
@@ -61,7 +61,7 @@ export function useAgentTemplates(filters?: AgentTemplateFilters) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as AgentTemplate[];
+      return (data ?? []) as unknown as AgentTemplate[];
     },
   });
 }
@@ -73,10 +73,10 @@ export function useAgentTemplate(id: string) {
       const { data, error } = await supabase
         .from("agent_templates")
         .select("*")
-        .eq("id", id)
+        .eq("id" as any, id)
         .single();
       if (error) throw error;
-      return data as AgentTemplate;
+      return data as unknown as AgentTemplate;
     },
     enabled: !!id,
   });
@@ -89,9 +89,9 @@ export function useMyAgentTemplates() {
       const { data, error } = await supabase
         .from("agent_templates")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at" as any, { ascending: false });
       if (error) throw error;
-      return (data ?? []) as AgentTemplate[];
+      return (data ?? []) as unknown as AgentTemplate[];
     },
   });
 }
@@ -125,7 +125,7 @@ export function useCreateAgentTemplate() {
           is_verified: template.is_verified,
           config_schema: template.config_schema,
           default_config: template.default_config,
-        })
+        } as any)
         .select()
         .single();
       if (error) throw error;
@@ -149,8 +149,8 @@ export function useUpdateAgentTemplate() {
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<AgentTemplate, 'id' | 'author_id' | 'created_at' | 'updated_at'>>) => {
       const { data, error } = await supabase
         .from("agent_templates")
-        .update(updates)
-        .eq("id", id)
+        .update(updates as any)
+        .eq("id" as any, id)
         .select()
         .single();
       if (error) throw error;
