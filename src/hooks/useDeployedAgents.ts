@@ -49,12 +49,12 @@ export function useDeployedAgents() {
   return useQuery({
     queryKey: ["deployed-agents"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("deployed_agents")
         .select("*")
         .order("deployed_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as DeployedAgent[];
+      return ((data ?? []) as unknown) as DeployedAgent[];
     },
   });
 }
@@ -63,13 +63,13 @@ export function useDeployedAgent(id: string) {
   return useQuery({
     queryKey: ["deployed-agent", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("deployed_agents")
         .select("*")
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as DeployedAgent;
+      return data as unknown as DeployedAgent;
     },
     enabled: !!id,
   });
@@ -89,7 +89,7 @@ export function useDeployAgent() {
         enabled_tools: input.mcp_config?.enabled_tools ?? [],
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("deployed_agents")
         .insert({
           user_id: user.id,
@@ -120,7 +120,7 @@ export function useUpdateDeployedAgent() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<DeployedAgent, 'id' | 'user_id' | 'deployed_at'>>) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("deployed_agents")
         .update(updates)
         .eq("id", id)
@@ -146,7 +146,7 @@ export function useDeleteDeployedAgent() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("deployed_agents")
         .delete()
         .eq("id", id);
