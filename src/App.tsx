@@ -81,6 +81,8 @@ const Resources = lazy(() => import("./pages/Resources"));
 const Security = lazy(() => import("./pages/Security"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
+const Roadmap = lazy(() => import("./pages/Roadmap"));
+const CaseStudies = lazy(() => import("./pages/CaseStudies"));
 
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
@@ -156,6 +158,7 @@ function App() {
                 <Route path="/deployment" element={<DeploymentDashboard />} />
                 <Route path="/api" element={<APIManagement />} />
                 <Route path="/documentation" element={<Documentation />} />
+                <Route path="/docs" element={<Documentation />} />
                 <Route path="/agents" element={<AgentDashboard />} />
                 <Route path="/devonn" element={<DevonnDashboard />} />
                 <Route path="/flow" element={<FlowEditor />} />
@@ -168,6 +171,8 @@ function App() {
                 <Route path="/manifest" element={<ManifestPage />} />
                 <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
                 <Route path="/command-center" element={<CommandCenter />} />
+                <Route path="/demo" element={<CommandCenter />} />
+                <Route path="/command-center-demo" element={<CommandCenter />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/terms" element={<Terms />} />
@@ -194,6 +199,8 @@ function App() {
                 <Route path="/security" element={<Security />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
+                <Route path="/roadmap" element={<Roadmap />} />
+                <Route path="/case-studies" element={<CaseStudies />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/signup" element={<Navigate to="/login" replace />} />
