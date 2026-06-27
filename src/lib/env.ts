@@ -13,7 +13,7 @@
  * Required Vercel / .env.local variables:
  *   VITE_API_URL          — Backend API base URL
  *   VITE_SUPABASE_URL     — Supabase project URL
- *   VITE_SUPABASE_ANON_KEY — Supabase anon/public key (safe to expose)
+ *   VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY — Supabase public key
  *   VITE_SENTRY_DSN       — Sentry DSN (optional but recommended)
  *
  * NEVER prefix secrets (OPENAI_API_KEY, JWT_SECRET, etc.) with VITE_.
@@ -35,6 +35,18 @@ function optionalEnv(key: string, fallback = ''): string {
   return (import.meta.env[key] as string | undefined) ?? fallback;
 }
 
+function requireAnyEnv(keys: string[]): string {
+  for (const key of keys) {
+    const value = import.meta.env[key];
+    if (value) return value as string;
+  }
+
+  throw new Error(
+    `[env] Missing required environment variable. Set one of: ${keys.join(', ')}\n` +
+    `Add it to your .env.local (development) or deployment environment variables (production).`
+  );
+}
+
 export const env = {
   /** Backend FastAPI base URL */
   apiUrl: requireEnv('VITE_API_URL'),
@@ -42,8 +54,8 @@ export const env = {
   /** Supabase project URL */
   supabaseUrl: requireEnv('VITE_SUPABASE_URL'),
 
-  /** Supabase anon key — safe to expose in browser */
-  supabaseAnonKey: requireEnv('VITE_SUPABASE_ANON_KEY'),
+  /** Supabase public key — safe to expose in browser */
+  supabaseAnonKey: requireAnyEnv(['VITE_SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY']),
 
   /** Sentry DSN for error tracking (optional) */
   sentryDsn: optionalEnv('VITE_SENTRY_DSN'),
