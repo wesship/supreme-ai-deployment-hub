@@ -65,3 +65,11 @@ try:
     logger.info("Proxy vault router registered at /api/proxy/*.")
 except ImportError as exc:
     logger.warning("Proxy vault router not registered: %s", exc)
+
+try:
+    from backend.app.routers.marketing import router as marketing_router
+
+    proxy_router.include_router(marketing_router, tags=["marketing"])
+    logger.info("Marketing router registered at /api/marketing/*.")
+except ImportError as exc:
+    logger.warning("Marketing router not registered: %s", exc)
