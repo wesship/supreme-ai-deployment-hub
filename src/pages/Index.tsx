@@ -35,21 +35,20 @@ const Hero: React.FC = () => (
     <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#020817] via-[#0a1628] to-[#000814]" />
     <div className="absolute inset-0 -z-10 opacity-10 bg-[linear-gradient(rgba(56,136,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(56,136,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
 
-    <div className="absolute bottom-0 right-0 top-0 hidden w-[58%] lg:block">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_66%_42%,rgba(56,136,255,0.24),transparent_42%)]" />
+    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] lg:block">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_66%_42%,rgba(56,136,255,0.26),transparent_42%)]" />
       <img
         src={heroAsset.url}
         alt="D3VONN.IO metallic blue logo"
-        className="relative z-0 h-full w-full object-contain object-center opacity-100 drop-shadow-[0_0_55px_rgba(56,136,255,0.38)]"
+        className="absolute inset-0 h-full w-full object-contain object-center opacity-100 drop-shadow-[0_0_55px_rgba(56,136,255,0.45)]"
         draggable={false}
         fetchPriority="high"
         decoding="async"
         width={960}
         height={1080}
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/35 to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-1/5 bg-gradient-to-l from-[#000814] to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-[#020817] to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/35 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#020817] to-transparent" />
     </div>
 
     <div className="container relative mx-auto px-6 py-24 lg:py-32">
@@ -59,7 +58,7 @@ const Hero: React.FC = () => (
           AI Workforce Operating Layer
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-3xl border border-blue-400/15 bg-[#020817] shadow-[0_0_60px_rgba(56,136,255,0.18)] lg:hidden">
+        <div className="mt-8 overflow-hidden rounded-3xl border border-blue-400/15 bg-[#020817]/30 shadow-[0_0_60px_rgba(56,136,255,0.18)] lg:hidden">
           <img
             src={heroAsset.url}
             alt="D3VONN.IO logo"
