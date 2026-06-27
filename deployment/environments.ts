@@ -1,20 +1,12 @@
 /**
  * deployment/environments.ts
  *
- * Replaces the plain-JS deployment/environments.js with a fully type-safe,
- * Zod-validated environment configuration module.
- *
- * Key improvements:
- *   1. TypeScript — catches misconfiguration at compile time.
- *   2. Zod validation — throws a clear error at startup if any required
- *      variable is missing or has the wrong type.
- *   3. No hardcoded secrets — all sensitive values come from environment
- *      variables only.
- *   4. Strict production checks — debugMode and experimentalTools are
- *      always false in production, regardless of env var values.
+ * Type-safe, Zod-validated environment configuration module.
  */
 
 import { z } from 'zod';
+
+const rawEnv = typeof import.meta !== 'undefined' ? import.meta.env : process.env;
 
 const EnvironmentSchema = z.object({
   NODE_ENV: z
@@ -33,19 +25,27 @@ const EnvironmentSchema = z.object({
 
 type EnvVars = z.infer<typeof EnvironmentSchema>;
 
+function normalizeEnv(env: typeof rawEnv) {
+  return {
+    ...env,
+    VITE_SUPABASE_ANON_KEY:
+      env.VITE_SUPABASE_ANON_KEY ?? env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  };
+}
+
 function parseEnv(): EnvVars {
-  const result = EnvironmentSchema.safeParse(
-    typeof import.meta !== 'undefined' ? import.meta.env : process.env
-  );
+  const result = EnvironmentSchema.safeParse(normalizeEnv(rawEnv));
+
   if (!result.success) {
     const errors = result.error.errors
       .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
       .join('\n');
     throw new Error(
       `[environments] Invalid environment configuration:\n${errors}\n\n` +
-        'Check your .env.local (development) or Vercel Environment Variables (production).'
+        'Check your local env file or Vercel Environment Variables.'
     );
   }
+
   return result.data;
 }
 
@@ -60,7 +60,6 @@ export const environmentConfig = {
   sentryDsn: vars.VITE_SENTRY_DSN,
   logLevel: isProduction ? 'error' : 'debug',
   features: {
-    // Hardcoded false in production — cannot be overridden by env vars
     experimentalTools: !isProduction,
     betaAgents: !isProduction,
     debugMode: !isProduction,
