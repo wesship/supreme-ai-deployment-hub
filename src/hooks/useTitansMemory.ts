@@ -90,7 +90,7 @@ export function useTitansMemory(options: UseTitansMemoryOptions = {}) {
   // Load memory from database
   const loadPersistedMemory = async (agentId: string, processor: ProcessorType) => {
     try {
-      const { data: memories, error } = await supabase
+      const { data: memories, error } = await (supabase as any)
         .from('mcp_connections')
         .select('custom_config')
         .eq('server_id', `titans_memory_${agentId}`)
@@ -101,8 +101,9 @@ export function useTitansMemory(options: UseTitansMemoryOptions = {}) {
         return;
       }
 
-      if (memories?.custom_config) {
-        const config = memories.custom_config as { memoryState?: MemoryState };
+      const memoryData = memories as { custom_config?: any } | null;
+      if (memoryData?.custom_config) {
+        const config = memoryData.custom_config as { memoryState?: MemoryState };
         if (config.memoryState) {
           if ('loadMemoryState' in processor && typeof processor.loadMemoryState === 'function') {
             processor.loadMemoryState(config.memoryState);
