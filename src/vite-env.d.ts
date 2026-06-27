@@ -9,7 +9,8 @@
  * ✅ SAFE IN FRONTEND (VITE_ prefix allowed):
  *   VITE_API_URL          — Public backend URL (no secret)
  *   VITE_SUPABASE_URL     — Public Supabase project URL
- *   VITE_SUPABASE_PUBLISHABLE_KEY — Supabase anon key (public by design)
+ *   VITE_SUPABASE_PUBLISHABLE_KEY — Supabase public key (preferred)
+ *   VITE_SUPABASE_ANON_KEY — Legacy Supabase anon key fallback
  *   VITE_N8N_BASE_URL     — Public n8n webhook base URL (no auth)
  *   VITE_PINECONE_HOST    — Public Pinecone index host
  *   VITE_PINECONE_INDEX_NAME — Index name (not a secret)
@@ -27,10 +28,13 @@
 interface ImportMetaEnv {
   // ── Public backend URL ──────────────────────────────────────────────────────
   readonly VITE_API_URL?: string;
+  readonly VITE_ENVIRONMENT?: 'development' | 'staging' | 'production';
+  readonly VITE_SENTRY_DSN?: string;
 
-  // ── Supabase (public by design — anon key is safe in browser) ──────────────
+  // ── Supabase (public by design — public/anon key is safe in browser) ────────
   readonly VITE_SUPABASE_URL: string;
-  readonly VITE_SUPABASE_PUBLISHABLE_KEY: string;
+  readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
+  readonly VITE_SUPABASE_ANON_KEY?: string;
 
   // ── Pinecone (index metadata only — API key is server-side) ────────────────
   readonly VITE_PINECONE_HOST: string;
