@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Bot, X } from 'lucide-react';
+import { Bot, X, Lock } from 'lucide-react';
+import { useAuthState } from '@/hooks/useAuthState';
 import { cn } from '@/lib/utils';
 import { 
   Sheet, 
@@ -12,7 +13,7 @@ import {
 import { NavButton } from './NavButton';
 
 interface MobileMenuProps {
-  navigationItems: Array<{ name: string, path: string }>;
+  navigationItems: Array<{ name: string; path: string; protected?: boolean }>;
 }
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {

@@ -2,17 +2,26 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuthState } from '@/hooks/useAuthState';
 
 interface NavLinkProps {
   to: string;
   currentPath: string;
   children: React.ReactNode;
+  /** If true, unauthenticated users are routed to /login with a redirect back to `to`. */
+  requiresAuth?: boolean;
 }
 
-const NavLink: React.FC<NavLinkProps> = ({ to, currentPath, children }) => {
+const NavLink: React.FC<NavLinkProps> = ({ to, currentPath, children, requiresAuth }) => {
+  const authed = useAuthState();
+  const resolvedTo =
+    requiresAuth && authed === false
+      ? `/login?redirect=${encodeURIComponent(to)}`
+      : to;
+
   return (
     <Link
-      to={to}
+      to={resolvedTo}
       className={cn(
         "text-sm font-medium transition-colors relative group",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25 focus-visible:rounded-sm",
