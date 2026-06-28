@@ -8,6 +8,8 @@ import {
 import Footer from '@/components/Footer';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
 
+const MASTER_LOGO_SRC = '/d3vonn-logo-live.svg';
+
 const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   className = '',
   children,
@@ -27,23 +29,20 @@ const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 );
 
 const HeroLogoMark: React.FC = () => (
-  <div className="relative mx-auto w-[90vw] max-w-[820px] overflow-visible py-1 sm:w-[86vw] lg:w-full lg:max-w-[760px] xl:max-w-[820px]">
-    <div className="absolute inset-x-[-10%] top-1/2 h-80 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,168,255,0.48),rgba(0,84,180,0.24)_45%,rgba(6,38,92,0.1)_66%,transparent_82%)] blur-2xl" />
-    <div className="absolute inset-x-[-8%] top-[48%] h-64 -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,transparent,rgba(29,142,255,0.26),transparent)] blur-xl" />
+  <div className="relative mx-auto w-[94vw] max-w-[980px] overflow-visible py-1 sm:w-[90vw] lg:w-full lg:max-w-[900px] xl:max-w-[980px]">
+    <div className="absolute inset-x-[-10%] top-1/2 h-96 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,168,255,0.58),rgba(0,84,180,0.24)_45%,rgba(6,38,92,0.1)_66%,transparent_82%)] blur-2xl" />
+    <div className="absolute inset-x-[-8%] top-[48%] h-72 -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,transparent,rgba(29,142,255,0.34),transparent)] blur-xl" />
+    <div className="absolute inset-x-[6%] bottom-[8%] h-12 rounded-full bg-blue-400/25 blur-2xl" />
     <img
-      src="/og-image.png"
-      alt="D3VONN.IO logo"
-      className="relative z-10 w-full -rotate-[2deg] scale-[1.06] object-contain object-center opacity-[0.96] mix-blend-screen drop-shadow-[0_0_52px_rgba(0,163,255,0.68)] lg:scale-[1.02]"
-      style={{
-        WebkitMaskImage: 'radial-gradient(ellipse at center, #000 0%, #000 56%, rgba(0,0,0,.72) 73%, transparent 100%)',
-        maskImage: 'radial-gradient(ellipse at center, #000 0%, #000 56%, rgba(0,0,0,.72) 73%, transparent 100%)',
-      }}
+      src={MASTER_LOGO_SRC}
+      alt="D3VONN.IO cinematic blue logo — The AI Business Operating System"
+      className="relative z-10 w-full object-contain object-center opacity-[0.98] drop-shadow-[0_0_64px_rgba(0,163,255,0.78)] transition duration-700 hover:scale-[1.01]"
       draggable={false}
       loading="eager"
       decoding="async"
     />
-    <div className="pointer-events-none absolute inset-x-[-8%] top-0 h-28 bg-gradient-to-b from-[#073878]/65 via-[#073878]/20 to-transparent" />
-    <div className="pointer-events-none absolute inset-x-[-8%] bottom-0 h-36 bg-gradient-to-t from-[#031f4f] via-[#031f4f]/45 to-transparent" />
+    <div className="pointer-events-none absolute inset-x-[-8%] top-0 h-24 bg-gradient-to-b from-[#073878]/40 via-[#073878]/10 to-transparent" />
+    <div className="pointer-events-none absolute inset-x-[-8%] bottom-0 h-28 bg-gradient-to-t from-[#031f4f] via-[#031f4f]/30 to-transparent" />
   </div>
 );
 
@@ -57,7 +56,7 @@ const Hero: React.FC = () => (
     <div className="absolute inset-0 -z-10 opacity-20 bg-[linear-gradient(rgba(113,191,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(113,191,255,0.06)_1px,transparent_1px)] bg-[size:72px_72px]" />
     <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#073878]/70 via-transparent to-[#031f4f]/95" />
 
-    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[50%] items-center justify-center pr-6 lg:flex xl:w-[48%]">
+    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[52%] items-center justify-center pr-6 lg:flex xl:w-[50%]">
       <HeroLogoMark />
       <div className="absolute inset-0 bg-gradient-to-r from-[#073878] via-[#073878]/10 to-transparent" />
     </div>
@@ -66,7 +65,7 @@ const Hero: React.FC = () => (
       <div className="max-w-3xl animate-[fadeInUp_0.6s_ease-out_both]">
         <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/35 bg-blue-500/10 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-blue-100 shadow-[0_0_30px_rgba(56,136,255,0.2)] backdrop-blur">
           <span className="h-2 w-2 rounded-full bg-blue-200 shadow-[0_0_14px_rgba(147,197,253,0.9)] animate-pulse" />
-          AI Workforce Operating Layer
+          The AI Business Operating System
         </div>
 
         <div className="mt-8 lg:hidden">
@@ -74,11 +73,11 @@ const Hero: React.FC = () => (
         </div>
 
         <h1 className="mt-8 text-4xl font-black tracking-tight text-white drop-shadow-[0_0_28px_rgba(147,197,253,0.35)] sm:text-6xl lg:text-7xl">
-          Build your AI workforce in minutes.
+          Bring your AI workforce alive.
         </h1>
 
         <p className="mt-6 max-w-2xl text-xl font-semibold text-blue-50/95 sm:text-2xl">
-          D3VONN.IO turns business goals into supervised agent execution — planning, workflows, memory, approvals, and command-center visibility.
+          D3VONN.IO turns business goals into supervised agent execution — AI workforce, swarm intelligence, knowledge graph, marketplace, automation, brand marketing, and AI movie production.
         </p>
         <p className="mt-4 max-w-xl text-base text-blue-100/76">
           One operating system for autonomous business work: Hermes orchestrates, agents execute, and you stay in control.
@@ -93,11 +92,11 @@ const Hero: React.FC = () => (
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </SmartLaunchLink>
           <Link
-            to="/agents"
+            to="/marketplace"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-100/25 bg-blue-300/10 px-7 py-4 font-semibold text-blue-50 backdrop-blur transition hover:border-blue-200/50 hover:bg-blue-300/15"
           >
             <Play className="h-4 w-4" />
-            Explore Agents
+            Explore Marketplace
           </Link>
         </div>
 
@@ -172,17 +171,18 @@ const HowItWorks: React.FC = () => (
 );
 
 const capabilities = [
-  { icon: Settings, title: 'Multi-Agent Orchestration', desc: 'Coordinate AI workers' },
-  { icon: Database, title: 'Memory & Knowledge', desc: 'RAG context layer' },
-  { icon: Workflow, title: 'Workflow Engine', desc: 'Repeatable execution' },
-  { icon: Shield, title: 'Governed Autonomy', desc: 'Human control points' },
-  { icon: Lightbulb, title: 'Business Intelligence', desc: 'Decision-ready outputs' },
+  { icon: Settings, title: 'AI Workforce', desc: 'Specialized agents' },
+  { icon: Database, title: 'Knowledge Graph', desc: 'RAG context layer' },
+  { icon: Workflow, title: 'Automation Engine', desc: 'Repeatable execution' },
+  { icon: Play, title: 'AI Movie Studio', desc: 'Video + voice creation' },
+  { icon: Lightbulb, title: 'Brand Marketing', desc: 'Campaign intelligence' },
+  { icon: Shield, title: 'Marketplace + Security', desc: 'Deploy with control' },
 ];
 
 const CapabilitiesStrip: React.FC = () => (
   <section className="relative border-y border-blue-200/12 bg-[#052f70]/85 py-8">
     <div className="container mx-auto px-6">
-      <div className="grid grid-cols-2 gap-6 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-6">
         {capabilities.map((cap) => (
           <div key={cap.title} className="flex flex-col items-center gap-2 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-300/30 bg-blue-500/18">
@@ -205,7 +205,7 @@ const Index: React.FC = () => {
 
   const title = 'D3VONN.IO — AI Business Operating System';
   const description =
-    'D3VONN.IO is an AI Business Operating System that turns business goals into supervised agent execution with Hermes orchestration, workflows, memory, and command-center visibility.';
+    'D3VONN.IO is an AI Business Operating System for AI workforce orchestration, swarm intelligence, knowledge graphs, workflow automation, marketplace agents, brand marketing, and AI movie production.';
   const url = 'https://d3vonn.io/';
 
   return (
@@ -220,7 +220,7 @@ const Index: React.FC = () => {
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <link rel="preload" as="image" href="/og-image.png" />
+        <link rel="preload" as="image" href={MASTER_LOGO_SRC} />
       </Helmet>
 
       <motion.div
