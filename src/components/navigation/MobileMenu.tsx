@@ -18,6 +18,7 @@ interface MobileMenuProps {
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
   const location = useLocation();
+  const authed = useAuthState();
 
   return (
     <Sheet>
@@ -72,21 +73,28 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
           </div>
           
           <nav className="flex flex-col space-y-4">
-            {navigationItems.map(item => (
-              <SheetClose asChild key={item.name}>
-                <Link 
-                  to={item.path} 
-                  className={cn(
-                    "px-2 py-1.5 rounded-md text-sm font-medium transition-colors",
-                    location.pathname === item.path
-                      ? "bg-primary/10 text-primary border-l-2 border-primary pl-3"
-                      : "text-white/70 hover:bg-white/5 hover:text-white"
-                  )}
-                >
-                  {item.name}
-                </Link>
-              </SheetClose>
-            ))}
+            {navigationItems.map(item => {
+              const needsAuth = item.protected && authed === false;
+              const target = needsAuth
+                ? `/login?redirect=${encodeURIComponent(item.path)}`
+                : item.path;
+              return (
+                <SheetClose asChild key={item.name}>
+                  <Link
+                    to={target}
+                    className={cn(
+                      "px-2 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-between",
+                      location.pathname === item.path
+                        ? "bg-primary/10 text-primary border-l-2 border-primary pl-3"
+                        : "text-white/70 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <span>{item.name}</span>
+                    {needsAuth && <Lock className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />}
+                  </Link>
+                </SheetClose>
+              );
+            })}
           </nav>
         </div>
       </SheetContent>
