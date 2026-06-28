@@ -3,26 +3,35 @@ import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
+const safeRedirect = (value: string | null) => {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard';
+  return value;
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const redirect = params.get('redirect') || '/dashboard';
+  const redirect = safeRedirect(params.get('redirect'));
+  const authCallbackUrl = useMemo(
+    () => `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+    [redirect]
+  );
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate(redirect);
+      if (data.session) navigate(redirect, { replace: true });
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate(redirect);
+      if (session) navigate(redirect, { replace: true });
     });
     return () => subscription.unsubscribe();
   }, [navigate, redirect]);
@@ -33,7 +42,7 @@ const Login = () => {
 
     try {
       const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
+        redirect_uri: authCallbackUrl,
       });
 
       if (result.error) {
@@ -42,7 +51,7 @@ const Login = () => {
         return;
       }
       if (result.redirected) return;
-      navigate(redirect);
+      navigate(redirect, { replace: true });
     } catch (err) {
       setGoogleError(err instanceof Error ? err.message : 'Google sign-in failed');
       setGoogleLoading(false);
@@ -125,7 +134,7 @@ const Login = () => {
             }}
             providers={[]}
             view="sign_in"
-            redirectTo={`${window.location.origin}/dashboard`}
+            redirectTo={authCallbackUrl}
           />
         </div>
       </motion.div>
