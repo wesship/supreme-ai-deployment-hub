@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
         { src: "settings.html", dest: "." },
         { src: "settings.js", dest: "." },
         { src: "settings.css", dest: "." },
-        { src: "icons/**/*", dest: "icons" },  // This will copy everything inside "icons/"
+        { src: "icons/**/*", dest: "icons" },
       ],
     }),
   ].filter(Boolean),
@@ -84,7 +84,7 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    // Raise the chunk size warning limit to 600KB
-    chunkSizeWarningLimit: 600,
+    // Raise the chunk size warning limit to match the current vendor split strategy
+    chunkSizeWarningLimit: 1000,
   },
 }));
