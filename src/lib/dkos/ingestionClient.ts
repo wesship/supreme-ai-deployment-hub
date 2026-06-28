@@ -1,6 +1,7 @@
 import type { IngestionArtifact, IngestionRun } from "./ingestionPipeline";
 
 const API_BASE =
+  import.meta.env.VITE_DKOS_INGESTION_API_URL ||
   import.meta.env.VITE_D3VONN_API_URL ||
   import.meta.env.VITE_DEVONN_API_URL ||
   import.meta.env.VITE_API_URL ||
