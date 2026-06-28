@@ -1,10 +1,68 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 293" width="900" height="293" role="img" aria-label="D3VONN.IO logo">
-  <title>D3VONN.IO</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">D3VONN.IO</title>
+  <desc id="desc">Animated blue metallic D3VONN.IO logo with matrix rain and holographic glow.</desc>
   <defs>
-    <filter id="blueGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#3b82f6" flood-opacity="0.65"/>
-      <feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#60a5fa" flood-opacity="0.35"/>
+    <linearGradient id="metal" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.25" stop-color="#93c5fd"/>
+      <stop offset="0.5" stop-color="#1d4ed8"/>
+      <stop offset="0.72" stop-color="#e0f2fe"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="blueEdge" x1="0" x2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="0.5" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-40%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#38bdf8" flood-opacity="0.9"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#2563eb" flood-opacity="0.65"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="32" flood-color="#1d4ed8" flood-opacity="0.35"/>
     </filter>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.1 0 0 0 0 0.45 0 0 0 0 1 0 0 0 .65 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="matrix" width="34" height="90" patternUnits="userSpaceOnUse">
+      <text x="3" y="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#38bdf8" opacity="0.48">0101</text>
+      <text x="3" y="38" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#60a5fa" opacity="0.38">AI</text>
+      <text x="3" y="64" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#0ea5e9" opacity="0.42">1010</text>
+      <animateTransform attributeName="patternTransform" type="translate" from="0 -90" to="0 90" dur="5s" repeatCount="indefinite"/>
+    </pattern>
+    <clipPath id="wingClip">
+      <path d="M470 53h415c55 0 121-16 198-44-31 51-68 91-111 120 45-9 91-25 138-48-32 52-72 92-119 121 50-7 99-24 147-50-38 60-85 104-142 133 37-4 77-13 119-28-37 36-81 64-132 84H470z"/>
+    </clipPath>
   </defs>
-  <image href="data:image/webp;base64,UklGRuYZAQBXRUJQVlA4INoZAQDQ+Qu3mT2O2JYkSTJ5Z98n9d7V9v41f1eTlrBjxmE48q9yNQn6eh5U91wD/9vxH/mbr/+fPyV/Hx//u9f+/X/3+P8Bz/B/9cr/e+bz/0v7/y9h7v//d7v//zT/+v9r+mF9n/+v5/9x/9f9x8d/Ox1/5pz/9f+fO/z9/5b/5vf/f/8+P/3/7f//f/uf/7f/+v+Z/9/7f//f/9n+F/9P/3/9z+7/+L/9/8f/yf/7f/5/9/8/9z+9/8f/9f/7/5/9f8z/9/8P/0/9f8T/3/9L/8/9P/T/1/9P/U/0/9P/V/0/9P/W/0/9P/X/0/9P/Y/0/9P/Z/0/9P/a/0/9P/b/0/9P/c/0/9P/d/0/9P/e/0/9P/f/0/9P/g/0/9P/h/0/9P/i/0/9P/j/0/9P/k/0/9P/l/0/9P/m/0/9P/n/0/9P/o/0/9P/p/0/9P/q/0/9P/r/0/9P/s/0/9P/t/0/9P/u/0/9P/v/0/9P/w/0/9P/x/0/9P/y/0/9P/z/0/9P/0/0/9P/1/0/9P/2/0/9P/3/0/9P/4/0/9P/5/0/9P/6/0/9P/7/0/9P/8/0/9P/9/0/9P/+/0/9P///0/9P/ABkLkHYKwVa7+0y8U7A4wxHvNgf0TSnG3BfNP3vUAAAA" width="900" height="293" preserveAspectRatio="xMidYMid meet" filter="url(#blueGlow)"/>
+
+  <rect width="1200" height="360" rx="34" fill="#020817"/>
+  <rect width="1200" height="360" fill="url(#matrix)" opacity="0.65"/>
+  <ellipse cx="600" cy="315" rx="470" ry="45" fill="#1d4ed8" opacity="0.25" filter="url(#softGlow)"/>
+  <path d="M70 284h1030" stroke="#38bdf8" stroke-width="4" opacity="0.75" filter="url(#glow)"/>
+
+  <g filter="url(#glow)">
+    <rect x="62" y="102" width="180" height="180" rx="18" fill="#07111f" stroke="url(#metal)" stroke-width="8"/>
+    <path d="M93 232 180 134h-62l-26 28h52l-73 82h78l33-38h-37l-14 15z" fill="none" stroke="url(#metal)" stroke-width="13" stroke-linejoin="round"/>
+    <path d="M177 138h33v108" fill="none" stroke="url(#blueEdge)" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <g clip-path="url(#wingClip)" opacity="0.95">
+    <rect x="470" y="45" width="640" height="235" fill="#031024"/>
+    <rect x="470" y="45" width="640" height="235" fill="url(#matrix)" opacity="0.95"/>
+    <path d="M470 53h415c55 0 121-16 198-44-31 51-68 91-111 120 45-9 91-25 138-48-32 52-72 92-119 121 50-7 99-24 147-50-38 60-85 104-142 133 37-4 77-13 119-28-37 36-81 64-132 84H470z" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.8"/>
+  </g>
+
+  <g filter="url(#glow)">
+    <rect x="255" y="157" width="875" height="96" rx="18" fill="#06111f" stroke="#38bdf8" stroke-opacity="0.45" stroke-width="3"/>
+    <text x="283" y="228" font-family="Inter, Arial Black, Arial, sans-serif" font-size="86" font-weight="900" letter-spacing="5" fill="url(#metal)" stroke="#dbeafe" stroke-width="1.5">D3VONN.IO</text>
+  </g>
+
+  <text x="286" y="306" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="600" letter-spacing="1.5" fill="#dbeafe" opacity="0.88">You’re here at an opportune time so Live</text>
+  <text x="600" y="35" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="12" fill="#bfdbfe" opacity="0.9">THE AI BUSINESS OPERATING SYSTEM</text>
+
+  <g opacity="0.85">
+    <path d="M1052 86c34 23 40 55 7 96 43-28 69-17 79 31" fill="none" stroke="#60a5fa" stroke-width="5" stroke-linecap="round" filter="url(#glow)">
+      <animate attributeName="opacity" values="0.35;1;0.45;0.9;0.35" dur="2.8s" repeatCount="indefinite"/>
+    </path>
+  </g>
 </svg>
