@@ -27,13 +27,13 @@ const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 );
 
 const HeroLogoMark: React.FC = () => (
-  <div className="relative mx-auto w-[116%] max-w-[820px] -translate-x-[8%] overflow-visible py-1 sm:w-[108%] sm:-translate-x-[4%] lg:w-full lg:translate-x-0">
-    <div className="absolute inset-x-[-10%] top-1/2 h-80 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,168,255,0.46),rgba(0,84,180,0.2)_45%,rgba(6,38,92,0.08)_66%,transparent_82%)] blur-2xl" />
-    <div className="absolute inset-x-[-8%] top-[48%] h-64 -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,transparent,rgba(29,142,255,0.22),transparent)] blur-xl" />
+  <div className="relative mx-auto w-[90vw] max-w-[820px] overflow-visible py-1 sm:w-[86vw] lg:w-full lg:max-w-[760px] xl:max-w-[820px]">
+    <div className="absolute inset-x-[-10%] top-1/2 h-80 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(0,168,255,0.48),rgba(0,84,180,0.24)_45%,rgba(6,38,92,0.1)_66%,transparent_82%)] blur-2xl" />
+    <div className="absolute inset-x-[-8%] top-[48%] h-64 -translate-y-1/2 rounded-full bg-[linear-gradient(90deg,transparent,rgba(29,142,255,0.26),transparent)] blur-xl" />
     <img
       src="/og-image.png"
       alt="D3VONN.IO logo"
-      className="relative z-10 w-full -rotate-[2deg] scale-[1.12] object-contain object-center opacity-[0.96] mix-blend-screen drop-shadow-[0_0_52px_rgba(0,163,255,0.68)]"
+      className="relative z-10 w-full -rotate-[2deg] scale-[1.06] object-contain object-center opacity-[0.96] mix-blend-screen drop-shadow-[0_0_52px_rgba(0,163,255,0.68)] lg:scale-[1.02]"
       style={{
         WebkitMaskImage: 'radial-gradient(ellipse at center, #000 0%, #000 56%, rgba(0,0,0,.72) 73%, transparent 100%)',
         maskImage: 'radial-gradient(ellipse at center, #000 0%, #000 56%, rgba(0,0,0,.72) 73%, transparent 100%)',
@@ -57,9 +57,9 @@ const Hero: React.FC = () => (
     <div className="absolute inset-0 -z-10 opacity-20 bg-[linear-gradient(rgba(113,191,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(113,191,255,0.06)_1px,transparent_1px)] bg-[size:72px_72px]" />
     <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#073878]/70 via-transparent to-[#031f4f]/95" />
 
-    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[60%] items-center justify-center pr-4 lg:flex">
+    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[50%] items-center justify-center pr-6 lg:flex xl:w-[48%]">
       <HeroLogoMark />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#073878] via-[#073878]/12 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#073878] via-[#073878]/10 to-transparent" />
     </div>
 
     <div className="container relative mx-auto px-6 py-24 lg:py-32">
@@ -89,16 +89,29 @@ const Hero: React.FC = () => (
             authedTo="/app"
             className="group inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200/40 bg-blue-600/80 px-7 py-4 font-semibold text-white shadow-[0_0_34px_rgba(56,136,255,0.48)] transition hover:scale-[1.02] hover:bg-blue-500 hover:shadow-[0_0_55px_rgba(56,136,255,0.68)]"
           >
-            Launch D3VONN
+            Launch Command Center
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </SmartLaunchLink>
           <Link
-            to="/solutions"
+            to="/agents"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-100/25 bg-blue-300/10 px-7 py-4 font-semibold text-blue-50 backdrop-blur transition hover:border-blue-200/50 hover:bg-blue-300/15"
           >
             <Play className="h-4 w-4" />
-            See Use Cases
+            Explore Agents
           </Link>
+        </div>
+
+        <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 text-center sm:text-left">
+          {[
+            ['573+', 'tests passing'],
+            ['41/41', 'CI checks'],
+            ['Live', 'Railway + Vercel'],
+          ].map(([value, label]) => (
+            <div key={label} className="rounded-xl border border-blue-200/15 bg-blue-300/10 px-3 py-3 backdrop-blur">
+              <div className="text-lg font-black text-white">{value}</div>
+              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-blue-100/60">{label}</div>
+            </div>
+          ))}
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-3 text-xs text-blue-100/68">
