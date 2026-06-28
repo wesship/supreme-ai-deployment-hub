@@ -27,17 +27,21 @@ const GlassCard: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
 );
 
 const HeroLogoMark: React.FC = () => (
-  <div className="relative mx-auto w-full max-w-[680px] overflow-visible py-4">
-    <div className="absolute inset-x-0 top-1/2 h-56 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(56,136,255,0.28),rgba(2,8,23,0.06)_58%,transparent_76%)] blur-xl" />
+  <div className="relative mx-auto w-[112%] max-w-[780px] -translate-x-[6%] overflow-visible py-2 sm:w-full sm:translate-x-0">
+    <div className="absolute inset-x-0 top-1/2 h-72 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(56,136,255,0.34),rgba(2,8,23,0.08)_58%,transparent_78%)] blur-2xl" />
     <img
-      src="/brand/d3vonn-logo-cutout.svg"
+      src="/og-image.png"
       alt="D3VONN.IO logo"
-      className="relative z-10 w-full object-contain drop-shadow-[0_0_38px_rgba(56,136,255,0.52)]"
+      className="relative z-10 w-full -rotate-[2deg] scale-[1.08] object-contain object-center drop-shadow-[0_0_45px_rgba(56,136,255,0.6)] [image-rendering:auto]"
+      style={{
+        WebkitMaskImage: 'radial-gradient(ellipse at center, #000 0%, #000 62%, rgba(0,0,0,.86) 78%, transparent 100%)',
+        maskImage: 'radial-gradient(ellipse at center, #000 0%, #000 62%, rgba(0,0,0,.86) 78%, transparent 100%)',
+      }}
       draggable={false}
       loading="eager"
       decoding="async"
     />
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#020817] via-[#020817]/45 to-transparent" />
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#020817] via-[#020817]/40 to-transparent" />
   </div>
 );
 
@@ -48,11 +52,11 @@ const Hero: React.FC = () => (
   >
     <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#020817] via-[#0a1628] to-[#000814]" />
     <div className="absolute inset-0 -z-10 opacity-10 bg-[linear-gradient(rgba(56,136,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(56,136,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
-    <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_78%_32%,rgba(56,136,255,0.18),transparent_38%),radial-gradient(circle_at_20%_80%,rgba(34,211,238,0.08),transparent_36%)]" />
+    <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_78%_32%,rgba(56,136,255,0.2),transparent_38%),radial-gradient(circle_at_20%_80%,rgba(34,211,238,0.08),transparent_36%)]" />
 
-    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[54%] items-center justify-center pr-8 lg:flex">
+    <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] items-center justify-center pr-6 lg:flex">
       <HeroLogoMark />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/12 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#020817] via-[#020817]/8 to-transparent" />
     </div>
 
     <div className="container relative mx-auto px-6 py-24 lg:py-32">
@@ -200,7 +204,7 @@ const Index: React.FC = () => {
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <link rel="preload" as="image" href="/brand/d3vonn-logo-cutout.svg" />
+        <link rel="preload" as="image" href="/og-image.png" />
       </Helmet>
 
       <motion.div
