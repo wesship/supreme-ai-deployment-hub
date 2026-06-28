@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 293" width="900" height="293" role="img" aria-label="D3VONN.IO logo">
+  <title>D3VONN.IO</title>
+  <defs>
+    <filter id="blueGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#3b82f6" flood-opacity="0.65"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="14" flood-color="#60a5fa" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <image href="data:image/webp;base64,UklGRuYZAQBXRUJQVlA4INoZAQDQ+Qu3mT2O2JYkSTJ5Z98n9d7V9v41f1eTlrBjxmE48q9yNQn6eh5U91wD/9vxH/mbr/+fPyV/Hx//u9f+/X/3+P8Bz/B/9cr/e+bz/0v7/y9h7v//d7v//zT/+v9r+mF9n/+v5/9x/9f9x8d/Ox1/5pz/9f+fO/z9/5b/5vf/f/8+P/3/7f//f/uf/7f/+v+Z/9/7f//f/9n+F/9P/3/9z+7/+L/9/8f/yf/7f/5/9/8/9z+9/8f/9f/7/5/9f8z/9/8P/0/9f8T/3/9L/8/9P/T/1/9P/U/0/9P/V/0/9P/W/0/9P/X/0/9P/Y/0/9P/Z/0/9P/a/0/9P/b/0/9P/c/0/9P/d/0/9P/e/0/9P/f/0/9P/g/0/9P/h/0/9P/i/0/9P/j/0/9P/k/0/9P/l/0/9P/m/0/9P/n/0/9P/o/0/9P/p/0/9P/q/0/9P/r/0/9P/s/0/9P/t/0/9P/u/0/9P/v/0/9P/w/0/9P/x/0/9P/y/0/9P/z/0/9P/0/0/9P/1/0/9P/2/0/9P/3/0/9P/4/0/9P/5/0/9P/6/0/9P/7/0/9P/8/0/9P/9/0/9P/+/0/9P///0/9P/ABkLkHYKwVa7+0y8U7A4wxHvNgf0TSnG3BfNP3vUAAAA" width="900" height="293" preserveAspectRatio="xMidYMid meet" filter="url(#blueGlow)"/>
+</svg>
