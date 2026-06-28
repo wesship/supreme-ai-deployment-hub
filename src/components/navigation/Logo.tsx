@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const LOGO_SRC = '/d3vonn-logo-live.png';
+const LOGO_SRC = '/d3vonn-logo-live.svg';
 
 const Logo: React.FC = () => {
   const [imageFailed, setImageFailed] = useState(false);
