@@ -20,7 +20,18 @@ export interface ServiceStatus {
   details?: string;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
+const API_BASE =
+  import.meta.env.VITE_D3VONN_API_URL ||
+  import.meta.env.VITE_DEVONN_API_URL ||
+  import.meta.env.VITE_API_URL ||
+  "https://devonn-ai-api.up.railway.app";
+
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ||
+  "https://tjygexesognbkwualywq.supabase.co";
+
+const AWS_HEALTH_URL = import.meta.env.VITE_AWS_HEALTH_URL;
+const HERMES_HEALTH_URL = import.meta.env.VITE_HERMES_HEALTH_URL || `${API_BASE}/health`;
 
 const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
   {
@@ -35,14 +46,14 @@ const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
     id: "api-health",
     name: "API Gateway",
     url: `${API_BASE}/health`,
-    description: "FastAPI backend orchestration service",
+    description: "Devonn legacy FastAPI backend now serving the D3VONN.IO public domain",
     icon: "⚡",
     category: "api",
   },
   {
     id: "supabase",
     name: "Supabase (Auth + DB)",
-    url: "https://sognbkwualywq.supabase.co/rest/v1/",
+    url: `${SUPABASE_URL}/rest/v1/`,
     description: "Authentication, database, and real-time subscriptions",
     icon: "🗄️",
     category: "database",
@@ -51,7 +62,7 @@ const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
     id: "redis-queue",
     name: "Redis / Queue",
     url: `${API_BASE}/health`,
-    description: "Task queue and caching layer (checked via API health)",
+    description: "Task queue and caching layer checked through backend health",
     icon: "📦",
     category: "queue",
   },
@@ -59,21 +70,33 @@ const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
     id: "ai-providers",
     name: "AI Providers",
     url: `${API_BASE}/health`,
-    description: "OpenAI, Anthropic, and HuggingFace model endpoints",
+    description: "OpenAI, Anthropic, and HuggingFace model endpoints checked through backend health",
     icon: "🧠",
     category: "ai",
   },
   {
     id: "hermes",
     name: "Hermes Orchestration",
-    url: `${API_BASE}/health`,
-    description: "Intelligence fabric for cross-agent coordination",
+    url: HERMES_HEALTH_URL,
+    description: "Devonn/Hermes intelligence fabric for cross-agent coordination",
     icon: "🔮",
     category: "orchestration",
   },
+  ...(AWS_HEALTH_URL
+    ? [
+        {
+          id: "aws-runtime",
+          name: "AWS Runtime",
+          url: AWS_HEALTH_URL,
+          description: "AWS production runtime health check activated by VITE_AWS_HEALTH_URL",
+          icon: "☁️",
+          category: "api" as const,
+        },
+      ]
+    : []),
 ];
 
-const STORAGE_KEY = "devonn-service-endpoints-v2";
+const STORAGE_KEY = "devonn-service-endpoints-v3";
 
 export function useServiceHealth() {
   const [endpoints, setEndpoints] = useState<ServiceEndpoint[]>(() => {
@@ -81,7 +104,6 @@ export function useServiceHealth() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Validate it has the category field (v2 format)
         if (parsed[0]?.category) return parsed;
       }
       return DEFAULT_ENDPOINTS;
@@ -105,18 +127,22 @@ export function useServiceHealth() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
 
-      // Use different strategies based on endpoint type
       const fetchOptions: RequestInit = {
         method: "GET",
         signal: controller.signal,
       };
 
-      // For same-origin or CORS-enabled endpoints, use cors mode
-      if (endpoint.url.includes('api.d3vonn.io') || endpoint.url.includes('d3vonn.io')) {
+      if (
+        endpoint.url.includes("api.d3vonn.io") ||
+        endpoint.url.includes("d3vonn.io") ||
+        endpoint.url.includes("devonn") ||
+        endpoint.url.includes("railway.app") ||
+        endpoint.url.includes("amazonaws.com")
+      ) {
         fetchOptions.mode = "cors";
-      } else if (endpoint.url.includes('supabase.co')) {
+      } else if (endpoint.url.includes("supabase.co")) {
         fetchOptions.mode = "cors";
-        fetchOptions.headers = { 'Accept': 'application/json' };
+        fetchOptions.headers = { Accept: "application/json" };
       } else {
         fetchOptions.mode = "no-cors";
       }
@@ -125,16 +151,15 @@ export function useServiceHealth() {
       clearTimeout(timeout);
       const latency = Math.round(performance.now() - start);
 
-      // For CORS requests, we can check the actual status
       if (fetchOptions.mode === "cors") {
         if (response.ok) {
           let details: string | undefined;
           try {
             const data = await response.json();
             if (data.version) details = `v${data.version}`;
-            if (data.status === 'ok') details = details ? `${details} • healthy` : 'healthy';
+            if (data.status === "ok" || data.status === "healthy") details = details ? `${details} • healthy` : "healthy";
           } catch {
-            // Not JSON, but still OK
+            // Non-JSON response is still considered online when HTTP status is OK.
           }
           return {
             id: endpoint.id,
@@ -146,7 +171,6 @@ export function useServiceHealth() {
             details,
           };
         } else if (response.status === 401 || response.status === 403) {
-          // Auth-protected but responding = service is up
           return {
             id: endpoint.id,
             name: endpoint.name,
@@ -169,7 +193,6 @@ export function useServiceHealth() {
         }
       }
 
-      // For no-cors (opaque) responses, if we got here without error, it's up
       return {
         id: endpoint.id,
         name: endpoint.name,
@@ -194,7 +217,6 @@ export function useServiceHealth() {
 
   const checkAll = useCallback(async () => {
     setIsChecking(true);
-    // Mark all as checking
     const checking: Record<string, ServiceStatus> = {};
     endpoints.forEach((ep) => {
       checking[ep.id] = {
@@ -214,8 +236,7 @@ export function useServiceHealth() {
     setStatuses(newStatuses);
     setIsChecking(false);
 
-    // Track last successful execution
-    const allOnline = results.every(r => r.status === 'online');
+    const allOnline = results.every(r => r.status === "online");
     if (allOnline) {
       setLastSuccessfulExecution(new Date());
     }
@@ -239,7 +260,6 @@ export function useServiceHealth() {
     saveEndpoints(DEFAULT_ENDPOINTS);
   }, [saveEndpoints]);
 
-  // Auto-check on mount and every 30 seconds
   useEffect(() => {
     checkAll();
     const interval = setInterval(checkAll, 30_000);
