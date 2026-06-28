@@ -43,6 +43,7 @@ const Analytics = lazy(() =>
 
 // All other pages are lazy-loaded to reduce the initial bundle
 const Login = lazy(() => import("./pages/Login"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FilmPage = lazy(() => import("./pages/Film"));
 const WorkflowManagement = lazy(() => import("./pages/WorkflowManagement"));
@@ -151,6 +152,9 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/auth" element={<AuthCallback />} />
+                <Route path="/auth/callback" element={<AuthCallback />} />
+                <Route path="/auth/confirm" element={<AuthCallback />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/film" element={<FilmPage />} />
                 <Route path="/deployment" element={<DeploymentDashboard />} />
@@ -196,7 +200,10 @@ function App() {
                 <Route path="/research-os" element={<ResearchOS />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
+                <Route path="/sign-in" element={<Navigate to="/login" replace />} />
+                <Route path="/log-in" element={<Navigate to="/login" replace />} />
                 <Route path="/signup" element={<Navigate to="/login" replace />} />
+                <Route path="/sign-up" element={<Navigate to="/login" replace />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
