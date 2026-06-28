@@ -1,0 +1,20 @@
+# Server-side DKOS ingestion worker requirements
+# Install these in the backend/worker runtime, not in the Vite frontend bundle.
+
+markitdown
+# docling should be installed in the document parsing worker image when available for the target runtime.
+# Suggested worker stack:
+# - Python 3.11+
+# - markitdown
+# - docling
+# - pydantic
+# - fastapi
+# - python-multipart
+# - pillow
+# - pandas
+# - openpyxl
+# - python-docx
+# - pymupdf
+# - tiktoken
+# - pinecone
+# - supabase
