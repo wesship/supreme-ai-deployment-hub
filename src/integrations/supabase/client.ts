@@ -2,7 +2,25 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const DEVONN_SUPABASE_URL = 'https://tjygexesognbkwualywq.supabase.co';
+
+const normalizeSupabaseUrl = (value: string | undefined) => {
+  if (!value) return DEVONN_SUPABASE_URL;
+
+  const trimmed = value.trim();
+  if (!trimmed) return DEVONN_SUPABASE_URL;
+
+  const withProtocol = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+
+  // Guard against a known truncated project ref that can break OAuth redirects.
+  if (withProtocol.includes('ognbkwualywq.supabase.co') && !withProtocol.includes('tjygexesognbkwualywq')) {
+    return DEVONN_SUPABASE_URL;
+  }
+
+  return withProtocol;
+};
+
+const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
 
