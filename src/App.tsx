@@ -83,6 +83,7 @@ const Security = lazy(() => import("./pages/Security"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
+const GrowthPlaybook = lazy(() => import("./pages/GrowthPlaybook"));
 
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
@@ -175,6 +176,8 @@ function App() {
                 <Route path="/command-center" element={<CommandCenter />} />
                 <Route path="/dkos-ingestion" element={<DkosIngestion />} />
                 <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
+                <Route path="/growth" element={<GrowthPlaybook />} />
+                <Route path="/growth-playbook" element={<GrowthPlaybook />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/terms" element={<Terms />} />
