@@ -1,7 +1,6 @@
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -41,17 +40,21 @@ const Login = () => {
     setGoogleError(null);
 
     try {
-      const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: authCallbackUrl,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: authCallbackUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
       });
 
-      if (result.error) {
-        setGoogleError(result.error.message ?? 'Google sign-in failed');
+      if (error) {
+        setGoogleError(error.message || 'Google sign-in failed');
         setGoogleLoading(false);
-        return;
       }
-      if (result.redirected) return;
-      navigate(redirect, { replace: true });
     } catch (err) {
       setGoogleError(err instanceof Error ? err.message : 'Google sign-in failed');
       setGoogleLoading(false);
