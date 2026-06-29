@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Loader2, FileUp, Cloud } from "lucide-react";
+import { Sparkles, Loader2, FileUp, Cloud, FolderOpen, Box, FileText, Github, Link as LinkIcon } from "lucide-react";
 import { Task, AgentResponse } from "@/types/agent";
 import { toast } from "sonner";
 import { agentApi } from "@/api/agentApi";
@@ -35,6 +35,15 @@ const googleDriveScopes = [
   "profile",
   "https://www.googleapis.com/auth/drive.file",
 ].join(" ");
+
+const upcomingSources = [
+  { label: "OneDrive", icon: Cloud },
+  { label: "Dropbox", icon: Box },
+  { label: "Notion", icon: FileText },
+  { label: "Confluence", icon: FileText },
+  { label: "GitHub Repository", icon: Github },
+  { label: "URL", icon: LinkIcon },
+];
 
 const CreateAgentTab: React.FC<CreateAgentTabProps> = ({
   taskDescription,
@@ -105,6 +114,10 @@ const CreateAgentTab: React.FC<CreateAgentTabProps> = ({
       toast.error(message);
       setDriveConnecting(false);
     }
+  };
+
+  const handleComingSoon = (source: string) => {
+    toast.info(`${source} connector is planned. Google Drive and local uploads are the active sources for this release.`);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,36 +192,60 @@ const CreateAgentTab: React.FC<CreateAgentTabProps> = ({
               />
             </div>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="fileUpload">Upload Task File (Optional)</Label>
-            <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
-              Users must authorize their own Google account. D3VONN should never browse or reuse the founder account's Drive files.
+          <div className="space-y-3">
+            <div>
+              <Label>Upload Knowledge Source</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Each user connects their own account. D3VONN does not reuse the founder's Drive files.
+              </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleConnectGoogleDrive}
-              disabled={driveConnecting}
-              className="w-full justify-center"
-            >
-              {driveConnecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Cloud className="h-4 w-4 mr-2" />}
-              {driveConnecting ? "Connecting Google Drive..." : "Connect My Google Drive"}
-            </Button>
-            <Input 
-              id="fileUpload" 
-              type="file" 
-              onChange={handleFileChange} 
-            />
-            {file && (
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={handleUploadFile}
-                className="mt-2"
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className="flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-background/60 px-3 py-2 text-sm font-medium hover:bg-muted/40">
+                <FolderOpen className="h-4 w-4" />
+                Local Device
+                <Input 
+                  id="fileUpload" 
+                  type="file" 
+                  onChange={handleFileChange}
+                  className="sr-only" 
+                />
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleConnectGoogleDrive}
+                disabled={driveConnecting}
+                className="min-h-12 justify-center"
               >
-                <FileUp className="h-4 w-4 mr-2" />
-                Upload File
+                {driveConnecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Cloud className="h-4 w-4 mr-2" />}
+                {driveConnecting ? "Connecting..." : "Google Drive"}
               </Button>
+              {upcomingSources.map(({ label, icon: Icon }) => (
+                <Button
+                  key={label}
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleComingSoon(label)}
+                  className="min-h-12 justify-center opacity-75"
+                >
+                  <Icon className="h-4 w-4 mr-2" />
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {file && (
+              <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                <p className="text-sm text-muted-foreground">Selected file: <span className="font-medium text-foreground">{file.name}</span></p>
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={handleUploadFile}
+                  className="mt-2"
+                >
+                  <FileUp className="h-4 w-4 mr-2" />
+                  Upload File
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
