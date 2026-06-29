@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,10 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Loader2, FileUp } from "lucide-react";
+import { Sparkles, Loader2, FileUp, Cloud } from "lucide-react";
 import { Task, AgentResponse } from "@/types/agent";
 import { toast } from "sonner";
 import { agentApi } from "@/api/agentApi";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CreateAgentTabProps {
   taskDescription: string;
@@ -29,6 +29,13 @@ interface CreateAgentTabProps {
   setActiveTab: (tab: string) => void;
 }
 
+const googleDriveScopes = [
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/drive.file",
+].join(" ");
+
 const CreateAgentTab: React.FC<CreateAgentTabProps> = ({
   taskDescription,
   setTaskDescription,
@@ -45,6 +52,8 @@ const CreateAgentTab: React.FC<CreateAgentTabProps> = ({
   generateAgent,
   setActiveTab,
 }) => {
+  const [driveConnecting, setDriveConnecting] = useState(false);
+
   const handleGenerateAgent = async () => {
     if (!taskDescription) {
       toast.error("Please enter a task description");
@@ -62,6 +71,39 @@ const CreateAgentTab: React.FC<CreateAgentTabProps> = ({
       setActiveTab("manage");
     } catch (error) {
       console.error("Error generating agent:", error);
+    }
+  };
+
+  const handleConnectGoogleDrive = async () => {
+    setDriveConnecting(true);
+
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(window.location.pathname)}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          scopes: googleDriveScopes,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+
+      if (error) {
+        const message = error.message || "Google Drive authorization failed";
+        if (message.toLowerCase().includes("unsupported provider") || message.toLowerCase().includes("not enabled")) {
+          toast.error("Google OAuth is not enabled in Supabase yet. Enable Google provider so each user can connect their own Drive account.");
+        } else {
+          toast.error(message);
+        }
+        setDriveConnecting(false);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Google Drive authorization failed";
+      toast.error(message);
+      setDriveConnecting(false);
     }
   };
 
@@ -139,6 +181,19 @@ const CreateAgentTab: React.FC<CreateAgentTabProps> = ({
           )}
           <div className="space-y-2">
             <Label htmlFor="fileUpload">Upload Task File (Optional)</Label>
+            <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
+              Users must authorize their own Google account. D3VONN should never browse or reuse the founder account's Drive files.
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleConnectGoogleDrive}
+              disabled={driveConnecting}
+              className="w-full justify-center"
+            >
+              {driveConnecting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Cloud className="h-4 w-4 mr-2" />}
+              {driveConnecting ? "Connecting Google Drive..." : "Connect My Google Drive"}
+            </Button>
             <Input 
               id="fileUpload" 
               type="file" 
