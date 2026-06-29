@@ -52,7 +52,7 @@ http://localhost:5173
 4. Add authorized redirect URIs:
 
 ```text
-https://<SUPABASE_PROJECT_REF>.supabase.co/auth/v1/callback
+https://tjygexesognbkwualywq.supabase.co/auth/v1/callback
 ```
 
 5. Request only the minimum scopes needed:
@@ -77,12 +77,28 @@ Every Drive authorization must be user-owned:
 - User-selected files are uploaded or processed for that user only.
 - No founder-owned Google Drive account should be used as a shared provider.
 
+## Upload Source UX
+
+The Agent Manager should present upload sources as user-owned connectors:
+
+- Local Device
+- Google Drive
+- OneDrive
+- Dropbox
+- Notion
+- Confluence
+- GitHub Repository
+- URL
+
+Only Local Device and Google Drive are active in this release. The other connectors are visible as roadmap items so users understand where the knowledge-ingestion system is going.
+
 ## Follow-up Backend Work
 
 The current UI starts the Google OAuth flow with Drive scope. The production backend should add:
 
 1. A per-user Drive connection table.
 2. Encrypted token storage if provider tokens are persisted.
-3. A file import endpoint that associates selected Drive files with the authenticated user.
+3. A Google Picker or Drive file import endpoint that associates selected Drive files with the authenticated user.
 4. Row-level security so users only see their own imported files.
 5. Token revocation/disconnect support.
+6. Future OAuth connector tables for OneDrive, Dropbox, Notion, Confluence, and GitHub.
