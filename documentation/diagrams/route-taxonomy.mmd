@@ -1,0 +1,96 @@
+%%{init: {'theme': 'dark', 'themeVariables': {'primaryColor': '#6366f1', 'primaryTextColor': '#fff', 'primaryBorderColor': '#818cf8', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b', 'tertiaryColor': '#0f172a'}}}%%
+graph TB
+    %% ═══════════════════════════════════════════════════════════
+    %% D3VONN Route Taxonomy — Platform Architecture
+    %% ═══════════════════════════════════════════════════════════
+
+    ROOT["d3vonn.io"]
+
+    ROOT --> PLATFORM
+    ROOT --> COMPANY
+    ROOT --> DEVELOPERS
+    ROOT --> ENTERPRISE
+
+    subgraph PLATFORM ["Platform — Core AI Operations"]
+        direction TB
+        P_DASH["/dashboard"]
+        P_AGENTS["/agents"]
+        P_HERMES["/hermes"]
+        P_KNOW["/knowledge"]
+        P_DEPLOY["/deployments"]
+        P_MONITOR["/monitoring"]
+        P_WORK["/workflows"]
+        P_TASKS["/tasks"]
+        P_EVENTS["/events"]
+        P_MEMORY["/memory"]
+        P_TOOLS["/tools"]
+        P_MODELS["/models"]
+        P_BENCH["/benchmark"]
+        P_GRAPH["/graph"]
+        P_SETTINGS["/settings"]
+    end
+
+    subgraph COMPANY ["Company — Corporate & Marketing"]
+        direction TB
+        C_HOME["/"]
+        C_ABOUT["/about"]
+        C_BLOG["/blog"]
+        C_CAREERS["/careers"]
+        C_CONTACT["/contact"]
+        C_PRICING["/pricing"]
+        C_LEGAL["/legal"]
+        C_STATUS["/status"]
+        C_BRAND["/brand"]
+        C_PARTNERS["/partners"]
+    end
+
+    subgraph DEVELOPERS ["Developers — Tools & Docs"]
+        direction TB
+        D_DOCS["/docs"]
+        D_API["/api"]
+        D_SDK["/sdk"]
+        D_PLAY["/playground"]
+        D_CHANGE["/changelog"]
+        D_GUIDE["/guides"]
+        D_EXAMPLES["/examples"]
+        D_COMMUNITY["/community"]
+        D_WEBHOOKS["/webhooks"]
+        D_CLI["/cli"]
+    end
+
+    subgraph ENTERPRISE ["Enterprise — Governance"]
+        direction TB
+        E_GOV["/governance"]
+        E_COMPLY["/compliance"]
+        E_SEC["/security"]
+        E_RBAC["/access"]
+        E_TENANT["/tenants"]
+        E_AUDIT["/audit-log"]
+        E_SSO["/sso"]
+        E_BILLING["/billing"]
+        E_SLA["/sla"]
+        E_REPORTS["/reports"]
+        E_ONBOARD["/onboarding"]
+        E_SANDBOX["/sandbox"]
+        E_CUSTOM["/custom-agents"]
+    end
+
+    %% Cross-links
+    P_HERMES -.->|governs| E_GOV
+    P_EVENTS -.->|feeds| E_AUDIT
+    P_KNOW -.->|docs| D_DOCS
+    P_TOOLS -.->|exposed via| D_API
+    E_RBAC -.->|enforces| P_AGENTS
+    E_TENANT -.->|isolates| P_MEMORY
+
+    classDef platform fill:#6366f1,stroke:#818cf8,color:#fff
+    classDef company fill:#10b981,stroke:#34d399,color:#fff
+    classDef developer fill:#f59e0b,stroke:#fbbf24,color:#000
+    classDef enterprise fill:#ef4444,stroke:#f87171,color:#fff
+    classDef root fill:#1e293b,stroke:#64748b,color:#fff
+
+    class ROOT root
+    class P_DASH,P_AGENTS,P_HERMES,P_KNOW,P_DEPLOY,P_MONITOR,P_WORK,P_TASKS,P_EVENTS,P_MEMORY,P_TOOLS,P_MODELS,P_BENCH,P_GRAPH,P_SETTINGS platform
+    class C_HOME,C_ABOUT,C_BLOG,C_CAREERS,C_CONTACT,C_PRICING,C_LEGAL,C_STATUS,C_BRAND,C_PARTNERS company
+    class D_DOCS,D_API,D_SDK,D_PLAY,D_CHANGE,D_GUIDE,D_EXAMPLES,D_COMMUNITY,D_WEBHOOKS,D_CLI developer
+    class E_GOV,E_COMPLY,E_SEC,E_RBAC,E_TENANT,E_AUDIT,E_SSO,E_BILLING,E_SLA,E_REPORTS,E_ONBOARD,E_SANDBOX,E_CUSTOM enterprise
