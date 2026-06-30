@@ -1,0 +1,66 @@
+graph TD
+    %% D3VONN Platform Knowledge Graph — Overview
+
+    subgraph orchestration["Hermes Orchestration"]
+        hermes([Hermes])
+        agent_orchestration{{Agent Orchestration}}
+    end
+
+    subgraph knowledge["DKOS Knowledge OS"]
+        episodic_memory((Episodic Memory))
+        knowledge_curator([Knowledge Curator])
+        knowledge_graph((Knowledge Graph))
+        document_ingestion((Document Ingestion Pipeline))
+        rag_engine((RAG Engine))
+        semantic_memory((Semantic Memory))
+    end
+
+    subgraph ai_workforce["AI Workforce"]
+        content_writer([Content Writer])
+        data_analyst([Data Analyst])
+        code_engineer([Code Engineer])
+        research_analyst([Research Analyst])
+    end
+
+    subgraph automation["Automation Engine"]
+        incident_remediation{{Autonomous Remediation}}
+        ci_cd_pipeline{{CI/CD Pipeline}}
+        devops_engineer([DevOps Engineer])
+    end
+
+    subgraph security["Security Command Center"]
+        agent_firewall_policy[Agent Firewall Policy]
+        opa_governance[OPA Governance Rules]
+        agent_firewall{{Agent Firewall}}
+        falco_runtime[Falco Runtime Detection]
+        security_sentinel([Security Sentinel])
+        security_scan{{Security Scanning}}
+    end
+
+    subgraph developer_platform["Developer Platform"]
+        mcp_server[(D3VONN MCP Server)]
+        typescript_sdk[(D3VONN TypeScript SDK)]
+        chrome_extension[(D3VONN Browser Extension)]
+        supabase[(Supabase)]
+        openapi_spec[(D3VONN REST API)]
+    end
+
+    subgraph enterprise_governance["Enterprise Governance"]
+        cost_attribution{{Cost Attribution}}
+    end
+
+    %% Delegation edges
+    hermes -->|delegates| research_analyst
+    hermes -->|delegates| code_engineer
+    hermes -->|delegates| security_sentinel
+    hermes -->|delegates| data_analyst
+    hermes -->|delegates| content_writer
+    hermes -->|delegates| devops_engineer
+    hermes -->|delegates| knowledge_curator
+
+    %% Styles
+    classDef agent fill:#4F46E5,stroke:#312E81,color:#fff
+    classDef workflow fill:#059669,stroke:#064E3B,color:#fff
+    classDef integration fill:#D97706,stroke:#78350F,color:#fff
+    classDef security fill:#DC2626,stroke:#7F1D1D,color:#fff
+    classDef knowledge fill:#7C3AED,stroke:#4C1D95,color:#fff

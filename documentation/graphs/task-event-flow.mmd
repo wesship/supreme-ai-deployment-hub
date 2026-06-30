@@ -1,0 +1,128 @@
+graph LR
+    %% Event Flow: TaskCreated
+
+    TaskCreated>TaskCreated]
+    hermes([Hermes])
+    TaskCreated -->|triggers| hermes
+    AgentStarted>AgentStarted]
+    hermes -->|emits| AgentStarted
+    GovernanceViolation>GovernanceViolation]
+    hermes -->|emits| GovernanceViolation
+    AgentFailed>AgentFailed]
+    hermes -->|emits| AgentFailed
+    AgentCompleted>AgentCompleted]
+    hermes -->|emits| AgentCompleted
+    TaskDelegated>TaskDelegated]
+    hermes -->|emits| TaskDelegated
+    devops_engineer([DevOps Engineer])
+    TaskDelegated -->|triggers| devops_engineer
+    code_engineer([Code Engineer])
+    TaskDelegated -->|triggers| code_engineer
+    data_analyst([Data Analyst])
+    TaskDelegated -->|triggers| data_analyst
+    research_analyst([Research Analyst])
+    TaskDelegated -->|triggers| research_analyst
+    knowledge_curator([Knowledge Curator])
+    TaskDelegated -->|triggers| knowledge_curator
+    content_writer([Content Writer])
+    TaskDelegated -->|triggers| content_writer
+    security_sentinel([Security Sentinel])
+    TaskDelegated -->|triggers| security_sentinel
+    TaskCompleted>TaskCompleted]
+    devops_engineer -->|emits| TaskCompleted
+    code_engineer -->|emits| TaskCompleted
+    data_analyst -->|emits| TaskCompleted
+    research_analyst -->|emits| TaskCompleted
+    knowledge_curator -->|emits| TaskCompleted
+    content_writer -->|emits| TaskCompleted
+    security_sentinel -->|emits| TaskCompleted
+    DeploymentStarted>DeploymentStarted]
+    devops_engineer -->|emits| DeploymentStarted
+    code_engineer -->|emits| DeploymentStarted
+    data_analyst -->|emits| DeploymentStarted
+    research_analyst -->|emits| DeploymentStarted
+    knowledge_curator -->|emits| DeploymentStarted
+    content_writer -->|emits| DeploymentStarted
+    security_sentinel -->|emits| DeploymentStarted
+    DeploymentFinished>DeploymentFinished]
+    devops_engineer -->|emits| DeploymentFinished
+    code_engineer -->|emits| DeploymentFinished
+    data_analyst -->|emits| DeploymentFinished
+    research_analyst -->|emits| DeploymentFinished
+    knowledge_curator -->|emits| DeploymentFinished
+    content_writer -->|emits| DeploymentFinished
+    security_sentinel -->|emits| DeploymentFinished
+    devops_engineer -->|emits| TaskCompleted
+    code_engineer -->|emits| TaskCompleted
+    data_analyst -->|emits| TaskCompleted
+    research_analyst -->|emits| TaskCompleted
+    knowledge_curator -->|emits| TaskCompleted
+    content_writer -->|emits| TaskCompleted
+    security_sentinel -->|emits| TaskCompleted
+    devops_engineer -->|emits| TaskCompleted
+    code_engineer -->|emits| TaskCompleted
+    data_analyst -->|emits| TaskCompleted
+    research_analyst -->|emits| TaskCompleted
+    knowledge_curator -->|emits| TaskCompleted
+    content_writer -->|emits| TaskCompleted
+    security_sentinel -->|emits| TaskCompleted
+    devops_engineer -->|emits| TaskCompleted
+    code_engineer -->|emits| TaskCompleted
+    data_analyst -->|emits| TaskCompleted
+    research_analyst -->|emits| TaskCompleted
+    knowledge_curator -->|emits| TaskCompleted
+    content_writer -->|emits| TaskCompleted
+    security_sentinel -->|emits| TaskCompleted
+    KnowledgeIndexed>KnowledgeIndexed]
+    devops_engineer -->|emits| KnowledgeIndexed
+    code_engineer -->|emits| KnowledgeIndexed
+    data_analyst -->|emits| KnowledgeIndexed
+    research_analyst -->|emits| KnowledgeIndexed
+    knowledge_curator -->|emits| KnowledgeIndexed
+    content_writer -->|emits| KnowledgeIndexed
+    security_sentinel -->|emits| KnowledgeIndexed
+    devops_engineer -->|emits| KnowledgeIndexed
+    code_engineer -->|emits| KnowledgeIndexed
+    data_analyst -->|emits| KnowledgeIndexed
+    research_analyst -->|emits| KnowledgeIndexed
+    knowledge_curator -->|emits| KnowledgeIndexed
+    content_writer -->|emits| KnowledgeIndexed
+    security_sentinel -->|emits| KnowledgeIndexed
+    MemoryUpdated>MemoryUpdated]
+    devops_engineer -->|emits| MemoryUpdated
+    code_engineer -->|emits| MemoryUpdated
+    data_analyst -->|emits| MemoryUpdated
+    research_analyst -->|emits| MemoryUpdated
+    knowledge_curator -->|emits| MemoryUpdated
+    content_writer -->|emits| MemoryUpdated
+    security_sentinel -->|emits| MemoryUpdated
+    devops_engineer -->|emits| TaskCompleted
+    code_engineer -->|emits| TaskCompleted
+    data_analyst -->|emits| TaskCompleted
+    research_analyst -->|emits| TaskCompleted
+    knowledge_curator -->|emits| TaskCompleted
+    content_writer -->|emits| TaskCompleted
+    security_sentinel -->|emits| TaskCompleted
+    devops_engineer -->|emits| TaskCompleted
+    code_engineer -->|emits| TaskCompleted
+    data_analyst -->|emits| TaskCompleted
+    research_analyst -->|emits| TaskCompleted
+    knowledge_curator -->|emits| TaskCompleted
+    content_writer -->|emits| TaskCompleted
+    security_sentinel -->|emits| TaskCompleted
+    SecurityAlertRaised>SecurityAlertRaised]
+    devops_engineer -->|emits| SecurityAlertRaised
+    code_engineer -->|emits| SecurityAlertRaised
+    data_analyst -->|emits| SecurityAlertRaised
+    research_analyst -->|emits| SecurityAlertRaised
+    knowledge_curator -->|emits| SecurityAlertRaised
+    content_writer -->|emits| SecurityAlertRaised
+    security_sentinel -->|emits| SecurityAlertRaised
+    DeploymentFinished -->|triggers| hermes
+    DeploymentFinished -->|triggers| security_sentinel
+    hermes -->|emits| SecurityAlertRaised
+    security_sentinel -->|emits| SecurityAlertRaised
+    SecurityAlertRaised -->|triggers| hermes
+
+    classDef agent fill:#4F46E5,stroke:#312E81,color:#fff
+    classDef event fill:#EC4899,stroke:#831843,color:#fff

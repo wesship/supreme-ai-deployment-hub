@@ -1,0 +1,191 @@
+# D3VONN Platform Knowledge Graph — Schema Definition
+# Version: 1.0
+# This schema defines all node types, edge types, and their properties
+# for the platform-wide knowledge graph that Hermes uses for reasoning.
+---
+apiVersion: d3vonn.io/v1
+kind: GraphSchema
+version: "1.0"
+last_updated: "2026-06-30"
+
+# ─────────────────────────────────────────────────────────────────
+# Node Types
+# ─────────────────────────────────────────────────────────────────
+node_types:
+
+  Agent:
+    description: An AI agent in the D3VONN platform.
+    properties:
+      id: { type: string, required: true, indexed: true }
+      name: { type: string, required: true }
+      tier: { type: enum, values: [core, specialist], required: true }
+      status: { type: enum, values: [active, inactive, planned], required: true }
+      version: { type: string, required: true }
+      capabilities: { type: string[], required: true }
+      description: { type: string, required: true }
+
+  Route:
+    description: A frontend route/page in the platform UI.
+    properties:
+      path: { type: string, required: true, indexed: true }
+      page: { type: string, required: true }
+      category: { type: enum, values: [platform, company, developers, enterprise], required: true }
+      access: { type: enum, values: [public, authenticated, admin], required: true }
+      description: { type: string, required: true }
+      pillar: { type: string, required: false }
+
+  Workflow:
+    description: An automation workflow managed by Hermes or GitHub Actions.
+    properties:
+      id: { type: string, required: true, indexed: true }
+      name: { type: string, required: true }
+      type: { type: string, required: true }
+      trigger: { type: enum, values: [api, event, push, schedule, upload, alert], required: true }
+      engine: { type: enum, values: [hermes, github-actions], required: true }
+      status: { type: enum, values: [active, inactive, planned], required: true }
+
+  Integration:
+    description: An external integration, SDK, or connector.
+    properties:
+      id: { type: string, required: true, indexed: true }
+      name: { type: string, required: true }
+      type: { type: enum, values: [sdk, extension, api, protocol, backend-service, model-provider], required: true }
+      status: { type: enum, values: [active, inactive, planned], required: true }
+
+  SecurityPolicy:
+    description: A security policy, compliance framework, or governance rule.
+    properties:
+      id: { type: string, required: true, indexed: true }
+      name: { type: string, required: true }
+      type: { type: string, required: true }
+      engine: { type: string, required: true }
+      status: { type: enum, values: [active, inactive, planned, in-progress], required: true }
+
+  KnowledgeModule:
+    description: A DKOS knowledge module (memory store, pipeline, or retrieval engine).
+    properties:
+      id: { type: string, required: true, indexed: true }
+      name: { type: string, required: true }
+      type: { type: enum, values: [memory-store, pipeline, retrieval, graph], required: true }
+      backend: { type: string, required: false }
+      status: { type: enum, values: [active, inactive, planned], required: true }
+
+  Event:
+    description: A platform event in the standardized event bus.
+    properties:
+      name: { type: string, required: true, indexed: true }
+      description: { type: string, required: true }
+      category: { type: enum, values: [agent, task, workflow, knowledge, security, deployment, memory, governance], required: true }
+
+  Pillar:
+    description: One of the seven D3VONN platform pillars.
+    properties:
+      id: { type: string, required: true, indexed: true }
+      name: { type: string, required: true }
+      description: { type: string, required: true }
+
+  Tool:
+    description: A tool that an agent can invoke.
+    properties:
+      id: { type: string, required: true, indexed: true }
+      name: { type: string, required: true }
+      description: { type: string, required: true }
+      owner_agent: { type: string, required: true }
+
+  RBACRole:
+    description: A role-based access control role.
+    properties:
+      id: { type: string, required: true, indexed: true }
+      description: { type: string, required: true }
+      permissions: { type: string[], required: true }
+
+# ─────────────────────────────────────────────────────────────────
+# Edge Types (Relationships)
+# ─────────────────────────────────────────────────────────────────
+edge_types:
+
+  SERVES:
+    description: An agent serves (powers) a route.
+    from: Agent
+    to: Route
+    properties:
+      role: { type: string, description: "How the agent serves this route" }
+
+  BELONGS_TO:
+    description: A route belongs to a pillar.
+    from: Route
+    to: Pillar
+    properties: {}
+
+  ORCHESTRATES:
+    description: An agent orchestrates a workflow.
+    from: Agent
+    to: Workflow
+    properties: {}
+
+  DELEGATES_TO:
+    description: An agent delegates tasks to another agent.
+    from: Agent
+    to: Agent
+    properties:
+      conditions: { type: string, description: "When delegation occurs" }
+
+  USES_INTEGRATION:
+    description: An agent or workflow uses an external integration.
+    from: [Agent, Workflow]
+    to: Integration
+    properties: {}
+
+  ENFORCES:
+    description: A security policy is enforced on an agent or workflow.
+    from: SecurityPolicy
+    to: [Agent, Workflow, Route]
+    properties: {}
+
+  QUERIES:
+    description: An agent queries a knowledge module.
+    from: Agent
+    to: KnowledgeModule
+    properties:
+      operations: { type: string[], description: "read, write, ingest, search" }
+
+  PUBLISHES:
+    description: An agent or workflow publishes an event.
+    from: [Agent, Workflow]
+    to: Event
+    properties: {}
+
+  SUBSCRIBES_TO:
+    description: An agent or workflow subscribes to an event.
+    from: [Agent, Workflow]
+    to: Event
+    properties: {}
+
+  HAS_TOOL:
+    description: An agent has access to a tool.
+    from: Agent
+    to: Tool
+    properties: {}
+
+  REQUIRES_ROLE:
+    description: A route requires a specific RBAC role for access.
+    from: Route
+    to: RBACRole
+    properties: {}
+
+  PART_OF:
+    description: A component is part of a pillar.
+    from: [Agent, Workflow, Integration, KnowledgeModule, SecurityPolicy]
+    to: Pillar
+    properties: {}
+
+# ─────────────────────────────────────────────────────────────────
+# Constraints
+# ─────────────────────────────────────────────────────────────────
+constraints:
+  - "Every Agent must have at least one capability"
+  - "Every Route must belong to exactly one category"
+  - "Every Workflow must have exactly one engine"
+  - "Hermes (core agent) cannot be delegated TO by another agent"
+  - "Every SecurityPolicy must be enforced on at least one target"
+  - "Every Event must have at least one publisher"

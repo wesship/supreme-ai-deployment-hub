@@ -1,0 +1,46 @@
+graph TD
+    %% D3VONN Security Posture
+
+    opa_governance[OPA Governance Rules]
+    agent_orchestration{{Agent Orchestration}}
+    opa_governance -->|enforces| agent_orchestration
+    hermes([Hermes])
+    opa_governance -->|enforces| hermes
+
+    falco_runtime[Falco Runtime Detection]
+    ci_cd_pipeline{{CI/CD Pipeline}}
+    falco_runtime -->|enforces| ci_cd_pipeline
+
+    kyverno_admission[Kyverno Admission Policies]
+    ci_cd_pipeline{{CI/CD Pipeline}}
+    kyverno_admission -->|enforces| ci_cd_pipeline
+
+    tetragon_observability[Tetragon eBPF Policies]
+    ci_cd_pipeline{{CI/CD Pipeline}}
+    tetragon_observability -->|enforces| ci_cd_pipeline
+
+    seccomp_profiles[Seccomp Profiles]
+    ci_cd_pipeline{{CI/CD Pipeline}}
+    seccomp_profiles -->|enforces| ci_cd_pipeline
+
+    agent_firewall_policy[Agent Firewall Policy]
+    research_analyst([Research Analyst])
+    agent_firewall_policy -->|enforces| research_analyst
+    data_analyst([Data Analyst])
+    agent_firewall_policy -->|enforces| data_analyst
+    security_sentinel([Security Sentinel])
+    agent_firewall_policy -->|enforces| security_sentinel
+    code_engineer([Code Engineer])
+    agent_firewall_policy -->|enforces| code_engineer
+    content_writer([Content Writer])
+    agent_firewall_policy -->|enforces| content_writer
+    knowledge_curator([Knowledge Curator])
+    agent_firewall_policy -->|enforces| knowledge_curator
+    devops_engineer([DevOps Engineer])
+    agent_firewall_policy -->|enforces| devops_engineer
+    hermes([Hermes])
+    agent_firewall_policy -->|enforces| hermes
+
+    classDef security fill:#DC2626,stroke:#7F1D1D,color:#fff
+    classDef agent fill:#4F46E5,stroke:#312E81,color:#fff
+    classDef workflow fill:#059669,stroke:#064E3B,color:#fff

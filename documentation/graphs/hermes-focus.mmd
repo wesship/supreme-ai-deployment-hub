@@ -1,0 +1,76 @@
+graph LR
+    %% Focus: Hermes
+
+    hermes([Hermes])
+
+    %% Delegates to
+    research_analyst([Research Analyst])
+    hermes -->|delegates| research_analyst
+    devops_engineer([DevOps Engineer])
+    hermes -->|delegates| devops_engineer
+    content_writer([Content Writer])
+    hermes -->|delegates| content_writer
+    security_sentinel([Security Sentinel])
+    hermes -->|delegates| security_sentinel
+    code_engineer([Code Engineer])
+    hermes -->|delegates| code_engineer
+    knowledge_curator([Knowledge Curator])
+    hermes -->|delegates| knowledge_curator
+    data_analyst([Data Analyst])
+    hermes -->|delegates| data_analyst
+
+    %% Serves routes
+    _marketplace[/AgentMarketplace\]
+    hermes -->|serves| _marketplace
+    _chat[/ChatPage\]
+    hermes -->|serves| _chat
+    _workflows[/WorkflowManagement\]
+    hermes -->|serves| _workflows
+    _d3vonn[/DevonnDashboard\]
+    hermes -->|serves| _d3vonn
+    _admin[/AdminPage\]
+    hermes -->|serves| _admin
+    _occ[/OperatorCommandCenter\]
+    hermes -->|serves| _occ
+    _command_center[/CommandCenter\]
+    hermes -->|serves| _command_center
+    _dashboard[/Dashboard\]
+    hermes -->|serves| _dashboard
+
+    %% Uses integrations
+    openai[(OpenAI)]
+    hermes -->|uses| openai
+    supabase[(Supabase)]
+    hermes -->|uses| supabase
+    anthropic[(Anthropic)]
+    hermes -->|uses| anthropic
+
+    %% Queries knowledge
+    episodic_memory((Episodic Memory))
+    hermes -->|queries| episodic_memory
+
+    %% Publishes events
+    AgentCompleted>AgentCompleted]
+    hermes -->|publishes| AgentCompleted
+    AgentStarted>AgentStarted]
+    hermes -->|publishes| AgentStarted
+    GovernanceViolation>GovernanceViolation]
+    hermes -->|publishes| GovernanceViolation
+    TaskDelegated>TaskDelegated]
+    hermes -->|publishes| TaskDelegated
+    AgentFailed>AgentFailed]
+    hermes -->|publishes| AgentFailed
+
+    %% Policies enforced
+    agent_firewall_policy[Agent Firewall Policy]
+    agent_firewall_policy -->|enforces| hermes
+    opa_governance[OPA Governance Rules]
+    opa_governance -->|enforces| hermes
+
+    classDef agent fill:#4F46E5,stroke:#312E81,color:#fff
+    classDef route fill:#0891B2,stroke:#164E63,color:#fff
+    classDef workflow fill:#059669,stroke:#064E3B,color:#fff
+    classDef integration fill:#D97706,stroke:#78350F,color:#fff
+    classDef security fill:#DC2626,stroke:#7F1D1D,color:#fff
+    classDef knowledge fill:#7C3AED,stroke:#4C1D95,color:#fff
+    classDef event fill:#EC4899,stroke:#831843,color:#fff

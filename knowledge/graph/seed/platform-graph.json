@@ -1,0 +1,233 @@
+{
+  "version": "1.0",
+  "generated": "2026-06-30",
+  "description": "D3VONN Platform Knowledge Graph — complete seed data for Hermes reasoning",
+
+  "nodes": {
+    "pillars": [
+      { "id": "orchestration", "name": "Hermes Orchestration", "description": "Core orchestration kernel — task routing, governance, lifecycle management." },
+      { "id": "knowledge", "name": "DKOS Knowledge OS", "description": "Knowledge operating system — memory, retrieval, ingestion, graph." },
+      { "id": "ai-workforce", "name": "AI Workforce", "description": "Specialist AI agents — research, code, security, data, content, devops." },
+      { "id": "automation", "name": "Automation Engine", "description": "Workflow execution — CI/CD, event-driven automation, scheduled tasks." },
+      { "id": "security", "name": "Security Command Center", "description": "Threat detection, compliance, governance, incident response." },
+      { "id": "developer-platform", "name": "Developer Platform", "description": "SDKs, APIs, MCP, documentation, integrations." },
+      { "id": "enterprise-governance", "name": "Enterprise Governance", "description": "Multi-tenant ops, RBAC, sovereignty, admin." }
+    ],
+
+    "agents": [
+      { "id": "hermes", "name": "Hermes", "tier": "core", "status": "active", "version": "3.0.0", "capabilities": ["task-routing", "agent-delegation", "policy-enforcement", "lifecycle-management", "event-orchestration", "multi-agent-coordination", "conflict-resolution", "priority-scheduling"] },
+      { "id": "research-analyst", "name": "Research Analyst", "tier": "specialist", "status": "active", "version": "1.2.0", "capabilities": ["web-search", "source-synthesis", "citation-generation", "report-writing", "fact-checking", "comparative-analysis", "trend-identification"] },
+      { "id": "code-engineer", "name": "Code Engineer", "tier": "specialist", "status": "active", "version": "1.1.0", "capabilities": ["code-generation", "code-review", "refactoring", "debugging", "architecture-design", "testing"] },
+      { "id": "security-sentinel", "name": "Security Sentinel", "tier": "specialist", "status": "active", "version": "1.1.0", "capabilities": ["vulnerability-scanning", "compliance-auditing", "threat-detection", "incident-response", "policy-validation", "secret-scanning", "dependency-audit"] },
+      { "id": "data-analyst", "name": "Data Analyst", "tier": "specialist", "status": "active", "version": "1.0.0", "capabilities": ["data-visualization", "statistical-analysis", "report-generation", "trend-analysis", "forecasting"] },
+      { "id": "content-writer", "name": "Content Writer", "tier": "specialist", "status": "active", "version": "1.0.0", "capabilities": ["copywriting", "documentation", "marketing-materials", "technical-writing", "creative-writing"] },
+      { "id": "devops-engineer", "name": "DevOps Engineer", "tier": "specialist", "status": "active", "version": "1.0.0", "capabilities": ["deployment-automation", "monitoring", "incident-remediation", "infrastructure-management", "container-orchestration"] },
+      { "id": "knowledge-curator", "name": "Knowledge Curator", "tier": "specialist", "status": "active", "version": "1.0.0", "capabilities": ["knowledge-ingestion", "indexing", "semantic-search", "memory-management", "document-processing"] }
+    ],
+
+    "workflows": [
+      { "id": "agent-orchestration", "name": "Agent Orchestration", "type": "core", "trigger": "api", "engine": "hermes", "status": "active" },
+      { "id": "agent-firewall", "name": "Agent Firewall", "type": "governance", "trigger": "event", "engine": "hermes", "status": "active" },
+      { "id": "ci-cd-pipeline", "name": "CI/CD Pipeline", "type": "deployment", "trigger": "push", "engine": "github-actions", "status": "active" },
+      { "id": "security-scan", "name": "Security Scanning", "type": "security", "trigger": "schedule", "engine": "github-actions", "status": "active" },
+      { "id": "knowledge-ingestion", "name": "Knowledge Ingestion", "type": "data", "trigger": "upload", "engine": "hermes", "status": "active" },
+      { "id": "incident-remediation", "name": "Autonomous Remediation", "type": "operations", "trigger": "alert", "engine": "hermes", "status": "active" },
+      { "id": "cost-attribution", "name": "Cost Attribution", "type": "finance", "trigger": "schedule", "engine": "github-actions", "status": "active" }
+    ],
+
+    "integrations": [
+      { "id": "typescript-sdk", "name": "D3VONN TypeScript SDK", "type": "sdk", "status": "active" },
+      { "id": "chrome-extension", "name": "D3VONN Browser Extension", "type": "extension", "status": "active" },
+      { "id": "openapi-spec", "name": "D3VONN REST API", "type": "api", "status": "active" },
+      { "id": "mcp-server", "name": "D3VONN MCP Server", "type": "protocol", "status": "active" },
+      { "id": "supabase", "name": "Supabase", "type": "backend-service", "status": "active" },
+      { "id": "huggingface", "name": "Hugging Face", "type": "model-provider", "status": "active" },
+      { "id": "openai", "name": "OpenAI", "type": "model-provider", "status": "active" },
+      { "id": "anthropic", "name": "Anthropic", "type": "model-provider", "status": "active" }
+    ],
+
+    "security_policies": [
+      { "id": "opa-governance", "name": "OPA Governance Rules", "type": "admission-control", "engine": "open-policy-agent", "status": "active" },
+      { "id": "falco-runtime", "name": "Falco Runtime Detection", "type": "runtime-security", "engine": "falco", "status": "active" },
+      { "id": "kyverno-admission", "name": "Kyverno Admission Policies", "type": "admission-control", "engine": "kyverno", "status": "active" },
+      { "id": "tetragon-observability", "name": "Tetragon eBPF Policies", "type": "kernel-observability", "engine": "tetragon", "status": "active" },
+      { "id": "seccomp-profiles", "name": "Seccomp Profiles", "type": "container-hardening", "engine": "seccomp", "status": "active" },
+      { "id": "agent-firewall-policy", "name": "Agent Firewall Policy", "type": "agent-governance", "engine": "hermes", "status": "active" }
+    ],
+
+    "knowledge_modules": [
+      { "id": "semantic-memory", "name": "Semantic Memory", "type": "memory-store", "backend": "supabase-pgvector", "status": "active" },
+      { "id": "episodic-memory", "name": "Episodic Memory", "type": "memory-store", "backend": "supabase", "status": "active" },
+      { "id": "document-ingestion", "name": "Document Ingestion Pipeline", "type": "pipeline", "backend": "supabase", "status": "active" },
+      { "id": "rag-engine", "name": "RAG Engine", "type": "retrieval", "backend": "supabase-pgvector", "status": "active" },
+      { "id": "knowledge-graph", "name": "Knowledge Graph", "type": "graph", "backend": "neo4j", "status": "planned" }
+    ],
+
+    "events": [
+      { "name": "AgentStarted", "description": "An agent has begun executing a task.", "category": "agent" },
+      { "name": "AgentCompleted", "description": "An agent has successfully completed a task.", "category": "agent" },
+      { "name": "AgentFailed", "description": "An agent has failed during execution.", "category": "agent" },
+      { "name": "TaskCreated", "description": "A new task has been submitted.", "category": "task" },
+      { "name": "TaskDelegated", "description": "A task has been assigned to an agent.", "category": "task" },
+      { "name": "TaskCompleted", "description": "A task has been fully resolved.", "category": "task" },
+      { "name": "WorkflowTriggered", "description": "A workflow has been initiated.", "category": "workflow" },
+      { "name": "WorkflowCompleted", "description": "A workflow has finished.", "category": "workflow" },
+      { "name": "KnowledgeIndexed", "description": "New knowledge has been indexed.", "category": "knowledge" },
+      { "name": "SecurityAlertRaised", "description": "A security threat has been detected.", "category": "security" },
+      { "name": "DeploymentStarted", "description": "A deployment has begun.", "category": "deployment" },
+      { "name": "DeploymentFinished", "description": "A deployment has completed.", "category": "deployment" },
+      { "name": "MemoryUpdated", "description": "Agent memory has been persisted.", "category": "memory" },
+      { "name": "GovernanceViolation", "description": "A policy violation has been detected.", "category": "governance" }
+    ],
+
+    "rbac_roles": [
+      { "id": "platform-admin", "description": "Full platform access including security operations and governance.", "permissions": ["*"] },
+      { "id": "org-admin", "description": "Organization-level administration.", "permissions": ["org:*", "users:*", "billing:*", "settings:*"] },
+      { "id": "developer", "description": "Development access.", "permissions": ["agents:read", "agents:execute", "workflows:*", "knowledge:*", "integrations:read"] },
+      { "id": "operator", "description": "Operations access.", "permissions": ["deployments:*", "monitoring:*", "incidents:*", "agents:read"] },
+      { "id": "viewer", "description": "Read-only access.", "permissions": ["*:read"] }
+    ]
+  },
+
+  "edges": {
+    "delegates_to": [
+      { "from": "hermes", "to": "research-analyst", "conditions": "research tasks, web search, fact-checking" },
+      { "from": "hermes", "to": "code-engineer", "conditions": "code generation, review, debugging" },
+      { "from": "hermes", "to": "security-sentinel", "conditions": "security scans, compliance checks, incident response" },
+      { "from": "hermes", "to": "data-analyst", "conditions": "data analysis, visualization, forecasting" },
+      { "from": "hermes", "to": "content-writer", "conditions": "content creation, documentation, copywriting" },
+      { "from": "hermes", "to": "devops-engineer", "conditions": "deployment, monitoring, infrastructure" },
+      { "from": "hermes", "to": "knowledge-curator", "conditions": "knowledge ingestion, indexing, memory management" }
+    ],
+
+    "part_of_pillar": [
+      { "from": "hermes", "pillar": "orchestration" },
+      { "from": "research-analyst", "pillar": "ai-workforce" },
+      { "from": "code-engineer", "pillar": "ai-workforce" },
+      { "from": "security-sentinel", "pillar": "security" },
+      { "from": "data-analyst", "pillar": "ai-workforce" },
+      { "from": "content-writer", "pillar": "ai-workforce" },
+      { "from": "devops-engineer", "pillar": "automation" },
+      { "from": "knowledge-curator", "pillar": "knowledge" },
+      { "from": "agent-orchestration", "pillar": "orchestration" },
+      { "from": "agent-firewall", "pillar": "security" },
+      { "from": "ci-cd-pipeline", "pillar": "automation" },
+      { "from": "security-scan", "pillar": "security" },
+      { "from": "knowledge-ingestion", "pillar": "knowledge" },
+      { "from": "incident-remediation", "pillar": "automation" },
+      { "from": "cost-attribution", "pillar": "enterprise-governance" },
+      { "from": "typescript-sdk", "pillar": "developer-platform" },
+      { "from": "chrome-extension", "pillar": "developer-platform" },
+      { "from": "openapi-spec", "pillar": "developer-platform" },
+      { "from": "mcp-server", "pillar": "developer-platform" },
+      { "from": "supabase", "pillar": "developer-platform" },
+      { "from": "semantic-memory", "pillar": "knowledge" },
+      { "from": "episodic-memory", "pillar": "knowledge" },
+      { "from": "document-ingestion", "pillar": "knowledge" },
+      { "from": "rag-engine", "pillar": "knowledge" },
+      { "from": "knowledge-graph", "pillar": "knowledge" },
+      { "from": "opa-governance", "pillar": "security" },
+      { "from": "falco-runtime", "pillar": "security" },
+      { "from": "agent-firewall-policy", "pillar": "security" }
+    ],
+
+    "agent_uses_integration": [
+      { "agent": "hermes", "integration": "supabase" },
+      { "agent": "hermes", "integration": "openai" },
+      { "agent": "hermes", "integration": "anthropic" },
+      { "agent": "research-analyst", "integration": "openai" },
+      { "agent": "research-analyst", "integration": "supabase" },
+      { "agent": "code-engineer", "integration": "openai" },
+      { "agent": "code-engineer", "integration": "anthropic" },
+      { "agent": "security-sentinel", "integration": "openai" },
+      { "agent": "security-sentinel", "integration": "supabase" },
+      { "agent": "data-analyst", "integration": "openai" },
+      { "agent": "data-analyst", "integration": "supabase" },
+      { "agent": "content-writer", "integration": "openai" },
+      { "agent": "content-writer", "integration": "anthropic" },
+      { "agent": "devops-engineer", "integration": "openai" },
+      { "agent": "knowledge-curator", "integration": "supabase" },
+      { "agent": "knowledge-curator", "integration": "huggingface" }
+    ],
+
+    "agent_queries_knowledge": [
+      { "agent": "hermes", "module": "episodic-memory", "operations": ["read", "write"] },
+      { "agent": "research-analyst", "module": "semantic-memory", "operations": ["read", "write"] },
+      { "agent": "research-analyst", "module": "rag-engine", "operations": ["search"] },
+      { "agent": "code-engineer", "module": "semantic-memory", "operations": ["read"] },
+      { "agent": "security-sentinel", "module": "episodic-memory", "operations": ["read", "write"] },
+      { "agent": "data-analyst", "module": "rag-engine", "operations": ["search"] },
+      { "agent": "content-writer", "module": "semantic-memory", "operations": ["read"] },
+      { "agent": "content-writer", "module": "rag-engine", "operations": ["search"] },
+      { "agent": "knowledge-curator", "module": "semantic-memory", "operations": ["read", "write"] },
+      { "agent": "knowledge-curator", "module": "document-ingestion", "operations": ["ingest"] },
+      { "agent": "knowledge-curator", "module": "rag-engine", "operations": ["search"] }
+    ],
+
+    "agent_publishes_event": [
+      { "agent": "hermes", "event": "AgentStarted" },
+      { "agent": "hermes", "event": "AgentCompleted" },
+      { "agent": "hermes", "event": "AgentFailed" },
+      { "agent": "hermes", "event": "TaskDelegated" },
+      { "agent": "hermes", "event": "GovernanceViolation" },
+      { "agent": "research-analyst", "event": "KnowledgeIndexed" },
+      { "agent": "research-analyst", "event": "TaskCompleted" },
+      { "agent": "code-engineer", "event": "TaskCompleted" },
+      { "agent": "security-sentinel", "event": "SecurityAlertRaised" },
+      { "agent": "security-sentinel", "event": "TaskCompleted" },
+      { "agent": "data-analyst", "event": "TaskCompleted" },
+      { "agent": "content-writer", "event": "TaskCompleted" },
+      { "agent": "devops-engineer", "event": "DeploymentStarted" },
+      { "agent": "devops-engineer", "event": "DeploymentFinished" },
+      { "agent": "devops-engineer", "event": "TaskCompleted" },
+      { "agent": "knowledge-curator", "event": "KnowledgeIndexed" },
+      { "agent": "knowledge-curator", "event": "MemoryUpdated" }
+    ],
+
+    "agent_subscribes_to_event": [
+      { "agent": "hermes", "event": "TaskCreated" },
+      { "agent": "hermes", "event": "SecurityAlertRaised" },
+      { "agent": "hermes", "event": "DeploymentFinished" },
+      { "agent": "research-analyst", "event": "TaskDelegated" },
+      { "agent": "code-engineer", "event": "TaskDelegated" },
+      { "agent": "security-sentinel", "event": "TaskDelegated" },
+      { "agent": "security-sentinel", "event": "DeploymentFinished" },
+      { "agent": "data-analyst", "event": "TaskDelegated" },
+      { "agent": "content-writer", "event": "TaskDelegated" },
+      { "agent": "devops-engineer", "event": "TaskDelegated" },
+      { "agent": "knowledge-curator", "event": "TaskDelegated" }
+    ],
+
+    "policy_enforces": [
+      { "policy": "opa-governance", "target": "hermes", "target_type": "agent" },
+      { "policy": "opa-governance", "target": "agent-orchestration", "target_type": "workflow" },
+      { "policy": "agent-firewall-policy", "target": "hermes", "target_type": "agent" },
+      { "policy": "agent-firewall-policy", "target": "research-analyst", "target_type": "agent" },
+      { "policy": "agent-firewall-policy", "target": "code-engineer", "target_type": "agent" },
+      { "policy": "agent-firewall-policy", "target": "security-sentinel", "target_type": "agent" },
+      { "policy": "agent-firewall-policy", "target": "data-analyst", "target_type": "agent" },
+      { "policy": "agent-firewall-policy", "target": "content-writer", "target_type": "agent" },
+      { "policy": "agent-firewall-policy", "target": "devops-engineer", "target_type": "agent" },
+      { "policy": "agent-firewall-policy", "target": "knowledge-curator", "target_type": "agent" },
+      { "policy": "falco-runtime", "target": "ci-cd-pipeline", "target_type": "workflow" },
+      { "policy": "kyverno-admission", "target": "ci-cd-pipeline", "target_type": "workflow" },
+      { "policy": "tetragon-observability", "target": "ci-cd-pipeline", "target_type": "workflow" },
+      { "policy": "seccomp-profiles", "target": "ci-cd-pipeline", "target_type": "workflow" }
+    ],
+
+    "route_requires_role": [
+      { "route": "/admin", "role": "platform-admin" },
+      { "route": "/occ", "role": "platform-admin" },
+      { "route": "/sovereignty", "role": "org-admin" },
+      { "route": "/dashboard", "role": "developer" },
+      { "route": "/agents", "role": "developer" },
+      { "route": "/workflows", "role": "developer" },
+      { "route": "/flow", "role": "developer" },
+      { "route": "/deployment", "role": "operator" },
+      { "route": "/status", "role": "operator" },
+      { "route": "/security", "role": "operator" },
+      { "route": "/security/ops", "role": "operator" },
+      { "route": "/security/dashboard", "role": "operator" }
+    ]
+  }
+}

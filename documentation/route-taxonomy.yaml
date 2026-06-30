@@ -1,0 +1,462 @@
+# D3VONN Route Taxonomy v1.0
+# Classifies all frontend routes into four categories for navigation,
+# access control, and Hermes reasoning.
+---
+version: "1.0"
+last_updated: "2026-06-30"
+
+# ─────────────────────────────────────────────────────────────────
+# Category Definitions
+# ─────────────────────────────────────────────────────────────────
+categories:
+  platform:
+    description: Core platform functionality — dashboards, agents, workflows, knowledge, security ops.
+    access: authenticated
+    nav_group: Platform Console
+
+  company:
+    description: Public-facing company pages — about, contact, legal, pricing.
+    access: public
+    nav_group: Company
+
+  developers:
+    description: Developer tools and integrations — API docs, MCP, SDK, diagnostics.
+    access: authenticated
+    nav_group: Developers
+
+  enterprise:
+    description: Enterprise features — admin, governance, sovereignty, multi-tenant ops.
+    access: admin
+    nav_group: Enterprise
+
+# ─────────────────────────────────────────────────────────────────
+# Route Catalog
+# ─────────────────────────────────────────────────────────────────
+routes:
+
+  # ── Platform ──────────────────────────────────────────────────
+  - path: /
+    page: Index
+    category: company
+    description: Landing page and marketing hero.
+    agents: []
+    pillar: null
+
+  - path: /dashboard
+    page: Dashboard
+    category: platform
+    description: Primary user dashboard — task overview, recent activity, quick actions.
+    agents: [hermes]
+    pillar: orchestration
+
+  - path: /d3vonn
+    page: DevonnDashboard
+    category: platform
+    description: D3VONN platform overview — seven pillars status, system health.
+    agents: [hermes]
+    pillar: orchestration
+
+  - path: /agents
+    page: AgentDashboard
+    category: platform
+    description: Agent fleet management — status, performance, configuration.
+    agents: [hermes, research-analyst, code-engineer, security-sentinel, data-analyst, content-writer, devops-engineer, knowledge-curator]
+    pillar: ai-workforce
+
+  - path: /enhanced-agents
+    page: EnhancedAgentDemo
+    category: platform
+    description: Enhanced agent capabilities demonstration.
+    agents: [hermes]
+    pillar: ai-workforce
+
+  - path: /agent-demo
+    page: AgentDemo
+    category: platform
+    description: Interactive agent demo environment.
+    agents: [hermes]
+    pillar: ai-workforce
+
+  - path: /marketplace
+    page: AgentMarketplace
+    category: platform
+    description: Agent marketplace — browse, install, configure agents.
+    agents: [hermes]
+    pillar: ai-workforce
+
+  - path: /flow
+    page: FlowEditor
+    category: platform
+    description: Visual workflow editor — drag-and-drop agent orchestration.
+    agents: [hermes]
+    pillar: automation
+
+  - path: /workflows
+    page: WorkflowManagement
+    category: platform
+    description: Workflow management — create, monitor, debug automation workflows.
+    agents: [hermes]
+    pillar: automation
+
+  - path: /dkos-ingestion
+    page: DkosIngestion
+    category: platform
+    description: DKOS knowledge ingestion — upload, process, index documents.
+    agents: [knowledge-curator]
+    pillar: knowledge
+
+  - path: /knowledge-ingestion
+    page: DkosIngestion
+    category: platform
+    description: Alias for DKOS ingestion.
+    agents: [knowledge-curator]
+    pillar: knowledge
+    alias_of: /dkos-ingestion
+
+  - path: /chat
+    page: ChatPage
+    category: platform
+    description: AI chat interface — conversational agent interaction.
+    agents: [hermes, research-analyst, content-writer]
+    pillar: ai-workforce
+
+  - path: /command-center
+    page: CommandCenter
+    category: platform
+    description: Unified command center — real-time platform operations.
+    agents: [hermes, devops-engineer]
+    pillar: orchestration
+
+  - path: /deployment
+    page: DeploymentDashboard
+    category: platform
+    description: Deployment management — environments, rollouts, rollbacks.
+    agents: [devops-engineer]
+    pillar: automation
+
+  - path: /status
+    page: StatusDashboard
+    category: platform
+    description: System status — service health, uptime, incidents.
+    agents: [devops-engineer]
+    pillar: automation
+
+  - path: /research-os
+    page: ResearchOS
+    category: platform
+    description: Research operating system — deep research workflows.
+    agents: [research-analyst, knowledge-curator]
+    pillar: knowledge
+
+  - path: /film
+    page: FilmPage
+    category: platform
+    description: Film/media production workspace.
+    agents: [content-writer]
+    pillar: ai-workforce
+
+  - path: /music
+    page: Music
+    category: platform
+    description: Music production workspace.
+    agents: [content-writer]
+    pillar: ai-workforce
+
+  - path: /backtesting
+    page: Backtesting
+    category: platform
+    description: Financial backtesting and strategy analysis.
+    agents: [data-analyst]
+    pillar: ai-workforce
+
+  - path: /moneyhub
+    page: MoneyHub
+    category: platform
+    description: Financial intelligence hub.
+    agents: [data-analyst]
+    pillar: ai-workforce
+
+  - path: /jetson
+    page: JetsonControl
+    category: platform
+    description: NVIDIA Jetson edge device control panel.
+    agents: [devops-engineer]
+    pillar: automation
+
+  - path: /jetson-control
+    page: JetsonControl
+    category: platform
+    description: Alias for Jetson control.
+    agents: [devops-engineer]
+    pillar: automation
+    alias_of: /jetson
+
+  # ── Security ──────────────────────────────────────────────────
+  - path: /security
+    page: Security
+    category: platform
+    description: Security overview — threat landscape, compliance status.
+    agents: [security-sentinel]
+    pillar: security
+
+  - path: /security/ops
+    page: SecurityOps
+    category: platform
+    description: Security operations — active threats, incident response.
+    agents: [security-sentinel]
+    pillar: security
+
+  - path: /security/dashboard
+    page: SecurityDashboard
+    category: platform
+    description: Security metrics dashboard — vulnerabilities, compliance scores.
+    agents: [security-sentinel]
+    pillar: security
+
+  # ── Developers ────────────────────────────────────────────────
+  - path: /api
+    page: APIManagement
+    category: developers
+    description: API management — keys, usage, rate limits.
+    agents: []
+    pillar: developer-platform
+
+  - path: /documentation
+    page: Documentation
+    category: developers
+    description: Platform documentation — guides, references, tutorials.
+    agents: []
+    pillar: developer-platform
+
+  - path: /mcp
+    page: McpPage
+    category: developers
+    description: Model Context Protocol — tool integration and configuration.
+    agents: []
+    pillar: developer-platform
+
+  - path: /manifest
+    page: ManifestPage
+    category: developers
+    description: Platform manifest — system capabilities and configuration.
+    agents: []
+    pillar: developer-platform
+
+  - path: /github-diagnostic
+    page: GitHubConnectorDiagnostic
+    category: developers
+    description: GitHub connector diagnostics — connection status, sync health.
+    agents: []
+    pillar: developer-platform
+
+  # ── Enterprise ────────────────────────────────────────────────
+  - path: /admin
+    page: AdminPage
+    category: enterprise
+    description: Platform administration — users, roles, settings.
+    agents: [hermes]
+    pillar: enterprise-governance
+
+  - path: /occ
+    page: OperatorCommandCenter
+    category: enterprise
+    description: Operator Command Center — multi-tenant operations.
+    agents: [hermes, devops-engineer]
+    pillar: enterprise-governance
+
+  - path: /sovereignty
+    page: SovereigntyMatrix
+    category: enterprise
+    description: Data sovereignty matrix — jurisdiction, residency, compliance mapping.
+    agents: [security-sentinel]
+    pillar: enterprise-governance
+
+  - path: /sovereignty-matrix
+    page: SovereigntyMatrix
+    category: enterprise
+    description: Alias for sovereignty matrix.
+    agents: [security-sentinel]
+    pillar: enterprise-governance
+    alias_of: /sovereignty
+
+  - path: /ai-therapy
+    page: AITherapy
+    category: enterprise
+    description: AI therapy/wellness workspace.
+    agents: [content-writer]
+    pillar: ai-workforce
+
+  - path: /therapy
+    page: AITherapy
+    category: enterprise
+    description: Alias for AI therapy.
+    agents: [content-writer]
+    pillar: ai-workforce
+    alias_of: /ai-therapy
+
+  # ── Company (Public) ──────────────────────────────────────────
+  - path: /about
+    page: About
+    category: company
+    description: About D3VONN — mission, team, story.
+    agents: []
+    pillar: null
+
+  - path: /contact
+    page: Contact
+    category: company
+    description: Contact form and support information.
+    agents: []
+    pillar: null
+
+  - path: /pricing
+    page: Pricing
+    category: company
+    description: Pricing plans and feature comparison.
+    agents: []
+    pillar: null
+
+  - path: /solutions
+    page: Solutions
+    category: company
+    description: Solution showcases by industry/use-case.
+    agents: []
+    pillar: null
+
+  - path: /resources
+    page: Resources
+    category: company
+    description: Blog, case studies, whitepapers.
+    agents: []
+    pillar: null
+
+  - path: /ai-agents
+    page: AIAgents
+    category: company
+    description: AI agents marketing page — capabilities overview.
+    agents: []
+    pillar: null
+
+  - path: /business-automation
+    page: BusinessAutomation
+    category: company
+    description: Business automation marketing page.
+    agents: []
+    pillar: null
+
+  - path: /terms
+    page: Terms
+    category: company
+    description: Terms of service.
+    agents: []
+    pillar: null
+
+  - path: /privacy
+    page: Privacy
+    category: company
+    description: Privacy policy.
+    agents: []
+    pillar: null
+
+  - path: /privacy-policy
+    page: Privacy
+    category: company
+    description: Alias for privacy policy.
+    agents: []
+    pillar: null
+    alias_of: /privacy
+
+  # ── Auth (System) ─────────────────────────────────────────────
+  - path: /login
+    page: Login
+    category: company
+    description: Authentication — login/signup.
+    agents: []
+    pillar: null
+    system: true
+
+  - path: /auth
+    page: AuthCallback
+    category: company
+    description: OAuth callback handler.
+    agents: []
+    pillar: null
+    system: true
+
+  - path: /auth/callback
+    page: AuthCallback
+    category: company
+    description: OAuth callback handler.
+    agents: []
+    pillar: null
+    system: true
+
+  - path: /auth/confirm
+    page: AuthCallback
+    category: company
+    description: Email confirmation handler.
+    agents: []
+    pillar: null
+    system: true
+
+  - path: /unauthorized
+    page: Unauthorized
+    category: company
+    description: Unauthorized access page.
+    agents: []
+    pillar: null
+    system: true
+
+  - path: /app
+    page: LaunchApp
+    category: company
+    description: App launcher — redirects to dashboard.
+    agents: []
+    pillar: null
+    system: true
+
+  # ── Redirects ─────────────────────────────────────────────────
+  - path: /signin
+    redirect_to: /login
+    category: company
+    system: true
+
+  - path: /sign-in
+    redirect_to: /login
+    category: company
+    system: true
+
+  - path: /log-in
+    redirect_to: /login
+    category: company
+    system: true
+
+  - path: /signup
+    redirect_to: /login
+    category: company
+    system: true
+
+  - path: /sign-up
+    redirect_to: /login
+    category: company
+    system: true
+
+  - path: /platform
+    redirect_to: "/#platform"
+    category: company
+    system: true
+
+# ─────────────────────────────────────────────────────────────────
+# Summary Statistics
+# ─────────────────────────────────────────────────────────────────
+summary:
+  total_routes: 59
+  by_category:
+    platform: 26
+    company: 18
+    developers: 5
+    enterprise: 6
+  system_routes: 10
+  redirects: 6
+  aliases: 6
+  unique_pages: 47
