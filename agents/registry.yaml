@@ -1,0 +1,79 @@
+# D3VONN Agent Registry
+# Central catalog of all agents in the platform.
+# Hermes uses this for dynamic discovery and orchestration.
+---
+version: "1.0"
+last_updated: "2026-06-30"
+
+agents:
+  - id: hermes
+    name: Hermes
+    type: orchestrator
+    description: Core orchestration kernel — routes tasks, enforces governance, manages agent lifecycle.
+    status: active
+    tier: core
+    manifest: agents/hermes/manifest.yaml
+    healthcheck: /api/agents/hermes/health
+
+  - id: research-analyst
+    name: Research Analyst
+    type: specialist
+    description: Deep research agent — web search, source synthesis, citation generation.
+    status: active
+    tier: specialist
+    manifest: agents/research/manifest.yaml
+    healthcheck: /api/agents/research/health
+
+  - id: code-engineer
+    name: Code Engineer
+    type: specialist
+    description: Full-stack development agent — code generation, review, refactoring.
+    status: active
+    tier: specialist
+    manifest: agents/code-engineer/manifest.yaml
+    healthcheck: /api/agents/code-engineer/health
+
+  - id: security-sentinel
+    name: Security Sentinel
+    type: specialist
+    description: Security operations agent — threat detection, compliance scanning, incident response.
+    status: active
+    tier: specialist
+    manifest: agents/security/manifest.yaml
+    healthcheck: /api/agents/security/health
+
+  - id: data-analyst
+    name: Data Analyst
+    type: specialist
+    description: Data analysis agent — visualization, statistical analysis, report generation.
+    status: active
+    tier: specialist
+    manifest: agents/data-analyst/manifest.yaml
+    healthcheck: /api/agents/data-analyst/health
+
+  - id: content-writer
+    name: Content Writer
+    type: specialist
+    description: Content creation agent — copywriting, documentation, marketing materials.
+    status: active
+    tier: specialist
+    manifest: agents/content-writer/manifest.yaml
+    healthcheck: /api/agents/content-writer/health
+
+  - id: devops-engineer
+    name: DevOps Engineer
+    type: specialist
+    description: Infrastructure agent — deployment automation, monitoring, incident remediation.
+    status: active
+    tier: specialist
+    manifest: agents/devops/manifest.yaml
+    healthcheck: /api/agents/devops/health
+
+  - id: knowledge-curator
+    name: Knowledge Curator
+    type: specialist
+    description: DKOS agent — knowledge ingestion, indexing, semantic search, memory management.
+    status: active
+    tier: specialist
+    manifest: agents/knowledge-curator/manifest.yaml
+    healthcheck: /api/agents/knowledge-curator/health

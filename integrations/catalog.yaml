@@ -1,0 +1,70 @@
+# D3VONN Integrations Catalog
+# Central registry of all external integrations, SDKs, and connectors.
+---
+version: "1.0"
+last_updated: "2026-06-30"
+
+integrations:
+  - id: typescript-sdk
+    name: D3VONN TypeScript SDK
+    type: sdk
+    description: Official TypeScript/JavaScript SDK for the D3VONN platform API.
+    status: active
+    path: integrations/sdk/
+    package: "@d3vonn/sdk"
+    docs: /docs/sdk/typescript
+
+  - id: chrome-extension
+    name: D3VONN Browser Extension
+    type: extension
+    description: Chrome extension for AI-assisted browsing, task capture, and agent interaction.
+    status: active
+    path: integrations/extension/
+    manifest_version: 3
+    docs: /docs/integrations/extension
+
+  - id: openapi-spec
+    name: D3VONN REST API
+    type: api
+    description: OpenAPI 3.1 specification for the D3VONN platform REST API.
+    status: active
+    path: integrations/api/
+    spec_file: integrations/api/openapi.yaml
+    docs: /docs/api/rest
+
+  - id: mcp-server
+    name: D3VONN MCP Server
+    type: protocol
+    description: Model Context Protocol server for LLM tool integration.
+    status: active
+    path: integrations/mcp/
+    docs: /docs/integrations/mcp
+
+  - id: supabase
+    name: Supabase
+    type: backend-service
+    description: Database, authentication, edge functions, and realtime subscriptions.
+    status: active
+    config: supabase/config.toml
+    docs: /docs/integrations/supabase
+
+  - id: huggingface
+    name: Hugging Face
+    type: model-provider
+    description: Model hosting and inference API integration.
+    status: active
+    docs: /docs/integrations/huggingface
+
+  - id: openai
+    name: OpenAI
+    type: model-provider
+    description: GPT model family integration for agent reasoning.
+    status: active
+    docs: /docs/integrations/openai
+
+  - id: anthropic
+    name: Anthropic
+    type: model-provider
+    description: Claude model family integration for agent reasoning.
+    status: active
+    docs: /docs/integrations/anthropic

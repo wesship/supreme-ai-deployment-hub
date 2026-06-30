@@ -1,0 +1,85 @@
+# D3VONN Automation Workflows Registry
+# Central catalog of automation workflows managed by the Hermes governance engine.
+---
+version: "1.0"
+last_updated: "2026-06-30"
+
+workflows:
+  - id: agent-orchestration
+    name: Agent Orchestration
+    type: core
+    description: Multi-agent task routing, delegation, and result aggregation.
+    trigger: api
+    engine: hermes
+    status: active
+    path: automation/hermes/v3/
+
+  - id: agent-firewall
+    name: Agent Firewall
+    type: governance
+    description: Policy enforcement for agent actions — permission checks, rate limiting, content filtering.
+    trigger: event
+    engine: hermes
+    status: active
+    path: automation/hermes/v3/firewall/
+
+  - id: ci-cd-pipeline
+    name: CI/CD Pipeline
+    type: deployment
+    description: Automated build, test, and deployment pipeline.
+    trigger: push
+    engine: github-actions
+    status: active
+    path: .github/workflows/
+
+  - id: security-scan
+    name: Security Scanning
+    type: security
+    description: Automated vulnerability scanning, dependency audit, and compliance checks.
+    trigger: schedule
+    engine: github-actions
+    status: active
+    path: .github/workflows/devonnbench-security.yml
+
+  - id: knowledge-ingestion
+    name: Knowledge Ingestion
+    type: data
+    description: Automated document processing, chunking, embedding, and indexing.
+    trigger: upload
+    engine: hermes
+    status: active
+    path: backend/knowledge/
+
+  - id: incident-remediation
+    name: Autonomous Remediation
+    type: operations
+    description: Automated incident detection, diagnosis, and remediation.
+    trigger: alert
+    engine: hermes
+    status: active
+    path: .github/workflows/autonomous-remediation.yml
+
+  - id: cost-attribution
+    name: Cost Attribution
+    type: finance
+    description: Automated cloud cost tracking and team attribution.
+    trigger: schedule
+    engine: github-actions
+    status: active
+    path: .github/workflows/cost-attribution.yml
+
+events:
+  - AgentStarted
+  - AgentCompleted
+  - AgentFailed
+  - TaskCreated
+  - TaskDelegated
+  - TaskCompleted
+  - WorkflowTriggered
+  - WorkflowCompleted
+  - KnowledgeIndexed
+  - SecurityAlertRaised
+  - DeploymentStarted
+  - DeploymentFinished
+  - MemoryUpdated
+  - GovernanceViolation

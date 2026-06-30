@@ -1,0 +1,66 @@
+# D3VONN Knowledge Operating System (DKOS) Index
+# Central catalog of knowledge modules, memory stores, and ingestion pipelines.
+---
+version: "1.0"
+last_updated: "2026-06-30"
+
+modules:
+  - id: semantic-memory
+    name: Semantic Memory
+    type: memory-store
+    description: Long-term semantic memory with vector embeddings for contextual retrieval.
+    status: active
+    backend: supabase-pgvector
+    endpoints:
+      query: /api/knowledge/memory/query
+      ingest: /api/knowledge/memory/ingest
+
+  - id: episodic-memory
+    name: Episodic Memory
+    type: memory-store
+    description: Session-based episodic memory for conversation continuity and task replay.
+    status: active
+    backend: supabase
+    endpoints:
+      query: /api/knowledge/episodic/query
+      replay: /api/knowledge/episodic/replay
+
+  - id: document-ingestion
+    name: Document Ingestion Pipeline
+    type: pipeline
+    description: Multi-format document ingestion (PDF, DOCX, HTML, Markdown) with chunking and embedding.
+    status: active
+    supported_formats:
+      - pdf
+      - docx
+      - html
+      - markdown
+      - csv
+      - json
+    endpoints:
+      upload: /api/knowledge/ingest/upload
+      status: /api/knowledge/ingest/status
+
+  - id: rag-engine
+    name: RAG Engine
+    type: retrieval
+    description: Retrieval-Augmented Generation engine with hybrid search (semantic + keyword).
+    status: active
+    strategies:
+      - semantic
+      - keyword
+      - hybrid
+      - reranked
+    endpoints:
+      search: /api/knowledge/rag/search
+      generate: /api/knowledge/rag/generate
+
+  - id: knowledge-graph
+    name: Knowledge Graph
+    type: graph
+    description: Entity-relationship graph connecting agents, APIs, workflows, and documentation.
+    status: planned
+    backend: neo4j
+    endpoints:
+      query: /api/knowledge/graph/query
+      traverse: /api/knowledge/graph/traverse

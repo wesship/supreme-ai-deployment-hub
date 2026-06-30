@@ -1,0 +1,93 @@
+# D3VONN Security Policies Registry
+# Central catalog of security policies, compliance frameworks, and governance rules.
+---
+version: "1.0"
+last_updated: "2026-06-30"
+
+frameworks:
+  - id: soc2-type2
+    name: SOC 2 Type II
+    status: in-progress
+    controls_path: security/compliance/soc2/
+    description: Service Organization Control 2 compliance for data security and availability.
+
+  - id: gdpr
+    name: GDPR
+    status: planned
+    description: General Data Protection Regulation compliance for EU data subjects.
+
+  - id: hipaa
+    name: HIPAA
+    status: planned
+    description: Health Insurance Portability and Accountability Act compliance.
+
+policies:
+  - id: opa-governance
+    name: OPA Governance Rules
+    type: admission-control
+    engine: open-policy-agent
+    status: active
+    path: security/governance/opa/
+    description: Rego-based policy enforcement for API access, data classification, and agent permissions.
+
+  - id: falco-runtime
+    name: Falco Runtime Detection
+    type: runtime-security
+    engine: falco
+    status: active
+    path: security/policy/falco/d3vonn-rules.yaml
+    description: Runtime threat detection for container workloads.
+
+  - id: kyverno-admission
+    name: Kyverno Admission Policies
+    type: admission-control
+    engine: kyverno
+    status: active
+    path: security/policy/kyverno/
+    description: Kubernetes admission policies for resource validation and mutation.
+
+  - id: tetragon-observability
+    name: Tetragon eBPF Policies
+    type: kernel-observability
+    engine: tetragon
+    status: active
+    path: security/policy/tetragon/d3vonn-tracing-policies.yaml
+    description: eBPF-based kernel-level security observability.
+
+  - id: seccomp-profiles
+    name: Seccomp Profiles
+    type: container-hardening
+    engine: seccomp
+    status: active
+    path: security/policy/seccomp/d3vonn-api.json
+    description: System call filtering profiles for container workloads.
+
+  - id: agent-firewall
+    name: Agent Firewall Policy
+    type: agent-governance
+    engine: hermes
+    status: active
+    path: automation/hermes/v3/firewall/
+    description: Permission boundaries and action filtering for AI agents.
+
+rbac:
+  roles:
+    - id: platform-admin
+      description: Full platform access including security operations and governance.
+      permissions: ["*"]
+
+    - id: org-admin
+      description: Organization-level administration (users, billing, settings).
+      permissions: ["org:*", "users:*", "billing:*", "settings:*"]
+
+    - id: developer
+      description: Development access (agents, workflows, knowledge, integrations).
+      permissions: ["agents:read", "agents:execute", "workflows:*", "knowledge:*", "integrations:read"]
+
+    - id: operator
+      description: Operations access (deployments, monitoring, incidents).
+      permissions: ["deployments:*", "monitoring:*", "incidents:*", "agents:read"]
+
+    - id: viewer
+      description: Read-only access to dashboards and reports.
+      permissions: ["*:read"]
