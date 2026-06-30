@@ -1,0 +1,254 @@
+name: D3VONN Quality Gates
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 1: TypeScript Type Check
+  # ─────────────────────────────────────────────────────────────────
+  typecheck:
+    name: "Gate 1 — TypeScript"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tsc --noEmit
+        name: Type Check
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 2: Lint
+  # ─────────────────────────────────────────────────────────────────
+  lint:
+    name: "Gate 2 — Lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint --max-warnings 500
+        name: ESLint (error-free)
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 3: Unit Tests
+  # ─────────────────────────────────────────────────────────────────
+  unit-tests:
+    name: "Gate 3 — Unit Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm vitest run --reporter=verbose
+        name: Vitest Unit Tests
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: coverage/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 4: Smoke Tests
+  # ─────────────────────────────────────────────────────────────────
+  smoke-tests:
+    name: "Gate 4 — Smoke Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm vitest run src/test/smoke/ --reporter=verbose
+        name: Smoke Tests (routes, auth, tenant, events, hermes)
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 5: Build
+  # ─────────────────────────────────────────────────────────────────
+  build:
+    name: "Gate 5 — Build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        name: Vite Production Build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+          retention-days: 3
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 6: Security Policy Validation
+  # ─────────────────────────────────────────────────────────────────
+  security-validation:
+    name: "Gate 6 — Security Policies"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - name: Validate security policies YAML
+        run: |
+          node -e "
+            const yaml = require('js-yaml');
+            const fs = require('fs');
+            const policies = yaml.load(fs.readFileSync('security/policies.yaml', 'utf-8'));
+            if (!policies.engines || policies.engines.length < 5) {
+              throw new Error('Security policies: expected at least 5 engines');
+            }
+            if (!policies.rbac || !policies.rbac.roles || policies.rbac.roles.length < 4) {
+              throw new Error('Security policies: expected at least 4 RBAC roles');
+            }
+            console.log('✓ Security policies validated:', policies.engines.length, 'engines,', policies.rbac.roles.length, 'roles');
+          "
+      - name: Validate RBAC deny-first behavior
+        run: pnpm vitest run src/test/smoke/auth.smoke.test.ts --reporter=verbose
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 7: Knowledge Graph Validation
+  # ─────────────────────────────────────────────────────────────────
+  knowledge-graph-validation:
+    name: "Gate 7 — Knowledge Graph"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Python dependencies
+        run: pip install pyyaml
+      - name: Validate knowledge graph integrity
+        run: python knowledge/graph/validate_graph.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - name: Validate graph via smoke tests
+        run: pnpm vitest run src/test/smoke/hermes-dashboard.smoke.test.ts --reporter=verbose
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 8: Tenant Isolation Verification
+  # ─────────────────────────────────────────────────────────────────
+  tenant-isolation:
+    name: "Gate 8 — Tenant Isolation"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - name: Tenant isolation tests
+        run: pnpm vitest run src/test/tenancy/ src/test/smoke/tenant-isolation.smoke.test.ts --reporter=verbose
+
+  # ─────────────────────────────────────────────────────────────────
+  # Gate 9: Event Bus Integrity
+  # ─────────────────────────────────────────────────────────────────
+  event-bus-integrity:
+    name: "Gate 9 — Event Bus"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - name: Event bus tests (DLQ + replay + schema)
+        run: pnpm vitest run src/test/events/ src/test/smoke/event-bus.smoke.test.ts --reporter=verbose
+
+  # ─────────────────────────────────────────────────────────────────
+  # Final Gate: All Gates Must Pass
+  # ─────────────────────────────────────────────────────────────────
+  all-gates-pass:
+    name: "✓ All Quality Gates Passed"
+    runs-on: ubuntu-latest
+    needs:
+      - typecheck
+      - lint
+      - unit-tests
+      - smoke-tests
+      - build
+      - security-validation
+      - knowledge-graph-validation
+      - tenant-isolation
+      - event-bus-integrity
+    steps:
+      - name: All gates passed
+        run: |
+          echo "╔══════════════════════════════════════════════╗"
+          echo "║  D3VONN Quality Gates — ALL PASSED          ║"
+          echo "╠══════════════════════════════════════════════╣"
+          echo "║  ✓ Gate 1: TypeScript type check             ║"
+          echo "║  ✓ Gate 2: ESLint (zero errors)              ║"
+          echo "║  ✓ Gate 3: Unit tests                        ║"
+          echo "║  ✓ Gate 4: Smoke tests                       ║"
+          echo "║  ✓ Gate 5: Production build                  ║"
+          echo "║  ✓ Gate 6: Security policy validation        ║"
+          echo "║  ✓ Gate 7: Knowledge graph integrity         ║"
+          echo "║  ✓ Gate 8: Tenant isolation                  ║"
+          echo "║  ✓ Gate 9: Event bus integrity               ║"
+          echo "╚══════════════════════════════════════════════╝"
