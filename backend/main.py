@@ -245,6 +245,14 @@ try:
 except ImportError as _research_os_leads_err:
     logger.warning("backend.research_os.leads_router not found — skipping Research OS leads. (%s)", _research_os_leads_err)
 
+try:
+    from backend.app.security.router import router as security_router  # type: ignore
+
+    app.include_router(security_router)
+    logger.info("D3VONN Security Operations router registered at /api/security/*")
+except ImportError as _security_err:
+    logger.warning("backend.app.security.router not found — skipping Security Operations. (%s)", _security_err)
+
 
 @app.get("/health", tags=["ops"])
 async def health_check():
