@@ -32,6 +32,7 @@ import {
   BarChart3,
   Bell,
   Bug,
+  Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TenantWorkspaceSwitcher from "@/components/platform/TenantWorkspaceSwitcher";
@@ -113,6 +114,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Errors",
     icon: Bug,
     description: "Error traces & Sentry",
+  },
+  {
+    path: "/platform/deployment",
+    label: "Deployment",
+    icon: Rocket,
+    description: "Deployment hardening & readiness",
   },
 ];
 

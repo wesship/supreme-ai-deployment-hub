@@ -101,6 +101,8 @@ const SystemHealthPanel = lazy(() => import("./components/admin/SystemHealthPane
 const MetricsDashboard = lazy(() => import("./components/admin/MetricsDashboard"));
 const AlertCenter = lazy(() => import("./components/admin/AlertCenter"));
 const ErrorTraceViewer = lazy(() => import("./components/admin/ErrorTraceViewer"));
+// Deployment Hardening v1
+const DeploymentPage = lazy(() => import("./pages/platform/Deployment"));
 
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
@@ -233,6 +235,7 @@ function App() {
                   <Route path="metrics" element={<MetricsDashboard />} />
                   <Route path="alerts" element={<AlertCenter />} />
                   <Route path="errors" element={<ErrorTraceViewer />} />
+                  <Route path="deployment" element={<DeploymentPage />} />
                 </Route>
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/sign-in" element={<Navigate to="/login" replace />} />
