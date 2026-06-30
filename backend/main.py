@@ -253,6 +253,14 @@ try:
 except ImportError as _security_err:
     logger.warning("backend.app.security.router not found — skipping Security Operations. (%s)", _security_err)
 
+try:
+    from backend.app.security.router_v2 import router as security_v2_router  # type: ignore
+
+    app.include_router(security_v2_router)
+    logger.info("D3VONN Security Operations v2 router registered at /api/security/v2/*")
+except ImportError as _security_v2_err:
+    logger.warning("backend.app.security.router_v2 not found — skipping Security Ops v2. (%s)", _security_v2_err)
+
 
 @app.get("/health", tags=["ops"])
 async def health_check():
