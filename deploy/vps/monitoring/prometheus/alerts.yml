@@ -1,0 +1,136 @@
+# =============================================================================
+# D3VONN.IO — Prometheus Alert Rules
+# =============================================================================
+
+groups:
+  # ── Service Health Alerts ──────────────────────────────────────────────────
+  - name: service_health
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for more than 1 minute."
+
+      - alert: BackendHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="d3vonn-backend"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backend P95 latency is high"
+          description: "Backend P95 latency is {{ $value }}s (threshold: 2s)"
+
+      - alert: BackendHighErrorRate
+        expr: rate(http_requests_total{job="d3vonn-backend",status=~"5.."}[5m]) / rate(http_requests_total{job="d3vonn-backend"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend error rate exceeds 5%"
+          description: "Backend 5xx error rate is {{ $value | humanizePercentage }}"
+
+  # ── Infrastructure Alerts ──────────────────────────────────────────────────
+  - name: infrastructure
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}% (threshold: 85%)"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}% (threshold: 90%)"
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space low on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value }}% (threshold: 85%)"
+
+      - alert: DiskSpaceCritical
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk space critical on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value }}% (threshold: 95%)"
+
+  # ── Container Alerts ───────────────────────────────────────────────────────
+  - name: containers
+    rules:
+      - alert: ContainerRestarting
+        expr: rate(container_restart_count[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} is restarting"
+          description: "Container {{ $labels.name }} has restarted {{ $value }} times in the last 5 minutes"
+
+      - alert: ContainerHighMemory
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} high memory usage"
+          description: "Container {{ $labels.name }} is using {{ $value | humanizePercentage }} of its memory limit"
+
+  # ── Redis Alerts ───────────────────────────────────────────────────────────
+  - name: redis
+    rules:
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis is using {{ $value | humanizePercentage }} of max memory"
+
+      - alert: RedisConnectionsHigh
+        expr: redis_connected_clients > 800
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis connections approaching limit"
+          description: "Redis has {{ $value }} connected clients (limit: 1000)"
+
+  # ── Hermes/AI Agent Alerts ─────────────────────────────────────────────────
+  - name: hermes
+    rules:
+      - alert: HermesTaskQueueBacklog
+        expr: celery_queue_length > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Hermes task queue backlog growing"
+          description: "Celery queue has {{ $value }} pending tasks"
+
+      - alert: HermesTaskFailureRate
+        expr: rate(celery_task_failed_total[10m]) / rate(celery_task_received_total[10m]) > 0.1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Hermes task failure rate exceeds 10%"
+          description: "Task failure rate is {{ $value | humanizePercentage }}"

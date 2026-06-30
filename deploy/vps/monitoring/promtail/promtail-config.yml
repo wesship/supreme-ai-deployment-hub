@@ -1,0 +1,65 @@
+# =============================================================================
+# D3VONN.IO — Promtail Log Shipper Configuration
+# =============================================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ── Docker Container Logs ──────────────────────────────────────────────────
+  - job_name: docker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log
+    pipeline_stages:
+      - docker: {}
+      - match:
+          selector: '{job="docker"}'
+          stages:
+            - json:
+                expressions:
+                  stream: stream
+                  tag: attrs.tag
+            - labels:
+                stream:
+            - regex:
+                source: tag
+                expression: "^(?P<container_name>[^/]+)"
+            - labels:
+                container_name:
+
+  # ── Nginx Access Logs ──────────────────────────────────────────────────────
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          __path__: /var/log/nginx/access.log
+    pipeline_stages:
+      - json:
+          expressions:
+            status: status
+            request: request
+            request_time: request_time
+      - labels:
+          status:
+
+  # ── System Logs ────────────────────────────────────────────────────────────
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          __path__: /var/log/syslog

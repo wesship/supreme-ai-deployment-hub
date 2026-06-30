@@ -1,0 +1,374 @@
+# =============================================================================
+# D3VONN.IO — Production Docker Compose for Hostinger VPS
+# =============================================================================
+# Target: Ubuntu 24.04 LTS | 4 vCPU | 16 GB RAM | 200 GB NVMe SSD
+#
+# Architecture:
+#   Nginx (reverse proxy + SSL) → React Frontend
+#                                → FastAPI Backend
+#                                → Hermes Orchestrator
+#   Redis (cache/queue broker)
+#   Celery Workers (background tasks)
+#   Security Agent
+#   Opportunity Intelligence Agent
+#   Knowledge Graph Service
+#   Prometheus + Grafana (monitoring)
+#
+# External managed services (not containerized):
+#   - Supabase (database/auth)
+#   - Pinecone (vector database)
+#   - OpenAI / Anthropic / Gemini APIs
+#   - Twilio
+#   - GitHub
+#
+# Usage:
+#   docker compose -f docker-compose.yml up -d
+#   docker compose -f docker-compose.yml logs -f
+#   docker compose -f docker-compose.yml down
+# =============================================================================
+
+services:
+  # ── Nginx Reverse Proxy + SSL ───────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: d3vonn-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl/certs:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+      - frontend_build:/usr/share/nginx/html:ro
+    depends_on:
+      frontend:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
+    networks:
+      - d3vonn-public
+      - d3vonn-internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
+  # ── React Frontend (build stage only) ──────────────────────────────────────
+  frontend:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.frontend
+      target: production
+      args:
+        - VITE_API_URL=${VITE_API_URL:-https://api.d3vonn.io}
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
+        - VITE_ENVIRONMENT=production
+    container_name: d3vonn-frontend-builder
+    volumes:
+      - frontend_build:/app/dist
+    command: ["sh", "-c", "cp -r /app/dist/* /output/ 2>/dev/null || cp -r /app/dist/* /app/dist/"]
+    networks:
+      - d3vonn-internal
+
+  # ── FastAPI Backend ─────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - ENVIRONMENT=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - JWT_SECRET=${JWT_SECRET}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - LOG_LEVEL=info
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - d3vonn-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ── Hermes Orchestrator ─────────────────────────────────────────────────────
+  hermes:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-hermes
+    restart: unless-stopped
+    command: ["python", "-m", "backend.hermes.task_engine"]
+    environment:
+      - ENVIRONMENT=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - HERMES_MODE=orchestrator
+      - HERMES_MAX_CONCURRENT_TASKS=${HERMES_MAX_CONCURRENT_TASKS:-10}
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - d3vonn-internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis; r=redis.from_url('redis://redis:6379/0'); r.ping()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ── Celery Worker (Background Tasks) ────────────────────────────────────────
+  celery-worker:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-celery-worker
+    restart: unless-stopped
+    command: ["celery", "-A", "backend.tasks", "worker", "--loglevel=info", "--concurrency=4", "--max-tasks-per-child=100"]
+    environment:
+      - ENVIRONMENT=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - d3vonn-internal
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "0.75"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ── Celery Beat (Scheduled Tasks) ──────────────────────────────────────────
+  celery-beat:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-celery-beat
+    restart: unless-stopped
+    command: ["celery", "-A", "backend.tasks", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    environment:
+      - ENVIRONMENT=production
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - d3vonn-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
+  # ── Security Agent ─────────────────────────────────────────────────────────
+  security-agent:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-security-agent
+    restart: unless-stopped
+    command: ["python", "-m", "backend.agents.security_monitor"]
+    environment:
+      - ENVIRONMENT=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - SENTRY_DSN=${SENTRY_DSN}
+      - SECURITY_SCAN_INTERVAL=${SECURITY_SCAN_INTERVAL:-300}
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - d3vonn-internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.25"
+
+  # ── Opportunity Intelligence Agent ─────────────────────────────────────────
+  opportunity-agent:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-opportunity-agent
+    restart: unless-stopped
+    command: ["python", "-m", "backend.intelligence.orchestration.main"]
+    environment:
+      - ENVIRONMENT=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - d3vonn-internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+
+  # ── Knowledge Graph Service ────────────────────────────────────────────────
+  knowledge-graph:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-knowledge-graph
+    restart: unless-stopped
+    command: ["python", "-m", "backend.knowledge.service"]
+    environment:
+      - ENVIRONMENT=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - REDIS_URL=redis://redis:6379/0
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - d3vonn-internal
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: d3vonn-redis
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - d3vonn-internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Certbot (SSL Certificate Renewal) ──────────────────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: d3vonn-certbot
+    volumes:
+      - ./ssl/certs:/etc/letsencrypt
+      - ./ssl/webroot:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
+    networks:
+      - d3vonn-public
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.1"
+
+volumes:
+  redis_data:
+    driver: local
+  frontend_build:
+    driver: local
+
+networks:
+  d3vonn-public:
+    driver: bridge
+  d3vonn-internal:
+    driver: bridge
+    internal: true
