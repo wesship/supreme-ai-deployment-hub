@@ -6,6 +6,6 @@ describe("example", () => {
   });
 
   it("should handle string operations", () => {
-    expect("D3VONN").toContain("AI");
+    expect("D3VONN AI Platform").toContain("D3VONN");
   });
 });
