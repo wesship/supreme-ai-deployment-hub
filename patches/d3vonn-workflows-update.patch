@@ -1,0 +1,1495 @@
+From e532130586a00e9614e9ca4ca99dee0c28851e64 Mon Sep 17 00:00:00 2001
+From: wesship <3.7167955e+07+wesship@users.noreply.github.com>
+Date: Tue, 30 Jun 2026 20:01:40 +0000
+Subject: [PATCH] =?UTF-8?q?chore:=20update=20all=20GitHub=20Actions=20work?=
+ =?UTF-8?q?flows=20(devonn=20=E2=86=92=20d3vonn)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Comprehensive rename of all remaining 'devonn' references in workflows:
+- Service names, deployment targets, namespaces
+- Docker image tags and ECR registry paths
+- Artifact names and cache keys
+- Metrics and observability identifiers
+- Terraform resource groups and environment names
+- Falco/eBPF rule references
+- Correlation ID prefixes
+- Renamed devonn-deploy.yml → d3vonn-deploy.yml
+
+All 42 workflow files now consistently use the d3vonn brand.
+
+Refs: #279
+---
+ .github/workflows/ai-agent-observability.yml  |  4 +-
+ .github/workflows/ai-model-pipeline.yml       |  8 ++--
+ .github/workflows/api-contract-testing.yml    |  2 +-
+ .github/workflows/apply-api-cname.yml         |  8 ++--
+ .github/workflows/apply-route53-dns.yml       |  6 +--
+ .github/workflows/artifact-provenance.yml     |  2 +-
+ .github/workflows/autonomous-remediation.yml  | 44 +++++++++----------
+ .github/workflows/ci-auth-debugger.yml        |  4 +-
+ .github/workflows/container-hardening.yml     | 16 +++----
+ .github/workflows/cosign-sign-verify.yml      | 38 ++++++++--------
+ .github/workflows/cost-attribution.yml        | 14 +++---
+ .github/workflows/coverage.yml                |  2 +-
+ .../{devonn-deploy.yml => d3vonn-deploy.yml}  | 10 ++---
+ .github/workflows/dependency-review.yml       |  2 +-
+ .github/workflows/deploy-and-publish.yml      |  4 +-
+ .github/workflows/deploy.yml                  |  6 +--
+ .github/workflows/deployment-promotion.yml    | 22 +++++-----
+ .github/workflows/disaster-recovery-drill.yml | 10 ++---
+ .github/workflows/dora-metrics.yml            |  2 +-
+ .github/workflows/ebpf-telemetry.yml          | 24 +++++-----
+ .github/workflows/eks-deploy-oidc.yml         |  6 +--
+ .github/workflows/falco-runtime-detection.yml | 12 ++---
+ .github/workflows/gitops-reconciliation.yml   |  6 +--
+ .github/workflows/infrastructure-ci-cd.yml    |  2 +-
+ .github/workflows/issue-tracker-sync.yml      |  2 +-
+ .github/workflows/issue-trigger.yml           |  2 +-
+ .github/workflows/kyverno-admission.yml       |  8 ++--
+ .github/workflows/load-test.yml               |  4 +-
+ .github/workflows/metrics-export.yml          | 32 +++++++-------
+ .github/workflows/multi-env-promotion.yml     | 10 ++---
+ .github/workflows/multi-region-failover.yml   |  6 +--
+ .github/workflows/observability.yml           | 10 ++---
+ .github/workflows/oidc-deploy.yml             |  6 +--
+ .github/workflows/platform-control-plane.yml  | 12 ++---
+ .github/workflows/promotion.yml               | 16 +++----
+ .github/workflows/release-candidate.yml       |  2 +-
+ .github/workflows/release.yml                 |  2 +-
+ .github/workflows/reproducible-builds.yml     |  2 +-
+ .github/workflows/terraform.yml               |  8 ++--
+ .../workflows/trusted-runner-isolation.yml    |  4 +-
+ .github/workflows/vault-secrets-injection.yml | 20 ++++-----
+ 41 files changed, 200 insertions(+), 200 deletions(-)
+ rename .github/workflows/{devonn-deploy.yml => d3vonn-deploy.yml} (72%)
+
+diff --git a/.github/workflows/ai-agent-observability.yml b/.github/workflows/ai-agent-observability.yml
+index 7d175bd..b4ed53f 100644
+--- a/.github/workflows/ai-agent-observability.yml
++++ b/.github/workflows/ai-agent-observability.yml
+@@ -134,13 +134,13 @@ jobs:
+               "resourceSpans": [{
+                   "resource": {
+                       "attributes": [
+-                          {"key": "service.name",    "value": {"stringValue": "devonn-ai-platform"}},
++                          {"key": "service.name",    "value": {"stringValue": "d3vonn-platform"}},
+                           {"key": "service.version", "value": {"stringValue": "v24.0"}},
+                           {"key": "deployment.environment", "value": {"stringValue": "ci"}},
+                       ]
+                   },
+                   "scopeSpans": [{
+-                      "scope": {"name": "devonn.ci.validation"},
++                      "scope": {"name": "d3vonn.ci.validation"},
+                       "spans": [
+                           {
+                               "traceId":  "0af7651916cd43dd8448eb211c80319c",
+diff --git a/.github/workflows/ai-model-pipeline.yml b/.github/workflows/ai-model-pipeline.yml
+index ec7ce6f..5b00024 100644
+--- a/.github/workflows/ai-model-pipeline.yml
++++ b/.github/workflows/ai-model-pipeline.yml
+@@ -65,7 +65,7 @@ jobs:
+               --data policy/ai_model_governance.rego \
+               --input "$config_file" \
+               --format raw \
+-              "data.devonn.ai.governance.deny")
++              "data.d3vonn.governance.deny")
+             DENIALS=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d))")
+             if [ "$DENIALS" -gt "0" ]; then
+               echo "::error::Governance policy DENIED for $model_dir:"
+@@ -120,8 +120,8 @@ jobs:
+           context: models/${{ github.event.inputs.model || 'llm/mistral-7b' }}
+           push: true
+           tags: |
+-            ${{ steps.login-ecr.outputs.registry }}/devonn-mistral-7b:${{ github.sha }}
+-            ${{ steps.login-ecr.outputs.registry }}/devonn-mistral-7b:latest
++            ${{ steps.login-ecr.outputs.registry }}/d3vonn-mistral-7b:${{ github.sha }}
++            ${{ steps.login-ecr.outputs.registry }}/d3vonn-mistral-7b:latest
+           cache-from: type=gha
+           cache-to: type=gha,mode=max
+           build-args: |
+@@ -130,7 +130,7 @@ jobs:
+       - name: Scan model image for vulnerabilities
+         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.24.0
+         with:
+-          image-ref: ${{ steps.login-ecr.outputs.registry }}/devonn-mistral-7b:${{ github.sha }}
++          image-ref: ${{ steps.login-ecr.outputs.registry }}/d3vonn-mistral-7b:${{ github.sha }}
+           format: sarif
+           output: trivy-model-results.sarif
+           severity: CRITICAL,HIGH
+diff --git a/.github/workflows/api-contract-testing.yml b/.github/workflows/api-contract-testing.yml
+index 6f4abaf..954b36b 100644
+--- a/.github/workflows/api-contract-testing.yml
++++ b/.github/workflows/api-contract-testing.yml
+@@ -90,7 +90,7 @@ jobs:
+ 
+       - name: Run contract tests against staging
+         env:
+-          API_BASE_URL: ${{ vars.STAGING_API_URL || 'https://staging-api.devonn.ai/v1' }}
++          API_BASE_URL: ${{ vars.STAGING_API_URL || 'https://staging-api.d3vonn.io/v1' }}
+           API_TOKEN: ${{ secrets.STAGING_API_TOKEN }}
+         run: |
+           if [ -z "$API_TOKEN" ]; then
+diff --git a/.github/workflows/apply-api-cname.yml b/.github/workflows/apply-api-cname.yml
+index 379b580..4985b05 100644
+--- a/.github/workflows/apply-api-cname.yml
++++ b/.github/workflows/apply-api-cname.yml
+@@ -1,4 +1,4 @@
+-name: Deprecated api.devonn.ai Route 53 CNAME
++name: Deprecated api.d3vonn.io Route 53 CNAME
+ 
+ on:
+   workflow_dispatch:
+@@ -17,12 +17,12 @@ jobs:
+     runs-on: ubuntu-latest
+     timeout-minutes: 5
+     steps:
+-      - name: Stop obsolete api.devonn.ai workflow
++      - name: Stop obsolete api.d3vonn.io workflow
+         run: |
+           echo "This workflow is intentionally disabled."
+-          echo "devonn.ai is expired and no longer canonical."
++          echo "d3vonn.io was expired and no longer canonical."
+           echo "Use api.d3vonn.io for the production API."
+           echo "If the API remains on Railway, attach api.d3vonn.io in Railway first."
+           echo "Then configure Hostinger DNS for api.d3vonn.io as Railway instructs."
+-          echo "Do not recreate Route 53 records for api.devonn.ai."
++          echo "Do not recreate Route 53 records for api.d3vonn.io."
+           exit 1
+diff --git a/.github/workflows/apply-route53-dns.yml b/.github/workflows/apply-route53-dns.yml
+index 520cfaf..3caff13 100644
+--- a/.github/workflows/apply-route53-dns.yml
++++ b/.github/workflows/apply-route53-dns.yml
+@@ -17,14 +17,14 @@ jobs:
+     runs-on: ubuntu-latest
+     timeout-minutes: 5
+     steps:
+-      - name: Stop obsolete devonn.ai DNS workflow
++      - name: Stop obsolete d3vonn.io DNS workflow
+         run: |
+           echo "This workflow is intentionally disabled."
+-          echo "devonn.ai is expired. d3vonn.io is the canonical domain."
++          echo "d3vonn.io was expired. d3vonn.io is the canonical domain."
+           echo "d3vonn.io uses Hostinger DNS and Vercel frontend hosting."
+           echo "Required Hostinger records:"
+           echo "  A     @      76.76.21.21"
+           echo "  CNAME www    cname.vercel-dns.com"
+           echo "  CNAME app    cname.vercel-dns.com"
+-          echo "Do not recreate Vercel or Route 53 records for devonn.ai. Use d3vonn.io instead."
++          echo "Do not recreate Vercel or Route 53 records for d3vonn.io. Use d3vonn.io instead."
+           exit 1
+diff --git a/.github/workflows/artifact-provenance.yml b/.github/workflows/artifact-provenance.yml
+index d24b777..591c937 100644
+--- a/.github/workflows/artifact-provenance.yml
++++ b/.github/workflows/artifact-provenance.yml
+@@ -50,7 +50,7 @@ jobs:
+       - name: Generate artifact archive
+         id: archive
+         run: |
+-          ARTIFACT_NAME="devonn-ai-$(git rev-parse --short HEAD).tar.gz"
++          ARTIFACT_NAME="d3vonn-$(git rev-parse --short HEAD).tar.gz"
+           if [ -d "dist" ]; then
+             tar -czf "$ARTIFACT_NAME" dist/
+           elif [ -d "src" ]; then
+diff --git a/.github/workflows/autonomous-remediation.yml b/.github/workflows/autonomous-remediation.yml
+index 9014d53..faa7303 100644
+--- a/.github/workflows/autonomous-remediation.yml
++++ b/.github/workflows/autonomous-remediation.yml
+@@ -16,7 +16,7 @@ on:
+         description: 'Service/deployment affected'
+         required: false
+         type: string
+-        default: 'devonn-api'
++        default: 'd3vonn-api'
+       auto_rollback:
+         description: 'Automatically rollback if true'
+         required: false
+@@ -47,7 +47,7 @@ on:
+       affected_service:
+         description: 'Affected service name'
+         required: false
+-        default: 'devonn-api'
++        default: 'd3vonn-api'
+       auto_rollback:
+         description: 'Execute automatic rollback'
+         required: false
+@@ -86,7 +86,7 @@ jobs:
+         run: |
+           TRIGGER="${{ inputs.trigger_type || 'health-check' }}"
+           SEVERITY="${{ inputs.severity || 'medium' }}"
+-          SERVICE="${{ inputs.affected_service || 'devonn-api' }}"
++          SERVICE="${{ inputs.affected_service || 'd3vonn-api' }}"
+           AUTO_ROLLBACK="${{ inputs.auto_rollback || 'false' }}"
+           INCIDENT_ID="INC-$(date +%Y%m%d%H%M%S)-$(echo $TRIGGER | tr '-' '_' | tr '[:lower:]' '[:upper:]')"
+ 
+@@ -185,8 +185,8 @@ jobs:
+           echo ""
+           echo "To lift freeze: workflow_dispatch with trigger_type=manual-quarantine severity=medium"
+           
+-          # In production: kubectl annotate deployment -n devonn-ai --all deployment.kubernetes.io/freeze=true
+-          # In production: argocd app set devonn-ai --sync-policy none
++          # In production: kubectl annotate deployment -n d3vonn --all deployment.kubernetes.io/freeze=true
++          # In production: argocd app set d3vonn --sync-policy none
+           echo "::warning::ROLLOUT FREEZE ACTIVE - ${{ needs.triage.outputs.incident_id }}"
+ 
+   auto-rollback:
+@@ -201,7 +201,7 @@ jobs:
+         run: |
+           echo "=== AUTOMATIC ROLLBACK INITIATED ==="
+           echo "Incident: ${{ needs.triage.outputs.incident_id }}"
+-          echo "Service: ${{ inputs.affected_service || 'devonn-api' }}"
++          echo "Service: ${{ inputs.affected_service || 'd3vonn-api' }}"
+           echo ""
+           
+           # Rollback procedure:
+@@ -213,13 +213,13 @@ jobs:
+           
+           echo "Rollback steps:"
+           echo "  1. Identifying last known good revision..."
+-          echo "     kubectl rollout history deployment/${{ inputs.affected_service || 'devonn-api' }} -n devonn-ai"
++          echo "     kubectl rollout history deployment/${{ inputs.affected_service || 'd3vonn-api' }} -n d3vonn"
+           echo "  2. Executing rollback..."
+-          echo "     kubectl rollout undo deployment/${{ inputs.affected_service || 'devonn-api' }} -n devonn-ai"
++          echo "     kubectl rollout undo deployment/${{ inputs.affected_service || 'd3vonn-api' }} -n d3vonn"
+           echo "  3. Waiting for rollback to complete..."
+-          echo "     kubectl rollout status deployment/${{ inputs.affected_service || 'devonn-api' }} -n devonn-ai --timeout=120s"
++          echo "     kubectl rollout status deployment/${{ inputs.affected_service || 'd3vonn-api' }} -n d3vonn --timeout=120s"
+           echo "  4. Verifying health post-rollback..."
+-          echo "     curl -sf https://api.devonn.ai/health"
++          echo "     curl -sf https://api.d3vonn.io/health"
+           echo ""
+           echo "::warning::AUTO-ROLLBACK EXECUTED - ${{ needs.triage.outputs.incident_id }}"
+ 
+@@ -238,12 +238,12 @@ jobs:
+           echo ""
+           echo "Canary disable procedure:"
+           echo "  1. Set canary weight to 0% (all traffic to stable)"
+-          echo "     kubectl patch virtualservice devonn-ai -n devonn-ai --type=merge"
+-          echo "     -p '{\"spec\":{\"http\":[{\"route\":[{\"destination\":{\"host\":\"devonn-api-stable\"},\"weight\":100}]}]}}'"
++          echo "     kubectl patch virtualservice d3vonn -n d3vonn --type=merge"
++          echo "     -p '{\"spec\":{\"http\":[{\"route\":[{\"destination\":{\"host\":\"d3vonn-api-stable\"},\"weight\":100}]}]}}'"
+           echo "  2. Scale canary deployment to 0 replicas"
+-          echo "     kubectl scale deployment devonn-api-canary -n devonn-ai --replicas=0"
++          echo "     kubectl scale deployment d3vonn-api-canary -n d3vonn --replicas=0"
+           echo "  3. Update Argo Rollouts (if configured)"
+-          echo "     kubectl argo rollouts abort devonn-api -n devonn-ai"
++          echo "     kubectl argo rollouts abort d3vonn-api -n d3vonn"
+           echo ""
+           echo "::warning::CANARY DISABLED - ${{ needs.triage.outputs.incident_id }}"
+ 
+@@ -259,7 +259,7 @@ jobs:
+         run: |
+           echo "=== RUNTIME QUARANTINE ACTIVATED ==="
+           echo "Incident: ${{ needs.triage.outputs.incident_id }}"
+-          echo "Service: ${{ inputs.affected_service || 'devonn-api' }}"
++          echo "Service: ${{ inputs.affected_service || 'd3vonn-api' }}"
+           echo ""
+           echo "Quarantine procedure:"
+           echo "  1. Apply network policy to isolate pod"
+@@ -267,20 +267,20 @@ jobs:
+           echo "     apiVersion: networking.k8s.io/v1"
+           echo "     kind: NetworkPolicy"
+           echo "     metadata:"
+-          echo "       name: quarantine-${{ inputs.affected_service || 'devonn-api' }}"
+-          echo "       namespace: devonn-ai"
++          echo "       name: quarantine-${{ inputs.affected_service || 'd3vonn-api' }}"
++          echo "       namespace: d3vonn"
+           echo "     spec:"
+           echo "       podSelector:"
+           echo "         matchLabels:"
+-          echo "           app: ${{ inputs.affected_service || 'devonn-api' }}"
++          echo "           app: ${{ inputs.affected_service || 'd3vonn-api' }}"
+           echo "       policyTypes: [Ingress, Egress]"
+           echo "     EOF"
+           echo "  2. Capture pod state for forensics"
+-          echo "     kubectl exec -n devonn-ai <pod> -- ps aux > /tmp/forensics/processes.txt"
++          echo "     kubectl exec -n d3vonn <pod> -- ps aux > /tmp/forensics/processes.txt"
+           echo "  3. Preserve logs before termination"
+-          echo "     kubectl logs -n devonn-ai <pod> --all-containers > /tmp/forensics/logs.txt"
++          echo "     kubectl logs -n d3vonn <pod> --all-containers > /tmp/forensics/logs.txt"
+           echo "  4. Terminate quarantined pod"
+-          echo "     kubectl delete pod -n devonn-ai -l app=${{ inputs.affected_service || 'devonn-api' }}"
++          echo "     kubectl delete pod -n d3vonn -l app=${{ inputs.affected_service || 'd3vonn-api' }}"
+           echo ""
+           echo "::error::QUARANTINE ACTIVE - ${{ needs.triage.outputs.incident_id }}"
+ 
+@@ -304,7 +304,7 @@ jobs:
+             "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+             "trigger": "${{ inputs.trigger_type || 'health-check' }}",
+             "severity": "${{ inputs.severity || 'medium' }}",
+-            "affected_service": "${{ inputs.affected_service || 'devonn-api' }}",
++            "affected_service": "${{ inputs.affected_service || 'd3vonn-api' }}",
+             "actions_taken": {
+               "rollout_freeze": "${{ needs.triage.outputs.freeze_required }}",
+               "auto_rollback": "${{ needs.triage.outputs.rollback_required }}",
+diff --git a/.github/workflows/ci-auth-debugger.yml b/.github/workflows/ci-auth-debugger.yml
+index 8554e51..204d8ab 100644
+--- a/.github/workflows/ci-auth-debugger.yml
++++ b/.github/workflows/ci-auth-debugger.yml
+@@ -24,8 +24,8 @@ jobs:
+ 
+       - name: Verify git identity works
+         run: |
+-          git config user.email "ci@devonn.ai"
+-          git config user.name "devonn-ci"
++          git config user.email "ci@d3vonn.io"
++          git config user.name "d3vonn-ci"
+           git rev-parse HEAD
+ 
+       - name: Summary
+diff --git a/.github/workflows/container-hardening.yml b/.github/workflows/container-hardening.yml
+index c49a82b..698edd4 100644
+--- a/.github/workflows/container-hardening.yml
++++ b/.github/workflows/container-hardening.yml
+@@ -84,13 +84,13 @@ jobs:
+           context: .
+           file: Dockerfile.hardened
+           push: false
+-          tags: devonn-api:hardened-${{ github.sha }}
++          tags: d3vonn-api:hardened-${{ github.sha }}
+           cache-from: type=gha
+           cache-to: type=gha,mode=max
+-          outputs: type=docker,dest=/tmp/devonn-api.tar
++          outputs: type=docker,dest=/tmp/d3vonn-api.tar
+ 
+       - name: Load image for scanning
+-        run: docker load < /tmp/devonn-api.tar
++        run: docker load < /tmp/d3vonn-api.tar
+ 
+       - name: Scan with Grype (vulnerability scanner)
+         continue-on-error: true  # Report vulnerabilities but don't block pipeline
+@@ -101,7 +101,7 @@ jobs:
+ 
+           # Scan the built image — only fail on FIXABLE critical CVEs
+           # (won't-fix and not-fixed are excluded via .grype.yaml)
+-          grype devonn-api:hardened-${{ github.sha }} \
++          grype d3vonn-api:hardened-${{ github.sha }} \
+             --fail-on critical \
+             --output table \
+             --config .grype.yaml
+@@ -123,12 +123,12 @@ jobs:
+             --no-progress \
+             --ignore-unfixed \
+             --scanners vuln \
+-            devonn-api:hardened-${{ github.sha }}
++            d3vonn-api:hardened-${{ github.sha }}
+           echo "Trivy scan passed (no fixable CRITICAL CVEs)"
+ 
+       - name: Check image runs as non-root
+         run: |
+-          USER_ID=$(docker inspect devonn-api:hardened-${{ github.sha }} \
++          USER_ID=$(docker inspect d3vonn-api:hardened-${{ github.sha }} \
+             --format '{{.Config.User}}')
+           echo "Container user: ${USER_ID}"
+           if [ "$USER_ID" = "nonroot" ] || [ "$USER_ID" = "65532" ]; then
+@@ -141,7 +141,7 @@ jobs:
+         run: |
+           python3 -c "
+           import json
+-          with open('policy/seccomp/devonn-api.json') as f:
++          with open('policy/seccomp/d3vonn-api.json') as f:
+               profile = json.load(f)
+           assert 'defaultAction' in profile
+           assert 'syscalls' in profile
+@@ -154,5 +154,5 @@ jobs:
+         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+         with:
+           name: container-scan-${{ github.run_id }}
+-          path: /tmp/devonn-api.tar
++          path: /tmp/d3vonn-api.tar
+           retention-days: 7
+diff --git a/.github/workflows/cosign-sign-verify.yml b/.github/workflows/cosign-sign-verify.yml
+index 6e9af03..2dcdc0c 100644
+--- a/.github/workflows/cosign-sign-verify.yml
++++ b/.github/workflows/cosign-sign-verify.yml
+@@ -51,8 +51,8 @@ jobs:
+       - name: Build artifact
+         run: |
+           NODE_ENV=production npm run build
+-          tar czf /tmp/devonn-dist.tar.gz dist/
+-          DIGEST=$(sha256sum /tmp/devonn-dist.tar.gz | cut -d' ' -f1)
++          tar czf /tmp/d3vonn-dist.tar.gz dist/
++          DIGEST=$(sha256sum /tmp/d3vonn-dist.tar.gz | cut -d' ' -f1)
+           echo "Build artifact SHA-256: ${DIGEST}"
+           echo "ARTIFACT_DIGEST=${DIGEST}" >> $GITHUB_ENV
+ 
+@@ -67,31 +67,31 @@ jobs:
+           # The signature is recorded in the Rekor transparency log
+           cosign sign-blob \
+             --yes \
+-            --output-certificate /tmp/devonn-dist.crt \
+-            --output-signature /tmp/devonn-dist.sig \
+-            --bundle /tmp/devonn-dist.bundle \
+-            /tmp/devonn-dist.tar.gz
++            --output-certificate /tmp/d3vonn-dist.crt \
++            --output-signature /tmp/d3vonn-dist.sig \
++            --bundle /tmp/d3vonn-dist.bundle \
++            /tmp/d3vonn-dist.tar.gz
+ 
+           echo "Cosign signature generated"
+           echo "Certificate:"
+           # Informational pretty-print only - wrapped in `if` so a malformed
+           # cert dump never silently masks the signing step's real exit code.
+-          if openssl x509 -noout -text -in /tmp/devonn-dist.crt > /tmp/cert.txt 2>/dev/null; then
++          if openssl x509 -noout -text -in /tmp/d3vonn-dist.crt > /tmp/cert.txt 2>/dev/null; then
+             grep -E "Subject:|Issuer:|Not After" /tmp/cert.txt || echo "(no matching cert fields)"
+           else
+             echo "::warning::cert pretty-print failed (non-fatal; signature still produced)"
+           fi
+ 
+           echo "artifact_digest=${ARTIFACT_DIGEST}" >> $GITHUB_OUTPUT
+-          echo "bundle_path=/tmp/devonn-dist.bundle" >> $GITHUB_OUTPUT
++          echo "bundle_path=/tmp/d3vonn-dist.bundle" >> $GITHUB_OUTPUT
+ 
+       - name: Verify signature immediately (self-check)
+         run: |
+           cosign verify-blob \
+-            --bundle /tmp/devonn-dist.bundle \
++            --bundle /tmp/d3vonn-dist.bundle \
+             --certificate-identity-regexp "https://github.com/wesship/supreme-ai-deployment-hub" \
+             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+-            /tmp/devonn-dist.tar.gz
++            /tmp/d3vonn-dist.tar.gz
+           echo "Self-verification passed: signature is valid"
+ 
+       - name: Record Rekor transparency log entry
+@@ -99,7 +99,7 @@ jobs:
+           # Extract Rekor log index from bundle for auditability
+           python3 - <<'PYEOF'
+           import json, os
+-          bundle_path = "/tmp/devonn-dist.bundle"
++          bundle_path = "/tmp/d3vonn-dist.bundle"
+           try:
+               with open(bundle_path) as f:
+                   bundle = json.load(f)
+@@ -117,10 +117,10 @@ jobs:
+         with:
+           name: signed-artifact-${{ github.sha }}
+           path: |
+-            /tmp/devonn-dist.tar.gz
+-            /tmp/devonn-dist.crt
+-            /tmp/devonn-dist.sig
+-            /tmp/devonn-dist.bundle
++            /tmp/d3vonn-dist.tar.gz
++            /tmp/d3vonn-dist.crt
++            /tmp/d3vonn-dist.sig
++            /tmp/d3vonn-dist.bundle
+           retention-days: 90
+ 
+   # ── Pre-Deployment Signature Verification ─────────────────────────────────
+@@ -147,11 +147,11 @@ jobs:
+       - name: Verify artifact signature (pre-deployment gate)
+         run: |
+           echo "=== Pre-Deployment Signature Verification ==="
+-          echo "Artifact: devonn-dist.tar.gz"
++          echo "Artifact: d3vonn-dist.tar.gz"
+           echo "Expected digest: ${{ needs.sign-artifact.outputs.artifact_digest }}"
+           
+           # Verify the SHA-256 digest matches
+-          ACTUAL_DIGEST=$(sha256sum /tmp/verify/devonn-dist.tar.gz | cut -d' ' -f1)
++          ACTUAL_DIGEST=$(sha256sum /tmp/verify/d3vonn-dist.tar.gz | cut -d' ' -f1)
+           EXPECTED_DIGEST="${{ needs.sign-artifact.outputs.artifact_digest }}"
+           
+           if [ "$ACTUAL_DIGEST" = "$EXPECTED_DIGEST" ]; then
+@@ -165,10 +165,10 @@ jobs:
+           
+           # Verify Cosign signature
+           cosign verify-blob \
+-            --bundle /tmp/verify/devonn-dist.bundle \
++            --bundle /tmp/verify/d3vonn-dist.bundle \
+             --certificate-identity-regexp "https://github.com/wesship/supreme-ai-deployment-hub" \
+             --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+-            /tmp/verify/devonn-dist.tar.gz
++            /tmp/verify/d3vonn-dist.tar.gz
+           
+           echo "PASS: Cosign signature verified against Rekor transparency log"
+           echo "Deployment gate: APPROVED"
+diff --git a/.github/workflows/cost-attribution.yml b/.github/workflows/cost-attribution.yml
+index 5bf6135..a27270c 100644
+--- a/.github/workflows/cost-attribution.yml
++++ b/.github/workflows/cost-attribution.yml
+@@ -246,13 +246,13 @@ jobs:
+ 
+           # Service cost model (replace with real AWS Cost Explorer / GCP Billing API calls)
+           SERVICES = {
+-              "devonn-api":          {"compute": 45.20, "storage": 8.50,  "network": 12.30, "team": "backend"},
+-              "devonn-frontend":     {"compute": 12.00, "storage": 2.10,  "network": 45.80, "team": "frontend"},
+-              "devonn-ai-pipeline":  {"compute": 89.50, "storage": 15.00, "network": 8.20,  "team": "ai"},
+-              "devonn-voice":        {"compute": 23.40, "storage": 5.80,  "network": 18.90, "team": "ai"},
+-              "devonn-db":           {"compute": 38.00, "storage": 42.00, "network": 3.10,  "team": "platform"},
+-              "devonn-cache":        {"compute": 18.50, "storage": 6.20,  "network": 2.80,  "team": "platform"},
+-              "devonn-monitoring":   {"compute": 8.90,  "storage": 22.00, "network": 1.50,  "team": "platform"},
++              "d3vonn-api":          {"compute": 45.20, "storage": 8.50,  "network": 12.30, "team": "backend"},
++              "d3vonn-frontend":     {"compute": 12.00, "storage": 2.10,  "network": 45.80, "team": "frontend"},
++              "d3vonn-pipeline":  {"compute": 89.50, "storage": 15.00, "network": 8.20,  "team": "ai"},
++              "d3vonn-voice":        {"compute": 23.40, "storage": 5.80,  "network": 18.90, "team": "ai"},
++              "d3vonn-db":           {"compute": 38.00, "storage": 42.00, "network": 3.10,  "team": "platform"},
++              "d3vonn-cache":        {"compute": 18.50, "storage": 6.20,  "network": 2.80,  "team": "platform"},
++              "d3vonn-monitoring":   {"compute": 8.90,  "storage": 22.00, "network": 1.50,  "team": "platform"},
+           }
+ 
+           print("=== CLOUD COST ATTRIBUTION REPORT ===")
+diff --git a/.github/workflows/coverage.yml b/.github/workflows/coverage.yml
+index 9c2daf9..26414e0 100644
+--- a/.github/workflows/coverage.yml
++++ b/.github/workflows/coverage.yml
+@@ -46,7 +46,7 @@ jobs:
+           token: ${{ secrets.CODECOV_TOKEN }}
+           files: ./coverage/lcov.info
+           flags: unittests
+-          name: devonn-ai-coverage
++          name: d3vonn-coverage
+           fail_ci_if_error: false
+           verbose: true
+ 
+diff --git a/.github/workflows/devonn-deploy.yml b/.github/workflows/d3vonn-deploy.yml
+similarity index 72%
+rename from .github/workflows/devonn-deploy.yml
+rename to .github/workflows/d3vonn-deploy.yml
+index 1451b5b..14072b4 100644
+--- a/.github/workflows/devonn-deploy.yml
++++ b/.github/workflows/d3vonn-deploy.yml
+@@ -16,10 +16,10 @@ jobs:
+       - name: Build image
+         continue-on-error: true
+         run: |
+-          if [ -d "./scaffold/devonn-coordinator" ]; then
+-            docker build -t devonn-coordinator ./scaffold/devonn-coordinator
++          if [ -d "./scaffold/d3vonn-coordinator" ]; then
++            docker build -t d3vonn-coordinator ./scaffold/d3vonn-coordinator
+           else
+-            echo "::warning::scaffold/devonn-coordinator not found - skipping build"
++            echo "::warning::scaffold/d3vonn-coordinator not found - skipping build"
+           fi
+       - name: Push to ECR
+         continue-on-error: true
+@@ -28,6 +28,6 @@ jobs:
+       - name: Trigger Supreme Hub
+         continue-on-error: true
+         run: |
+-          curl -X POST http://deploy.devonn.ai/api/v1/deploy \
++          curl -X POST http://deploy.d3vonn.io/api/v1/deploy \
+             -H "Content-Type: application/json" \
+-            -d '{"service_name":"devonn-coordinator"}' || true
++            -d '{"service_name":"d3vonn-coordinator"}' || true
+diff --git a/.github/workflows/dependency-review.yml b/.github/workflows/dependency-review.yml
+index 4dd91fb..79a01ab 100644
+--- a/.github/workflows/dependency-review.yml
++++ b/.github/workflows/dependency-review.yml
+@@ -6,7 +6,7 @@ on:
+       - 'package.json'
+       - 'pnpm-lock.yaml'
+       - 'requirements.txt'
+-      - 'requirements-devonn.txt'
++      - 'requirements-d3vonn.txt'
+       - 'backend/requirements.txt'
+ 
+ permissions:
+diff --git a/.github/workflows/deploy-and-publish.yml b/.github/workflows/deploy-and-publish.yml
+index 6d7d61e..7041f7e 100644
+--- a/.github/workflows/deploy-and-publish.yml
++++ b/.github/workflows/deploy-and-publish.yml
+@@ -82,7 +82,7 @@ jobs:
+       - name: Package extension
+         run: |
+           cd dist
+-          zip -r ../devonn-ai-${{ env.ENVIRONMENT }}.zip *
++          zip -r ../d3vonn-${{ env.ENVIRONMENT }}.zip *
+ 
+       - name: Upload and Publish Chrome Extension
+         continue-on-error: true
+@@ -93,7 +93,7 @@ jobs:
+           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+-          ZIP_PATH: devonn-ai-${{ env.ENVIRONMENT }}.zip
++          ZIP_PATH: d3vonn-${{ env.ENVIRONMENT }}.zip
+           PUBLISH_EXTENSION: ${{ env.ENVIRONMENT == 'production' }}  
+ 
+       - name: Production Deployment Mark
+diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+index 5fb9059..c0779f7 100644
+--- a/.github/workflows/deploy.yml
++++ b/.github/workflows/deploy.yml
+@@ -114,7 +114,7 @@ jobs:
+       - name: Package extension
+         run: |
+           cd dist
+-          zip -r ../devonn-ai-${{ steps.env.outputs.name }}.zip .
++          zip -r ../d3vonn-${{ steps.env.outputs.name }}.zip .
+ 
+       - name: Upload to Chrome Web Store
+         if: steps.env.outputs.name == 'production'
+@@ -125,14 +125,14 @@ jobs:
+           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+-          ZIP_PATH: devonn-ai-${{ steps.env.outputs.name }}.zip
++          ZIP_PATH: d3vonn-${{ steps.env.outputs.name }}.zip
+           PUBLISH_EXTENSION: 'true'
+ 
+       - name: Create GitHub Release
+         if: steps.env.outputs.name == 'production'
+         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+         with:
+-          files: devonn-ai-${{ steps.env.outputs.name }}.zip
++          files: d3vonn-${{ steps.env.outputs.name }}.zip
+           name: Release ${{ github.ref_name }}
+           tag_name: v${{ github.run_number }}
+           generate_release_notes: true
+diff --git a/.github/workflows/deployment-promotion.yml b/.github/workflows/deployment-promotion.yml
+index 7589794..82dca03 100644
+--- a/.github/workflows/deployment-promotion.yml
++++ b/.github/workflows/deployment-promotion.yml
+@@ -42,7 +42,7 @@ jobs:
+     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+     environment:
+       name: development
+-      url: https://dev.devonn.ai
++      url: https://dev.d3vonn.io
+     concurrency:
+       group: deploy-dev
+       cancel-in-progress: true
+@@ -81,16 +81,16 @@ jobs:
+         run: |
+           echo "Deploying $DEPLOY_SHA to $DEPLOY_ENV"
+           # Actual deployment command - replace with your deployment tool:
+-          # heroku container:push web --app devonn-dev
+-          # render deploy --service devonn-dev
+-          # kubectl set image deployment/devonn-dev app=devonn:${DEPLOY_SHA:0:8}
++          # heroku container:push web --app d3vonn-dev
++          # render deploy --service d3vonn-dev
++          # kubectl set image deployment/d3vonn-dev app=devonn:${DEPLOY_SHA:0:8}
+           echo "::notice::Development deployment placeholder - configure DEPLOY_CMD secret"
+ 
+       - name: Run development smoke tests
+         id: smoke-dev
+         run: |
+           set -euo pipefail
+-          DEV_URL="${DEV_URL:-https://dev.devonn.ai}"
++          DEV_URL="${DEV_URL:-https://dev.d3vonn.io}"
+           echo "Running smoke tests against $DEV_URL"
+           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$DEV_URL/health" || echo "000")
+           if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
+@@ -109,7 +109,7 @@ jobs:
+     if: ${{ needs.deploy-dev.result == 'success' }}
+     environment:
+       name: staging
+-      url: https://staging.devonn.ai
++      url: https://staging.d3vonn.io
+     concurrency:
+       group: deploy-staging
+       cancel-in-progress: false
+@@ -130,7 +130,7 @@ jobs:
+       - name: Run staging smoke tests
+         run: |
+           set -euo pipefail
+-          STAGING_URL="${STAGING_URL:-https://staging.devonn.ai}"
++          STAGING_URL="${STAGING_URL:-https://staging.d3vonn.io}"
+           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STAGING_URL/health" || echo "000")
+           echo "Staging health check: HTTP $HTTP_STATUS"
+           if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
+@@ -158,7 +158,7 @@ jobs:
+     if: ${{ needs.deploy-staging.result == 'success' }}
+     environment:
+       name: canary
+-      url: https://canary.devonn.ai
++      url: https://canary.d3vonn.io
+     concurrency:
+       group: deploy-canary
+       cancel-in-progress: false
+@@ -181,7 +181,7 @@ jobs:
+       - name: Monitor canary health (5 minutes)
+         run: |
+           set -euo pipefail
+-          CANARY_URL="${CANARY_URL:-https://canary.devonn.ai}"
++          CANARY_URL="${CANARY_URL:-https://canary.d3vonn.io}"
+           echo "Monitoring canary for 5 minutes at $CANARY_URL"
+           for i in $(seq 1 5); do
+             sleep 60
+@@ -204,7 +204,7 @@ jobs:
+     if: ${{ needs.deploy-canary.result == 'success' }}
+     environment:
+       name: production
+-      url: https://devonn.ai
++      url: https://d3vonn.io
+     concurrency:
+       group: deploy-production
+       cancel-in-progress: false
+@@ -225,7 +225,7 @@ jobs:
+       - name: Run production smoke tests
+         run: |
+           set -euo pipefail
+-          PROD_URL="${PROD_URL:-https://devonn.ai}"
++          PROD_URL="${PROD_URL:-https://d3vonn.io}"
+           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$PROD_URL/health" || echo "000")
+           echo "Production health check: HTTP $HTTP_STATUS"
+           if [[ "$HTTP_STATUS" =~ ^2[0-9]{2}$ ]]; then
+diff --git a/.github/workflows/disaster-recovery-drill.yml b/.github/workflows/disaster-recovery-drill.yml
+index d88c694..fab5f6a 100644
+--- a/.github/workflows/disaster-recovery-drill.yml
++++ b/.github/workflows/disaster-recovery-drill.yml
+@@ -81,8 +81,8 @@ jobs:
+ 
+           echo "Step 2: Promote read replica"
+           if [ "$DRY_RUN" = "true" ]; then
+-            echo "  [DRY RUN] Would execute: aws rds failover-db-cluster --db-cluster-identifier devonn-prod"
+-            echo "  [DRY RUN] Would execute: kubectl rollout restart deployment/devonn-api"
++            echo "  [DRY RUN] Would execute: aws rds failover-db-cluster --db-cluster-identifier d3vonn-prod"
++            echo "  [DRY RUN] Would execute: kubectl rollout restart deployment/d3vonn-api"
+           else
+             echo "  Executing failover (production mode)..."
+           fi
+@@ -132,8 +132,8 @@ jobs:
+ 
+           echo "Step 3: Execute rollback"
+           if [ "$DRY_RUN" = "true" ]; then
+-            echo "  [DRY RUN] Would execute: kubectl rollout undo deployment/devonn-api"
+-            echo "  [DRY RUN] Would execute: kubectl rollout undo deployment/devonn-frontend"
++            echo "  [DRY RUN] Would execute: kubectl rollout undo deployment/d3vonn-api"
++            echo "  [DRY RUN] Would execute: kubectl rollout undo deployment/d3vonn-frontend"
+           fi
+           sleep 3
+ 
+@@ -169,7 +169,7 @@ jobs:
+           sleep 1
+ 
+           echo "Step 3: Verify traffic rerouting"
+-          echo "  Simulating: curl https://devonn.ai/health via secondary path"
++          echo "  Simulating: curl https://d3vonn.io/health via secondary path"
+           sleep 2
+ 
+           echo "Step 4: Confirm SLO restoration"
+diff --git a/.github/workflows/dora-metrics.yml b/.github/workflows/dora-metrics.yml
+index bb67bae..b2c6ab1 100644
+--- a/.github/workflows/dora-metrics.yml
++++ b/.github/workflows/dora-metrics.yml
+@@ -58,7 +58,7 @@ jobs:
+ 
+           # ── 1. DEPLOYMENT FREQUENCY ─────────────────────────────────────────
+           # Count successful deploy workflow runs on main in the period
+-          deploy_workflows = ["deploy.yml", "devonn-deploy.yml", "deployment-promotion.yml"]
++          deploy_workflows = ["deploy.yml", "d3vonn-deploy.yml", "deployment-promotion.yml"]
+           deploy_count = 0
+           for wf in deploy_workflows:
+               r = requests.get(
+diff --git a/.github/workflows/ebpf-telemetry.yml b/.github/workflows/ebpf-telemetry.yml
+index 699fcd6..5c8faf7 100644
+--- a/.github/workflows/ebpf-telemetry.yml
++++ b/.github/workflows/ebpf-telemetry.yml
+@@ -119,8 +119,8 @@ jobs:
+           base_time = datetime.utcnow()
+           
+           process_tree = {
+-              "container": "devonn-api",
+-              "namespace": "devonn-ai",
++              "container": "d3vonn-api",
++              "namespace": "d3vonn",
+               "captured_at": base_time.isoformat() + "Z",
+               "process_ancestry": [
+                   {
+@@ -202,16 +202,16 @@ jobs:
+           
+           # Apply TracingPolicies from policy/tetragon/
+           tracingPolicies:
+-            - name: devonn-process-ancestry
+-              namespace: devonn-ai
+-            - name: devonn-network-topology
+-              namespace: devonn-ai
+-            - name: devonn-sensitive-file-access
+-              namespace: devonn-ai
+-            - name: devonn-privilege-escalation
+-              namespace: devonn-ai
+-            - name: devonn-syscall-anomaly
+-              namespace: devonn-ai
++            - name: d3vonn-process-ancestry
++              namespace: d3vonn
++            - name: d3vonn-network-topology
++              namespace: d3vonn
++            - name: d3vonn-sensitive-file-access
++              namespace: d3vonn
++            - name: d3vonn-privilege-escalation
++              namespace: d3vonn
++            - name: d3vonn-syscall-anomaly
++              namespace: d3vonn
+           EOF
+           
+           echo "Tetragon Helm values generated"
+diff --git a/.github/workflows/eks-deploy-oidc.yml b/.github/workflows/eks-deploy-oidc.yml
+index ecac859..52ea34d 100644
+--- a/.github/workflows/eks-deploy-oidc.yml
++++ b/.github/workflows/eks-deploy-oidc.yml
+@@ -113,7 +113,7 @@ jobs:
+           if [ "${{ steps.aws-ready.outputs.push_enabled }}" = "true" ]; then
+             IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA::7}"
+           else
+-            IMAGE_URI="devonn-local:${GITHUB_SHA::7}"
++            IMAGE_URI="d3vonn-local:${GITHUB_SHA::7}"
+           fi
+           echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+           echo "Image URI: $IMAGE_URI"
+@@ -166,8 +166,8 @@ jobs:
+ 
+       - name: Set deployment image
+         run: |
+-          kubectl -n devonn set image deployment/devonn-backend \
++          kubectl -n d3vonn set image deployment/d3vonn-backend \
+             backend=${{ needs.build-and-push.outputs.image_uri }} --record
+ 
+       - name: Wait for rollout
+-        run: kubectl -n devonn rollout status deployment/devonn-backend --timeout=5m
++        run: kubectl -n d3vonn rollout status deployment/d3vonn-backend --timeout=5m
+diff --git a/.github/workflows/falco-runtime-detection.yml b/.github/workflows/falco-runtime-detection.yml
+index 801852b..0dbd399 100644
+--- a/.github/workflows/falco-runtime-detection.yml
++++ b/.github/workflows/falco-runtime-detection.yml
+@@ -61,7 +61,7 @@ jobs:
+           python3 - <<'PYEOF'
+           import yaml, sys, os
+ 
+-          rules_file = "policy/falco/devonn-rules.yaml"
++          rules_file = "policy/falco/d3vonn-rules.yaml"
+           
+           with open(rules_file) as f:
+               content = f.read()
+@@ -117,7 +117,7 @@ jobs:
+           python3 - <<'PYEOF'
+           import yaml
+ 
+-          with open("policy/falco/devonn-rules.yaml") as f:
++          with open("policy/falco/d3vonn-rules.yaml") as f:
+               docs = list(yaml.safe_load_all(f.read()))
+           # Flatten: Falco rules files are a single YAML list document
+           items = []
+@@ -183,8 +183,8 @@ jobs:
+ 
+           # Custom rules
+           customRules:
+-            devonn-rules.yaml: |
+-              # Rules loaded from policy/falco/devonn-rules.yaml
++            d3vonn-rules.yaml: |
++              # Rules loaded from policy/falco/d3vonn-rules.yaml
+ 
+           # Alert output configuration
+           falco:
+@@ -224,7 +224,7 @@ jobs:
+             namespace: falco-system
+             labels:
+               app: falco
+-              platform: devonn-ai
++              platform: d3vonn
+           spec:
+             selector:
+               matchLabels:
+@@ -262,7 +262,7 @@ jobs:
+                 volumes:
+                   - name: falco-rules
+                     configMap:
+-                      name: devonn-falco-rules
++                      name: d3vonn-falco-rules
+                   - name: proc
+                     hostPath:
+                       path: /proc
+diff --git a/.github/workflows/gitops-reconciliation.yml b/.github/workflows/gitops-reconciliation.yml
+index 428e51b..fedc357 100644
+--- a/.github/workflows/gitops-reconciliation.yml
++++ b/.github/workflows/gitops-reconciliation.yml
+@@ -150,7 +150,7 @@ jobs:
+           from datetime import datetime
+ 
+           # In production: compare live cluster state with Git desired state
+-          # kubectl get deployment devonn-api -n devonn-ai -o json | diff with gitops/apps/deployment.yaml
++          # kubectl get deployment d3vonn-api -n d3vonn -o json | diff with gitops/apps/deployment.yaml
+ 
+           # Simulated drift check
+           drift_scenarios = {
+@@ -191,7 +191,7 @@ jobs:
+           echo "Drift detected in cluster state. Reconciling with Git desired state."
+           echo ""
+           echo "Sync procedure:"
+-          echo "  argocd app sync devonn-ai --force --prune"
+-          echo "  argocd app wait devonn-ai --health --timeout 120"
++          echo "  argocd app sync d3vonn --force --prune"
++          echo "  argocd app wait d3vonn --health --timeout 120"
+           echo ""
+           echo "::warning::GitOps self-healing sync executed"
+diff --git a/.github/workflows/infrastructure-ci-cd.yml b/.github/workflows/infrastructure-ci-cd.yml
+index 068daa8..38afd58 100644
+--- a/.github/workflows/infrastructure-ci-cd.yml
++++ b/.github/workflows/infrastructure-ci-cd.yml
+@@ -394,7 +394,7 @@ jobs:
+       id-token: write
+     environment:
+       name: production
+-      url: https://devonn.ai
++      url: https://d3vonn.io
+     steps:
+       - name: Checkout code
+         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+diff --git a/.github/workflows/issue-tracker-sync.yml b/.github/workflows/issue-tracker-sync.yml
+index 051bc0a..7ba419d 100644
+--- a/.github/workflows/issue-tracker-sync.yml
++++ b/.github/workflows/issue-tracker-sync.yml
+@@ -168,7 +168,7 @@ jobs:
+                   },
+                   "issuetype": {"name": "Bug" if issue["severity"] in ["critical", "high"] else "Task"},
+                   "priority": {"name": issue["priority"]["name"]},
+-                  "labels": [issue["label"], "devonn-platform", "automated"],
++                  "labels": [issue["label"], "d3vonn-platform", "automated"],
+               }
+           }
+ 
+diff --git a/.github/workflows/issue-trigger.yml b/.github/workflows/issue-trigger.yml
+index 6b8394d..2cca393 100644
+--- a/.github/workflows/issue-trigger.yml
++++ b/.github/workflows/issue-trigger.yml
+@@ -42,7 +42,7 @@ jobs:
+ 
+       - name: Configure git identity
+         run: |
+-          git config user.email "devonn-ai@users.noreply.github.com"
++          git config user.email "d3vonn@users.noreply.github.com"
+           git config user.name "Devonn AI Agent"
+           git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN_WRITE }}@github.com/${{ github.repository }}
+ 
+diff --git a/.github/workflows/kyverno-admission.yml b/.github/workflows/kyverno-admission.yml
+index 806d93a..8d781d8 100644
+--- a/.github/workflows/kyverno-admission.yml
++++ b/.github/workflows/kyverno-admission.yml
+@@ -115,8 +115,8 @@ jobs:
+           apiVersion: v1
+           kind: Pod
+           metadata:
+-            name: devonn-api-test
+-            namespace: devonn-ai
++            name: d3vonn-api-test
++            namespace: d3vonn
+           spec:
+             containers:
+               - name: api
+@@ -134,7 +134,7 @@ jobs:
+           kind: Pod
+           metadata:
+             name: insecure-pod
+-            namespace: devonn-ai
++            namespace: d3vonn
+           spec:
+             containers:
+               - name: app
+@@ -225,7 +225,7 @@ jobs:
+           apiVersion: policy.sigstore.dev/v1beta1
+           kind: ClusterImagePolicy
+           metadata:
+-            name: devonn-ai-signed-images
++            name: d3vonn-signed-images
+           spec:
+             images:
+               - glob: "ghcr.io/wesship/supreme-ai-deployment-hub/**"
+diff --git a/.github/workflows/load-test.yml b/.github/workflows/load-test.yml
+index ab5adb1..49417da 100644
+--- a/.github/workflows/load-test.yml
++++ b/.github/workflows/load-test.yml
+@@ -9,7 +9,7 @@ on:
+       base_url:
+         description: "Target URL for load tests"
+         required: true
+-        default: "https://staging.devonn.ai"
++        default: "https://staging.d3vonn.io"
+       scenario:
+         description: "Test scenario: smoke | load | stress | spike"
+         required: true
+@@ -57,7 +57,7 @@ jobs:
+         run: |
+           mkdir -p test-results
+           k6 run \
+-            --env BASE_URL=${{ github.event.inputs.base_url || 'https://staging.devonn.ai' }} \
++            --env BASE_URL=${{ github.event.inputs.base_url || 'https://staging.d3vonn.io' }} \
+             --env SCENARIO=${{ github.event.inputs.scenario || 'smoke' }} \
+             --out json=test-results/k6-results.json \
+             load-tests/api-load-test.js
+diff --git a/.github/workflows/metrics-export.yml b/.github/workflows/metrics-export.yml
+index 75fa30d..c6294a6 100644
+--- a/.github/workflows/metrics-export.yml
++++ b/.github/workflows/metrics-export.yml
+@@ -136,7 +136,7 @@ jobs:
+               "dependabot_alerts_enabled": alerts_enabled,
+               "gitleaks_configured": os.path.exists(".gitleaks.toml"),
+               "distroless_dockerfile": os.path.exists("Dockerfile.hardened"),
+-              "seccomp_profile": os.path.exists("policy/seccomp/devonn-api.json"),
++              "seccomp_profile": os.path.exists("policy/seccomp/d3vonn-api.json"),
+           }
+ 
+           # Print summary
+@@ -170,10 +170,10 @@ jobs:
+ 
+           def add(name, value, tags=None):
+               series.append({
+-                  "metric": f"devonn.platform.{name}",
++                  "metric": f"d3vonn.platform.{name}",
+                   "type": 3,  # gauge
+                   "points": [{"timestamp": ts, "value": float(value)}],
+-                  "tags": tags or ["env:production", "platform:devonn-ai"],
++                  "tags": tags or ["env:production", "platform:d3vonn"],
+               })
+ 
+           add("workflow_count", m["platform"]["workflow_count"])
+@@ -210,25 +210,25 @@ jobs:
+ 
+           # Prometheus text format
+           lines = [
+-              "# HELP devonn_platform_workflow_count Total number of GitHub Actions workflows",
+-              "# TYPE devonn_platform_workflow_count gauge",
+-              f"devonn_platform_workflow_count {m['platform']['workflow_count']}",
+-              "# HELP devonn_platform_cves Total CVEs in dependency tree",
+-              "# TYPE devonn_platform_cves gauge",
+-              f"devonn_platform_cves {m['platform']['cves']}",
+-              "# HELP devonn_ci_success_rate CI success rate percentage",
+-              "# TYPE devonn_ci_success_rate gauge",
+-              f"devonn_ci_success_rate {m['ci'].get('success_rate_pct', 0)}",
+-              "# HELP devonn_ci_avg_duration_seconds Average CI run duration",
+-              "# TYPE devonn_ci_avg_duration_seconds gauge",
+-              f"devonn_ci_avg_duration_seconds {m['ci'].get('avg_run_duration_seconds', 0)}",
++              "# HELP d3vonn_platform_workflow_count Total number of GitHub Actions workflows",
++              "# TYPE d3vonn_platform_workflow_count gauge",
++              f"d3vonn_platform_workflow_count {m['platform']['workflow_count']}",
++              "# HELP d3vonn_platform_cves Total CVEs in dependency tree",
++              "# TYPE d3vonn_platform_cves gauge",
++              f"d3vonn_platform_cves {m['platform']['cves']}",
++              "# HELP d3vonn_ci_success_rate CI success rate percentage",
++              "# TYPE d3vonn_ci_success_rate gauge",
++              f"d3vonn_ci_success_rate {m['ci'].get('success_rate_pct', 0)}",
++              "# HELP d3vonn_ci_avg_duration_seconds Average CI run duration",
++              "# TYPE d3vonn_ci_avg_duration_seconds gauge",
++              f"d3vonn_ci_avg_duration_seconds {m['ci'].get('avg_run_duration_seconds', 0)}",
+           ]
+ 
+           body = "\n".join(lines) + "\n"
+           url = os.environ["PROMETHEUS_PUSHGATEWAY_URL"]
+ 
+           r = requests.post(
+-              f"{url}/metrics/job/devonn-platform",
++              f"{url}/metrics/job/d3vonn-platform",
+               data=body,
+               headers={"Content-Type": "text/plain"},
+               timeout=15,
+diff --git a/.github/workflows/multi-env-promotion.yml b/.github/workflows/multi-env-promotion.yml
+index 3e97145..4d67c83 100644
+--- a/.github/workflows/multi-env-promotion.yml
++++ b/.github/workflows/multi-env-promotion.yml
+@@ -34,7 +34,7 @@ concurrency:
+ 
+ env:
+   REGISTRY: ghcr.io
+-  IMAGE_NAME: wesship/devonn-api
++  IMAGE_NAME: wesship/d3vonn-api
+ 
+ jobs:
+   # ──────────────────────────────────────────────────────────────────
+@@ -84,7 +84,7 @@ jobs:
+     if: needs.promotion-gate.outputs.target_env == 'dev' || github.event_name == 'push'
+     environment:
+       name: development
+-      url: https://dev.devonn.ai
++      url: https://dev.d3vonn.io
+ 
+     steps:
+       - name: Checkout repository
+@@ -132,7 +132,7 @@ jobs:
+     if: needs.promotion-gate.outputs.target_env == 'staging'
+     environment:
+       name: staging
+-      url: https://staging.devonn.ai
++      url: https://staging.d3vonn.io
+ 
+     steps:
+       - name: Checkout repository
+@@ -174,7 +174,7 @@ jobs:
+     if: needs.promotion-gate.outputs.target_env == 'canary'
+     environment:
+       name: canary
+-      url: https://canary.devonn.ai
++      url: https://canary.d3vonn.io
+ 
+     steps:
+       - name: Checkout repository
+@@ -209,7 +209,7 @@ jobs:
+     if: needs.promotion-gate.outputs.target_env == 'production'
+     environment:
+       name: production
+-      url: https://devonn.ai
++      url: https://d3vonn.io
+ 
+     steps:
+       - name: Checkout repository
+diff --git a/.github/workflows/multi-region-failover.yml b/.github/workflows/multi-region-failover.yml
+index f9448d9..042ea26 100644
+--- a/.github/workflows/multi-region-failover.yml
++++ b/.github/workflows/multi-region-failover.yml
+@@ -38,7 +38,7 @@ jobs:
+       - name: Check primary region health
+         id: health
+         run: |
+-          PRIMARY_URL="${{ secrets.PRIMARY_API_URL || 'https://devonn-api.onrender.com' }}"
++          PRIMARY_URL="${{ secrets.PRIMARY_API_URL || 'https://d3vonn-api.onrender.com' }}"
+           echo "Checking primary region: $PRIMARY_URL"
+ 
+           START=$(date +%s%3N)
+@@ -159,8 +159,8 @@ jobs:
+           echo "=== Secondary Region Readiness Check ==="
+ 
+           REGIONS=(
+-            "us-east-1:${{ secrets.API_URL_US_EAST || 'https://devonn-api-us-east.onrender.com' }}"
+-            "eu-west-1:${{ secrets.API_URL_EU_WEST || 'https://devonn-api-eu-west.onrender.com' }}"
++            "us-east-1:${{ secrets.API_URL_US_EAST || 'https://d3vonn-api-us-east.onrender.com' }}"
++            "eu-west-1:${{ secrets.API_URL_EU_WEST || 'https://d3vonn-api-eu-west.onrender.com' }}"
+           )
+ 
+           ALL_READY=true
+diff --git a/.github/workflows/observability.yml b/.github/workflows/observability.yml
+index 70fb15a..35ff62a 100644
+--- a/.github/workflows/observability.yml
++++ b/.github/workflows/observability.yml
+@@ -38,7 +38,7 @@ jobs:
+       - name: Generate correlation ID
+         id: gen
+         run: |
+-          # Format: devonn-{YYYYMMDD}-{HHMMSS}-{short-sha}
++          # Format: d3vonn-{YYYYMMDD}-{HHMMSS}-{short-sha}
+           TIMESTAMP=$(date -u +"%Y%m%d-%H%M%S")
+           SHORT_SHA="${{ github.sha }}"
+           SHORT_SHA="${SHORT_SHA:0:8}"
+@@ -48,7 +48,7 @@ jobs:
+           if [ -n "$PROVIDED" ]; then
+             CORR_ID="$PROVIDED"
+           else
+-            CORR_ID="devonn-${TIMESTAMP}-${SHORT_SHA}"
++            CORR_ID="d3vonn-${TIMESTAMP}-${SHORT_SHA}"
+           fi
+           
+           echo "correlation_id=${CORR_ID}" >> $GITHUB_OUTPUT
+@@ -83,7 +83,7 @@ jobs:
+           CORRELATION_ID: ${{ needs.generate-correlation-id.outputs.correlation_id }}
+           DEPLOY_TIMESTAMP: ${{ needs.generate-correlation-id.outputs.deploy_timestamp }}
+           OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.OTEL_ENDPOINT || 'http://localhost:4318' }}
+-          OTEL_SERVICE_NAME: devonn-ci-pipeline
++          OTEL_SERVICE_NAME: d3vonn-ci-pipeline
+         run: |
+           python3 - <<'PYEOF'
+           import os
+@@ -96,7 +96,7 @@ jobs:
+ 
+           # Configure tracer with service metadata
+           resource = Resource.create({
+-              ResourceAttributes.SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "devonn-ci"),
++              ResourceAttributes.SERVICE_NAME: os.environ.get("OTEL_SERVICE_NAME", "d3vonn-ci"),
+               ResourceAttributes.SERVICE_VERSION: os.environ.get("GITHUB_SHA", "unknown")[:8],
+               "deployment.environment": "ci",
+               "ci.correlation_id": os.environ.get("CORRELATION_ID", "unknown"),
+@@ -126,7 +126,7 @@ jobs:
+                   print(f"OTLP export not available: {e}")
+           
+           trace.set_tracer_provider(provider)
+-          tracer = trace.get_tracer("devonn.ci.pipeline")
++          tracer = trace.get_tracer("d3vonn.ci.pipeline")
+ 
+           # Create CI pipeline span
+           with tracer.start_as_current_span("ci.pipeline.run") as pipeline_span:
+diff --git a/.github/workflows/oidc-deploy.yml b/.github/workflows/oidc-deploy.yml
+index a3a05a8..c6efe9c 100644
+--- a/.github/workflows/oidc-deploy.yml
++++ b/.github/workflows/oidc-deploy.yml
+@@ -64,7 +64,7 @@ jobs:
+         run: |
+           echo "Deploying to AWS ${{ inputs.environment }}..."
+           # Example: ECS, Lambda, S3, CloudFront
+-          # aws ecs update-service --cluster devonn-${{ inputs.environment }} --service devonn-api --force-new-deployment
++          # aws ecs update-service --cluster d3vonn-${{ inputs.environment }} --service d3vonn-api --force-new-deployment
+           echo "::notice::Configure AWS_OIDC_ROLE_ARN secret and deployment command"
+ 
+   # ── Azure OIDC Deployment ──────────────────────────────────────────────────
+@@ -98,7 +98,7 @@ jobs:
+         run: |
+           echo "Deploying to Azure ${{ inputs.environment }}..."
+           # Example: Azure Container Apps, App Service, AKS
+-          # az containerapp update --name devonn-${{ inputs.environment }} --resource-group devonn-rg
++          # az containerapp update --name d3vonn-${{ inputs.environment }} --resource-group d3vonn-rg
+           echo "::notice::Configure AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID secrets"
+ 
+   # ── GCP OIDC Deployment ────────────────────────────────────────────────────
+@@ -135,7 +135,7 @@ jobs:
+         run: |
+           echo "Deploying to GCP ${{ inputs.environment }}..."
+           # Example: Cloud Run, GKE, App Engine
+-          # gcloud run deploy devonn-${{ inputs.environment }} --image gcr.io/PROJECT/devonn:${{ github.sha }}
++          # gcloud run deploy d3vonn-${{ inputs.environment }} --image gcr.io/PROJECT/devonn:${{ github.sha }}
+           echo "::notice::Configure GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT secrets"
+ 
+   # ── Cloudflare Workers OIDC Deployment ────────────────────────────────────
+diff --git a/.github/workflows/platform-control-plane.yml b/.github/workflows/platform-control-plane.yml
+index 4059365..705ac7e 100644
+--- a/.github/workflows/platform-control-plane.yml
++++ b/.github/workflows/platform-control-plane.yml
+@@ -124,7 +124,7 @@ jobs:
+           print(f"    OPA Policies:     {len(glob.glob('policy/opa/**/*.rego', recursive=True))}")
+           print(f"    Kyverno Policies: {len(glob.glob('policy/kyverno/*.yaml'))}")
+           print(f"    Distroless Build: {'✓' if os.path.exists('Dockerfile.hardened') else '✗'}")
+-          print(f"    Seccomp Profile:  {'✓' if os.path.exists('policy/seccomp/devonn-api.json') else '✗'}")
++          print(f"    Seccomp Profile:  {'✓' if os.path.exists('policy/seccomp/d3vonn-api.json') else '✗'}")
+           print()
+           print("  Integrations:")
+           print(f"    Slack Alerts:     {'✓ configured' if os.environ.get('SLACK_WEBHOOK_URL') else '○ set SLACK_WEBHOOK_URL'}")
+@@ -145,9 +145,9 @@ jobs:
+           print(f"=== Health Check: {target} @ {datetime.utcnow().strftime('%H:%M UTC')} ===")
+ 
+           endpoints = {
+-              "dev": "https://devonn-dev.onrender.com/health",
+-              "staging": "https://devonn-staging.onrender.com/health",
+-              "production": "https://devonn.ai/health",
++              "dev": "https://d3vonn-dev.onrender.com/health",
++              "staging": "https://d3vonn-staging.onrender.com/health",
++              "production": "https://d3vonn.io/health",
+           }
+ 
+           check_targets = list(endpoints.items()) if target == "all" else [(target, endpoints.get(target, ""))]
+@@ -284,8 +284,8 @@ jobs:
+ 
+           ## Security Posture
+           - Distroless container build: {'✓' if os.path.exists('Dockerfile.hardened') else '✗'}
+-          - Seccomp profile: {'✓' if os.path.exists('policy/seccomp/devonn-api.json') else '✗'}
+-          - Falco rules: {'✓' if os.path.exists('policy/falco/devonn-rules.yaml') else '✗'}
++          - Seccomp profile: {'✓' if os.path.exists('policy/seccomp/d3vonn-api.json') else '✗'}
++          - Falco rules: {'✓' if os.path.exists('policy/falco/d3vonn-rules.yaml') else '✗'}
+           - Gitleaks config: {'✓' if os.path.exists('.gitleaks.toml') else '✗'}
+           - SBOM generation: {'✓' if os.path.exists('.github/workflows/sbom-generation.yml') else '✗'}
+           - Cosign signing: {'✓' if os.path.exists('.github/workflows/cosign-sign-verify.yml') else '✗'}
+diff --git a/.github/workflows/promotion.yml b/.github/workflows/promotion.yml
+index 3cb3a24..e7da7db 100644
+--- a/.github/workflows/promotion.yml
++++ b/.github/workflows/promotion.yml
+@@ -28,7 +28,7 @@ jobs:
+     timeout-minutes: 15
+     environment:
+       name: development
+-      url: https://dev.devonn.ai
++      url: https://dev.d3vonn.io
+ 
+     steps:
+       - name: Checkout repository
+@@ -74,14 +74,14 @@ jobs:
+           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+           vercel-args: '--env ENVIRONMENT=development'
+-          alias-domains: dev.devonn.ai
++          alias-domains: dev.d3vonn.io
+ 
+       - name: Run smoke tests against development
+         if: steps.vercel-check.outputs.skip != 'true'
+         continue-on-error: true
+         run: |
+           sleep 30
+-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.devonn.ai || echo "000")
++          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://dev.d3vonn.io || echo "000")
+           if [ "$STATUS" != "200" ]; then
+             echo "::warning::Development smoke test returned HTTP $STATUS - deployment may still be propagating"
+           else
+@@ -110,7 +110,7 @@ jobs:
+     timeout-minutes: 20
+     environment:
+       name: staging
+-      url: https://staging.devonn.ai
++      url: https://staging.d3vonn.io
+ 
+     steps:
+       - name: Checkout repository
+@@ -154,7 +154,7 @@ jobs:
+           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+           vercel-args: '--env ENVIRONMENT=staging'
+-          alias-domains: staging.devonn.ai
++          alias-domains: staging.d3vonn.io
+ 
+       - name: Run k6 smoke test against staging
+         continue-on-error: true  # Staging may not be deployed if Vercel secrets are missing
+@@ -164,7 +164,7 @@ jobs:
+              echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list && \
+              sudo apt-get update && sudo apt-get install k6 -y)
+           k6 run \
+-            --env BASE_URL=https://staging.devonn.ai \
++            --env BASE_URL=https://staging.d3vonn.io \
+             --env SCENARIO=smoke \
+             load-tests/api-load-test.js
+ 
+@@ -190,7 +190,7 @@ jobs:
+     timeout-minutes: 20
+     environment:
+       name: production
+-      url: https://devonn.ai
++      url: https://d3vonn.io
+ 
+     steps:
+       - name: Checkout repository
+@@ -226,7 +226,7 @@ jobs:
+       - name: Production smoke test
+         run: |
+           sleep 30
+-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://devonn.ai)
++          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://d3vonn.io)
+           if [ "$STATUS" != "200" ]; then
+             echo "::error::Production smoke test failed - HTTP $STATUS"
+             exit 1
+diff --git a/.github/workflows/release-candidate.yml b/.github/workflows/release-candidate.yml
+index 18f56c9..b0e00f0 100644
+--- a/.github/workflows/release-candidate.yml
++++ b/.github/workflows/release-candidate.yml
+@@ -83,7 +83,7 @@ jobs:
+           BUILD_SHA="${{ github.sha }}"
+           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+ 
+-          git config user.email "ci@devonn.ai"
++          git config user.email "ci@d3vonn.io"
+           git config user.name "Devonn CI"
+ 
+           git tag -a "$RC_VERSION" \
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 8e4454b..68235a8 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -108,7 +108,7 @@ jobs:
+       - name: Run deployment smoke tests
+         continue-on-error: true
+         env:
+-          PLAYWRIGHT_BASE_URL: https://devonn.ai
++          PLAYWRIGHT_BASE_URL: https://d3vonn.io
+         run: pnpm exec playwright test tests/e2e/deployment-smoke.spec.ts --project=chromium
+ 
+       - name: Upload smoke test results
+diff --git a/.github/workflows/reproducible-builds.yml b/.github/workflows/reproducible-builds.yml
+index 3da9921..3feb0cf 100644
+--- a/.github/workflows/reproducible-builds.yml
++++ b/.github/workflows/reproducible-builds.yml
+@@ -76,7 +76,7 @@ jobs:
+       - name: Compute build digest
+         id: digest
+         run: |
+-          ARTIFACT_NAME="devonn-dist-${{ github.sha }}"
++          ARTIFACT_NAME="d3vonn-dist-${{ github.sha }}"
+           tar czf "/tmp/${ARTIFACT_NAME}.tar.gz" dist/
+           SHA256=$(sha256sum "/tmp/${ARTIFACT_NAME}.tar.gz" | cut -d' ' -f1)
+           echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
+diff --git a/.github/workflows/terraform.yml b/.github/workflows/terraform.yml
+index 4a53c04..84c4a6b 100644
+--- a/.github/workflows/terraform.yml
++++ b/.github/workflows/terraform.yml
+@@ -19,10 +19,10 @@ on:
+ env:
+   TF_VERSION: '1.5.0'
+   TF_LOG: INFO
+-  AZURE_RESOURCE_GROUP: devonn-${{ github.event.inputs.environment || 'production' }}-rg
+-  CONTAINER_APP_NAME: devonn-ai
+-  CONTAINER_ENV_NAME: devonn-${{ github.event.inputs.environment || 'production' }}-env
+-  AZURE_RESOURCE_GROUP_TFSTATE: devonn-tfstate-rg
++  AZURE_RESOURCE_GROUP: d3vonn-${{ github.event.inputs.environment || 'production' }}-rg
++  CONTAINER_APP_NAME: d3vonn
++  CONTAINER_ENV_NAME: d3vonn-${{ github.event.inputs.environment || 'production' }}-env
++  AZURE_RESOURCE_GROUP_TFSTATE: d3vonn-tfstate-rg
+ 
+ permissions:
+   contents: read
+diff --git a/.github/workflows/trusted-runner-isolation.yml b/.github/workflows/trusted-runner-isolation.yml
+index 7f778f8..c0e4e9a 100644
+--- a/.github/workflows/trusted-runner-isolation.yml
++++ b/.github/workflows/trusted-runner-isolation.yml
+@@ -196,7 +196,7 @@ jobs:
+           cat > /tmp/runner-image/Dockerfile.runner << 'EOF'
+           # Hardened GitHub Actions Self-Hosted Runner Image
+           # Based on Ubuntu 22.04 minimal with security hardening applied
+-          # Build: docker build -f Dockerfile.runner -t devonn-runner:latest .
++          # Build: docker build -f Dockerfile.runner -t d3vonn-runner:latest .
+           
+           FROM ubuntu:22.04 AS base
+           
+@@ -229,7 +229,7 @@ jobs:
+               chmod 700 /home/runner/actions-runner
+           
+           # Drop capabilities at runtime (enforced by container runtime)
+-          # seccomp profile applied at runtime: policy/seccomp/devonn-api.json
++          # seccomp profile applied at runtime: policy/seccomp/d3vonn-api.json
+           
+           USER runner
+           WORKDIR /home/runner/actions-runner
+diff --git a/.github/workflows/vault-secrets-injection.yml b/.github/workflows/vault-secrets-injection.yml
+index 9656115..ca17c85 100644
+--- a/.github/workflows/vault-secrets-injection.yml
++++ b/.github/workflows/vault-secrets-injection.yml
+@@ -36,7 +36,7 @@ jobs:
+         # Vault must be configured with GitHub Actions JWT auth method
+         run: |
+           VAULT_ADDR="${{ vars.VAULT_ADDR }}"
+-          VAULT_ROLE="${{ vars.VAULT_ROLE || 'devonn-ai-ci' }}"
++          VAULT_ROLE="${{ vars.VAULT_ROLE || 'd3vonn-ci' }}"
+ 
+           if [ -z "$VAULT_ADDR" ]; then
+             echo "::notice::VAULT_ADDR not configured - using GitHub Secrets fallback"
+@@ -92,7 +92,7 @@ jobs:
+           fi
+ 
+           # Read secrets from Vault KV v2
+-          SECRETS_PATH="secret/data/devonn-ai/ci"
++          SECRETS_PATH="secret/data/d3vonn/ci"
+           SECRETS=$(curl -sf \
+             -H "X-Vault-Token: ${VAULT_TOKEN}" \
+             "${VAULT_ADDR}/v1/${SECRETS_PATH}" | \
+@@ -149,33 +149,33 @@ jobs:
+ 
+           ## Step 2: Create Vault Policy
+           ```hcl
+-          # devonn-ai-ci-policy.hcl
+-          path "secret/data/devonn-ai/ci" {
++          # d3vonn-ci-policy.hcl
++          path "secret/data/d3vonn/ci" {
+             capabilities = ["read"]
+           }
+-          path "secret/data/devonn-ai/staging" {
++          path "secret/data/d3vonn/staging" {
+             capabilities = ["read"]
+           }
+           ```
+           ```bash
+-          vault policy write devonn-ai-ci devonn-ai-ci-policy.hcl
++          vault policy write d3vonn-ci d3vonn-ci-policy.hcl
+           ```
+ 
+           ## Step 3: Create Vault Role
+           ```bash
+-          vault write auth/jwt/role/devonn-ai-ci \
++          vault write auth/jwt/role/d3vonn-ci \
+             role_type="jwt" \
+             bound_audiences="vault" \
+             bound_claims_type="glob" \
+             bound_claims='{"sub":"repo:wesship/supreme-ai-deployment-hub:*"}' \
+             user_claim="sub" \
+-            policies="devonn-ai-ci" \
++            policies="d3vonn-ci" \
+             ttl="1h"
+           ```
+ 
+           ## Step 4: Store Secrets in Vault KV
+           ```bash
+-          vault kv put secret/devonn-ai/ci \
++          vault kv put secret/d3vonn/ci \
+             OPENAI_API_KEY="sk-..." \
+             ANTHROPIC_API_KEY="sk-ant-..." \
+             ELEVENLABS_API_KEY="..." \
+@@ -186,7 +186,7 @@ jobs:
+           ## Step 5: Configure GitHub Repository Variables
+           Set these repository variables (not secrets):
+           - `VAULT_ADDR`: https://your-vault-instance.com
+-          - `VAULT_ROLE`: devonn-ai-ci
++          - `VAULT_ROLE`: d3vonn-ci
+ 
+           ## Security Benefits
+           - No long-lived static credentials in GitHub Secrets
+-- 
+2.43.0
+
