@@ -33,6 +33,7 @@ import {
   Bell,
   Bug,
   Rocket,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TenantWorkspaceSwitcher from "@/components/platform/TenantWorkspaceSwitcher";
@@ -120,6 +121,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Deployment",
     icon: Rocket,
     description: "Deployment hardening & readiness",
+  },
+  {
+    path: "/platform/billing",
+    label: "Billing",
+    icon: CreditCard,
+    description: "Plans, usage & billing",
   },
 ];
 
