@@ -96,6 +96,12 @@ const KnowledgeGraphViewer = lazy(() => import("./components/platform/KnowledgeG
 const SecurityPolicyViewer = lazy(() => import("./components/platform/SecurityPolicyViewer"));
 const TenantManagement = lazy(() => import("./components/platform/TenantWorkspaceSwitcher"));
 
+// Production Observability v1
+const SystemHealthPanel = lazy(() => import("./components/admin/SystemHealthPanel"));
+const MetricsDashboard = lazy(() => import("./components/admin/MetricsDashboard"));
+const AlertCenter = lazy(() => import("./components/admin/AlertCenter"));
+const ErrorTraceViewer = lazy(() => import("./components/admin/ErrorTraceViewer"));
+
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -223,6 +229,10 @@ function App() {
                   <Route path="knowledge" element={<KnowledgeGraphViewer />} />
                   <Route path="security" element={<SecurityPolicyViewer />} />
                   <Route path="tenants" element={<TenantManagement />} />
+                  <Route path="health" element={<SystemHealthPanel />} />
+                  <Route path="metrics" element={<MetricsDashboard />} />
+                  <Route path="alerts" element={<AlertCenter />} />
+                  <Route path="errors" element={<ErrorTraceViewer />} />
                 </Route>
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/sign-in" element={<Navigate to="/login" replace />} />

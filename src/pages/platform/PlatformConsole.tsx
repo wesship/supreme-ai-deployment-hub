@@ -28,6 +28,10 @@ import {
   ChevronRight,
   Menu,
   X,
+  HeartPulse,
+  BarChart3,
+  Bell,
+  Bug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import TenantWorkspaceSwitcher from "@/components/platform/TenantWorkspaceSwitcher";
@@ -85,6 +89,30 @@ const NAV_ITEMS: NavItem[] = [
     label: "Tenants",
     icon: Building2,
     description: "Multi-tenant management",
+  },
+  {
+    path: "/platform/health",
+    label: "Health",
+    icon: HeartPulse,
+    description: "System health checks",
+  },
+  {
+    path: "/platform/metrics",
+    label: "Metrics",
+    icon: BarChart3,
+    description: "Performance metrics",
+  },
+  {
+    path: "/platform/alerts",
+    label: "Alerts",
+    icon: Bell,
+    description: "Alert management",
+  },
+  {
+    path: "/platform/errors",
+    label: "Errors",
+    icon: Bug,
+    description: "Error traces & Sentry",
   },
 ];
 
