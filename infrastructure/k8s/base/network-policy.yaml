@@ -1,0 +1,79 @@
+---
+# Default deny-all ingress and egress within the d3vonn namespace.
+# Explicit allow rules below override this for required traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: d3vonn
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Allow frontend pods to receive traffic from the ingress controller only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: d3vonn
+spec:
+  podSelector:
+    matchLabels:
+      app: d3vonn-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Allow backend pods to receive traffic from frontend only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: d3vonn
+spec:
+  podSelector:
+    matchLabels:
+      app: d3vonn-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: d3vonn-frontend
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# Allow backend pods to reach external services (Supabase, OpenAI, AWS)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-egress
+  namespace: d3vonn
+spec:
+  podSelector:
+    matchLabels:
+      app: d3vonn-backend
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 443   # HTTPS to external APIs
+        - protocol: TCP
+          port: 5432  # PostgreSQL (Supabase)
+        - protocol: UDP
+          port: 53    # DNS resolution

@@ -7,8 +7,8 @@
 # =============================================================================
 set -euo pipefail
 
-NAMESPACE="${DEVONN_NAMESPACE:-devonn-prod}"
-CONTROL_PLANE_CM="devonn-runtime-control-plane"
+NAMESPACE="${DEVONN_NAMESPACE:-d3vonn-prod}"
+CONTROL_PLANE_CM="d3vonn-runtime-control-plane"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 log()  { echo "[activate-c1] $*"; }
@@ -31,7 +31,7 @@ log "Current stage: C0 — proceeding to activate C1 at 0.5%"
 
 # ── Step 1: Apply the control plane ConfigMap ─────────────────────────────────
 log "Applying control plane ConfigMap..."
-kubectl apply -f "$SCRIPT_DIR/../../k8s/production/control-plane/devonn-control-plane.yaml"
+kubectl apply -f "$SCRIPT_DIR/../../k8s/production/control-plane/d3vonn-control-plane.yaml"
 
 # ── Step 2: Patch to C1 state ─────────────────────────────────────────────────
 log "Patching ConfigMap to C1 (0.5% canary traffic)..."

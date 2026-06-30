@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — /api/tools
+D3VONN Backend Proxy — /api/tools
 Secure proxy routes for voice (ElevenLabs TTS, AssemblyAI STT),
 GitHub CI/CD (workflow trigger, run status), and n8n workflow execution.
 All API keys are server-side only.

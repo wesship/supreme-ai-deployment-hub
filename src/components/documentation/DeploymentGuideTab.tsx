@@ -41,7 +41,7 @@ const DeploymentGuideTab: React.FC = () => {
                   <li>
                     <p className="font-medium">Add the D3VONN.IO Helm repository:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                      <code>helm repo add devonn https://charts.d3vonn.io
+                      <code>helm repo add d3vonn https://charts.d3vonn.io
 helm repo update</code>
                     </pre>
                   </li>
@@ -66,7 +66,7 @@ persistence:
 
 ingress:
   enabled: true
-  hostname: devonn.example.com
+  hostname: d3vonn.example.com
   tls: true
 
 auth:
@@ -85,7 +85,7 @@ postgresql:
                   <li>
                     <p className="font-medium">Install the D3VONN.IO Helm chart:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                      <code>helm install devonn devonn/d3vonn-io -f values.yaml -n d3vonn-io --create-namespace</code>
+                      <code>helm install d3vonn d3vonn/d3vonn-io -f values.yaml -n d3vonn-io --create-namespace</code>
                     </pre>
                   </li>
                   <li>
@@ -96,7 +96,7 @@ postgresql:
                   </li>
                   <li>
                     <p className="font-medium">Access the D3VONN.IO dashboard:</p>
-                    <p className="mt-2">Once all pods are running, access the dashboard at https://devonn.example.com (or the hostname you configured)</p>
+                    <p className="mt-2">Once all pods are running, access the dashboard at https://d3vonn.example.com (or the hostname you configured)</p>
                   </li>
                 </ol>
               </div>
@@ -143,7 +143,7 @@ postgresql:
 
 services:
   frontend:
-    image: devonnai/frontend:latest
+    image: d3vonn/frontend:latest
     ports:
       - "80:80"
       - "443:443"
@@ -156,9 +156,9 @@ services:
     restart: unless-stopped
 
   api:
-    image: devonnai/api:latest
+    image: d3vonn/api:latest
     environment:
-      - DATABASE_URL=postgresql://devonn:devonn@db:5432/devonn
+      - DATABASE_URL=postgresql://d3vonn:d3vonn@db:5432/d3vonn
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=change_this_to_a_secure_secret
       - API_KEY=your_secure_api_key
@@ -170,9 +170,9 @@ services:
   db:
     image: postgres:13
     environment:
-      - POSTGRES_USER=devonn
-      - POSTGRES_PASSWORD=devonn
-      - POSTGRES_DB=devonn
+      - POSTGRES_USER=d3vonn
+      - POSTGRES_PASSWORD=d3vonn
+      - POSTGRES_DB=d3vonn
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -376,7 +376,7 @@ volumes:
                     <p>The script will check system requirements, install dependencies, and set up D3VONN.IO with default configurations.</p>
                     <p>For custom installations, use the configuration options:</p>
                     <pre className="bg-secondary p-3 rounded-md overflow-x-auto">
-                      <code>curl -sSL https://install.d3vonn.io | sudo bash -s -- --data-dir /opt/devonn-data --port 8080</code>
+                      <code>curl -sSL https://install.d3vonn.io | sudo bash -s -- --data-dir /opt/d3vonn-data --port 8080</code>
                     </pre>
                   </TabsContent>
                   
@@ -391,8 +391,8 @@ volumes:
                       <li>
                         <p className="font-medium">Clone the D3VONN.IO repository:</p>
                         <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                          <code>git clone https://github.com/d3vonn-io/devonn-on-prem.git
-cd devonn-on-prem</code>
+                          <code>git clone https://github.com/d3vonn-io/d3vonn-on-prem.git
+cd d3vonn-on-prem</code>
                         </pre>
                       </li>
                       <li>
@@ -417,7 +417,7 @@ nano .env  # Edit configuration as needed</code>
                       <li>
                         <p className="font-medium">Download the offline installation package from a connected system:</p>
                         <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                          <code>curl -sSL https://download.d3vonn.io/offline-installer/latest -o devonn-offline.tar.gz</code>
+                          <code>curl -sSL https://download.d3vonn.io/offline-installer/latest -o d3vonn-offline.tar.gz</code>
                         </pre>
                       </li>
                       <li>
@@ -426,8 +426,8 @@ nano .env  # Edit configuration as needed</code>
                       <li>
                         <p className="font-medium">Extract and install:</p>
                         <pre className="bg-secondary p-3 rounded-md overflow-x-auto mt-2">
-                          <code>tar -xzf devonn-offline.tar.gz
-cd devonn-offline
+                          <code>tar -xzf d3vonn-offline.tar.gz
+cd d3vonn-offline
 sudo ./install.sh</code>
                         </pre>
                       </li>
@@ -553,13 +553,13 @@ sudo ./install.sh</code>
           <p className="mb-2">For enterprise deployments, you can configure the extension using Chrome Enterprise policies.</p>
           <pre className="bg-secondary p-3 rounded-md overflow-x-auto">
             <code>{`{
-  "devonn_api_url": {
-    "Value": "https://your-company-devonn-instance.com/api"
+  "d3vonn_api_url": {
+    "Value": "https://your-company-d3vonn-instance.com/api"
   },
-  "devonn_enable_notifications": {
+  "d3vonn_enable_notifications": {
     "Value": true
   },
-  "devonn_allowed_domains": {
+  "d3vonn_allowed_domains": {
     "Value": [
       "yourdomain.com",
       "partner-domain.com"

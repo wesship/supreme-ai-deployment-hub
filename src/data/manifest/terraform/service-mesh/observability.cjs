@@ -10,7 +10,7 @@ variable "create_xray_role" {
 
 resource "aws_iam_role" "xray_role" {
   count = var.environment == "prod" && var.create_xray_role ? 1 : 0
-  name = "devonn-xray-role-\${var.environment}"
+  name = "d3vonn-xray-role-\${var.environment}"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -38,7 +38,7 @@ resource "aws_iam_role_policy_attachment" "xray_role_policy" {
 
 # CloudWatch dashboard for service mesh metrics
 resource "aws_cloudwatch_dashboard" "service_mesh_dashboard" {
-  dashboard_name = "devonn-service-mesh-\${var.environment}"
+  dashboard_name = "d3vonn-service-mesh-\${var.environment}"
   
   dashboard_body = jsonencode({
     widgets = [
@@ -50,7 +50,7 @@ resource "aws_cloudwatch_dashboard" "service_mesh_dashboard" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/AppMesh", "TargetResponseTime", "MeshName", "devonn-mesh-\${var.environment}", "VirtualGatewayName", "gateway", "RouteId", "gateway-route-1", {"stat": "Average"}]
+            ["AWS/AppMesh", "TargetResponseTime", "MeshName", "d3vonn-mesh-\${var.environment}", "VirtualGatewayName", "gateway", "RouteId", "gateway-route-1", {"stat": "Average"}]
           ]
           title  = "API Gateway Response Time"
           period = 300
@@ -65,7 +65,7 @@ resource "aws_cloudwatch_dashboard" "service_mesh_dashboard" {
         height = 6
         properties = {
           metrics = [
-            ["AWS/AppMesh", "HTTPCode_Target_5XX_Count", "MeshName", "devonn-mesh-\${var.environment}", "VirtualGatewayName", "gateway", {"stat": "Sum"}]
+            ["AWS/AppMesh", "HTTPCode_Target_5XX_Count", "MeshName", "d3vonn-mesh-\${var.environment}", "VirtualGatewayName", "gateway", {"stat": "Sum"}]
           ]
           title  = "HTTP 5XX Errors"
           period = 300

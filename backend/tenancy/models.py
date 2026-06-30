@@ -1,5 +1,5 @@
 """
-backend/tenancy/models.py — Multi-tenant data models for Devonn.AI.
+backend/tenancy/models.py — Multi-tenant data models for D3VONN.
 
 Each tenant represents an isolated workspace with its own agents, tasks,
 and feature flags. The default tenant is the "enterprise" plan used for
@@ -28,7 +28,7 @@ class Tenant:
         return cls(
             id="default",
             slug="default",
-            name="Devonn.AI Default",
+            name="D3VONN Default",
             plan="enterprise",
             is_active=True,
         )

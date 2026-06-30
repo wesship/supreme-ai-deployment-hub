@@ -8,9 +8,9 @@
   },
   {
     "owner": "wesship",
-    "name": "devonn-coordinator",
+    "name": "d3vonn-coordinator",
     "branch": "main",
-    "dest": "devonn-coordinator",
+    "dest": "d3vonn-coordinator",
     "description": "Devonn.AI agent coordinator service"
   },
   {

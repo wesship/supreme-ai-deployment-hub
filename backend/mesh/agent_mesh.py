@@ -1,8 +1,8 @@
 """
-agent_mesh.py — Devonn.AI Multi-Agent Mesh Communication Layer
+agent_mesh.py — D3VONN Multi-Agent Mesh Communication Layer
 
 Implements a lightweight REST-based agent mesh that allows the supreme-ai-deployment-hub
-to coordinate with external agent services (devonn-coordinator, openclaw-bridge).
+to coordinate with external agent services (d3vonn-coordinator, openclaw-bridge).
 
 Architecture:
   - AgentMesh: central registry and dispatcher
@@ -10,7 +10,7 @@ Architecture:
   - AgentTask: structured task payload with retry logic
   - AgentResult: typed response from an agent
 
-This replaces the empty scaffold stubs in scaffold/devonn-coordinator and
+This replaces the empty scaffold stubs in scaffold/d3vonn-coordinator and
 scaffold/openclaw-bridge with a working communication layer.
 """
 
@@ -92,7 +92,7 @@ class AgentClient:
         self.status = AgentStatus.IDLE
 
     def _build_headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json", "X-Agent-Source": "devonn-hub"}
+        headers = {"Content-Type": "application/json", "X-Agent-Source": "d3vonn-hub"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
         return headers
@@ -170,17 +170,17 @@ class AgentClient:
 
 class AgentMesh:
     """
-    Central registry and dispatcher for the Devonn.AI multi-agent mesh.
+    Central registry and dispatcher for the D3VONN multi-agent mesh.
 
     Usage:
         mesh = AgentMesh()
         mesh.register(AgentRegistration(
-            name="devonn-coordinator",
+            name="d3vonn-coordinator",
             base_url="https://coordinator.d3vonn.io",
             capabilities=["plan", "orchestrate", "summarize"],
         ))
         result = await mesh.dispatch(AgentTask(
-            agent_name="devonn-coordinator",
+            agent_name="d3vonn-coordinator",
             action="plan",
             payload={"goal": "Build a REST API"},
         ))
@@ -259,7 +259,7 @@ import os
 
 def create_default_mesh() -> AgentMesh:
     """
-    Creates and configures the default Devonn.AI agent mesh from environment variables.
+    Creates and configures the default D3VONN agent mesh from environment variables.
     Add these to your .env / GitHub Secrets / Vercel Environment Variables:
       DEVONN_COORDINATOR_URL, DEVONN_COORDINATOR_API_KEY
       OPENCLAW_BRIDGE_URL, OPENCLAW_BRIDGE_API_KEY
@@ -269,7 +269,7 @@ def create_default_mesh() -> AgentMesh:
     if coordinator_url := os.getenv("DEVONN_COORDINATOR_URL"):
         mesh.register(
             AgentRegistration(
-                name="devonn-coordinator",
+                name="d3vonn-coordinator",
                 base_url=coordinator_url,
                 capabilities=["plan", "orchestrate", "summarize", "review"],
             ),

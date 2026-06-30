@@ -1,5 +1,5 @@
 /**
- * Devonn.ai Floating Chat Widget
+ * D3VONN Floating Chat Widget
  * Bottom-right persistent AI assistant — demo mode for guests, full mode for auth users.
  */
 
@@ -21,7 +21,7 @@ interface WidgetMessage {
 
 const DEMO_LIMIT = 3;
 
-const DEMO_SYSTEM = `You are Devonn, the AI assistant for Devonn.ai. You are in demo mode — keep responses brief (2-3 sentences max). After the user's ${DEMO_LIMIT}rd message, invite them to sign up for full access.`;
+const DEMO_SYSTEM = `You are Devonn, the AI assistant for D3VONN. You are in demo mode — keep responses brief (2-3 sentences max). After the user's ${DEMO_LIMIT}rd message, invite them to sign up for full access.`;
 
 export const FloatingChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -104,7 +104,7 @@ export const FloatingChatWidget: React.FC = () => {
               border: '1px solid rgba(59, 255, 122, 0.4)',
               boxShadow: '0 0 20px rgba(59, 255, 122, 0.15), 0 4px 20px rgba(0,0,0,0.5)',
             }}
-            aria-label="Open Devonn AI Chat"
+            aria-label="Open D3VONN Chat"
           >
             <MessageSquare className="w-6 h-6 text-green-400" />
             {/* Pulse ring */}
@@ -143,7 +143,7 @@ export const FloatingChatWidget: React.FC = () => {
                   <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-[#070d1a]" />
                 </div>
                 <div>
-                  <p className="text-white text-sm font-semibold">Devonn AI</p>
+                  <p className="text-white text-sm font-semibold">D3VONN</p>
                   <p className="text-green-400/60 text-xs font-mono">
                     {isAuthenticated ? 'Full access' : 'Demo mode'}
                   </p>
@@ -282,7 +282,7 @@ export const FloatingChatWidget: React.FC = () => {
                 )}
               </div>
               <p className="text-center text-white/15 text-[10px] mt-1.5 font-mono">
-                Devonn.ai · Supreme AI Deployment Hub
+                D3VONN · Supreme AI Deployment Hub
               </p>
             </div>
           </motion.div>

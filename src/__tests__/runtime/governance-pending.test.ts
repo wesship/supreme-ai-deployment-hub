@@ -1,7 +1,7 @@
 /**
  * Arbitration & governance enforcement — pending runtime work.
  *
- * Devonn.ai does not yet ship a multi-agent arbitration layer or a
+ * D3VONN does not yet ship a multi-agent arbitration layer or a
  * governance-enforcing policy engine in the autonomous runtime. This file
  * intentionally uses `describe.todo()` so the harness surfaces the gap
  * loudly instead of pretending coverage exists.

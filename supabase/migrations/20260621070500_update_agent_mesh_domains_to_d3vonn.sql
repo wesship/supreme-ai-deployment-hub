@@ -3,10 +3,10 @@
 
 UPDATE public.agents
 SET base_url = 'https://coordinator.d3vonn.io'
-WHERE name = 'devonn-coordinator'
-  AND base_url = 'https://coordinator.devonn.ai';
+WHERE name = 'd3vonn-coordinator'
+  AND base_url = 'https://coordinator.d3vonn.io';
 
 UPDATE public.agents
 SET base_url = 'https://openclaw.d3vonn.io'
 WHERE name = 'openclaw-bridge'
-  AND base_url = 'https://openclaw.devonn.ai';
+  AND base_url = 'https://openclaw.d3vonn.io';

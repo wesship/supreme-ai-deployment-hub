@@ -73,7 +73,7 @@ updates:
       - dependency-name: "pydantic"
         update-types: ["version-update:semver-major"]
 
-  # ── pip (root — devonn coordinator scripts) ───────────────────────────────
+  # ── pip (root — d3vonn coordinator scripts) ───────────────────────────────
   - package-ecosystem: "pip"
     directory: "/"
     schedule:

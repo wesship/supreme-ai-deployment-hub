@@ -57,8 +57,8 @@ COPY --chown=appuser:appgroup . .
 
 # Vault directory must be writable at runtime; declare as a volume hint
 # (Railway will mount ephemeral storage; persistent vault should use Supabase)
-RUN mkdir -p /app/.devonn/api-vault \
-    && chown -R appuser:appgroup /app/.devonn
+RUN mkdir -p /app/.d3vonn/api-vault \
+    && chown -R appuser:appgroup /app/.d3vonn
 
 USER appuser
 

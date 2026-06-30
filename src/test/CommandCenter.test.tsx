@@ -6,7 +6,7 @@ describe("App smoke tests", () => {
   });
 
   it("should handle string operations", () => {
-    expect("Devonn.AI").toContain("AI");
+    expect("D3VONN").toContain("AI");
   });
 
   it("should handle array operations", () => {

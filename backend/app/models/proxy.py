@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — Pydantic Models
+D3VONN Backend Proxy — Pydantic Models
 Request and response schemas for all proxy routes.
 """
 from typing import Any, Literal, Optional

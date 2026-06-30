@@ -1,4 +1,4 @@
-// stryker.config.js — Devonn.AI Mutation Testing Configuration
+// stryker.config.js — D3VONN Mutation Testing Configuration
 // Used by the mutation-tests.yml GitHub Actions workflow.
 // Run locally: npx stryker run
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-propose_fixes.py — Devonn.AI Autonomous Fix Engine
+propose_fixes.py — D3VONN Autonomous Fix Engine
 
 This script is invoked by the GitHub Actions auto-fix.yml workflow.
 It uses the OpenAI API to analyze CI failures and propose code fixes
@@ -55,7 +55,7 @@ def propose_fix(issue_body: str) -> str:
 
     recent_commits = get_recent_ci_failures()
 
-    system_prompt = """You are an expert software engineer working on the Devonn.AI
+    system_prompt = """You are an expert software engineer working on the D3VONN
 repository (supreme-ai-deployment-hub). Your job is to analyze CI failures and
 propose minimal, targeted code fixes. Always:
 1. Identify the root cause precisely.
@@ -103,7 +103,7 @@ def create_fix_branch(fix_description: str) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Devonn.AI Autonomous Fix Engine")
+    parser = argparse.ArgumentParser(description="D3VONN Autonomous Fix Engine")
     parser.add_argument(
         "--issue-body",
         required=True,

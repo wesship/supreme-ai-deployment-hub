@@ -58,7 +58,7 @@ deploy_eks() {
   [ -z "${EKS_CLUSTER_NAME:-}" ] && die "EKS_CLUSTER_NAME not set"
   [ -z "${AWS_REGION:-}" ]       && die "AWS_REGION not set"
 
-  ECR_IMAGE="$ECR_REGISTRY/devonn-backend:$IMAGE_TAG"
+  ECR_IMAGE="$ECR_REGISTRY/d3vonn-backend:$IMAGE_TAG"
 
   log "Building and pushing Docker image: $ECR_IMAGE"
   aws ecr get-login-password --region "$AWS_REGION" | \
@@ -72,14 +72,14 @@ deploy_eks() {
   log "Applying K8s manifests..."
   kubectl apply -f k8s/namespace.yaml
   kubectl apply -f k8s/base/
-  kubectl set image deployment/devonn-backend \
-    backend="$ECR_IMAGE" -n devonn
+  kubectl set image deployment/d3vonn-backend \
+    backend="$ECR_IMAGE" -n d3vonn
 
   log "Waiting for rollout..."
-  kubectl rollout status deployment/devonn-backend -n devonn --timeout=300s
+  kubectl rollout status deployment/d3vonn-backend -n d3vonn --timeout=300s
 
   log "✓ EKS deployment complete."
-  kubectl get pods -n devonn -l app=devonn-backend
+  kubectl get pods -n d3vonn -l app=d3vonn-backend
 }
 
 # ── Docker Compose (local) ─────────────────────────────────────────────────

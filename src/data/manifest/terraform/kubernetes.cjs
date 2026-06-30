@@ -9,7 +9,7 @@ export const kubernetesConfigYaml = `# --- Kubernetes Configuration ---
 # kind: ConfigMap
 # metadata:
 #   name: flask-config
-#   namespace: devonn
+#   namespace: d3vonn
 #   labels:
 #     app: flask-backend
 # data:
@@ -24,7 +24,7 @@ export const kubernetesConfigYaml = `# --- Kubernetes Configuration ---
 
 # 8. GitHub Actions CI/CD Pipeline
 # Store this in .github/workflows/deploy.yml
-# name: Deploy Devonn.AI to EKS
+# name: Deploy D3VONN to EKS
 # on:
 #   push:
 #     branches:
@@ -44,11 +44,11 @@ export const kubernetesConfigYaml = `# --- Kubernetes Configuration ---
 #       - name: Build and Push Docker Images
 #         run: |
 #           aws ecr get-login-password --region \${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com
-#           docker build -t \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/devonn-backend:latest -f Dockerfile.backend .
-#           docker build -t \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/devonn-frontend:latest -f Dockerfile.frontend .
-#           docker push \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/devonn-backend:latest
-#           docker push \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/devonn-frontend:latest
+#           docker build -t \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/d3vonn-backend:latest -f Dockerfile.backend .
+#           docker build -t \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/d3vonn-frontend:latest -f Dockerfile.frontend .
+#           docker push \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/d3vonn-backend:latest
+#           docker push \${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.\${{ secrets.AWS_REGION }}.amazonaws.com/d3vonn-frontend:latest
 #       - name: Deploy to EKS
 #         run: |
-#           aws eks update-kubeconfig --name devonn-eks-\${{ secrets.ENVIRONMENT }} --region \${{ secrets.AWS_REGION }}
+#           aws eks update-kubeconfig --name d3vonn-eks-\${{ secrets.ENVIRONMENT }} --region \${{ secrets.AWS_REGION }}
 #           kubectl apply -f k8s/`;

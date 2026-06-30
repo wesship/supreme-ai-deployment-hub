@@ -1,0 +1,20 @@
+{
+  "_comment": "Devonn.AI Agent Permission Registry — managed by Hermes v3",
+  "_version": "3.0.0",
+  "_tiers": {
+    "read-only": "Can read repo state only",
+    "contributor": "Can open PRs and post comments",
+    "deployer": "Can deploy to staging and create releases",
+    "operator": "Can deploy to production with human approval",
+    "admin": "Full access — reserved for platform team"
+  },
+  "github-actions[bot]": "operator",
+  "dependabot[bot]": "contributor",
+  "d3vonn-copilot": "contributor",
+  "d3vonn-deployer": "deployer",
+  "d3vonn-security-bot": "read-only",
+  "d3vonn-release-bot": "deployer",
+  "d3vonn-mesh-agent": "contributor",
+  "d3vonn-task-agent": "contributor",
+  "unknown": "read-only"
+}

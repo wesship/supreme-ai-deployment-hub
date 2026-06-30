@@ -193,10 +193,10 @@ class TestOCCModels:
             file_type="pdf",
             file_size_bytes=204_800,
             status="processing",
-            namespace="devonn-core",
+            namespace="d3vonn-core",
             tags=["architecture", "overview"],
         )
-        assert m.namespace == "devonn-core"
+        assert m.namespace == "d3vonn-core"
         assert "architecture" in m.tags
 
 

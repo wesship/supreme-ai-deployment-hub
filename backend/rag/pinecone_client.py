@@ -1,5 +1,5 @@
 """
-backend/rag/pinecone_client.py — Pinecone vector storage adapter for Devonn.ai RAG.
+backend/rag/pinecone_client.py — Pinecone vector storage adapter for D3VONN RAG.
 
 This module is intentionally lightweight and dependency-tolerant:
 - It uses the official Pinecone SDK when installed.

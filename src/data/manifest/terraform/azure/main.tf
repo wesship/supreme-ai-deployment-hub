@@ -41,7 +41,7 @@ resource "azurerm_resource_group" "rg" {
 # Log Analytics Workspace
 # ----------------------------------------------------
 resource "azurerm_log_analytics_workspace" "workspace" {
-  name                = "devonn-${var.environment}-logs"
+  name                = "d3vonn-${var.environment}-logs"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "PerGB2018"
@@ -154,7 +154,7 @@ resource "azurerm_container_app" "frontend" {
 # Application Insights
 # ----------------------------------------------------
 resource "azurerm_application_insights" "insights" {
-  name                = "devonn-${var.environment}-insights"
+  name                = "d3vonn-${var.environment}-insights"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   application_type    = "web"

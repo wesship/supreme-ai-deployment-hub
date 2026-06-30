@@ -1,0 +1,203 @@
+---
+# Agent Executor: runs AutonomousAgentExecutor instances
+# Stateful per-run but horizontally scalable; uses ReAct loop via MCP Gateway
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-executor
+  namespace: d3vonn-prod
+  labels:
+    app: agent-executor
+    app.kubernetes.io/component: agent-executor
+    app.kubernetes.io/part-of: d3vonn-platform
+    version: "1.0.0"
+spec:
+  replicas: 4
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: agent-executor
+  template:
+    metadata:
+      labels:
+        app: agent-executor
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: agent-executor
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 120
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: agent-executor
+      containers:
+        - name: agent-executor
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/agent-executor:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+            - name: metrics
+              containerPort: 9090
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "8081"
+            - name: MCP_GATEWAY_URL
+              value: http://mcp-gateway.d3vonn-prod.svc.cluster.local
+            - name: GOVERNANCE_URL
+              value: http://governance-engine.d3vonn-prod.svc.cluster.local
+            - name: MAX_CONCURRENT_RUNS
+              value: "10"
+            - name: RUN_TIMEOUT_MS
+              value: "300000"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: d3vonn-platform-secrets
+                  key: jwt-secret
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: d3vonn-platform-secrets
+                  key: redis-url
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                # Allow in-flight runs to drain before shutdown
+                command: ["/bin/sh", "-c", "sleep 30"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: run-cache
+              mountPath: /var/cache/runs
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: run-cache
+          emptyDir:
+            sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-executor
+  namespace: d3vonn-prod
+  labels:
+    app: agent-executor
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-executor
+  namespace: d3vonn-prod
+  labels:
+    app: agent-executor
+spec:
+  selector:
+    app: agent-executor
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agent-executor
+  namespace: d3vonn-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: agent-executor
+  minReplicas: 4
+  maxReplicas: 30
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 4
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 180
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: agent-executor
+  namespace: d3vonn-prod
+spec:
+  minAvailable: 3
+  selector:
+    matchLabels:
+      app: agent-executor

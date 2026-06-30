@@ -1,7 +1,7 @@
 variable "gcp_project_id" {
   description = "The GCP project ID"
   type        = string
-  default     = "devonn-chrome-extension-deploy"
+  default     = "d3vonn-chrome-extension-deploy"
 }
 
 variable "GCP_CREDENTIALS_JSON" {

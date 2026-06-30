@@ -1,0 +1,35 @@
+---
+# Platform-wide ConfigMap (non-sensitive values)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: d3vonn-platform-config
+  namespace: d3vonn-prod
+  labels:
+    app.kubernetes.io/part-of: d3vonn-platform
+data:
+  server-registry-url: "http://mcp-gateway.d3vonn-prod.svc.cluster.local/v1/registry"
+  otel-exporter-endpoint: "http://observability-collector.d3vonn-prod.svc.cluster.local:4317"
+  api-version: "1.0.0"
+  max-run-duration-ms: "300000"
+  governance-policy-version: "1.0.0"
+---
+# Secret template (values must be injected by External Secrets Operator or Vault)
+# DO NOT commit real secret values — this is a structural template only
+apiVersion: v1
+kind: Secret
+metadata:
+  name: d3vonn-platform-secrets
+  namespace: d3vonn-prod
+  labels:
+    app.kubernetes.io/part-of: d3vonn-platform
+  annotations:
+    # Inject via External Secrets Operator from AWS Secrets Manager
+    # external-secrets.io/backend: aws-secrets-manager
+    # external-secrets.io/key: d3vonn/prod/platform-secrets
+type: Opaque
+stringData:
+  jwt-secret: "REPLACE_WITH_EXTERNAL_SECRET"
+  redis-url: "REPLACE_WITH_EXTERNAL_SECRET"
+  policy-store-url: "REPLACE_WITH_EXTERNAL_SECRET"
+  audit-log-url: "REPLACE_WITH_EXTERNAL_SECRET"

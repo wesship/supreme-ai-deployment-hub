@@ -22,7 +22,7 @@ export const deploymentCommandsData: DeploymentCommand[] = [
     id: 'aws-terraform-init',
     title: 'Initialize Terraform (AWS)',
     description: 'Set up Terraform in your project directory for AWS',
-    command: 'terraform init -backend-config="bucket=devonn-terraform-statefile" -backend-config="region=us-west-2"',
+    command: 'terraform init -backend-config="bucket=d3vonn-terraform-statefile" -backend-config="region=us-west-2"',
     provider: 'aws'
   },
   {
@@ -43,7 +43,7 @@ export const deploymentCommandsData: DeploymentCommand[] = [
     id: 'aws-kubeconfig',
     title: 'Get AWS Kubeconfig',
     description: 'Configure kubectl to connect to your EKS cluster',
-    command: 'aws eks update-kubeconfig --name devonn-eks-prod --region us-west-2',
+    command: 'aws eks update-kubeconfig --name d3vonn-eks-prod --region us-west-2',
     provider: 'aws'
   },
 
@@ -59,7 +59,7 @@ export const deploymentCommandsData: DeploymentCommand[] = [
     id: 'azure-terraform-init',
     title: 'Initialize Terraform (Azure)',
     description: 'Set up Terraform in your project directory for Azure',
-    command: 'terraform init -backend-config="storage_account_name=devonnterraformstate" -backend-config="container_name=tfstate"',
+    command: 'terraform init -backend-config="storage_account_name=d3vonnterraformstate" -backend-config="container_name=tfstate"',
     provider: 'azure'
   },
   {
@@ -80,7 +80,7 @@ export const deploymentCommandsData: DeploymentCommand[] = [
     id: 'azure-kubeconfig',
     title: 'Get Azure Kubeconfig',
     description: 'Configure kubectl to connect to your AKS cluster',
-    command: 'az aks get-credentials --resource-group devonn-prod-rg --name devonn-aks-prod',
+    command: 'az aks get-credentials --resource-group d3vonn-prod-rg --name d3vonn-aks-prod',
     provider: 'azure'
   },
 
@@ -96,7 +96,7 @@ export const deploymentCommandsData: DeploymentCommand[] = [
     id: 'gcp-terraform-init',
     title: 'Initialize Terraform (GCP)',
     description: 'Set up Terraform in your project directory for GCP',
-    command: 'terraform init -backend-config="bucket=devonn-terraform-statefile" -backend-config="prefix=terraform/state"',
+    command: 'terraform init -backend-config="bucket=d3vonn-terraform-statefile" -backend-config="prefix=terraform/state"',
     provider: 'gcp'
   },
   {
@@ -117,7 +117,7 @@ export const deploymentCommandsData: DeploymentCommand[] = [
     id: 'gcp-kubeconfig',
     title: 'Get GCP Kubeconfig',
     description: 'Configure kubectl to connect to your GKE cluster',
-    command: 'gcloud container clusters get-credentials devonn-gke-prod --region us-central1',
+    command: 'gcloud container clusters get-credentials d3vonn-gke-prod --region us-central1',
     provider: 'gcp'
   },
 
@@ -144,6 +144,6 @@ export const deploymentCommandsData: DeploymentCommand[] = [
     id: 'helm-install',
     title: 'Install Helm Chart',
     description: 'Install the D3VONN.IO Helm chart',
-    command: 'helm install d3vonn-io ./charts/d3vonn-io --namespace devonn --create-namespace'
+    command: 'helm install d3vonn-io ./charts/d3vonn-io --namespace d3vonn --create-namespace'
   }
 ];

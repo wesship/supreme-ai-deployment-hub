@@ -55,7 +55,7 @@ output "rds_instance_address" {
 
 output "connection_instructions" {
   description = "Instructions to connect to the cluster"
-  value       = "Run: aws eks update-kubeconfig --name devonn-eks-\${var.environment} --region \${var.aws_region}"
+  value       = "Run: aws eks update-kubeconfig --name d3vonn-eks-\${var.environment} --region \${var.aws_region}"
 }
 
 # New Outputs for rds_endpoint and eks_cluster_name

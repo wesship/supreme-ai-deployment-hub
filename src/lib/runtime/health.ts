@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Runtime Health Module
+ * D3VONN — Runtime Health Module
  *
  * Provides /health and /ready endpoint logic.
  * /health: liveness — is the process alive?

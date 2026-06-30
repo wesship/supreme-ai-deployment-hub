@@ -24,7 +24,7 @@ class MetricsRegistry {
   }> = {};
   
   private defaultLabels: Record<string, string> = {
-    service: 'devonn-deployment',
+    service: 'd3vonn-deployment',
     environment: 'development'
   };
   
@@ -167,35 +167,35 @@ export function createBusinessMetrics(environment: string): {
   
   // Register common metrics
   registry.registerMetric({
-    name: 'devonn_deployments_total',
+    name: 'd3vonn_deployments_total',
     help: 'Total number of deployments',
     type: 'counter',
     labelNames: ['provider', 'status']
   });
   
   registry.registerMetric({
-    name: 'devonn_deployment_duration_seconds',
+    name: 'd3vonn_deployment_duration_seconds',
     help: 'Duration of deployment operations in seconds',
     type: 'histogram',
     labelNames: ['provider', 'status']
   });
   
   registry.registerMetric({
-    name: 'devonn_resources_created_total',
+    name: 'd3vonn_resources_created_total',
     help: 'Total number of resources created',
     type: 'counter',
     labelNames: ['resource_type']
   });
   
   registry.registerMetric({
-    name: 'devonn_api_request_latency_ms',
+    name: 'd3vonn_api_request_latency_ms',
     help: 'Latency of API requests in milliseconds',
     type: 'histogram',
     labelNames: ['api_name']
   });
   
   registry.registerMetric({
-    name: 'devonn_deployment_success_rate',
+    name: 'd3vonn_deployment_success_rate',
     help: 'Success rate of deployments (0.0 to 1.0)',
     type: 'gauge'
   });
@@ -209,13 +209,13 @@ export function createBusinessMetrics(environment: string): {
     const status = success ? 'success' : 'failure';
     
     // Increment deployment counter
-    registry.incrementCounter('devonn_deployments_total', 1, {
+    registry.incrementCounter('d3vonn_deployments_total', 1, {
       labels: { provider, status },
       ...options
     });
     
     // Record duration
-    registry.observe('devonn_deployment_duration_seconds', durationMs / 1000, {
+    registry.observe('d3vonn_deployment_duration_seconds', durationMs / 1000, {
       labels: { provider, status },
       ...options
     });
@@ -227,18 +227,18 @@ export function createBusinessMetrics(environment: string): {
     deploymentsTotal++;
     
     const successRate = deploymentsTotal > 0 ? deploymentsSuccessful / deploymentsTotal : 0;
-    registry.setMetric('devonn_deployment_success_rate', successRate);
+    registry.setMetric('d3vonn_deployment_success_rate', successRate);
   }
   
   function recordResourceCreation(resourceType: string, count = 1, options: MetricOptions = {}): void {
-    registry.incrementCounter('devonn_resources_created_total', count, {
+    registry.incrementCounter('d3vonn_resources_created_total', count, {
       labels: { resource_type: resourceType },
       ...options
     });
   }
   
   function recordApiLatency(apiName: string, durationMs: number, options: MetricOptions = {}): void {
-    registry.observe('devonn_api_request_latency_ms', durationMs, {
+    registry.observe('d3vonn_api_request_latency_ms', durationMs, {
       labels: { api_name: apiName },
       ...options
     });

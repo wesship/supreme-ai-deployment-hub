@@ -1,1 +1,1 @@
-# Devonn.ai Backend Proxy — app package
+# D3VONN Backend Proxy — app package

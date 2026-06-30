@@ -1,0 +1,149 @@
+# kube-prometheus-stack Helm values — Devonn.AI Production
+# Install: helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#            -n monitoring --create-namespace -f helm-values/kube-prometheus-stack.yaml
+
+# ── Global settings ────────────────────────────────────────────────────────────
+fullnameOverride: "prometheus"
+namespaceOverride: "monitoring"
+
+# ── Grafana ────────────────────────────────────────────────────────────────────
+grafana:
+  enabled: true
+  adminPassword: ""   # Set via: --set grafana.adminPassword=$GRAFANA_ADMIN_PASSWORD
+  persistence:
+    enabled: true
+    size: 10Gi
+  ingress:
+    enabled: false    # Expose via kubectl port-forward in production; use VPN for access
+  grafana.ini:
+    security:
+      disable_gravatar: true
+      cookie_secure: true
+      cookie_samesite: strict
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+  # Pre-load Devonn dashboards
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: d3vonn
+          orgId: 1
+          folder: "Devonn.AI"
+          type: file
+          disableDeletion: false
+          options:
+            path: /var/lib/grafana/dashboards/d3vonn
+
+# ── Prometheus ─────────────────────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    retentionSize: "50GB"
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "1Gi"
+      limits:
+        cpu: "1000m"
+        memory: "4Gi"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 100Gi
+
+# ── Alertmanager ───────────────────────────────────────────────────────────────
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "64Mi"
+      limits:
+        cpu: "200m"
+        memory: "256Mi"
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'slack-critical'
+      routes:
+        - match:
+            severity: critical
+          receiver: 'slack-critical'
+        - match:
+            severity: warning
+          receiver: 'slack-warning'
+    receivers:
+      - name: 'slack-critical'
+        slack_configs:
+          - api_url: '${SLACK_WEBHOOK_CRITICAL}'
+            channel: '#d3vonn-alerts-critical'
+            title: '🔴 CRITICAL: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+      - name: 'slack-warning'
+        slack_configs:
+          - api_url: '${SLACK_WEBHOOK_WARNING}'
+            channel: '#d3vonn-alerts'
+            title: '🟡 WARNING: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+# ── Custom Devonn Alert Rules ──────────────────────────────────────────────────
+additionalPrometheusRulesMap:
+  d3vonn-rules:
+    groups:
+      - name: d3vonn.backend
+        rules:
+          - alert: BackendHighErrorRate
+            expr: |
+              rate(http_requests_total{namespace="d3vonn", status=~"5.."}[5m]) /
+              rate(http_requests_total{namespace="d3vonn"}[5m]) > 0.05
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Backend error rate > 5%"
+              description: "The Devonn backend is returning 5xx errors at {{ $value | humanizePercentage }} rate."
+
+          - alert: BackendHighLatency
+            expr: |
+              histogram_quantile(0.95,
+                rate(http_request_duration_seconds_bucket{namespace="d3vonn"}[5m])
+              ) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Backend p95 latency > 500ms"
+              description: "95th percentile latency is {{ $value | humanizeDuration }}."
+
+          - alert: BackendPodCrashLooping
+            expr: |
+              rate(kube_pod_container_status_restarts_total{namespace="d3vonn"}[15m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod crash-looping in d3vonn namespace"
+              description: "Pod {{ $labels.pod }} is restarting frequently."
+
+      - name: d3vonn.openai
+        rules:
+          - alert: OpenAIRateLimitApproaching
+            expr: |
+              rate(openai_api_requests_total{status="429"}[5m]) > 0.1
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "OpenAI rate limit being hit"
+              description: "OpenAI 429 errors at {{ $value }} req/s. Consider request queuing."

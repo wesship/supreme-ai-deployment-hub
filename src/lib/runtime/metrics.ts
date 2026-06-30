@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Runtime Metrics Module
+ * D3VONN — Runtime Metrics Module
  *
  * Lightweight in-process counter/gauge registry.
  * Exposes a /metrics endpoint payload and a Prometheus-compatible
@@ -118,22 +118,22 @@ export class MetricsRegistry {
 
 export const METRIC_NAMES = {
   // Request counters
-  REQUEST_TOTAL: "devonn_request_total",
-  REQUEST_ERROR_TOTAL: "devonn_request_error_total",
+  REQUEST_TOTAL: "d3vonn_request_total",
+  REQUEST_ERROR_TOTAL: "d3vonn_request_error_total",
   // Prediction metrics
-  PREDICTION_LATENCY_MS: "devonn_prediction_latency_ms",
-  PREDICTION_TOTAL: "devonn_prediction_total",
-  PREDICTION_ERROR_TOTAL: "devonn_prediction_error_total",
+  PREDICTION_LATENCY_MS: "d3vonn_prediction_latency_ms",
+  PREDICTION_TOTAL: "d3vonn_prediction_total",
+  PREDICTION_ERROR_TOTAL: "d3vonn_prediction_error_total",
   // Contract validation
-  CONTRACT_VALIDATION_FAILURE_TOTAL: "devonn_contract_validation_failure_total",
-  CONTRACT_SCHEMA_DRIFT_TOTAL: "devonn_contract_schema_drift_total",
+  CONTRACT_VALIDATION_FAILURE_TOTAL: "d3vonn_contract_validation_failure_total",
+  CONTRACT_SCHEMA_DRIFT_TOTAL: "d3vonn_contract_schema_drift_total",
   // Worker / queue
-  WORKER_RECOVERY_TOTAL: "devonn_worker_recovery_total",
-  QUEUE_DEPTH: "devonn_queue_depth",
-  STUCK_JOB_TOTAL: "devonn_stuck_job_total",
+  WORKER_RECOVERY_TOTAL: "d3vonn_worker_recovery_total",
+  QUEUE_DEPTH: "d3vonn_queue_depth",
+  STUCK_JOB_TOTAL: "d3vonn_stuck_job_total",
   // Governance
-  GOVERNANCE_DECISION_TOTAL: "devonn_governance_decision_total",
-  GOVERNANCE_DENY_TOTAL: "devonn_governance_deny_total",
+  GOVERNANCE_DECISION_TOTAL: "d3vonn_governance_decision_total",
+  GOVERNANCE_DENY_TOTAL: "d3vonn_governance_deny_total",
 } as const;
 
 // ── Default Registry ──────────────────────────────────────────────────────────

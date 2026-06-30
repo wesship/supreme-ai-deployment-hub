@@ -1,5 +1,5 @@
 """
-Devonn.ai Agent Orchestrator
+D3VONN Agent Orchestrator
 
 Coordinates multiple agents and workflows to complete complex tasks.
 Implements a supervisor pattern: the orchestrator decomposes tasks,
@@ -127,7 +127,7 @@ class AgentOrchestrator:
         messages = [
             {
                 "role": "system",
-                "content": """You are a Devonn.ai task decomposer.
+                "content": """You are a D3VONN task decomposer.
 Given a high-level goal, break it into 1-5 concrete sub-tasks.
 Output a JSON object with a "sub_tasks" array.
 Each sub-task has: "description" (string) and "agent" (one of: default, github, rag, deployment).
@@ -226,7 +226,7 @@ Keep sub-tasks atomic and actionable."""
                         "messages": [
                             {
                                 "role": "system",
-                                "content": "You are a Devonn.ai result synthesizer. Combine sub-task results into a clear, concise final answer."
+                                "content": "You are a D3VONN result synthesizer. Combine sub-task results into a clear, concise final answer."
                             },
                             {
                                 "role": "user",

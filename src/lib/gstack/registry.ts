@@ -60,7 +60,7 @@ function agent(
     name,
     layer,
     role,
-    devonnContext: 'D3VONN.IO d3vonn.io platform operations, repository workflow, and agent coordination.',
+    d3vonnContext: 'D3VONN.IO d3vonn.io platform operations, repository workflow, and agent coordination.',
     defaultInputs: ['objective', 'context', 'constraints'],
     defaultOutputs: ['recommendation', 'next steps', 'evidence'],
     allowedActions: ['review', 'plan', 'summarize', 'recommend'],
@@ -91,7 +91,7 @@ export const GSTACK_AGENT_REGISTRY: readonly GStackAgentDefinition[] = [
   agent('/investigate', 'Investigator', 'quality-security', 'Debug deep dives'),
   {
     ...agent('/release', 'Release', 'shipping', 'PR ship and changelog owner', shippingGates),
-    devonnContext: 'Railway deploy, Hostinger DNS gate, Sentry verification, and bundle budget enforcement.',
+    d3vonnContext: 'Railway deploy, Hostinger DNS gate, Sentry verification, and bundle budget enforcement.',
     defaultInputs: ['release candidate', 'changelog', 'gate evidence'],
     defaultOutputs: ['release notes', 'gate report', 'rollback plan'],
     allowedActions: ['prepare release notes', 'verify gates', 'recommend release readiness'],

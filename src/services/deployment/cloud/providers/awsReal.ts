@@ -184,7 +184,7 @@ export const executeAwsCommand = async (
         data: { cluster },
       };
     } else if (command.includes('create-cluster')) {
-      const clusterName = command.match(/--name\s+([^\s]+)/)?.[1] || 'devonn-eks-cluster';
+      const clusterName = command.match(/--name\s+([^\s]+)/)?.[1] || 'd3vonn-eks-cluster';
       const result = await createEksCluster(clusterName, 2, 't3.medium', options.environment);
       return {
         success: true,
@@ -192,7 +192,7 @@ export const executeAwsCommand = async (
         data: result,
       };
     } else if (command.includes('deploy')) {
-      const clusterName = command.match(/--cluster\s+([^\s]+)/)?.[1] || 'devonn-eks-prod';
+      const clusterName = command.match(/--cluster\s+([^\s]+)/)?.[1] || 'd3vonn-eks-prod';
       const result = await deployToEksCluster(clusterName, { environment: options.environment }, options.environment);
       return {
         success: result.success,

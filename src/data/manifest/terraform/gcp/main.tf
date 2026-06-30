@@ -8,7 +8,7 @@ provider "google" {
 # Google Cloud Storage Bucket
 # ----------------------------------------------------
 resource "google_storage_bucket" "example" {
-  name     = "devonn-ai-${var.environment}-bucket"
+  name     = "d3vonn-ai-${var.environment}-bucket"
   location = var.gcp_region
 
   labels = {
@@ -21,7 +21,7 @@ resource "google_storage_bucket" "example" {
 # Google Compute Engine Instance (Backend)
 # ----------------------------------------------------
 resource "google_compute_instance" "backend" {
-  name         = "devonn-ai-${var.environment}-backend"
+  name         = "d3vonn-ai-${var.environment}-backend"
   machine_type = var.instance_type
   zone         = var.gcp_zone
 
@@ -33,7 +33,7 @@ resource "google_compute_instance" "backend" {
   }
 
   # Tags
-  tags = ["devonn-ai"]
+  tags = ["d3vonn-ai"]
 
   # Metadata
   metadata = {
@@ -53,7 +53,7 @@ resource "google_compute_instance" "backend" {
 # Google Compute Engine Instance (Frontend)
 # ----------------------------------------------------
 resource "google_compute_instance" "frontend" {
-  name         = "devonn-ai-${var.environment}-frontend"
+  name         = "d3vonn-ai-${var.environment}-frontend"
   machine_type = var.instance_type
   zone         = var.gcp_zone
 
@@ -65,7 +65,7 @@ resource "google_compute_instance" "frontend" {
   }
 
   # Tags
-  tags = ["devonn-ai"]
+  tags = ["d3vonn-ai"]
 
   # Metadata
   metadata = {

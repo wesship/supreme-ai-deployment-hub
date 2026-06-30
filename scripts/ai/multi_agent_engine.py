@@ -104,10 +104,10 @@ def run_multi_agent_system():
         results[agent.name] = analysis
         
     # Save results to observability log
-    os.makedirs(".devonn/observability", exist_ok=True)
+    os.makedirs(".d3vonn/observability", exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     
-    report_path = f".devonn/observability/scan_{timestamp}.md"
+    report_path = f".d3vonn/observability/scan_{timestamp}.md"
     with open(report_path, "w") as f:
         f.write(f"# Devonn Multi-Agent Scan Report\nDate: {datetime.now(timezone.utc).isoformat()}\n\n")
         for name, analysis in results.items():
@@ -116,7 +116,7 @@ def run_multi_agent_system():
     print(f"✅ Multi-agent scan complete. Report saved to {report_path}")
     
     # Generate Knowledge Graph update
-    kg_path = ".devonn/knowledge_graph.json"
+    kg_path = ".d3vonn/knowledge_graph.json"
     kg_data = {"last_scan": timestamp, "agents_run": len(agents), "insights": {}}
     
     if os.path.exists(kg_path):

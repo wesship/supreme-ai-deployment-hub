@@ -2,7 +2,7 @@
 #!/usr/bin/env node
 
 /**
- * Release management script for Devonn.AI
+ * Release management script for D3VONN
  * 
  * This script helps manage the release process by:
  * 1. Bumping version numbers

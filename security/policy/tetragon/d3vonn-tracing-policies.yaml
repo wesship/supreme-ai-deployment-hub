@@ -1,0 +1,155 @@
+---
+# Cilium Tetragon TracingPolicy: Process Ancestry Tracking
+# Tracks all process executions in the d3vonn namespace,
+# building a complete process ancestry graph for forensic analysis.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: d3vonn-process-ancestry
+  namespace: d3vonn
+spec:
+  kprobes:
+    - call: "sys_execve"
+      syscall: true
+      args:
+        - index: 0
+          type: "string"
+        - index: 1
+          type: "string_array"
+      selectors:
+        - matchNamespaces:
+            - operator: In
+              values:
+                - "d3vonn"
+                - "d3vonn-staging"
+          matchActions:
+            - action: Post
+              rateLimit: "1/second"
+
+---
+# Cilium Tetragon TracingPolicy: Network Connection Tracking
+# Monitors all outbound TCP connections from Devonn.AI containers,
+# enabling runtime network topology mapping and anomaly detection.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: d3vonn-network-topology
+  namespace: d3vonn
+spec:
+  kprobes:
+    - call: "tcp_connect"
+      syscall: false
+      args:
+        - index: 0
+          type: "sock"
+      selectors:
+        - matchNamespaces:
+            - operator: In
+              values:
+                - "d3vonn"
+          matchActions:
+            - action: Post
+
+---
+# Cilium Tetragon TracingPolicy: Sensitive File Access
+# Tracks reads of sensitive files (credentials, keys, tokens)
+# to detect credential theft and unauthorized access patterns.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: d3vonn-sensitive-file-access
+  namespace: d3vonn
+spec:
+  kprobes:
+    - call: "sys_openat"
+      syscall: true
+      args:
+        - index: 1
+          type: "string"
+      selectors:
+        - matchArgs:
+            - index: 1
+              operator: Prefix
+              values:
+                - "/etc/passwd"
+                - "/etc/shadow"
+                - "/root/.ssh"
+                - "/home/.ssh"
+                - "/var/run/secrets"
+                - "/proc/1/environ"
+          matchNamespaces:
+            - operator: In
+              values:
+                - "d3vonn"
+          matchActions:
+            - action: Sigkill  # Immediately terminate process reading sensitive files
+              argError: -1
+
+---
+# Cilium Tetragon TracingPolicy: Privilege Escalation Detection
+# Monitors setuid/setgid calls and capability changes
+# to detect privilege escalation attempts in real time.
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: d3vonn-privilege-escalation
+  namespace: d3vonn
+spec:
+  kprobes:
+    - call: "sys_setuid"
+      syscall: true
+      args:
+        - index: 0
+          type: "int"
+      selectors:
+        - matchArgs:
+            - index: 0
+              operator: Equal
+              values:
+                - "0"  # Attempting to become root
+          matchNamespaces:
+            - operator: In
+              values:
+                - "d3vonn"
+          matchActions:
+            - action: Sigkill
+
+---
+# Cilium Tetragon TracingPolicy: Syscall Anomaly Correlation
+# Tracks unusual syscall patterns that indicate post-exploitation:
+# ptrace (debugger injection), memfd_create (fileless malware),
+# mount (container escape), unshare (namespace manipulation).
+apiVersion: cilium.io/v1alpha1
+kind: TracingPolicy
+metadata:
+  name: d3vonn-syscall-anomaly
+  namespace: d3vonn
+spec:
+  kprobes:
+    - call: "sys_ptrace"
+      syscall: true
+      selectors:
+        - matchNamespaces:
+            - operator: In
+              values:
+                - "d3vonn"
+          matchActions:
+            - action: Post
+    - call: "sys_mount"
+      syscall: true
+      selectors:
+        - matchNamespaces:
+            - operator: In
+              values:
+                - "d3vonn"
+          matchActions:
+            - action: Sigkill  # Block mount attempts (container escape vector)
+    - call: "sys_unshare"
+      syscall: true
+      selectors:
+        - matchNamespaces:
+            - operator: In
+              values:
+                - "d3vonn"
+          matchActions:
+            - action: Sigkill  # Block namespace manipulation

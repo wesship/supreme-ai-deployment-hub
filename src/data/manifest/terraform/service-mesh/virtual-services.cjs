@@ -3,8 +3,8 @@
 
 export const servicesYaml = `# Virtual services
 resource "aws_appmesh_virtual_service" "api_service" {
-  name      = "api.devonn.local"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  name      = "api.d3vonn.local"
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
   
   spec {
     provider {
@@ -16,8 +16,8 @@ resource "aws_appmesh_virtual_service" "api_service" {
 }
 
 resource "aws_appmesh_virtual_service" "database_service" {
-  name      = "database.devonn.local"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  name      = "database.d3vonn.local"
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
   
   spec {
     provider {
@@ -29,8 +29,8 @@ resource "aws_appmesh_virtual_service" "database_service" {
 }
 
 resource "aws_appmesh_virtual_service" "worker_service" {
-  name      = "worker.devonn.local"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  name      = "worker.d3vonn.local"
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
   
   spec {
     provider {

@@ -1,0 +1,243 @@
+---
+# Kyverno ClusterPolicy: Require Cosign-signed images for all Devonn.AI workloads
+# Enforces that every container image has a valid Sigstore/Cosign signature
+# from the trusted GitHub Actions OIDC issuer before admission to the cluster.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-signed-images
+  annotations:
+    policies.kyverno.io/title: Require Signed Images
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Requires all container images in Devonn.AI workloads to have a valid
+      Cosign signature from the GitHub Actions OIDC issuer (sigstore.dev).
+      Unsigned images are blocked at admission time.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-image-signature
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces:
+                - d3vonn
+                - d3vonn-staging
+                - d3vonn-canary
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/wesship/supreme-ai-deployment-hub/*"
+          attestors:
+            - count: 1
+              entries:
+                - keyless:
+                    subject: "https://github.com/wesship/supreme-ai-deployment-hub/.github/workflows/*@refs/heads/main"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+
+---
+# Kyverno ClusterPolicy: Require SLSA provenance attestation
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-slsa-provenance
+  annotations:
+    policies.kyverno.io/title: Require SLSA Provenance
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Requires all container images to have a valid SLSA provenance attestation
+      signed by the GitHub Actions OIDC issuer. Ensures every deployed image
+      was built by the trusted CI pipeline.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-slsa-provenance
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces:
+                - d3vonn
+                - d3vonn-staging
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/wesship/supreme-ai-deployment-hub/*"
+          attestations:
+            - predicateType: https://slsa.dev/provenance/v0.2
+              attestors:
+                - count: 1
+                  entries:
+                    - keyless:
+                        subject: "https://github.com/wesship/supreme-ai-deployment-hub/.github/workflows/artifact-provenance.yml@refs/heads/main"
+                        issuer: "https://token.actions.githubusercontent.com"
+              conditions:
+                - all:
+                    - key: "{{ builder.id }}"
+                      operator: Equals
+                      value: "https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@refs/tags/v2.0.0"
+
+---
+# Kyverno ClusterPolicy: Require SBOM attestation
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-sbom-attestation
+  annotations:
+    policies.kyverno.io/title: Require SBOM Attestation
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Requires all container images to have a CycloneDX SBOM attestation.
+      Ensures every deployed image has a complete software bill of materials.
+spec:
+  validationFailureAction: Audit  # Audit first, promote to Enforce after SBOM pipeline matures
+  background: true
+  rules:
+    - name: check-sbom-attestation
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces:
+                - d3vonn
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/wesship/supreme-ai-deployment-hub/*"
+          attestations:
+            - predicateType: https://cyclonedx.org/bom
+              attestors:
+                - count: 1
+                  entries:
+                    - keyless:
+                        issuer: "https://token.actions.githubusercontent.com"
+
+---
+# Kyverno ClusterPolicy: Require distroless or scratch base images
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-distroless-images
+  annotations:
+    policies.kyverno.io/title: Require Distroless Images
+    policies.kyverno.io/category: Runtime Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Requires all Devonn.AI containers to use distroless or scratch base images.
+      Blocks full OS images (debian, ubuntu, alpine, centos) that increase attack surface.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-distroless-base
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces:
+                - d3vonn
+                - d3vonn-staging
+      validate:
+        message: >-
+          Container images must use distroless or scratch base images.
+          Full OS images (debian, ubuntu, alpine, centos, amazonlinux) are not permitted
+          in production namespaces. Use gcr.io/distroless/* or scratch.
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: AnyIn
+                    value:
+                      - "debian:*"
+                      - "ubuntu:*"
+                      - "alpine:*"
+                      - "centos:*"
+                      - "amazonlinux:*"
+                      - "python:*"
+                      - "node:*"
+                      - "*/debian:*"
+                      - "*/ubuntu:*"
+                      - "*/alpine:*"
+
+---
+# Kyverno ClusterPolicy: Enforce read-only root filesystem
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-rootfs
+  annotations:
+    policies.kyverno.io/title: Require Read-Only Root Filesystem
+    policies.kyverno.io/category: Runtime Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-readonly-rootfs
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces:
+                - d3vonn
+                - d3vonn-staging
+      validate:
+        message: "All containers must have readOnlyRootFilesystem: true"
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.readOnlyRootFilesystem || false }}"
+                    operator: Equals
+                    value: false
+
+---
+# Kyverno ClusterPolicy: Disallow privilege escalation
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privilege-escalation
+  annotations:
+    policies.kyverno.io/title: Disallow Privilege Escalation
+    policies.kyverno.io/category: Runtime Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-no-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces:
+                - d3vonn
+                - d3vonn-staging
+                - d3vonn-canary
+      validate:
+        message: "allowPrivilegeEscalation must be false for all containers"
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.securityContext.allowPrivilegeEscalation || true }}"
+                    operator: Equals
+                    value: true

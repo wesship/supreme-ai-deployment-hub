@@ -1,5 +1,5 @@
 """
-backend/auth/jwt.py — JWT authentication utilities for Devonn.AI FastAPI backend.
+backend/auth/jwt.py — JWT authentication utilities for D3VONN FastAPI backend.
 
 Usage:
     from auth.jwt import verify_jwt, create_jwt

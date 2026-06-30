@@ -34,21 +34,21 @@ export interface AnomalyAlert {
 // Default anomaly detection configurations
 const defaultConfigurations: Record<string, AnomalyConfig> = {
   'deployment_duration': {
-    metricName: 'devonn_deployment_duration_seconds',
+    metricName: 'd3vonn_deployment_duration_seconds',
     threshold: 2.5, // 2.5x over baseline
     timeWindowMinutes: 60,
     sensitivityLevel: 'medium',
     minimumSampleSize: 5
   },
   'error_rate': {
-    metricName: 'devonn_deployment_success_rate',
+    metricName: 'd3vonn_deployment_success_rate',
     threshold: 0.25, // 25% below baseline
     timeWindowMinutes: 120,
     sensitivityLevel: 'high',
     minimumSampleSize: 5
   },
   'api_latency': {
-    metricName: 'devonn_api_request_latency_ms',
+    metricName: 'd3vonn_api_request_latency_ms',
     threshold: 2.0, // 2x over baseline
     timeWindowMinutes: 30,
     sensitivityLevel: 'medium', 
@@ -58,9 +58,9 @@ const defaultConfigurations: Record<string, AnomalyConfig> = {
 
 // Simulated historical data for demonstration purposes
 const mockHistoricalData: Record<string, number[]> = {
-  'devonn_deployment_duration_seconds': [45, 42, 48, 50, 43, 41, 49, 52, 47, 46],
-  'devonn_deployment_success_rate': [0.98, 1.0, 0.97, 1.0, 0.99, 1.0, 0.98, 1.0, 0.99, 1.0],
-  'devonn_api_request_latency_ms': [120, 115, 125, 118, 122, 116, 119, 121, 117, 123]
+  'd3vonn_deployment_duration_seconds': [45, 42, 48, 50, 43, 41, 49, 52, 47, 46],
+  'd3vonn_deployment_success_rate': [0.98, 1.0, 0.97, 1.0, 0.99, 1.0, 0.98, 1.0, 0.99, 1.0],
+  'd3vonn_api_request_latency_ms': [120, 115, 125, 118, 122, 116, 119, 121, 117, 123]
 };
 
 /**
@@ -222,7 +222,7 @@ export class AnomalyDetectionService {
     let currentValue = 0;
     
     // First try to get from the business metrics service
-    if (metricName === 'devonn_deployment_success_rate') {
+    if (metricName === 'd3vonn_deployment_success_rate') {
       currentValue = businessMetrics.getSuccessRate();
     } else {
       // If not available in business metrics, try to get latest from historical data
@@ -244,7 +244,7 @@ export class AnomalyDetectionService {
     let anomalyScore = 0;
     let deviationPercent = 0;
     
-    if (metricName === 'devonn_deployment_success_rate') {
+    if (metricName === 'd3vonn_deployment_success_rate') {
       // For success rate, lower is anomalous
       deviationPercent = ((baseline - currentValue) / baseline) * 100;
       anomalyScore = currentValue < baseline ? (baseline - currentValue) / baseline : 0;

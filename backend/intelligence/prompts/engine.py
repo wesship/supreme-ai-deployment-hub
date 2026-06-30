@@ -1,5 +1,5 @@
 """
-Devonn.ai Prompt Engine
+D3VONN Prompt Engine
 
 Provides reusable, versioned prompt templates and context injection.
 Manages system prompts, few-shot examples, and variable substitution.
@@ -26,11 +26,11 @@ class PromptEngine:
         self._register_default_templates()
         
     def _register_default_templates(self) -> None:
-        """Register core Devonn.ai prompt templates."""
+        """Register core D3VONN prompt templates."""
         # Router Prompt
         self.register(PromptTemplate(
             name="tool_router",
-            system_message="""You are the Devonn.ai Tool Router. 
+            system_message="""You are the D3VONN Tool Router. 
 Your job is to select the most appropriate tool to fulfill the user's request.
 Available tools:
 {tool_descriptions}
@@ -47,7 +47,7 @@ Rules:
         # Executor Prompt
         self.register(PromptTemplate(
             name="task_executor",
-            system_message="""You are a Devonn.ai Agent Executor.
+            system_message="""You are a D3VONN Agent Executor.
 You are tasked with executing a specific action autonomously.
 You have access to the following context: {context}
 

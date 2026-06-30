@@ -24,7 +24,7 @@ const API_BASE =
   import.meta.env.VITE_D3VONN_API_URL ||
   import.meta.env.VITE_DEVONN_API_URL ||
   import.meta.env.VITE_API_URL ||
-  "https://devonn-ai-api.up.railway.app";
+  "https://d3vonn-api-production.up.railway.app";
 
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
@@ -96,7 +96,7 @@ const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
     : []),
 ];
 
-const STORAGE_KEY = "devonn-service-endpoints-v3";
+const STORAGE_KEY = "d3vonn-service-endpoints-v3";
 
 export function useServiceHealth() {
   const [endpoints, setEndpoints] = useState<ServiceEndpoint[]>(() => {
@@ -135,7 +135,7 @@ export function useServiceHealth() {
       if (
         endpoint.url.includes("api.d3vonn.io") ||
         endpoint.url.includes("d3vonn.io") ||
-        endpoint.url.includes("devonn") ||
+        endpoint.url.includes("d3vonn") ||
         endpoint.url.includes("railway.app") ||
         endpoint.url.includes("amazonaws.com")
       ) {

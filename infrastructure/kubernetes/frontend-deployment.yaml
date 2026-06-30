@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: devonn-frontend
+  name: d3vonn-frontend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: devonn-frontend
+      app: d3vonn-frontend
   template:
     metadata:
       labels:
-        app: devonn-frontend
+        app: d3vonn-frontend
     spec:
       containers:
-      - name: devonn-frontend
+      - name: d3vonn-frontend
         image: "${FRONTEND_IMAGE}"
         imagePullPolicy: Always
         ports:

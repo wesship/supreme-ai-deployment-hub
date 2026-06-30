@@ -130,7 +130,7 @@ export const operatorFallbacks = {
     status: 'observing',
     requiredChecks: [
       'CI - Hardened Build Pipeline',
-      'Devonn.AI Testing',
+      'D3VONN Testing',
       'CodeQL SAST',
       'Secrets Elimination & Scanning',
       'Final Green Check',
@@ -139,7 +139,7 @@ export const operatorFallbacks = {
     githubActions: { configured: false, runs: [], summary: { total: 0, failures: 0, healthy: false } },
   } satisfies OperatorCI,
   memory: {
-    vaultPath: '.devonn/memory-vault',
+    vaultPath: '.d3vonn/memory-vault',
     entries: 0,
     lastExport: null,
     mode: 'local-first',
@@ -163,7 +163,7 @@ export const operatorFallbacks = {
     governanceMode: 'manual-review-during-stabilization',
     requiredProductionChecks: [
       'CI - Hardened Build Pipeline',
-      'Devonn.AI Testing',
+      'D3VONN Testing',
       'CodeQL SAST',
       'Secrets Elimination & Scanning',
       'Final Green Check',

@@ -25,10 +25,10 @@ console.log(`Setting up monitoring for ${env} environment`);
 // Configuration
 const config = {
   region: process.env.AWS_REGION || 'us-west-2',
-  clusterName: `devonn-eks-${env}`,
-  dbInstanceId: `devonn-postgres-${env}`,
-  alarmPrefix: `devonn-${env}`,
-  snsTopicName: `devonn-${env}-alerts`,
+  clusterName: `d3vonn-eks-${env}`,
+  dbInstanceId: `d3vonn-postgres-${env}`,
+  alarmPrefix: `d3vonn-${env}`,
+  snsTopicName: `d3vonn-${env}-alerts`,
   thresholds: {
     cpu: 80, // 80% CPU utilization
     memory: 80, // 80% Memory utilization
@@ -140,7 +140,7 @@ async function main() {
           height: 6,
           properties: {
             metrics: [
-              ['AWS/ApiGateway', 'Latency', 'ApiName', `devonn-api-${env}`]
+              ['AWS/ApiGateway', 'Latency', 'ApiName', `d3vonn-api-${env}`]
             ],
             period: 300,
             stat: 'Average',
@@ -157,8 +157,8 @@ async function main() {
           height: 6,
           properties: {
             metrics: [
-              ['AWS/ApiGateway', '4XXError', 'ApiName', `devonn-api-${env}`],
-              ['AWS/ApiGateway', '5XXError', 'ApiName', `devonn-api-${env}`]
+              ['AWS/ApiGateway', '4XXError', 'ApiName', `d3vonn-api-${env}`],
+              ['AWS/ApiGateway', '5XXError', 'ApiName', `d3vonn-api-${env}`]
             ],
             period: 300,
             stat: 'Sum',
@@ -182,7 +182,7 @@ async function main() {
     const logGroups = [
       `/aws/eks/${config.clusterName}/cluster`,
       `/aws/rds/instance/${config.dbInstanceId}/postgresql`,
-      `/aws/lambda/devonn-${env}-api`
+      `/aws/lambda/d3vonn-${env}-api`
     ];
     
     for (const logGroup of logGroups) {
@@ -310,7 +310,7 @@ async function main() {
       Dimensions: [
         {
           Name: 'ApiName',
-          Value: `devonn-api-${env}`
+          Value: `d3vonn-api-${env}`
         }
       ]
     });
@@ -331,7 +331,7 @@ async function main() {
       Dimensions: [
         {
           Name: 'ApiName',
-          Value: `devonn-api-${env}`
+          Value: `d3vonn-api-${env}`
         }
       ]
     });
@@ -347,7 +347,7 @@ async function main() {
         Dimensions: [
           {
             Name: 'ApiName',
-            Value: `devonn-api-${env}`
+            Value: `d3vonn-api-${env}`
           }
         ]
       });
@@ -370,7 +370,7 @@ async function main() {
                 Dimensions: [
                   {
                     Name: 'ApiName',
-                    Value: `devonn-api-${env}`
+                    Value: `d3vonn-api-${env}`
                   }
                 ]
               },

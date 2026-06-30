@@ -18,7 +18,7 @@ Features:
     capabilities: ['monitoring', 'alerting', 'remediation', 'ml-powered', 'reporting'],
     pricing: { model: 'subscription', amount: 99, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 12
@@ -57,7 +57,7 @@ Capabilities:
     capabilities: ['monitoring', 'alerting', 'remediation', 'scheduling'],
     pricing: { model: 'subscription', amount: 149, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 12
@@ -148,7 +148,7 @@ Capabilities:
     capabilities: ['monitoring', 'reporting', 'ml-powered'],
     pricing: { model: 'subscription', amount: 129, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 12
@@ -236,7 +236,7 @@ Capabilities:
     capabilities: ['monitoring', 'alerting', 'remediation', 'scheduling', 'ml-powered'],
     pricing: { model: 'subscription', amount: 199, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 12
@@ -297,7 +297,7 @@ Capabilities:
     capabilities: ['monitoring', 'reporting', 'scheduling'],
     pricing: { model: 'subscription', amount: 249, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 12
@@ -327,7 +327,7 @@ Capabilities:
     capabilities: ['integration', 'scheduling', 'monitoring'],
     pricing: { model: 'subscription', amount: 49, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 12

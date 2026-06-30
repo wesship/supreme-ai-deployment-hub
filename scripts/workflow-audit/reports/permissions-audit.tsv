@@ -38,7 +38,7 @@ deploy-and-publish.yml	yes	no	no	no	no	no	10	CHROME_CLIENT_ID,CHROME_CLIENT_SECR
 deploy.yml	no	no	no	no	no	no	7	CHROME_CLIENT_ID,CHROME_CLIENT_SECRET,CHROME_EXTENSION_ID,CHROME_REFRESH_TOKEN,GITHUB_TOKEN,OPENAI_API_KEY,SLACK_WEBHOOK_URL	NO_TOP_PERMS,SECRET_HEAVY
 deployment-promotion.yml	yes	no	yes	no	no	no	0	-	-
 developer-onboarding.yml	yes	no	no	yes	no	no	0	-	-
-devonn-deploy.yml	no	no	no	no	no	no	0	-	NO_TOP_PERMS
+d3vonn-deploy.yml	no	no	no	no	no	no	0	-	NO_TOP_PERMS
 disaster-recovery-drill.yml	yes	no	no	no	no	no	0	-	-
 dora-metrics.yml	yes	no	no	yes	no	no	1	GITHUB_TOKEN	-
 e2e-smoke-tests.yml	yes	no	no	no	no	no	1	STAGING_API_TOKEN	-

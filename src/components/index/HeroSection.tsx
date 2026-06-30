@@ -58,7 +58,7 @@ const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden devonn-hero-bg">
+    <section className="relative min-h-screen flex items-center overflow-hidden d3vonn-hero-bg">
       <MatrixRain 
         speed={1.2} 
         density={0.6} 

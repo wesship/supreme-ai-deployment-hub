@@ -1,9 +1,9 @@
-# DEVONN.AI Claude Code + Ruflo Operating Rules
+# D3VONN Claude Code + Ruflo Operating Rules
 
 This repository is configured for Ruflo multi-agent orchestration through Claude Code MCP.
 
 ## Prime directive
-Build DEVONN.AI safely: read before writing, preserve production stability, never expose secrets, and keep every change traceable through tests or a clear validation path.
+Build D3VONN safely: read before writing, preserve production stability, never expose secrets, and keep every change traceable through tests or a clear validation path.
 
 ## Agent routing
 Use Ruflo for parallel work, but keep authority layered:
@@ -57,5 +57,5 @@ claude mcp add ruflo -- npx ruflo@latest mcp start
 ## First recommended DEVONN swarm prompt
 
 ```text
-Use Ruflo in hierarchical mode. Audit DEVONN.AI for deployment blockers, domain/DNS issues, security regressions, failing tests, and agent-orchestration gaps. Read before writing, do not touch secrets, and produce a patch plan before edits.
+Use Ruflo in hierarchical mode. Audit D3VONN for deployment blockers, domain/DNS issues, security regressions, failing tests, and agent-orchestration gaps. Read before writing, do not touch secrets, and produce a patch plan before edits.
 ```

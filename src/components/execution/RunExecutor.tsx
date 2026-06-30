@@ -144,7 +144,7 @@ export function RunExecutor({
                 Execution Engine
               </CardTitle>
               <CardDescription className="text-sm">
-                Devonn.ai → FastAPI → n8n → Docker MCP
+                D3VONN → FastAPI → n8n → Docker MCP
               </CardDescription>
             </div>
           </div>

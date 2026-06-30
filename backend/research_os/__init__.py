@@ -1,7 +1,7 @@
 """Hermes Research OS package.
 
 Adds multi-source internet research, evidence scoring, Clay enrichment,
-and DKOS persistence helpers for the Devonn.AI Hermes runtime.
+and DKOS persistence helpers for the D3VONN Hermes runtime.
 """
 
 from .agents import (

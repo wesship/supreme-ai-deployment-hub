@@ -1,6 +1,6 @@
 """Operator Console API router.
 
-Read-only operational endpoints for DEVONN.AI operator console.
+Read-only operational endpoints for D3VONN operator console.
 These endpoints intentionally avoid irreversible actions and are safe to expose
 behind normal API authentication/proxy controls.
 """
@@ -53,9 +53,9 @@ router = APIRouter(dependencies=[Depends(require_operator_access)])
 
 ROOT = Path(__file__).resolve().parents[2]
 STATE_FILE = ROOT / "config" / "operator-console.example.json"
-MEMORY_VAULT = ROOT / ".devonn" / "memory-vault"
+MEMORY_VAULT = ROOT / ".d3vonn" / "memory-vault"
 
-REQUIRED_CHECKS = ["CI - Hardened Build Pipeline", "Devonn.AI Testing", "CodeQL SAST", "Secrets Elimination & Scanning", "Final Green Check"]
+REQUIRED_CHECKS = ["CI - Hardened Build Pipeline", "D3VONN Testing", "CodeQL SAST", "Secrets Elimination & Scanning", "Final Green Check"]
 ADVISORY_TOOLS = ["ci:doctor", "workflow:audit", "workflow:classify", "repo:entropy", "pins:validate"]
 
 

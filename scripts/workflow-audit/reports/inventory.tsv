@@ -38,7 +38,7 @@ deploy-and-publish.yml	branches,push,workflow_dispatch	1		permissions:	4743
 deploy.yml	branches,default,description,environment,inputs,options,push,required,type,workflow_dispatch	2		permissions:	4205
 deployment-promotion.yml	branches,description,environment,inputs,options,required,type,types,workflow_dispatch,workflow_run,workflows	4		permissions:	8894
 developer-onboarding.yml	branches,description,inputs,issues,paths,pull_request,push,required,service_name,type,types,workflow_dispatch	3		permissions:	6986
-devonn-deploy.yml	branches,push	1		permissions:	1121
+d3vonn-deploy.yml	branches,push	1		permissions:	1121
 disaster-recovery-drill.yml	default,description,drill_type,dry_run,inputs,required,schedule,workflow_dispatch	5	0 2 1 * *   # Monthly on the 1st at 2am UTC	permissions:	9141
 dora-metrics.yml	branches,default,description,inputs,period_days,push,required,schedule,workflow_dispatch	1	0 8 * * 1   # Weekly Monday 08:00 UTC	permissions:	10510
 e2e-smoke-tests.yml	branches,default,description,environment,inputs,options,push,required,schedule,type,workflow_dispatch	1	*/15 * * * *  # Every 15 minutes	permissions:	6119

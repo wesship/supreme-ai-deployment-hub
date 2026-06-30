@@ -1,6 +1,6 @@
-# Devonn.ai Backend Proxy
+# D3VONN Backend Proxy
 
-Production-ready FastAPI backend that acts as the **secure execution layer** for the Devonn.ai platform. All sensitive API keys are held server-side here — never in the browser bundle.
+Production-ready FastAPI backend that acts as the **secure execution layer** for the D3VONN platform. All sensitive API keys are held server-side here — never in the browser bundle.
 
 ## Architecture
 
@@ -95,14 +95,14 @@ Use the platform's environment variable dashboard. Never use `.env` files in pro
 
 ```bash
 # Build
-docker build -t devonn-backend .
+docker build -t d3vonn-backend .
 
 # Run
 docker run -p 8000:8000 \
   -e OPENAI_API_KEY=sk-... \
   -e PINECONE_API_KEY=pcsk_... \
   # ... other vars
-  devonn-backend
+  d3vonn-backend
 ```
 
 ### Dockerfile (create at backend/Dockerfile)

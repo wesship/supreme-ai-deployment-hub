@@ -4,7 +4,7 @@ export type OperatorSession = {
   createdAt: string;
 };
 
-const SESSION_KEY = 'devonn.operator.session';
+const SESSION_KEY = 'd3vonn.operator.session';
 
 export function loadOperatorSession(): OperatorSession | null {
   try {

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: "{{SERVICE_NAME}}"
-  namespace: devonn-ai
+  namespace: d3vonn
   labels:
     app: "{{SERVICE_NAME}}"
     app.kubernetes.io/managed-by: argocd
@@ -25,7 +25,7 @@ spec:
         runAsUser: 65532
         seccompProfile:
           type: Localhost
-          localhostProfile: devonn-api.json
+          localhostProfile: d3vonn-api.json
       containers:
         - name: "{{SERVICE_NAME}}"
           image: "ghcr.io/wesship/{{SERVICE_NAME}}:latest"

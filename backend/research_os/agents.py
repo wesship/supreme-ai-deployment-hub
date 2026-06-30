@@ -220,7 +220,7 @@ class LeadEnrichmentAgent:
             return LeadEnrichmentResult(status="skipped", clay_webhook_configured=False, submitted=0, records=leads, message="Set CLAY_WEBHOOK_URL to queue leads in Clay.")
         if not leads:
             return LeadEnrichmentResult(status="skipped", clay_webhook_configured=True, submitted=0, records=[])
-        payload = {"records": [lead.model_dump() for lead in leads], "source": "devonn_research_os"}
+        payload = {"records": [lead.model_dump() for lead in leads], "source": "d3vonn_research_os"}
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.post(webhook, json=payload)

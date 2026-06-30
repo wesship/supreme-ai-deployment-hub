@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/smoke_test.py — Devonn.AI Phase 4 Smoke Test
+scripts/smoke_test.py — D3VONN Phase 4 Smoke Test
 
 Verifies the live API is healthy and the auth gate is enforced.
 
@@ -72,7 +72,7 @@ r = Results()
 
 print()
 print("╔══════════════════════════════════════════════════════╗")
-print("║          Devonn.AI API Smoke Test — Phase 4          ║")
+print("║          D3VONN API Smoke Test — Phase 4          ║")
 print("╚══════════════════════════════════════════════════════╝")
 print(f"  Target: {API}")
 print()

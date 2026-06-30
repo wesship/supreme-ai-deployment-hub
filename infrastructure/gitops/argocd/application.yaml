@@ -1,0 +1,80 @@
+# ArgoCD Application manifest for Devonn.AI
+# Deploy with: kubectl apply -f gitops/argocd/application.yaml
+# Requires: ArgoCD installed in argocd namespace
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: d3vonn
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Link back to this repository for traceability
+    argocd.argoproj.io/manifest-generate-paths: .
+spec:
+  project: d3vonn
+  source:
+    repoURL: https://github.com/wesship/supreme-ai-deployment-hub
+    targetRevision: main
+    path: gitops/apps
+    directory:
+      recurse: true
+      jsonnet: {}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: d3vonn
+  syncPolicy:
+    automated:
+      prune: true        # Remove resources no longer in Git
+      selfHeal: true     # Auto-correct drift from desired state
+      allowEmpty: false  # Never sync an empty app
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+  # Health checks
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Allow HPA to manage replicas
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: d3vonn
+  namespace: argocd
+spec:
+  description: Devonn.AI production platform
+  sourceRepos:
+    - https://github.com/wesship/supreme-ai-deployment-hub
+  destinations:
+    - namespace: d3vonn
+      server: https://kubernetes.default.svc
+    - namespace: d3vonn-staging
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: kyverno.io
+      kind: ClusterPolicy
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota  # Prevent quota changes via GitOps
+  roles:
+    - name: ci-deployer
+      description: CI/CD pipeline deployment role
+      policies:
+        - p, proj:d3vonn:ci-deployer, applications, sync, d3vonn/*, allow
+        - p, proj:d3vonn:ci-deployer, applications, get, d3vonn/*, allow
+      jwtTokens: []

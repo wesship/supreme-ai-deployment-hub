@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Integration Test Runner for Devonn.AI Chrome Extension
+ * Integration Test Runner for D3VONN Chrome Extension
  *
  * This script runs integration tests on the built extension by launching
  * Chrome with the extension loaded and testing its functionality.
@@ -44,7 +44,7 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir, { recursive: true });
 }
 
-console.log(`\n=== Running Devonn.AI Integration Tests ===\n`);
+console.log(`\n=== Running D3VONN Integration Tests ===\n`);
 console.log(`Extension path: ${argv['extension-path']}`);
 console.log(`Browser: ${argv.browser}`);
 console.log(`Output directory: ${outputDir}\n`);
@@ -58,7 +58,7 @@ const scenarios = [
       const page = await getExtensionPage(browser, extensionId, "popup.html");
       await new Promise(r => setTimeout(r, 1000));
       const content = await page.content();
-      return content.includes('Devonn.AI') || content.includes('Devonn.AI Assistant');
+      return content.includes('D3VONN') || content.includes('D3VONN Assistant');
     }
   },
   {
@@ -72,7 +72,7 @@ const scenarios = [
       await new Promise(r => setTimeout(r, 1000));
       const bodyText = await popupPage.evaluate(() => document.body.innerText);
       const pageTitle = await popupPage.title();
-      return bodyText.includes('Devonn.AI') || pageTitle.includes('Devonn.AI Assistant');
+      return bodyText.includes('D3VONN') || pageTitle.includes('D3VONN Assistant');
     }
   },
   {
@@ -88,7 +88,7 @@ const scenarios = [
       await new Promise(r => setTimeout(r, 1000));
       const hasSettingsForm = await settingsPage.$('.settings-form') !== null;
       const title = await settingsPage.title();
-      return hasSettingsForm || title.includes('Devonn.AI Assistant Settings');
+      return hasSettingsForm || title.includes('D3VONN Assistant Settings');
     }
   },
   {

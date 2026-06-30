@@ -20,13 +20,13 @@ variable "environment" {
 variable "container_app_environment_name" {
   description = "Name of the Container App Environment"
   type        = string
-  default     = "devonn-development-env"
+  default     = "d3vonn-development-env"
 }
 
 variable "container_app_name" {
   description = "Base name for Container Apps"
   type        = string
-  default     = "devonn-app"
+  default     = "d3vonn-app"
 }
 
 variable "backend_image" {

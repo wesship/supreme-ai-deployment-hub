@@ -46,7 +46,7 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
 
-_audit = structlog.get_logger("devonn.audit")
+_audit = structlog.get_logger("d3vonn.audit")
 
 
 # ── Vault events ──────────────────────────────────────────────────────────────

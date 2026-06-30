@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from services.agui_listener import router as agui_router  # Import the AG-UI router
 
 app = FastAPI(
-    title="Devonn.ai - Model Control Panel",
+    title="D3VONN - Model Control Panel",
     description="Unified API gateway for AI models, agents, and workflow execution",
     version="2.0.0"
 )
@@ -71,7 +71,7 @@ class StatusResponse(BaseModel):
     status: str
     message: str
 
-# ===== Devonn.ai Execution Loop Models =====
+# ===== D3VONN Execution Loop Models =====
 class RunPayload(BaseModel):
     job_type: str
     parameters: Dict[str, Any]
@@ -193,7 +193,7 @@ def update_run_status(run_id: str, status: str, **kwargs):
         if status in ["completed", "failed", "cancelled"]:
             runs_db[run_id]["finished_at"] = datetime.utcnow().isoformat() + "Z"
 
-# ===== Devonn.ai Execution Loop Endpoints =====
+# ===== D3VONN Execution Loop Endpoints =====
 @app.post("/runs/start")
 async def start_run(payload: RunPayload, background_tasks: BackgroundTasks):
     """
@@ -651,7 +651,7 @@ async def health_check():
 async def root():
     """Root endpoint with API information"""
     return {
-        "name": "Devonn.ai - Model Control Panel API",
+        "name": "D3VONN - Model Control Panel API",
         "version": "2.0.0",
         "docs": "/docs",
         "health": "/health",

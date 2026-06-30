@@ -38,7 +38,7 @@ deploy-and-publish.yml	1	0	0	0	10	 many-secrets;
 deploy.yml	1	0	0	0	7	 many-secrets;
 deployment-promotion.yml	5	1	0	1	0	 broad-perms; workflow_run;
 developer-onboarding.yml	3	1	0	0	0	 broad-perms;
-devonn-deploy.yml	0	0	0	0	0	
+d3vonn-deploy.yml	0	0	0	0	0	
 disaster-recovery-drill.yml	0	0	0	0	0	
 dora-metrics.yml	3	1	0	0	1	 broad-perms;
 e2e-smoke-tests.yml	0	0	0	0	1	

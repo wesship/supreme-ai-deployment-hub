@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — Configuration
+D3VONN Backend Proxy — Configuration
 All secrets loaded from environment variables only. Never hardcoded.
 """
 import json

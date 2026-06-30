@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — Router Registry
+D3VONN Backend Proxy — Router Registry
 Registers all proxy sub-routers under the /api prefix.
 
 This registry is intentionally defensive: one optional router import must not

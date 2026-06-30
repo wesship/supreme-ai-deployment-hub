@@ -236,7 +236,7 @@ export const MCP_SERVER_REGISTRY: McpServerConfig[] = [
 
   // === AI ===
   {
-    id: "devonn-gateway",
+    id: "d3vonn-gateway",
     name: "D3VONN.IO Gateway",
     description: "Connect to D3VONN.IO's central MCP gateway for unified tool access",
     category: "ai",

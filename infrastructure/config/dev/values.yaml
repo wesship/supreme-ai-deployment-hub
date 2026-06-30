@@ -1,0 +1,32 @@
+# Environment: dev
+# Managed by: GitOps (ArgoCD)
+environment: dev
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/wesship/d3vonn-api
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+logging:
+  level: debug
+
+featureFlags:
+  newAIModels: true
+true
+  betaVoiceAPI: true
+  experimentalMesh: true

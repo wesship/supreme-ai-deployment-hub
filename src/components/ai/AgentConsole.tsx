@@ -1,5 +1,5 @@
 /**
- * Devonn.ai Agent Console — Phase 3 & 5
+ * D3VONN Agent Console — Phase 3 & 5
  * Displays live agent graph activity during multi-agent execution.
  * Shows agent nodes, status, task, and timing.
  */

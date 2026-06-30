@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — /api/rag
+D3VONN Backend Proxy — /api/rag
 RAG pipeline: document ingestion, context retrieval, and deletion.
 Uses OpenAI for embeddings and Pinecone for vector storage.
 All API keys are server-side only.

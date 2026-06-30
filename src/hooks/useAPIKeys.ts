@@ -6,8 +6,8 @@ import { Eye, EyeOff, ClipboardCopy } from 'lucide-react';
 import { encrypt, decrypt, shouldRotateKey } from '@/utils/encryption';
 
 // Constants for sessionStorage keys (cleared on tab close for security)
-const LAST_USED_KEY = 'devonn_api_last_used';
-const ENCRYPTION_TIMESTAMP_KEY = 'devonn_api_encryption_timestamp';
+const LAST_USED_KEY = 'd3vonn_api_last_used';
+const ENCRYPTION_TIMESTAMP_KEY = 'd3vonn_api_encryption_timestamp';
 
 /**
  * Custom hook for easily accessing and managing API keys with enhanced security

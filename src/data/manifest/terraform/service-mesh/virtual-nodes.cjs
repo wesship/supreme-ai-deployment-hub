@@ -4,7 +4,7 @@
 export const nodesYaml = `# Virtual nodes for microservices
 resource "aws_appmesh_virtual_node" "api_node" {
   name      = "api-node"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
   
   spec {
     listener {
@@ -25,13 +25,13 @@ resource "aws_appmesh_virtual_node" "api_node" {
     
     service_discovery {
       dns {
-        hostname = "api-canary.devonn.local"
+        hostname = "api-canary.d3vonn.local"
       }
     }
     
     backend {
       virtual_service {
-        virtual_service_name = "database.devonn.local"
+        virtual_service_name = "database.d3vonn.local"
       }
     }
     
@@ -47,7 +47,7 @@ resource "aws_appmesh_virtual_node" "api_node" {
 
 resource "aws_appmesh_virtual_node" "database_node" {
   name      = "database-node"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
   
   spec {
     listener {
@@ -59,7 +59,7 @@ resource "aws_appmesh_virtual_node" "database_node" {
     
     service_discovery {
       dns {
-        hostname = "database.devonn.local"
+        hostname = "database.d3vonn.local"
       }
     }
   }
@@ -67,7 +67,7 @@ resource "aws_appmesh_virtual_node" "database_node" {
 
 resource "aws_appmesh_virtual_node" "worker_node" {
   name      = "worker-node"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
   
   spec {
     listener {
@@ -79,19 +79,19 @@ resource "aws_appmesh_virtual_node" "worker_node" {
     
     service_discovery {
       dns {
-        hostname = "worker.devonn.local"
+        hostname = "worker.d3vonn.local"
       }
     }
     
     backend {
       virtual_service {
-        virtual_service_name = "database.devonn.local"
+        virtual_service_name = "database.d3vonn.local"
       }
     }
     
     backend {
       virtual_service {
-        virtual_service_name = "api.devonn.local"
+        virtual_service_name = "api.d3vonn.local"
       }
     }
   }

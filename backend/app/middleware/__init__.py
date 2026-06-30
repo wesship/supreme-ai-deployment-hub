@@ -1,1 +1,1 @@
-# Devonn.ai Backend Proxy — middleware package
+# D3VONN Backend Proxy — middleware package

@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Error State Lock Tests
+ * D3VONN — Error State Lock Tests
  *
  * Locks the complete error contract surface:
  * - Every defined ErrorCode must be producible via buildErrorResponse

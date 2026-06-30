@@ -1,5 +1,5 @@
 """
-backend/rag/ingestion.py — Devonn.ai document ingestion and semantic retrieval.
+backend/rag/ingestion.py — D3VONN document ingestion and semantic retrieval.
 
 Pipeline:
 file upload -> validation -> text extraction -> chunking -> OpenAI embeddings ->

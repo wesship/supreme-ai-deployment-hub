@@ -19,7 +19,7 @@ const defaultHookState = {
   config: {
     mode: 'env-first' as const,
     status: 'active' as const,
-    vaultPath: '.devonn/api-vault/keys.json',
+    vaultPath: '.d3vonn/api-vault/keys.json',
     keysConfigured: 2,
     vaultEncrypted: false,
   },

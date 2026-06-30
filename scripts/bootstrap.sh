@@ -6,8 +6,8 @@ set -euo pipefail
 echo "==> Applying namespaces with PSA labels"
 kubectl apply -f k8s/base/namespace.yaml
 
-echo "==> Ensuring PSA labels on devonn (restricted)"
-kubectl label namespace devonn \
+echo "==> Ensuring PSA labels on d3vonn (restricted)"
+kubectl label namespace d3vonn \
   pod-security.kubernetes.io/enforce=restricted \
   pod-security.kubernetes.io/warn=restricted \
   pod-security.kubernetes.io/audit=restricted \

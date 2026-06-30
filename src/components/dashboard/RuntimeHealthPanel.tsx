@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — RuntimeHealthPanel
+ * D3VONN — RuntimeHealthPanel
  *
  * Operator dashboard panel showing live runtime health:
  * - API liveness status
@@ -146,11 +146,11 @@ export function RuntimeHealthPanel({
     return data.metrics.metrics.find((m) => m.name === name)?.value ?? 0;
   };
 
-  const contractFailures = getMetricValue("devonn_contract_validation_failure_total");
-  const queueDepth = getMetricValue("devonn_queue_depth");
-  const stuckJobs = getMetricValue("devonn_stuck_job_total");
-  const predictionErrors = getMetricValue("devonn_prediction_error_total");
-  const predictionTotal = getMetricValue("devonn_prediction_total");
+  const contractFailures = getMetricValue("d3vonn_contract_validation_failure_total");
+  const queueDepth = getMetricValue("d3vonn_queue_depth");
+  const stuckJobs = getMetricValue("d3vonn_stuck_job_total");
+  const predictionErrors = getMetricValue("d3vonn_prediction_error_total");
+  const predictionTotal = getMetricValue("d3vonn_prediction_total");
   const errorRate =
     predictionTotal > 0 ? ((predictionErrors / predictionTotal) * 100).toFixed(1) : "0.0";
 

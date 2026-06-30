@@ -5,7 +5,7 @@ export const routesYaml = `# Virtual router and routes
 // Virtual router and routes configuration
 resource "aws_appmesh_virtual_router" "api_router" {
   name      = "api-router"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
 
   spec {
     listener {
@@ -19,7 +19,7 @@ resource "aws_appmesh_virtual_router" "api_router" {
 
 resource "aws_appmesh_virtual_node" "api_canary_node_1" {
   name      = "api-canary-node-1"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
 
   spec {
     listener {
@@ -38,7 +38,7 @@ resource "aws_appmesh_virtual_node" "api_canary_node_1" {
 
 resource "aws_appmesh_virtual_node" "api_canary_node_2" {
   name      = "api-canary-node-2"
-  mesh_name = aws_appmesh_mesh.devonn_mesh.name
+  mesh_name = aws_appmesh_mesh.d3vonn_mesh.name
 
   spec {
     listener {
@@ -57,7 +57,7 @@ resource "aws_appmesh_virtual_node" "api_canary_node_2" {
 
 resource "aws_appmesh_route" "api_route" {
   name                = "api-route"
-  mesh_name           = aws_appmesh_mesh.devonn_mesh.name
+  mesh_name           = aws_appmesh_mesh.d3vonn_mesh.name
   virtual_router_name = aws_appmesh_virtual_router.api_router.name
 
   spec {

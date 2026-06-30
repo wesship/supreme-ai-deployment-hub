@@ -1,5 +1,5 @@
 """
-Devonn.AI optional W&B / Weave instrumentation.
+D3VONN optional W&B / Weave instrumentation.
 
 This module is deliberately fail-open:
 - If WANDB_API_KEY is missing, tracing is disabled.
@@ -55,7 +55,7 @@ def init_weave() -> bool:
         logger.warning("W&B Weave requested but weave package is unavailable; tracing disabled.")
         return False
 
-    project = os.getenv("WANDB_PROJECT", "devonn-ai")
+    project = os.getenv("WANDB_PROJECT", "d3vonn-ai")
     entity = os.getenv("WANDB_ENTITY", "").strip()
     weave_ref = f"{entity}/{project}" if entity else project
 

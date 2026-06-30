@@ -1,5 +1,5 @@
 /**
- * sentry.ts — Devonn.AI Frontend Error Tracking
+ * sentry.ts — D3VONN Frontend Error Tracking
  *
  * Initializes Sentry for browser error tracking, performance monitoring,
  * and session replay. Import and call initSentry() in src/main.tsx before

@@ -1,7 +1,7 @@
 """
 backend/app/observability
 
-Structured audit logging and observability utilities for Devonn.AI.
+Structured audit logging and observability utilities for D3VONN.
 """
 from .audit_log import (
     log_vault_key_create,

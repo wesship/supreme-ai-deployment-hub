@@ -1,7 +1,7 @@
 
 // File list for the deployment manifest
 export const deploymentFilesText = `
-# DEVONN.AI Framework - Deployment File Manifest
+# D3VONN Framework - Deployment File Manifest
 
 ## Frontend Assets
 - /dist/index.html
@@ -32,7 +32,7 @@ export const deploymentFilesText = `
 ## Monitoring & Observability
 - /prometheus/prometheus.yaml
 - /prometheus/alerting-rules.yaml
-- /grafana/dashboards/devonn-ai-dashboard.json
+- /grafana/dashboards/d3vonn-dashboard.json
 - /grafana/datasources/prometheus-datasource.yaml
 - /jaeger/jaeger.yaml
 - /loki/loki.yaml

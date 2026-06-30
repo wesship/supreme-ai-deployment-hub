@@ -1,5 +1,5 @@
 """
-Devonn.ai Memory Module
+D3VONN Memory Module
 
 Provides short-term (in-process) and long-term (Supabase-backed) memory
 for agents and conversations. Supports context window management.

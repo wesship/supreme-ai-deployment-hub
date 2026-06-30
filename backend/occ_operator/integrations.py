@@ -41,7 +41,7 @@ def github_api_get(path: str) -> dict[str, Any]:
         return {"configured": False, "status": "not_configured", "data": {}}
     url = f"https://api.github.com{path}"
     try:
-        request = Request(url, headers={"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "devonn-operator-console"})
+        request = Request(url, headers={"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "d3vonn-operator-console"})
         with urlopen(request, timeout=5) as response:  # noqa: S310 - GitHub API only
             payload = json.loads(response.read().decode("utf-8"))
         return {"configured": True, "status": "ok", "data": payload}
@@ -87,7 +87,7 @@ def loki_status() -> dict[str, Any]:
 
 def loki_query_range(query: str | None = None, limit: int = 50) -> dict[str, Any]:
     base_url = os.getenv("LOKI_URL", "").strip().rstrip("/")
-    log_query = query or os.getenv("LOKI_OPERATOR_QUERY", '{app=~"devonn.*|backend|api"}')
+    log_query = query or os.getenv("LOKI_OPERATOR_QUERY", '{app=~"d3vonn.*|backend|api"}')
     if not base_url:
         return {"configured": False, "status": "not_configured", "query": log_query, "entries": []}
     params = urlencode({"query": log_query, "limit": str(limit), "direction": "BACKWARD"})
@@ -148,7 +148,7 @@ def otel_operator_traces(limit: int = 20) -> dict[str, Any]:
             params = urlencode({"limit": str(limit)})
             url = f"{base_url}/api/search?{params}"
         else:
-            service = os.getenv("JAEGER_SERVICE", "devonn-api")
+            service = os.getenv("JAEGER_SERVICE", "d3vonn-api")
             params = urlencode({"service": service, "limit": str(limit)})
             url = f"{base_url}/api/traces?{params}"
         request = Request(url, headers={"Accept": "application/json"})

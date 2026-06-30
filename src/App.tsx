@@ -164,7 +164,7 @@ function App() {
                 <Route path="/api" element={<APIManagement />} />
                 <Route path="/documentation" element={<Documentation />} />
                 <Route path="/agents" element={<AgentDashboard />} />
-                <Route path="/devonn" element={<DevonnDashboard />} />
+                <Route path="/d3vonn" element={<DevonnDashboard />} />
                 <Route path="/flow" element={<FlowEditor />} />
                 <Route path="/workflows" element={<WorkflowManagement />} />
                 <Route path="/agent-demo" element={<AgentDemo />} />

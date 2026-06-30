@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — Rate Limiting
+D3VONN Backend Proxy — Rate Limiting
 Simple in-memory sliding-window rate limiter per user ID.
 For production at scale, replace with Redis-backed slowapi or similar.
 """

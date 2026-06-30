@@ -3,8 +3,8 @@
  *
  * Replaces the scattered health check logic duplicated across:
  *   - background.js (Chrome extension)
- *   - run_devonn_ai.py (Python orchestrator)
- *   - devonn_mesh_health.py (Phase 7 script)
+ *   - run_d3vonn_ai.py (D3VONN Python orchestrator)
+ *   - d3vonn_mesh_health.py (Phase 7 script)
  *
  * This hook provides a single React-based health status that any component
  * can subscribe to, with automatic polling and Sentry error capture.

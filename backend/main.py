@@ -1,5 +1,5 @@
 """
-backend/main.py — Devonn.AI FastAPI Application Entry Point
+backend/main.py — D3VONN FastAPI Application Entry Point
 
 This is the canonical backend entry point for the supreme-ai-deployment-hub.
 It registers all API routers, middleware, and lifecycle hooks.
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle: connect pools on startup, close on shutdown."""
-    logger.info("Devonn.AI backend starting up…")
+    logger.info("D3VONN backend starting up…")
     if init_weave():
         logger.info("W&B Weave initialized successfully.")
 
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("Devonn.AI backend shutting down…")
+    logger.info("D3VONN backend shutting down…")
     try:
         from backend.db.pool import close_pool  # type: ignore
 
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Devonn.AI API",
+    title="D3VONN API",
     description=(
         "Multi-agent orchestration platform — unified gateway for AI models, "
         "agents, feature flags, task queues, and real-time WebSocket communication."
@@ -284,7 +284,7 @@ async def health_deep():
     pinecone_configured = bool(os.getenv("PINECONE_API_KEY") and os.getenv("PINECONE_INDEX"))
 
     vault_secret_set = bool(os.getenv("API_KEY_VAULT_SECRET"))
-    vault_dir = os.getenv("KEYS_FILE", ".devonn/api-vault/keys.json")
+    vault_dir = os.getenv("KEYS_FILE", ".d3vonn/api-vault/keys.json")
     vault_dir_writable: bool
     try:
         import pathlib

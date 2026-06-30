@@ -3,9 +3,9 @@
 
 export const kubernetesProxyYaml = `# Envoy proxy configuration for EKS
 
-resource "kubernetes_namespace" "devonn" {
+resource "kubernetes_namespace" "d3vonn" {
   metadata {
-    name = "devonn"
+    name = "d3vonn"
   }
   depends_on = [module.eks]    
 }
@@ -14,7 +14,7 @@ resource "kubernetes_namespace" "devonn" {
 // resource "null_resource" "check_secret_exists" {
 //   provisioner "local-exec" {
 //     command = <<EOT
-//       snap=$(kubectl get secret envoy-certs --namespace=devonn > /dev/null 2>&1; echo $?)
+//       snap=$(kubectl get secret envoy-certs --namespace=d3vonn > /dev/null 2>&1; echo $?)
 //       if [ $snap -eq 0 ]; then
 //         echo '{"result": "found"}' > secret_check_result.json
 //       else
@@ -40,7 +40,7 @@ resource "kubernetes_secret" "envoy_certs" {
   count = var.environment == "prod" ? 0 : 0 // Added manually for cluster communication
   metadata {
     name      = "envoy-certs"
-    namespace = "devonn"  
+    namespace = "d3vonn"  
   }
 
   data = {
@@ -62,12 +62,12 @@ resource "kubernetes_deployment" "envoy_proxy" {
 
   depends_on = [
     module.eks,
-    kubernetes_namespace.devonn
+    kubernetes_namespace.d3vonn
   ]  
   
   metadata {
     name      = "envoy-proxy"
-    namespace = kubernetes_namespace.devonn.metadata[0].name
+    namespace = kubernetes_namespace.d3vonn.metadata[0].name
     
     labels = {
       app = "envoy-proxy"
@@ -108,13 +108,13 @@ resource "kubernetes_deployment" "envoy_proxy" {
           # Envoy sidecar config would typically be injected by App Mesh controller
           args = [
             "-c", "/etc/envoy/envoy.yaml",
-            "--service-cluster", "devonn-cluster",
-            "--service-node", "devonn-node"
+            "--service-cluster", "d3vonn-cluster",
+            "--service-node", "d3vonn-node"
           ]
           
           env {
             name  = "APPMESH_RESOURCE_ARN"
-            value = aws_appmesh_mesh.devonn_mesh.arn
+            value = aws_appmesh_mesh.d3vonn_mesh.arn
           }
           
           # mTLS certificate volume mount

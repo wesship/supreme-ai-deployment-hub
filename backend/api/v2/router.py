@@ -1,5 +1,5 @@
 """
-API v2 Router for Devonn.AI
+API v2 Router for D3VONN
 Introduces streaming responses and GraphQL-like sparse fieldsets.
 """
 

@@ -2,7 +2,7 @@
 #!/usr/bin/env node
 
 /**
- * Production Build Optimization Script for Devonn.AI
+ * Production Build Optimization Script for D3VONN
  * 
  * This script performs various optimizations on the production build:
  * 1. Minifies and compresses JS/CSS files
@@ -22,7 +22,7 @@ const assetsDir = path.join(distDir, 'assets');
 const jsDir = path.join(distDir, 'js');
 const cssDir = path.join(distDir, 'css');
 
-console.log('=== Devonn.AI Production Build Optimizer ===');
+console.log('=== D3VONN Production Build Optimizer ===');
 
 // Ensure the dist directory exists
 if (!fs.existsSync(distDir)) {

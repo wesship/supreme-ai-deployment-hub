@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * Devonn.AI — Staging Smoke Tests
+ * D3VONN — Staging Smoke Tests
  *
  * Validates that the deployed staging environment:
  * 1. Returns valid responses from all health/readiness/metrics/version endpoints
@@ -57,7 +57,7 @@ const MOCK_RESPONSES: Record<string, object> = {
     timestamp: new Date().toISOString(),
     metrics: [
       {
-        name: "devonn_request_total",
+        name: "d3vonn_request_total",
         type: "counter",
         value: 1024,
         labels: {},
@@ -65,7 +65,7 @@ const MOCK_RESPONSES: Record<string, object> = {
         updated_at: new Date().toISOString(),
       },
       {
-        name: "devonn_prediction_error_total",
+        name: "d3vonn_prediction_error_total",
         type: "counter",
         value: 3,
         labels: {},
@@ -73,7 +73,7 @@ const MOCK_RESPONSES: Record<string, object> = {
         updated_at: new Date().toISOString(),
       },
       {
-        name: "devonn_queue_depth",
+        name: "d3vonn_queue_depth",
         type: "gauge",
         value: 2,
         labels: {},

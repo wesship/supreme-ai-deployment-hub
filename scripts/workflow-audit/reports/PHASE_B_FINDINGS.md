@@ -35,7 +35,7 @@ Almost every dead reference is a `develop` branch that no longer exists in this 
 ```
 accessibility, ai-model-pipeline, auto-fix, auto-merge, build, bundle-size,
 ci-auth-debugger, codeql, commitlint, cost-optimization, coverage, deploy,
-devonn-deploy, e2e, edge-functions-typecheck, ... (16 more — see full TSV)
+d3vonn-deploy, e2e, edge-functions-typecheck, ... (16 more — see full TSV)
 ```
 
 **Priority B — review the 4 deploy-capable workflows for least-privilege:**

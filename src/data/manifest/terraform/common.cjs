@@ -65,7 +65,7 @@ export const commonConfigYaml = `# --- Common Terraform Configuration ---
 # Recommended: Use S3 backend for team collaboration
 terraform {
   backend "s3" {
-    bucket         = "devonn-terraform-statefile"
+    bucket         = "d3vonn-terraform-statefile"
     key            = "terraform.tfstate"
     region         = "us-west-2"
     dynamodb_table = "terraform-locks"

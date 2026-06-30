@@ -1,5 +1,5 @@
 """
-backend/api/v1/router.py — Devonn.AI REST API v1
+backend/api/v1/router.py — D3VONN REST API v1
 
 Provides stable, versioned endpoints for agents, tasks, feature flags,
 health checks, and WebSocket connections.

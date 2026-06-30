@@ -24,13 +24,13 @@ cleanup() { for pid in "${PIDS[@]:-}"; do kill "$pid" >/dev/null 2>&1 || true; d
 trap cleanup EXIT
 
 log "Installing Python deps..."
-python3 -m pip install -r requirements-devonn.txt
+python3 -m pip install -r requirements-d3vonn.txt
 
 log "Cloning/pulling all org repos..."
 python3 clone_repos_auto.py
 
 log "Starting Hermes orchestrator..."
-python3 run_devonn_ai.py > hermes.log 2>&1 &
+python3 run_d3vonn_ai.py > hermes.log 2>&1 &
 PIDS+=("$!")
 log "Hermes PID: ${PIDS[-1]}"
 

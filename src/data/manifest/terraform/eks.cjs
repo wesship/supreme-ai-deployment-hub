@@ -22,7 +22,7 @@ module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   version         = "21.4.0"
 
-  name    = "devonn-eks-prod"
+  name    = "d3vonn-eks-prod"
   kubernetes_version = local.kubernetes_version
 
   vpc_id          = module.vpc.vpc_id
@@ -116,6 +116,6 @@ resource "aws_iam_openid_connect_provider" "eks_oidc" {
 }
 
 # 5. Connect to your EKS cluster after provisioning
-# Run: aws eks update-kubeconfig --name devonn-eks-\${var.environment} --region \${var.aws_region}
+# Run: aws eks update-kubeconfig --name d3vonn-eks-\${var.environment} --region \${var.aws_region}
 # This will update your kubeconfig file with the new cluster information
 `;

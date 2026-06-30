@@ -1,5 +1,5 @@
 /**
- * Devonn.ai Conversation Store
+ * D3VONN Conversation Store
  * Persists conversations to Supabase (authenticated) or localStorage (anonymous/demo)
  */
 
@@ -24,7 +24,7 @@ export interface Conversation {
   userId?: string;
 }
 
-const LOCAL_KEY = 'devonn_conversations';
+const LOCAL_KEY = 'd3vonn_conversations';
 const MAX_LOCAL_CONVERSATIONS = 10;
 
 // ─── Local Storage (anonymous / demo) ─────────────────────────────────────────

@@ -1,5 +1,5 @@
 
-// Devonn.ai Execution Loop Types
+// D3VONN Execution Loop Types
 
 export type RunStatus = 
   | 'pending' 

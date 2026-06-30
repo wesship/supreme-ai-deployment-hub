@@ -6,8 +6,8 @@
 # =============================================================================
 set -euo pipefail
 
-NAMESPACE="${DEVONN_NAMESPACE:-devonn-prod}"
-CONTROL_PLANE_CM="devonn-runtime-control-plane"
+NAMESPACE="${DEVONN_NAMESPACE:-d3vonn-prod}"
+CONTROL_PLANE_CM="d3vonn-runtime-control-plane"
 REQUIRED_DEPLOYMENTS=("mcp-gateway" "agent-executor" "governance-engine" "observability-collector")
 FAILED=0
 
@@ -29,7 +29,7 @@ log "Checking control plane ConfigMap..."
 if kubectl get configmap "$CONTROL_PLANE_CM" -n "$NAMESPACE" &>/dev/null; then
   pass "ConfigMap '$CONTROL_PLANE_CM' is present"
 else
-  fail "ConfigMap '$CONTROL_PLANE_CM' not found — run: kubectl apply -f k8s/production/control-plane/devonn-control-plane.yaml"
+  fail "ConfigMap '$CONTROL_PLANE_CM' not found — run: kubectl apply -f k8s/production/control-plane/d3vonn-control-plane.yaml"
 fi
 
 # ── 3. Verify GLOBAL_EXECUTION_PAUSE is false ─────────────────────────────────

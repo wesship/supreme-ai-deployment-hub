@@ -6,7 +6,7 @@ provider "aws" {
 # AWS S3 Bucket
 # ----------------------------------------------------
 resource "aws_s3_bucket" "example" {
-  bucket = "devonn-ai-${var.environment}-bucket"
+  bucket = "d3vonn-ai-${var.environment}-bucket"
   acl    = "private"
 
   tags = {

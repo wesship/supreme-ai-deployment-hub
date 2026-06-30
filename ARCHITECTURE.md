@@ -1,4 +1,4 @@
-# Devonn.AI Deployment Hub — Platform Architecture
+# D3VONN Deployment Hub — Platform Architecture
 
 > **Version:** `platform-v24.0`  
 > **Last Updated:** May 2026  

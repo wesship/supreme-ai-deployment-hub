@@ -144,7 +144,7 @@ describe('PredictionDashboardPanel', () => {
       predictions: [],
       advisories: [],
       isLoading: false,
-      error: 'Backend unavailable at https://devonn-api.example.com/api/operator/predictions — <html>noise</html>',
+      error: 'Backend unavailable at https://d3vonn-api.example.com/api/operator/predictions — <html>noise</html>',
     });
     expect(() => render(<PredictionDashboardPanel />)).not.toThrow();
     // Error message should be displayed as escaped text, not rendered as HTML tags

@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — Tests
+D3VONN Backend Proxy — Tests
 Covers all proxy routes: /api/chat, /api/rag/*, /api/tools/*.
 Uses httpx.AsyncClient with FastAPI's ASGI transport (no real network calls).
 External API calls are mocked with unittest.mock.patch.
@@ -154,7 +154,7 @@ class TestRAGProxy:
             "chunks": [
                 {
                     "id": "test_chunk_0",
-                    "text": "This is a test document about Devonn.ai.",
+                    "text": "This is a test document about D3VONN.",
                     "metadata": {
                         "source": "test.txt",
                         "filename": "test.txt",
@@ -194,10 +194,10 @@ class TestRAGProxy:
 
             mock_embed.return_value = [[0.1] * 768]
             mock_query.return_value = [
-                {"metadata": {"text": "Devonn.ai is an AI platform.", "source": "test.txt"}, "score": 0.92}
+                {"metadata": {"text": "D3VONN is an AI platform.", "source": "test.txt"}, "score": 0.92}
             ]
 
-            resp = client.post("/api/rag/retrieve", json={"query": "What is Devonn.ai?", "topK": 3})
+            resp = client.post("/api/rag/retrieve", json={"query": "What is D3VONN?", "topK": 3})
 
         assert resp.status_code == 200
         data = resp.json()

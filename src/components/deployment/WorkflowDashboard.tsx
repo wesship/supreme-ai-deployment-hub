@@ -70,7 +70,7 @@ const WorkflowDashboard: React.FC = () => {
           startTime: '2024-01-15T10:30:00Z',
           duration: '4m 32s',
           environment: 'production',
-          url: 'https://github.com/devonn/supreme-ai/actions/runs/123'
+          url: 'https://github.com/wesship/supreme-ai-deployment-hub/actions/runs/123'
         },
         {
           id: '2',
@@ -82,7 +82,7 @@ const WorkflowDashboard: React.FC = () => {
           startTime: '2024-01-15T11:15:00Z',
           duration: '2m 18s',
           environment: 'staging',
-          url: 'https://github.com/devonn/supreme-ai/actions/runs/124'
+          url: 'https://github.com/wesship/supreme-ai-deployment-hub/actions/runs/124'
         },
         {
           id: '3',
@@ -94,7 +94,7 @@ const WorkflowDashboard: React.FC = () => {
           startTime: '2024-01-15T09:45:00Z',
           duration: '1m 52s',
           environment: 'production',
-          url: 'https://github.com/devonn/supreme-ai/actions/runs/125'
+          url: 'https://github.com/wesship/supreme-ai-deployment-hub/actions/runs/125'
         }
       ];
 

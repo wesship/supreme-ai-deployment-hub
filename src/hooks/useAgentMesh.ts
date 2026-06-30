@@ -1,5 +1,5 @@
 /**
- * useAgentMesh.ts — React hook for dispatching tasks to the Devonn.AI Agent Mesh
+ * useAgentMesh.ts — React hook for dispatching tasks to the D3VONN Agent Mesh
  *
  * Provides a type-safe interface for the React frontend to communicate with
  * the backend agent mesh REST API (backend/agents/router.py).
@@ -8,7 +8,7 @@
  *   const { dispatch, isLoading, result, error } = useAgentMesh();
  *
  *   await dispatch({
- *     agent_name: 'devonn-coordinator',
+ *     agent_name: 'd3vonn-coordinator',
  *     action: 'plan',
  *     payload: { goal: 'Build a REST API' },
  *   });

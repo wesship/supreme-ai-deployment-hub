@@ -8,7 +8,7 @@ Exposes:
   DELETE /api/proxy/vault/keys/{name}   — remove a key
 
 The vault is backed by environment variables first, then an encrypted
-JSON file at KEYS_FILE (default: .devonn/api-vault/keys.json).
+JSON file at KEYS_FILE (default: .d3vonn/api-vault/keys.json).
 API_KEY_VAULT_SECRET is the Fernet encryption key for the vault file.
 If it is not set the vault operates in env-only / plaintext mode.
 
@@ -42,7 +42,7 @@ router = APIRouter(prefix="/proxy", tags=["proxy-config"])
 # Vault helpers
 # ---------------------------------------------------------------------------
 _VAULT_SECRET = os.getenv("API_KEY_VAULT_SECRET", "")
-_KEYS_FILE = Path(os.getenv("KEYS_FILE", ".devonn/api-vault/keys.json"))
+_KEYS_FILE = Path(os.getenv("KEYS_FILE", ".d3vonn/api-vault/keys.json"))
 
 
 def _get_cipher():

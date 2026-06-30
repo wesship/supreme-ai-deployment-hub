@@ -1,0 +1,135 @@
+---
+# Observability Collector: aggregates traces, metrics, and governance telemetry
+# Feeds ObservabilityGraph and SystemHealthModel (Wave 31)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observability-collector
+  namespace: d3vonn-prod
+  labels:
+    app: observability-collector
+    app.kubernetes.io/component: observability-collector
+    app.kubernetes.io/part-of: d3vonn-platform
+    version: "1.0.0"
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: observability-collector
+  template:
+    metadata:
+      labels:
+        app: observability-collector
+        version: "1.0.0"
+    spec:
+      serviceAccountName: observability-collector
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: observability-collector
+          image: ${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/observability-collector:${IMAGE_TAG}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8083
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: OTEL_EXPORTER_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: d3vonn-platform-config
+                  key: otel-exporter-endpoint
+            - name: HEALTH_SCORE_WINDOW_MS
+              value: "300000"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: buffer
+              mountPath: /var/buffer
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: buffer
+          emptyDir:
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: observability-collector
+  namespace: d3vonn-prod
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: observability-collector
+  namespace: d3vonn-prod
+  labels:
+    app: observability-collector
+spec:
+  selector:
+    app: observability-collector
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+  type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: observability-collector
+  namespace: d3vonn-prod
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: observability-collector

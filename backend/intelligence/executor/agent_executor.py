@@ -1,5 +1,5 @@
 """
-Devonn.ai Agent Executor
+D3VONN Agent Executor
 
 Autonomous task execution loop. Given a task description, the executor
 uses the LLM to reason, select tools, execute them, and iterate until
@@ -153,7 +153,7 @@ class AgentExecutor:
         """Build the system prompt for the agent."""
         tool_list = "\n".join([f"- {name}" for name in self._tool_handlers.keys()]) or "- none"
         ctx_str = json.dumps(context, indent=2) if context else "{}"
-        return f"""You are a Devonn.ai autonomous agent.
+        return f"""You are a D3VONN autonomous agent.
 You execute tasks step by step using available tools.
 
 Available tools:

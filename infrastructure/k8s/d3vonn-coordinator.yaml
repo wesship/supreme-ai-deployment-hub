@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: d3vonn-coordinator
+  namespace: d3vonn-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: d3vonn-coordinator
+  template:
+    metadata:
+      labels:
+        app: d3vonn-coordinator
+    spec:
+      containers:
+        - name: app
+          image: d3vonn/d3vonn-coordinator:latest
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: d3vonn-coordinator
+  namespace: d3vonn-system
+spec:
+  selector:
+    app: d3vonn-coordinator
+  ports:
+    - port: 80
+      targetPort: 8000

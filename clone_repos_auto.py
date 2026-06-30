@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-clone_repos_auto.py — Clone or pull all repos for the Devonn.ai Auto-Healer Mesh.
+clone_repos_auto.py — Clone or pull all repos for the D3VONN Auto-Healer Mesh.
 
 Reads ORGANIZATION, WORKSPACE_DIR, GITHUB_TOKEN, and CLONE_PROTOCOL from the
 environment (loaded by run_all.sh from .env).
@@ -20,11 +20,11 @@ REPOS = [
     "central-orchestrator",
     "openclaw-gateway",
     "openclaw-macmini",
-    "devonnaiwarroom",
+    "d3vonnwarroom",
     "Claw---Devonn",
     "openclaw",
-    "devonn-autonomous-upgrade",
-    "devonn-dashboard",
+    "d3vonn-autonomous-upgrade",
+    "d3vonn-dashboard",
 ]
 
 

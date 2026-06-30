@@ -1,5 +1,5 @@
 /**
- * ai-proxy — Devonn.AI Supabase Edge Function
+ * ai-proxy — D3VONN Supabase Edge Function
  *
  * A secure proxy for OpenAI API calls that:
  *   1. Validates the user's Supabase JWT before forwarding the request

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/security_audit.py — Devonn.AI Phase 4 Security Audit
+scripts/security_audit.py — D3VONN Phase 4 Security Audit
 
 Automatically verifies all six security requirements from the Phase 4 scope:
   1. No key echo — key values are never returned in API responses
@@ -272,7 +272,7 @@ def check_no_secrets_in_layers(repo: Path, r: Results) -> None:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Devonn.AI Phase 4 Security Audit")
+    parser = argparse.ArgumentParser(description="D3VONN Phase 4 Security Audit")
     parser.add_argument("--repo-root", default=".", help="Path to the repository root")
     args = parser.parse_args()
 
@@ -281,7 +281,7 @@ def main() -> None:
 
     print()
     print("╔══════════════════════════════════════════════════════╗")
-    print("║       Devonn.AI Security Audit — Phase 4             ║")
+    print("║       D3VONN Security Audit — Phase 4             ║")
     print("╚══════════════════════════════════════════════════════╝")
     print(f"  Repository: {repo}")
 

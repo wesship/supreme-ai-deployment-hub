@@ -28,7 +28,7 @@ export interface GStackAgentDefinition {
   readonly name: string;
   readonly layer: GStackLayer;
   readonly role: string;
-  readonly devonnContext: string;
+  readonly d3vonnContext: string;
   readonly defaultInputs: readonly string[];
   readonly defaultOutputs: readonly string[];
   readonly allowedActions: readonly string[];

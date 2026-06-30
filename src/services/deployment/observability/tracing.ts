@@ -18,7 +18,7 @@ export interface TracingOptions {
 // Create a default configuration
 const defaultTracingOptions: TracingOptions = {
   provider: 'none',
-  serviceName: 'devonn-deployment',
+  serviceName: 'd3vonn-deployment',
   environment: 'development',
   enabled: false,
   samplingRate: 0.1,

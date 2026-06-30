@@ -1,5 +1,5 @@
 """
-backend/rag/router.py — Protected RAG upload/query endpoints for Devonn.ai.
+backend/rag/router.py — Protected RAG upload/query endpoints for D3VONN.
 """
 from __future__ import annotations
 

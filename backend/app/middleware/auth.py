@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — Auth Middleware
+D3VONN Backend Proxy — Auth Middleware
 Verifies Supabase JWT tokens from the Authorization header.
 Provides a FastAPI dependency: get_current_user_id
 

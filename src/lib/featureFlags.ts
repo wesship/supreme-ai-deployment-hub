@@ -1,5 +1,5 @@
 /**
- * featureFlags.ts — Devonn.AI Feature Flag System
+ * featureFlags.ts — D3VONN Feature Flag System
  *
  * Provides a lightweight, type-safe feature flag system backed by Supabase.
  * Flags can be toggled remotely without a code deployment.
@@ -49,7 +49,7 @@ const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey);
 
 // ── Flag Resolution ───────────────────────────────────────────────────────────
 
-const LOCAL_STORAGE_KEY = 'devonn_flag_overrides';
+const LOCAL_STORAGE_KEY = 'd3vonn_flag_overrides';
 
 function getLocalOverrides(): Partial<FeatureFlags> {
   try {

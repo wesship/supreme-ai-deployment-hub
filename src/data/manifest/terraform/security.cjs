@@ -9,9 +9,9 @@ variable "create_cloudtrail" {
 }
 
 # AWS CloudTrail for AWS API auditing
-resource "aws_cloudtrail" "devonn_cloudtrail" {
+resource "aws_cloudtrail" "d3vonn_cloudtrail" {
   count                      = var.environment == "prod" && var.create_cloudtrail ? 1 : 0
-  name                          = "devonn-cloudtrail-\${var.environment}"
+  name                          = "d3vonn-cloudtrail-\${var.environment}"
   s3_bucket_name                = aws_s3_bucket.cloudtrail_bucket[0].id
   include_global_service_events = true
   is_multi_region_trail         = true
@@ -31,7 +31,7 @@ resource "aws_cloudtrail" "devonn_cloudtrail" {
 # S3 bucket for CloudTrail logs
 resource "aws_s3_bucket" "cloudtrail_bucket" {
   count                      = var.environment == "prod" && var.create_cloudtrail ? 1 : 0
-  bucket = "devonn-cloudtrail-\${var.environment}-\${random_id.bucket_suffix[0].hex}"
+  bucket = "d3vonn-cloudtrail-\${var.environment}-\${random_id.bucket_suffix[0].hex}"
 }
 
 # CloudTrail bucket random suffix
@@ -112,7 +112,7 @@ resource "aws_flow_log" "vpc_flow_logs" {
 # Log group for VPC Flow Logs
 resource "aws_cloudwatch_log_group" "flow_log_group" {
   count             = var.environment == "prod" ? 1 : 0
-  name              = "/aws/vpc-flow-logs/devonn-vpc-\${var.environment}"
+  name              = "/aws/vpc-flow-logs/d3vonn-vpc-\${var.environment}"
   retention_in_days = 30
 }
 
@@ -124,7 +124,7 @@ variable "create_vpc_flow_log_role" {
 # IAM role for VPC Flow Logs
 resource "aws_iam_role" "vpc_flow_log_role" {
   count = var.environment == "prod" && var.create_vpc_flow_log_role ? 1 : 0
-  name  = "devonn-vpc-flow-log-role-\${var.environment}"
+  name  = "d3vonn-vpc-flow-log-role-\${var.environment}"
   
   assume_role_policy = <<EOF
 {
@@ -149,7 +149,7 @@ EOF
 # IAM policy for VPC Flow Logs
 resource "aws_iam_role_policy" "vpc_flow_log_policy" {
   count = var.environment == "prod" && var.create_vpc_flow_log_role ? 1 : 0
-  name  = "devonn-vpc-flow-log-policy-\${var.environment}"
+  name  = "d3vonn-vpc-flow-log-policy-\${var.environment}"
   role  = aws_iam_role.vpc_flow_log_role[0].id
   
   policy = <<EOF
@@ -177,9 +177,9 @@ EOF
 }
 
 # AWS Config for compliance monitoring (production only)
-resource "aws_config_configuration_recorder" "devonn_config" {
+resource "aws_config_configuration_recorder" "d3vonn_config" {
   count    = var.environment == "prod" ? 1 : 0
-  name     = "devonn-config-recorder-\${var.environment}"
+  name     = "d3vonn-config-recorder-\${var.environment}"
   role_arn = aws_iam_role.config_role[0].arn
   
   recording_group {
@@ -191,7 +191,7 @@ resource "aws_config_configuration_recorder" "devonn_config" {
 # IAM role for AWS Config
 resource "aws_iam_role" "config_role" {
   count = var.environment == "prod" ? 1 : 0
-  name  = "devonn-config-role-\${var.environment}"
+  name  = "d3vonn-config-role-\${var.environment}"
   
   assume_role_policy = <<EOF
 {
@@ -224,35 +224,35 @@ resource "aws_iam_role_policy_attachment" "config_policy_attachment" {
 
 # 1. AWS GuardDuty for threat detection (production only)
 # AWS GuardDuty Detector (enables GuardDuty)
-resource "aws_guardduty_detector" "devonn_guardduty" {
+resource "aws_guardduty_detector" "d3vonn_guardduty" {
   count                    = var.enable_guardduty && var.environment == "prod" ? 1 : 0
   enable                   = var.enable_guardduty
   finding_publishing_frequency = "ONE_HOUR"
 }
 
 resource "aws_guardduty_detector_feature" "s3_data_events" {
-    count      = var.environment == "prod" && length(aws_guardduty_detector.devonn_guardduty) > 0 ? 1 : 0
-  detector_id = aws_guardduty_detector.devonn_guardduty[0].id
+    count      = var.environment == "prod" && length(aws_guardduty_detector.d3vonn_guardduty) > 0 ? 1 : 0
+  detector_id = aws_guardduty_detector.d3vonn_guardduty[0].id
   name        = "S3_DATA_EVENTS"
   status      = "DISABLED"
 }
 
 resource "aws_guardduty_detector_feature" "eks_audit_logs" {
-  count      = var.environment == "prod" && length(aws_guardduty_detector.devonn_guardduty) > 0 ? 1 : 0
-  detector_id = aws_guardduty_detector.devonn_guardduty[0].id
+  count      = var.environment == "prod" && length(aws_guardduty_detector.d3vonn_guardduty) > 0 ? 1 : 0
+  detector_id = aws_guardduty_detector.d3vonn_guardduty[0].id
   name        = "EKS_AUDIT_LOGS"
   status      = "DISABLED"
 }
 
 resource "aws_guardduty_detector_feature" "ebs_malware_protection" {
-  count      = var.environment == "prod" && length(aws_guardduty_detector.devonn_guardduty) > 0 ? 1 : 0
-  detector_id = aws_guardduty_detector.devonn_guardduty[0].id
+  count      = var.environment == "prod" && length(aws_guardduty_detector.d3vonn_guardduty) > 0 ? 1 : 0
+  detector_id = aws_guardduty_detector.d3vonn_guardduty[0].id
   name        = "EBS_MALWARE_PROTECTION"
   status      = "DISABLED"
 }
 
 # 2. AWS Security Hub to manage security posture
-resource "aws_securityhub_account" "devonn_securityhub" {
+resource "aws_securityhub_account" "d3vonn_securityhub" {
   count = var.enable_securityhub && var.environment == "prod" ? 1 : 0
 }
 
@@ -260,13 +260,13 @@ resource "aws_securityhub_account" "devonn_securityhub" {
 resource "aws_securityhub_standards_subscription" "cis_aws_foundations" {
   count          = var.enable_securityhub && var.environment == "prod" ? 1 : 0
   standards_arn  = "arn:aws:securityhub:\${var.aws_region}::standards/cis-aws-foundations-benchmark/v/1.2.0"
-  depends_on     = [aws_securityhub_account.devonn_securityhub]
+  depends_on     = [aws_securityhub_account.d3vonn_securityhub]
 }
 
 resource "aws_securityhub_standards_subscription" "aws_foundational" {
   count          = var.enable_securityhub && var.environment == "prod" ? 1 : 0
   standards_arn  = "arn:aws:securityhub:\${var.aws_region}::standards/aws-foundational-security-best-practices/v/1.0.0"
-  depends_on     = [aws_securityhub_account.devonn_securityhub]
+  depends_on     = [aws_securityhub_account.d3vonn_securityhub]
 }
 
 # 3. Network ACLs for additional network security
@@ -306,7 +306,7 @@ resource "aws_network_acl" "private_nacl" {
   }
   
   tags = {
-    Name        = "devonn-private-nacl-\${var.environment}"
+    Name        = "d3vonn-private-nacl-\${var.environment}"
     Environment = var.environment
   }
 }
@@ -357,15 +357,15 @@ resource "aws_network_acl" "public_nacl" {
   }
   
   tags = {
-    Name        = "devonn-public-nacl-\${var.environment}"
+    Name        = "d3vonn-public-nacl-\${var.environment}"
     Environment = var.environment
   }
 }
 
 # 4. Enhanced monitoring with custom CloudWatch dashboards and SNS
-resource "aws_cloudwatch_dashboard" "devonn_dashboard" {
+resource "aws_cloudwatch_dashboard" "d3vonn_dashboard" {
   count          = var.environment == "prod" ? 1 : 0
-  dashboard_name = "devonn-\${var.environment}-monitoring"
+  dashboard_name = "d3vonn-\${var.environment}-monitoring"
   
   dashboard_body = <<EOF
 {
@@ -378,8 +378,8 @@ resource "aws_cloudwatch_dashboard" "devonn_dashboard" {
       "height": 6,
       "properties": {
         "metrics": [
-          ["AWS/EKS", "cluster_failed_node_count", "ClusterName", "devonn-eks-\${var.environment}"],
-          ["AWS/EKS", "node_cpu_utilization", "ClusterName", "devonn-eks-\${var.environment}"]
+          ["AWS/EKS", "cluster_failed_node_count", "ClusterName", "d3vonn-eks-\${var.environment}"],
+          ["AWS/EKS", "node_cpu_utilization", "ClusterName", "d3vonn-eks-\${var.environment}"]
         ],
         "period": 300,
         "stat": "Average",
@@ -395,9 +395,9 @@ resource "aws_cloudwatch_dashboard" "devonn_dashboard" {
       "height": 6,
       "properties": {
         "metrics": [
-          ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "devonn-postgres-\${var.environment}"],
-          ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", "devonn-postgres-\${var.environment}"],
-          ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", "devonn-postgres-\${var.environment}"]
+          ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "d3vonn-postgres-\${var.environment}"],
+          ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", "d3vonn-postgres-\${var.environment}"],
+          ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", "d3vonn-postgres-\${var.environment}"]
         ],
         "period": 300,
         "stat": "Average",
@@ -413,9 +413,9 @@ resource "aws_cloudwatch_dashboard" "devonn_dashboard" {
       "height": 6,
       "properties": {
         "metrics": [
-          ["AWS/Lambda", "Invocations", "FunctionName", "devonn-api-handler"],
-          ["AWS/Lambda", "Errors", "FunctionName", "devonn-api-handler"],
-          ["AWS/Lambda", "Duration", "FunctionName", "devonn-api-handler"]
+          ["AWS/Lambda", "Invocations", "FunctionName", "d3vonn-api-handler"],
+          ["AWS/Lambda", "Errors", "FunctionName", "d3vonn-api-handler"],
+          ["AWS/Lambda", "Duration", "FunctionName", "d3vonn-api-handler"]
         ],
         "period": 300,
         "stat": "Sum",
@@ -431,9 +431,9 @@ resource "aws_cloudwatch_dashboard" "devonn_dashboard" {
       "height": 6,
       "properties": {
         "metrics": [
-          ["AWS/NetworkELB", "HealthyHostCount", "LoadBalancer", "app/devonn-nlb/\${var.environment}"],
-          ["AWS/NetworkELB", "UnHealthyHostCount", "LoadBalancer", "app/devonn-nlb/\${var.environment}"],
-          ["AWS/NetworkELB", "RequestCount", "LoadBalancer", "app/devonn-nlb/\${var.environment}"]
+          ["AWS/NetworkELB", "HealthyHostCount", "LoadBalancer", "app/d3vonn-nlb/\${var.environment}"],
+          ["AWS/NetworkELB", "UnHealthyHostCount", "LoadBalancer", "app/d3vonn-nlb/\${var.environment}"],
+          ["AWS/NetworkELB", "RequestCount", "LoadBalancer", "app/d3vonn-nlb/\${var.environment}"]
         ],
         "period": 300,
         "stat": "Average",
@@ -449,13 +449,13 @@ EOF
 # 5. Create SNS Topic for Alerts
 resource "aws_sns_topic" "alerts_topic" {
   count  = var.environment == "prod" ? 1 : 0
-  name   = "devonn-alerts-\${var.environment}"
+  name   = "d3vonn-alerts-\${var.environment}"
 }
 
 # 6. Add CloudWatch Alarms with SNS Integration
 resource "aws_cloudwatch_metric_alarm" "rds_cpu_alarm" {
   count               = var.environment == "prod" ? 1 : 0
-  alarm_name          = "devonn-rds-cpu-high-\${var.environment}"
+  alarm_name          = "d3vonn-rds-cpu-high-\${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "CPUUtilization"
@@ -468,13 +468,13 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_alarm" {
   ok_actions          = [aws_sns_topic.alerts_topic[0].arn]
   
   dimensions = {
-    DBInstanceIdentifier = "devonn-postgres-\${var.environment}"
+    DBInstanceIdentifier = "d3vonn-postgres-\${var.environment}"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "rds_storage_alarm" {
   count               = var.environment == "prod" ? 1 : 0
-  alarm_name          = "devonn-rds-storage-low-\${var.environment}"
+  alarm_name          = "d3vonn-rds-storage-low-\${var.environment}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 1
   metric_name         = "FreeStorageSpace"
@@ -487,13 +487,13 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_alarm" {
   ok_actions          = [aws_sns_topic.alerts_topic[0].arn]
   
   dimensions = {
-    DBInstanceIdentifier = "devonn-postgres-\${var.environment}"
+    DBInstanceIdentifier = "d3vonn-postgres-\${var.environment}"
   }
 }
 
 resource "aws_cloudwatch_metric_alarm" "eks_node_failure_alarm" {
   count               = var.environment == "prod" ? 1 : 0
-  alarm_name          = "devonn-eks-node-failure-\${var.environment}"
+  alarm_name          = "d3vonn-eks-node-failure-\${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   metric_name         = "cluster_failed_node_count"
@@ -506,7 +506,7 @@ resource "aws_cloudwatch_metric_alarm" "eks_node_failure_alarm" {
   ok_actions          = [aws_sns_topic.alerts_topic[0].arn]
   
   dimensions = {
-    ClusterName = "devonn-eks-\${var.environment}"
+    ClusterName = "d3vonn-eks-\${var.environment}"
   }
 }
 
@@ -529,7 +529,7 @@ resource "aws_kms_key" "rds_backup_key" {
 # 9. Implement auto-scaling for EKS node groups with cost optimization
 resource "aws_autoscaling_policy" "scale_down_policy" {
   count                  = var.environment == "prod" ? 1 : 0
-  name                   = "devonn-eks-scale-down-\${var.environment}"
+  name                   = "d3vonn-eks-scale-down-\${var.environment}"
   autoscaling_group_name = module.eks.eks_managed_node_groups["dev_nodes"].node_group_autoscaling_group_names[0]
   adjustment_type        = "ChangeInCapacity"
   scaling_adjustment     = -1
@@ -538,7 +538,7 @@ resource "aws_autoscaling_policy" "scale_down_policy" {
 
 resource "aws_autoscaling_policy" "scale_up_policy" {
   count                  = var.environment == "prod" ? 1 : 0
-  name                   = "devonn-eks-scale-up-\${var.environment}"
+  name                   = "d3vonn-eks-scale-up-\${var.environment}"
   autoscaling_group_name = module.eks.eks_managed_node_groups["dev_nodes"].node_group_autoscaling_group_names[0]
   adjustment_type        = "ChangeInCapacity"
   scaling_adjustment     = 1
@@ -548,7 +548,7 @@ resource "aws_autoscaling_policy" "scale_up_policy" {
 # 10. CloudWatch Alarm for Scale Down
 resource "aws_cloudwatch_metric_alarm" "cpu_low_alarm" {
   count               = var.environment == "prod" ? 1 : 0
-  alarm_name          = "devonn-eks-cpu-low-\${var.environment}"
+  alarm_name          = "d3vonn-eks-cpu-low-\${var.environment}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 3
   metric_name         = "node_cpu_utilization"
@@ -560,14 +560,14 @@ resource "aws_cloudwatch_metric_alarm" "cpu_low_alarm" {
   alarm_actions       = [aws_autoscaling_policy.scale_down_policy[0].arn]
   
   dimensions = {
-    ClusterName = "devonn-eks-\${var.environment}"
+    ClusterName = "d3vonn-eks-\${var.environment}"
   }
 }
 
 # 11. CloudWatch Alarm for Scale Up
 resource "aws_cloudwatch_metric_alarm" "cpu_high_alarm" {
   count               = var.environment == "prod" ? 1 : 0
-  alarm_name          = "devonn-eks-cpu-high-\${var.environment}"
+  alarm_name          = "d3vonn-eks-cpu-high-\${var.environment}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "node_cpu_utilization"
@@ -579,7 +579,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high_alarm" {
   alarm_actions       = [aws_autoscaling_policy.scale_up_policy[0].arn]
   
   dimensions = {
-    ClusterName = "devonn-eks-\${var.environment}"
+    ClusterName = "d3vonn-eks-\${var.environment}"
   }
 }
 
@@ -591,11 +591,11 @@ provider "aws" {
   secret_key = var.aws_secret_key
   default_tags {
     tags = {
-    Project     = "devonn-ai"
+    Project     = "d3vonn"
     Environment = var.environment
     ManagedBy   = "terraform"
     CostCenter  = "engineering"
-    Application = "devonn-\${var.environment}"
+    Application = "d3vonn-\${var.environment}"
     Owner       = "devops-team"
     }
   }

@@ -52,14 +52,14 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({
       region: prov === 'aws' ? 'us-west-2' : 
               prov === 'azure' ? 'eastus' : 
               prov === 'gcp' ? 'us-central1' : '',
-      clusterName: `devonn-${env}`,
+      clusterName: `d3vonn-${env}`,
       namespace: 'default',
       useExistingCluster: false,
-      resourcePrefix: `devonn-${env}`,
+      resourcePrefix: `d3vonn-${env}`,
       tags: {
         environment: env,
         project: 'd3vonn-io',
-        managedBy: 'devonn-dashboard'
+        managedBy: 'd3vonn-dashboard'
       }
     });
   }, [logger]);

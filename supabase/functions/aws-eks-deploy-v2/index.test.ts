@@ -62,7 +62,7 @@ const titles = (actions: PlannedAction[]) => actions.map((a) => a.title);
 Deno.test("dry-run [deploy]: returns deploy-specific planned actions", async () => {
   const { status, body } = await postDryRun({
     operation: "deploy",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
   });
   assertEquals(status, 200);
@@ -96,7 +96,7 @@ Deno.test("dry-run [validate]: returns validate-specific planned actions", async
 Deno.test("dry-run [status]: read-only plan, accepts 'status' alias", async () => {
   const { status, body } = await postDryRun({
     operation: "status",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
   });
   assertEquals(status, 200);
@@ -107,7 +107,7 @@ Deno.test("dry-run [status]: read-only plan, accepts 'status' alias", async () =
 Deno.test("dry-run [delete]: includes deletion step, accepts 'delete' alias", async () => {
   const { status, body } = await postDryRun({
     operation: "delete",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
   });
   assertEquals(status, 200);
@@ -163,7 +163,7 @@ Deno.test("validation: rejects invalid clusterName", async () => {
 Deno.test("validation: rejects nodeCount out of range", async () => {
   const { status, body } = await postDryRun({
     operation: "deploy",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
     nodeCount: 9999,
   });
@@ -327,7 +327,7 @@ Deno.test("idempotency: error responses also include the key", async () => {
 Deno.test("dry-run: response includes a diff report (current/desired/changes/summary)", async () => {
   const { body } = await postDryRun({
     operation: "deploy",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
     nodeCount: 3,
   });
@@ -335,7 +335,7 @@ Deno.test("dry-run: response includes a diff report (current/desired/changes/sum
   assertEquals(body.diff.current, "unknown");
   assertExists(body.diff.desired);
   assertEquals(body.diff.desired.operation, "deploy");
-  assertEquals(body.diff.desired.clusterName, "devonn-eks-prod");
+  assertEquals(body.diff.desired.clusterName, "d3vonn-eks-prod");
   assertEquals(body.diff.desired.nodeCount, 3);
   assert(Array.isArray(body.diff.changes) && body.diff.changes.length > 0);
   // Diff summary aggregates risk + mutation counts
@@ -354,7 +354,7 @@ Deno.test("response shape: includes durationMs for observability", async () => {
 Deno.test("response shape: includes structured metrics block", async () => {
   const { body } = await postDryRun({
     operation: "deploy",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
   });
   assertExists(body.metrics, "Response should include a metrics field");
@@ -367,7 +367,7 @@ Deno.test("response shape: includes structured metrics block", async () => {
 Deno.test("backward-compat: response includes plannedActionTitles (string[])", async () => {
   const { body } = await postDryRun({
     operation: "deploy",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
   });
   assert(Array.isArray(body.plannedActionTitles), "plannedActionTitles must be an array");
@@ -470,7 +470,7 @@ Deno.test("CORS: preflight advertises the new tracing headers", async () => {
 Deno.test("golden contract: dry-run response includes every documented field", async () => {
   const { status, headers, body } = await postDryRun({
     operation: "deploy",
-    clusterName: "devonn-eks-prod",
+    clusterName: "d3vonn-eks-prod",
     region: "us-east-1",
     nodeCount: 3,
   });

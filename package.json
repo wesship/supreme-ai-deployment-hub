@@ -1,7 +1,15 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "@d3vonn/platform",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0-alpha.1",
+  "description": "D3VONN.IO — AI Business Operating System",
+  "homepage": "https://d3vonn.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wesship/supreme-ai-deployment-hub"
+  },
+  "author": "D3VONN Team",
+  "license": "UNLICENSED",
   "type": "module",
   "packageManager": "pnpm@9.15.9",
   "scripts": {
@@ -13,7 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:extension": "vitest run src/extension/__tests__/ --passWithNoTests",
+    "test:extension": "vitest run integrations/extension/src/__tests__/ --passWithNoTests",
     "test:e2e": "playwright test",
     "typecheck": "npx tsc --noEmit",
     "ci:doctor": "bash scripts/ci-doctor.sh",
@@ -22,12 +30,12 @@
     "repo:entropy": "bash scripts/repo-entropy-scan.sh",
     "pins:validate": "bash scripts/action-pin-validator.sh",
     "security:scan": "node scripts/secret-scan.mjs",
-    "devonnbench:security": "python -m devonnbench.cli run devonnbench/suites/security-smoke.yaml --base-url ${DEVONN_BASE_URL:-http://localhost:8000} --env ${DEVONN_ENV:-local} --threshold 100",
+    "d3vonnbench:security": "python -m d3vonnbench.cli run agents/d3vonnbench/suites/security-smoke.yaml --base-url ${DEVONN_BASE_URL:-http://localhost:8000} --env ${DEVONN_ENV:-local} --threshold 100",
     "audit:repo": "pnpm security:scan && pnpm lint && pnpm typecheck && pnpm test",
     "memory:export": "node scripts/memory-tree-export.mjs",
     "memory:compress": "node scripts/tokenjuice-lite.mjs",
     "connectors:audit": "node scripts/connector-inventory.mjs",
-    "validate:speech": "node deployment/scripts/validate-speech-support.js"
+    "validate:speech": "node infrastructure/deployment/scripts/validate-speech-support.js"
   },
   "dependencies": {
     "@11labs/react": "^0.2.0",

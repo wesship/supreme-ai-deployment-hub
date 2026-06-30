@@ -298,7 +298,7 @@ Capabilities:
     capabilities: ['integration', 'scheduling', 'monitoring', 'reporting', 'ml-powered'],
     pricing: { model: 'subscription', amount: 149, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 13
@@ -337,7 +337,7 @@ Use it to answer:
     capabilities: ['reporting', 'monitoring', 'ml-powered', 'scheduling'],
     pricing: { model: 'subscription', amount: 99, currency: 'USD', interval: 'monthly' },
     author: {
-      id: 'devonn',
+      id: 'd3vonn',
       name: 'D3VONN.IO',
       verified: true,
       agentCount: 13

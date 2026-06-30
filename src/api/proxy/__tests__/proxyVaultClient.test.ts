@@ -49,7 +49,7 @@ describe('getProxyConfig', () => {
     const payload = {
       mode: 'env-first',
       status: 'active',
-      vaultPath: '.devonn/api-vault/keys.json',
+      vaultPath: '.d3vonn/api-vault/keys.json',
       keysConfigured: 3,
       vaultEncrypted: false,
     };

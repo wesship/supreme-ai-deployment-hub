@@ -105,7 +105,7 @@ export class McpClient {
         roots: { listChanged: true },
       },
       clientInfo: {
-        name: "devonn-mcp-client",
+        name: "d3vonn-mcp-client",
         version: "1.0.0",
       },
     });

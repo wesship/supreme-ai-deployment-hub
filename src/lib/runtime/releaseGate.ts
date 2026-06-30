@@ -1,5 +1,5 @@
 /**
- * Devonn.AI — Release Gate Module
+ * D3VONN — Release Gate Module
  *
  * Evaluates whether the current build is safe to promote to staging or production.
  * All gate checks must pass for the gate to open.

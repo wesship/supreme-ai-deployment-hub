@@ -6,8 +6,8 @@
 # =============================================================================
 set -euo pipefail
 
-NAMESPACE="${DEVONN_NAMESPACE:-devonn-prod}"
-CONTROL_PLANE_CM="devonn-runtime-control-plane"
+NAMESPACE="${DEVONN_NAMESPACE:-d3vonn-prod}"
+CONTROL_PLANE_CM="d3vonn-runtime-control-plane"
 
 log()  { echo "[restore] $*"; }
 

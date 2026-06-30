@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 /**
- * Devonn.AI — Playwright Test Fixtures
+ * D3VONN — Playwright Test Fixtures
  *
  * Provides typed page object models and shared helpers for all E2E tests.
  * Import from this file instead of directly from @playwright/test:

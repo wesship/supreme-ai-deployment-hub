@@ -1,5 +1,5 @@
 """
-router.py — FastAPI router for the Devonn.AI Agent Mesh API
+router.py — FastAPI router for the D3VONN Agent Mesh API
 
 Exposes the agent mesh as REST endpoints that the React frontend
 (and the Chrome extension) can call.

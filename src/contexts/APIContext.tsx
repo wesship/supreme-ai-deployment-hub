@@ -18,7 +18,7 @@ interface APIContextType {
 const APIContext = createContext<APIContextType | undefined>(undefined);
 
 // Storage key for localStorage
-const STORAGE_KEY = 'devonn_api_configs';
+const STORAGE_KEY = 'd3vonn_api_configs';
 
 export const APIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [apiConfigs, setAPIConfigs] = useState<APIConfig[]>([]);

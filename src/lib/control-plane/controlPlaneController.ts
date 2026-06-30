@@ -2,7 +2,7 @@
  * Canary Activation Control Plane — ControlPlaneController
  *
  * The single brain that reads from the Kubernetes ConfigMap
- * (devonn-runtime-control-plane) and exposes typed accessors for
+ * (d3vonn-runtime-control-plane) and exposes typed accessors for
  * every runtime switch. Supports both cluster-mode (reads from K8s API)
  * and env-mode (reads from process.env) for local development.
  */
@@ -64,8 +64,8 @@ export class EnvConfigMapClient implements K8sConfigMapClient {
   }
 }
 
-const CONFIG_MAP_NAME = "devonn-runtime-control-plane";
-const CONFIG_MAP_NAMESPACE = "devonn-prod";
+const CONFIG_MAP_NAME = "d3vonn-runtime-control-plane";
+const CONFIG_MAP_NAMESPACE = "d3vonn-prod";
 
 export class ControlPlaneController {
   constructor(private readonly k8s: K8sConfigMapClient) {}

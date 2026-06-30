@@ -1,5 +1,5 @@
 """
-Devonn.ai Intelligence Layer — API Router
+D3VONN Intelligence Layer — API Router
 
 Exposes the Prompt Engine, Tool Router, Agent Executor, Workflow Engine,
 Memory, and Orchestrator via FastAPI endpoints under /api/intelligence.

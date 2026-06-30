@@ -1,5 +1,5 @@
 """
-Devonn.ai Backend Proxy — /api/chat
+D3VONN Backend Proxy — /api/chat
 Streaming LLM proxy. Forwards requests to OpenAI using server-side OPENAI_API_KEY.
 Supports SSE streaming and non-streaming (tool-calling) responses.
 """

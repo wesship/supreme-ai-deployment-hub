@@ -5,7 +5,7 @@ const API_BASE =
   import.meta.env.VITE_D3VONN_API_URL ||
   import.meta.env.VITE_DEVONN_API_URL ||
   import.meta.env.VITE_API_URL ||
-  "https://devonn-ai-api.up.railway.app";
+  "https://d3vonn-api-production.up.railway.app";
 
 export type StartIngestionInput = {
   file: File;
