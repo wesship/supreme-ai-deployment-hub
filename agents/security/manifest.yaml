@@ -1,0 +1,95 @@
+# Agent Manifest: Security Sentinel
+---
+apiVersion: d3vonn.io/v1
+kind: AgentManifest
+
+metadata:
+  name: Security Sentinel
+  id: security-sentinel
+  version: "1.1.0"
+  description: >
+    Security operations agent — threat detection, compliance scanning,
+    vulnerability assessment, and automated incident response.
+  owner: security-team
+  tier: specialist
+  tags:
+    - security
+    - compliance
+    - threat-detection
+    - incident-response
+
+capabilities:
+  - vulnerability-scanning
+  - compliance-auditing
+  - threat-detection
+  - incident-response
+  - policy-validation
+  - secret-scanning
+  - dependency-audit
+
+permissions:
+  security:
+    - read
+    - write
+    - enforce
+  knowledge:
+    - read
+  deployments:
+    - read
+  events:
+    - publish
+    - subscribe
+
+tools:
+  - id: vulnerability-scanner
+    description: Scans dependencies and containers for known vulnerabilities.
+  - id: compliance-checker
+    description: Validates infrastructure against compliance frameworks.
+  - id: secret-detector
+    description: Identifies exposed secrets and credentials.
+  - id: incident-responder
+    description: Executes automated incident response playbooks.
+  - id: policy-evaluator
+    description: Evaluates OPA/Rego policies against current state.
+
+memory:
+  type: episodic
+  backend: supabase
+  retention: 365d
+  context_window: 64000
+
+models:
+  primary: gpt-4o
+  fallback: claude-3.5-sonnet
+  embedding: text-embedding-3-large
+
+dependencies:
+  services:
+    - supabase
+    - falco
+    - trivy
+  agents:
+    - hermes
+  policies:
+    - security/governance/opa/
+    - security/policy/falco/
+
+events:
+  publishes:
+    - SecurityAlertRaised
+    - TaskCompleted
+  subscribes:
+    - TaskDelegated
+    - DeploymentFinished
+
+healthcheck:
+  endpoint: /api/agents/security/health
+  interval: 30s
+  timeout: 5s
+  unhealthy_threshold: 2
+
+scaling:
+  min_instances: 1
+  max_instances: 3
+  metric: alert_queue_depth
+  target_value: 5

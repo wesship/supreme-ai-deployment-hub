@@ -1,0 +1,106 @@
+# Agent Manifest: Hermes
+# The D3VONN orchestration kernel.
+---
+apiVersion: d3vonn.io/v1
+kind: AgentManifest
+
+metadata:
+  name: Hermes
+  id: hermes
+  version: "3.0.0"
+  description: >
+    Core orchestration kernel — routes tasks to specialist agents,
+    enforces governance policies, manages agent lifecycle, and
+    maintains platform-wide observability.
+  owner: platform-team
+  tier: core
+  tags:
+    - orchestration
+    - governance
+    - routing
+    - lifecycle
+
+capabilities:
+  - task-routing
+  - agent-delegation
+  - policy-enforcement
+  - lifecycle-management
+  - event-orchestration
+  - multi-agent-coordination
+  - conflict-resolution
+  - priority-scheduling
+
+permissions:
+  agents:
+    - read
+    - execute
+    - delegate
+    - terminate
+  workflows:
+    - create
+    - execute
+    - cancel
+  knowledge:
+    - read
+    - write
+  security:
+    - read
+    - enforce
+  events:
+    - publish
+    - subscribe
+
+tools:
+  - id: agent-router
+    description: Routes tasks to the most capable available agent.
+  - id: policy-engine
+    description: Evaluates OPA policies before allowing agent actions.
+  - id: task-scheduler
+    description: Schedules and prioritizes queued tasks.
+  - id: conflict-resolver
+    description: Resolves resource conflicts between concurrent agents.
+  - id: event-bus
+    description: Publishes and subscribes to platform events.
+
+memory:
+  type: episodic
+  backend: supabase
+  retention: 90d
+  context_window: 128000
+
+models:
+  primary: gpt-4o
+  fallback: claude-3.5-sonnet
+  embedding: text-embedding-3-large
+
+dependencies:
+  services:
+    - supabase
+    - redis
+  agents: []  # Hermes has no agent dependencies (it IS the orchestrator)
+  policies:
+    - security/governance/opa/
+
+events:
+  publishes:
+    - AgentStarted
+    - AgentCompleted
+    - AgentFailed
+    - TaskDelegated
+    - GovernanceViolation
+  subscribes:
+    - TaskCreated
+    - SecurityAlertRaised
+    - DeploymentFinished
+
+healthcheck:
+  endpoint: /api/agents/hermes/health
+  interval: 30s
+  timeout: 5s
+  unhealthy_threshold: 3
+
+scaling:
+  min_instances: 1
+  max_instances: 5
+  metric: queue_depth
+  target_value: 10

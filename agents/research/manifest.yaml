@@ -1,0 +1,86 @@
+# Agent Manifest: Research Analyst
+---
+apiVersion: d3vonn.io/v1
+kind: AgentManifest
+
+metadata:
+  name: Research Analyst
+  id: research-analyst
+  version: "1.2.0"
+  description: >
+    Deep research agent — performs web search, source synthesis,
+    citation generation, and produces structured research reports.
+  owner: ai-team
+  tier: specialist
+  tags:
+    - research
+    - analysis
+    - synthesis
+    - citations
+
+capabilities:
+  - web-search
+  - source-synthesis
+  - citation-generation
+  - report-writing
+  - fact-checking
+  - comparative-analysis
+  - trend-identification
+
+permissions:
+  knowledge:
+    - read
+    - write
+  integrations:
+    - web-search
+    - document-retrieval
+  events:
+    - publish
+
+tools:
+  - id: web-search
+    description: Searches the web for relevant information.
+  - id: document-reader
+    description: Extracts and parses content from documents and URLs.
+  - id: citation-manager
+    description: Generates and validates academic-style citations.
+  - id: report-generator
+    description: Produces structured research reports with findings.
+
+memory:
+  type: semantic
+  backend: supabase-pgvector
+  retention: 365d
+  context_window: 128000
+
+models:
+  primary: gpt-4o
+  fallback: claude-3.5-sonnet
+  embedding: text-embedding-3-large
+
+dependencies:
+  services:
+    - supabase
+  agents:
+    - hermes
+  policies:
+    - security/governance/opa/
+
+events:
+  publishes:
+    - KnowledgeIndexed
+    - TaskCompleted
+  subscribes:
+    - TaskDelegated
+
+healthcheck:
+  endpoint: /api/agents/research/health
+  interval: 60s
+  timeout: 10s
+  unhealthy_threshold: 3
+
+scaling:
+  min_instances: 0
+  max_instances: 10
+  metric: active_tasks
+  target_value: 3
