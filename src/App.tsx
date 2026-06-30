@@ -86,6 +86,16 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
 
+// Platform Console v1
+const PlatformConsole = lazy(() => import("./pages/platform/PlatformConsole"));
+const PlatformOverview = lazy(() => import("./pages/platform/PlatformOverview"));
+const HermesDashboard = lazy(() => import("./components/platform/HermesDashboard"));
+const AgentFleetView = lazy(() => import("./components/platform/AgentFleetView"));
+const EventStreamPanel = lazy(() => import("./components/platform/EventStreamPanel"));
+const KnowledgeGraphViewer = lazy(() => import("./components/platform/KnowledgeGraphViewer"));
+const SecurityPolicyViewer = lazy(() => import("./components/platform/SecurityPolicyViewer"));
+const TenantManagement = lazy(() => import("./components/platform/TenantWorkspaceSwitcher"));
+
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -205,7 +215,15 @@ function App() {
                 <Route path="/security/dashboard" element={<SecurityDashboard />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
-                <Route path="/platform" element={<Navigate to="/#platform" replace />} />
+                <Route path="/platform" element={<PlatformConsole />}>
+                  <Route index element={<PlatformOverview />} />
+                  <Route path="hermes" element={<HermesDashboard />} />
+                  <Route path="agents" element={<AgentFleetView />} />
+                  <Route path="events" element={<EventStreamPanel />} />
+                  <Route path="knowledge" element={<KnowledgeGraphViewer />} />
+                  <Route path="security" element={<SecurityPolicyViewer />} />
+                  <Route path="tenants" element={<TenantManagement />} />
+                </Route>
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/sign-in" element={<Navigate to="/login" replace />} />
                 <Route path="/log-in" element={<Navigate to="/login" replace />} />
