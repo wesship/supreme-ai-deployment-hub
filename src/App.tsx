@@ -82,6 +82,7 @@ const Resources = lazy(() => import("./pages/Resources"));
 const Security = lazy(() => import("./pages/Security"));
 const SecurityDashboard = lazy(() => import("./pages/security/SecurityDashboard"));
 const SecurityOps = lazy(() => import("./pages/security/SecurityOps"));
+const SecurityCommandCenter = lazy(() => import("./pages/security/CommandCenter"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
@@ -203,6 +204,7 @@ function App() {
                 <Route path="/security" element={<Security />} />
                 <Route path="/security/ops" element={<SecurityOps />} />
                 <Route path="/security/dashboard" element={<SecurityDashboard />} />
+                <Route path="/security/command-center" element={<SecurityCommandCenter />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
