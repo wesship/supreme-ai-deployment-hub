@@ -1,7 +1,8 @@
 module.exports = {
   parserPreset: {
     parserOpts: {
-      headerPattern: /^([a-z]+(?:-[0-9]+)?|phase-[0-9]+)(?:\(([^)]*)\))?: (.+)$/,
+      // Accept both conventional commits (feat: ...) and legacy format (Implement ...)
+      headerPattern: /^([a-zA-Z]+(?:-[0-9]+)?|phase-[0-9]+)(?:\(([^)]*)\))?:?\s*(.+)$/,
       headerCorrespondence: ['type', 'scope', 'subject'],
     },
   },
@@ -31,6 +32,9 @@ module.exports = {
         'wave-33',
         'wave-34',
         'phase-37',
+        // Legacy commit types from prior development phases
+        'Implement',
+        'Add',
       ],
     ],
   },

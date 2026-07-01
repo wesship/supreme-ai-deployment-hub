@@ -14,7 +14,7 @@ Enriches security events with external threat context:
 In production, connects to:
 - AbuseIPDB
 - VirusTotal
-- Shodan
+- ShodanIO Internet Search Engine
 - GreyNoise
 - MaxMind GeoIP
 - MITRE CVE feeds
