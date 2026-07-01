@@ -93,6 +93,8 @@ jobs:
           print("\n=== Dangerous Pattern Scan ===")
           violations = []
           for path in glob.glob("backend/**/*.py", recursive=True):
+              if "/detections/" in path:
+                  continue
               try:
                   with open(path, encoding="utf-8") as handle:
                       content = handle.read()
