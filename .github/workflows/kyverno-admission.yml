@@ -38,7 +38,7 @@ jobs:
           KYVERNO_VERSION="v1.12.5"
           curl -sLO "https://github.com/kyverno/kyverno/releases/download/${KYVERNO_VERSION}/kyverno-cli_v1.12.5_linux_x86_64.tar.gz"
           tar -xzf kyverno-cli_v1.12.5_linux_x86_64.tar.gz
-          sudo mv kyverno-cli /usr/local/bin/kyverno
+          sudo mv kyverno /usr/local/bin/kyverno
           kyverno version
 
       - name: Validate Kyverno policy syntax
