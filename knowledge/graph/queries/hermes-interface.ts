@@ -242,7 +242,7 @@ export class HermesReasoningInterface {
 
     if (lower.includes("route") && lower.includes("agent")) {
       // Extract route path if mentioned
-      const routeMatch = question.match(/\/[\w\-\/]+/);
+      const routeMatch = question.match(/\/[\w\-/]+/);
       if (routeMatch) {
         return { type: "route_context", data: this.getRouteContext(routeMatch[0]) };
       }

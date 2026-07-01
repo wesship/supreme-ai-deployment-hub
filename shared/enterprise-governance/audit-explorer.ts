@@ -205,7 +205,7 @@ export class AuditExplorer {
   // ─── Statistics ─────────────────────────────────────────────
 
   getStats(tenantId?: string): AuditStats {
-    let entries = tenantId ? this.entries.filter((e) => e.tenantId === tenantId) : this.entries;
+    const entries = tenantId ? this.entries.filter((e) => e.tenantId === tenantId) : this.entries;
 
     const byCategory: Record<string, number> = {};
     const bySeverity: Record<string, number> = {};
