@@ -2,7 +2,12 @@
 Hermes Task Engine
 ==================
 State machine + CRUD for hermes_tasks, hermes_runs, hermes_logs, and agent dispatch.
-All DB operations go through the Supabase service-role client (bypasses RLS).
+
+v0.18 "Judgment Release" compatibility layer:
+- completion contracts with evidence-based verification
+- model-council / Mixture-of-Agents metadata
+- background subagent fan-out metadata
+- journey / learn memory event helpers
 """
 from __future__ import annotations
 
@@ -17,24 +22,39 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+HERMES_RELEASE_VERSION = os.getenv("HERMES_RELEASE_VERSION", "v2026.7.1")
+HERMES_RELEASE_NAME = os.getenv("HERMES_RELEASE_NAME", "The Judgment Release")
+COMPLETION_CONTRACTS_ENABLED = os.getenv("HERMES_COMPLETION_CONTRACTS_ENABLED", "true").lower() == "true"
+BACKGROUND_SUBAGENTS_ENABLED = os.getenv("HERMES_BACKGROUND_SUBAGENTS_ENABLED", "true").lower() == "true"
+
+DEFAULT_MOA_COUNCIL = [
+    model.strip()
+    for model in os.getenv(
+        "HERMES_MOA_DEFAULT_COUNCIL",
+        "openai:gpt-5,anthropic:claude-opus-4.7,openrouter:deepseek,google:gemini",
+    ).split(",")
+    if model.strip()
+]
+
 # ---------------------------------------------------------------------------
 # Valid task states and legal transitions
 # ---------------------------------------------------------------------------
 TASK_STATES = {
     "PENDING", "LOCKED", "RUNNING", "COMPLETED",
-    "FAILED", "RETRY", "MANUAL_REVIEW", "ESCALATED", "PAUSED",
+    "FAILED", "RETRY", "MANUAL_REVIEW", "ESCALATED", "PAUSED", "CANCELLED",
 }
 
 VALID_TRANSITIONS: dict[str, set[str]] = {
     "PENDING":       {"LOCKED", "PAUSED", "CANCELLED"},
-    "LOCKED":        {"RUNNING", "PENDING", "FAILED"},
-    "RUNNING":       {"COMPLETED", "FAILED", "PAUSED", "ESCALATED", "MANUAL_REVIEW"},
+    "LOCKED":        {"RUNNING", "PENDING", "FAILED", "CANCELLED"},
+    "RUNNING":       {"COMPLETED", "FAILED", "PAUSED", "ESCALATED", "MANUAL_REVIEW", "CANCELLED"},
     "FAILED":        {"RETRY", "MANUAL_REVIEW", "ESCALATED"},
     "RETRY":         {"PENDING"},
-    "PAUSED":        {"PENDING", "RUNNING"},
-    "MANUAL_REVIEW": {"PENDING", "ESCALATED", "COMPLETED"},
+    "PAUSED":        {"PENDING", "RUNNING", "CANCELLED"},
+    "MANUAL_REVIEW": {"PENDING", "ESCALATED", "COMPLETED", "FAILED"},
     "ESCALATED":     {"MANUAL_REVIEW", "COMPLETED", "FAILED"},
-    "COMPLETED":     set(),   # terminal
+    "CANCELLED":     set(),
+    "COMPLETED":     set(),
 }
 
 # ---------------------------------------------------------------------------
@@ -92,6 +112,41 @@ async def _sb_patch(table: str, row_id: str, payload: dict) -> dict:
         data = r.json()
         return data[0] if isinstance(data, list) and data else data
 
+def _normalize_completion_contract(contract: dict | None) -> dict | None:
+    if not contract:
+        return None
+    normalized = dict(contract)
+    normalized.setdefault("version", "v0.18")
+    normalized.setdefault("mode", "evidence_required")
+    normalized.setdefault("required_evidence", [])
+    normalized.setdefault("required_checks", [])
+    normalized.setdefault("manual_review_on_failure", True)
+    return normalized
+
+def _extract_dotted(data: dict, dotted_key: str) -> Any:
+    cursor: Any = data
+    for part in dotted_key.split("."):
+        if not isinstance(cursor, dict) or part not in cursor:
+            return None
+        cursor = cursor[part]
+    return cursor
+
+def get_runtime_capabilities() -> dict:
+    """Expose the Hermes v0.18 feature flags used by D3VONN.IO."""
+    return {
+        "release_version": HERMES_RELEASE_VERSION,
+        "release_name": HERMES_RELEASE_NAME,
+        "features": {
+            "mixture_of_agents": True,
+            "completion_contracts": COMPLETION_CONTRACTS_ENABLED,
+            "evidence_verification": True,
+            "learn_command_compatible": True,
+            "journey_memory_events": True,
+            "background_subagents": BACKGROUND_SUBAGENTS_ENABLED,
+        },
+        "default_model_council": DEFAULT_MOA_COUNCIL,
+    }
+
 # ---------------------------------------------------------------------------
 # Task CRUD
 # ---------------------------------------------------------------------------
@@ -108,6 +163,10 @@ async def create_task(
     scheduled_at: str | None = None,
     deadline_at: str | None = None,
     correlation_id: str | None = None,
+    completion_contract: dict | None = None,
+    verification_strategy: str = "evidence_required",
+    model_council: list[str] | None = None,
+    use_background_subagents: bool = False,
 ) -> dict:
     """Create a new Hermes task in PENDING state."""
     payload: dict[str, Any] = {
@@ -117,6 +176,8 @@ async def create_task(
         "priority": priority,
         "source": source,
         "retry_count": 0,
+        "verification_strategy": verification_strategy,
+        "hermes_release": HERMES_RELEASE_VERSION,
     }
     if description:
         payload["description"] = description
@@ -132,13 +193,20 @@ async def create_task(
         payload["deadline_at"] = deadline_at
     if correlation_id:
         payload["correlation_id"] = correlation_id
+    if completion_contract:
+        payload["completion_contract"] = _normalize_completion_contract(completion_contract)
+    if model_council:
+        payload["model_council"] = model_council
+    if use_background_subagents:
+        payload["background_subagents_enabled"] = BACKGROUND_SUBAGENTS_ENABLED
 
     task = await _sb_post("hermes_tasks", payload)
     await log_event(
         task_id=task.get("id"),
         event="task.created",
-        message=f"Task '{title}' created (type={task_type})",
+        message=f"Task '{title}' created (type={task_type}, hermes={HERMES_RELEASE_VERSION})",
         agent_name=agent_name,
+        data={"completion_contract": bool(completion_contract), "model_council": model_council or []},
     )
     return task
 
@@ -164,14 +232,72 @@ async def list_tasks(
     return await _sb_get("hermes_tasks", params)
 
 
+async def verify_completion_contract(task: dict, evidence: dict | None = None) -> dict:
+    """
+    Validate a v0.18-style completion contract before a task can become COMPLETED.
+    Contract shape:
+      {
+        "required_evidence": ["tests.passed", "backend.health_http_200"],
+        "required_checks": [{"name": "deploy", "status": "passed"}],
+        "min_confidence": 0.80,
+        "manual_review_on_failure": true
+      }
+    Evidence is merged from explicit evidence plus task.output_data.
+    """
+    contract = _normalize_completion_contract(task.get("completion_contract"))
+    if not contract or not COMPLETION_CONTRACTS_ENABLED:
+        return {"verified": True, "reason": "no_contract_or_disabled", "missing": [], "failed_checks": []}
+
+    merged_evidence: dict[str, Any] = {}
+    if isinstance(task.get("output_data"), dict):
+        merged_evidence.update(task["output_data"])
+    if evidence:
+        merged_evidence.update(evidence)
+
+    missing = []
+    for key in contract.get("required_evidence", []):
+        value = _extract_dotted(merged_evidence, str(key))
+        if value in (None, False, "", [], {}):
+            missing.append(str(key))
+
+    failed_checks = []
+    for check in contract.get("required_checks", []):
+        if not isinstance(check, dict):
+            continue
+        name = str(check.get("name", "unnamed_check"))
+        status = str(check.get("status", "")).lower()
+        if status not in {"pass", "passed", "ok", "success", "true"}:
+            failed_checks.append(name)
+
+    confidence = merged_evidence.get("confidence")
+    min_confidence = contract.get("min_confidence")
+    if min_confidence is not None and confidence is not None:
+        try:
+            if float(confidence) < float(min_confidence):
+                failed_checks.append(f"confidence_below_{min_confidence}")
+        except (TypeError, ValueError):
+            failed_checks.append("confidence_invalid")
+
+    verified = not missing and not failed_checks
+    return {
+        "verified": verified,
+        "release_version": HERMES_RELEASE_VERSION,
+        "strategy": contract.get("mode", "evidence_required"),
+        "missing": missing,
+        "failed_checks": failed_checks,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 async def transition_task(
     task_id: str,
     new_status: str,
     output_data: dict | None = None,
     error_message: str | None = None,
     agent_name: str | None = None,
+    verification_evidence: dict | None = None,
 ) -> dict:
-    """Apply a state transition with validation."""
+    """Apply a state transition with validation and v0.18 completion-contract enforcement."""
     task = await get_task(task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -187,12 +313,37 @@ async def transition_task(
     patch: dict[str, Any] = {"status": new_status}
     now = datetime.now(timezone.utc).isoformat()
 
+    task_for_verification = dict(task)
+    if output_data:
+        existing_output = task_for_verification.get("output_data") or {}
+        if isinstance(existing_output, dict):
+            merged_output = {**existing_output, **output_data}
+        else:
+            merged_output = output_data
+        task_for_verification["output_data"] = merged_output
+
+    if new_status == "COMPLETED":
+        verification = await verify_completion_contract(task_for_verification, verification_evidence)
+        patch["verification_result"] = verification
+        if not verification.get("verified"):
+            new_status = "MANUAL_REVIEW"
+            patch["status"] = "MANUAL_REVIEW"
+            patch["error_message"] = "Completion contract failed; routed to MANUAL_REVIEW."
+            await log_event(
+                task_id=task_id,
+                event="task.completion_contract_failed",
+                message="Hermes v0.18 completion contract blocked COMPLETED transition.",
+                level="warn",
+                agent_name=agent_name or task.get("agent_name"),
+                data=verification,
+            )
+
     if new_status == "RUNNING":
         patch["started_at"] = now
         if agent_name:
             patch["agent_name"] = agent_name
             patch["assigned_at"] = now
-    elif new_status in {"COMPLETED", "FAILED"}:
+    elif new_status in {"COMPLETED", "FAILED", "CANCELLED"}:
         patch["completed_at"] = now
     if output_data:
         patch["output_data"] = output_data
@@ -208,7 +359,7 @@ async def transition_task(
         event=f"task.{new_status.lower()}",
         message=f"Task transitioned {current} → {new_status}",
         agent_name=agent_name or task.get("agent_name"),
-        data={"previous_status": current, "new_status": new_status},
+        data={"previous_status": current, "new_status": new_status, "release_version": HERMES_RELEASE_VERSION},
     )
     return updated
 
@@ -255,7 +406,7 @@ async def finish_run(
 
 
 # ---------------------------------------------------------------------------
-# Structured logging
+# Structured logging / journey learning
 # ---------------------------------------------------------------------------
 
 async def log_event(
@@ -292,6 +443,40 @@ async def log_event(
         logger.warning("hermes_log failed: %s", exc)
 
 
+async def record_learning(
+    title: str,
+    content: str,
+    source_url: str | None = None,
+    source_task_id: str | None = None,
+    metadata: dict | None = None,
+) -> dict:
+    """Persist a /learn-compatible memory entry for the Hermes journey view."""
+    payload: dict[str, Any] = {
+        "agent_name": "HERMES",
+        "memory_type": "context",
+        "key": f"learn:{title.lower().replace(' ', '-')}",
+        "content": content,
+        "importance": 8,
+        "metadata": {
+            "release_version": HERMES_RELEASE_VERSION,
+            "journey_visible": True,
+            "source_url": source_url,
+            **(metadata or {}),
+        },
+    }
+    if source_task_id:
+        payload["source_task_id"] = source_task_id
+    memory = await _sb_post("hermes_memory", payload)
+    await log_event(
+        task_id=source_task_id,
+        event="journey.learned",
+        message=f"Hermes learned workflow: {title}",
+        agent_name="HERMES",
+        data=payload["metadata"],
+    )
+    return memory
+
+
 def fire_log_event(event: str, message: str | None = None, **kwargs) -> None:
     """Synchronous wrapper for log_event (creates a new event loop if needed)."""
     try:
@@ -309,7 +494,8 @@ def fire_log_event(event: str, message: str | None = None, **kwargs) -> None:
 # ---------------------------------------------------------------------------
 
 AGENT_HIERARCHY = {
-    "HERMES":   {"role": "orchestrator", "children": ["TARS", "ION", "SAPPHIRE", "GUARDIAN"]},
+    "HERMES":   {"role": "orchestrator", "children": ["TARS", "ION", "SAPPHIRE", "GUARDIAN", "COUNCIL"]},
+    "COUNCIL":  {"role": "mixture_of_agents", "children": DEFAULT_MOA_COUNCIL},
     "TARS":     {"role": "execution",    "children": []},
     "ION":      {"role": "analytics",    "children": []},
     "SAPPHIRE": {"role": "memory",       "children": []},
@@ -342,6 +528,8 @@ async def dispatch_to_agent(
         "task_id": task_id,
         "agent": agent_name,
         "input": input_data or {},
+        "release_version": HERMES_RELEASE_VERSION,
+        "background_subagents_enabled": BACKGROUND_SUBAGENTS_ENABLED,
     }
 
     import hmac, hashlib, json
