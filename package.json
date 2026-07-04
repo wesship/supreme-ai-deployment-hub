@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:design": "vitest run tests/design/antiPatterns.test.ts",
+    "test:visual": "playwright test tests/e2e/d3vonn-visual.spec.ts --project=chromium",
     "test:extension": "vitest run src/extension/__tests__/ --passWithNoTests",
     "test:e2e": "playwright test",
     "typecheck": "npx tsc --noEmit",
