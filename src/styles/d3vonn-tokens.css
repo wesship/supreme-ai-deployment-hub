@@ -1,0 +1,36 @@
+:root {
+  color-scheme: dark;
+
+  --d3-bg: oklch(8% 0.025 255);
+  --d3-bg-soft: oklch(11% 0.03 255);
+  --d3-surface: oklch(14% 0.035 255);
+  --d3-surface-strong: oklch(19% 0.045 255);
+
+  --d3-blue: oklch(72% 0.19 245);
+  --d3-blue-soft: oklch(62% 0.14 245);
+  --d3-blue-deep: oklch(42% 0.16 260);
+
+  --d3-gold: oklch(82% 0.16 86);
+  --d3-gold-deep: oklch(61% 0.13 82);
+
+  --d3-silver: oklch(86% 0.025 250);
+  --d3-muted: oklch(66% 0.035 250);
+  --d3-faint: oklch(44% 0.035 250);
+
+  --d3-border: oklch(29% 0.045 255);
+  --d3-border-strong: oklch(42% 0.07 245);
+
+  --d3-danger: oklch(62% 0.23 30);
+  --d3-success: oklch(73% 0.17 155);
+
+  --d3-radius-sm: 8px;
+  --d3-radius-md: 14px;
+  --d3-radius-lg: 24px;
+  --d3-radius-xl: 36px;
+
+  --d3-shadow-blue: 0 0 50px oklch(72% 0.19 245 / 0.25);
+  --d3-shadow-gold: 0 0 50px oklch(82% 0.16 86 / 0.18);
+
+  --d3-max-width: 1200px;
+  --d3-section-y: clamp(5rem, 9vw, 9rem);
+}
