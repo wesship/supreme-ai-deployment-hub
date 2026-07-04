@@ -109,8 +109,8 @@ services:
       - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
       - SENTRY_DSN=${SENTRY_DSN}
       - LOG_LEVEL=info
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io}}
-      - CORS_ORIGINS=${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
     depends_on:
       redis:
         condition: service_healthy
