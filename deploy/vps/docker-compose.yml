@@ -71,7 +71,7 @@ services:
       args:
         - VITE_API_URL=${VITE_API_URL:-https://api.d3vonn.io}
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-        - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
         - VITE_ENVIRONMENT=production
     container_name: d3vonn-frontend-builder
     volumes:
@@ -98,21 +98,26 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - PINECONE_HOST=${PINECONE_HOST}
+      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - JWT_SECRET=${JWT_SECRET}
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
       - SENTRY_DSN=${SENTRY_DSN}
       - LOG_LEVEL=info
-      - CORS_ORIGINS=${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - d3vonn-internal
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -144,8 +149,11 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - PINECONE_HOST=${PINECONE_HOST}
+      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - SENTRY_DSN=${SENTRY_DSN}
       - HERMES_MODE=orchestrator
       - HERMES_MAX_CONCURRENT_TASKS=${HERMES_MAX_CONCURRENT_TASKS:-10}
@@ -190,7 +198,11 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_HOST=${PINECONE_HOST}
+      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - SENTRY_DSN=${SENTRY_DSN}
     depends_on:
       redis:
@@ -273,7 +285,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - PINECONE_HOST=${PINECONE_HOST}
+      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - SENTRY_DSN=${SENTRY_DSN}
     depends_on:
       redis:
@@ -302,7 +316,9 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - REDIS_URL=redis://redis:6379/0
       - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - PINECONE_HOST=${PINECONE_HOST}
+      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - SENTRY_DSN=${SENTRY_DSN}
     depends_on:
       redis:

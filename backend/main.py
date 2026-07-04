@@ -262,32 +262,80 @@ except ImportError as _security_v2_err:
     logger.warning("backend.app.security.router_v2 not found — skipping Security Ops v2. (%s)", _security_v2_err)
 
 
+def _env_configured(*names: str) -> bool:
+    return all(bool(os.getenv(name)) for name in names)
+
+
+def _redis_status() -> str:
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        return "not_configured"
+
+    try:
+        import redis  # type: ignore
+
+        client = redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+        client.ping()
+        return "reachable"
+    except Exception as exc:  # pragma: no cover - health endpoint defensive guard
+        logger.warning("Redis readiness check failed: %s", exc)
+        return "unreachable"
+
+
+def _service_config_status() -> dict[str, str]:
+    return {
+        "supabase": "configured"
+        if _env_configured("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY")
+        else "not_configured",
+        "openai": "configured" if _env_configured("OPENAI_API_KEY") else "not_configured",
+        "anthropic": "configured" if _env_configured("ANTHROPIC_API_KEY") else "not_configured",
+        "google_ai": "configured" if _env_configured("GOOGLE_AI_API_KEY") else "not_configured",
+        "pinecone": "configured"
+        if _env_configured("PINECONE_API_KEY", "PINECONE_HOST", "PINECONE_INDEX")
+        else "not_configured",
+        "twilio": "configured"
+        if _env_configured("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER")
+        else "not_configured",
+    }
+
+
 @app.get("/health", tags=["ops"])
+@app.get("/health/live", tags=["ops"])
 async def health_check():
     """Liveness probe — returns 200 when the process is alive."""
     return {"status": "ok", "version": app.version}
 
 
 @app.get("/ready", tags=["ops"])
+@app.get("/health/ready", tags=["ops"])
 async def readiness_check():
-    """Readiness probe — returns 200 when the app is ready to serve traffic."""
-    return {"status": "ready"}
+    """Readiness probe — confirms critical runtime dependencies are available."""
+    services = _service_config_status()
+    redis_status = _redis_status()
+    ready = services["supabase"] == "configured" and redis_status == "reachable"
+
+    body = {
+        "status": "ready" if ready else "not_ready",
+        "version": app.version,
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "services": {
+            "api": "healthy",
+            "redis": redis_status,
+            **services,
+        },
+    }
+    return JSONResponse(status_code=200 if ready else 503, content=body)
 
 
 @app.get("/health/deep", tags=["ops"])
 async def health_deep():
     """Deep health check — returns service-level status for monitoring."""
-    supabase_configured = bool(
-        os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    )
-    openai_configured = bool(os.getenv("OPENAI_API_KEY"))
-    pinecone_configured = bool(os.getenv("PINECONE_API_KEY") and os.getenv("PINECONE_INDEX"))
-
     vault_secret_set = bool(os.getenv("API_KEY_VAULT_SECRET"))
     vault_dir = os.getenv("KEYS_FILE", ".devonn/api-vault/keys.json")
     vault_dir_writable: bool
     try:
         import pathlib
+
         pathlib.Path(vault_dir).parent.mkdir(parents=True, exist_ok=True)
         vault_dir_writable = os.access(pathlib.Path(vault_dir).parent, os.W_OK)
     except Exception:
@@ -302,9 +350,12 @@ async def health_deep():
         "environment": os.getenv("ENVIRONMENT", "unknown"),
         "services": {
             "api": "healthy",
-            "supabase": "configured" if supabase_configured else "not_configured",
-            "openai": "configured" if openai_configured else "not_configured",
-            "pinecone": "configured" if pinecone_configured else "not_configured",
+            "redis": _redis_status(),
+            **_service_config_status(),
+        },
+        "rag": {
+            "pinecone_index": os.getenv("PINECONE_INDEX", "not_configured"),
+            "embedding_model": os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
         },
         "proxy_vault": {
             "status": vault_status,
