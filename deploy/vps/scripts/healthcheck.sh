@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # D3VONN.IO — Health Check Script
 # =============================================================================
@@ -13,7 +13,7 @@ HEALTHY=true
 check_service() {
     local name="$1"
     local check_cmd="$2"
-    
+
     if eval "$check_cmd" &>/dev/null; then
         echo "  ✓ ${name}: healthy"
     else
@@ -27,7 +27,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Core services
 check_service "Nginx" "curl -sf http://localhost/health"
-check_service "Backend API" "docker exec d3vonn-backend curl -sf http://localhost:8000/health"
+check_service "Backend API live" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/live"
+check_service "Backend API ready" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/ready"
 check_service "Redis" "docker exec d3vonn-redis redis-cli ping"
 check_service "Hermes" "docker inspect --format='{{.State.Health.Status}}' d3vonn-hermes 2>/dev/null | grep -q healthy"
 
@@ -52,7 +53,6 @@ echo "  CPU:  ${CPU_USAGE}%"
 echo "  RAM:  ${MEM_USAGE}%"
 echo "  Disk: ${DISK_USAGE}"
 
-# Check thresholds
 MEM_INT=$(echo "$MEM_USAGE" | cut -d'.' -f1)
 if [ "$MEM_INT" -gt 90 ]; then
     echo "  ⚠️  Memory usage critical!"
