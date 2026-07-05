@@ -1,21 +1,24 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
-# D3VONN.IO — Deployment Script
+# D3VONN.IO — Hostinger VPS Deployment Script
 # =============================================================================
 # Usage:
-#   ./deploy.sh                  # Deploy all services
-#   ./deploy.sh --service backend  # Deploy specific service
-#   ./deploy.sh --rollback       # Rollback to previous version
-#   ./deploy.sh --status         # Show deployment status
+#   sudo APP_DIR=/opt/supreme-ai-deployment-hub ./deploy.sh
+#   sudo ./deploy.sh --service backend
+#   sudo ./deploy.sh --rollback
+#   sudo ./deploy.sh --status
 # =============================================================================
 
 set -euo pipefail
 
-PROJECT_DIR="/opt/d3vonn"
+APP_DIR="${APP_DIR:-/opt/supreme-ai-deployment-hub}"
+BRANCH="${BRANCH:-main}"
+PROJECT_DIR="${APP_DIR}"
 COMPOSE_DIR="${PROJECT_DIR}/deploy/vps"
 COMPOSE_FILE="${COMPOSE_DIR}/docker-compose.yml"
 MONITORING_FILE="${COMPOSE_DIR}/docker-compose.monitoring.yml"
-ENV_FILE="${COMPOSE_DIR}/.env"
+ENV_FILE="${ENV_FILE:-${COMPOSE_DIR}/env/.env.production}"
+EXAMPLE_ENV="${COMPOSE_DIR}/env/.env.example"
 
 # Colors
 RED='\033[0;31m'
@@ -28,7 +31,6 @@ success() { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠️${NC} $1"; }
 error() { echo -e "${RED}❌${NC} $1"; }
 
-# Parse arguments
 ACTION="deploy"
 SERVICE=""
 WITH_MONITORING=false
@@ -44,11 +46,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── Help ─────────────────────────────────────────────────────────────────────
 show_help() {
-    echo "D3VONN.IO Deployment Script"
+    echo "D3VONN.IO Hostinger VPS Deployment Script"
     echo ""
-    echo "Usage: ./deploy.sh [OPTIONS]"
+    echo "Usage: sudo APP_DIR=/opt/supreme-ai-deployment-hub ./deploy.sh [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --service NAME       Deploy a specific service only"
@@ -57,39 +58,77 @@ show_help() {
     echo "  --status             Show current deployment status"
     echo "  --help               Show this help message"
     echo ""
-    echo "Services: backend, hermes, celery-worker, security-agent,"
+    echo "Environment overrides:"
+    echo "  APP_DIR              Repo path. Default: /opt/supreme-ai-deployment-hub"
+    echo "  ENV_FILE             Env path. Default: deploy/vps/env/.env.production"
+    echo "  BRANCH               Git branch. Default: main"
+    echo ""
+    echo "Services: backend, hermes, celery-worker, celery-beat, security-agent,"
     echo "          opportunity-agent, knowledge-graph, nginx, redis"
 }
 
-# ── Status ───────────────────────────────────────────────────────────────────
+ensure_project_exists() {
+    if [ ! -d "$PROJECT_DIR/.git" ]; then
+        error "Project repo not found at: $PROJECT_DIR"
+        echo "  Run deploy/vps/scripts/hostinger-bootstrap.sh first, or clone the repo manually:"
+        echo "  sudo git clone https://github.com/wesship/supreme-ai-deployment-hub.git $PROJECT_DIR"
+        exit 1
+    fi
+}
+
+ensure_env_exists() {
+    if [ ! -f "$ENV_FILE" ]; then
+        if [ ! -f "$EXAMPLE_ENV" ]; then
+            error "Environment template not found: $EXAMPLE_ENV"
+            exit 1
+        fi
+        cp "$EXAMPLE_ENV" "$ENV_FILE"
+        chmod 600 "$ENV_FILE"
+        warn "Created environment file: $ENV_FILE"
+        echo "  Edit it with real VPS-only secrets before deploying:"
+        echo "  sudo nano $ENV_FILE"
+        exit 2
+    fi
+}
+
+compose_cmd() {
+    local cmd="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
+    if [ "$WITH_MONITORING" = true ]; then
+        cmd="$cmd -f $MONITORING_FILE"
+    fi
+    echo "$cmd"
+}
+
 show_status() {
+    ensure_project_exists
+    ensure_env_exists
+
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║  D3VONN.IO — Deployment Status                             ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo ""
 
     cd "$COMPOSE_DIR"
+    local COMPOSE_CMD
+    COMPOSE_CMD=$(compose_cmd)
 
     echo "━━━ Container Status ━━━"
-    docker compose -f "$COMPOSE_FILE" ps
+    $COMPOSE_CMD ps
 
     echo ""
     echo "━━━ Resource Usage ━━━"
     docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" \
-        $(docker compose -f "$COMPOSE_FILE" ps -q 2>/dev/null) 2>/dev/null || \
+        $($COMPOSE_CMD ps -q 2>/dev/null) 2>/dev/null || \
         echo "  No containers running"
 
     echo ""
     echo "━━━ Health Checks ━━━"
-    # Backend health
-    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health 2>/dev/null || echo "UNREACHABLE")
+    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health/live 2>/dev/null || echo "UNREACHABLE")
     echo "  Backend: ${BACKEND_HEALTH}"
 
-    # Redis health
     REDIS_HEALTH=$(docker exec d3vonn-redis redis-cli ping 2>/dev/null || echo "UNREACHABLE")
     echo "  Redis:   ${REDIS_HEALTH}"
 
-    # Nginx health
     NGINX_HEALTH=$(curl -sf http://localhost/health 2>/dev/null || echo "UNREACHABLE")
     echo "  Nginx:   ${NGINX_HEALTH}"
 
@@ -101,41 +140,33 @@ show_status() {
     echo "  Remote: $(git remote get-url origin)"
 }
 
-# ── Deploy ───────────────────────────────────────────────────────────────────
 deploy() {
+    ensure_project_exists
+    ensure_env_exists
+
     echo "╔══════════════════════════════════════════════════════════════╗"
-    echo "║  D3VONN.IO — Deploying                                     ║"
+    echo "║  D3VONN.IO — Deploying to Hostinger VPS                    ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
     echo ""
 
     cd "$PROJECT_DIR"
 
-    # Check .env exists
-    if [ ! -f "$ENV_FILE" ]; then
-        error "Environment file not found: $ENV_FILE"
-        echo "  Copy the template: cp ${COMPOSE_DIR}/env/.env.example ${ENV_FILE}"
-        exit 1
-    fi
-
-    # Pull latest code
-    log "Pulling latest code..."
-    git fetch origin main
-    git reset --hard origin/main
+    log "Pulling latest code from ${BRANCH}..."
+    git fetch origin "$BRANCH"
+    PREVIOUS_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "none")
+    git checkout "$BRANCH"
+    git reset --hard "origin/${BRANCH}"
+    echo "$PREVIOUS_COMMIT" > "${COMPOSE_DIR}/.rollback_commit"
     success "Code updated to $(git log --oneline -1)"
 
-    # Save current state for rollback
-    PREVIOUS_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo "none")
-    echo "$PREVIOUS_COMMIT" > "${COMPOSE_DIR}/.rollback_commit"
-
     cd "$COMPOSE_DIR"
+    local COMPOSE_CMD
+    COMPOSE_CMD=$(compose_cmd)
 
-    # Build compose command
-    COMPOSE_CMD="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
-    if [ "$WITH_MONITORING" = true ]; then
-        COMPOSE_CMD="$COMPOSE_CMD -f $MONITORING_FILE"
-    fi
+    log "Validating Docker Compose config..."
+    $COMPOSE_CMD config >/tmp/d3vonn-compose.rendered.yml
+    success "Compose validation OK"
 
-    # Pull/build images
     log "Building images..."
     if [ -n "$SERVICE" ]; then
         $COMPOSE_CMD build "$SERVICE"
@@ -144,7 +175,6 @@ deploy() {
     fi
     success "Images built"
 
-    # Deploy
     log "Starting services..."
     if [ -n "$SERVICE" ]; then
         $COMPOSE_CMD up -d --force-recreate "$SERVICE"
@@ -153,25 +183,26 @@ deploy() {
     fi
     success "Services started"
 
-    # Wait for health checks
-    log "Waiting for health checks (30s)..."
+    log "Waiting for health checks..."
     sleep 30
 
-    # Verify
-    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health 2>/dev/null || echo "FAILED")
+    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health/live 2>/dev/null || echo "FAILED")
     if [ "$BACKEND_HEALTH" = "FAILED" ]; then
-        error "Backend health check failed!"
-        warn "Consider running: ./deploy.sh --rollback"
+        error "Backend health check failed."
+        warn "Run: sudo APP_DIR=$APP_DIR $0 --status"
+        warn "Rollback if needed: sudo APP_DIR=$APP_DIR $0 --rollback"
         exit 1
     fi
 
-    success "Deployment successful!"
+    success "Deployment successful."
     echo ""
     show_status
 }
 
-# ── Rollback ─────────────────────────────────────────────────────────────────
 rollback() {
+    ensure_project_exists
+    ensure_env_exists
+
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║  D3VONN.IO — Rolling Back                                  ║"
     echo "╚══════════════════════════════════════════════════════════════╝"
@@ -189,20 +220,21 @@ rollback() {
     git reset --hard "$ROLLBACK_COMMIT"
 
     cd "$COMPOSE_DIR"
-    docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --force-recreate
-    
+    local COMPOSE_CMD
+    COMPOSE_CMD=$(compose_cmd)
+    $COMPOSE_CMD up -d --force-recreate
+
     sleep 15
 
-    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health 2>/dev/null || echo "FAILED")
+    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health/live 2>/dev/null || echo "FAILED")
     if [ "$BACKEND_HEALTH" = "FAILED" ]; then
-        error "Rollback health check also failed! Manual intervention required."
+        error "Rollback health check also failed. Manual intervention required."
         exit 1
     fi
 
-    success "Rollback successful!"
+    success "Rollback successful."
 }
 
-# ── Execute ──────────────────────────────────────────────────────────────────
 case $ACTION in
     deploy) deploy ;;
     rollback) rollback ;;
