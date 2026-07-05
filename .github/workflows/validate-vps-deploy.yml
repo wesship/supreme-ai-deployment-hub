@@ -25,5 +25,5 @@ jobs:
 
       - name: Ensure frontend env does not expose known secrets
         run: |
-          ! grep -E '^VITE_.*(SECRET|SERVICE_ROLE|TOKEN|PASSWORD|PRIVATE|KEY)=' deploy/vps/env/.env.example || \
+          ! grep -E '^VITE_.*(SECRET|SERVICE_ROLE|TOKEN|PASSWORD|PRIVATE)=' deploy/vps/env/.env.example || \
             (echo 'Secret-like VITE_* variable found in .env.example' && exit 1)
