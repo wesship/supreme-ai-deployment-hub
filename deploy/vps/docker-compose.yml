@@ -400,4 +400,3 @@ networks:
     driver: bridge
   d3vonn-internal:
     driver: bridge
-    internal: true
