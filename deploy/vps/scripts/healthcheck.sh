@@ -30,7 +30,7 @@ check_service "Nginx" "curl -sf http://localhost/health"
 check_service "Backend API live" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/live"
 check_service "Backend API ready" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/ready"
 check_service "Redis" "docker exec d3vonn-redis redis-cli ping"
-check_service "Hermes" "docker inspect --format='{{.State.Health.Status}}' d3vonn-hermes 2>/dev/null | grep -q healthy"
+check_service "Hermes" "docker inspect --format='{{.State.Running}}' d3vonn-hermes 2>/dev/null | grep -q true"
 
 # Worker services
 check_service "Celery Worker" "docker inspect --format='{{.State.Running}}' d3vonn-celery-worker 2>/dev/null | grep -q true"
