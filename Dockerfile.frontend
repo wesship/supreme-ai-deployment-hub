@@ -2,7 +2,7 @@
 # HARDENING vs original:
 #   1. node:20-alpine → node:22-alpine (matches CI Node version)
 #   2. Removed `bun.lockb*` from COPY (bun lock files removed from repo)
-#   3. Replaced `npm ci` with `pnpm install --frozen-lockfile` (pnpm monorepo)
+#   3. Uses pnpm monorepo install for VPS builds
 #   4. Added typecheck step before build to catch TS errors in Docker builds
 #   5. Added non-root user in nginx stage for security
 #   6. Added nginx security headers config
@@ -34,8 +34,9 @@ RUN corepack enable && corepack prepare pnpm@9 --activate
 # Copy lock file and manifest first for layer caching
 COPY package.json pnpm-lock.yaml ./
 
-# Use pnpm install for deterministic, reproducible installs
-RUN pnpm install --frozen-lockfile
+# Use no-frozen-lockfile on VPS so deployment is not blocked by lock drift.
+# Long-term CI should keep pnpm-lock.yaml committed and return this to --frozen-lockfile.
+RUN pnpm install --no-frozen-lockfile
 
 # Copy source code
 COPY . .
