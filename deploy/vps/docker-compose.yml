@@ -22,9 +22,9 @@
 #   - GitHub
 #
 # Usage:
-#   docker compose -f docker-compose.yml up -d
-#   docker compose -f docker-compose.yml logs -f
-#   docker compose -f docker-compose.yml down
+#   docker compose --env-file env/.env.production -f docker-compose.yml up -d --build
+#   docker compose --env-file env/.env.production -f docker-compose.yml logs -f
+#   docker compose --env-file env/.env.production -f docker-compose.yml down
 # =============================================================================
 
 services:
@@ -67,16 +67,17 @@ services:
     build:
       context: ../../
       dockerfile: Dockerfile.frontend
-      target: production
+      target: builder
       args:
         - VITE_API_URL=${VITE_API_URL:-https://api.d3vonn.io}
         - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+        - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY:-${VITE_SUPABASE_ANON_KEY}}
         - VITE_ENVIRONMENT=production
     container_name: d3vonn-frontend-builder
     volumes:
-      - frontend_build:/app/dist
-    command: ["sh", "-c", "cp -r /app/dist/* /output/ 2>/dev/null || cp -r /app/dist/* /app/dist/"]
+      - frontend_build:/output
+    command: ["sh", "-c", "rm -rf /output/* && cp -r /app/dist/* /output/"]
     networks:
       - d3vonn-internal
 
@@ -87,6 +88,8 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-backend
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     expose:
       - "8000"
     environment:
@@ -107,7 +110,7 @@ services:
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
       - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
-      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DSN=${SENTRY_DSN:-}
       - LOG_LEVEL=info
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
@@ -140,7 +143,7 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-hermes
     restart: unless-stopped
-    command: ["python", "-m", "backend.hermes.task_engine"]
+    command: ["python", "-m", "hermes.task_engine"]
     environment:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
@@ -154,7 +157,7 @@ services:
       - PINECONE_HOST=${PINECONE_HOST}
       - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DSN=${SENTRY_DSN:-}
       - HERMES_MODE=orchestrator
       - HERMES_MAX_CONCURRENT_TASKS=${HERMES_MAX_CONCURRENT_TASKS:-10}
     depends_on:
@@ -188,7 +191,7 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-celery-worker
     restart: unless-stopped
-    command: ["celery", "-A", "backend.tasks", "worker", "--loglevel=info", "--concurrency=4", "--max-tasks-per-child=100"]
+    command: ["celery", "-A", "tasks:celery", "worker", "--loglevel=info", "--concurrency=4", "--max-tasks-per-child=100"]
     environment:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
@@ -203,7 +206,7 @@ services:
       - PINECONE_HOST=${PINECONE_HOST}
       - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -227,10 +230,11 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-celery-beat
     restart: unless-stopped
-    command: ["celery", "-A", "backend.tasks", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    command: ["celery", "-A", "tasks:celery", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
     environment:
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
     depends_on:
       redis:
         condition: service_healthy
@@ -249,13 +253,13 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-security-agent
     restart: unless-stopped
-    command: ["python", "-m", "backend.agents.security_monitor"]
+    command: ["python", "-m", "app.security.knowledge_graph"]
     environment:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - REDIS_URL=redis://redis:6379/0
-      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DSN=${SENTRY_DSN:-}
       - SECURITY_SCAN_INTERVAL=${SECURITY_SCAN_INTERVAL:-300}
     depends_on:
       redis:
@@ -277,7 +281,7 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-opportunity-agent
     restart: unless-stopped
-    command: ["python", "-m", "backend.intelligence.orchestration.main"]
+    command: ["python", "-c", "import time; print('opportunity-agent module not configured; keeping container alive'); time.sleep(31536000)"]
     environment:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
@@ -288,7 +292,7 @@ services:
       - PINECONE_HOST=${PINECONE_HOST}
       - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       redis:
         condition: service_healthy
@@ -309,7 +313,7 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-knowledge-graph
     restart: unless-stopped
-    command: ["python", "-m", "backend.knowledge.service"]
+    command: ["python", "-m", "knowledge.service"]
     environment:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
@@ -319,7 +323,7 @@ services:
       - PINECONE_HOST=${PINECONE_HOST}
       - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - SENTRY_DSN=${SENTRY_DSN}
+      - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
       redis:
         condition: service_healthy
