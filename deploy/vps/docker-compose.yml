@@ -143,7 +143,7 @@ services:
       dockerfile: Dockerfile
     container_name: d3vonn-hermes
     restart: unless-stopped
-    command: ["python", "-c", "import time; import hermes.task_engine; print('Hermes task engine imported; orchestrator container alive'); time.sleep(31536000)"]
+    command: ["python", "-m", "hermes.worker"]
     environment:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
@@ -160,6 +160,9 @@ services:
       - SENTRY_DSN=${SENTRY_DSN:-}
       - HERMES_MODE=orchestrator
       - HERMES_MAX_CONCURRENT_TASKS=${HERMES_MAX_CONCURRENT_TASKS:-10}
+      - HERMES_POLL_INTERVAL_SECONDS=${HERMES_POLL_INTERVAL_SECONDS:-10}
+      - HERMES_MAX_TASKS_PER_TICK=${HERMES_MAX_TASKS_PER_TICK:-5}
+      - HERMES_DEFAULT_AGENT=${HERMES_DEFAULT_AGENT:-TARS}
     depends_on:
       redis:
         condition: service_healthy
