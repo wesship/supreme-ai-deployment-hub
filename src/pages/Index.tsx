@@ -28,19 +28,19 @@ function Hero() {
     <section className="d3-hero" aria-label="D3VONN.IO landing page">
       <div className="d3-shell d3-hero-grid">
         <div>
-          <p className="d3-pill">AI WORKFORCE. LIMITLESS POTENTIAL.</p>
+          <p className="d3-pill">AI WORKFORCE. SIGNAL CONTROL.</p>
           <p className="d3-eyebrow">THE AI BUSINESS OPERATING SYSTEM</p>
           <h1>Welcome to D3VONN.IO</h1>
           <p className="d3-hero-titleline">D3VONN.IO — The World’s First AI Business Operating System</p>
           <p className="d3-hero-lede">
             D3VONN.IO orchestrates your AI workforce through Hermes, DKOS, RAG memory, secure workflows,
-            and agent execution under one command layer.
+            signal intelligence, and agent execution under one command layer.
           </p>
           <div className="d3-actions">
             <SmartLaunchLink authedTo="/app" className="d3-button d3-button-primary">Launch D3VONN</SmartLaunchLink>
             <Link to="/#platform" className="d3-button d3-button-secondary">Explore Platform</Link>
           </div>
-          <p className="d3-secure-note">Secure. Private. Built for the Future.</p>
+          <p className="d3-secure-note">Secure. Private. Built for signal-driven execution.</p>
         </div>
 
         <div className="d3-portal-card">
@@ -153,7 +153,7 @@ const Index: React.FC = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
   const title = 'D3VONN.IO — The AI Business Operating System';
-  const description = 'D3VONN.IO is the intelligence gateway for DEVONN.AI: Hermes orchestration, DKOS knowledge, RAG memory, secure automation, and agent workforce execution.';
+  const description = 'D3VONN.IO is the intelligence gateway for DEVONN.AI: Hermes orchestration, DKOS knowledge, RAG memory, signal intelligence, secure automation, and agent workforce execution.';
 
   return (
     <div className="d3-home">
