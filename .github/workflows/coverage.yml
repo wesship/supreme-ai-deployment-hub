@@ -22,6 +22,9 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+          run_install: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
@@ -29,7 +32,10 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: pnpm install --frozen-lockfile --reporter=append-only
 
       - name: Verify lockfile integrity
         run: git diff --exit-code pnpm-lock.yaml || (echo "pnpm-lock.yaml changed after pnpm install --frozen-lockfile" && exit 1)
@@ -38,17 +44,6 @@ jobs:
         run: pnpm run test -- --coverage --reporter=verbose
         env:
           CI: true
-
-      - name: Upload coverage to Codecov
-        continue-on-error: true
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          flags: unittests
-          name: devonn-ai-coverage
-          fail_ci_if_error: false
-          verbose: true
 
       - name: Upload coverage HTML report
         if: always()
