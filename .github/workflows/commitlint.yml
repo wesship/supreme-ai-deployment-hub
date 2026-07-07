@@ -49,7 +49,7 @@ jobs:
           echo "node=$(node --version)"
           echo "pnpm=$(pnpm --version)"
           echo "packageManager=$(node -p \"require('./package.json').packageManager\")"
-          pnpm install --frozen-lockfile --reporter=append-only
+          pnpm install --frozen-lockfile --ignore-scripts --reporter=append-only
 
       - name: Validate PR commits
         run: |
