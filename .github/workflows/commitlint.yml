@@ -44,7 +44,12 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-        run: pnpm install --frozen-lockfile
+        run: |
+          set -o pipefail
+          echo "node=$(node --version)"
+          echo "pnpm=$(pnpm --version)"
+          echo "packageManager=$(node -p \"require('./package.json').packageManager\")"
+          pnpm install --frozen-lockfile --reporter=append-only
 
       - name: Validate PR commits
         run: |
