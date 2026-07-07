@@ -6,8 +6,7 @@ import Footer from '@/components/Footer';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
 import './D3VonnHome.css';
 
-const MASTER_LOGO_SRC = '/d3vonn-logo-live.svg';
-
+const PORTAL_SRC = '/d3vonn-vault-portal.svg';
 const BelowFoldSections = lazy(() => import('@/components/index/BelowFoldSections'));
 
 type Telemetry = {
@@ -69,48 +68,129 @@ const CommandPanel = ({ className, label, value }: { className: string; label: s
 );
 
 const Hero = ({ telemetry }: { telemetry: Telemetry }) => (
-  <section aria-label="D3VONN.IO sovereign agent operating system" className="d3-hero">
+  <section aria-label="D3VONN.IO sovereign agent operating system" className="d3-hero d3-vault-hero">
     <div className="d3-shell d3-hero-grid">
       <div className="d3-hero-copy">
-        <p className="d3-eyebrow">D3VONN.IO // Sovereign Agent OS</p>
-        <h1>
-          Command the Signal.
+        <p className="d3-pill">AI WORKFORCE. LIMITLESS POTENTIAL.</p>
+        <p className="d3-eyebrow">THE AI BUSINESS OPERATING SYSTEM</p>
+        <h1 className="d3-metal-heading">
+          Welcome to
           <br />
-          Deploy the Agents.
-          <br />
-          Build the Operating System.
+          D3VONN<span>.IO</span>
         </h1>
+        <p className="d3-hero-titleline">The World’s First AI Business Operating System</p>
         <p className="d3-hero-lede">
-          D3VONN.IO is the intelligence gateway for DEVONN.AI — a sovereign agent operating system built for automation,
-          memory, security, orchestration, and real-world business execution.
+          Orchestrate your AI workforce. Automate operations. Scale through Hermes, DKOS, RAG memory, secure workflows,
+          and agent execution under one command layer.
         </p>
         <div className="d3-hero-actions">
           <SmartLaunchLink authedTo="/app" className="d3-button d3-button-primary">
-            Enter Command Layer
+            Launch D3VONN
           </SmartLaunchLink>
           <Link to="/#platform" className="d3-button d3-button-secondary">
-            View Intelligence Stack
+            Explore Platform
           </Link>
         </div>
-        <div className="d3-status-strip" aria-label="D3VONN live system status">
-          <span>Hermes {telemetry.hermesQueue}</span>
-          <span>DKOS Memory Online</span>
-          <span>{telemetry.knowledgeNodes} Knowledge Nodes</span>
-          <span>Security Layer Armed</span>
-        </div>
+        <div className="d3-secure-note">Secure. Private. Built for the Future.</div>
       </div>
 
-      <div className="d3-command-visual" aria-label="D3VONN intelligence routing visual">
-        <div className="d3-orb" />
-        <CommandPanel className="d3-panel-top" label="Hermes Routing" value="ACTIVE" />
-        <CommandPanel className="d3-panel-middle" label="DKOS Memory" value="SYNCING" />
+      <div className="d3-portal-stage" aria-label="D3VONN vault portal visual">
+        <img src={PORTAL_SRC} alt="Metallic D3VONN vault portal" loading="eager" decoding="async" />
+        <CommandPanel className="d3-panel-top" label="Hermes Routing" value={telemetry.hermesQueue} />
+        <CommandPanel className="d3-panel-middle" label="DKOS Memory" value="ONLINE" />
         <CommandPanel className="d3-panel-bottom" label="Agent Workforce" value={telemetry.activeAgents} />
+      </div>
+    </div>
+
+    <div className="d3-shell d3-feature-rail" aria-label="D3VONN platform capabilities">
+      <span><strong>Multi-Agent Orchestration</strong><small>Deploy intelligent AI teams</small></span>
+      <span><strong>Memory & Knowledge</strong><small>Persistent. Private. Powerful.</small></span>
+      <span><strong>Automation at Scale</strong><small>Workflows that work for you</small></span>
+      <span><strong>Secure by Design</strong><small>Enterprise-grade security</small></span>
+      <span><strong>Real-Time Intelligence</strong><small>Insights that drive impact</small></span>
+    </div>
+  </section>
+);
+
+const PlatformAgents = () => {
+  const agents = [
+    ['Hermes', 'AI EXECUTIVE ASSISTANT', 'Your always-on assistant that thinks, acts, routes, and executes.'],
+    ['Strategist', 'AI BUSINESS STRATEGIST', 'Market intelligence, strategy generation, and competitive advantage.'],
+    ['Operator', 'AI OPERATIONS AGENT', 'Automate workflows, manage systems, and optimize operations.'],
+    ['Creator', 'AI CONTENT STUDIO', 'Create content, visuals, code, and campaigns inside the command layer.'],
+  ];
+
+  return (
+    <section id="platform" className="d3-section d3-platform-section">
+      <div className="d3-shell d3-platform-grid">
+        <div className="d3-section-header">
+          <p className="d3-eyebrow">THE D3VONN PLATFORM</p>
+          <h2>One Platform. Infinite Possibilities.</h2>
+          <p>
+            D3VONN.IO is more than software. It is your operating system for the AI era: Hermes orchestration, DKOS knowledge,
+            secure automation, and agent execution.
+          </p>
+          <Link to="/agents" className="d3-button d3-button-primary d3-small-button">See All Agents</Link>
+        </div>
+        <div className="d3-agent-showcase">
+          {agents.map(([name, title, body]) => (
+            <article className="d3-agent-portrait" key={name}>
+              <div className="d3-portrait-glow" />
+              <span className="d3-agent-silhouette" aria-hidden="true" />
+              <h3>{name}</h3>
+              <p className="d3-agent-role">{title}</p>
+              <p>{body}</p>
+              <Link to="/agents">Open {name}</Link>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const CommandCenterSection = ({ telemetry }: { telemetry: Telemetry }) => (
+  <section className="d3-section d3-command-center-section">
+    <div className="d3-shell d3-command-center-grid">
+      <div className="d3-section-header">
+        <p className="d3-eyebrow">YOUR AI COMMAND CENTER</p>
+        <h2>Everything You Need. All in One OS.</h2>
+        <p>
+          Manage agents, data, workflows, projects, knowledge, and approvals from a single executive interface built for
+          the D3VONN mission.
+        </p>
+        <ul className="d3-command-list">
+          <li>Real-time dashboards</li>
+          <li>Knowledge vault</li>
+          <li>Workflow automation</li>
+          <li>Agent collaboration</li>
+          <li>Secure data layer</li>
+        </ul>
+        <SmartLaunchLink authedTo="/app" className="d3-button d3-button-primary d3-small-button">
+          Launch Command Center
+        </SmartLaunchLink>
+      </div>
+      <div className="d3-dashboard-frame">
+        <div className="d3-dashboard-topbar"><span>D3VONN Command Center</span><strong>Live</strong></div>
+        <div className="d3-dashboard-grid">
+          <div><span>Active Agents</span><strong>{telemetry.activeAgents}</strong></div>
+          <div><span>Tasks Completed</span><strong>{telemetry.workflowsToday}</strong></div>
+          <div><span>Success Rate</span><strong>98.7%</strong></div>
+          <div><span>Uptime</span><strong>99.9%</strong></div>
+        </div>
+        <div className="d3-world-map" aria-hidden="true"><span /></div>
+        <div className="d3-live-feed">
+          <strong>Live Feed</strong>
+          <p>Hermes completed market analysis</p>
+          <p>Operator automated client onboarding</p>
+          <p>Strategist generated growth plan</p>
+        </div>
       </div>
     </div>
   </section>
 );
 
-const StackSection = ({ telemetry }: { telemetry: Telemetry }) => {
+const IntelligenceStack = ({ telemetry }: { telemetry: Telemetry }) => {
   const layers = [
     ['Hermes Orchestrator', 'Routes intent into tasks, dependencies, checkpoints, and governed execution.'],
     ['DKOS Knowledge Layer', 'Structures uploads, memory, concepts, and reusable intelligence for agents.'],
@@ -120,14 +200,14 @@ const StackSection = ({ telemetry }: { telemetry: Telemetry }) => {
   ];
 
   return (
-    <section id="platform" className="d3-section">
+    <section className="d3-section">
       <div className="d3-shell d3-stack-grid">
         <div className="d3-section-header">
-          <p className="d3-eyebrow">Intelligence Stack</p>
-          <h2>Systems, not pages.</h2>
+          <p className="d3-eyebrow">INTELLIGENCE STACK</p>
+          <h2>Build. Deploy. Scale. Without Limits.</h2>
           <p>
-            The homepage now presents D3VONN.IO as layered infrastructure: Hermes routes the work, DKOS holds the knowledge,
-            RAG grounds the memory, and the agent workforce executes the mission.
+            The website now follows your landing-page direction: metallic blue, cinematic, vault-like, agent-focused, and
+            tied directly to the DEVONN.AI architecture.
           </p>
         </div>
         <div className="d3-layer-list">
@@ -155,7 +235,7 @@ const SignalFlow = () => (
         <span className="d3-flow-node d3-flow-e">Execution</span>
       </div>
       <div className="d3-section-header">
-        <p className="d3-eyebrow">Signal Flow</p>
+        <p className="d3-eyebrow">SIGNAL FLOW</p>
         <h2>From command to governed action.</h2>
         <p>
           A business goal enters the signal layer, gets enriched by the knowledge graph, routed through Hermes, executed by
@@ -166,106 +246,24 @@ const SignalFlow = () => (
   </section>
 );
 
-const AgentRail = () => {
-  const agents = [
-    ['Security Agent', 'SOC detection, incident triage, and hardened response.'],
-    ['Research Agent', 'Deep-dive market, product, and competitive intelligence.'],
-    ['CodeOps Agent', 'Repository scans, implementation plans, tests, and PR support.'],
-    ['Voice Agent', 'Human-facing conversational interface for the command layer.'],
-    ['Brand Agent', 'HNF THE BRAND, campaign, cinematic, and launch systems.'],
-    ['Finance Agent', 'Deal logic, portfolio review, and business planning support.'],
-    ['Workflow Agent', 'n8n-style automations and repeatable business execution.'],
-    ['Compliance Agent', 'Policy, risk, review checkpoints, and human approval flows.'],
-  ];
-
-  return (
-    <section className="d3-section">
-      <div className="d3-shell">
-        <div className="d3-section-header">
-          <p className="d3-eyebrow">Agent Workforce</p>
-          <h2>Specialists under Hermes control.</h2>
-          <p>
-            D3VONN.IO should make the agent system feel operational, not imaginary. Every agent class points toward a real
-            dashboard, queue, review flow, or business function.
-          </p>
-        </div>
-        <div className="d3-agent-grid">
-          {agents.map(([name, body], index) => (
-            <article className="d3-agent-card" key={name}>
-              <span className="d3-agent-meta">Agent {String(index + 1).padStart(2, '0')}</span>
-              <strong>{name}</strong>
-              <p>{body}</p>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
 const TrustLayer = () => {
   const controls = [
-    ['Auth + RBAC', 'Protected operator routes and role-aware access patterns.'],
-    ['Secret Validation', 'Deployment hardening keeps missing keys from silently breaking production.'],
-    ['Observability', 'Status, queues, agent runs, and operational health remain visible.'],
-    ['SOC Surface', 'Security command center, alerts, incidents, and automated response planning.'],
-    ['Supabase + Pinecone', 'Structured data, auth, vector memory, and DKOS retrieval pathways.'],
-    ['Vercel Preview Gate', 'Design and visual regression checks before production promotion.'],
+    ['99.9%', 'System Uptime'],
+    ['∞', 'Scalable Agents'],
+    ['256-bit', 'End-to-End Encryption'],
+    ['24/7', 'Autonomous Operations'],
+    ['Global', 'Secure Infrastructure'],
   ];
 
   return (
-    <section className="d3-section">
-      <div className="d3-shell">
-        <div className="d3-section-header">
-          <p className="d3-eyebrow">Trust Layer</p>
-          <h2>Luxury-tech look. Production-grade posture.</h2>
-          <p>
-            The visual system now reinforces the real backend story: secure auth, audited execution, deployment checks,
-            agent supervision, and hardened operating surfaces.
-          </p>
-        </div>
-        <div className="d3-trust-grid">
-          {controls.map(([name, body]) => (
-            <article className="d3-trust-card" key={name}>
-              <span className="d3-card-label">Control</span>
-              <strong>{name}</strong>
-              <p>{body}</p>
-            </article>
-          ))}
-        </div>
+    <section className="d3-section d3-metrics-section">
+      <div className="d3-shell d3-metrics-bar">
+        {controls.map(([value, label]) => (
+          <span key={label}><strong>{value}</strong><small>{label}</small></span>
+        ))}
       </div>
-    </section>
-  );
-};
-
-const VisionLayer = () => {
-  const vision = [
-    ['The Signal', 'The public gateway and command identity for D3VONN.IO.'],
-    ['The Door', 'The entry point into the agent workforce, knowledge system, and operator console.'],
-    ['Smart Glasses', 'Future hardware direction connected to D3VONN.IO and HNF THE BRAND.'],
-    ['Global Mission', 'Mile High Golden Elevation, nonprofit pathways, Dubai structure, and business expansion.'],
-  ];
-
-  return (
-    <section className="d3-section">
-      <div className="d3-shell">
-        <div className="d3-section-header">
-          <p className="d3-eyebrow">Vision Layer</p>
-          <h2>The brand system points beyond the website.</h2>
-          <p>
-            D3VONN.IO becomes the flagship signal for software, agents, hardware, media, brand, and future international
-            execution.
-          </p>
-        </div>
-        <div className="d3-vision-grid">
-          {vision.map(([name, body]) => (
-            <article className="d3-vision-card" key={name}>
-              <span className="d3-card-label">D3VONN</span>
-              <strong>{name}</strong>
-              <p>{body}</p>
-            </article>
-          ))}
-        </div>
+      <div className="d3-shell d3-trusted-row" aria-label="D3VONN ecosystem integrations">
+        <span>OpenAI</span><span>Anthropic</span><span>Google Cloud</span><span>AWS</span><span>Microsoft Azure</span><span>Supabase</span><span>Railway</span><span>Vercel</span>
       </div>
     </section>
   );
@@ -274,19 +272,19 @@ const VisionLayer = () => {
 const FinalCTA = () => (
   <section className="d3-section d3-cta">
     <div className="d3-shell d3-cta-panel">
-      <p className="d3-eyebrow">Mission Control</p>
+      <p className="d3-eyebrow">THE FUTURE IS AUTOMATED. THE FUTURE IS D3VONN.</p>
       <div className="d3-section-header">
-        <h2>Enter the command layer.</h2>
+        <h2>The Vault Is Open.</h2>
         <p>
-          Launch the operator experience, review the intelligence stack, or move deeper into agents, workflows, DKOS, and security.
+          Join the AI revolution. Build your empire. Let your workforce do the rest through D3VONN.IO.
         </p>
       </div>
       <div className="d3-hero-actions">
         <SmartLaunchLink authedTo="/app" className="d3-button d3-button-primary">
-          Launch D3VONN.IO
+          Start Building
         </SmartLaunchLink>
-        <Link to="/security/command-center" className="d3-button d3-button-secondary">
-          View Security Command
+        <Link to="/contact" className="d3-button d3-button-secondary">
+          Book a Demo
         </Link>
       </div>
     </div>
@@ -298,7 +296,7 @@ const Index: React.FC = () => {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
-  const title = 'D3VONN.IO — Sovereign Agent Operating System';
+  const title = 'D3VONN.IO — The AI Business Operating System';
   const description =
     'D3VONN.IO is the intelligence gateway for DEVONN.AI: Hermes orchestration, DKOS knowledge, RAG memory, secure automation, and agent workforce execution.';
   const url = 'https://d3vonn.io/';
@@ -315,18 +313,18 @@ const Index: React.FC = () => {
         <meta property="og:type" content="website" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <link rel="preload" as="image" href={MASTER_LOGO_SRC} />
+        <link rel="preload" as="image" href={PORTAL_SRC} />
       </Helmet>
 
       <motion.div className="d3-progress" style={{ scaleX }} />
 
       <main id="main-content">
         <Hero telemetry={telemetry} />
-        <StackSection telemetry={telemetry} />
-        <SignalFlow />
-        <AgentRail />
+        <PlatformAgents />
+        <CommandCenterSection telemetry={telemetry} />
         <TrustLayer />
-        <VisionLayer />
+        <IntelligenceStack telemetry={telemetry} />
+        <SignalFlow />
         <FinalCTA />
 
         <Suspense fallback={<div className="d3-section d3-shell">Loading D3VONN modules...</div>}>
