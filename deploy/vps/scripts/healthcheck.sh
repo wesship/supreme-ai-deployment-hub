@@ -1,69 +1,50 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # =============================================================================
-# D3VONN.IO — Health Check Script
-# =============================================================================
-# Checks all services and reports status. Can be used with uptime monitors.
-# Exit code 0 = all healthy, 1 = one or more services unhealthy
+# D3VONN.IO — VPS Health Check Script
 # =============================================================================
 
-set -uo pipefail
+set -e
 
-HEALTHY=true
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo "Checking VPS service health..."
 
 check_service() {
-    local name="$1"
-    local check_cmd="$2"
-
-    if eval "$check_cmd" &>/dev/null; then
-        echo "  ✓ ${name}: healthy"
+    local name=$1
+    local cmd=$2
+    if eval "$cmd" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} $name is healthy"
+        return 0
     else
-        echo "  ✗ ${name}: UNHEALTHY"
-        HEALTHY=false
+        echo -e "${RED}✗${NC} $name is failing"
+        return 1
     fi
 }
 
-echo "D3VONN.IO Health Check — $(date -Iseconds)"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+FAILED=0
 
 # Core services
-check_service "Nginx" "curl -sf http://localhost/health"
-check_service "Backend API live" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/live"
-check_service "Backend API ready" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/ready"
-check_service "Redis" "docker exec d3vonn-redis redis-cli ping"
-check_service "Hermes" "docker inspect --format='{{.State.Running}}' d3vonn-hermes 2>/dev/null | grep -q true"
+check_service "Nginx" "curl -sf http://localhost/health" || FAILED=1
+check_service "Backend API live" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/live" || FAILED=1
+check_service "Backend API ready" "docker exec d3vonn-backend curl -sf http://localhost:8000/health/ready" || FAILED=1
+check_service "Redis" "docker exec d3vonn-redis redis-cli ping | grep -q PONG" || FAILED=1
+check_service "Hermes" "docker inspect --format='{{.State.Running}}' d3vonn-hermes 2>/dev/null | grep -q true" || FAILED=1
 
 # Worker services
-check_service "Celery Worker" "docker inspect --format='{{.State.Running}}' d3vonn-celery-worker 2>/dev/null | grep -q true"
-check_service "Celery Beat" "docker inspect --format='{{.State.Running}}' d3vonn-celery-beat 2>/dev/null | grep -q true"
+check_service "Celery Worker" "docker inspect --format='{{.State.Running}}' d3vonn-celery-worker 2>/dev/null | grep -q true" || FAILED=1
+check_service "Celery Beat" "docker inspect --format='{{.State.Running}}' d3vonn-celery-beat 2>/dev/null | grep -q true" || FAILED=1
 
 # Agent services
-check_service "Security Agent" "docker inspect --format='{{.State.Running}}' d3vonn-security-agent 2>/dev/null | grep -q true"
-check_service "Opportunity Agent" "docker inspect --format='{{.State.Running}}' d3vonn-opportunity-agent 2>/dev/null | grep -q true"
-check_service "Knowledge Graph" "docker inspect --format='{{.State.Running}}' d3vonn-knowledge-graph 2>/dev/null | grep -q true"
+check_service "Security Agent" "docker inspect --format='{{.State.Running}}' d3vonn-security-agent 2>/dev/null | grep -q true" || FAILED=1
+check_service "Opportunity Agent" "docker inspect --format='{{.State.Running}}' d3vonn-opportunity-agent 2>/dev/null | grep -q true" || FAILED=1
+check_service "Knowledge Graph" "docker inspect --format='{{.State.Running}}' d3vonn-knowledge-graph 2>/dev/null | grep -q true" || FAILED=1
 
-echo ""
-
-# System resources
-echo "━━━ System Resources ━━━"
-CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
-MEM_USAGE=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100}')
-DISK_USAGE=$(df -h / | awk 'NR==2 {print $5}')
-
-echo "  CPU:  ${CPU_USAGE}%"
-echo "  RAM:  ${MEM_USAGE}%"
-echo "  Disk: ${DISK_USAGE}"
-
-MEM_INT=$(echo "$MEM_USAGE" | cut -d'.' -f1)
-if [ "$MEM_INT" -gt 90 ]; then
-    echo "  ⚠️  Memory usage critical!"
-    HEALTHY=false
-fi
-
-echo ""
-if [ "$HEALTHY" = true ]; then
-    echo "✅ All services healthy"
-    exit 0
-else
-    echo "❌ One or more services unhealthy"
+if [ $FAILED -eq 1 ]; then
+    echo -e "\n${RED}One or more services are failing.${NC}"
     exit 1
+else
+    echo -e "\n${GREEN}All services are healthy.${NC}"
+    exit 0
 fi
