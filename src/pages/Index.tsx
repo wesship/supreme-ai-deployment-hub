@@ -26,7 +26,10 @@ import {
   Bot,
 } from 'lucide-react';
 import Footer from '@/components/Footer';
+import HermesOrchestrationDemo from '@/components/home/HermesOrchestrationDemo';
 import KnowledgeGraphPreview from '@/components/home/KnowledgeGraphPreview';
+import MarketplacePreview from '@/components/home/MarketplacePreview';
+import TrustCenterPreview from '@/components/home/TrustCenterPreview';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
 import {
   defaultHomepageTelemetry,
@@ -448,11 +451,14 @@ const Index: React.FC = () => {
         <Hero />
         <TrustStrip />
         <HowItWorks />
+        <HermesOrchestrationDemo />
         <CapabilitiesStrip />
         <WorkforceSection />
         <ArchitectureSection />
         <KnowledgeGraphPreview />
+        <MarketplacePreview />
         <TrustControlsSection />
+        <TrustCenterPreview />
 
         <Suspense fallback={<div className="bg-[#031f4f] py-24 text-center text-sm text-blue-100/45">Loading...</div>}>
           <BelowFoldSections />
