@@ -15,7 +15,6 @@ import {
   Network,
   BookOpen,
   Clapperboard,
-  Megaphone,
   ShoppingCart,
   Code2,
   Cloud,
@@ -28,54 +27,22 @@ import {
 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
+import {
+  defaultHomepageTelemetry,
+  fetchHomepageTelemetry,
+  type HomepageTelemetry,
+} from '@/lib/homepageTelemetry';
 
 const MASTER_LOGO_SRC = '/d3vonn-logo-live.svg';
 
-type Telemetry = {
-  activeAgents: string;
-  workflowsToday: string;
-  knowledgeNodes: string;
-  systemStatus: string;
-  hermesQueue: string;
-};
-
-const defaultTelemetry: Telemetry = {
-  activeAgents: 'Live',
-  workflowsToday: '41/41',
-  knowledgeNodes: '573+',
-  systemStatus: 'Optimal',
-  hermesQueue: 'Ready',
-};
-
 const useHomepageTelemetry = () => {
-  const [telemetry, setTelemetry] = useState<Telemetry>(defaultTelemetry);
+  const [telemetry, setTelemetry] = useState<HomepageTelemetry>(defaultHomepageTelemetry);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    const load = async () => {
-      try {
-        const [overview, occ] = await Promise.allSettled([
-          fetch('/api/admin/overview', { signal: controller.signal }).then((r) => (r.ok ? r.json() : null)),
-          fetch('/api/occ/stats', { signal: controller.signal }).then((r) => (r.ok ? r.json() : null)),
-        ]);
+    fetchHomepageTelemetry(controller.signal).then(setTelemetry);
 
-        const overviewValue = overview.status === 'fulfilled' ? overview.value : null;
-        const occValue = occ.status === 'fulfilled' ? occ.value : null;
-
-        setTelemetry({
-          activeAgents: String(overviewValue?.active_agents ?? overviewValue?.agents_active ?? defaultTelemetry.activeAgents),
-          workflowsToday: String(occValue?.workflows_today ?? occValue?.tasks_completed ?? defaultTelemetry.workflowsToday),
-          knowledgeNodes: String(overviewValue?.knowledge_nodes ?? occValue?.rag_documents ?? defaultTelemetry.knowledgeNodes),
-          systemStatus: String(overviewValue?.status ?? occValue?.status ?? defaultTelemetry.systemStatus),
-          hermesQueue: String(occValue?.hermes_queue ?? overviewValue?.queue_status ?? defaultTelemetry.hermesQueue),
-        });
-      } catch {
-        setTelemetry(defaultTelemetry);
-      }
-    };
-
-    load();
     return () => controller.abort();
   }, []);
 
