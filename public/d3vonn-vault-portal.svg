@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+<title id="title">D3VONN.IO vault portal</title>
+<desc id="desc">Metallic blue command portal.</desc>
+<defs>
+<radialGradient id="core" cx="50%" cy="50%" r="55%"><stop offset="0" stop-color="#fff"/><stop offset="0.3" stop-color="#7fd7ff"/><stop offset="0.65" stop-color="#126dff"/><stop offset="1" stop-color="#020816" stop-opacity="0"/></radialGradient>
+<linearGradient id="metal" x1="0" x2="1"><stop offset="0" stop-color="#080d18"/><stop offset="0.3" stop-color="#819bc2"/><stop offset="0.52" stop-color="#f6fbff"/><stop offset="0.78" stop-color="#1d3768"/><stop offset="1" stop-color="#020816"/></linearGradient>
+<filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect width="1200" height="720" fill="#030712"/>
+<path d="M0 488 C240 380 392 455 585 360 C788 260 970 318 1200 210 L1200 720 L0 720 Z" fill="#071932" opacity="0.55"/>
+<g transform="translate(710 330)" filter="url(#glow)">
+<circle r="262" fill="none" stroke="url(#metal)" stroke-width="54"/>
+<circle r="205" fill="none" stroke="#1f7dff" stroke-width="10" stroke-dasharray="38 24"/>
+<circle r="146" fill="none" stroke="#88cfff" stroke-width="4" opacity="0.82"/>
+<circle r="92" fill="url(#core)" opacity="0.95"/>
+<text x="0" y="22" fill="#eef7ff" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="82" letter-spacing="-7">D3</text>
+</g>
+<g opacity="0.7">
+<circle cx="710" cy="330" r="316" fill="none" stroke="#3b82f6" stroke-opacity="0.22"/>
+<circle cx="710" cy="330" r="378" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+<path d="M80 608 H1120" stroke="#4fa3ff" stroke-opacity="0.34"/>
+<path d="M140 640 H1060" stroke="#ffffff" stroke-opacity="0.12"/>
+</g>
+</svg>
