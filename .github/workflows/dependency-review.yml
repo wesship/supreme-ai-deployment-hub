@@ -8,6 +8,7 @@ on:
       - 'requirements.txt'
       - 'requirements-devonn.txt'
       - 'backend/requirements.txt'
+      - '.github/workflows/dependency-review.yml'
 
 permissions:
   contents: read
