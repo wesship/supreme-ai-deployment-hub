@@ -1,0 +1,11 @@
+:root {
+  color-scheme: dark;
+  --d3-bg: oklch(8% 0.025 255);
+  --d3-blue: oklch(72% 0.19 245);
+  --d3-blue-deep: oklch(42% 0.16 260);
+  --d3-gold: oklch(82% 0.16 86);
+  --d3-silver: oklch(86% 0.025 250);
+  --d3-muted: oklch(66% 0.035 250);
+  --d3-border: oklch(29% 0.045 255);
+  --d3-border-strong: oklch(42% 0.07 245);
+}
