@@ -28,28 +28,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-        with:
-          version: 9.15.9
-          run_install: false
-
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
-          cache: pnpm
 
-      - name: Install dependencies
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "true"
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-        run: |
-          set -o pipefail
-          echo "node=$(node --version)"
-          echo "pnpm=$(pnpm --version)"
-          echo "packageManager=$(node -p \"require('./package.json').packageManager\")"
-          pnpm install --frozen-lockfile --ignore-scripts --reporter=append-only
+      - name: Install commitlint only
+        run: npm install --no-save --ignore-scripts @commitlint/cli@19.8.1
 
       - name: Validate PR commits
         run: |
