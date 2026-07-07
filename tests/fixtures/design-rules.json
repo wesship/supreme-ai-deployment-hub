@@ -1,0 +1,6 @@
+{
+  "requiredBrandTerms": ["D3VONN.IO", "DEVONN.AI", "Hermes", "DKOS", "RAG", "agent", "signal", "security"],
+  "bannedHomepageWords": ["supercharge", "revolutionize", "cutting-edge", "game-changing", "all-in-one AI platform", "future of AI is here"],
+  "maxHomepageTextCenterCount": 2,
+  "maxHomepageBackdropBlurXlCount": 0
+}
