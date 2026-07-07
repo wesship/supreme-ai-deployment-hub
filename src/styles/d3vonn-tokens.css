@@ -1,0 +1,11 @@
+:root {
+  color-scheme: dark;
+  --d3-bg: #030712;
+  --d3-blue: #3b82f6;
+  --d3-blue-deep: #1d4ed8;
+  --d3-gold: #f5c542;
+  --d3-silver: #e5edf8;
+  --d3-muted: #94a3b8;
+  --d3-border: rgba(148, 163, 184, 0.22);
+  --d3-border-strong: rgba(96, 165, 250, 0.45);
+}
