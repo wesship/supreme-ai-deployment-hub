@@ -1,0 +1,259 @@
+:root {
+  --d3-bg: oklch(8% 0.025 255);
+  --d3-surface: oklch(13% 0.035 255);
+  --d3-blue: oklch(72% 0.19 245);
+  --d3-blue-deep: oklch(42% 0.17 260);
+  --d3-gold: oklch(82% 0.16 86);
+  --d3-silver: oklch(84% 0.025 250);
+  --d3-muted: oklch(68% 0.035 250);
+  --d3-border: oklch(72% 0.19 245 / 0.22);
+  --d3-border-strong: oklch(84% 0.025 250 / 0.35);
+}
+
+.d3-home {
+  min-height: 100vh;
+  color: var(--d3-silver);
+  background:
+    radial-gradient(circle at 78% 12%, oklch(72% 0.19 245 / 0.16), transparent 30rem),
+    radial-gradient(circle at 10% 64%, oklch(82% 0.16 86 / 0.08), transparent 24rem),
+    var(--d3-bg);
+}
+
+.d3-progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  height: 3px;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--d3-blue), white, var(--d3-gold));
+  box-shadow: 0 0 18px oklch(72% 0.19 245 / 0.7);
+}
+
+.d3-shell {
+  width: min(100% - 2rem, 1200px);
+  margin-inline: auto;
+}
+
+.d3-section {
+  padding: clamp(4rem, 8vw, 7rem) 0;
+}
+
+.d3-section-tight {
+  padding-top: clamp(3rem, 5vw, 5rem);
+}
+
+.d3-hero {
+  min-height: 100svh;
+  display: grid;
+  align-items: center;
+  padding: clamp(5rem, 8vw, 7rem) 0 3rem;
+  overflow: hidden;
+}
+
+.d3-hero-grid,
+.d3-section-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+}
+
+.d3-pill,
+.d3-eyebrow {
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.d3-pill {
+  display: inline-flex;
+  border: 1px solid oklch(72% 0.19 245 / 0.4);
+  border-radius: 999px;
+  padding: 0.55rem 0.85rem;
+  color: white;
+  background: oklch(100% 0 0 / 0.04);
+  font-size: 0.74rem;
+}
+
+.d3-eyebrow {
+  margin-top: 1.25rem;
+  color: var(--d3-gold);
+  font-size: 0.72rem;
+}
+
+.d3-hero h1,
+.d3-section-header h2,
+.d3-cta-panel h2 {
+  margin: 0.9rem 0 0;
+  color: white;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+
+.d3-hero h1 {
+  max-width: 720px;
+  font-size: clamp(3.5rem, 8vw, 7.8rem);
+  background: linear-gradient(180deg, white, #c8d2e8 30%, #556179 48%, white 62%, #2f8cff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 28px oklch(72% 0.19 245 / 0.28));
+}
+
+.d3-section-header h2,
+.d3-cta-panel h2 {
+  font-size: clamp(2.25rem, 5vw, 4.8rem);
+}
+
+.d3-hero-titleline {
+  margin-top: 1.2rem;
+  color: white;
+  font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+  font-weight: 800;
+}
+
+.d3-hero-lede,
+.d3-section-header p,
+.d3-card p,
+.d3-agent p,
+.d3-cta-panel p {
+  color: var(--d3-muted);
+  line-height: 1.7;
+}
+
+.d3-hero-lede,
+.d3-section-header p,
+.d3-cta-panel p {
+  max-width: 680px;
+  font-size: 1.05rem;
+}
+
+.d3-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 1.6rem;
+}
+
+.d3-button {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding-inline: 1.2rem;
+  color: white;
+  font-weight: 850;
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.d3-button:hover { transform: translateY(-2px); }
+
+.d3-button-primary {
+  border: 1px solid oklch(72% 0.19 245 / 0.55);
+  background: linear-gradient(180deg, oklch(78% 0.12 250), oklch(43% 0.18 255));
+  box-shadow: 0 0 32px oklch(72% 0.19 245 / 0.32);
+}
+
+.d3-button-secondary {
+  border: 1px solid var(--d3-border-strong);
+  background: oklch(100% 0 0 / 0.04);
+}
+
+.d3-secure-note {
+  margin-top: 1.2rem;
+  color: oklch(84% 0.025 250 / 0.82);
+  font-size: 0.9rem;
+}
+
+.d3-portal-card { position: relative; min-height: 480px; }
+
+.d3-portal-card img {
+  width: 100%;
+  min-height: 480px;
+  object-fit: cover;
+  border: 1px solid oklch(72% 0.19 245 / 0.24);
+  border-radius: 28px;
+  box-shadow: 0 0 70px oklch(72% 0.19 245 / 0.22);
+}
+
+.d3-status-card {
+  position: absolute;
+  width: min(68%, 300px);
+  padding: 0.9rem;
+  border: 1px solid oklch(72% 0.19 245 / 0.35);
+  border-radius: 16px;
+  background: oklch(7% 0.024 255 / 0.88);
+  box-shadow: 0 20px 45px oklch(0% 0 0 / 0.35);
+}
+
+.d3-status-card span {
+  display: block;
+  color: var(--d3-muted);
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.d3-status-card strong { display: block; margin-top: 0.25rem; color: white; }
+.d3-status-a { top: 8%; left: -2%; }
+.d3-status-b { top: 42%; right: -2%; }
+.d3-status-c { bottom: 8%; left: 8%; }
+
+.d3-card-grid,
+.d3-agent-grid,
+.d3-metrics { display: grid; gap: 1rem; }
+.d3-card-grid,
+.d3-agent-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.d3-card,
+.d3-agent,
+.d3-command-panel,
+.d3-cta-panel {
+  border: 1px solid var(--d3-border);
+  border-radius: 22px;
+  background: oklch(100% 0 0 / 0.035);
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.08);
+}
+
+.d3-card,
+.d3-agent { padding: 1.1rem; }
+.d3-card strong,
+.d3-agent strong { color: white; }
+
+.d3-agent-orb {
+  display: block;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 1rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 34% 28%, white, var(--d3-blue) 42%, var(--d3-blue-deep));
+  box-shadow: 0 0 28px oklch(72% 0.19 245 / 0.45);
+}
+
+.d3-agent a { color: white; font-size: 0.88rem; text-decoration: none; }
+.d3-command-panel,
+.d3-cta-panel { padding: clamp(1.6rem, 4vw, 3rem); }
+.d3-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 1.5rem; }
+.d3-metrics span { border: 1px solid var(--d3-border); border-radius: 16px; padding: 1rem; background: oklch(100% 0 0 / 0.03); }
+.d3-metrics strong,
+.d3-metrics small { display: block; }
+.d3-metrics strong { color: white; font-size: 1.55rem; }
+.d3-metrics small { color: var(--d3-muted); }
+
+@media (max-width: 980px) {
+  .d3-hero-grid,
+  .d3-section-grid,
+  .d3-card-grid,
+  .d3-agent-grid,
+  .d3-metrics { grid-template-columns: 1fr; }
+
+  .d3-portal-card,
+  .d3-portal-card img { min-height: 360px; }
+
+  .d3-status-card { position: relative; width: auto; margin-top: 0.75rem; inset: auto; }
+}
