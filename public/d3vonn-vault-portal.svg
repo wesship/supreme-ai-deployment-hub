@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">D3VONN vault portal</title>
+  <desc id="desc">A metallic blue command portal with orbital rings and a D3 core.</desc>
+  <defs>
+    <radialGradient id="core" cx="50%" cy="50%" r="55%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.25" stop-color="#8bdcff"/>
+      <stop offset="0.55" stop-color="#126dff"/>
+      <stop offset="1" stop-color="#020816" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="metal" x1="0" x2="1">
+      <stop offset="0" stop-color="#050a15"/>
+      <stop offset="0.3" stop-color="#8da7d0"/>
+      <stop offset="0.52" stop-color="#f6fbff"/>
+      <stop offset="0.78" stop-color="#1d3768"/>
+      <stop offset="1" stop-color="#020816"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="1200" height="720" fill="#020816"/>
+  <circle cx="600" cy="360" r="250" fill="none" stroke="url(#metal)" stroke-width="18" opacity="0.92"/>
+  <circle cx="600" cy="360" r="190" fill="none" stroke="#3bb8ff" stroke-width="3" opacity="0.65"/>
+  <circle cx="600" cy="360" r="120" fill="url(#core)" filter="url(#glow)"/>
+  <g fill="none" stroke="#7fd7ff" stroke-width="2" opacity="0.55">
+    <ellipse cx="600" cy="360" rx="360" ry="120"/>
+    <ellipse cx="600" cy="360" rx="360" ry="120" transform="rotate(60 600 360)"/>
+    <ellipse cx="600" cy="360" rx="360" ry="120" transform="rotate(-60 600 360)"/>
+  </g>
+  <text x="600" y="382" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="96" font-weight="900" letter-spacing="8">D3</text>
+  <text x="600" y="520" text-anchor="middle" fill="#9fdcff" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="10">D3VONN.IO</text>
+</svg>
