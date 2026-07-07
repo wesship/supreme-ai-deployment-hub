@@ -26,6 +26,7 @@ import {
   Bot,
 } from 'lucide-react';
 import Footer from '@/components/Footer';
+import KnowledgeGraphPreview from '@/components/home/KnowledgeGraphPreview';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
 import {
   defaultHomepageTelemetry,
@@ -450,6 +451,7 @@ const Index: React.FC = () => {
         <CapabilitiesStrip />
         <WorkforceSection />
         <ArchitectureSection />
+        <KnowledgeGraphPreview />
         <TrustControlsSection />
 
         <Suspense fallback={<div className="bg-[#031f4f] py-24 text-center text-sm text-blue-100/45">Loading...</div>}>
