@@ -35,7 +35,7 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-        run: pnpm install --frozen-lockfile --reporter=append-only
+        run: pnpm install --frozen-lockfile --ignore-scripts --reporter=append-only
 
       - name: Verify lockfile integrity
         run: git diff --exit-code pnpm-lock.yaml || (echo "pnpm-lock.yaml changed after pnpm install --frozen-lockfile" && exit 1)
