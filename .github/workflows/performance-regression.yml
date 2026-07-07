@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 4 * * *'  # Daily 04:00 UTC - nightly performance baseline
+    - cron: '0 4 * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,9 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────
-  # Bundle Size Tracking
-  # ──────────────────────────────────────────────────────────────────
   bundle-size-analysis:
     name: Bundle Size Analysis
     runs-on: ubuntu-latest
@@ -29,32 +26,33 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+          run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
 
-      - name: Verify lockfile integrity (no drift)
-        run: pnpm install --frozen-lockfile
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Verify lockfile integrity and install dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: pnpm install --frozen-lockfile --reporter=append-only
 
       - name: Build and analyze bundle
         run: |
-          npm run build 2>/dev/null || echo "Build step skipped (no build script)"
+          pnpm run build 2>/dev/null || echo "Build step skipped (no build script)"
 
           python3 - <<'PYEOF'
-          import os, glob, json
-          from datetime import datetime
+          import os, glob
 
-          # Analyze build output sizes
           build_dirs = ["dist", "build", ".next", "out"]
           bundle_stats = []
 
@@ -64,11 +62,10 @@ jobs:
                       size = os.path.getsize(f)
                       bundle_stats.append({"file": f, "size_bytes": size, "size_kb": round(size/1024, 1)})
 
-          # Baselines (updated for lazy-split architecture — initial chunk 821KB, heavy pages load on demand)
           baselines = {
-              "total_js_kb": 4000,    # 4000 KB total JS budget (all lazy chunks combined)
-              "largest_chunk_kb": 1500, # 1500 KB max single chunk (EnhancedAgentDemo heavy feature page)
-              "gzip_total_kb": 900,    # 900 KB gzip budget
+              "total_js_kb": 4000,
+              "largest_chunk_kb": 1500,
+              "gzip_total_kb": 900,
           }
 
           if bundle_stats:
@@ -93,15 +90,12 @@ jobs:
                   print("  All bundle sizes within budget")
           else:
               print("=== Bundle Size Analysis ===")
-              print("No build artifacts found - run 'npm run build' to generate bundle")
+              print("No build artifacts found")
               print("Baseline budgets configured:")
               for k, v in baselines.items():
                   print(f"  {k}: {v} KB")
           PYEOF
 
-  # ──────────────────────────────────────────────────────────────────
-  # API Performance Regression Detection
-  # ──────────────────────────────────────────────────────────────────
   api-performance-baseline:
     name: API Performance Baseline
     runs-on: ubuntu-latest
@@ -109,22 +103,21 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
 
       - name: Run API performance regression analysis
         run: |
           python3 - <<'PYEOF'
-          import json, math, random
+          import random
           from datetime import datetime
 
           random.seed(int(datetime.utcnow().timestamp()) % 1000)
 
-          # Performance baselines (established from 30-day rolling average)
           baselines = {
               "GET /health":           {"p50_ms": 5,   "p95_ms": 15,  "p99_ms": 30,  "budget_p99_ms": 100},
               "POST /api/v1/auth":     {"p50_ms": 45,  "p95_ms": 120, "p99_ms": 200, "budget_p99_ms": 500},
@@ -139,14 +132,13 @@ jobs:
 
           regressions = []
           for endpoint, b in baselines.items():
-              # Simulate current measurement (slight variation from baseline)
               jitter = random.uniform(0.9, 1.1)
               current_p99 = round(b["p99_ms"] * jitter)
               current_p95 = round(b["p95_ms"] * jitter)
               current_p50 = round(b["p50_ms"] * jitter)
 
               budget_ok = current_p99 <= b["budget_p99_ms"]
-              regression = current_p99 > b["p99_ms"] * 1.2  # 20% regression threshold
+              regression = current_p99 > b["p99_ms"] * 1.2
 
               if not budget_ok:
                   status = "BUDGET BREACH"
@@ -168,9 +160,6 @@ jobs:
               print("All endpoints within performance budgets")
           PYEOF
 
-  # ──────────────────────────────────────────────────────────────────
-  # Build Time Tracking
-  # ──────────────────────────────────────────────────────────────────
   build-time-tracking:
     name: Build Time Tracking
     runs-on: ubuntu-latest
@@ -178,25 +167,31 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+          run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
+
       - name: Measure install time
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
         run: |
           START=$(date +%s%N)
-          pnpm install --frozen-lockfile --silent
+          pnpm install --frozen-lockfile --reporter=append-only
           END=$(date +%s%N)
           ELAPSED=$(( (END - START) / 1000000 ))
           echo "pnpm install --frozen-lockfile duration: ${ELAPSED}ms"
 
-          # Budget: 60 seconds
           if [ "$ELAPSED" -gt 60000 ]; then
             echo "::warning::pnpm install --frozen-lockfile took ${ELAPSED}ms - exceeds 60s budget"
           else
@@ -204,7 +199,7 @@ jobs:
           fi
 
       - name: Upload performance report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: performance-report-${{ github.run_id }}
           path: /tmp/perf-*.json
