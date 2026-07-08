@@ -1,5 +1,5 @@
 """
-backend/main.py — Devonn.AI FastAPI Application Entry Point
+backend/main.py — D3VONN.IO FastAPI Application Entry Point
 
 This is the canonical backend entry point for the supreme-ai-deployment-hub.
 It registers all API routers, middleware, and lifecycle hooks.
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle: connect pools on startup, close on shutdown."""
-    logger.info("Devonn.AI backend starting up…")
+    logger.info("D3VONN.IO backend starting up…")
     if init_weave():
         logger.info("W&B Weave initialized successfully.")
 
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("Devonn.AI backend shutting down…")
+    logger.info("D3VONN.IO backend shutting down…")
     try:
         from backend.db.pool import close_pool  # type: ignore
 
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Devonn.AI API",
+    title="D3VONN.IO API",
     description=(
         "Multi-agent orchestration platform — unified gateway for AI models, "
         "agents, feature flags, task queues, and real-time WebSocket communication."
@@ -75,27 +75,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+PRODUCTION_ORIGINS = "https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io"
+
 ALLOWED_ORIGINS = [
-    o.strip()
-    for o in os.getenv(
-        "ALLOWED_ORIGINS",
-        "http://localhost:5173,http://localhost:3000,https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io,https://supreme-ai-deployment-hub.vercel.app,https://supreme-ai-deployment-hub.lovable.app",
-    ).split(",")
-    if o.strip()
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", PRODUCTION_ORIGINS).split(",")
+    if origin.strip()
 ]
 
-ALLOWED_ORIGIN_REGEX = os.getenv(
-    "ALLOWED_ORIGIN_REGEX",
-    r"https://([a-z0-9-]+\.)*(lovable\.app|lovableproject\.com|vercel\.app)",
-)
+ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or None
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"],
 )
 
 try:
@@ -389,4 +385,3 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error. The incident has been logged."},
     )
-# build-trigger: force Railway rebuild from d374e66 — 2026-06-24
