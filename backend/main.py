@@ -134,22 +134,254 @@ try:
 
     app.include_router(proxy_router)
     logger.info("Proxy router registered: /api/chat, /api/rag/*, /api/tools/*")
-except ImportError:
-    logger.warning("Proxy router not found — skipping.")
+except ImportError as _proxy_err:
+    logger.warning("Proxy router not found — skipping. (%s)", _proxy_err)
 
 try:
-    from backend.routers.health import router as health_router  # type: ignore
+    from backend.api.v1.router import router as v1_router  # type: ignore
 
-    app.include_router(health_router)
-    logger.info("Health router registered.")
+    app.include_router(v1_router, prefix="/api/v1", tags=["v1"])
+    logger.info("API v1 router registered at /api/v1")
 except ImportError:
-    logger.warning("Health router not found — skipping.")
+    logger.warning("backend.api.v1.router not found — skipping v1 router.")
+
+try:
+    from backend.api.v2.router import router as v2_router  # type: ignore
+
+    app.include_router(v2_router, prefix="/api/v2", tags=["v2"])
+    logger.info("API v2 router registered at /api/v2")
+except ImportError:
+    logger.warning("backend.api.v2.router not found — skipping v2 router.")
+
+try:
+    from backend.agents.router import router as agent_router  # type: ignore
+
+    app.include_router(agent_router, prefix="/api/agents", tags=["agents"])
+    logger.info("Agent mesh router registered at /api/agents")
+except ImportError:
+    logger.warning("backend.agents.router not found — skipping agent router.")
+
+try:
+    from backend.occ_operator.router import router as operator_router  # type: ignore
+
+    app.include_router(operator_router, prefix="/api/operator", tags=["operator"])
+    logger.info("Operator console router registered at /api/operator")
+except ImportError:
+    logger.warning("backend.operator.router not found — skipping operator router.")
+
+try:
+    from backend.intelligence.api_router import router as intelligence_router  # type: ignore
+
+    app.include_router(intelligence_router, prefix="/api", tags=["intelligence"])
+    logger.info("Intelligence layer router registered at /api/intelligence")
+except ImportError:
+    logger.warning("backend.intelligence.api_router not found — skipping intelligence router.")
+
+try:
+    from backend.occ_operator.occ_router import router as occ_router  # type: ignore
+
+    app.include_router(occ_router)
+    logger.info("OCC Supabase data router registered at /api/occ/*")
+except ImportError as _occ_err:
+    logger.warning("backend.operator.occ_router not found — skipping OCC router. (%s)", _occ_err)
+
+try:
+    from backend.occ_operator.public_stats_router import router as public_stats_router  # type: ignore
+
+    app.include_router(public_stats_router)
+    logger.info("Public stats router registered at /api/public/*")
+except ImportError as _pub_err:
+    logger.warning("backend.occ_operator.public_stats_router not found — skipping. (%s)", _pub_err)
+
+try:
+    from backend.rag.router import router as rag_router  # type: ignore
+
+    app.include_router(rag_router)
+    logger.info("RAG ingestion router registered at /api/rag/*")
+except ImportError as _rag_err:
+    logger.warning("backend.rag.router not found — skipping RAG router. (%s)", _rag_err)
+
+try:
+    from backend.occ_operator.hermes_router import router as hermes_router  # type: ignore
+
+    app.include_router(hermes_router)
+    logger.info("Hermes Intelligence Fabric router registered at /api/hermes/*")
+except ImportError as _hermes_err:
+    logger.warning("backend.operator.hermes_router not found — skipping Hermes router. (%s)", _hermes_err)
+
+try:
+    from backend.hermes.router import router as hermes_tasks_router  # type: ignore
+
+    app.include_router(hermes_tasks_router)
+    logger.info("Hermes Task Engine router registered at /api/hermes/tasks/*")
+except ImportError as _hermes_tasks_err:
+    logger.warning("backend.hermes.router not found — skipping Hermes task engine. (%s)", _hermes_tasks_err)
+
+try:
+    from backend.knowledge.router import router as knowledge_router  # type: ignore
+
+    app.include_router(knowledge_router)
+    logger.info("DKOS Knowledge API router registered at /api/knowledge/*")
+except ImportError as _knowledge_err:
+    logger.warning("backend.knowledge.router not found — skipping DKOS Knowledge API. (%s)", _knowledge_err)
+
+try:
+    from backend.research_os.router import router as research_os_router  # type: ignore
+
+    app.include_router(research_os_router)
+    logger.info("Hermes Research OS router registered at /api/research/*")
+except ImportError as _research_os_err:
+    logger.warning("backend.research_os.router not found — skipping Research OS. (%s)", _research_os_err)
+
+try:
+    from backend.research_os.leads_router import router as research_os_leads_router  # type: ignore
+
+    app.include_router(research_os_leads_router)
+    logger.info("Hermes Research OS lead router registered at /api/leads/*")
+except ImportError as _research_os_leads_err:
+    logger.warning("backend.research_os.leads_router not found — skipping Research OS leads. (%s)", _research_os_leads_err)
+
+try:
+    from backend.app.security.router import router as security_router  # type: ignore
+
+    app.include_router(security_router)
+    logger.info("D3VONN Security Operations router registered at /api/security/*")
+except ImportError as _security_err:
+    logger.warning("backend.app.security.router not found — skipping Security Operations. (%s)", _security_err)
+
+try:
+    from backend.app.security.router_v2 import router as security_v2_router  # type: ignore
+
+    app.include_router(security_v2_router)
+    logger.info("D3VONN Security Operations v2 router registered at /api/security/v2/*")
+except ImportError as _security_v2_err:
+    logger.warning("backend.app.security.router_v2 not found — skipping Security Ops v2. (%s)", _security_v2_err)
+
+
+def _env_configured(*names: str) -> bool:
+    return all(bool(os.getenv(name)) for name in names)
+
+
+def _redis_status() -> str:
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        return "not_configured"
+
+    try:
+        import redis  # type: ignore
+
+        client = redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+        client.ping()
+        return "reachable"
+    except Exception as exc:  # pragma: no cover - health endpoint defensive guard
+        logger.warning("Redis readiness check failed: %s", exc)
+        return "unreachable"
+
+
+def _service_config_status() -> dict[str, str]:
+    return {
+        "supabase": "configured"
+        if _env_configured("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY")
+        else "not_configured",
+        "openai": "configured" if _env_configured("OPENAI_API_KEY") else "not_configured",
+        "anthropic": "configured" if _env_configured("ANTHROPIC_API_KEY") else "not_configured",
+        "google_ai": "configured" if _env_configured("GOOGLE_AI_API_KEY") else "not_configured",
+        "pinecone": "configured"
+        if _env_configured("PINECONE_API_KEY", "PINECONE_HOST", "PINECONE_INDEX")
+        else "not_configured",
+        "twilio": "configured"
+        if _env_configured("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM_NUMBER")
+        else "not_configured",
+    }
+
+
+@app.get("/health", tags=["ops"])
+@app.get("/health/live", tags=["ops"])
+async def health_check():
+    """Liveness probe — returns 200 when the process is alive."""
+    return {"status": "ok", "version": app.version}
+
+
+@app.get("/ready", tags=["ops"])
+@app.get("/health/ready", tags=["ops"])
+async def readiness_check():
+    """Readiness probe — confirms critical runtime dependencies are available."""
+    services = _service_config_status()
+    redis_status = _redis_status()
+    ready = services["supabase"] == "configured" and redis_status == "reachable"
+
+    body = {
+        "status": "ready" if ready else "not_ready",
+        "version": app.version,
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "services": {
+            "api": "healthy",
+            "redis": redis_status,
+            **services,
+        },
+    }
+    return JSONResponse(status_code=200 if ready else 503, content=body)
+
+
+@app.get("/health/deep", tags=["ops"])
+async def health_deep():
+    """Deep health check — returns service-level status for monitoring."""
+    vault_secret_set = bool(os.getenv("API_KEY_VAULT_SECRET"))
+    vault_dir = os.getenv("KEYS_FILE", ".devonn/api-vault/keys.json")
+    vault_dir_writable: bool
+    try:
+        import pathlib
+
+        pathlib.Path(vault_dir).parent.mkdir(parents=True, exist_ok=True)
+        vault_dir_writable = os.access(pathlib.Path(vault_dir).parent, os.W_OK)
+    except Exception:
+        vault_dir_writable = False
+
+    vault_status = "ready" if vault_dir_writable else "not_writable"
+    vault_encryption = "enabled" if vault_secret_set else "disabled (set API_KEY_VAULT_SECRET)"
+
+    return {
+        "status": "ok",
+        "version": app.version,
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "services": {
+            "api": "healthy",
+            "redis": _redis_status(),
+            **_service_config_status(),
+        },
+        "rag": {
+            "pinecone_index": os.getenv("PINECONE_INDEX", "not_configured"),
+            "embedding_model": os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
+        },
+        "proxy_vault": {
+            "status": vault_status,
+            "encryption": vault_encryption,
+        },
+    }
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled exception on %s", request.url.path)
+    logger.exception("Unhandled exception: %s", exc)
+
+    try:
+        from backend.occ_operator.occ_logger import fire_log_error  # type: ignore
+        from backend.middleware.request_context import get_request_id  # type: ignore
+
+        fire_log_error(
+            error_type="runtime",
+            message=str(exc),
+            exc=exc,
+            severity="error",
+            service="backend",
+            endpoint=str(request.url.path),
+            request_id=get_request_id(),
+            metadata={"method": request.method, "url": str(request.url)},
+        )
+    except Exception:
+        pass
+
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={"detail": "Internal server error. The incident has been logged."},
     )
