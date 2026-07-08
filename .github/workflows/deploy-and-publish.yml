@@ -1,132 +1,18 @@
-
-name: Deploy and Chrome Extension Publish
+name: Deploy and Chrome Extension Publish (archived manual lane)
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
-  deployments: write
   contents: read
 
 jobs:
-  deploy-and-publish:
+  archived:
+    name: Archived deployment lane
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-      CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-      CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-      CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-      VERCEL_PREVIEW_URL: ${{ secrets.VERCEL_PREVIEW_URL }} # Optional, if available
-
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
-        with:
-          node-version: '22'
-          cache: pnpm
-
-      - name: Install Project Dependencies
-        run: npm install --legacy-peer-deps
-
-      - name: Validate Snyk token
-        id: snyk-check
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: Explain canonical deployment lane
         run: |
-          if [ -z "$SNYK_TOKEN" ]; then
-            echo "::warning::SNYK_TOKEN is not set - skipping Snyk scan. Add it under Settings → Secrets → Actions to enable."
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "SNYK_TOKEN is set (length: ${#SNYK_TOKEN})"
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Run Snyk Security Test
-        if: steps.snyk-check.outputs.skip != 'true'
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          npm install -g snyk --legacy-peer-deps
-          snyk test
-        continue-on-error: true
-
-      - name: Build Vite React Project
-        run: npm run build
-
-      - name: Canary Deployment (Optional Safety)
-        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a  # v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          environment: canary
-          description: 'Deploying Canary version'
-          transient-environment: true
-
-      - name: Bump Chrome Extension Version
-        run: |
-          node ./scripts/bump-version.cjs
-          echo "Manifest version bumped."
-
-      - name: Package extension
-        run: |
-          cd dist
-          zip -r ../devonn-ai-${{ env.ENVIRONMENT }}.zip *
-
-      - name: Upload and Publish Chrome Extension
-        continue-on-error: true
-        run: |
-          node ./scripts/upload-to-chrome-webstore.cjs
-        env:
-          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-          ZIP_PATH: devonn-ai-${{ env.ENVIRONMENT }}.zip
-          PUBLISH_EXTENSION: ${{ env.ENVIRONMENT == 'production' }}  
-
-      - name: Production Deployment Mark
-        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a  # v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          environment: production
-          description: 'Deploying to production after Canary success'
-          transient_environment: false
-          production_environment: true
-
-      - name: Send Preview Link to Slack (if available)
-        if: env.VERCEL_PREVIEW_URL != ''
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{"text":"*Preview Environment Ready*: ${{ env.VERCEL_PREVIEW_URL }}"}' $SLACK_WEBHOOK_URL
-
-      - name: Slack Notification - Success
-        if: success() && env.SLACK_WEBHOOK_URL != ''
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{"text":"*Deployment + Chrome Extension Publish Successful!*"}' $SLACK_WEBHOOK_URL
-
-      - name: Slack Notification - Failure
-        if: failure() && env.SLACK_WEBHOOK_URL != ''
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{"text":"*Deployment Failed! Rollback is auto-triggered!*"}' $SLACK_WEBHOOK_URL
-
-      - name: Create GitHub Issue on Failure
-        if: failure()
-        continue-on-error: true
-        uses: dacbd/create-issue-action@cdb57ab6ff8862aa09fee2be6ba77a59581921c2  # v2
-        with:
-          title: "Deployment Failure Detected"
-          body: "Auto-created because the deployment failed. Check logs for troubleshooting."
-          token: ${{ secrets.GITHUB_TOKEN }}
+          echo "This legacy deploy/publish workflow is intentionally manual-only."
+          echo "Use .github/workflows/deploy.yml as the canonical deployment lane."
+          echo "Do not add push triggers here."
