@@ -3,16 +3,17 @@
 # =============================================================================
 # Target: Ubuntu 24.04 LTS | 4 vCPU | 16 GB RAM | 200 GB NVMe SSD
 #
-# Architecture:
+# Production services only:
 #   Nginx (reverse proxy + SSL) → React Frontend
 #                                → FastAPI Backend
-#                                → Hermes Orchestrator
 #   Redis (cache/queue broker)
-#   Celery Workers (background tasks)
-#   Security Agent
-#   Opportunity Intelligence Agent
-#   Knowledge Graph Service
-#   Prometheus + Grafana (monitoring)
+#   Hermes Orchestrator
+#   Celery Worker / Beat
+#   Certbot renewal
+#
+# Placeholder agent containers were intentionally removed from production compose.
+# Add dedicated agent services back only when they run real modules with real
+# health/readiness behavior.
 #
 # External managed services (not containerized):
 #   - Supabase (database/auth)
@@ -28,7 +29,6 @@
 # =============================================================================
 
 services:
-  # ── Nginx Reverse Proxy + SSL ───────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
     container_name: d3vonn-nginx
@@ -63,7 +63,6 @@ services:
           memory: 256M
           cpus: "0.25"
 
-  # ── React Frontend (build stage only) ──────────────────────────────────────
   frontend:
     build:
       context: ../../
@@ -82,7 +81,6 @@ services:
     networks:
       - d3vonn-internal
 
-  # ── FastAPI Backend ─────────────────────────────────────────────────────────
   backend:
     build:
       context: ../../backend
@@ -113,8 +111,9 @@ services:
       - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
       - SENTRY_DSN=${SENTRY_DSN:-}
       - LOG_LEVEL=info
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
-      - CORS_ORIGINS=${CORS_ORIGINS:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
+      - ALLOWED_ORIGINS=https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io
+      - CORS_ORIGINS=https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io
+      - ALLOWED_ORIGIN_REGEX=
     depends_on:
       redis:
         condition: service_healthy
@@ -137,7 +136,6 @@ services:
         max-size: "50m"
         max-file: "5"
 
-  # ── Hermes Orchestrator ─────────────────────────────────────────────────────
   hermes:
     build:
       context: ../../backend
@@ -184,7 +182,6 @@ services:
         max-size: "50m"
         max-file: "5"
 
-  # ── Celery Worker (Background Tasks) ────────────────────────────────────────
   celery-worker:
     build:
       context: ../../backend
@@ -225,7 +222,6 @@ services:
         max-size: "50m"
         max-file: "5"
 
-  # ── Celery Beat (Scheduled Tasks) ──────────────────────────────────────────
   celery-beat:
     build:
       context: ../../backend
@@ -250,102 +246,6 @@ services:
           memory: 256M
           cpus: "0.25"
 
-  # ── Security Agent ─────────────────────────────────────────────────────────
-  security-agent:
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile
-    container_name: d3vonn-security-agent
-    restart: unless-stopped
-    command: ["python", "-c", "import time; print('security-agent module not configured; keeping container alive'); time.sleep(31536000)"]
-    environment:
-      - ENVIRONMENT=production
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - REDIS_URL=redis://redis:6379/0
-      - SENTRY_DSN=${SENTRY_DSN:-}
-      - SECURITY_SCAN_INTERVAL=${SECURITY_SCAN_INTERVAL:-300}
-    depends_on:
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    networks:
-      - d3vonn-internal
-    healthcheck:
-      disable: true
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.25"
-
-  # ── Opportunity Intelligence Agent ─────────────────────────────────────────
-  opportunity-agent:
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile
-    container_name: d3vonn-opportunity-agent
-    restart: unless-stopped
-    command: ["python", "-c", "import time; print('opportunity-agent module not configured; keeping container alive'); time.sleep(31536000)"]
-    environment:
-      - ENVIRONMENT=production
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - REDIS_URL=redis://redis:6379/0
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_HOST=${PINECONE_HOST}
-      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - SENTRY_DSN=${SENTRY_DSN:-}
-    depends_on:
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    networks:
-      - d3vonn-internal
-    healthcheck:
-      disable: true
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "0.5"
-
-  # ── Knowledge Graph Service ────────────────────────────────────────────────
-  knowledge-graph:
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile
-    container_name: d3vonn-knowledge-graph
-    restart: unless-stopped
-    command: ["python", "-c", "import time; print('knowledge-graph module not configured; keeping container alive'); time.sleep(31536000)"]
-    environment:
-      - ENVIRONMENT=production
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - REDIS_URL=redis://redis:6379/0
-      - PINECONE_API_KEY=${PINECONE_API_KEY}
-      - PINECONE_HOST=${PINECONE_HOST}
-      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
-      - SENTRY_DSN=${SENTRY_DSN:-}
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - d3vonn-internal
-    healthcheck:
-      disable: true
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: "0.5"
-
-  # ── Redis ──────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: d3vonn-redis
@@ -374,7 +274,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ── Certbot (SSL Certificate Renewal) ──────────────────────────────────────
   certbot:
     image: certbot/certbot:latest
     container_name: d3vonn-certbot
