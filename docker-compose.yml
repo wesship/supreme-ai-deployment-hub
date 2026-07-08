@@ -1,45 +1,36 @@
 version: '3.9'
 
-# Devonn.AI — Local Development Stack
+# Devonn.AI — VPS/Local Docker Stack
 #
-# Services:
-#   frontend  — Vite dev server (hot reload)
-#   backend   — FastAPI Python API
-#   db        — PostgreSQL (mirrors Supabase schema locally)
-#   redis     — Cache / session store
-#   mailhog   — Local SMTP for email testing
-#
-# Usage:
-#   docker compose up              # start all services
-#   docker compose up frontend     # start frontend only
-#   docker compose logs -f backend # tail backend logs
-#   docker compose down -v         # stop and remove volumes
+# Important deployment note:
+# Supabase migration files under ./supabase/migrations use Supabase-only auth helpers
+# such as auth.uid(). A plain postgres container does not provide the Supabase
+# auth schema, so those migrations must NOT be mounted into docker-entrypoint-initdb.d.
+# Use the hosted Supabase project for Supabase migrations, or run the full Supabase
+# local stack separately.
 
 services:
-
-  # ── Frontend (Vite + React) ─────────────────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-      target: builder          # use the builder stage for hot reload
+      target: builder
     ports:
       - "5173:5173"
     volumes:
       - .:/app
-      - /app/node_modules      # prevent host node_modules from overriding
+      - /app/node_modules
     environment:
-      - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
     command: npm run dev -- --host 0.0.0.0
     depends_on:
       - backend
     networks:
       - devonn-net
 
-  # ── Backend (FastAPI Python) ────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -47,12 +38,12 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app         # hot reload via uvicorn --reload
+      - ./backend:/app
     environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://devonn:devonn_secret@db:5432/devonn_dev
-      - REDIS_URL=redis://redis:6379/0
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://devonn:devonn_secret@db:5432/devonn_dev}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_change_in_production}
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
@@ -69,29 +60,25 @@ services:
       retries: 3
       start_period: 15s
 
-  # ── PostgreSQL Database ─────────────────────────────────────────────────────
   db:
     image: postgres:16-alpine
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: devonn
-      POSTGRES_PASSWORD: devonn_secret
-      POSTGRES_DB: devonn_dev
+      POSTGRES_USER: ${POSTGRES_USER:-devonn}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devonn_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-devonn_dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # Auto-run migrations on first start
-      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
     networks:
       - devonn-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U devonn -d devonn_dev"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-devonn} -d $${POSTGRES_DB:-devonn_dev}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  # ── Redis Cache ─────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     ports:
@@ -107,12 +94,11 @@ services:
       timeout: 5s
       retries: 3
 
-  # ── MailHog (local email testing) ───────────────────────────────────────────
   mailhog:
     image: mailhog/mailhog:latest
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI — open http://localhost:8025 to view emails
+      - "1025:1025"
+      - "8025:8025"
     networks:
       - devonn-net
 
