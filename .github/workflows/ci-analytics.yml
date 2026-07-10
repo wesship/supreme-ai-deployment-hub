@@ -1,172 +1,24 @@
 name: CI Analytics & Failure Intelligence
 
 on:
-  workflow_run:
-    workflows: ["*"]
-    types: [completed]
-  schedule:
-    - cron: '0 6 * * *'  # Daily digest at 6am UTC
   workflow_dispatch:
 
 permissions:
   contents: read
   actions: read
-  issues: write
-  pull-requests: write
+
+concurrency:
+  group: ci-analytics
+  cancel-in-progress: true
 
 jobs:
   analyze-ci-health:
-    name: Analyze CI Health & Failure Patterns
+    name: Analyze CI Health Snapshot
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
-        with:
-          python-version: '3.11'
-
-      - name: Install analytics dependencies
-        run: pip3 install requests numpy scipy
-
-      - name: Collect CI run history and detect failure patterns
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
+      - name: Explain manual-only mode
         run: |
-          python3 - << 'PYEOF'
-          import os, json, requests, datetime
-          from collections import defaultdict, Counter
-
-          token = os.environ["GITHUB_TOKEN"]
-          repo = os.environ["REPO"]
-          headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-
-          # Fetch last 100 workflow runs
-          resp = requests.get(
-              f"https://api.github.com/repos/{repo}/actions/runs?per_page=100&branch=main",
-              headers=headers
-          )
-          runs = resp.json().get("workflow_runs", [])
-
-          # Analyse failure patterns
-          failures_by_workflow = defaultdict(int)
-          success_by_workflow = defaultdict(int)
-          failure_times = defaultdict(list)
-          total_runs = len(runs)
-          failed_runs = 0
-
-          for run in runs:
-              wf_name = run["name"]
-              conclusion = run.get("conclusion", "")
-              created = run["created_at"]
-
-              if conclusion == "failure":
-                  failures_by_workflow[wf_name] += 1
-                  failed_runs += 1
-                  # Parse hour of day for pattern detection
-                  hour = int(created[11:13])
-                  failure_times[wf_name].append(hour)
-              elif conclusion == "success":
-                  success_by_workflow[wf_name] += 1
-
-          # Calculate failure rates
-          failure_rates = {}
-          for wf in set(list(failures_by_workflow.keys()) + list(success_by_workflow.keys())):
-              total = failures_by_workflow[wf] + success_by_workflow[wf]
-              if total > 0:
-                  failure_rates[wf] = {
-                      "failures": failures_by_workflow[wf],
-                      "successes": success_by_workflow[wf],
-                      "total": total,
-                      "failure_rate": round(failures_by_workflow[wf] / total * 100, 1)
-                  }
-
-          # Sort by failure rate descending
-          sorted_rates = sorted(failure_rates.items(), key=lambda x: x[1]["failure_rate"], reverse=True)
-
-          print(f"=== CI Analytics Report ===")
-          print(f"Total runs analyzed: {total_runs}")
-          print(f"Failed runs: {failed_runs} ({round(failed_runs/max(total_runs,1)*100,1)}%)")
-          print(f"\nTop failing workflows:")
-          for wf, stats in sorted_rates[:10]:
-              if stats["failure_rate"] > 0:
-                  print(f"  {stats['failure_rate']:5.1f}% failure rate | {stats['failures']:3d} fails / {stats['total']:3d} runs | {wf[:60]}")
-
-          # Identify flaky workflows (fail rate 10-50%)
-          flaky = [(wf, s) for wf, s in sorted_rates if 10 <= s["failure_rate"] <= 50 and s["total"] >= 3]
-          if flaky:
-              print(f"\nPotentially flaky workflows ({len(flaky)}):")
-              for wf, s in flaky:
-                  print(f"  {wf[:60]} - {s['failure_rate']}% failure rate")
-
-          # Save report
-          report = {
-              "generated_at": datetime.datetime.utcnow().isoformat(),
-              "total_runs": total_runs,
-              "failed_runs": failed_runs,
-              "overall_failure_rate": round(failed_runs/max(total_runs,1)*100, 1),
-              "workflow_stats": dict(sorted_rates[:20]),
-              "flaky_workflows": [wf for wf, _ in flaky]
-          }
-          with open("/tmp/ci-analytics.json", "w") as f:
-              json.dump(report, f, indent=2)
-          print("\nReport saved to /tmp/ci-analytics.json")
-          PYEOF
-
-      - name: Detect build time regressions
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-        run: |
-          python3 - << 'PYEOF'
-          import os, json, requests, numpy as np
-          from collections import defaultdict
-
-          token = os.environ["GITHUB_TOKEN"]
-          repo = os.environ["REPO"]
-          headers = {"Authorization": f"token {token}"}
-
-          # Fetch recent runs with timing data
-          resp = requests.get(
-              f"https://api.github.com/repos/{repo}/actions/runs?per_page=50&branch=main",
-              headers=headers
-          )
-          runs = resp.json().get("workflow_runs", [])
-
-          # Group durations by workflow
-          durations = defaultdict(list)
-          for run in runs:
-              if run.get("conclusion") == "success" and run.get("updated_at") and run.get("created_at"):
-                  from datetime import datetime
-                  start = datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
-                  end = datetime.fromisoformat(run["updated_at"].replace("Z", "+00:00"))
-                  duration_mins = (end - start).total_seconds() / 60
-                  if 0 < duration_mins < 120:  # Sanity check
-                      durations[run["name"]].append(duration_mins)
-
-          print("=== Build Time Analysis ===")
-          regressions = []
-          for wf, times in durations.items():
-              if len(times) >= 4:
-                  arr = np.array(times)
-                  recent_avg = np.mean(arr[:3])   # Last 3 runs
-                  baseline_avg = np.mean(arr[3:]) # Older runs
-                  if baseline_avg > 0:
-                      pct_change = (recent_avg - baseline_avg) / baseline_avg * 100
-                      if pct_change > 25:  # >25% slower
-                          regressions.append((wf, pct_change, recent_avg, baseline_avg))
-                          print(f"  REGRESSION: {wf[:50]} - {pct_change:+.0f}% slower ({baseline_avg:.1f}m -> {recent_avg:.1f}m)")
-
-          if not regressions:
-              print("  No build time regressions detected")
-          PYEOF
-
-      - name: Upload analytics report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: ci-analytics-${{ github.run_id }}
-          path: /tmp/ci-analytics.json
-          retention-days: 30
+          echo "CI analytics is manual-only to prevent workflow_run recursion and conserve Actions minutes."
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Commit: $GITHUB_SHA"
