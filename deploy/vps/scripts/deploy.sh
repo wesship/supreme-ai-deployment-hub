@@ -3,10 +3,10 @@
 # D3VONN.IO — Hostinger VPS Deployment Script
 # =============================================================================
 # Usage:
-#   sudo APP_DIR=/opt/supreme-ai-deployment-hub ./deploy.sh
-#   sudo ./deploy.sh --service backend
-#   sudo ./deploy.sh --rollback
-#   sudo ./deploy.sh --status
+#   sudo APP_DIR=/opt/supreme-ai-deployment-hub bash deploy/vps/scripts/deploy.sh
+#   sudo APP_DIR=/opt/supreme-ai-deployment-hub bash deploy/vps/scripts/deploy.sh --service backend
+#   sudo APP_DIR=/opt/supreme-ai-deployment-hub bash deploy/vps/scripts/deploy.sh --rollback
+#   sudo APP_DIR=/opt/supreme-ai-deployment-hub bash deploy/vps/scripts/deploy.sh --status
 # =============================================================================
 
 set -euo pipefail
@@ -19,6 +19,7 @@ COMPOSE_FILE="${COMPOSE_DIR}/docker-compose.yml"
 MONITORING_FILE="${COMPOSE_DIR}/docker-compose.monitoring.yml"
 ENV_FILE="${ENV_FILE:-${COMPOSE_DIR}/env/.env.production}"
 EXAMPLE_ENV="${COMPOSE_DIR}/env/.env.example"
+VALIDATE_SCRIPT="${COMPOSE_DIR}/scripts/validate-production-env.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -26,22 +27,24 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-log() { echo -e "[$(date -Iseconds)] $1"; }
+log()     { echo -e "[$(date -Iseconds)] $1"; }
 success() { echo -e "${GREEN}✓${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠️${NC} $1"; }
-error() { echo -e "${RED}❌${NC} $1"; }
+warn()    { echo -e "${YELLOW}⚠️${NC} $1"; }
+error()   { echo -e "${RED}❌${NC} $1"; }
 
 ACTION="deploy"
 SERVICE=""
 WITH_MONITORING=false
+SKIP_VALIDATE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --rollback) ACTION="rollback"; shift ;;
-        --status) ACTION="status"; shift ;;
-        --service) SERVICE="$2"; shift 2 ;;
+        --rollback)       ACTION="rollback"; shift ;;
+        --status)         ACTION="status"; shift ;;
+        --service)        SERVICE="$2"; shift 2 ;;
         --with-monitoring) WITH_MONITORING=true; shift ;;
-        --help) ACTION="help"; shift ;;
+        --skip-validate)  SKIP_VALIDATE=true; shift ;;
+        --help)           ACTION="help"; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
@@ -49,11 +52,12 @@ done
 show_help() {
     echo "D3VONN.IO Hostinger VPS Deployment Script"
     echo ""
-    echo "Usage: sudo APP_DIR=/opt/supreme-ai-deployment-hub ./deploy.sh [OPTIONS]"
+    echo "Usage: sudo APP_DIR=/opt/supreme-ai-deployment-hub bash deploy/vps/scripts/deploy.sh [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  --service NAME       Deploy a specific service only"
     echo "  --with-monitoring    Include monitoring stack"
+    echo "  --skip-validate      Skip production env validation (not recommended)"
     echo "  --rollback           Rollback to previous version"
     echo "  --status             Show current deployment status"
     echo "  --help               Show this help message"
@@ -63,14 +67,13 @@ show_help() {
     echo "  ENV_FILE             Env path. Default: deploy/vps/env/.env.production"
     echo "  BRANCH               Git branch. Default: main"
     echo ""
-    echo "Services: backend, hermes, celery-worker, celery-beat, security-agent,"
-    echo "          opportunity-agent, knowledge-graph, nginx, redis"
+    echo "Services: backend, hermes, celery-worker, celery-beat, nginx, redis"
 }
 
 ensure_project_exists() {
     if [ ! -d "$PROJECT_DIR/.git" ]; then
         error "Project repo not found at: $PROJECT_DIR"
-        echo "  Run deploy/vps/scripts/hostinger-bootstrap.sh first, or clone the repo manually:"
+        echo "  Clone the repo first:"
         echo "  sudo git clone https://github.com/wesship/supreme-ai-deployment-hub.git $PROJECT_DIR"
         exit 1
     fi
@@ -89,6 +92,32 @@ ensure_env_exists() {
         echo "  sudo nano $ENV_FILE"
         exit 2
     fi
+    chmod 600 "$ENV_FILE"
+}
+
+validate_env() {
+    if [ "$SKIP_VALIDATE" = true ]; then
+        warn "Skipping production env validation (--skip-validate)"
+        return
+    fi
+    if [ -f "$VALIDATE_SCRIPT" ]; then
+        log "Validating production environment..."
+        if ! bash "$VALIDATE_SCRIPT" "$ENV_FILE"; then
+            error "Environment validation failed. Fix the issues above before deploying."
+            exit 1
+        fi
+        success "Environment validation passed"
+    else
+        warn "validate-production-env.sh not found; skipping env validation"
+    fi
+}
+
+ensure_dirs() {
+    # Ensure volume-mounted directories exist so Docker does not create them as root.
+    mkdir -p "${COMPOSE_DIR}/nginx/logs"
+    mkdir -p "${COMPOSE_DIR}/ssl/certs"
+    mkdir -p "${COMPOSE_DIR}/ssl/webroot"
+    success "Volume mount directories ensured"
 }
 
 compose_cmd() {
@@ -97,6 +126,22 @@ compose_cmd() {
         cmd="$cmd -f $MONITORING_FILE"
     fi
     echo "$cmd"
+}
+
+wait_for_backend() {
+    local max_attempts=24   # 24 × 5s = 120 s
+    local attempt=0
+    log "Waiting for backend health (up to 120 s)..."
+    while [ $attempt -lt $max_attempts ]; do
+        attempt=$((attempt + 1))
+        STATUS=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health/live 2>/dev/null || true)
+        if echo "$STATUS" | grep -q '"status"'; then
+            success "Backend is healthy after ${attempt}×5 s"
+            return 0
+        fi
+        sleep 5
+    done
+    return 1
 }
 
 show_status() {
@@ -124,13 +169,13 @@ show_status() {
     echo ""
     echo "━━━ Health Checks ━━━"
     BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health/live 2>/dev/null || echo "UNREACHABLE")
-    echo "  Backend: ${BACKEND_HEALTH}"
+    echo "  Backend:  ${BACKEND_HEALTH}"
 
     REDIS_HEALTH=$(docker exec d3vonn-redis redis-cli ping 2>/dev/null || echo "UNREACHABLE")
-    echo "  Redis:   ${REDIS_HEALTH}"
+    echo "  Redis:    ${REDIS_HEALTH}"
 
     NGINX_HEALTH=$(curl -sf http://localhost/health 2>/dev/null || echo "UNREACHABLE")
-    echo "  Nginx:   ${NGINX_HEALTH}"
+    echo "  Nginx:    ${NGINX_HEALTH}"
 
     echo ""
     echo "━━━ Git Status ━━━"
@@ -143,6 +188,7 @@ show_status() {
 deploy() {
     ensure_project_exists
     ensure_env_exists
+    validate_env
 
     echo "╔══════════════════════════════════════════════════════════════╗"
     echo "║  D3VONN.IO — Deploying to Hostinger VPS                    ║"
@@ -159,6 +205,8 @@ deploy() {
     echo "$PREVIOUS_COMMIT" > "${COMPOSE_DIR}/.rollback_commit"
     success "Code updated to $(git log --oneline -1)"
 
+    ensure_dirs
+
     cd "$COMPOSE_DIR"
     local COMPOSE_CMD
     COMPOSE_CMD=$(compose_cmd)
@@ -169,9 +217,9 @@ deploy() {
 
     log "Building images..."
     if [ -n "$SERVICE" ]; then
-        $COMPOSE_CMD build "$SERVICE"
+        $COMPOSE_CMD build --pull "$SERVICE"
     else
-        $COMPOSE_CMD build
+        $COMPOSE_CMD build --pull
     fi
     success "Images built"
 
@@ -183,14 +231,14 @@ deploy() {
     fi
     success "Services started"
 
-    log "Waiting for health checks..."
-    sleep 30
-
-    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health/live 2>/dev/null || echo "FAILED")
-    if [ "$BACKEND_HEALTH" = "FAILED" ]; then
-        error "Backend health check failed."
-        warn "Run: sudo APP_DIR=$APP_DIR $0 --status"
-        warn "Rollback if needed: sudo APP_DIR=$APP_DIR $0 --rollback"
+    if ! wait_for_backend; then
+        error "Backend health check failed after 120 s."
+        echo ""
+        echo "Collecting diagnostics..."
+        docker logs --tail=50 d3vonn-backend 2>&1 || true
+        echo ""
+        warn "Run: sudo APP_DIR=$APP_DIR bash $0 --status"
+        warn "Rollback if needed: sudo APP_DIR=$APP_DIR bash $0 --rollback"
         exit 1
     fi
 
@@ -219,16 +267,16 @@ rollback() {
     log "Rolling back to commit: $ROLLBACK_COMMIT"
     git reset --hard "$ROLLBACK_COMMIT"
 
+    ensure_dirs
+
     cd "$COMPOSE_DIR"
     local COMPOSE_CMD
     COMPOSE_CMD=$(compose_cmd)
     $COMPOSE_CMD up -d --force-recreate
 
-    sleep 15
-
-    BACKEND_HEALTH=$(docker exec d3vonn-backend curl -sf http://localhost:8000/health/live 2>/dev/null || echo "FAILED")
-    if [ "$BACKEND_HEALTH" = "FAILED" ]; then
+    if ! wait_for_backend; then
         error "Rollback health check also failed. Manual intervention required."
+        docker logs --tail=50 d3vonn-backend 2>&1 || true
         exit 1
     fi
 
@@ -236,8 +284,8 @@ rollback() {
 }
 
 case $ACTION in
-    deploy) deploy ;;
+    deploy)   deploy ;;
     rollback) rollback ;;
-    status) show_status ;;
-    help) show_help ;;
+    status)   show_status ;;
+    help)     show_help ;;
 esac

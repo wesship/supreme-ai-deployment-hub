@@ -93,27 +93,40 @@ services:
       - "8000"
     environment:
       - ENVIRONMENT=production
+      # ── Supabase ──────────────────────────────────────────────────────────
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      # ── Redis / Celery ────────────────────────────────────────────────────
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/2
+      # ── AI Providers ──────────────────────────────────────────────────────
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      # ── Pinecone / RAG ────────────────────────────────────────────────────
       - PINECONE_API_KEY=${PINECONE_API_KEY}
       - PINECONE_HOST=${PINECONE_HOST}
-      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - PINECONE_INDEX=${PINECONE_INDEX_NAME:-devonn-rag}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
+      # ── Auth / Security ───────────────────────────────────────────────────
       - JWT_SECRET=${JWT_SECRET}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - API_KEY_VAULT_SECRET=${API_KEY_VAULT_SECRET}
+      - WS_AUTH_TOKEN=${WS_AUTH_TOKEN}
+      # ── CORS ──────────────────────────────────────────────────────────────
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS_RAW:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
+      - ALLOWED_ORIGINS_RAW=${ALLOWED_ORIGINS_RAW:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
+      - CORS_ORIGINS=${ALLOWED_ORIGINS_RAW:-https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io}
+      - ALLOWED_ORIGIN_REGEX=${ALLOWED_ORIGIN_REGEX:-}
+      # ── Optional integrations ─────────────────────────────────────────────
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER:-}
       - SENTRY_DSN=${SENTRY_DSN:-}
-      - LOG_LEVEL=info
-      - ALLOWED_ORIGINS=https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io
-      - CORS_ORIGINS=https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io
-      - ALLOWED_ORIGIN_REGEX=
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - VITE_API_URL=${VITE_API_URL:-https://api.d3vonn.io}
     depends_on:
       redis:
         condition: service_healthy
@@ -124,7 +137,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 40s
     deploy:
       resources:
         limits:
@@ -147,14 +160,15 @@ services:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
       - PINECONE_HOST=${PINECONE_HOST}
-      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - PINECONE_INDEX=${PINECONE_INDEX_NAME:-devonn-rag}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - SENTRY_DSN=${SENTRY_DSN:-}
       - HERMES_MODE=orchestrator
@@ -193,15 +207,16 @@ services:
       - ENVIRONMENT=production
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/2
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
       - PINECONE_HOST=${PINECONE_HOST}
-      - PINECONE_INDEX=${PINECONE_INDEX:-devonn-rag}
+      - PINECONE_INDEX=${PINECONE_INDEX_NAME:-devonn-rag}
+      - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - SENTRY_DSN=${SENTRY_DSN:-}
     depends_on:
@@ -231,8 +246,8 @@ services:
     command: ["celery", "-A", "tasks:celery", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
     environment:
       - ENVIRONMENT=production
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/2
     depends_on:
       redis:
         condition: service_healthy
@@ -255,11 +270,13 @@ services:
     volumes:
       - redis_data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: redis-server /usr/local/etc/redis/redis.conf
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+      --requirepass ${REDIS_PASSWORD}
     networks:
       - d3vonn-internal
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
