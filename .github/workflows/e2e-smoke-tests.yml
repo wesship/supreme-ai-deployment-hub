@@ -3,8 +3,14 @@ name: E2E Smoke Tests
 on:
   push:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - 'deploy/**'
+      - 'src/main.py'
+      - 'requirements.txt'
+      - '.github/workflows/e2e-smoke-tests.yml'
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '0 12 * * *'
   workflow_dispatch:
     inputs:
       environment:
@@ -20,7 +26,7 @@ permissions:
 
 concurrency:
   group: e2e-smoke-${{ github.event.inputs.environment || 'production' }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   smoke-test-api:
