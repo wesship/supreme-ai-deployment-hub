@@ -13,7 +13,7 @@ on:
       - 'config/ai/models/**'
       - 'models/**'
   schedule:
-    - cron: '0 8 * * *'  # Daily model health check
+    - cron: '0 8 * * *'
   workflow_dispatch:
     inputs:
       action:
@@ -36,220 +36,159 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────
-  # Validate model registry integrity
-  # ──────────────────────────────────────────────────────────────────
   validate-registry:
     name: Validate Model Registry
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
-
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
-
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check --quiet PyYAML
       - name: Validate model registry schema and policies
         run: |
           python3 - <<'PYEOF'
-          import yaml, sys, json
-          from datetime import datetime
+          import sys
+          import yaml
 
-          with open("config/ai/models/registry.yaml") as f:
-              registry = yaml.safe_load(f)
+          with open("config/ai/models/registry.yaml", encoding="utf-8") as handle:
+              registry = yaml.safe_load(handle)
 
-          models   = registry.get("models", [])
+          models = registry.get("models", [])
           policies = registry.get("policies", {})
-
           print("=== AI Model Registry Validation ===")
           print(f"Models registered: {len(models)}")
 
-          errors   = []
+          errors = []
           warnings = []
-          REQUIRED = ["id","name","provider","version","status","safety_rating"]
+          required = ["id", "name", "provider", "version", "status", "safety_rating"]
+          allowed_providers = policies.get("allowed_providers", [])
+          blocked = policies.get("blocked_models", [])
 
-          for m in models:
-              mid = m.get("id","<unknown>")
-              # Required fields
-              for field in REQUIRED:
-                  if not m.get(field):
-                      errors.append(f"{mid}: missing required field '{field}'")
+          for model in models:
+              model_id = model.get("id", "<unknown>")
+              for field in required:
+                  if not model.get(field):
+                      errors.append(f"{model_id}: missing required field '{field}'")
+              if model.get("status") == "production":
+                  if not model.get("approved_by"):
+                      errors.append(f"{model_id}: production model has no approved_by")
+                  if not model.get("approved_at"):
+                      errors.append(f"{model_id}: production model has no approved_at")
+              if model.get("safety_rating") not in {"high", "medium"}:
+                  errors.append(f"{model_id}: safety_rating must be high or medium")
+              if model.get("provider") not in allowed_providers:
+                  errors.append(f"{model_id}: provider '{model.get('provider')}' not in allowlist")
+              if model_id in blocked:
+                  errors.append(f"{model_id}: model is in the blocked list")
+              if model.get("pending_review"):
+                  warnings.append(f"{model_id}: pending approval review")
 
-              # Production models must be approved
-              if m.get("status") == "production":
-                  if not m.get("approved_by"):
-                      errors.append(f"{mid}: production model has no approved_by")
-                  if not m.get("approved_at"):
-                      errors.append(f"{mid}: production model has no approved_at")
-
-              # Safety rating check
-              allowed_safety = ["high","medium"]
-              if m.get("safety_rating") not in allowed_safety:
-                  errors.append(f"{mid}: safety_rating must be one of {allowed_safety}")
-
-              # Provider allowlist
-              allowed_providers = policies.get("allowed_providers", [])
-              if m.get("provider") not in allowed_providers:
-                  errors.append(f"{mid}: provider '{m.get('provider')}' not in allowlist")
-
-              # Blocked models
-              blocked = policies.get("blocked_models", [])
-              if mid in blocked:
-                  errors.append(f"{mid}: model is in the blocked list")
-
-              # Pending review warning
-              if m.get("pending_review"):
-                  warnings.append(f"{mid}: pending approval review")
-
-          print(f"\nModels by status:")
           statuses = {}
-          for m in models:
-              s = m.get("status","unknown")
-              statuses[s] = statuses.get(s,0) + 1
-          for s, count in sorted(statuses.items()):
-              print(f"  {s}: {count}")
+          for model in models:
+              status = model.get("status", "unknown")
+              statuses[status] = statuses.get(status, 0) + 1
+          print("\nModels by status:")
+          for status, count in sorted(statuses.items()):
+              print(f"  {status}: {count}")
 
-          if warnings:
-              print(f"\nWarnings ({len(warnings)}):")
-              for w in warnings:
-                  print(f"  ::warning::{w}")
-
+          for warning in warnings:
+              print(f"::warning::{warning}")
+          for error in errors:
+              print(f"::error::{error}")
           if errors:
-              print(f"\nErrors ({len(errors)}):")
-              for e in errors:
-                  print(f"  ::error::{e}")
               sys.exit(1)
-          else:
-              print("\nRegistry validation passed")
+          print("Registry validation passed")
           PYEOF
 
-  # ──────────────────────────────────────────────────────────────────
-  # Model performance health check
-  # ──────────────────────────────────────────────────────────────────
   model-health-check:
     name: Model Performance Health Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: validate-registry
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
-
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
-
+      - name: Install health-check dependencies
+        run: python -m pip install --disable-pip-version-check --quiet PyYAML
       - name: Run model performance regression detection
         run: |
           python3 - <<'PYEOF'
-          import yaml, json, random
-          from datetime import datetime
+          import random
+          import yaml
 
           random.seed(42)
+          with open("config/ai/models/registry.yaml", encoding="utf-8") as handle:
+              registry = yaml.safe_load(handle)
 
-          with open("config/ai/models/registry.yaml") as f:
-              registry = yaml.safe_load(f)
-
-          # Performance baselines (30-day rolling average)
-          BASELINES = {
-              "gpt-4o-2024-11-20":      {"p50_ms": 800,  "p99_ms": 2500, "error_rate": 0.1, "quality_score": 0.94},
-              "gpt-4o-mini-2024-07-18": {"p50_ms": 350,  "p99_ms": 1200, "error_rate": 0.2, "quality_score": 0.88},
-              "gemini-2.5-flash-preview":{"p50_ms": 400, "p99_ms": 1400, "error_rate": 0.3, "quality_score": 0.87},
-              "mistral-7b-instruct-v0.3":{"p50_ms": 120, "p99_ms": 450,  "error_rate": 0.5, "quality_score": 0.78},
+          baselines = {
+              "gpt-4o-2024-11-20": {"p50_ms": 800, "p99_ms": 2500, "error_rate": 0.1, "quality_score": 0.94},
+              "gpt-4o-mini-2024-07-18": {"p50_ms": 350, "p99_ms": 1200, "error_rate": 0.2, "quality_score": 0.88},
+              "gemini-2.5-flash-preview": {"p50_ms": 400, "p99_ms": 1400, "error_rate": 0.3, "quality_score": 0.87},
+              "mistral-7b-instruct-v0.3": {"p50_ms": 120, "p99_ms": 450, "error_rate": 0.5, "quality_score": 0.78},
           }
 
           print("=== Model Performance Health Check ===")
-          print(f"{'Model':<35} {'p50':>8} {'p99':>8} {'Err%':>8} {'Quality':>8} {'Status':>10}")
-          print("-" * 85)
-
           rollback_triggers = []
-          for m in registry["models"]:
-              mid = m["id"]
-              if mid not in BASELINES:
+          for model in registry["models"]:
+              model_id = model["id"]
+              if model_id not in baselines:
                   continue
-              b = BASELINES[mid]
-              # Simulate current measurement with small jitter
+              baseline = baselines[model_id]
               jitter = random.uniform(0.95, 1.08)
-              curr_p50   = int(b["p50_ms"] * jitter)
-              curr_p99   = int(b["p99_ms"] * jitter)
-              curr_err   = round(b["error_rate"] * jitter, 2)
-              curr_qual  = round(b["quality_score"] * (2 - jitter), 3)
+              current_error = round(baseline["error_rate"] * jitter, 2)
+              threshold = registry["policies"]["auto_rollback_on_error_rate_pct"]
+              if current_error > threshold:
+                  rollback_triggers.append(f"{model_id}: error_rate={current_error}% exceeds {threshold}%")
+              print(f"{model_id}: error_rate={current_error}%")
 
-              auto_rollback_threshold = registry["policies"]["auto_rollback_on_error_rate_pct"]
-              regression = curr_err > auto_rollback_threshold
-              status = "ROLLBACK" if regression else "HEALTHY"
-
-              if regression:
-                  rollback_triggers.append(f"{mid}: error_rate={curr_err}% exceeds threshold {auto_rollback_threshold}%")
-
-              print(f"  {mid:<33} {curr_p50:>6}ms {curr_p99:>6}ms {curr_err:>7.2f}% {curr_qual:>8.3f} {status:>10}")
-
-          if rollback_triggers:
-              print("\nAuto-rollback triggers:")
-              for t in rollback_triggers:
-                  print(f"  ::error::ROLLBACK TRIGGER: {t}")
-          else:
-              print("\nAll models healthy - no rollback triggers")
+          for trigger in rollback_triggers:
+              print(f"::error::ROLLBACK TRIGGER: {trigger}")
+          print("All models healthy - no rollback triggers" if not rollback_triggers else "Rollback review required")
           PYEOF
 
-  # ──────────────────────────────────────────────────────────────────
-  # Model deployment approval gate
-  # ──────────────────────────────────────────────────────────────────
   deployment-approval-gate:
     name: Model Deployment Approval Gate
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: [validate-registry, model-health-check]
     if: github.event_name == 'pull_request'
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 2
-
+      - name: Install approval dependencies
+        run: python -m pip install --disable-pip-version-check --quiet PyYAML
       - name: Detect model registry changes and enforce approval
         run: |
           python3 - <<'PYEOF'
-          import subprocess, yaml, sys
+          import subprocess
+          import sys
+          import yaml
 
-          # Get changed files
-          result = subprocess.run(
-              ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
-              capture_output=True, text=True
-          )
+          result = subprocess.run(["git", "diff", "--name-only", "HEAD~1", "HEAD"], capture_output=True, text=True)
           changed = result.stdout.strip().split("\n")
-          registry_changed = any("config/ai/models" in f for f in changed)
-
-          if not registry_changed:
+          if not any("config/ai/models" in path for path in changed):
               print("No model registry changes detected")
               sys.exit(0)
 
-          print("Model registry changes detected - running approval gate checks")
-
-          with open("config/ai/models/registry.yaml") as f:
-              registry = yaml.safe_load(f)
-
-          # Check for any unapproved production models
-          unapproved = [m["id"] for m in registry["models"]
-                        if m.get("status") == "production" and not m.get("approved_by")]
-
+          with open("config/ai/models/registry.yaml", encoding="utf-8") as handle:
+              registry = yaml.safe_load(handle)
+          unapproved = [model["id"] for model in registry["models"] if model.get("status") == "production" and not model.get("approved_by")]
           if unapproved:
-              print(f"\n::error::Production models require approval before merge: {unapproved}")
-              print("Please have a platform team member review and set 'approved_by' in registry.yaml")
+              print(f"::error::Production models require approval before merge: {unapproved}")
               sys.exit(1)
-
-          # Check for pending review models being promoted
-          pending = [m["id"] for m in registry["models"] if m.get("pending_review")]
+          pending = [model["id"] for model in registry["models"] if model.get("pending_review")]
           if pending:
-              print(f"\n::warning::Models pending review: {pending}")
-              print("These models will not be routed production traffic until approved")
-
-          print("\nApproval gate passed")
+              print(f"::warning::Models pending review: {pending}")
+          print("Approval gate passed")
           PYEOF
