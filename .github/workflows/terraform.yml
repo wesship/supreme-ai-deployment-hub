@@ -1,10 +1,6 @@
 name: Terraform Validation Pipeline
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -12,125 +8,21 @@ on:
         required: true
         default: 'staging'
         type: choice
-        options:
-          - staging
-          - production
-
-env:
-  TF_VERSION: '1.5.0'
-  TF_LOG: INFO
-  AZURE_RESOURCE_GROUP: devonn-${{ github.event.inputs.environment || 'production' }}-rg
-  CONTAINER_APP_NAME: devonn-ai
-  CONTAINER_ENV_NAME: devonn-${{ github.event.inputs.environment || 'production' }}-env
-  AZURE_RESOURCE_GROUP_TFSTATE: devonn-tfstate-rg
+        options: [staging, production]
 
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
+
+concurrency:
+  group: terraform-validation
+  cancel-in-progress: true
 
 jobs:
-  check-azure-secrets:
-    name: Check Azure Secrets
+  control:
+    name: Manual Terraform Validation
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    outputs:
-      has_secrets: ${{ steps.check.outputs.has_secrets }}
     steps:
-      - name: Check required Azure secrets
-        id: check
-        env:
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        run: |
-          if [ -z "${AZURE_SUBSCRIPTION_ID}" ] || [ -z "${AZURE_CLIENT_ID}" ]; then
-            echo "::warning::Azure secrets not configured - skipping Terraform validation"
-            echo "has_secrets=false" >> $GITHUB_OUTPUT
-          else
-            echo "has_secrets=true" >> $GITHUB_OUTPUT
-          fi
-
-  terraform-plan:
-    name: Terraform Plan
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [check-azure-secrets]
-    if: needs.check-azure-secrets.outputs.has_secrets == 'true'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Validate Azure Secrets
-        id: azure-secrets-check
-        run: |
-          if [ -z "${{ secrets.AZURE_CLIENT_ID }}" ] || [ -z "${{ secrets.AZURE_TENANT_ID }}" ] || [ -z "${{ secrets.AZURE_SUBSCRIPTION_ID }}" ] || [ -z "${{ secrets.AZURE_CLIENT_SECRET_VALUE }}" ]; then
-            echo "⚠️  Azure secrets not configured - skipping Azure validation steps"
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Configure Azure Credentials
-        if: steps.azure-secrets-check.outputs.skip != 'true'
-        id: azure-login-plan
-        continue-on-error: true
-        uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5  # v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          auth-type: SERVICE_PRINCIPAL
-
-      - name: Terraform Init
-        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-plan.outcome == 'success'
-        working-directory: ./src/data/manifest/terraform/azure
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        run: |
-          terraform init \
-            -backend=false
-
-      - name: Terraform Validate
-        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-plan.outcome == 'success'
-        working-directory: ./src/data/manifest/terraform/azure
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        run: terraform validate
-
-      - name: Terraform Plan Advisory
-        if: steps.azure-secrets-check.outputs.skip != 'true' && steps.azure-login-plan.outcome == 'success'
-        working-directory: ./src/data/manifest/terraform/azure
-        env:
-          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET_VALUE }}
-          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        run: |
-          terraform plan \
-            -var="resource_group_name=${{ env.AZURE_RESOURCE_GROUP }}" \
-            -var="location=eastus" \
-            -var="container_app_environment_name=${{ env.CONTAINER_ENV_NAME }}" \
-            -var="container_app_name=${{ env.CONTAINER_APP_NAME }}" \
-            -var="backend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:backend-latest" \
-            -var="frontend_image=ghcr.io/rajeshannam20/devon.ai-supreme-repo:frontend-latest" \
-            -var="environment=${{ github.event.inputs.environment || 'production' }}" \
-            -no-color
-
-      - name: PR Summary
-        if: always()
-        run: |
-          echo "Terraform validation workflow completed."
-          echo "This PR workflow is validation-only and does not change infrastructure."
+      - run: |
+          echo "Terraform validation is manual-only because the active production path does not use Terraform-managed AWS infrastructure."
+          echo "Environment: ${{ github.event.inputs.environment }}"
