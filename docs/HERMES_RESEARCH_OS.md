@@ -6,9 +6,9 @@ Hermes Research OS upgrades Hermes from chatbot-style response generation into a
 
 ```bash
 pip install -r requirements.txt
-agent-reach install
-agent-reach doctor
 ```
+
+The Research OS implementation in this repository uses its built-in source adapters and does not require an `agent-reach` PyPI package. The `AgentReachCollectorAgent` name refers to the internal parallel collector abstraction in `backend/research_os/agents.py`.
 
 ## Backend endpoints
 
