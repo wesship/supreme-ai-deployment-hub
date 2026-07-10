@@ -20,46 +20,37 @@ jobs:
     outputs:
       artifact-digest: ${{ steps.hash.outputs.digest }}
       artifact-name: ${{ steps.hash.outputs.name }}
-
+      attested: ${{ steps.attestation-status.outputs.attested }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
-
       - name: Enable Corepack
         run: corepack enable
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Verify lockfile integrity
         run: git diff --exit-code pnpm-lock.yaml || (echo 'pnpm-lock.yaml drifted' && exit 1)
-
       - name: Build production artifacts
         run: pnpm run build --if-present
-        continue-on-error: true
-
       - name: Generate artifact archive
         id: archive
         run: |
           ARTIFACT_NAME="devonn-ai-$(git rev-parse --short HEAD).tar.gz"
-          if [ -d "dist" ]; then
+          if [ -d dist ]; then
             tar -czf "$ARTIFACT_NAME" dist/
-          elif [ -d "src" ]; then
+          elif [ -d src ]; then
             tar -czf "$ARTIFACT_NAME" src/ package.json pnpm-lock.yaml
           else
             tar -czf "$ARTIFACT_NAME" package.json pnpm-lock.yaml .github/workflows/
           fi
           echo "artifact-name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
-
       - name: Compute SHA-256 digest
         id: hash
         run: |
@@ -67,45 +58,45 @@ jobs:
           DIGEST=$(sha256sum "$ARTIFACT" | awk '{print $1}')
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
           echo "name=$ARTIFACT" >> "$GITHUB_OUTPUT"
-
-      - name: Upload artifact for attestation
+      - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ steps.archive.outputs.artifact-name }}
           path: ${{ steps.archive.outputs.artifact-name }}
           retention-days: 30
-
       - name: Generate GitHub artifact attestation
+        if: vars.ARTIFACT_ATTESTATION_ENABLED == 'true'
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be
         with:
           subject-name: ${{ steps.archive.outputs.artifact-name }}
           subject-digest: sha256:${{ steps.hash.outputs.digest }}
+      - name: Record attestation status
+        id: attestation-status
+        run: |
+          if [ "${{ vars.ARTIFACT_ATTESTATION_ENABLED }}" = "true" ]; then
+            echo "attested=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "attested=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Artifact attestation is disabled. Set ARTIFACT_ATTESTATION_ENABLED=true after OIDC attestation support is confirmed."
+          fi
 
   verify-provenance:
     name: Verify Provenance Attestation
+    if: needs.build-and-attest.outputs.attested == 'true'
     runs-on: ubuntu-latest
     needs: build-and-attest
-
     permissions:
       contents: read
       id-token: write
       attestations: read
-
     steps:
       - name: Download artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: ${{ needs.build-and-attest.outputs.artifact-name }}
-
       - name: Verify SHA-256 digest matches
         run: |
           ARTIFACT="${{ needs.build-and-attest.outputs.artifact-name }}"
           EXPECTED="${{ needs.build-and-attest.outputs.artifact-digest }}"
           ACTUAL=$(sha256sum "$ARTIFACT" | awk '{print $1}')
-
-          if [ "$ACTUAL" = "$EXPECTED" ]; then
-            echo "Digest verified"
-          else
-            echo "::error::Digest mismatch"
-            exit 1
-          fi
+          test "$ACTUAL" = "$EXPECTED"
