@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, ExternalLink, Github, AlertTriangle, ArrowRight } from "lucide-react";
+import { CheckCircle2, ExternalLink, GitBranch, AlertTriangle, ArrowRight } from "lucide-react";
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 type ScreenId =
@@ -170,7 +170,7 @@ export default function GitHubConnectorDiagnostic() {
     <div className="container mx-auto max-w-4xl px-4 py-10 space-y-6">
       <D3vonnPageBanner title="GitHub Connector" />
       <div className="flex items-center gap-3">
-        <Github className="h-8 w-8" />
+        <GitBranch className="h-8 w-8" />
         <div>
           <h2 className="text-3xl font-bold tracking-tight">GitHub Connector Diagnostic</h2>
           <p className="text-muted-foreground">Tell me which GitHub screen you're on — I'll tell you exactly what to click next.</p>
