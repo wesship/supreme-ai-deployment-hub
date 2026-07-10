@@ -78,7 +78,7 @@ If host-level checks pass but these commands fail, investigate:
 Inspect the configuration loaded by the running container:
 
 ```bash
-docker exec d3vonn-nginx nginx -T | grep -E \
+docker exec d3vonn-nginx nginx -T 2>&1 | grep -E \
 'Strict-Transport|Content-Security|Permissions-Policy|Referrer-Policy|proxy_pass'
 ```
 
@@ -111,7 +111,8 @@ Re-run the internal backend tests and public endpoint tests after recreation.
 ```bash
 curl -i https://api.d3vonn.io/health/live
 curl -i https://api.d3vonn.io/health/ready
-curl -i https://api.d3vonn.io/api/docs
+curl -i https://api.d3vonn.io/api/health
+curl -i https://api.d3vonn.io/api/health/ready
 ```
 
 The rollout is complete only when:
