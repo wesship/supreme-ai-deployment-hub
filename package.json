@@ -6,8 +6,8 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "build": "vite build && node scripts/generate-route-html.mjs",
+    "build:dev": "vite build --mode development && node scripts/generate-route-html.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
