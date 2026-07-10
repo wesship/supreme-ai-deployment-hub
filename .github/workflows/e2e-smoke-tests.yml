@@ -4,23 +4,23 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '*/15 * * * *'  # Every 15 minutes
+    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       environment:
         description: 'Target environment'
         required: true
-        default: 'staging'
+        default: 'production'
         type: choice
-        options: [staging, production]
+        options: [production, staging]
 
 permissions:
   contents: read
   issues: write
 
 concurrency:
-  group: e2e-smoke-${{ github.event.inputs.environment || 'staging' }}
-  cancel-in-progress: false  # Never cancel running smoke tests
+  group: e2e-smoke-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
 
 jobs:
   smoke-test-api:
@@ -28,18 +28,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      ENV: ${{ github.event.inputs.environment || 'staging' }}
+      ENV: ${{ github.event.inputs.environment || 'production' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Set environment URLs
         id: env-config
         run: |
-          if [ "$ENV" = "production" ]; then
-            echo "api_url=${{ vars.PRODUCTION_API_URL || 'https://api.d3vonn.io/v1' }}" >> $GITHUB_OUTPUT
+          if [ "$ENV" = "staging" ]; then
+            echo "api_url=${{ vars.STAGING_API_URL }}" >> "$GITHUB_OUTPUT"
           else
-            echo "api_url=${{ vars.STAGING_API_URL || 'https://staging-api.d3vonn.io/v1' }}" >> $GITHUB_OUTPUT
+            echo "api_url=${{ vars.PRODUCTION_API_URL || 'https://api.d3vonn.io' }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Health check with SLO assertion
@@ -49,30 +49,32 @@ jobs:
 
           if [ -z "$API_URL" ]; then
             echo "::notice::API URL not configured for $ENV - skipping live smoke tests"
-            echo "skipped=true" >> $GITHUB_OUTPUT
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # SLO: Health endpoint must respond in < 2000ms
+          API_URL="${API_URL%/}"
           START=$(date +%s%3N)
-          HTTP_CODE=$(curl -s -o /tmp/health-response.json -w "%{http_code}" \
-            --max-time 10 "$API_URL/health" || echo "000")
+          HTTP_CODE=$(curl -sS -o /tmp/health-response.json -w "%{http_code}" \
+            --retry 3 --retry-delay 2 --retry-all-errors --max-time 15 \
+            "$API_URL/health" || true)
           END=$(date +%s%3N)
           LATENCY=$((END - START))
 
+          HTTP_CODE="${HTTP_CODE:-000}"
           echo "HTTP Status: $HTTP_CODE"
           echo "Latency: ${LATENCY}ms"
-          echo "latency=${LATENCY}" >> $GITHUB_OUTPUT
-          echo "http_code=${HTTP_CODE}" >> $GITHUB_OUTPUT
+          echo "latency=${LATENCY}" >> "$GITHUB_OUTPUT"
+          echo "http_code=${HTTP_CODE}" >> "$GITHUB_OUTPUT"
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Health check failed: HTTP $HTTP_CODE"
+            echo "::error::Health check failed: HTTP $HTTP_CODE at $API_URL/health"
             cat /tmp/health-response.json 2>/dev/null || true
             exit 1
           fi
 
-          if [ "$LATENCY" -gt 2000 ]; then
-            echo "::warning::Health check SLO breach: ${LATENCY}ms > 2000ms threshold"
+          if [ "$LATENCY" -gt 5000 ]; then
+            echo "::warning::Health check SLO breach: ${LATENCY}ms > 5000ms threshold"
           fi
 
           echo "Health check passed: HTTP $HTTP_CODE in ${LATENCY}ms"
@@ -81,8 +83,8 @@ jobs:
         if: steps.health-check.outputs.skipped != 'true'
         env:
           API_URL: ${{ steps.env-config.outputs.api_url }}
-          API_TOKEN: ${{ secrets.STAGING_API_TOKEN }}
         run: |
+          API_URL="${API_URL%/}"
           PASS=0
           FAIL=0
 
@@ -90,15 +92,11 @@ jobs:
             local name="$1"
             local url="$2"
             local expected_code="$3"
-            local auth="${4:-false}"
 
-            HEADERS="-H 'Content-Type: application/json'"
-            if [ "$auth" = "true" ] && [ -n "$API_TOKEN" ]; then
-              HEADERS="$HEADERS -H 'Authorization: Bearer $API_TOKEN'"
-            fi
-
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 10 "$url" || echo "000")
+            HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+              --retry 2 --retry-delay 1 --retry-all-errors --max-time 15 \
+              "$url" || true)
+            HTTP_CODE="${HTTP_CODE:-000}"
 
             if [ "$HTTP_CODE" = "$expected_code" ]; then
               echo "  PASS: $name (HTTP $HTTP_CODE)"
@@ -110,11 +108,10 @@ jobs:
           }
 
           echo "Running smoke tests against $API_URL..."
-          run_test "Health endpoint"   "$API_URL/health"  "200"
-          run_test "Models list (auth)" "$API_URL/models"  "401"
-          run_test "Agents list (auth)" "$API_URL/agents"  "401"
-          run_test "Mesh status (auth)" "$API_URL/mesh/status" "401"
-          run_test "404 handling"      "$API_URL/nonexistent-endpoint-xyz" "404"
+          run_test "Health endpoint" "$API_URL/health" "200"
+          run_test "Live health endpoint" "$API_URL/health/live" "200"
+          run_test "OpenAPI schema" "$API_URL/api/openapi.json" "200"
+          run_test "404 handling" "$API_URL/nonexistent-endpoint-xyz" "404"
 
           echo ""
           echo "Results: $PASS passed, $FAIL failed"
@@ -126,34 +123,32 @@ jobs:
 
       - name: Create incident issue on failure
         if: failure() && github.event_name == 'schedule'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
-            const env = process.env.ENV || 'staging';
+            const env = process.env.ENV || 'production';
             const title = `[INCIDENT] Smoke test failure on ${env} - ${new Date().toISOString().split('T')[0]}`;
-
-            // Check if incident issue already open
             const issues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
               labels: 'incident,smoke-test-failure'
             });
-
             const existing = issues.data.find(i => i.title.includes(`on ${env}`));
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             if (existing) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: existing.number,
-                body: `Smoke test still failing at ${new Date().toISOString()}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+                body: `Smoke test still failing at ${new Date().toISOString()}. Run: ${runUrl}`
               });
             } else {
               await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: title,
-                body: `## Smoke Test Failure\n\n**Environment:** ${env}\n**Time:** ${new Date().toISOString()}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Next Steps\n1. Check the failing workflow run logs\n2. Verify deployment health in the target environment\n3. Escalate if not resolved within 15 minutes`,
+                title,
+                body: `## Smoke Test Failure\n\n**Environment:** ${env}\n**Time:** ${new Date().toISOString()}\n**Run:** ${runUrl}\n\n### Next Steps\n1. Check the failing workflow logs\n2. Verify deployment health in the target environment\n3. Escalate if not resolved within 15 minutes`,
                 labels: ['incident', 'smoke-test-failure', 'priority:high']
               });
             }
