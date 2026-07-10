@@ -1,181 +1,31 @@
 name: Platform Self-Healing v2
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'
   workflow_dispatch:
     inputs:
       healing_mode:
-        description: 'Healing mode (auto|report-only)'
+        description: 'Healing mode (report-only recommended)'
         required: false
-        default: 'auto'
+        default: 'report-only'
+        type: choice
+        options: [report-only, auto]
 
 permissions:
-  contents: write
+  contents: read
   issues: write
-  actions: write
 
 concurrency:
   group: self-healing
   cancel-in-progress: false
 
 jobs:
-  detect-and-heal:
-    name: Detect Platform Drift & Auto-Heal
+  self-healing-control:
+    name: Manual Self-Healing Control
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.11'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pip install requests pyyaml --quiet
-
-      - name: Detect platform drift
-        id: drift
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+      - name: Record requested mode
         run: |
-          python3 - << 'PYEOF'
-          import os, json, requests, yaml, glob
-          from datetime import datetime, timezone
-
-          token = os.environ['GITHUB_TOKEN']
-          repo = os.environ['GITHUB_REPOSITORY']
-          headers = {
-              'Authorization': f'token {token}',
-              'Accept': 'application/vnd.github.v3+json'
-          }
-
-          issues = []
-
-          print('PLATFORM SELF-HEALING v2 - DRIFT DETECTION')
-          print(f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
-          print('=' * 55)
-
-          print('\n[1] Scanning workflow YAML validity...')
-          yaml_errors = []
-          for wf in glob.glob('.github/workflows/*.yml'):
-              try:
-                  yaml.safe_load(open(wf).read())
-              except yaml.YAMLError as e:
-                  yaml_errors.append({'file': wf, 'error': str(e)[:120]})
-
-          if yaml_errors:
-              issues.append({
-                  'type': 'yaml_errors',
-                  'count': len(yaml_errors),
-                  'details': yaml_errors
-              })
-              print(f"  FAIL: {len(yaml_errors)} YAML errors found")
-          else:
-              print('  PASS: Workflow YAML valid')
-
-          print('\n[2] Detecting package manager...')
-          package_manager = None
-
-          if os.path.exists('pnpm-lock.yaml'):
-              package_manager = 'pnpm'
-              lockfile = 'pnpm-lock.yaml'
-          elif os.path.exists('package-lock.json'):
-              package_manager = 'npm'
-              lockfile = 'package-lock.json'
-          elif os.path.exists('yarn.lock'):
-              package_manager = 'yarn'
-              lockfile = 'yarn.lock'
-          else:
-              issues.append({
-                  'type': 'missing_lockfile',
-                  'details': 'No supported lockfile detected'
-              })
-              package_manager = 'unknown'
-              lockfile = None
-
-          print(f'  Detected package manager: {package_manager}')
-
-          print('\n[3] Checking critical platform files...')
-          critical_files = [
-              'ARCHITECTURE.md',
-              '.npmrc',
-              'package.json',
-              '.github/dependabot.yml'
-          ]
-
-          if lockfile:
-              critical_files.append(lockfile)
-
-          missing = [f for f in critical_files if not os.path.exists(f)]
-
-          if missing:
-              issues.append({
-                  'type': 'missing_critical_files',
-                  'files': missing
-              })
-              print(f'  FAIL: Missing critical files: {missing}')
-          else:
-              print('  PASS: Critical platform files present')
-
-          print('\n[4] Checking dependency audit...')
-          import subprocess
-
-          try:
-              if package_manager == 'pnpm':
-                  result = subprocess.run(
-                      ['pnpm', 'audit', '--json'],
-                      capture_output=True,
-                      text=True,
-                      timeout=60
-                  )
-              else:
-                  result = subprocess.run(
-                      ['npm', 'audit', '--json'],
-                      capture_output=True,
-                      text=True,
-                      timeout=60
-                  )
-
-              print('  PASS: Dependency audit completed')
-          except Exception as e:
-              print(f'  SKIP: Audit unavailable: {e}')
-
-          drift_report = {
-              'generated': datetime.now(timezone.utc).isoformat(),
-              'issues_found': len(issues),
-              'issues': issues,
-              'platform_healthy': len(issues) == 0,
-              'package_manager': package_manager
-          }
-
-          with open('/tmp/drift-report.json', 'w') as f:
-              json.dump(drift_report, f, indent=2)
-
-          with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as gh_out:
-              gh_out.write(f"issues_found={len(issues)}\n")
-              gh_out.write(f"platform_healthy={str(drift_report['platform_healthy']).lower()}\n")
-          PYEOF
-
-      - name: Upload drift report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: self-healing-report-${{ github.run_id }}
-          path: /tmp/drift-report.json
-          retention-days: 30
+          echo "Self-healing is manual-only to conserve GitHub Actions minutes."
+          echo "Requested mode: ${{ github.event.inputs.healing_mode }}"
+          echo "Use report-only unless a verified production incident requires intervention."
