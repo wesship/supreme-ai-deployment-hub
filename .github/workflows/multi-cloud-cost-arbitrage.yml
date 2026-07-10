@@ -1,196 +1,29 @@
 name: Multi-Cloud Cost Arbitrage
 
 on:
-  schedule:
-    - cron: '0 6 * * 1'   # Every Monday at 06:00 UTC
   workflow_dispatch:
     inputs:
       analysis_depth:
-        description: 'Analysis depth (quick|full)'
-        required: false
-        default: 'full'
+        description: 'Analysis depth'
+        required: true
+        default: 'quick'
+        type: choice
+        options: [quick, full]
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: cost-arbitrage
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  analyze-cloud-costs:
-    name: Analyze Multi-Cloud Cost Opportunities
+  control:
+    name: Manual Cost Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install requests boto3 --quiet
-
-      - name: Analyze compute cost arbitrage
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 - << 'PYEOF'
-          import json, os
-          from datetime import datetime
-
-          # Multi-cloud pricing data (USD per vCPU-hour, as of 2025)
-          COMPUTE_PRICING = {
-              "aws": {
-                  "us-east-1":    {"on_demand": 0.0464, "spot": 0.0139, "savings_plan": 0.0278},
-                  "us-west-2":    {"on_demand": 0.0464, "spot": 0.0142, "savings_plan": 0.0278},
-                  "eu-west-1":    {"on_demand": 0.0528, "spot": 0.0158, "savings_plan": 0.0317},
-                  "ap-southeast-1": {"on_demand": 0.0560, "spot": 0.0168, "savings_plan": 0.0336},
-              },
-              "gcp": {
-                  "us-central1":  {"on_demand": 0.0475, "preemptible": 0.0100, "committed": 0.0285},
-                  "us-east1":     {"on_demand": 0.0475, "preemptible": 0.0100, "committed": 0.0285},
-                  "europe-west1": {"on_demand": 0.0523, "preemptible": 0.0110, "committed": 0.0314},
-              },
-              "azure": {
-                  "eastus":       {"on_demand": 0.0480, "spot": 0.0144, "reserved": 0.0288},
-                  "westus2":      {"on_demand": 0.0480, "spot": 0.0144, "reserved": 0.0288},
-                  "westeurope":   {"on_demand": 0.0528, "spot": 0.0158, "reserved": 0.0317},
-              },
-          }
-
-          # LLM API cost comparison (USD per 1M tokens)
-          LLM_PRICING = {
-              "openai_gpt4o":         {"input": 2.50,  "output": 10.00},
-              "openai_gpt4o_mini":    {"input": 0.15,  "output": 0.60},
-              "anthropic_claude35":   {"input": 3.00,  "output": 15.00},
-              "anthropic_claude3h":   {"input": 0.25,  "output": 1.25},
-              "google_gemini15pro":   {"input": 1.25,  "output": 5.00},
-              "google_gemini15flash": {"input": 0.075, "output": 0.30},
-              "mistral_large":        {"input": 2.00,  "output": 6.00},
-              "mistral_small":        {"input": 0.20,  "output": 0.60},
-          }
-
-          # Assumed monthly usage (adjust via repo variables)
-          MONTHLY_VCPU_HOURS = 5000
-          MONTHLY_LLM_INPUT_TOKENS_M  = 50    # millions
-          MONTHLY_LLM_OUTPUT_TOKENS_M = 12.5  # millions
-
-          print("=" * 60)
-          print("MULTI-CLOUD COST ARBITRAGE ANALYSIS")
-          print(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
-          print("=" * 60)
-
-          # --- Compute arbitrage ---
-          print("\n## COMPUTE COST COMPARISON (per month, 5000 vCPU-hours)")
-          print(f"{'Provider':<12} {'Region':<20} {'On-Demand':>12} {'Spot/Pre':>12} {'Savings':>10}")
-          print("-" * 70)
-
-          best_spot = None
-          best_spot_cost = float('inf')
-          baseline_cost = None
-
-          for provider, regions in COMPUTE_PRICING.items():
-              for region, prices in regions.items():
-                  od_cost = prices["on_demand"] * MONTHLY_VCPU_HOURS
-                  spot_key = "spot" if "spot" in prices else "preemptible"
-                  spot_cost = prices.get(spot_key, prices["on_demand"]) * MONTHLY_VCPU_HOURS
-                  savings_pct = (1 - spot_cost / od_cost) * 100
-
-                  if baseline_cost is None:
-                      baseline_cost = od_cost
-
-                  if spot_cost < best_spot_cost:
-                      best_spot_cost = spot_cost
-                      best_spot = f"{provider}/{region}"
-
-                  print(f"{provider:<12} {region:<20} ${od_cost:>10,.0f} ${spot_cost:>10,.0f} {savings_pct:>9.1f}%")
-
-          print(f"\nBest spot option: {best_spot} at ${best_spot_cost:,.0f}/month")
-          print(f"vs baseline on-demand: ${baseline_cost:,.0f}/month")
-          print(f"Potential monthly savings: ${baseline_cost - best_spot_cost:,.0f}")
-
-          # --- LLM cost arbitrage ---
-          print("\n## LLM API COST COMPARISON (monthly, 50M input + 12.5M output tokens)")
-          print(f"{'Model':<28} {'Monthly Cost':>14} {'vs GPT-4o':>12}")
-          print("-" * 58)
-
-          baseline_llm = None
-          for model, prices in sorted(LLM_PRICING.items(), key=lambda x: x[1]['input'] * MONTHLY_LLM_INPUT_TOKENS_M):
-              cost = (prices["input"] * MONTHLY_LLM_INPUT_TOKENS_M +
-                      prices["output"] * MONTHLY_LLM_OUTPUT_TOKENS_M)
-              if baseline_llm is None and 'gpt4o' in model and 'mini' not in model:
-                  baseline_llm = cost
-              savings = f"-{((baseline_llm - cost) / baseline_llm * 100):.0f}%" if baseline_llm and cost < baseline_llm else "baseline"
-              print(f"{model:<28} ${cost:>12,.2f} {savings:>12}")
-
-          # --- Recommendations ---
-          print("\n## RECOMMENDATIONS")
-          print("1. Switch non-critical batch workloads to AWS Spot / GCP Preemptible (60-70% savings)")
-          print("2. Use Gemini 1.5 Flash for classification/routing tasks (96% cheaper than GPT-4o)")
-          print("3. Use Claude 3 Haiku for summarization (91% cheaper than Claude 3.5 Sonnet)")
-          print("4. Reserve 1-year compute for predictable baseline (40% savings vs on-demand)")
-          print("5. Enable S3 Intelligent-Tiering for artifact storage (estimated 30% storage savings)")
-
-          # Save report
-          report = {
-              "generated": datetime.utcnow().isoformat(),
-              "compute_baseline_monthly": baseline_cost,
-              "compute_best_spot_monthly": best_spot_cost,
-              "compute_best_option": best_spot,
-              "compute_potential_savings": baseline_cost - best_spot_cost,
-              "llm_baseline_monthly": baseline_llm,
-          }
-          with open("/tmp/cost-arbitrage-report.json", "w") as f:
-              json.dump(report, f, indent=2)
-          print("\nReport saved to /tmp/cost-arbitrage-report.json")
-          PYEOF
-
-      - name: Upload cost arbitrage report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: cost-arbitrage-${{ github.run_id }}
-          path: /tmp/cost-arbitrage-report.json
-          retention-days: 90
-
-      - name: Post savings summary as issue comment
-        if: github.event_name == 'schedule'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-        run: |
-          python3 - << 'PYEOF'
-          import os, json, requests
-          token = os.environ["GITHUB_TOKEN"]
-          repo  = os.environ["GITHUB_REPOSITORY"]
-          run_id = os.environ["GITHUB_RUN_ID"]
-          headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
-          try:
-              report = json.load(open("/tmp/cost-arbitrage-report.json"))
-              savings = report.get("compute_potential_savings", 0)
-              best    = report.get("compute_best_option", "N/A")
-              title   = f"[Cost Arbitrage] Weekly Analysis - Potential savings: ${savings:,.0f}/month"
-              body_lines = [
-                  "## Weekly Multi-Cloud Cost Arbitrage Report",
-                  "",
-                  f"Best compute option: {best}",
-                  f"Potential monthly compute savings: ${savings:,.0f}",
-                  "",
-                  f"Full report: https://github.com/{repo}/actions/runs/{run_id}",
-              ]
-              body = "\n".join(body_lines)
-              r = requests.post(
-                  f"https://api.github.com/repos/{repo}/issues",
-                  headers=headers,
-                  json={"title": title, "body": body, "labels": ["cost-optimization", "automated"]},
-                  timeout=10
-              )
-              print(f"Issue created: HTTP {r.status_code}")
-          except Exception as e:
-              print(f"Issue creation skipped: {e}")
-          PYEOF
+      - run: |
+          echo "Multi-cloud cost analysis is manual-only."
+          echo "Current production path: Vercel + Railway + Hostinger VPS."
+          echo "Analysis depth: ${{ github.event.inputs.analysis_depth }}"
