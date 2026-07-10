@@ -146,7 +146,7 @@
     "postcss": "^8.4.47",
     "puppeteer": "25.1.0",
     "storybook": "^8.6.18",
-    "tailwindcss": "^3.4.11",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^6.4.2",
