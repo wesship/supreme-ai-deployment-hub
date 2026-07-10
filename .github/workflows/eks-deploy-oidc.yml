@@ -1,173 +1,28 @@
 name: EKS Deploy (OIDC + Trivy)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'k8s/**'
-      - 'Dockerfile'
-      - 'src/**'
-      - '.github/workflows/eks-deploy-oidc.yml'
   workflow_dispatch:
     inputs:
       push_to_ecr:
-        description: 'Push image to ECR and deploy to EKS. Requires AWS repo variables and OIDC role.'
-        required: false
-        default: 'false'
+        description: 'Push image to ECR and deploy to EKS'
+        required: true
+        default: false
         type: boolean
 
-# Required for AWS OIDC short-lived credentials when ECR/EKS deployment is enabled.
 permissions:
-  id-token: write
   contents: read
-  security-events: write
+  id-token: write
 
-env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+concurrency:
+  group: eks-deploy
+  cancel-in-progress: true
 
 jobs:
-  scan-source:
-    name: Trivy filesystem scan
+  control:
+    name: Manual EKS Deployment Control
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Trivy FS scan (HIGH,CRITICAL)
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.24.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '0'
-          format: sarif
-          output: trivy-fs.sarif
-
-      - name: Upload SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f  # v3.28.18
-        with:
-          sarif_file: trivy-fs.sarif
-          category: trivy-fs
-
-  build-and-push:
-    name: Build, scan & optionally push image to ECR
-    needs: scan-source
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    outputs:
-      image_uri: ${{ steps.meta.outputs.image_uri }}
-      push_enabled: ${{ steps.aws-ready.outputs.push_enabled }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Check AWS deployment configuration
-        id: aws-ready
-        run: |
-          set -euo pipefail
-
-          requested="${{ github.event_name == 'push' || github.event.inputs.push_to_ecr == 'true' }}"
-          if [ "$requested" != "true" ]; then
-            echo "push_enabled=false" >> "$GITHUB_OUTPUT"
-            echo "ECR push/deploy disabled. Building and scanning locally only."
-            exit 0
-          fi
-
-          missing=0
-          for name in AWS_ACCOUNT_ID AWS_REGION ECR_REPOSITORY EKS_CLUSTER_NAME; do
-            if [ -z "${!name:-}" ]; then
-              echo "Missing repository variable: $name"
-              missing=1
-            fi
-          done
-
-          if [ "$missing" -eq 1 ]; then
-            echo "push_enabled=false" >> "$GITHUB_OUTPUT"
-            echo "AWS deployment variables are incomplete. Building and scanning locally only."
-            exit 0
-          fi
-
-          echo "push_enabled=true" >> "$GITHUB_OUTPUT"
-          echo "AWS deployment variables present. ECR push/deploy enabled."
-
-      - name: Configure AWS credentials via OIDC
-        if: steps.aws-ready.outputs.push_enabled == 'true'
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
-        with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-oidc-deployer
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        if: steps.aws-ready.outputs.push_enabled == 'true'
-        id: ecr-login
-        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419  # v2
-
-      - name: Compute image metadata
-        id: meta
-        run: |
-          set -euo pipefail
-          if [ "${{ steps.aws-ready.outputs.push_enabled }}" = "true" ]; then
-            IMAGE_URI="${{ steps.ecr-login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${GITHUB_SHA::7}"
-          else
-            IMAGE_URI="devonn-local:${GITHUB_SHA::7}"
-          fi
-          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
-          echo "Image URI: $IMAGE_URI"
-
-      - name: Build image
-        run: docker build -t ${{ steps.meta.outputs.image_uri }} .
-
-      - name: Trivy image scan
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8  # v0.24.0
-        with:
-          image-ref: ${{ steps.meta.outputs.image_uri }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          format: table
-
-      - name: Push image
-        if: steps.aws-ready.outputs.push_enabled == 'true'
-        run: docker push ${{ steps.meta.outputs.image_uri }}
-
-  deploy:
-    name: Deploy to EKS
-    needs: build-and-push
-    if: needs.build-and-push.outputs.push_enabled == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a  # v4
-        with:
-          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-oidc-deployer
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
-
-      - name: Bootstrap namespaces & PSA labels
-        run: bash scripts/bootstrap.sh
-
-      - name: Render & apply manifests
-        env:
-          IMAGE_URI: ${{ needs.build-and-push.outputs.image_uri }}
-        run: |
-          # Substitute placeholders
-          export AWS_ACCOUNT_ID="${{ env.AWS_ACCOUNT_ID }}"
-          find k8s/base -type f -name '*.yaml' -print0 | xargs -0 -I{} sh -c \
-            'envsubst < "$1" | kubectl apply -f -' _ {}
-
-      - name: Set deployment image
-        run: |
-          kubectl -n devonn set image deployment/devonn-backend \
-            backend=${{ needs.build-and-push.outputs.image_uri }} --record
-
-      - name: Wait for rollout
-        run: kubectl -n devonn rollout status deployment/devonn-backend --timeout=5m
+      - run: |
+          echo "EKS deployment is manual-only because Railway is the active backend platform."
+          echo "Push to ECR: ${{ github.event.inputs.push_to_ecr }}"
