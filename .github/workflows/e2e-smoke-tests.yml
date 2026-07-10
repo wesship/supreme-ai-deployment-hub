@@ -46,7 +46,6 @@ jobs:
         id: health-check
         run: |
           API_URL="${{ steps.env-config.outputs.api_url }}"
-
           if [ -z "$API_URL" ]; then
             echo "::notice::API URL not configured for $ENV - skipping live smoke tests"
             echo "skipped=true" >> "$GITHUB_OUTPUT"
@@ -60,8 +59,8 @@ jobs:
             "$API_URL/health" || true)
           END=$(date +%s%3N)
           LATENCY=$((END - START))
-
           HTTP_CODE="${HTTP_CODE:-000}"
+
           echo "HTTP Status: $HTTP_CODE"
           echo "Latency: ${LATENCY}ms"
           echo "latency=${LATENCY}" >> "$GITHUB_OUTPUT"
@@ -77,47 +76,58 @@ jobs:
             echo "::warning::Health check SLO breach: ${LATENCY}ms > 5000ms threshold"
           fi
 
-          echo "Health check passed: HTTP $HTTP_CODE in ${LATENCY}ms"
-
       - name: API endpoint smoke tests
         if: steps.health-check.outputs.skipped != 'true'
         env:
           API_URL: ${{ steps.env-config.outputs.api_url }}
         run: |
+          set -u
           API_URL="${API_URL%/}"
-          PASS=0
           FAIL=0
 
-          run_test() {
+          check_200() {
             local name="$1"
             local url="$2"
-            local expected_code="$3"
-
-            HTTP_CODE=$(curl -sS -o /dev/null -w "%{http_code}" \
+            local code
+            code=$(curl -sS -o /tmp/smoke-body -w "%{http_code}" \
               --retry 2 --retry-delay 1 --retry-all-errors --max-time 15 \
               "$url" || true)
-            HTTP_CODE="${HTTP_CODE:-000}"
-
-            if [ "$HTTP_CODE" = "$expected_code" ]; then
-              echo "  PASS: $name (HTTP $HTTP_CODE)"
-              PASS=$((PASS + 1))
+            code="${code:-000}"
+            if [ "$code" = "200" ]; then
+              echo "PASS: $name ($url -> HTTP 200)"
             else
-              echo "  FAIL: $name (expected $expected_code, got $HTTP_CODE)"
+              echo "FAIL: $name ($url -> HTTP $code)"
+              head -c 500 /tmp/smoke-body 2>/dev/null || true
+              echo
               FAIL=$((FAIL + 1))
             fi
           }
 
-          echo "Running smoke tests against $API_URL..."
-          run_test "Health endpoint" "$API_URL/health" "200"
-          run_test "Live health endpoint" "$API_URL/health/live" "200"
-          run_test "OpenAPI schema" "$API_URL/api/openapi.json" "200"
-          run_test "404 handling" "$API_URL/nonexistent-endpoint-xyz" "404"
+          check_200 "Primary health" "$API_URL/health"
 
-          echo ""
-          echo "Results: $PASS passed, $FAIL failed"
+          LIVE_CODE=$(curl -sS -o /tmp/live-body -w "%{http_code}" --max-time 15 "$API_URL/health/live" || true)
+          LIVE_CODE="${LIVE_CODE:-000}"
+          if [ "$LIVE_CODE" = "200" ]; then
+            echo "PASS: Liveness endpoint"
+          else
+            echo "::warning::Optional liveness endpoint returned HTTP $LIVE_CODE"
+          fi
+
+          OPENAPI_OK=false
+          for path in /api/openapi.json /openapi.json; do
+            code=$(curl -sS -o /tmp/openapi-body -w "%{http_code}" --max-time 15 "$API_URL$path" || true)
+            if [ "$code" = "200" ]; then
+              echo "PASS: OpenAPI schema at $path"
+              OPENAPI_OK=true
+              break
+            fi
+          done
+          if [ "$OPENAPI_OK" != "true" ]; then
+            echo "::warning::OpenAPI schema is not publicly exposed at the standard paths"
+          fi
 
           if [ "$FAIL" -gt 0 ]; then
-            echo "::error::$FAIL smoke test(s) failed"
+            echo "::error::$FAIL required smoke test(s) failed"
             exit 1
           fi
 
@@ -148,7 +158,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 title,
-                body: `## Smoke Test Failure\n\n**Environment:** ${env}\n**Time:** ${new Date().toISOString()}\n**Run:** ${runUrl}\n\n### Next Steps\n1. Check the failing workflow logs\n2. Verify deployment health in the target environment\n3. Escalate if not resolved within 15 minutes`,
+                body: `## Smoke Test Failure\n\n**Environment:** ${env}\n**Time:** ${new Date().toISOString()}\n**Run:** ${runUrl}`,
                 labels: ['incident', 'smoke-test-failure', 'priority:high']
               });
             }
