@@ -83,16 +83,6 @@ jobs:
             echo "drift_detected=false" >> "$GITHUB_OUTPUT"
             echo "No infrastructure drift detected"
           fi
-      - name: Post drift alert to Slack
-        if: steps.drift-check.outputs.drift_detected == 'true' && secrets.SLACK_WEBHOOK_OPS != ''
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_OPS }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "Infrastructure drift detected in supreme-ai-deployment-hub. Review: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            }
       - name: Open or update GitHub issue on drift
         if: steps.drift-check.outputs.drift_detected == 'true'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
