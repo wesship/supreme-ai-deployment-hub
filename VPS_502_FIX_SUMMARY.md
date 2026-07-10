@@ -38,6 +38,14 @@ The `deploy.sh` script only waited 30 seconds for the backend to become healthy 
 4. **Redis Configuration (`deploy/vps/redis/redis.conf`)**
    - Enabled `protected-mode yes` for better security, relying on the Docker network and the password requirement.
 
+## Correction Applied (Second Review)
+
+The initial commit (`a6168b7`) passed `ENCRYPTION_KEY`, `API_KEY_VAULT_SECRET`, and `WS_AUTH_TOKEN` only to the `backend` container. The second review correctly identified that `hermes`, `celery-worker`, and `celery-beat` were also missing these variables. This has been corrected in the follow-up commit:
+
+- **`hermes`**: now receives `JWT_SECRET`, `ENCRYPTION_KEY`, `API_KEY_VAULT_SECRET`, `WS_AUTH_TOKEN`
+- **`celery-worker`**: now receives `JWT_SECRET`, `ENCRYPTION_KEY`, `API_KEY_VAULT_SECRET`, `WS_AUTH_TOKEN`
+- **`celery-beat`**: now receives `ENCRYPTION_KEY`, `API_KEY_VAULT_SECRET`
+
 ## Next Steps for Deployment
 
 The repository is now fixed. To bring the services online on the Hostinger VPS, run the following commands on the VPS:

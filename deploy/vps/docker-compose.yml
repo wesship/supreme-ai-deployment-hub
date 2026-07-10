@@ -176,6 +176,11 @@ services:
       - HERMES_POLL_INTERVAL_SECONDS=${HERMES_POLL_INTERVAL_SECONDS:-10}
       - HERMES_MAX_TASKS_PER_TICK=${HERMES_MAX_TASKS_PER_TICK:-5}
       - HERMES_DEFAULT_AGENT=${HERMES_DEFAULT_AGENT:-TARS}
+      # ── Auth / Security ───────────────────────────────────────────────────
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - API_KEY_VAULT_SECRET=${API_KEY_VAULT_SECRET}
+      - WS_AUTH_TOKEN=${WS_AUTH_TOKEN}
     depends_on:
       redis:
         condition: service_healthy
@@ -219,6 +224,11 @@ services:
       - PINECONE_INDEX_NAME=${PINECONE_INDEX_NAME:-devonn-rag}
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
       - SENTRY_DSN=${SENTRY_DSN:-}
+      # ── Auth / Security ───────────────────────────────────────────────────
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - API_KEY_VAULT_SECRET=${API_KEY_VAULT_SECRET}
+      - WS_AUTH_TOKEN=${WS_AUTH_TOKEN}
     depends_on:
       redis:
         condition: service_healthy
@@ -248,6 +258,8 @@ services:
       - ENVIRONMENT=production
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/1
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/2
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - API_KEY_VAULT_SECRET=${API_KEY_VAULT_SECRET}
     depends_on:
       redis:
         condition: service_healthy
