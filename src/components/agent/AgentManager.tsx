@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAgents } from "@/hooks/agents";
-import { Task, AgentResponse } from "@/types/agent";
+import { Task } from "@/types/agent";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw } from "lucide-react";
+import { Activity, BrainCircuit, Cable, Database, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateAgentTab from "./tabs/CreateAgentTab";
 import ManageAgentsTab from "./tabs/ManageAgentsTab";
@@ -74,24 +74,45 @@ steps:
   }, []);
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="mx-auto w-full p-0">
       <div className="flex flex-col gap-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold">AI Agent Manager</h2>
+        <div className="d3-chrome-panel rounded-2xl p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="d3-system-status">Hermes orchestration active</div>
+              <h2 className="mt-4 text-2xl font-bold sm:text-3xl">Executive AI Workforce</h2>
+              <p className="mt-2 max-w-2xl text-sm text-white/60">Deploy specialized agents, inspect their operational state, and govern execution from one workspace.</p>
+            </div>
           <Button variant="outline" onClick={refreshAgents} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh Agents
           </Button>
+          </div>
+          <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            {[
+              { label: 'Workforce', value: agents.length, icon: Activity },
+              { label: 'Memory', value: 'Connected', icon: BrainCircuit },
+              { label: 'Knowledge', value: 'DKOS', icon: Database },
+              { label: 'Integrations', value: 'Ready', icon: Cable },
+              { label: 'Governance', value: 'Protected', icon: ShieldCheck },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <Icon className="h-4 w-4 text-blue-200" aria-hidden="true" />
+                <div className="mt-3 text-sm font-semibold text-white">{value}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/45">{label}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList aria-label="AI workforce sections" className="grid h-auto w-full grid-cols-1 gap-1 rounded-xl bg-black/30 p-1 sm:grid-cols-3">
             <TabsTrigger value="create">Create Agent</TabsTrigger>
             <TabsTrigger value="manage">Manage Agents</TabsTrigger>
             <TabsTrigger value="workflow">DAG Workflow</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="create">
+          <TabsContent value="create" className="d3-chrome-panel rounded-2xl p-3 sm:p-5">
             <CreateAgentTab 
               taskDescription={taskDescription}
               setTaskDescription={setTaskDescription}
@@ -117,7 +138,7 @@ steps:
             />
           </TabsContent>
 
-          <TabsContent value="manage">
+          <TabsContent value="manage" className="d3-chrome-panel rounded-2xl p-3 sm:p-5">
             <ManageAgentsTab 
               agents={agents}
               loading={loading}
@@ -140,7 +161,7 @@ steps:
             />
           </TabsContent>
 
-          <TabsContent value="workflow">
+          <TabsContent value="workflow" className="d3-chrome-panel rounded-2xl p-3 sm:p-5">
             <WorkflowTab 
               yamlDAG={yamlDAG}
               setYamlDAG={setYamlDAG}
