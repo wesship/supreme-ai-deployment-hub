@@ -1,15 +1,9 @@
 name: Accessibility CI
 
-# Runs automated accessibility audits on every PR using axe-core and pa11y.
-# Fails the PR if any WCAG 2.1 AA violations are detected.
-#
-# Required secrets:
-#   None - runs against the built preview
-
+# Manual WCAG audit. The canonical required PR gate is the only workflow
+# permitted to run automatically for every pull request targeting main.
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: a11y-${{ github.ref }}
@@ -56,7 +50,6 @@ jobs:
 
       - name: Run axe accessibility audit
         run: |
-          # axe-core CLI uses --save for JSON output (--output-file not supported)
           axe http://localhost:4173 \
             --tags wcag2a,wcag2aa,wcag21aa \
             --save axe-results.json || true
@@ -125,7 +118,5 @@ jobs:
         run: npx wait-on http://localhost:4173 --timeout 30000
 
       - name: Run pa11y-ci
-        # pa11y-ci reads standard/reporter/urls from .pa11yci config file
-        # --standard and --reporter are NOT valid CLI flags for pa11y-ci (they are pa11y flags)
         run: pa11y-ci --config .pa11yci
         continue-on-error: true
