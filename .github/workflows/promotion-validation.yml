@@ -1,14 +1,11 @@
 name: Promotion Validation
 
+# Promotion checks run only for release branches or by explicit request.
 on:
   push:
     branches:
       - 'release/**'
       - 'wave/**'
-  pull_request:
-    branches:
-      - main
-      - 'release/**'
   workflow_dispatch:
 
 permissions:
