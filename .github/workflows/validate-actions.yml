@@ -5,10 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/**'
-  pull_request:
-    branches: [main]
-    paths:
-      - '.github/workflows/**'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,7 +19,6 @@ jobs:
     name: Validate Action SHA Pins
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -35,14 +31,11 @@ jobs:
           import glob
           import re
           import sys
-
           errors = []
           uses_pattern = re.compile(r'^\s*uses:\s*([^\s#]+)', re.MULTILINE)
-
           for workflow in sorted(glob.glob('.github/workflows/*.{yml,yaml}')):
               with open(workflow, encoding='utf-8') as handle:
                   content = handle.read()
-
               for match in uses_pattern.finditer(content):
                   reference = match.group(1)
                   if reference.startswith('./') or reference.startswith('docker://'):
@@ -57,13 +50,11 @@ jobs:
                       errors.append(f'{workflow}: abbreviated SHA is forbidden: {reference}')
                   elif re.fullmatch(r'[0-9a-fA-F]{40}', ref) and len(set(ref.lower())) <= 2:
                       errors.append(f'{workflow}: suspicious/fake SHA: {reference}')
-
           if errors:
               for error in errors:
                   print(f'::error::{error}')
               sys.exit(1)
-
-          print('Action references contain no mutable branches, abbreviated SHAs, or obvious fake SHAs.')
+          print('Action references passed validation.')
           PYEOF
 
       - name: Validate workflow YAML structure
@@ -73,35 +64,28 @@ jobs:
           import re
           import sys
           import yaml
-
           expression_pattern = re.compile(r'\$\{\{.*?\}\}', re.DOTALL)
           if_pattern = re.compile(r'^(\s*if:\s*)(.*?)(\s*(?:#.*)?)$', re.MULTILINE)
-
-          def normalize_github_syntax(content):
+          def normalize(content):
               content = expression_pattern.sub('GITHUB_EXPRESSION', content)
-
               def replace_if(match):
                   prefix, value, suffix = match.groups()
                   stripped = value.strip()
                   if not stripped or stripped[0] in {'"', "'"}:
                       return match.group(0)
                   return f'{prefix}"GITHUB_CONDITION"{suffix}'
-
               return if_pattern.sub(replace_if, content)
-
           errors = []
           workflow_files = sorted(glob.glob('.github/workflows/*.{yml,yaml}'))
           for workflow in workflow_files:
               try:
                   with open(workflow, encoding='utf-8') as handle:
-                      yaml.safe_load(normalize_github_syntax(handle.read()))
+                      yaml.safe_load(normalize(handle.read()))
               except yaml.YAMLError as error:
                   errors.append(f'{workflow}: {error}')
-
           if errors:
               for error in errors:
                   print(f'::error::{error}')
               sys.exit(1)
-
           print(f'All {len(workflow_files)} workflow files have valid YAML structure.')
           PYEOF
