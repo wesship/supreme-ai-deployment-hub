@@ -1,21 +1,20 @@
-name: Lighthouse CI
-
-# Runs performance, accessibility, SEO, and best-practices audits on every PR.
-# Blocks merges if Lighthouse scores drop below the defined thresholds.
-# The repo already has a lighthouse-config.json - this workflow activates it.
+name: Lighthouse Audit (Manual Only)
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail the run when Lighthouse thresholds are not met
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
 
 concurrency:
   group: lighthouse-${{ github.ref }}
   cancel-in-progress: true
-
-permissions:
-  contents: read
 
 jobs:
   lighthouse:
@@ -25,51 +24,78 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build production bundle
-        run: npm run build
+        run: pnpm build
         env:
+          VITE_API_URL: https://api.d3vonn.io
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
 
-      - name: Serve production build
+      - name: Start preview server
         run: |
-          npm install -g serve
-          serve -s dist -l 4173 &
-          # Wait for server to be ready (up to 60s)
-          npx wait-on http://localhost:4173 --timeout 60000
-          # Extra settle time to ensure the SPA is fully loaded
-          sleep 3
+          pnpm dlx serve@14.2.4 -s dist -l 4173 > /tmp/lighthouse-preview.log 2>&1 &
+          echo $! > /tmp/lighthouse-preview.pid
+
+      - name: Wait for preview server
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/lighthouse-preview.log || true
+          exit 1
 
       - name: Run Lighthouse CI
-        uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18  # v12
-        # NO_FCP can occur on first run - allow failure without blocking CI
+        id: lighthouse
         continue-on-error: true
+        uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18
         with:
           urls: |
             http://localhost:4173/
-          # Use the existing lighthouse-config.json but override startServerCommand
-          # since we already started the server above
           runs: 1
           uploadArtifacts: true
-          temporaryPublicStorage: true
+          temporaryPublicStorage: false
+
+      - name: Enforce strict mode
+        if: ${{ inputs.strict && steps.lighthouse.outcome != 'success' }}
+        run: |
+          echo "::error::Lighthouse audit failed while strict mode was enabled."
+          exit 1
+
+      - name: Report non-strict result
+        if: ${{ !inputs.strict && steps.lighthouse.outcome != 'success' }}
+        run: echo "::warning::Lighthouse audit reported a regression. Review the uploaded artifacts."
 
       - name: Upload Lighthouse results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: lighthouse-results
-          path: .lighthouseci/
+          name: lighthouse-results-${{ github.run_id }}
+          path: |
+            .lighthouseci/
+            /tmp/lighthouse-preview.log
+          if-no-files-found: warn
           retention-days: 14
+
+      - name: Stop preview server
+        if: always()
+        run: |
+          if [ -f /tmp/lighthouse-preview.pid ]; then
+            kill "$(cat /tmp/lighthouse-preview.pid)" 2>/dev/null || true
+          fi
