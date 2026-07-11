@@ -22,7 +22,12 @@ async def deploy_probe():
     return {
         "status": "ok",
         "router_registry": "backend.app.routers",
+        "deployment_marker": "voice-proxy-2026-07-10",
         "proxy_vault_expected": "/api/proxy/config",
+        "voice_routes_expected": [
+            "/api/tools/voice/tts",
+            "/api/tools/voice/stt-token",
+        ],
     }
 
 
@@ -46,7 +51,10 @@ try:
     from backend.app.routers.tools import router as tools_router
 
     proxy_router.include_router(tools_router, tags=["tools"])
-    logger.info("Tools proxy router registered.")
+    logger.info(
+        "Tools proxy router registered: /api/tools/voice/tts, "
+        "/api/tools/voice/stt-token, GitHub and n8n routes."
+    )
 except ImportError as exc:
     logger.warning("Tools proxy router not registered: %s", exc)
 
