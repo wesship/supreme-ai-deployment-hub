@@ -2,11 +2,16 @@ name: Validate VPS deployment
 
 on:
   pull_request:
+    branches: [main]
+    paths:
+      - 'deploy/vps/**'
+      - '.github/workflows/validate-vps-deploy.yml'
   push:
     branches: [main]
     paths:
       - 'deploy/vps/**'
       - '.github/workflows/validate-vps-deploy.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
