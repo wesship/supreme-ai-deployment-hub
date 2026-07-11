@@ -1,17 +1,6 @@
-name: Trusted Build Infrastructure
+name: Trusted Build Infrastructure (Manual Only)
 
 on:
-  push:
-    branches: [main]
-    tags: ['v*.*.*', 'platform-v*']
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'backend/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'Dockerfile*'
   workflow_dispatch:
 
 permissions:
@@ -20,99 +9,12 @@ permissions:
   attestations: write
   packages: write
 
-concurrency:
-  group: trusted-build-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  trusted-build:
-    name: Trusted Ephemeral Build
+  trusted-build-status:
+    name: Trusted build status
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    outputs:
-      artifact_digest: ${{ steps.record.outputs.artifact_digest }}
-      build_id: ${{ steps.record.outputs.build_id }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Verify lockfile integrity
-        run: git diff --exit-code pnpm-lock.yaml || (echo 'pnpm-lock.yaml drift detected' && exit 1)
-
-      - name: Record build environment fingerprint
-        id: fingerprint
+      - name: Explain manual-only mode
         run: |
-          echo "=== Build Environment Fingerprint ==="
-          node --version
-          pnpm --version
-          uname -a
-          BUILD_ENV_HASH=$(printf '%s' "$(node --version)$(pnpm --version)$(uname -r)" | sha256sum | cut -d' ' -f1)
-          echo "env_hash=${BUILD_ENV_HASH}" >> $GITHUB_OUTPUT
-
-      - name: Build isolated production artifact
-        run: |
-          NODE_ENV=production CI=true pnpm run build
-          echo "Build completed"
-
-      - name: Compute artifact digest
-        id: record
-        run: |
-          BUILD_ID="trusted-build-${{ github.sha }}-${{ github.run_id }}"
-          tar czf /tmp/${BUILD_ID}.tar.gz dist/
-          DIGEST=$(sha256sum /tmp/${BUILD_ID}.tar.gz | cut -d' ' -f1)
-          echo "artifact_digest=${DIGEST}" >> $GITHUB_OUTPUT
-          echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
-
-      - name: Upload trusted build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: ${{ steps.record.outputs.build_id }}
-          path: /tmp/${{ steps.record.outputs.build_id }}.tar.gz
-          retention-days: 30
-
-  build-hardening-audit:
-    name: Build Hardening Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Audit build hardening configuration
-        run: |
-          PASS=0; FAIL=0
-          check() {
-            if eval "$2"; then
-              echo "  [PASS] $1"; PASS=$((PASS+1))
-            else
-              echo "  [FAIL] $1"; FAIL=$((FAIL+1))
-            fi
-          }
-
-          echo "=== Build Hardening Audit ==="
-          check "npmrc exists" "test -f .npmrc"
-          check "package.json has engines field" "python3 -c \"import json; d=json.load(open('package.json')); assert 'engines' in d\""
-          check "pnpm lockfile exists" "test -f pnpm-lock.yaml"
-          check "Dockerfile.hardened exists" "test -f Dockerfile.hardened"
-          check "OPA policies exist" "test $(find policy/opa -name '*.rego' | wc -l) -ge 4"
-
-          echo ""
-          echo "Result: ${PASS}/$((PASS+FAIL)) checks passed"
+          echo "Trusted build, package publication, and attestations are manual-only."
+          echo "Railway and Vercel remain the active production deployment services."
