@@ -1,30 +1,23 @@
 name: CI - Hardened Build Pipeline
 
+# Comprehensive build validation retained for explicit use. Ordinary pull
+# requests are validated by required-pr-gate.yml to avoid duplicate installs,
+# tests, coverage generation, and builds.
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
-  pull_request:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: hardened-build-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  typecheck-and-lint:
-    name: Typecheck & Lint
+  frontend:
+    name: Frontend validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -37,104 +30,47 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Verify lockfile integrity
-        run: git diff --exit-code pnpm-lock.yaml || (echo "pnpm-lock.yaml changed after install" && exit 1)
+        run: git diff --exit-code pnpm-lock.yaml
 
-      - name: TypeScript noEmit check
-        run: pnpm run typecheck
+      - name: Typecheck
+        run: pnpm typecheck
 
-      - name: ESLint app source
+      - name: Lint
         run: pnpm exec eslint src --ext .ts,.tsx,.js,.jsx --no-error-on-unmatched-pattern --quiet
 
-  test:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: typecheck-and-lint
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Tests with coverage
+        run: pnpm test:coverage
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '22'
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run tests with coverage
-        run: pnpm run test:coverage
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
-
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./coverage
-          flags: frontend
-          fail_ci_if_error: false
-
-  build:
-    name: Production Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: [typecheck-and-lint, test]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '22'
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm run build
+      - name: Production build
+        run: pnpm build
         env:
           NODE_ENV: production
 
-      - name: Upload build artifact
+      - name: Upload coverage
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: dist
+          name: hardened-build-coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload production bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hardened-build-dist
           path: dist/
           retention-days: 7
 
-  python-test:
-    name: Python Tests
+  backend:
+    name: Backend validation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -145,27 +81,21 @@ jobs:
           python-version: '3.11'
           cache: pip
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio pytest-cov httpx anyio fastapi uvicorn pydantic
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
+          if [ -f backend/requirements-dev.txt ]; then
+            pip install -r backend/requirements-dev.txt
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
 
-      - name: Run Python tests
+      - name: Run backend tests
         run: |
-          pytest tests/ \
-            --cov=src \
-            --cov-report=xml:python-coverage.xml \
-            --cov-report=term-missing \
-            -v || echo "No Python tests found - skipping"
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-
-      - name: Upload Python coverage to Codecov
-        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./python-coverage.xml
-          flags: backend
-          fail_ci_if_error: false
+          if [ -d backend/tests ]; then
+            pytest backend/tests -v
+          elif [ -d tests ]; then
+            pytest tests -v
+          else
+            echo "No Python test directory found."
+          fi
