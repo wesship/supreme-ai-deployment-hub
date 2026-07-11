@@ -144,95 +144,138 @@ const PanelLink: React.FC<{
 const Hero: React.FC = () => {
   const telemetry = useHomepageTelemetry();
 
+  const coreModules = [
+    { label: 'AI Workforce', value: telemetry.activeAgents, icon: Users, to: '/agents' },
+    { label: 'Automation', value: telemetry.workflowsToday, icon: Workflow, to: '/workflows' },
+    { label: 'Knowledge', value: telemetry.knowledgeNodes, icon: Network, to: '/dkos-ingestion' },
+    { label: 'System Health', value: telemetry.systemStatus, icon: Activity, to: '/status' },
+  ];
+
   return (
     <section
       aria-label="D3VONN.IO — AI Business Operating System"
-      className="d3-os-shell relative isolate flex min-h-[100svh] items-center overflow-hidden"
+      className="relative isolate overflow-hidden bg-[#010611]"
     >
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#073878] via-[#052f70] to-[#021b48]" />
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_28%,rgba(0,162,255,0.34),transparent_36%),radial-gradient(circle_at_50%_54%,rgba(11,111,225,0.26),transparent_42%),radial-gradient(circle_at_18%_85%,rgba(103,196,255,0.12),transparent_38%)]" />
-      <div className="absolute inset-0 -z-10 opacity-20 bg-[linear-gradient(rgba(113,191,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(113,191,255,0.06)_1px,transparent_1px)] bg-[size:72px_72px]" />
-      <BinaryRain />
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#073878]/70 via-transparent to-[#031f4f]/95" />
+      <div className="absolute inset-0 -z-20 bg-[radial-gradient(circle_at_72%_36%,rgba(37,126,255,0.22),transparent_30%),radial-gradient(circle_at_18%_12%,rgba(39,95,190,0.14),transparent_34%),linear-gradient(135deg,#010611_0%,#03122d_48%,#02091a_100%)]" />
+      <div className="absolute inset-0 -z-10 opacity-25 bg-[linear-gradient(rgba(100,170,255,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(100,170,255,0.05)_1px,transparent_1px)] bg-[size:80px_80px]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-300/55 to-transparent" />
 
-      <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[52%] items-center justify-center pr-6 lg:flex xl:w-[50%]">
-        <HeroLogoMark />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#073878] via-[#073878]/10 to-transparent" />
-      </div>
-
-      <div className="container relative mx-auto px-6 py-24 lg:py-32">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(440px,1.05fr)]">
-          <div className="max-w-3xl animate-[fadeInUp_0.6s_ease-out_both]">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/35 bg-blue-500/10 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-blue-100 shadow-[0_0_30px_rgba(56,136,255,0.2)] backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-blue-200 shadow-[0_0_14px_rgba(147,197,253,0.9)] animate-pulse" />
-              The AI Business Operating System
-            </div>
-
-            <div className="mt-8 lg:hidden">
-              <HeroLogoMark />
-            </div>
-
-            <h1 className="mt-8 text-4xl font-black tracking-tight text-white drop-shadow-[0_0_28px_rgba(147,197,253,0.35)] sm:text-6xl lg:text-7xl">
-              Command the intelligent enterprise.
+      <div className="container mx-auto px-4 pb-16 pt-16 sm:px-6 sm:pb-24 sm:pt-24 lg:pb-28 lg:pt-28">
+        <div className="grid items-center gap-14 lg:grid-cols-[minmax(0,0.88fr)_minmax(520px,1.12fr)] xl:gap-20">
+          <motion.div
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.65 }}
+            className="relative z-10 max-w-2xl"
+          >
+            <div className="d3-system-status">D3 Core operational</div>
+            <p className="mt-7 text-xs font-bold uppercase tracking-[0.28em] text-blue-200/70">
+              The central operating system for intelligent business
+            </p>
+            <h1 className="mt-5 text-balance text-[clamp(3.1rem,6vw,6.7rem)] font-black leading-[0.9] tracking-[-0.055em] text-white">
+              Intelligence,
+              <span className="block bg-gradient-to-r from-blue-100 via-blue-300 to-cyan-300 bg-clip-text text-transparent">
+                under command.
+              </span>
             </h1>
-
-            <p className="mt-6 max-w-2xl text-xl font-semibold text-blue-50/95 sm:text-2xl">
-              D3VONN.IO turns business goals into supervised agent execution — AI workforce, swarm intelligence, knowledge graph, marketplace, automation, brand marketing, and AI movie production.
-            </p>
-            <p className="mt-4 max-w-xl text-base text-blue-100/76">
-              One operating system for autonomous business work: Hermes orchestrates, agents execute, and you stay in control.
+            <p className="mt-7 max-w-xl text-lg leading-8 text-blue-50/72 sm:text-xl">
+              Orchestrate agents, knowledge, workflows, security, and business operations from one governed command layer.
             </p>
 
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <SmartLaunchLink
                 authedTo="/app"
-                className="group inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200/40 bg-blue-600/80 px-7 py-4 font-semibold text-white shadow-[0_0_34px_rgba(56,136,255,0.48)] transition hover:scale-[1.02] hover:bg-blue-500 hover:shadow-[0_0_55px_rgba(56,136,255,0.68)]"
+                className="d3-command-surface inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-semibold text-white shadow-[0_0_38px_rgba(37,126,255,0.45)] hover:bg-blue-400"
               >
-                Launch Command Center
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <Command className="h-4 w-4" aria-hidden="true" />
+                Enter D3VONN.IO
               </SmartLaunchLink>
               <Link
-                to="/marketplace"
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-100/25 bg-blue-300/10 px-7 py-4 font-semibold text-blue-50 backdrop-blur transition hover:border-blue-200/50 hover:bg-blue-300/15"
+                to="/solutions"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-200/20 bg-white/[0.035] px-6 py-3 font-semibold text-blue-50 backdrop-blur hover:border-blue-200/40 hover:bg-blue-300/[0.08]"
               >
-                <Play className="h-4 w-4" />
-                Explore Marketplace
+                Explore the platform <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
 
-            <div className="mt-8 grid max-w-2xl grid-cols-3 gap-3 text-center sm:text-left">
+            <div className="mt-9 grid grid-cols-3 gap-3 border-t border-white/10 pt-6">
               {[
-                [telemetry.activeAgents, 'active agents'],
-                [telemetry.workflowsToday, 'workflows today'],
-                [telemetry.systemStatus, 'system status'],
+                ['Hermes', 'Orchestration'],
+                ['DKOS', 'Knowledge'],
+                ['Zero Trust', 'Governance'],
               ].map(([value, label]) => (
-                <div key={label} className="rounded-xl border border-blue-200/15 bg-blue-300/10 px-3 py-3 backdrop-blur">
-                  <div className="text-lg font-black text-white">{value}</div>
-                  <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-blue-100/60">{label}</div>
+                <div key={value}>
+                  <div className="text-sm font-bold text-white sm:text-base">{value}</div>
+                  <div className="mt-1 text-[9px] uppercase tracking-[0.18em] text-blue-100/42 sm:text-[10px]">{label}</div>
                 </div>
               ))}
             </div>
+          </motion.div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-3 text-xs text-blue-100/68">
-              <span className="inline-flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-blue-200" />Secure by design</span>
-              <span className="hidden h-1 w-1 rounded-full bg-blue-100/35 sm:inline-block" />
-              <span>Observable agent runs</span>
-              <span className="hidden h-1 w-1 rounded-full bg-blue-100/35 sm:inline-block" />
-              <span>Enterprise pilot ready</span>
-            </div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.75, delay: 0.12 }}
+            className="relative mx-auto w-full max-w-[720px]"
+          >
+            <div className="absolute -inset-10 rounded-full bg-blue-500/10 blur-3xl" />
+            <div className="d3-chrome-panel relative overflow-visible rounded-[32px] p-4 sm:p-6">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-200/55">D3VONN Command Interface</p>
+                  <p className="mt-1 text-sm font-semibold text-white">Enterprise Intelligence Core</p>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.16em] text-emerald-300/80">
+                  <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_12px_currentColor]" />
+                  Online
+                </div>
+              </div>
 
-          <div className="relative hidden lg:block">
-            <div className="absolute inset-8 rounded-full bg-blue-400/20 blur-3xl" />
-            <div className="relative grid grid-cols-2 gap-4 xl:grid-cols-3">
-              <PanelLink to="/agents" title="AI Workforce" value={telemetry.activeAgents} label="agents online" icon={Users} />
-              <PanelLink to="/workflows" title="Automation" value={telemetry.workflowsToday} label="runs today" icon={Workflow} />
-              <PanelLink to="/dkos-ingestion" title="Knowledge Graph" value={telemetry.knowledgeNodes} label="indexed nodes" icon={Network} />
-              <PanelLink to="/marketplace" title="Marketplace" value="Live" label="agents & tools" icon={ShoppingCart} />
-              <PanelLink to="/film" title="AI Movie Studio" value="Studio" label="video engine" icon={Clapperboard} />
-              <PanelLink to="/security/command-center" title="Security" value={telemetry.hermesQueue} label="Hermes queue" icon={Shield} />
+              <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
+                <div className="relative grid min-h-[360px] place-items-center overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
+                  <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,rgba(44,136,255,0.26),transparent_46%)]" />
+                  <div className="absolute h-[82%] w-[82%] rounded-full border border-blue-200/10 shadow-[0_0_70px_rgba(37,126,255,0.16)]" />
+                  <div className="absolute h-[62%] w-[62%] rounded-full border border-dashed border-blue-300/25 motion-safe:animate-[spin_28s_linear_infinite]" />
+                  <div className="absolute h-[42%] w-[42%] rounded-full border border-blue-200/25 bg-blue-500/10 shadow-[0_0_50px_rgba(37,126,255,0.35)] backdrop-blur-xl" />
+                  <img
+                    src={MASTER_LOGO_SRC}
+                    alt="D3VONN.IO D3 Core"
+                    className="relative z-10 w-[66%] object-contain drop-shadow-[0_0_36px_rgba(62,155,255,0.78)]"
+                    loading="eager"
+                    decoding="async"
+                  />
+                  <span className="absolute left-4 top-4 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Core 01</span>
+                  <span className="absolute bottom-4 right-4 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Hermes linked</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
+                  {coreModules.map(({ label, value, icon: Icon, to }) => (
+                    <Link key={label} to={to} className="d3-command-surface group rounded-2xl border border-white/10 bg-white/[0.035] p-4 hover:bg-blue-400/[0.08]">
+                      <div className="flex items-start justify-between gap-2">
+                        <Icon className="h-4 w-4 text-blue-200" aria-hidden="true" />
+                        <ArrowRight className="h-3.5 w-3.5 text-white/25 transition group-hover:translate-x-0.5 group-hover:text-blue-200" />
+                      </div>
+                      <div className="mt-5 text-xl font-black text-white sm:text-2xl">{value}</div>
+                      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.17em] text-blue-100/45">{label}</div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 border-t border-white/10 pt-4 text-center">
+                {[
+                  ['Encrypted', 'Data boundary'],
+                  ['Observable', 'Agent activity'],
+                  ['Governed', 'Human control'],
+                ].map(([value, label]) => (
+                  <div key={value} className="rounded-xl bg-black/20 px-2 py-3">
+                    <div className="text-xs font-bold text-blue-100">{value}</div>
+                    <div className="mt-1 text-[8px] uppercase tracking-[0.14em] text-white/30">{label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
