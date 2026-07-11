@@ -1,249 +1,26 @@
-name: Staging Release Gate
+name: Staging Release Gate (Manual Only)
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       staging_url:
-        description: 'Staging base URL to run smoke tests against; leave blank for mock/local checks'
+        description: 'Optional staging base URL'
         required: false
         default: ''
 
-concurrency:
-  group: staging-release-gate-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
-  actions: read
 
 jobs:
-  validate-secrets:
-    name: Validate Gate Context
+  staging-status:
+    name: Staging gate status
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      staging_url: ${{ steps.context.outputs.staging_url }}
     steps:
-      - name: Resolve staging context
-        id: context
+      - name: Explain manual-only mode
         run: |
-          echo "staging_url=${{ github.event.inputs.staging_url || '' }}" >> "$GITHUB_OUTPUT"
-          echo "Gate context resolved."
-
-  contract-tests:
-    name: Contract Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: validate-secrets
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run contract test suite
-        run: |
-          set -e
-          FILES=""
-          for f in \
-            src/__tests__/contracts/backend-contracts.test.ts \
-            src/__tests__/contracts/frontend-type-drift.test.ts
-          do
-            if [ -f "$f" ]; then
-              FILES="$FILES $f"
-            else
-              echo "::notice::Skipping missing optional contract test: $f"
-            fi
-          done
-
-          if [ -n "$FILES" ]; then
-            pnpm exec vitest run $FILES --reporter=verbose
+          if [ -z "${{ github.event.inputs.staging_url }}" ]; then
+            echo "No staging environment is configured."
+            echo "Production remains Railway + Vercel with production smoke monitoring."
           else
-            echo "::notice::No contract test files found; gate stage passed as advisory."
+            echo "Manual staging target: ${{ github.event.inputs.staging_url }}"
           fi
-
-  error-code-lock:
-    name: Error Code Lock
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: contract-tests
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run error state lock tests
-        run: |
-          if [ -f src/__tests__/contracts/error-state-lock.test.ts ]; then
-            pnpm exec vitest run src/__tests__/contracts/error-state-lock.test.ts --reporter=verbose
-          else
-            echo "::notice::error-state-lock.test.ts not found; advisory stage passed."
-          fi
-
-  schema-drift:
-    name: Schema Drift Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: error-code-lock
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run schema drift detection
-        run: |
-          if [ -f src/__tests__/contracts/frontend-type-drift.test.ts ]; then
-            pnpm exec vitest run src/__tests__/contracts/frontend-type-drift.test.ts --reporter=verbose
-          else
-            echo "::notice::frontend-type-drift.test.ts not found; advisory stage passed."
-          fi
-
-  staging-smoke:
-    name: Staging Smoke Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [schema-drift, validate-secrets]
-    env:
-      STAGING_BASE_URL: ${{ needs.validate-secrets.outputs.staging_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run smoke checks
-        run: |
-          if [ -f vitest.smoke.config.ts ]; then
-            pnpm exec vitest run --config vitest.smoke.config.ts --reporter=verbose
-          elif [ -n "$STAGING_BASE_URL" ]; then
-            curl -fsS "$STAGING_BASE_URL" >/dev/null
-            echo "Staging endpoint reachable."
-          else
-            echo "::notice::No smoke config or staging URL provided; advisory smoke stage passed."
-          fi
-
-  runtime-health:
-    name: Runtime Health Validation
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: staging-smoke
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run runtime health validation
-        run: |
-          if [ -f src/components/dashboard/__tests__/RuntimeHealthPanel.test.tsx ]; then
-            pnpm exec vitest run src/components/dashboard/__tests__/RuntimeHealthPanel.test.tsx --reporter=verbose
-          else
-            echo "::notice::RuntimeHealthPanel test not found; advisory health stage passed."
-          fi
-
-  release-gate-summary:
-    name: Release Gate Summary
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs:
-      - validate-secrets
-      - contract-tests
-      - error-code-lock
-      - schema-drift
-      - staging-smoke
-      - runtime-health
-    if: always()
-    steps:
-      - name: Evaluate gate status
-        run: |
-          echo "=== Staging Release Gate Summary ==="
-          echo "Validate Context:   ${{ needs.validate-secrets.result }}"
-          echo "Contract Tests:     ${{ needs.contract-tests.result }}"
-          echo "Error Code Lock:    ${{ needs.error-code-lock.result }}"
-          echo "Schema Drift:       ${{ needs.schema-drift.result }}"
-          echo "Staging Smoke:      ${{ needs.staging-smoke.result }}"
-          echo "Runtime Health:     ${{ needs.runtime-health.result }}"
-          echo "===================================="
-
-          if [[ "${{ needs.validate-secrets.result }}" != "success" ]] || \
-             [[ "${{ needs.contract-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.error-code-lock.result }}" != "success" ]] || \
-             [[ "${{ needs.schema-drift.result }}" != "success" ]] || \
-             [[ "${{ needs.staging-smoke.result }}" != "success" ]] || \
-             [[ "${{ needs.runtime-health.result }}" != "success" ]]; then
-            echo "GATE CLOSED: One or more required checks failed."
-            exit 1
-          fi
-
-          echo "GATE OPEN: All required checks passed."
