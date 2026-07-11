@@ -96,21 +96,30 @@ const AgentMarketplace: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <D3vonnPageBanner title="Agent Marketplace" />
-      <div className="container mx-auto px-4 py-8">
+    <div className="d3-os-shell min-h-screen bg-background">
+      <D3vonnPageBanner title="Enterprise Agent Marketplace" />
+      <div className="container mx-auto px-4 py-8 sm:px-6 sm:py-12">
+        <section className="d3-chrome-panel mb-8 rounded-3xl p-6 sm:p-8">
+          <div className="d3-system-status">Verified agent ecosystem</div>
+          <h1 className="mt-4 text-3xl font-black text-white sm:text-5xl">Deploy specialized intelligence</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-white/60 sm:text-base">Discover enterprise-ready agents by capability, industry, rating, and deployment model. Review each agent before connecting it to your organization.</p>
+        </section>
         <MarketplaceHeader
           totalAgents={marketplaceAgents.length}
           featuredCount={featuredAgents.length}
           onPublishClick={handlePublishClick}
         />
 
+        <div className="d3-chrome-panel rounded-2xl p-4 sm:p-6">
         <FeaturedAgents
           agents={featuredAgents}
           onView={handleViewAgent}
           onDeploy={handleDeployAgent}
         />
 
+        </div>
+
+        <div className="d3-chrome-panel mt-8 rounded-2xl p-4 sm:p-6">
         <MarketplaceFilters
           filters={filters}
           onFiltersChange={setFilters}
@@ -122,7 +131,7 @@ const AgentMarketplace: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredAgents.map((agent) => (
             <AgentCard
               key={agent.id}
@@ -142,6 +151,8 @@ const AgentMarketplace: React.FC = () => {
             </p>
           </div>
         )}
+
+        </div>
 
         <AgentDetailModal
           agent={selectedAgent}
