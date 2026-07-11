@@ -1,14 +1,9 @@
 name: CodeQL SAST
 
-# Run static application security testing before merge, weekly, or on demand.
-# Ordinary main-branch pushes are intentionally excluded to prevent duplicate
-# post-merge security fan-out while preserving required security coverage.
-
+# Scheduled and on-demand static application security testing.
+# Broad pull-request validation is owned by the canonical required PR gate.
 on:
-  pull_request:
-    branches: [main]
   schedule:
-    # Every Monday at 08:00 UTC
     - cron: '0 8 * * 1'
   workflow_dispatch:
 
