@@ -12,6 +12,8 @@ const fixtureFiles = new Set([
   '.env.example',
   '.gitleaks.toml',
   'hermes/tests/hermes.test.cjs',
+  // The scanner contains literal detector patterns and must not scan itself.
+  'scripts/secret-scan.mjs',
 ]);
 const allowedExtensions = new Set([
   '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.json', '.yml', '.yaml', '.env',
