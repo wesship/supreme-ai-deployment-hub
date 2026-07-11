@@ -1,0 +1,56 @@
+name: Workflow Fan-out Policy
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-fanout-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate workflow trigger policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Enforce one broad PR gate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+
+          allowed = {'required-pr-gate.yml', 'workflow-fanout-policy.yml'}
+          violations = []
+          for path in sorted(Path('.github/workflows').glob('*.y*ml')):
+              if path.name in allowed:
+                  continue
+              lines = path.read_text(encoding='utf-8').splitlines()
+              block = []
+              capture = False
+              for line in lines:
+                  if line.startswith('on:'):
+                      capture = True
+                  if capture:
+                      if block and line and not line.startswith((' ', '\t', '#')):
+                          break
+                      block.append(line)
+              trigger = '\n'.join(block)
+              if 'pull_request' in trigger and 'paths:' not in trigger and 'paths-ignore:' not in trigger:
+                  violations.append(str(path))
+
+          if violations:
+              print('Only required-pr-gate.yml may have an unscoped pull_request trigger.')
+              for path in violations:
+                  print(f' - {path}')
+              sys.exit(1)
+
+          print('Workflow fan-out policy passed.')
+          PY
