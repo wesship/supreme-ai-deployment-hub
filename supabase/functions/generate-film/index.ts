@@ -1,88 +1,123 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (request.method !== 'POST') return json({ error: 'METHOD_NOT_ALLOWED', message: 'Use POST.' }, 405);
 
   try {
-    const { screenplay } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    const { screenplay } = await request.json();
+    if (typeof screenplay !== 'string' || !screenplay.trim()) {
+      return json({ error: 'INVALID_REQUEST', message: 'A screenplay is required.' }, 400);
     }
 
-    // Generate a concise video prompt from the screenplay
-    const promptResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+    const openAIKey = Deno.env.get('OPENAI_API_KEY');
+    const usingLovable = Boolean(lovableKey);
+    const apiKey = lovableKey || openAIKey;
+
+    if (!apiKey) {
+      return json({
+        error: 'SERVICE_NOT_CONFIGURED',
+        message: 'Configure LOVABLE_API_KEY or OPENAI_API_KEY in Supabase Edge Function secrets.',
+      }, 503);
+    }
+
+    const endpoint = usingLovable
+      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
+      : 'https://api.openai.com/v1/chat/completions';
+    const model = usingLovable
+      ? 'google/gemini-2.5-flash'
+      : Deno.env.get('OPENAI_SCREENPLAY_MODEL') || 'gpt-4o-mini';
+
+    const promptResponse = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model,
+        temperature: 0.7,
         messages: [
           {
             role: 'system',
-            content: 'You are a video prompt engineer. Create concise, visual prompts for AI video generation that capture the essence and key visuals of a screenplay in 1-2 sentences.'
+            content:
+              'Convert the screenplay into one concise cinematic video-generation prompt. Describe subject, environment, movement, camera, lighting, visual style, and duration. Return plain text only.',
           },
-          {
-            role: 'user',
-            content: `Create a video generation prompt from this screenplay:\n\n${screenplay}`
-          }
+          { role: 'user', content: screenplay.trim() },
         ],
       }),
     });
 
+    const promptPayload = await promptResponse.json().catch(() => ({}));
     if (!promptResponse.ok) {
-      const errorText = await promptResponse.text();
-      console.error('AI API error:', promptResponse.status, errorText);
-      if (promptResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'PAYMENT_REQUIRED', message: 'AI credits exhausted. Please add credits in Lovable: Settings → Workspace → Usage.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (promptResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'RATE_LIMITED', message: 'Too many requests. Please wait a moment and try again.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      return new Response(
-        JSON.stringify({ error: 'AI_GATEWAY_ERROR', status: promptResponse.status, details: errorText.slice(0, 500) }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      const code = promptResponse.status === 402
+        ? 'PAYMENT_REQUIRED'
+        : promptResponse.status === 429
+          ? 'RATE_LIMITED'
+          : 'UPSTREAM_ERROR';
+      return json({
+        error: code,
+        message: promptPayload?.error?.message || `Prompt provider returned HTTP ${promptResponse.status}.`,
+      }, promptResponse.status === 402 || promptResponse.status === 429 ? promptResponse.status : 502);
     }
 
-    const promptData = await promptResponse.json();
-    const videoPrompt = promptData.choices[0].message.content;
+    const videoPrompt = promptPayload?.choices?.[0]?.message?.content?.trim();
+    if (!videoPrompt) {
+      return json({ error: 'EMPTY_RESPONSE', message: 'The prompt provider returned no content.' }, 502);
+    }
 
-    console.log('Generated video prompt:', videoPrompt);
+    const webhookUrl = Deno.env.get('VIDEO_GENERATION_WEBHOOK_URL');
+    const webhookToken = Deno.env.get('VIDEO_GENERATION_WEBHOOK_TOKEN');
 
-    // For now, return a mock video URL since we need external video APIs
-    // In production, integrate with Runway, Kling, Luma, or Veo APIs
-    const mockVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+    if (webhookUrl) {
+      const videoResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(webhookToken ? { Authorization: `Bearer ${webhookToken}` } : {}),
+        },
+        body: JSON.stringify({ screenplay: screenplay.trim(), prompt: videoPrompt }),
+      });
 
-    return new Response(
-      JSON.stringify({ 
-        videoUrl: mockVideoUrl,
-        prompt: videoPrompt,
-        message: 'Video generation requires external API integration (Runway/Kling/Luma). Using sample video for now.'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (error: any) {
-    console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      const videoPayload = await videoResponse.json().catch(() => ({}));
+      if (!videoResponse.ok) {
+        return json({
+          error: 'VIDEO_PROVIDER_ERROR',
+          message: videoPayload?.message || `Video provider returned HTTP ${videoResponse.status}.`,
+        }, 502);
+      }
+
+      const videoUrl = videoPayload?.videoUrl || videoPayload?.url;
+      if (!videoUrl) {
+        return json({ error: 'EMPTY_VIDEO_RESPONSE', message: 'Video provider returned no video URL.' }, 502);
+      }
+
+      return json({ videoUrl, prompt: videoPrompt, provider: 'webhook' });
+    }
+
+    return json({
+      videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      prompt: videoPrompt,
+      provider: 'sample',
+      message:
+        'Film endpoint is working. Configure VIDEO_GENERATION_WEBHOOK_URL for real AI video generation.',
+    });
+  } catch (error) {
+    console.error('generate-film error', error);
+    return json({
+      error: 'INTERNAL_ERROR',
+      message: error instanceof Error ? error.message : 'Unexpected film generation error.',
+    }, 500);
   }
 });
