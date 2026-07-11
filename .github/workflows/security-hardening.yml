@@ -29,7 +29,7 @@ jobs:
     # GitHub's dependency review API is available to private repositories only
     # when GitHub Advanced Security is licensed. Set the repository variable
     # ENABLE_DEPENDENCY_REVIEW=true after GHAS is enabled.
-    if: github.event_name == 'pull_request' && vars.ENABLE_DEPENDENCY_REVIEW == 'true'
+    if: "github.event_name == 'pull_request' && vars.ENABLE_DEPENDENCY_REVIEW == 'true'"
     permissions:
       contents: read
       pull-requests: write
