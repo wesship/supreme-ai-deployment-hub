@@ -1,14 +1,10 @@
 name: Lighthouse CI
 
-# Runs performance, accessibility, SEO, and best-practices audits on every PR.
-# Blocks merges if Lighthouse scores drop below the defined thresholds.
-# The repo already has a lighthouse-config.json - this workflow activates it.
+# Manual performance, accessibility, SEO, and best-practices audit.
+# The canonical required PR gate is the only broad automatic PR workflow.
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: lighthouse-${{ github.ref }}
@@ -48,20 +44,15 @@ jobs:
         run: |
           npm install -g serve
           serve -s dist -l 4173 &
-          # Wait for server to be ready (up to 60s)
           npx wait-on http://localhost:4173 --timeout 60000
-          # Extra settle time to ensure the SPA is fully loaded
           sleep 3
 
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18  # v12
-        # NO_FCP can occur on first run - allow failure without blocking CI
         continue-on-error: true
         with:
           urls: |
             http://localhost:4173/
-          # Use the existing lighthouse-config.json but override startServerCommand
-          # since we already started the server above
           runs: 1
           uploadArtifacts: true
           temporaryPublicStorage: true
