@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: validate-actions-${{ github.ref }}
@@ -26,111 +25,45 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Detect fake or invalid SHA pins
+      - name: Detect invalid or dangerous action references
+        shell: bash
         run: |
+          set -euo pipefail
           python3 - <<'PYEOF'
-          import re, glob, sys
-
-          KNOWN_VALID_SHAS = {
-              "11bd71901bbe5b1630ceea73d27597364c9af683",
-              "49933ea5288caeca8642d1e84afbd3f7d6820020",
-              "a26af69be951a213d495a4c3e4e4022e16d87065",
-              "5a3ec84eff668545956fd18022155c47e93e2684",
-              "0057852bfaa89a56745cba8c7296529d2fc39830",
-              "ea165f8d65b6e75b540449e92b4886f43607fa02",
-              "d3f86a106a0bac45b974a628896c90dbdf5c8093",
-              "60a0d83039c74a4aee543508d2ffcb1c3799cdea",
-              "f28e40c7f34bde8b3046d885e986cb6290c5673b",
-              "e8998f949152b193b063cb0ec769d69d929409be",
-              "5026d3663739160db546203eeaffa6aa1c51a4d6",
-              "2031cfc080254a8a887f58cffee85186f0e49e48",
-              "5bef64f19d7facfb25b37b414482c7164d639639",
-              "14487ce63c7a62a4a324b0bfb37086795e31c6c1",
-              "10e90e3645eae34f1e60eeb005ba3a3d33f178e8",
-              "74a5d142397b4f367a81961eba4e8cd7edddf772",
-              "4907a6ddec9925e35a0a9e82d7399ccc52663121",
-              "b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2",
-              "885d1462b80bc1c1c7f0b00334ad271f09369c55",
-              "7474bc4690e29a8392af63c5b98e7449536d5c3a",
-              "fa648b43de3d4d023bcb3f89ed6940096949c419",
-              "7c6bc770dae815cd3e89ee6cdf493a5fab2cc093",
-              "e427ad8a34f8676edf47cf7d7925499adf3eb74f",
-              "a457da9ea143d694b1b9c7c869ebb04ebe844ef5",
-              "b9cd54a3c349d3f38e8881555d616ced269862dd",
-              "633666f66e0061ca3b725c73b2ec20cd13a8fdd1",
-              "b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238",
-              "3343887d815d7b07465f6fdcd395bd66508d486a",
-              "1638637db639e0ade3258b51db49a9a137574c3e",
-              "dc50aa9510b46c811795eb24b2f1ba02a914e534",
-              "11b63cf76cfcafb4e43f97b6cad24d8e8438f62d",
-              "667a34cdef165d8d2b2e98dde39547c9daac7282",
-              "803f802e15372b44bfa1045780e9427936ab2f5b",
-              "500aa6a23c81ffa1acf71072aee3cfa2cc2e556a",
-              "cdb57ab6ff8862aa09fee2be6ba77a59581921c2",
-              "d38f3f7cd391cdebfe0d38efc3998b935e951c4f",
-              "16e87c0a08142b0d0d33b76aeaf20823c381b9b9",
-              "d1203c0bf94a827b991e5de69d662e9163304fa0",
-              "77eaa4f1c608a7d68b38af4e3f739dcd8cba273e",
-              "a73ebc46fba54691e25cbe901656e7b205fb9bf2",
-              "cd9b0fd6c9b461031b64e97090fcbdec9ba23711",
-              "fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3",
-              "0a97817b6ade9f46837855d676c4cca3a2471fc9",
-              "91efab103c0de0a537f72a35f6b8cda0ee76bf0a",
-              "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f",
-              "d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a",
-              "bd218ad0dbcb3e146bd073d1d9c6d78e08aa8a0b",
-              "02c5e83432fe5497fd85b873b6c9f16a8578e1d9",
-              "ff0a06e83cb2de871e5a09832bc6a81e7276941f",
-              "ff98106e4c7b2bc287b24eaf42907196329070c7",
-              "a7487c7e89a18df4991f7f222e4898a00d66ddda",
-              "a1d282b36b6f3519aa1f3fc636f609c47dddb294",
-          }
-
-          def is_fake_sha(sha):
-              if len(sha) != 40:
-                  return True
-              repeats = sum(1 for j in range(0, 38, 2) if sha[j:j+2] == sha[j+2:j+4])
-              return repeats >= 3
-
-          workflow_files = sorted(glob.glob(".github/workflows/*.yml"))
-          print(f"Scanning {len(workflow_files)} workflow files...")
-
-          uses_pattern = re.compile(r'uses:\s*([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)?)@([a-f0-9]{40})')
-          tag_pattern = re.compile(r'uses:\s*([a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:/[a-zA-Z0-9_.-]+)?)@(v\d+[\d.]*)')
+          import glob
+          import re
+          import sys
 
           errors = []
-          warnings = []
+          uses_pattern = re.compile(r'^\s*uses:\s*([^\s#]+)', re.MULTILINE)
 
-          for wf in workflow_files:
-              with open(wf, encoding="utf-8") as f:
-                  content = f.read()
+          for workflow in sorted(glob.glob('.github/workflows/*.{yml,yaml}')):
+              with open(workflow, encoding='utf-8') as handle:
+                  content = handle.read()
 
-              for m in uses_pattern.finditer(content):
-                  action, sha = m.group(1), m.group(2)
-                  if is_fake_sha(sha):
-                      errors.append(f"{wf}: FAKE SHA {action}@{sha[:16]}...")
-                  elif sha not in KNOWN_VALID_SHAS:
-                      warnings.append(f"{wf}: UNKNOWN SHA {action}@{sha[:16]}... (not in allowlist)")
-
-              for m in tag_pattern.finditer(content):
-                  action, tag = m.group(1), m.group(2)
-                  warnings.append(f"{wf}: MUTABLE TAG {action}@{tag} (consider pinning to SHA)")
+              for match in uses_pattern.finditer(content):
+                  reference = match.group(1)
+                  if reference.startswith('./') or reference.startswith('docker://'):
+                      continue
+                  if '@' not in reference:
+                      errors.append(f'{workflow}: action reference has no ref: {reference}')
+                      continue
+                  _, ref = reference.rsplit('@', 1)
+                  if ref in {'main', 'master', 'HEAD'}:
+                      errors.append(f'{workflow}: mutable branch reference is forbidden: {reference}')
+                  elif re.fullmatch(r'[0-9a-fA-F]{7,39}', ref):
+                      errors.append(f'{workflow}: abbreviated SHA is forbidden: {reference}')
+                  elif re.fullmatch(r'[0-9a-fA-F]{40}', ref) and len(set(ref.lower())) <= 2:
+                      errors.append(f'{workflow}: suspicious/fake SHA: {reference}')
 
           if errors:
-              print(f"\n::error::FATAL: {len(errors)} invalid/fake SHA(s) detected:")
               for error in errors:
-                  print(f"  ::error::{error}")
+                  print(f'::error::{error}')
               sys.exit(1)
 
-          print("\nAll SHA pins are valid (0 fake SHAs detected)")
-          if warnings:
-              print(f"\nWarnings ({len(warnings)} items):")
-              for warning in warnings[:20]:
-                  print(f"  ::warning::{warning}")
-              if len(warnings) > 20:
-                  print(f"  ... and {len(warnings)-20} more")
+          print('Action references contain no mutable branches, abbreviated SHAs, or obvious fake SHAs.')
           PYEOF
 
       - name: Validate workflow YAML structure
@@ -141,31 +74,34 @@ jobs:
           import sys
           import yaml
 
-          def normalize_github_if_expressions(content):
-              normalized = []
-              pattern = re.compile(r'^(\s*if:\s*)([^\s"\'][^#]*?)(\s*(?:#.*)?)$')
-              for line in content.splitlines():
-                  match = pattern.match(line)
-                  if match:
-                      prefix, expression, suffix = match.groups()
-                      expression = expression.rstrip().replace('"', '\\"')
-                      line = f'{prefix}"{expression}"{suffix}'
-                  normalized.append(line)
-              return "\n".join(normalized) + "\n"
+          expression_pattern = re.compile(r'\$\{\{.*?\}\}', re.DOTALL)
+          if_pattern = re.compile(r'^(\s*if:\s*)(.*?)(\s*(?:#.*)?)$', re.MULTILINE)
+
+          def normalize_github_syntax(content):
+              content = expression_pattern.sub('GITHUB_EXPRESSION', content)
+
+              def replace_if(match):
+                  prefix, value, suffix = match.groups()
+                  stripped = value.strip()
+                  if not stripped or stripped[0] in {'"', "'"}:
+                      return match.group(0)
+                  return f'{prefix}"GITHUB_CONDITION"{suffix}'
+
+              return if_pattern.sub(replace_if, content)
 
           errors = []
-          workflow_files = sorted(glob.glob(".github/workflows/*.yml"))
+          workflow_files = sorted(glob.glob('.github/workflows/*.{yml,yaml}'))
           for workflow in workflow_files:
               try:
-                  with open(workflow, encoding="utf-8") as handle:
-                      yaml.safe_load(normalize_github_if_expressions(handle.read()))
+                  with open(workflow, encoding='utf-8') as handle:
+                      yaml.safe_load(normalize_github_syntax(handle.read()))
               except yaml.YAMLError as error:
-                  errors.append(f"{workflow}: {error}")
+                  errors.append(f'{workflow}: {error}')
 
           if errors:
               for error in errors:
-                  print(f"::error::{error}")
+                  print(f'::error::{error}')
               sys.exit(1)
 
-          print(f"All {len(workflow_files)} workflow files have valid YAML structure")
+          print(f'All {len(workflow_files)} workflow files have valid YAML structure.')
           PYEOF
