@@ -12,7 +12,7 @@ const publicRoutes = [
   ['/ai-agents', 'AI Agents | D3VONN.IO', 'Build, deploy, and coordinate specialized AI agents with D3VONN.IO.', 'SoftwareApplication'],
   ['/business-automation', 'Business Automation | D3VONN.IO', 'Automate business workflows and coordinate intelligent operations with D3VONN.IO.', 'Service'],
   ['/marketplace', 'AI Agent Marketplace | D3VONN.IO', 'Discover and deploy AI agents from the D3VONN.IO marketplace.', 'CollectionPage'],
-  ['/film', 'AI Film Studio | D3VONN.IO', 'Create an AI-generated screenplay and film experience with the D3VONN.IO AI Film Studio.', 'WebApplication'],
+  ['/film', 'OpenMontage AI Film Studio | D3VONN.IO', 'Create a governed AI screenplay and film through the D3VONN.IO OpenMontage production workflow.', 'WebApplication'],
   ['/documentation', 'Documentation | D3VONN.IO', 'Read D3VONN.IO documentation for platform setup, AI agents, workflows, APIs, and deployment.', 'TechArticle'],
   ['/about', 'About D3VONN.IO', 'Learn about D3VONN.IO and its mission to power autonomous AI-driven businesses.', 'AboutPage'],
   ['/contact', 'Contact D3VONN.IO', 'Contact D3VONN.IO for product, partnership, support, and business inquiries.', 'ContactPage'],
