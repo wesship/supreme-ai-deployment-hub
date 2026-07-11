@@ -1,189 +1,100 @@
-name: Automated Billing Reconciliation
+name: Billing Reconciliation Audit (Manual Only)
 
 on:
-  schedule:
-    - cron: '0 10 * * 1'   # Weekly Monday 10:00 UTC
-    - cron: '0 0 2 * *'    # Monthly 2nd at midnight UTC (day after invoices close)
   workflow_dispatch:
     inputs:
       period:
-        description: 'Reconciliation period'
+        description: Reconciliation period label
         required: false
-        default: 'weekly'
+        default: monthly
         type: choice
-        options: [daily, weekly, monthly]
+        options:
+          - weekly
+          - monthly
       alert_threshold_pct:
-        description: 'Alert if spend exceeds budget by this % (default 10)'
+        description: Simulation threshold percentage
         required: false
         default: '10'
+      acknowledge_simulation:
+        description: Confirm that this workflow uses sample data only
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
-  group: billing-reconciliation-${{ github.run_id }}
-  cancel-in-progress: false
+  group: billing-reconciliation-manual
+  cancel-in-progress: true
 
 jobs:
-  reconcile-billing:
-    name: Budget vs Actual Reconciliation
+  simulation-notice:
+    name: Billing Simulation Notice
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-
-      - name: Setup Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip3 install requests
-
-      - name: Run billing reconciliation
+      - name: Verify simulation acknowledgement
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ALERT_THRESHOLD_PCT: ${{ github.event.inputs.alert_threshold_pct || '10' }}
+          ACKNOWLEDGED: ${{ github.event.inputs.acknowledge_simulation }}
         run: |
-          python3 - << 'PYEOF'
-          import os, json
-          from datetime import datetime
+          if [ "$ACKNOWLEDGED" != "true" ]; then
+            echo "This workflow does not read live provider billing data."
+            echo "Re-run it and acknowledge that all values are simulated."
+            exit 1
+          fi
+
+      - name: Generate sample reconciliation report
+        env:
+          PERIOD: ${{ github.event.inputs.period }}
+          ALERT_THRESHOLD_PCT: ${{ github.event.inputs.alert_threshold_pct }}
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import os
+          from datetime import datetime, timezone
 
           threshold = float(os.environ.get("ALERT_THRESHOLD_PCT", "10"))
-          now = datetime.utcnow()
+          period = os.environ.get("PERIOD", "monthly")
 
-          # Monthly budget allocations by category
-          BUDGETS = {
-              "AWS Compute":         {"budget": 150.00, "actual": 148.30, "category": "infrastructure"},
-              "AWS Storage (S3/RDS)":{"budget": 80.00,  "actual": 72.50,  "category": "infrastructure"},
-              "AWS Network":         {"budget": 40.00,  "actual": 38.90,  "category": "infrastructure"},
-              "OpenAI API":          {"budget": 120.00, "actual": 134.20, "category": "ai"},
-              "Anthropic API":       {"budget": 50.00,  "actual": 28.40,  "category": "ai"},
-              "ElevenLabs Voice":    {"budget": 60.00,  "actual": 67.80,  "category": "ai"},
-              "Supabase":            {"budget": 25.00,  "actual": 25.00,  "category": "database"},
-              "Cloudflare":          {"budget": 20.00,  "actual": 18.50,  "category": "network"},
-              "GitHub Actions":      {"budget": 30.00,  "actual": 22.40,  "category": "ci"},
-              "Datadog":             {"budget": 45.00,  "actual": 45.00,  "category": "observability"},
-              "Render.com":          {"budget": 35.00,  "actual": 35.00,  "category": "hosting"},
+          sample_items = {
+              "OpenAI API": {"budget": 120.00, "actual": 134.20},
+              "ElevenLabs Voice": {"budget": 60.00, "actual": 67.80},
+              "GitHub Actions": {"budget": 30.00, "actual": 22.40},
+              "Supabase": {"budget": 25.00, "actual": 25.00},
           }
-
-          TOTAL_BUDGET = sum(v["budget"] for v in BUDGETS.values())
-          TOTAL_ACTUAL = sum(v["actual"] for v in BUDGETS.values())
-          VARIANCE = TOTAL_ACTUAL - TOTAL_BUDGET
-          VARIANCE_PCT = VARIANCE / TOTAL_BUDGET * 100
-
-          print("=" * 70)
-          print(f"  DEVONN.AI BILLING RECONCILIATION - {now.strftime('%Y-%m')}")
-          print("=" * 70)
-          print()
-          print(f"  {'Line Item':<28} {'Budget':>10} {'Actual':>10} {'Variance':>10} {'Status':>8}")
-          print("  " + "-" * 70)
 
           alerts = []
-          line_items = []
-          category_totals = {}
-
-          for item, data in sorted(BUDGETS.items()):
-              variance = data["actual"] - data["budget"]
-              variance_pct = variance / data["budget"] * 100
-              cat = data["category"]
-              category_totals[cat] = category_totals.get(cat, {"budget": 0, "actual": 0})
-              category_totals[cat]["budget"] += data["budget"]
-              category_totals[cat]["actual"] += data["actual"]
-
+          for name, values in sample_items.items():
+              variance_pct = ((values["actual"] - values["budget"]) / values["budget"]) * 100
               if variance_pct > threshold:
-                  status = f"⚠ +{variance_pct:.1f}%"
-                  alerts.append({"item": item, "budget": data["budget"], "actual": data["actual"], "variance_pct": round(variance_pct, 1)})
-              elif variance_pct < -10:
-                  status = f"↓ {variance_pct:.1f}%"
-              else:
-                  status = "✓"
+                  alerts.append({
+                      "item": name,
+                      "budget": values["budget"],
+                      "actual": values["actual"],
+                      "variance_pct": round(variance_pct, 1),
+                  })
 
-              line_items.append({
-                  "item": item, "category": cat,
-                  "budget": data["budget"], "actual": data["actual"],
-                  "variance": round(variance, 2), "variance_pct": round(variance_pct, 1),
-              })
-              print(f"  {item:<28} ${data['budget']:>9.2f} ${data['actual']:>9.2f} ${variance:>+9.2f} {status:>8}")
-
-          print("  " + "-" * 70)
-          variance_str = f"${VARIANCE:>+.2f}"
-          print(f"  {'TOTAL':<28} ${TOTAL_BUDGET:>9.2f} ${TOTAL_ACTUAL:>9.2f} {variance_str:>10} {'⚠' if VARIANCE_PCT > threshold else '✓':>8}")
-
-          print()
-          print("  By Category:")
-          for cat, totals in sorted(category_totals.items()):
-              v = totals["actual"] - totals["budget"]
-              pct = v / totals["budget"] * 100
-              print(f"    {cat:<18} Budget: ${totals['budget']:>7.2f}  Actual: ${totals['actual']:>7.2f}  ({pct:+.1f}%)")
-
-          # Anomaly detection
-          print()
-          print("  Anomaly Detection:")
-          if alerts:
-              print(f"  ⚠ {len(alerts)} line item(s) exceeded budget by >{threshold}%:")
-              for a in alerts:
-                  print(f"    • {a['item']}: ${a['actual']:.2f} vs ${a['budget']:.2f} budget (+{a['variance_pct']}%)")
-          else:
-              print(f"  ✓ No anomalies detected (all within {threshold}% threshold)")
-
-          # Month-over-month trend
-          print()
-          print("  Month-over-Month Trend (simulated):")
-          MOM = [
-              ("Feb 2026", 498.20),
-              ("Mar 2026", 512.40),
-              ("Apr 2026", 531.80),
-              ("May 2026", TOTAL_ACTUAL),
-          ]
-          for month, spend in MOM:
-              bar = "█" * int(spend / 20)
-              print(f"    {month}: ${spend:>7.2f}  {bar}")
-
-          # Save report
           report = {
-              "generated_at": now.isoformat(),
-              "period": "${{ github.event.inputs.period || 'monthly' }}",
-              "total_budget_usd": round(TOTAL_BUDGET, 2),
-              "total_actual_usd": round(TOTAL_ACTUAL, 2),
-              "total_variance_usd": round(VARIANCE, 2),
-              "total_variance_pct": round(VARIANCE_PCT, 2),
+              "mode": "simulation",
+              "warning": "This report contains sample values and is not sourced from live provider billing APIs.",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "period": period,
+              "threshold_pct": threshold,
+              "sample_items": sample_items,
               "alerts": alerts,
-              "line_items": line_items,
-              "category_totals": {k: {kk: round(vv, 2) for kk, vv in v.items()} for k, v in category_totals.items()},
           }
-          with open("/tmp/billing-reconciliation.json", "w") as f:
-              json.dump(report, f, indent=2)
 
-          # Exit with error if total budget exceeded by threshold
-          if VARIANCE_PCT > threshold:
-              print(f"\n⚠ ALERT: Total spend ${TOTAL_ACTUAL:.2f} exceeds budget ${TOTAL_BUDGET:.2f} by {VARIANCE_PCT:.1f}%")
-              import sys; sys.exit(1)
-          else:
-              print(f"\n✓ Total spend ${TOTAL_ACTUAL:.2f} within budget ${TOTAL_BUDGET:.2f} ({VARIANCE_PCT:+.1f}%)")
+          with open("billing-reconciliation-simulation.json", "w", encoding="utf-8") as handle:
+              json.dump(report, handle, indent=2)
+
+          print(report["warning"])
+          print(json.dumps(report, indent=2))
           PYEOF
 
-      - name: Upload billing report
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - name: Upload simulation report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: billing-reconciliation-${{ github.run_id }}
-          path: /tmp/billing-reconciliation.json
-          retention-days: 365
-
-      - name: Create budget alert issue
-        if: failure()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          curl -s -X POST \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/issues \
-            -d "{
-              \"title\": \"💰 BUDGET ALERT: Spend exceeds threshold - $(date -u +%Y-%m)\",
-              \"body\": \"## Budget Alert\n\nThe automated billing reconciliation detected spend exceeding the configured threshold.\n\n**Run:** https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease review the billing reconciliation artifact for full details.\",
-              \"labels\": [\"billing\", \"alert\", \"automated\"]
-            }" | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'Alert issue: #{d.get(\"number\")} - {d.get(\"html_url\",\"\")}')"
+          name: billing-reconciliation-simulation-${{ github.run_id }}
+          path: billing-reconciliation-simulation.json
+          retention-days: 30
