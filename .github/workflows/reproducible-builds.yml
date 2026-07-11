@@ -1,19 +1,6 @@
-name: Reproducible Builds
+name: Reproducible Builds (Manual Only)
 
 on:
-  push:
-    branches: [main]
-    tags: ['v*.*.*', 'ci-stable-*']
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'vite.config.*'
-      - 'tsconfig*'
-  schedule:
-    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -21,120 +8,12 @@ permissions:
   id-token: write
   attestations: write
 
-concurrency:
-  group: reproducible-builds-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  hermetic-build:
-    name: Hermetic Build
+  reproducible-build-status:
+    name: Reproducible build status
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    outputs:
-      build_sha256: ${{ steps.digest.outputs.sha256 }}
-      build_artifact_name: ${{ steps.digest.outputs.artifact_name }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Verify lockfile integrity
-        run: git diff --exit-code pnpm-lock.yaml || (echo 'pnpm-lock.yaml drift detected' && exit 1)
-
-      - name: Record environment fingerprint
-        id: env-fingerprint
+      - name: Explain manual-only mode
         run: |
-          node --version > /tmp/env-fingerprint.txt
-          pnpm --version >> /tmp/env-fingerprint.txt
-          sha256sum pnpm-lock.yaml >> /tmp/env-fingerprint.txt
-          uname -a >> /tmp/env-fingerprint.txt
-          ENV_HASH=$(sha256sum /tmp/env-fingerprint.txt | cut -d' ' -f1)
-          echo "env_hash=${ENV_HASH}" >> $GITHUB_OUTPUT
-
-      - name: Build hermetic artifact
-        run: |
-          export NODE_ENV=production
-          export CI=true
-          pnpm run build
-
-      - name: Compute build digest
-        id: digest
-        run: |
-          ARTIFACT_NAME="devonn-dist-${{ github.sha }}"
-          tar czf "/tmp/${ARTIFACT_NAME}.tar.gz" dist/
-          SHA256=$(sha256sum "/tmp/${ARTIFACT_NAME}.tar.gz" | cut -d' ' -f1)
-          echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
-          echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: ${{ steps.digest.outputs.artifact_name }}
-          path: /tmp/${{ steps.digest.outputs.artifact_name }}.tar.gz
-          retention-days: 30
-
-  verify-reproducibility:
-    name: Verify Reproducibility
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: hermetic-build
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Download first build artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: ${{ needs.hermetic-build.outputs.build_artifact_name }}
-          path: /tmp/first-build/
-
-      - name: Perform second build
-        run: |
-          pnpm install --frozen-lockfile
-          NODE_ENV=production CI=true pnpm run build
-          tar czf /tmp/second-build.tar.gz dist/
-          SECOND_SHA=$(sha256sum /tmp/second-build.tar.gz | cut -d' ' -f1)
-          echo "SECOND_SHA=${SECOND_SHA}" >> $GITHUB_ENV
-
-      - name: Compare digests
-        run: |
-          FIRST_SHA="${{ needs.hermetic-build.outputs.build_sha256 }}"
-          SECOND_SHA="${SECOND_SHA}"
-
-          echo "First build:  ${FIRST_SHA}"
-          echo "Second build: ${SECOND_SHA}"
-
-          if [ "$FIRST_SHA" = "$SECOND_SHA" ]; then
-            echo "Reproducible build verified"
-          else
-            echo "::warning::Builds are not byte-identical"
-          fi
+          echo "Reproducible build verification is manual-only."
+          echo "Normal production commits use the core build, Railway, Vercel, and smoke-test lanes."
