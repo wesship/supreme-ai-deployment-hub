@@ -1,8 +1,8 @@
 name: Bundle Size Check
 
+# Bundle analysis is available on demand. The canonical PR gate owns ordinary
+# build validation so this advisory does not install and build on every commit.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 15
     continue-on-error: true
     steps:
-      - name: Checkout PR branch
+      - name: Checkout branch
         uses: actions/checkout@v4
 
       - name: Setup pnpm
