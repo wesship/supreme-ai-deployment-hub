@@ -1,66 +1,21 @@
-name: Auto-merge Snyk Security PRs
+name: Auto-merge Snyk Security PRs (archived manual lane)
 
+# Legacy Snyk auto-merge is disabled. Security dependency PRs must pass the
+# canonical required gate and be reviewed before GitHub native auto-merge is
+# enabled on that individual pull request.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  auto-merge-snyk:
-    name: Auto-merge Snyk PRs
+  archived:
+    name: Explain Snyk merge policy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: |
-      contains(github.event.pull_request.title, '[Snyk]') ||
-      contains(github.event.pull_request.title, 'Security upgrade') ||
-      contains(github.event.pull_request.title, 'security upgrade')
     steps:
-      - name: Update branch to resolve conflicts
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
-        with:
-          github-token: ${{ secrets.GH_TOKEN }}
-          script: |
-            const pr = context.payload.pull_request;
-            if (!pr) { console.log('No PR in context'); return; }
-            
-            // Try to update branch (rebase onto main)
-            try {
-              await github.rest.pulls.updateBranch({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-              });
-              console.log(`✓ Branch updated for PR #${pr.number}`);
-            } catch(e) {
-              console.log(`Branch update skipped: ${e.message}`);
-            }
-            
-            // Add labels
-            try {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                labels: ['auto-merge', 'security']
-              });
-            } catch(e) { /* labels may already exist */ }
-            
-            // Enable auto-merge via GraphQL
-            try {
-              await github.graphql(`
-                mutation($id: ID!) {
-                  enablePullRequestAutoMerge(input: {
-                    pullRequestId: $id,
-                    mergeMethod: SQUASH
-                  }) {
-                    pullRequest { number }
-                  }
-                }
-              `, { id: pr.node_id });
-              console.log(`✓ Auto-merge enabled for PR #${pr.number}`);
-            } catch(e) {
-              console.log(`Auto-merge: ${e.message}`);
-            }
+      - name: Security merge policy
+        run: |
+          echo "Snyk branch updates and repository-wide auto-merge are disabled."
+          echo "Review the dependency diff and enable native auto-merge only after required checks pass."
+          echo "Do not add pull_request triggers or write permissions to this workflow."
