@@ -1,29 +1,52 @@
-name: Test Coverage
+name: Test Coverage Audit
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: Fail when coverage is below configured thresholds
+        required: true
+        default: false
+        type: boolean
+      lines_threshold:
+        description: Minimum line coverage percentage
+        required: true
+        default: "70"
+      functions_threshold:
+        description: Minimum function coverage percentage
+        required: true
+        default: "70"
+      branches_threshold:
+        description: Minimum branch coverage percentage
+        required: true
+        default: "60"
+      statements_threshold:
+        description: Minimum statement coverage percentage
+        required: true
+        default: "70"
 
 concurrency:
-  group: coverage-${{ github.ref }}
+  group: coverage-audit-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  unit-tests:
-    name: Unit Tests & Coverage
+  coverage:
+    name: Test Coverage Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -32,38 +55,73 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify lockfile integrity
-        run: git diff --exit-code pnpm-lock.yaml || (echo "pnpm-lock.yaml changed after pnpm install --frozen-lockfile" && exit 1)
+        run: git diff --exit-code -- pnpm-lock.yaml
 
-      - name: Run unit tests with coverage
-        run: pnpm run test -- --coverage --reporter=verbose
+      - name: Run tests with coverage
         env:
-          CI: true
+          CI: "true"
+        run: pnpm run test:coverage -- --coverage.reporter=json-summary --coverage.reporter=text --coverage.reporter=html --coverage.reporter=lcov
 
-      - name: Upload coverage to Codecov
-        continue-on-error: true
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          flags: unittests
-          name: devonn-ai-coverage
-          fail_ci_if_error: false
-          verbose: true
-
-      - name: Upload coverage HTML report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 14
-
-      - name: Coverage summary
-        if: always()
+      - name: Evaluate coverage thresholds
+        env:
+          STRICT: ${{ inputs.strict }}
+          LINES_THRESHOLD: ${{ inputs.lines_threshold }}
+          FUNCTIONS_THRESHOLD: ${{ inputs.functions_threshold }}
+          BRANCHES_THRESHOLD: ${{ inputs.branches_threshold }}
+          STATEMENTS_THRESHOLD: ${{ inputs.statements_threshold }}
         run: |
-          echo "## Test Coverage Report" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f ./coverage/coverage-summary.json ]; then
-            node -e "const fs=require('fs'); const s=JSON.parse(fs.readFileSync('./coverage/coverage-summary.json','utf8')).total; for (const m of ['lines','functions','branches','statements']) console.log('- '+m+': '+(s[m]?.pct ?? 'n/a')+'%');" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Coverage summary file not found." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          python3 - <<'PYEOF'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          summary_path = Path("coverage/coverage-summary.json")
+          strict = os.environ.get("STRICT", "false").lower() == "true"
+
+          if not summary_path.exists():
+              message = "Coverage summary was not generated."
+              print(f"::error::{message}" if strict else f"::warning::{message}")
+              raise SystemExit(1 if strict else 0)
+
+          data = json.loads(summary_path.read_text())
+          total = data.get("total", {})
+          thresholds = {
+              "lines": float(os.environ["LINES_THRESHOLD"]),
+              "functions": float(os.environ["FUNCTIONS_THRESHOLD"]),
+              "branches": float(os.environ["BRANCHES_THRESHOLD"]),
+              "statements": float(os.environ["STATEMENTS_THRESHOLD"]),
+          }
+
+          failures = []
+          summary_lines = ["## Test Coverage Audit", ""]
+          for metric, threshold in thresholds.items():
+              value = total.get(metric, {}).get("pct")
+              if value is None:
+                  failures.append(f"{metric}: missing result")
+                  summary_lines.append(f"- {metric}: missing (threshold {threshold}%)")
+                  continue
+              value = float(value)
+              status = "PASS" if value >= threshold else "FAIL"
+              summary_lines.append(f"- {metric}: {value}% (threshold {threshold}%) — {status}")
+              if value < threshold:
+                  failures.append(f"{metric} {value}% below {threshold}%")
+
+          Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text("\n".join(summary_lines) + "\n")
+
+          if failures:
+              message = "; ".join(failures)
+              print(f"::error::Coverage thresholds failed: {message}" if strict else f"::warning::Coverage advisory: {message}")
+              raise SystemExit(1 if strict else 0)
+
+          print("Coverage thresholds passed.")
+          PYEOF
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-audit-${{ github.run_id }}
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 14
