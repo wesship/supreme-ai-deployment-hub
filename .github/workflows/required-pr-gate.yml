@@ -1,0 +1,185 @@
+name: D3VONN Required PR Gate
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: required-pr-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lockfile-validation:
+    name: Lockfile Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Validate dependency lockfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f pnpm-lock.yaml || { echo "::error::pnpm-lock.yaml is required"; exit 1; }
+          if [ -f backend/requirements.txt ]; then
+            grep -Eq '^[A-Za-z0-9_.-]+([<>=!~]=?|===)[^[:space:]]+' backend/requirements.txt || {
+              echo "::error::backend/requirements.txt must contain pinned or constrained dependencies"
+              exit 1
+            }
+          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then
+            test -f requirements.txt || test -f poetry.lock || test -f uv.lock || {
+              echo "::error::Python dependency manifest found without a recognized lock or pinned requirements file"
+              exit 1
+            }
+          fi
+
+  frontend-checks:
+    name: Frontend Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Type-check
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Unit tests
+        run: pnpm test
+      - name: Production build
+        run: pnpm build
+
+  backend-checks:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install backend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
+          elif [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          pip install pytest
+      - name: Syntax validation
+        run: python -m compileall -q backend
+      - name: Import validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib
+          candidates = ["backend.main", "backend.app.main"]
+          errors = []
+          for module in candidates:
+              try:
+                  importlib.import_module(module)
+                  print(f"Imported {module}")
+                  break
+              except ModuleNotFoundError as exc:
+                  errors.append(f"{module}: {exc}")
+          else:
+              raise SystemExit("Unable to import a backend entry point: " + " | ".join(errors))
+          PY
+      - name: Focused backend tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d backend/tests ]; then
+            pytest -q backend/tests --maxfail=1
+          elif [ -d tests/backend ]; then
+            pytest -q tests/backend --maxfail=1
+          else
+            echo "No focused backend test directory found; syntax and import validation completed."
+          fi
+
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Scan for committed secrets
+        run: pnpm security:scan
+
+  workflow-validation:
+    name: Workflow Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Parse workflow YAML
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -e 'require "psych"; Dir[".github/workflows/*.{yml,yaml}"].sort.each { |file| Psych.safe_load_file(file, aliases: true); puts "YAML OK: #{file}" }'
+      - name: Validate immutable action references
+        shell: bash
+        run: |
+          set -euo pipefail
+          violations=$(grep -RhnE '^\s*uses:\s*[^#[:space:]]+@(main|master|latest|v[0-9]+([.][0-9]+){0,2})\s*($|#)' .github/workflows --include='*.yml' --include='*.yaml' || true)
+          if [ -n "$violations" ]; then
+            echo "::error::Mutable GitHub Action references detected"
+            printf '%s\n' "$violations"
+            exit 1
+          fi
+
+  required-pr-gate:
+    name: D3VONN Required PR Gate
+    if: always()
+    needs:
+      - lockfile-validation
+      - frontend-checks
+      - backend-checks
+      - secret-scan
+      - workflow-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required jobs
+        env:
+          LOCKFILE_RESULT: ${{ needs.lockfile-validation.result }}
+          FRONTEND_RESULT: ${{ needs.frontend-checks.result }}
+          BACKEND_RESULT: ${{ needs.backend-checks.result }}
+          SECRET_RESULT: ${{ needs.secret-scan.result }}
+          WORKFLOW_RESULT: ${{ needs.workflow-validation.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for result in "$LOCKFILE_RESULT" "$FRONTEND_RESULT" "$BACKEND_RESULT" "$SECRET_RESULT" "$WORKFLOW_RESULT"; do
+            test "$result" = "success" || exit 1
+          done
