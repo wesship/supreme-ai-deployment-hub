@@ -8,6 +8,11 @@ const ignoredDirs = new Set([
   'benchmark-artifacts', '.turbo', '.cache', 'storybook-static'
 ]);
 const ignoredFiles = new Set(['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock']);
+const fixtureFiles = new Set([
+  '.env.example',
+  '.gitleaks.toml',
+  'hermes/tests/hermes.test.cjs',
+]);
 const allowedExtensions = new Set([
   '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.json', '.yml', '.yaml', '.env',
   '.example', '.md', '.py', '.toml', '.ini', '.sh', '.txt'
@@ -24,8 +29,9 @@ const patterns = [
 ];
 
 function shouldScan(filePath) {
+  const relative = path.relative(root, filePath).split(path.sep).join('/');
   const base = path.basename(filePath);
-  if (ignoredFiles.has(base)) return false;
+  if (ignoredFiles.has(base) || fixtureFiles.has(relative)) return false;
   if (base.startsWith('.env')) return true;
   const ext = path.extname(filePath);
   return allowedExtensions.has(ext) || [...allowedExtensions].some((suffix) => filePath.endsWith(suffix));
