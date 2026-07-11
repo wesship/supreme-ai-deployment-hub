@@ -1,10 +1,8 @@
 name: Governance Drift Check
 
+# Manual governance audit. The canonical required PR gate owns broad PR checks.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -43,47 +41,36 @@ jobs:
             exit 1
           fi
 
-      - name: Detect destructive changes to protected paths
-        if: github.event_name == 'pull_request'
+      - name: Detect destructive changes against main
         shell: bash
         run: |
           set -e
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          echo "Diffing $BASE_SHA..$HEAD_SHA"
-
+          git fetch origin main --depth=1
+          BASE_SHA="origin/main"
+          HEAD_SHA="HEAD"
           PROTECTED_AUTOGEN=(
             "src/integrations/supabase/client.ts"
             "src/integrations/supabase/types.ts"
             ".env"
           )
-
           fail=0
-
-          # Auto-generated files must not be edited by hand
           for f in "${PROTECTED_AUTOGEN[@]}"; do
             if git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- "$f" | grep -q .; then
               echo "::error file=$f::Auto-generated file edited; revert this change."
               fail=1
             fi
           done
-
-          # Migrations are append-only: no deletions or modifications of existing files
           if git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- 'supabase/migrations/**' \
               | awk '$1 == "D" || $1 == "M" || $1 ~ /^R/ { print; found=1 } END { exit !found }'; then
-            echo "::error::Existing supabase/migrations files were modified or deleted. Migrations are append-only."
+            echo "::error::Existing supabase/migrations files were modified or deleted."
             fail=1
           fi
-
-          # config.toml: project-level settings locked
           if git diff "$BASE_SHA" "$HEAD_SHA" -- supabase/config.toml \
               | grep -E '^[-+]project_id' >/dev/null; then
-            echo "::error file=supabase/config.toml::project_id changed; project-level settings are locked."
+            echo "::error file=supabase/config.toml::project_id changed."
             fail=1
           fi
-
           if [ "$fail" -ne 0 ]; then
-            echo "Governance drift detected."
             exit 1
           fi
           echo "No governance drift detected."
