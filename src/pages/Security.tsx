@@ -24,7 +24,7 @@ const Security: React.FC = () => {
   const description = 'D3VONN.IO security and trust center for enterprise AI workforce orchestration, protected data boundaries, observability, and auditability.';
 
   return (
-    <div className="min-h-screen bg-[#020817] text-white">
+    <div className="d3-os-shell min-h-screen text-white">
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -35,7 +35,7 @@ const Security: React.FC = () => {
         <meta property="og:url" content="https://d3vonn.io/security" />
       </Helmet>
 
-      <main className="container mx-auto px-6 py-24">
+      <main className="container mx-auto px-4 py-16 sm:px-6 sm:py-24">
         <section className="mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-950/40 px-4 py-2 text-xs uppercase tracking-[0.2em] text-blue-300">
             <ShieldCheck className="h-4 w-4" /> Trust Center
@@ -46,6 +46,19 @@ const Security: React.FC = () => {
           <p className="mt-6 text-lg text-white/70">
             D3VONN.IO is being built around control, visibility, private execution boundaries, and accountable agent orchestration.
           </p>
+          <div className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-3 text-left sm:grid-cols-4">
+            {[
+              ['Encryption', 'Protected'],
+              ['Identity', 'Auth ready'],
+              ['Auditability', 'Visible'],
+              ['Integrity', 'Monitored'],
+            ].map(([label, value]) => (
+              <div key={label} className="d3-chrome-panel rounded-xl p-3">
+                <div className="text-sm font-semibold text-blue-100">{value}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/45">{label}</div>
+              </div>
+            ))}
+          </div>
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link to="/contact?inquiry=security-review" className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white shadow-[0_0_30px_rgba(56,136,255,0.35)] hover:bg-blue-500">
               Request security review <ArrowRight className="h-4 w-4" />
@@ -58,7 +71,7 @@ const Security: React.FC = () => {
 
         <section className="mt-20 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {controls.map((item) => (
-            <article key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl shadow-[0_0_40px_-12px_rgba(56,136,255,0.25)]">
+            <article key={item.title} className="d3-chrome-panel d3-command-surface rounded-2xl p-6">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-500/25 bg-blue-950/50 text-blue-300">
                 <item.icon className="h-6 w-6" />
               </div>
@@ -68,7 +81,7 @@ const Security: React.FC = () => {
           ))}
         </section>
 
-        <section className="mt-20 grid gap-8 rounded-3xl border border-white/10 bg-white/[0.03] p-8 lg:grid-cols-[0.85fr_1.15fr]">
+        <section className="d3-chrome-panel mt-20 grid gap-8 rounded-3xl p-6 sm:p-8 lg:grid-cols-[0.85fr_1.15fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">Enterprise roadmap</p>
             <h2 className="mt-4 text-3xl font-black">What comes next for compliance readiness</h2>

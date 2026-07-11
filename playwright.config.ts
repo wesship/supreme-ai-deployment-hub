@@ -2,6 +2,33 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.PORT ?? 4173);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${PORT}`;
+const requestedBrowser = process.env.BROWSER?.toLowerCase();
+
+const projects = [
+  {
+    name: 'chromium',
+    use: { ...devices['Desktop Chrome'] },
+  },
+  {
+    name: 'firefox',
+    use: { ...devices['Desktop Firefox'] },
+  },
+  {
+    name: 'mobile-chrome',
+    use: { ...devices['Pixel 7'] },
+  },
+];
+
+const selectedProjects = requestedBrowser
+  ? projects.filter(({ name }) => {
+      if (requestedBrowser === 'chrome') return name === 'chromium';
+      return name === requestedBrowser;
+    })
+  : projects;
+
+if (requestedBrowser && selectedProjects.length === 0) {
+  throw new Error(`Unsupported Playwright browser: ${requestedBrowser}`);
+}
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -28,14 +55,5 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
       },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'mobile-chrome',
-      use: { ...devices['Pixel 7'] },
-    },
-  ],
+  projects: selectedProjects,
 });

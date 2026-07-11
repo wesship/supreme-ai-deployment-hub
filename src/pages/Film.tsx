@@ -180,7 +180,7 @@ const FilmPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="d3-os-shell min-h-screen bg-background">
       <Helmet>
         <title>{FILM_PAGE_TITLE}</title>
         <meta name="description" content={FILM_PAGE_DESCRIPTION} />
@@ -199,8 +199,8 @@ const FilmPage = () => {
       <D3vonnPageBanner title="OpenMontage Film Studio" />
 
       <div className="border-b border-border bg-card/50 backdrop-blur-xl">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-4 py-4 sm:px-6">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
             <Button onClick={() => navigate('/dashboard')} variant="ghost" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" /> Back
             </Button>
@@ -213,7 +213,7 @@ const FilmPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-12">
+      <div className="container mx-auto px-4 py-8 sm:px-6 sm:py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-4xl">
           <div className="mb-8 text-center">
             <h2 className="mb-4 text-4xl font-bold">Create Your AI Film</h2>
@@ -222,7 +222,7 @@ const FilmPage = () => {
             </p>
           </div>
 
-          <Card className="mb-6 border-border bg-card/50 p-6">
+          <Card className="d3-chrome-panel mb-6 border-0 p-4 sm:p-6">
             <label htmlFor="film-idea" className="sr-only">Film idea</label>
             <Textarea
               id="film-idea"
@@ -234,7 +234,7 @@ const FilmPage = () => {
             />
             <Button onClick={generateFilm} disabled={loading} className="w-full">
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-              {loading ? 'Running OpenMontage Workflow…' : 'Generate Film & Screenplay'}
+              {loading ? `OpenMontage: ${status === 'script' ? 'Writing screenplay' : 'Building production'}` : 'Generate Film & Screenplay'}
             </Button>
           </Card>
 
@@ -247,7 +247,7 @@ const FilmPage = () => {
                   {provider && <Badge variant="outline">{provider}</Badge>}
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+              <div aria-live="polite" aria-label={`Production status: ${status}`} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {stages.map((stage) => (
                   <div key={stage.name} className="flex items-center gap-2 rounded-lg border border-border/60 p-3">
                     {stageIcon(stage.status)}
@@ -261,7 +261,7 @@ const FilmPage = () => {
 
           {screenplay && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-              <Card className="border-border bg-card/50 p-6">
+              <Card className="d3-chrome-panel border-0 p-4 sm:p-6">
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <h2 className="text-xl font-bold">Screenplay</h2>
                   <Button onClick={downloadScreenplay} variant="outline" size="sm">
@@ -275,7 +275,7 @@ const FilmPage = () => {
 
           {videoUrl && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="border-border bg-card/50 p-6">
+              <Card className="d3-chrome-panel border-0 p-4 sm:p-6">
                 <h2 className="mb-4 text-xl font-bold">Your Film</h2>
                 <video src={videoUrl} controls playsInline preload="metadata" className="w-full rounded-lg">
                   Your browser does not support HTML video playback.

@@ -7,13 +7,13 @@ import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 
 const AgentDashboard: React.FC = () => {
   return (
-    <div>
-      <D3vonnPageBanner title="Agent Dashboard" />
+    <div className="d3-os-shell min-h-screen">
+      <D3vonnPageBanner title="AI Workforce" />
       <SectionHeading
-        tag="AI Agents"
-        subheading="Create, manage, and run AI agents for your tasks"
+        tag="Executive AI Workforce"
+        subheading="Deploy specialized agents with visible memory, governance, tools, integrations, and operational state."
       >
-        AI Agent Dashboard
+        AI Workforce Command
       </SectionHeading>
       <Container>
         <AgentManager />

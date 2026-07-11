@@ -118,15 +118,15 @@ const ChatPage: React.FC = () => {
 
   if (!userId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="d3-ai-loader min-h-screen">
         <D3vonnPageBanner title="D3VONN.IO Chat" />
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+        <div className="d3-ai-loader__core" role="status" aria-live="polite"><div className="d3-ai-loader__ring" aria-hidden="true" /><p className="text-sm text-blue-100/70">Authenticating secure AI workspace</p></div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden" style={{ paddingTop: '64px' }}>
+    <div className="d3-os-shell flex h-[100dvh] bg-background overflow-hidden" style={{ paddingTop: '64px' }}>
       {/* Sidebar */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -135,7 +135,7 @@ const ChatPage: React.FC = () => {
             animate={{ width: 260, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="flex-shrink-0 flex flex-col overflow-hidden border-r"
+            aria-label="Conversation history" className="absolute inset-y-16 left-0 z-30 flex flex-col overflow-hidden border-r shadow-2xl md:static md:inset-auto md:z-auto md:flex-shrink-0 md:shadow-none"
             style={{
               background: 'linear-gradient(180deg, #070d1a 0%, #0a1628 100%)',
               borderColor: 'rgba(112, 128, 255, 0.1)',
@@ -213,6 +213,8 @@ const ChatPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(s => !s)}
+              aria-label={sidebarOpen ? "Close conversation history" : "Open conversation history"}
+              aria-expanded={sidebarOpen}
               className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors"
             >
               {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -247,7 +249,7 @@ const ChatPage: React.FC = () => {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto" aria-live="polite" aria-label="Conversation messages">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-8 px-6 py-12">
               {/* Hero */}
@@ -268,7 +270,7 @@ const ChatPage: React.FC = () => {
                   <button
                     key={prompt}
                     onClick={() => handleSuggestedPrompt(prompt)}
-                    className="text-left px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white/90 transition-all group"
+                    className="d3-command-surface text-left px-4 py-3 rounded-xl text-sm text-white/60 hover:text-white/90 transition-all group"
                     style={{
                       background: 'rgba(255,255,255,0.03)',
                       border: '1px solid rgba(255,255,255,0.07)',
@@ -427,6 +429,8 @@ const ChatPage: React.FC = () => {
                 onClick={() => setShowUploadPanel(p => !p)}
                 className="p-1 flex-shrink-0 mb-0.5 transition-colors"
                 title="Upload file to memory"
+                aria-label="Upload file to DKOS memory"
+                aria-pressed={showUploadPanel}
                 style={{ color: showUploadPanel ? '#7080FF' : 'rgba(255,255,255,0.25)' }}
               >
                 <Upload className="w-4 h-4" />
@@ -462,6 +466,7 @@ const ChatPage: React.FC = () => {
                 {isStreaming ? (
                   <button
                     onClick={stopStreaming}
+                    aria-label="Stop AI response"
                     className="p-2 rounded-xl bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 transition-colors"
                   >
                     <StopCircle className="w-4 h-4" />
@@ -469,6 +474,7 @@ const ChatPage: React.FC = () => {
                 ) : (
                   <button
                     onClick={handleSend}
+                    aria-label="Send message"
                     disabled={!input.trim()}
                     className="p-2 rounded-xl transition-all disabled:opacity-30"
                     style={{

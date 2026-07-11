@@ -98,8 +98,14 @@ const AdminRouteWrapper = lazy(() =>
 );
 
 const PageLoader = () => (
-  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
-    <span style={{ color: "#888", fontSize: "14px" }}>Loading...</span>
+  <div className="d3-ai-loader" role="status" aria-live="polite" aria-label="D3VONN.IO is preparing your workspace">
+    <div className="d3-ai-loader__core">
+      <div className="d3-ai-loader__ring" aria-hidden="true" />
+      <div>
+        <p className="text-sm font-semibold tracking-wide text-white">Preparing workspace</p>
+        <p className="mt-1 text-xs text-blue-100/60">Connecting systems and loading intelligence</p>
+      </div>
+    </div>
   </div>
 );
 

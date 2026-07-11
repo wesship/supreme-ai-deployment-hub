@@ -46,25 +46,26 @@ export default function CommandCenter() {
   return (
     <TooltipProvider delayDuration={0}>
       <D3vonnPageBanner title="Command Center" />
-      <div className="min-h-screen bg-background flex">
+      <div className="d3-os-shell min-h-screen flex flex-col md:flex-row">
         {/* Sidebar */}
         <aside
-          className={`sticky top-16 h-[calc(100vh-4rem)] border-r border-border bg-card/50 flex flex-col transition-all duration-300 ${
-            collapsed ? "w-16" : "w-56"
+          className={`sticky top-16 z-20 h-auto border-b border-border bg-card/70 backdrop-blur-xl flex flex-col transition-all duration-300 md:h-[calc(100vh-4rem)] md:border-b-0 md:border-r ${
+            collapsed ? "md:w-16" : "md:w-56"
           }`}
         >
-          <div className="flex-1 py-4 space-y-1 px-2">
+          <div className="flex flex-1 gap-1 overflow-x-auto p-2 md:block md:space-y-1 md:overflow-visible md:py-4">
             {SIDEBAR_ITEMS.map((item) => {
               const isActive = activeView === item.id;
               const btn = (
                 <Button
                   key={item.id}
                   variant={isActive ? "secondary" : "ghost"}
-                  className={`w-full justify-start gap-3 ${collapsed ? "px-0 justify-center" : ""}`}
+                  aria-pressed={isActive}
+                  className={`min-w-max justify-start gap-3 md:w-full ${collapsed ? "md:px-0 md:justify-center" : ""}`}
                   onClick={() => setActiveView(item.id)}
                 >
                   {item.icon}
-                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  <span className={`${collapsed ? "md:hidden" : ""} truncate`}>{item.label}</span>
                 </Button>
               );
 
@@ -79,11 +80,13 @@ export default function CommandCenter() {
             })}
           </div>
 
-          <div className="p-2 border-t border-border">
+          <div className="hidden p-2 border-t border-border md:block">
             <Button
               variant="ghost"
               size="icon"
               className="w-full"
+              aria-label={collapsed ? "Expand Command Center navigation" : "Collapse Command Center navigation"}
+              aria-expanded={!collapsed}
               onClick={() => setCollapsed(!collapsed)}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -100,7 +103,7 @@ export default function CommandCenter() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.2 }}
-              className="p-6 max-w-7xl mx-auto"
+              className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8"
             >
               <ActiveComponent onNavigate={(v) => setActiveView(v as View)} />
             </motion.div>

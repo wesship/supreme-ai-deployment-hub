@@ -17,7 +17,7 @@ const Stat: React.FC<{
   trend?: string;
   loading?: boolean;
 }> = ({ icon: Icon, label, value, trend, loading }) => (
-  <div className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl shadow-[0_0_40px_-12px_rgba(112,128,255,0.35)] hover:border-primary/40 transition">
+  <div className="d3-chrome-panel d3-command-surface rounded-2xl p-5">
     <div className="flex items-center justify-between">
       <div className="h-10 w-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center shadow-[0_0_20px_rgba(112,128,255,0.4)]">
         <Icon className="h-5 w-5" />
@@ -38,7 +38,7 @@ const Stat: React.FC<{
 const Panel: React.FC<{ title: string; children: React.ReactNode; action?: React.ReactNode }> = ({
   title, children, action,
 }) => (
-  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl shadow-[0_0_40px_-12px_rgba(112,128,255,0.35)]">
+  <div className="d3-chrome-panel rounded-2xl p-5 sm:p-6">
     <div className="flex items-center justify-between gap-3">
       <h3 className="text-lg font-semibold text-white">{title}</h3>
       {action}
@@ -98,14 +98,14 @@ const LaunchApp: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-primary shadow-[0_0_18px_rgba(112,128,255,0.35)]">
-              <Activity className="h-3 w-3" /> Live Dashboard
+              <Activity className="h-3 w-3" aria-hidden="true" /> Mission control
               {usingMock && <span className="ml-1 text-white/60">· demo data</span>}
             </div>
             <h1 className="mt-3 text-3xl sm:text-4xl font-black text-white">
-              D3VONN <span className="text-primary">Command</span>
+              Executive <span className="text-primary">Command Center</span>
             </h1>
             <p className="mt-2 text-sm text-white/65">
-              Your AI workforce at a glance — real-time activity across agents, workflows, and the vault.
+              Govern your AI workforce, business operations, automation, knowledge, and infrastructure from one operational view.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -138,7 +138,7 @@ const LaunchApp: React.FC = () => {
         )}
 
         {/* Stats */}
-        <div className="mt-8 grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <Stat
             icon={Bot}
             label="Active agents"
@@ -170,9 +170,9 @@ const LaunchApp: React.FC = () => {
         </div>
 
         {/* Main grid */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Active agents */}
-          <div className="lg:col-span-2">
+          <div className="xl:col-span-2">
             <Panel
               title="Active agents"
               action={
@@ -264,7 +264,7 @@ const LaunchApp: React.FC = () => {
           </Panel>
 
           {/* Workflows */}
-          <div className="lg:col-span-2">
+          <div className="xl:col-span-2">
             <Panel
               title="Workflows running"
               action={

@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Bot, Workflow, Store, Wrench, Settings, Activity,
+  LayoutDashboard, Bot, Workflow, Store, Wrench, Settings, Activity, Command, ShieldCheck,
 } from 'lucide-react';
 
 const items = [
@@ -10,7 +10,9 @@ const items = [
   { to: '/workflows', label: 'Workflows', icon: Workflow },
   { to: '/marketplace', label: 'Marketplace', icon: Store },
   { to: '/mcp', label: 'MCP Tools', icon: Wrench },
-  { to: '/status', label: 'Status', icon: Activity },
+  { to: '/command-center', label: 'Command', icon: Command },
+  { to: '/security', label: 'Security', icon: ShieldCheck },
+  { to: '/status', label: 'Health', icon: Activity },
   { to: '/admin', label: 'Settings', icon: Settings },
 ];
 
@@ -19,7 +21,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const crumb = items.find((i) => (i.end ? pathname === i.to : pathname.startsWith(i.to)))?.label ?? 'App';
 
   return (
-    <div className="min-h-screen">
+    <div className="d3-os-shell min-h-screen">
       {/* Sub-nav bar */}
       <div className="sticky top-16 z-30 border-b border-white/10 bg-black/60 backdrop-blur-xl">
         <div className="container mx-auto px-4">
@@ -47,7 +49,8 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               ))}
             </nav>
             <div className="hidden md:block text-[10px] uppercase tracking-[0.25em] text-white/40">
-              D3VONN.IO / <span className="text-primary">{crumb}</span>
+              <span aria-label="Breadcrumb">D3VONN.IO / <span className="text-primary">{crumb}</span></span>
+              <span className="ml-4 inline-flex items-center gap-1.5 text-blue-200/70"><span className="h-1.5 w-1.5 rounded-full bg-blue-300 shadow-[0_0_8px_currentColor]" /> Systems online</span>
             </div>
           </div>
         </div>
