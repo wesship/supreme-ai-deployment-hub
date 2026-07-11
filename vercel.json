@@ -23,7 +23,7 @@
   ],
   "headers": [
     { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
-    { "source": "/", "headers": [{ "key": "Cache-Control", "value": "public, s-maxage=86400, stale-while-revalidate=604800" }] },
+    { "source": "/", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }] },
     {
       "source": "/(app|admin|occ|dashboard|login|signin|signup|unauthorized|github-diagnostic|command-center|agents|workflows|deployment|api|flow|status|manifest|chat|research-os|dkos-ingestion|knowledge-ingestion|jetson|jetson-control|backtesting)(.*)",
       "headers": [
