@@ -2,11 +2,15 @@ name: Wave 30 Operational Convergence
 
 on:
   pull_request:
+    paths:
+      - 'docs/WAVE_30_OPERATIONAL_CONVERGENCE.md'
+      - 'scripts/wave30-operational-convergence-check.sh'
+      - '.github/workflows/wave30-convergence.yml'
   push:
     branches:
-      - main
       - release/**
       - wave/**
+  workflow_dispatch:
 
 jobs:
   convergence-check:
