@@ -114,22 +114,22 @@ export default function StatusDashboard() {
   }[overallStatus];
 
   return (
-    <div className="min-h-screen bg-[#030712] text-white">
+    <div className="d3-os-shell min-h-screen text-white">
       <Helmet>
         <title>System Status — D3VONN.IO</title>
         <meta name="description" content="Real-time system status for D3VONN.IO platform services." />
       </Helmet>
 
-      <D3vonnPageBanner title="System Status" />
+      <D3vonnPageBanner title="Infrastructure & System Health" />
 
-      <div className="container mx-auto px-6 py-12 max-w-4xl">
+      <div className="container mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
         {/* Overall Status Banner */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`rounded-2xl border p-6 mb-8 ${overallColor}`}
+          role="status" aria-live="polite" className={`d3-chrome-panel rounded-2xl border p-5 sm:p-6 mb-8 ${overallColor}`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
               {overallStatus === "operational" && <CheckCircle2 className="h-6 w-6" />}
               {overallStatus === "degraded" && <AlertTriangle className="h-6 w-6" />}
@@ -154,7 +154,7 @@ export default function StatusDashboard() {
         </motion.div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <SummaryCard icon={<Server className="h-5 w-5" />} label="Total Services" value={endpoints.length} />
           <SummaryCard icon={<Wifi className="h-5 w-5 text-emerald-400" />} label="Online" value={onlineCount} accent="emerald" />
           <SummaryCard icon={<WifiOff className="h-5 w-5 text-red-400" />} label="Offline" value={offlineCount} accent="red" />
@@ -173,11 +173,11 @@ export default function StatusDashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   layout
-                  className={`rounded-xl border p-4 transition-all ${
+                  className={`d3-chrome-panel rounded-xl border p-4 transition-all ${
                     status ? statusBg(status.status) : "bg-white/[0.02] border-white/10"
                   }`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                     {/* Icon */}
                     <div className="text-2xl shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-white/5">
                       {ep.icon}
@@ -198,7 +198,7 @@ export default function StatusDashboard() {
                     </div>
 
                     {/* Status */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start sm:shrink-0">
                       {status?.latency !== null && status?.latency !== undefined && (
                         <span className={`text-xs font-mono ${
                           status.latency < 200 ? "text-emerald-400" :
@@ -277,7 +277,7 @@ function SummaryCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+    <div className="d3-chrome-panel rounded-xl p-4">
       <div className="flex items-center gap-2 mb-2">
         {icon}
         <span className="text-[10px] uppercase tracking-wider text-white/50">{label}</span>
