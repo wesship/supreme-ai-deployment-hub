@@ -3,7 +3,6 @@ name: Promotion Validation
 on:
   push:
     branches:
-      - main
       - 'release/**'
       - 'wave/**'
   pull_request:
