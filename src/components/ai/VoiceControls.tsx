@@ -1,30 +1,25 @@
 /**
- * Devonn.ai Voice Controls — Phase 4
- * Mic button (STT) and speaker button (TTS) for the chat UI.
- * Works with voiceService.ts (ElevenLabs TTS + Web Speech API / AssemblyAI STT).
+ * D3VONN.IO voice controls for authenticated chat.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Loader2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { toast } from 'sonner';
 import {
+  getVoiceState,
+  isListening,
+  isSpeaking,
   speak,
-  stopSpeaking,
   startListening,
   stopListening,
-  isSpeaking,
-  isListening,
-  getVoiceState,
+  stopSpeaking,
 } from '../../services/ai/voiceService';
 import { speak as speakBrowser } from '../../services/speech/speechSynthesisService';
 
 interface VoiceControlsProps {
-  /** Text to speak when TTS button is clicked */
   lastAssistantMessage?: string;
-  /** Called when STT produces a final transcript */
   onTranscript?: (text: string) => void;
-  /** Called with interim (partial) transcript for live display */
   onInterimTranscript?: (text: string) => void;
-  /** Whether the chat is currently streaming (disables voice input) */
   isStreaming?: boolean;
 }
 
@@ -37,22 +32,29 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsSpeaking, setTtsSpeaking] = useState(false);
   const [sttActive, setSttActive] = useState(false);
-  const [voiceAvailable, setVoiceAvailable] = useState(false);
+  const [sttAvailable, setSttAvailable] = useState(true);
   const stopListenRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const state = getVoiceState();
-    setVoiceAvailable(state.isAvailable);
+    setSttAvailable(getVoiceState().sttAvailable);
   }, []);
 
-  // Poll speaking state
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = window.setInterval(() => {
       setTtsSpeaking(isSpeaking());
       setSttActive(isListening());
     }, 300);
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(
+    () => () => {
+      stopListenRef.current?.();
+      stopListening();
+      stopSpeaking();
+    },
+    [],
+  );
 
   const handleTTS = async () => {
     if (ttsSpeaking) {
@@ -61,19 +63,29 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
       return;
     }
 
-    if (!lastAssistantMessage) return;
+    if (!lastAssistantMessage) {
+      toast.info('There is no completed assistant response to read yet.');
+      return;
+    }
 
     setTtsLoading(true);
     try {
-      // Primary: Premium ElevenLabs via backend proxy
       await speak(lastAssistantMessage);
-    } catch (err) {
-      console.warn('[VoiceControls] Premium TTS failed, falling back to browser speech:', err);
+    } catch (error) {
+      console.warn('[VoiceControls] Backend TTS failed; trying browser speech.', error);
       try {
-        // Fallback: Standard browser speech synthesis
         await speakBrowser(lastAssistantMessage);
+        toast.info('Using your browser voice because premium voice was unavailable.');
       } catch (fallbackError) {
-        console.error('[VoiceControls] All TTS methods failed:', fallbackError);
+        console.error('[VoiceControls] All TTS methods failed.', fallbackError);
+        toast.error('Voice playback failed', {
+          description:
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : error instanceof Error
+                ? error.message
+                : 'No usable text-to-speech service is available.',
+        });
       }
     } finally {
       setTtsLoading(false);
@@ -81,76 +93,94 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
     }
   };
 
+  const stopMicrophone = () => {
+    stopListenRef.current?.();
+    stopListenRef.current = null;
+    stopListening();
+    setSttActive(false);
+  };
+
   const handleSTT = () => {
     if (sttActive) {
-      stopListenRef.current?.();
-      stopListening();
-      setSttActive(false);
+      stopMicrophone();
+      return;
+    }
+
+    if (!sttAvailable) {
+      toast.error('Microphone input is unavailable in this browser or device.');
       return;
     }
 
     setSttActive(true);
+    toast.info('Listening…', { description: 'Speak now. Your words will appear in the message box.' });
+
     const stop = startListening(
       (text, isFinal) => {
         if (isFinal) {
           onTranscript?.(text);
-          stopListenRef.current?.();
-          setSttActive(false);
+          stopMicrophone();
+          toast.success('Voice captured');
         } else {
           onInterimTranscript?.(text);
         }
       },
       (error) => {
         console.error('[VoiceControls] STT error:', error);
+        stopMicrophone();
+        toast.error('Microphone failed', { description: error });
+      },
+      () => {
+        stopListenRef.current = null;
         setSttActive(false);
       },
-      () => setSttActive(false)
     );
+
     stopListenRef.current = stop;
   };
 
-  if (!voiceAvailable) return null;
-
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-      {/* TTS Button */}
-      {lastAssistantMessage && (
-        <button
-          onClick={handleTTS}
-          disabled={ttsLoading || isStreaming}
-          title={ttsSpeaking ? 'Stop speaking' : 'Read aloud'}
-          style={{
-            padding: '4px',
-            background: 'none',
-            border: 'none',
-            cursor: ttsLoading || isStreaming ? 'not-allowed' : 'pointer',
-            color: ttsSpeaking ? '#7080FF' : ttsLoading ? '#F59E0B' : 'rgba(255,255,255,0.3)',
-            transition: 'color 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          {ttsLoading ? (
-            <Loader2 style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
-          ) : ttsSpeaking ? (
-            <VolumeX style={{ width: '14px', height: '14px' }} />
-          ) : (
-            <Volume2 style={{ width: '14px', height: '14px' }} />
-          )}
-        </button>
-      )}
-
-      {/* STT Button */}
       <button
+        type="button"
+        onClick={handleTTS}
+        disabled={ttsLoading || isStreaming || !lastAssistantMessage}
+        title={ttsSpeaking ? 'Stop speaking' : 'Read the latest response aloud'}
+        aria-label={ttsSpeaking ? 'Stop speaking' : 'Read the latest response aloud'}
+        style={{
+          padding: '4px',
+          background: 'none',
+          border: '1px solid transparent',
+          cursor: ttsLoading || isStreaming || !lastAssistantMessage ? 'not-allowed' : 'pointer',
+          color: ttsSpeaking ? '#7080FF' : ttsLoading ? '#F59E0B' : 'rgba(255,255,255,0.45)',
+          opacity: lastAssistantMessage ? 1 : 0.45,
+          transition: 'color 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          borderRadius: '4px',
+        }}
+      >
+        {ttsLoading ? (
+          <Loader2 style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
+        ) : ttsSpeaking ? (
+          <VolumeX style={{ width: '14px', height: '14px' }} />
+        ) : (
+          <Volume2 style={{ width: '14px', height: '14px' }} />
+        )}
+      </button>
+
+      <button
+        type="button"
         onClick={handleSTT}
-        disabled={isStreaming}
+        disabled={isStreaming || !sttAvailable}
         title={sttActive ? 'Stop listening' : 'Speak your message'}
+        aria-label={sttActive ? 'Stop listening' : 'Speak your message'}
         style={{
           padding: '4px',
           background: sttActive ? 'rgba(112,128,255,0.1)' : 'none',
           border: sttActive ? '1px solid rgba(112,128,255,0.3)' : '1px solid transparent',
-          cursor: isStreaming ? 'not-allowed' : 'pointer',
-          color: sttActive ? '#7080FF' : 'rgba(255,255,255,0.3)',
+          cursor: isStreaming || !sttAvailable ? 'not-allowed' : 'pointer',
+          color: sttActive ? '#7080FF' : 'rgba(255,255,255,0.45)',
+          opacity: sttAvailable ? 1 : 0.45,
           transition: 'all 0.2s',
           display: 'flex',
           alignItems: 'center',
