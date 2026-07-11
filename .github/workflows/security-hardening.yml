@@ -1,18 +1,8 @@
 name: Security Hardening
 
-# Comprehensive security checks:
-# - Dependency review (new vulnerabilities in PRs; requires GitHub Advanced Security)
-# - Action SHA pinning audit
-# - pnpm security audit
-# - Branch protection status check
-#
-# Runs on every PR to main and weekly for ongoing monitoring.
-
+# Scheduled and on-demand security posture audit.
+# Broad pull-request validation is owned by the canonical required PR gate.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   schedule:
     - cron: '0 2 * * 0'
   workflow_dispatch:
@@ -20,31 +10,8 @@ on:
 permissions:
   contents: read
   security-events: write
-  pull-requests: write
 
 jobs:
-  dependency-review:
-    name: Dependency Review
-    runs-on: ubuntu-latest
-    # GitHub's dependency review API is available to private repositories only
-    # when GitHub Advanced Security is licensed. Set the repository variable
-    # ENABLE_DEPENDENCY_REVIEW=true after GHAS is enabled.
-    if: "github.event_name == 'pull_request' && vars.ENABLE_DEPENDENCY_REVIEW == 'true'"
-    permissions:
-      contents: read
-      pull-requests: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Dependency Review
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
-        with:
-          fail-on-severity: high
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense
-          comment-summary-in-pr: always
-
   action-pin-audit:
     name: Audit Action SHA Pinning
     runs-on: ubuntu-latest
@@ -60,12 +27,11 @@ jobs:
           SHA_PINNED=$(grep -rh 'uses:' .github/workflows/ | grep -v '#' | grep -oP '@[0-9a-f]{7,40}' | wc -l || echo "0")
           TOTAL=$((TAG_PINNED + SHA_PINNED))
           echo "Action pin audit:"
-          echo "  Tag-pinned (e.g. @v4): $TAG_PINNED"
-          echo "  SHA-pinned (e.g. @abc1234): $SHA_PINNED"
+          echo "  Tag-pinned: $TAG_PINNED"
+          echo "  SHA-pinned: $SHA_PINNED"
           echo "  Total: $TOTAL"
           if [ "$TAG_PINNED" -gt "0" ]; then
             echo "::warning::$TAG_PINNED actions use tag pins. Consider SHA pinning for supply-chain security."
-            echo "::warning::Use https://github.com/mheap/pin-github-action to automate SHA pinning."
           fi
 
   npm-security-audit:
@@ -101,12 +67,10 @@ jobs:
           echo "  Moderate: $MODERATE"
           echo "  Low:      $LOW"
           if [ "$CRITICAL" -gt "0" ]; then
-            echo "::error::Found $CRITICAL critical vulnerabilities. Run 'pnpm audit --fix'."
+            echo "::error::Found $CRITICAL critical vulnerabilities."
             exit 1
           elif [ "$HIGH" -gt "0" ]; then
-            echo "::warning::Found $HIGH high severity vulnerabilities. Review and update when possible."
-          else
-            echo "No critical or high severity vulnerabilities found."
+            echo "::warning::Found $HIGH high severity vulnerabilities."
           fi
 
       - name: Upload audit results
@@ -120,7 +84,6 @@ jobs:
   branch-protection-check:
     name: Verify Branch Protection
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
 
@@ -142,9 +105,9 @@ jobs:
             echo "  Deletions allowed: $DELETIONS"
             echo "  Required reviews: $REQUIRED_REVIEWS"
             if [ "$FORCE_PUSH" = "true" ]; then
-              echo "::warning::Force pushes are allowed on main - consider disabling"
+              echo "::warning::Force pushes are allowed on main."
             fi
           else
-            echo "::error::Branch 'main' has NO protection rules configured!"
+            echo "::error::Branch 'main' has no protection rules configured."
             exit 1
           fi
