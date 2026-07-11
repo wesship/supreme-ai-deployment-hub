@@ -1,36 +1,21 @@
-name: Auto Merge Safe PRs
+name: Auto Merge Safe PRs (archived manual lane)
 
+# Automatic merging is intentionally disabled. Enable GitHub's native
+# repository auto-merge on an individual reviewed PR instead of running a
+# repository-wide workflow on every pull-request event.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
-  check_suite:
-    types: [completed]
-
-concurrency:
-  group: auto-merge-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  auto-merge:
-    name: Auto-merge if safe
+  archived:
+    name: Explain canonical merge policy
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Only auto-merge PRs that have the 'auto-merge' label AND are from Dependabot or Snyk
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'auto-merge') &&
-      (github.event.pull_request.user.login == 'dependabot[bot]' ||
-       github.event.pull_request.user.login == 'snyk-bot')
     steps:
-      - name: Approve and merge
-        uses: pascalgn/automerge-action@7961b8b5eec56cc088c140b56d864285eabd3f67  # v0.16.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MERGE_METHOD: squash
-          MERGE_LABELS: auto-merge
-          # HARDENING: Only merge when all required status checks pass
-          MERGE_REQUIRED_APPROVALS: '0'
-          MERGE_RETRY_SLEEP: '60000'
-          MERGE_RETRIES: '5'
+      - name: Merge policy
+        run: |
+          echo "Repository-wide automatic merging is disabled."
+          echo "Use GitHub native auto-merge only after required checks and review policy pass."
+          echo "Do not add pull_request or check_suite triggers to this workflow."
