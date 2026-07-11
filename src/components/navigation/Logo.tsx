@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-const LOGO_SRC = '/d3vonn-logo-live.svg';
+const LOGO_SRC = '/d3vonn-logo.webp';
 
 const Logo: React.FC = () => {
   const [imageFailed, setImageFailed] = useState(false);
@@ -20,7 +20,7 @@ const Logo: React.FC = () => {
           src={LOGO_SRC}
           alt="D3VONN.IO"
           onError={() => setImageFailed(true)}
-          className="h-10 w-auto max-w-[210px] object-contain drop-shadow-[0_0_18px_rgba(59,130,246,0.65)] transition duration-500 group-hover:scale-[1.03] group-hover:drop-shadow-[0_0_28px_rgba(96,165,250,0.95)] sm:h-12 sm:max-w-[260px]"
+          className="h-11 w-auto max-w-[220px] object-contain object-left drop-shadow-[0_0_18px_rgba(59,130,246,0.45)] transition duration-500 group-hover:scale-[1.02] group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.75)] sm:h-14 sm:max-w-[300px]"
           loading="eager"
           decoding="async"
         />
