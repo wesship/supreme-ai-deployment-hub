@@ -82,8 +82,45 @@ jobs:
       - name: Secret scan
         run: pnpm security:scan
 
-      - name: Validate workflow YAML syntax
-        run: ruby -e 'require "yaml"; Dir[".github/workflows/*.{yml,yaml}"].each { |file| YAML.load_file(file); puts "valid: #{file}" }'
+      - name: Validate workflow YAML structure
+        run: |
+          python3 - <<'PYEOF'
+          import glob
+          import re
+          import sys
+          import yaml
+
+          expression_pattern = re.compile(r'\$\{\{.*?\}\}', re.DOTALL)
+          if_pattern = re.compile(r'^(\s*if:\s*)(.*?)(\s*(?:#.*)?)$', re.MULTILINE)
+
+          def normalize_github_syntax(content):
+              content = expression_pattern.sub('GITHUB_EXPRESSION', content)
+
+              def replace_if(match):
+                  prefix, value, suffix = match.groups()
+                  stripped = value.strip()
+                  if not stripped or stripped[0] in {'"', "'"}:
+                      return match.group(0)
+                  return f'{prefix}"GITHUB_CONDITION"{suffix}'
+
+              return if_pattern.sub(replace_if, content)
+
+          errors = []
+          workflow_files = sorted(glob.glob('.github/workflows/*.{yml,yaml}'))
+          for workflow in workflow_files:
+              try:
+                  with open(workflow, encoding='utf-8') as handle:
+                      yaml.safe_load(normalize_github_syntax(handle.read()))
+              except yaml.YAMLError as error:
+                  errors.append(f'{workflow}: {error}')
+
+          if errors:
+              for error in errors:
+                  print(f'::error::{error}')
+              sys.exit(1)
+
+          print(f'All {len(workflow_files)} workflow files have valid YAML structure.')
+          PYEOF
 
       - name: Validate GitHub Action references
         shell: bash
