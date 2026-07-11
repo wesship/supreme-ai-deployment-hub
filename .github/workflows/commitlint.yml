@@ -1,11 +1,8 @@
 name: Commit Lint
 
-# Validates that all commit messages in a PR follow the repository's commit policy.
-# Supports standard Conventional Commits plus Devonn wave/phase commit families.
-
+# Manual commit-policy audit. The canonical required PR gate owns broad PR validation.
 on:
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: commitlint-${{ github.ref }}
@@ -37,13 +34,16 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate PR commits
+      - name: Validate recent commits
         run: |
+          BASE_REF="${{ github.event.repository.default_branch }}"
+          git fetch origin "$BASE_REF" --depth=1
           npx commitlint \
             --config commitlint.config.cjs \
-            --from ${{ github.event.pull_request.base.sha }} \
-            --to ${{ github.event.pull_request.head.sha }} \
+            --from "origin/$BASE_REF" \
+            --to HEAD \
             --verbose
