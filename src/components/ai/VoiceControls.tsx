@@ -1,7 +1,3 @@
-/**
- * D3VONN.IO voice controls for authenticated chat.
- */
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Loader2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,6 +11,7 @@ import {
   stopSpeaking,
 } from '../../services/ai/voiceService';
 import { speak as speakBrowser } from '../../services/speech/speechSynthesisService';
+import ConversationalVoiceControls from './ConversationalVoiceControls';
 
 interface VoiceControlsProps {
   lastAssistantMessage?: string;
@@ -23,7 +20,15 @@ interface VoiceControlsProps {
   isStreaming?: boolean;
 }
 
-export const VoiceControls: React.FC<VoiceControlsProps> = ({
+export const VoiceControls: React.FC<VoiceControlsProps> = (props) => {
+  const elevenLabsAgentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID?.trim();
+  if (elevenLabsAgentId) {
+    return <ConversationalVoiceControls disabled={props.isStreaming} />;
+  }
+  return <LegacyVoiceControls {...props} />;
+};
+
+const LegacyVoiceControls: React.FC<VoiceControlsProps> = ({
   lastAssistantMessage,
   onTranscript,
   onInterimTranscript,
@@ -62,7 +67,6 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
       setTtsSpeaking(false);
       return;
     }
-
     if (!lastAssistantMessage) {
       toast.info('There is no completed assistant response to read yet.');
       return;
@@ -77,14 +81,8 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
         await speakBrowser(lastAssistantMessage);
         toast.info('Using your browser voice because premium voice was unavailable.');
       } catch (fallbackError) {
-        console.error('[VoiceControls] All TTS methods failed.', fallbackError);
         toast.error('Voice playback failed', {
-          description:
-            fallbackError instanceof Error
-              ? fallbackError.message
-              : error instanceof Error
-                ? error.message
-                : 'No usable text-to-speech service is available.',
+          description: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
         });
       }
     } finally {
@@ -105,7 +103,6 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
       stopMicrophone();
       return;
     }
-
     if (!sttAvailable) {
       toast.error('Microphone input is unavailable in this browser or device.');
       return;
@@ -113,7 +110,6 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
 
     setSttActive(true);
     toast.info('Listening…', { description: 'Speak now. Your words will appear in the message box.' });
-
     const stop = startListening(
       (text, isFinal) => {
         if (isFinal) {
@@ -125,7 +121,6 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
         }
       },
       (error) => {
-        console.error('[VoiceControls] STT error:', error);
         stopMicrophone();
         toast.error('Microphone failed', { description: error });
       },
@@ -134,7 +129,6 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
         setSttActive(false);
       },
     );
-
     stopListenRef.current = stop;
   };
 
@@ -147,25 +141,16 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
         title={ttsSpeaking ? 'Stop speaking' : 'Read the latest response aloud'}
         aria-label={ttsSpeaking ? 'Stop speaking' : 'Read the latest response aloud'}
         style={{
-          padding: '4px',
-          background: 'none',
-          border: '1px solid transparent',
+          padding: '4px', background: 'none', border: '1px solid transparent',
           cursor: ttsLoading || isStreaming || !lastAssistantMessage ? 'not-allowed' : 'pointer',
           color: ttsSpeaking ? '#7080FF' : ttsLoading ? '#F59E0B' : 'rgba(255,255,255,0.45)',
-          opacity: lastAssistantMessage ? 1 : 0.45,
-          transition: 'color 0.2s',
-          display: 'flex',
-          alignItems: 'center',
-          borderRadius: '4px',
+          opacity: lastAssistantMessage ? 1 : 0.45, transition: 'color 0.2s',
+          display: 'flex', alignItems: 'center', borderRadius: '4px',
         }}
       >
-        {ttsLoading ? (
-          <Loader2 style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />
-        ) : ttsSpeaking ? (
-          <VolumeX style={{ width: '14px', height: '14px' }} />
-        ) : (
-          <Volume2 style={{ width: '14px', height: '14px' }} />
-        )}
+        {ttsLoading ? <Loader2 style={{ width: 14, height: 14, animation: 'spin 1s linear infinite' }} />
+          : ttsSpeaking ? <VolumeX style={{ width: 14, height: 14 }} />
+            : <Volume2 style={{ width: 14, height: 14 }} />}
       </button>
 
       <button
@@ -175,23 +160,14 @@ export const VoiceControls: React.FC<VoiceControlsProps> = ({
         title={sttActive ? 'Stop listening' : 'Speak your message'}
         aria-label={sttActive ? 'Stop listening' : 'Speak your message'}
         style={{
-          padding: '4px',
-          background: sttActive ? 'rgba(112,128,255,0.1)' : 'none',
+          padding: '4px', background: sttActive ? 'rgba(112,128,255,0.1)' : 'none',
           border: sttActive ? '1px solid rgba(112,128,255,0.3)' : '1px solid transparent',
           cursor: isStreaming || !sttAvailable ? 'not-allowed' : 'pointer',
-          color: sttActive ? '#7080FF' : 'rgba(255,255,255,0.45)',
-          opacity: sttAvailable ? 1 : 0.45,
-          transition: 'all 0.2s',
-          display: 'flex',
-          alignItems: 'center',
-          borderRadius: '4px',
+          color: sttActive ? '#7080FF' : 'rgba(255,255,255,0.45)', opacity: sttAvailable ? 1 : 0.45,
+          transition: 'all 0.2s', display: 'flex', alignItems: 'center', borderRadius: '4px',
         }}
       >
-        {sttActive ? (
-          <MicOff style={{ width: '14px', height: '14px' }} />
-        ) : (
-          <Mic style={{ width: '14px', height: '14px' }} />
-        )}
+        {sttActive ? <MicOff style={{ width: 14, height: 14 }} /> : <Mic style={{ width: 14, height: 14 }} />}
       </button>
     </div>
   );
