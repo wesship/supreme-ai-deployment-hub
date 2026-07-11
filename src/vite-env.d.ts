@@ -1,48 +1,31 @@
 /// <reference types="vite/client" />
 
 /**
- * Devonn.ai — Safe Frontend Environment Variables
+ * D3VONN.IO — Safe Frontend Environment Variables
  *
- * RULE: Only non-sensitive, public values use the VITE_ prefix.
- * Anything with VITE_ is bundled into the client JavaScript and visible to all users.
- *
- * ✅ SAFE IN FRONTEND (VITE_ prefix allowed):
- *   VITE_API_URL          — Public backend URL (no secret)
- *   VITE_SUPABASE_URL     — Public Supabase project URL
- *   VITE_SUPABASE_PUBLISHABLE_KEY — Supabase public key (preferred)
- *   VITE_SUPABASE_ANON_KEY — Legacy Supabase anon key fallback
- *   VITE_N8N_BASE_URL     — Public n8n webhook base URL (no auth)
- *   VITE_PINECONE_HOST    — Public Pinecone index host
- *   VITE_PINECONE_INDEX_NAME — Index name (not a secret)
- *   VITE_PINECONE_DIMENSION  — Embedding dimension (not a secret)
- *
- * ❌ NEVER IN FRONTEND (server-side only, no VITE_ prefix):
- *   OPENAI_API_KEY        → api.d3vonn.io/api/chat proxy
- *   ELEVENLABS_API_KEY    → api.d3vonn.io/api/tools/voice/tts proxy
- *   ASSEMBLYAI_API_KEY    → api.d3vonn.io/api/tools/voice/stt-token proxy
- *   GITHUB_TOKEN          → api.d3vonn.io/api/tools/github/* proxy
- *   N8N_API_KEY           → api.d3vonn.io/api/tools/n8n/execute proxy
- *   PINECONE_API_KEY      → api.d3vonn.io or server-side RAG pipeline
+ * Only non-sensitive, publishable values may use the VITE_ prefix.
+ * Provider private keys remain server-side.
  */
-
 interface ImportMetaEnv {
-  // ── Public backend URL ──────────────────────────────────────────────────────
   readonly VITE_API_URL?: string;
   readonly VITE_ENVIRONMENT?: 'development' | 'staging' | 'production';
   readonly VITE_SENTRY_DSN?: string;
 
-  // ── Supabase (public by design — public/anon key is safe in browser) ────────
   readonly VITE_SUPABASE_URL: string;
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
 
-  // ── Pinecone (index metadata only — API key is server-side) ────────────────
   readonly VITE_PINECONE_HOST: string;
   readonly VITE_PINECONE_INDEX_NAME: string;
   readonly VITE_PINECONE_DIMENSION: string;
 
-  // ── n8n base URL (public webhook endpoint — no auth in URL) ────────────────
   readonly VITE_N8N_BASE_URL?: string;
+
+  // Public voice configuration only. Never expose provider private/API keys.
+  readonly VITE_VOICE_PROVIDER?: 'elevenlabs' | 'vapi' | 'legacy';
+  readonly VITE_ELEVENLABS_AGENT_ID?: string;
+  readonly VITE_VAPI_PUBLIC_KEY?: string;
+  readonly VITE_VAPI_ASSISTANT_ID?: string;
 }
 
 interface ImportMeta {
