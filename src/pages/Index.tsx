@@ -41,7 +41,7 @@ import {
   type HomepageTelemetry,
 } from '@/lib/homepageTelemetry';
 
-const MASTER_LOGO_SRC = '/d3vonn-logo-live.svg';
+const MASTER_LOGO_SRC = '/d3vonn-logo.webp';
 
 const useHomepageTelemetry = () => {
   const [telemetry, setTelemetry] = useState<HomepageTelemetry>(defaultHomepageTelemetry);
@@ -240,7 +240,7 @@ const Hero: React.FC = () => {
                   <img
                     src={MASTER_LOGO_SRC}
                     alt="D3VONN.IO D3 Core"
-                    className="relative z-10 w-[66%] object-contain drop-shadow-[0_0_36px_rgba(62,155,255,0.78)]"
+                    className="relative z-10 w-[88%] object-contain drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
                     loading="eager"
                     decoding="async"
                   />
@@ -358,7 +358,7 @@ const D3CoreGateway: React.FC = () => (
         <div className="absolute inset-[6%] rounded-full border border-blue-200/15 shadow-[0_0_80px_rgba(56,136,255,0.28),inset_0_0_70px_rgba(56,136,255,0.12)]" />
         <div className="absolute inset-[18%] rounded-full border border-dashed border-blue-300/30 motion-safe:animate-[spin_24s_linear_infinite]" />
         <div className="absolute inset-[29%] rounded-full border border-blue-200/25 bg-blue-500/10 shadow-[0_0_60px_rgba(56,136,255,0.42)] backdrop-blur-xl" />
-        <img src={MASTER_LOGO_SRC} alt="" aria-hidden="true" className="relative z-10 w-[62%] object-contain drop-shadow-[0_0_42px_rgba(56,136,255,0.8)]" />
+        <img src={MASTER_LOGO_SRC} alt="" aria-hidden="true" className="relative z-10 w-[82%] object-contain drop-shadow-[0_0_36px_rgba(56,136,255,0.68)]" />
         {[
           ['Agents', 'left-[2%] top-[28%]'],
           ['Knowledge', 'right-[-2%] top-[28%]'],
