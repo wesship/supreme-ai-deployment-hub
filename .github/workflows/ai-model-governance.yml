@@ -1,19 +1,12 @@
 name: AI Model Version Governance
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'config/ai/models/**'
-      - 'models/**'
-      - '.github/workflows/ai-model-governance.yml'
   pull_request:
     branches: [main]
     paths:
       - 'config/ai/models/**'
       - 'models/**'
-  schedule:
-    - cron: '0 8 * * *'
+      - '.github/workflows/ai-model-governance.yml'
   workflow_dispatch:
     inputs:
       action:
@@ -28,12 +21,10 @@ on:
 
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 concurrency:
-  group: ai-model-governance
-  cancel-in-progress: false
+  group: ai-model-governance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate-registry:
