@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -23,10 +23,24 @@ const Navbar = ({
 }: NavbarProps) => {
   const location = useLocation();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [prevScrollPos, setPrevScrollPos] = useState(0);
   const [visible, setVisible] = useState(true);
   
+  useEffect(() => {
+    const openCommandNexus = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if ((event.key === '/' && !isTyping) || ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k')) {
+        event.preventDefault();
+        navigate('/command-center');
+      }
+    };
+    window.addEventListener('keydown', openCommandNexus);
+    return () => window.removeEventListener('keydown', openCommandNexus);
+  }, [navigate]);
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollPos = window.scrollY;
@@ -57,7 +71,7 @@ const Navbar = ({
     <AnimatePresence>
       <motion.header
         className={cn(
-          'fixed top-0 w-full transition-all duration-300 z-40',
+          'fixed top-0 w-full transition-all duration-300 z-40 supports-[backdrop-filter]:bg-[#020817]/75',
           isScrolled || !transparent
             ? 'border-b border-blue-500/20 bg-[#020817]/90 backdrop-blur-md'
             : 'bg-transparent',
@@ -77,7 +91,17 @@ const Navbar = ({
               <DesktopNav navigationItems={navigationItems} currentPath={location.pathname} />
             )}
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Link
+                to="/command-center"
+                aria-label="Open Command Nexus"
+                title="Command Nexus (⌘K or Ctrl+K)"
+                className="d3-command-surface inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-300/20 bg-blue-400/[0.06] px-3 text-sm font-medium text-blue-50 hover:border-blue-300/45 hover:bg-blue-400/[0.12]"
+              >
+                <Search className="h-4 w-4 text-blue-200" aria-hidden="true" />
+                <span className="hidden lg:inline">Command Nexus</span>
+                <span className="hidden rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-white/45 xl:inline">⌘K</span>
+              </Link>
               {/* Log In button */}
               <Link
                 to="/login"
