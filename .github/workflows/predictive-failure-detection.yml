@@ -1,92 +1,18 @@
-name: Predictive Failure Detection
+name: Predictive Failure Detection (Manual Only)
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
   actions: read
-  pull-requests: write
 
 jobs:
-  pre-flight-risk-assessment:
-    name: Pre-Flight Risk Assessment
+  predictive-status:
+    name: Predictive failure status
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.11'
-
-      - name: Install prediction dependencies
-        run: pip3 install requests numpy
-
-      - name: Analyse change risk profile
-        id: risk-analysis
+      - name: Explain manual-only mode
         run: |
-          python3 - << 'PYEOF'
-          import subprocess, os, sys
-
-          result = subprocess.run(
-              ['git', 'diff', '--name-only', 'HEAD~1', 'HEAD'],
-              capture_output=True,
-              text=True
-          )
-
-          changed_files = [f for f in result.stdout.strip().split('\n') if f]
-
-          risk_score = 0
-          risk_factors = []
-
-          high_risk_patterns = [
-              ('.github/workflows/', 15, 'Workflow modification'),
-              ('package.json', 20, 'Package manifest change'),
-              ('pnpm-lock.yaml', 10, 'PNPM lockfile change'),
-              ('backend/main.py', 25, 'Backend entry point change'),
-              ('backend/auth/', 30, 'Authentication module change'),
-              ('policy/', 20, 'Policy change'),
-              ('Dockerfile', 20, 'Container definition change'),
-              ('.npmrc', 15, 'npm configuration change')
-          ]
-
-          medium_risk_patterns = [
-              ('src/', 5, 'Frontend source change'),
-              ('backend/', 10, 'Backend source change'),
-              ('config/', 8, 'Configuration change'),
-              ('api/', 12, 'API spec change')
-          ]
-
-          for f in changed_files:
-              for pattern, score, label in high_risk_patterns:
-                  if pattern in f:
-                      risk_score += score
-                      risk_factors.append(f'{label}: {f}')
-                      break
-
-          risk_level = 'low'
-          if risk_score >= 60:
-              risk_level = 'critical'
-          elif risk_score >= 40:
-              risk_level = 'high'
-          elif risk_score >= 20:
-              risk_level = 'medium'
-
-          with open(os.environ.get('GITHUB_OUTPUT', '/dev/null'), 'a') as f:
-              f.write(f'risk_level={risk_level}\n')
-              f.write(f'risk_score={risk_score}\n')
-              f.write(f'file_count={len(changed_files)}\n')
-
-          print(f'Risk Level: {risk_level}')
-          print(f'Risk Score: {risk_score}')
-          PYEOF
+          echo "Predictive failure analysis is manual-only."
+          echo "Core production validation remains handled by Railway, Vercel, testing, and smoke checks."
