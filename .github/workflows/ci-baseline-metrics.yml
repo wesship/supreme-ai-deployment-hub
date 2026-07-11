@@ -1,8 +1,6 @@
 name: CI Baseline Metrics
 
 on:
-  push:
-    branches: [main]
   schedule:
     - cron: '0 0 * * *'  # Daily at midnight
   workflow_dispatch:
@@ -107,7 +105,7 @@ jobs:
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           COMMIT="${{ github.sha }}"
-          
+
           cat > /tmp/ci-metrics.json << METRICS_EOF
           {
             "timestamp": "${TIMESTAMP}",
@@ -131,10 +129,10 @@ jobs:
             }
           }
           METRICS_EOF
-          
+
           echo "=== CI Baseline Metrics Report ==="
           cat /tmp/ci-metrics.json | python3 -m json.tool
-          
+
           # SLO breach detection
           BREACHES=0
           if [ "${{ steps.install-time.outputs.install_duration }}" -gt 120 ]; then
@@ -149,7 +147,7 @@ jobs:
             echo "::warning::SLO BREACH: ${{ steps.dep-health.outputs.vuln_count }} vulnerability(ies) detected"
             BREACHES=$((BREACHES + 1))
           fi
-          
+
           echo ""
           echo "Total SLO breaches: $BREACHES"
 
