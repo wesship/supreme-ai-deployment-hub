@@ -1,9 +1,8 @@
 name: Test Coverage
 
+# Manual coverage audit. Coverage is not duplicated on every pull request.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: coverage-${{ github.ref }}
