@@ -1,20 +1,6 @@
-name: Platform Notifications (Slack & Teams)
+name: Platform Notifications (Manual Only)
 
 on:
-  workflow_run:
-    workflows:
-      - "Build & Test"
-      - "Deploy"
-      - "Incident Response & SLO Enforcement"
-      - "Disaster Recovery Drill"
-      - "Security Hardening"
-    types: [completed]
-  push:
-    branches: [main]
-    tags:
-      - 'platform-v*'
-  pull_request:
-    types: [opened, closed]
   workflow_dispatch:
     inputs:
       message:
@@ -28,173 +14,15 @@ on:
 
 permissions:
   contents: read
-  actions: read
-
-concurrency:
-  group: notifications-${{ github.run_id }}
-  cancel-in-progress: false
 
 jobs:
-  slack-alert:
-    name: Slack Notification
+  manual-notice:
+    name: Manual notification status
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: Determine notification payload
-        id: payload
+      - name: Explain manual-only mode
         run: |
-          python3 - << 'PYEOF'
-          import json, os
-
-          event = os.environ.get("GITHUB_EVENT_NAME", "push")
-          ref = os.environ.get("GITHUB_REF", "refs/heads/main")
-          sha = os.environ.get("GITHUB_SHA", "unknown")[:8]
-          repo = os.environ.get("GITHUB_REPOSITORY", "wesship/supreme-ai-deployment-hub")
-          run_id = os.environ.get("GITHUB_RUN_ID", "0")
-          actor = os.environ.get("GITHUB_ACTOR", "github-actions")
-          server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
-
-          run_url = f"{server_url}/{repo}/actions/runs/{run_id}"
-          repo_url = f"{server_url}/{repo}"
-
-          # Determine message based on event
-          if event == "push" and ref.startswith("refs/tags/"):
-              tag = ref.replace("refs/tags/", "")
-              color = "good"
-              title = f":rocket: New Release: {tag}"
-              text = f"Platform version `{tag}` has been tagged and released."
-          elif event == "push":
-              branch = ref.replace("refs/heads/", "")
-              color = "#2563eb"
-              title = f":git: Push to `{branch}`"
-              text = f"Commit `{sha}` pushed by @{actor}"
-          elif event == "workflow_run":
-              wf_name = "${{ github.event.workflow_run.name }}"
-              conclusion = "${{ github.event.workflow_run.conclusion }}"
-              if conclusion == "success":
-                  color = "good"
-                  title = f":white_check_mark: {wf_name} - Passed"
-              elif conclusion == "failure":
-                  color = "danger"
-                  title = f":x: {wf_name} - FAILED"
-              else:
-                  color = "warning"
-                  title = f":warning: {wf_name} - {conclusion}"
-              text = f"Workflow completed with status: `{conclusion}`"
-          elif event == "workflow_dispatch":
-              severity = "${{ github.event.inputs.severity || 'info' }}"
-              msg = "${{ github.event.inputs.message || 'Manual notification' }}"
-              colors = {"info": "#2563eb", "warning": "warning", "critical": "danger"}
-              color = colors.get(severity, "#2563eb")
-              title = f":bell: Manual Alert [{severity.upper()}]"
-              text = msg
-          else:
-              color = "#6b7280"
-              title = f":information_source: Platform Event: {event}"
-              text = f"Event triggered on `{ref}`"
-
-          # Build Slack Block Kit message
-          payload = {
-              "attachments": [{
-                  "color": color,
-                  "blocks": [
-                      {
-                          "type": "header",
-                          "text": {"type": "plain_text", "text": title}
-                      },
-                      {
-                          "type": "section",
-                          "text": {"type": "mrkdwn", "text": text},
-                          "accessory": {
-                              "type": "button",
-                              "text": {"type": "plain_text", "text": "View Run"},
-                              "url": run_url,
-                          }
-                      },
-                      {
-                          "type": "context",
-                          "elements": [
-                              {"type": "mrkdwn", "text": f"*Repo:* <{repo_url}|{repo}>"},
-                              {"type": "mrkdwn", "text": f"*Actor:* {actor}"},
-                              {"type": "mrkdwn", "text": f"*SHA:* `{sha}`"},
-                          ]
-                      }
-                  ]
-              }]
-          }
-
-          payload_str = json.dumps(payload)
-          print(f"Slack payload prepared: {title}")
-
-          with open(os.environ.get("GITHUB_OUTPUT", "/dev/null"), "a") as f:
-              f.write(f"title={title}\n")
-          PYEOF
-
-      - name: Send Slack notification
-        if: env.SLACK_WEBHOOK_URL != ''
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          echo "Sending Slack notification..."
-          # In production with SLACK_WEBHOOK_URL set:
-          # curl -s -X POST "$SLACK_WEBHOOK_URL" \
-          #   -H "Content-Type: application/json" \
-          #   -d "$PAYLOAD"
-          echo "Slack notification would be sent to webhook (SLACK_WEBHOOK_URL not configured)"
-
-      - name: Send Teams notification
-        if: env.TEAMS_WEBHOOK_URL != ''
-        env:
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          python3 - << 'PYEOF'
-          import json, os
-
-          # Microsoft Teams Adaptive Card format
-          card = {
-              "@type": "MessageCard",
-              "@context": "http://schema.org/extensions",
-              "themeColor": "0076D7",
-              "summary": "Devonn.AI Platform Notification",
-              "sections": [{
-                  "activityTitle": "Devonn.AI Platform Alert",
-                  "activitySubtitle": os.environ.get("GITHUB_REPOSITORY", ""),
-                  "activityImage": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
-                  "facts": [
-                      {"name": "Event", "value": os.environ.get("GITHUB_EVENT_NAME", "")},
-                      {"name": "Branch/Ref", "value": os.environ.get("GITHUB_REF", "")},
-                      {"name": "Actor", "value": os.environ.get("GITHUB_ACTOR", "")},
-                      {"name": "SHA", "value": os.environ.get("GITHUB_SHA", "")[:8]},
-                  ],
-                  "markdown": True,
-              }],
-              "potentialAction": [{
-                  "@type": "OpenUri",
-                  "name": "View in GitHub",
-                  "targets": [{"os": "default", "uri": f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"}]
-              }]
-          }
-          print("Teams card prepared")
-          # curl -s -X POST "$TEAMS_WEBHOOK_URL" -H "Content-Type: application/json" -d "$CARD"
-          PYEOF
-
-  deployment-announcement:
-    name: Deployment Announcement
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    if: startsWith(github.ref, 'refs/tags/platform-v')
-    steps:
-      - name: Announce new platform release
-        run: |
-          TAG="${{ github.ref_name }}"
-          REPO="${{ github.repository }}"
-          echo "=== Platform Release Announcement ==="
-          echo "Tag: $TAG"
-          echo "Repository: $REPO"
-          echo ""
-          echo "Announcement channels:"
-          echo "  Slack: #platform-releases (if SLACK_WEBHOOK_URL configured)"
-          echo "  Teams: Platform Engineering channel (if TEAMS_WEBHOOK_URL configured)"
-          echo "  GitHub: Release notes auto-generated by release-notes.yml"
-          echo ""
-          echo "Release URL: https://github.com/$REPO/releases/tag/$TAG"
+          echo "Platform Slack/Teams notifications are manual-only."
+          echo "Railway, Vercel, production smoke checks, and Gmail monitoring remain active."
+          echo "Message: ${{ github.event.inputs.message }}"
+          echo "Severity: ${{ github.event.inputs.severity }}"
