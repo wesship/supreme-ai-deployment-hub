@@ -4,15 +4,12 @@ on:
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - test/required-pr-gate-validation
 
 permissions:
   contents: read
 
 concurrency:
-  group: required-pr-gate-${{ github.ref }}
+  group: required-pr-gate-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
