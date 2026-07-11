@@ -24,6 +24,10 @@ import {
   Cpu,
   LineChart,
   Bot,
+  Building2,
+  Command,
+  Globe2,
+  Terminal,
 } from 'lucide-react';
 import Footer from '@/components/Footer';
 import HermesOrchestrationDemo from '@/components/home/HermesOrchestrationDemo';
@@ -143,7 +147,7 @@ const Hero: React.FC = () => {
   return (
     <section
       aria-label="D3VONN.IO — AI Business Operating System"
-      className="relative isolate flex min-h-[100svh] items-center overflow-hidden"
+      className="d3-os-shell relative isolate flex min-h-[100svh] items-center overflow-hidden"
     >
       <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#073878] via-[#052f70] to-[#021b48]" />
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_28%,rgba(0,162,255,0.34),transparent_36%),radial-gradient(circle_at_50%_54%,rgba(11,111,225,0.26),transparent_42%),radial-gradient(circle_at_18%_85%,rgba(103,196,255,0.12),transparent_38%)]" />
@@ -169,7 +173,7 @@ const Hero: React.FC = () => {
             </div>
 
             <h1 className="mt-8 text-4xl font-black tracking-tight text-white drop-shadow-[0_0_28px_rgba(147,197,253,0.35)] sm:text-6xl lg:text-7xl">
-              Bring your AI workforce alive.
+              Command the intelligent enterprise.
             </h1>
 
             <p className="mt-6 max-w-2xl text-xl font-semibold text-blue-50/95 sm:text-2xl">
@@ -234,6 +238,98 @@ const Hero: React.FC = () => {
     </section>
   );
 };
+
+const audiencePaths = [
+  {
+    icon: Building2,
+    eyebrow: 'Business leaders',
+    title: 'Run the company from one intelligence layer',
+    description: 'Coordinate operations, automation, AI workforce, analytics, communications, and executive decisions.',
+    to: '/app',
+    action: 'Open Business OS',
+  },
+  {
+    icon: Terminal,
+    eyebrow: 'Developers',
+    title: 'Build on governed agent infrastructure',
+    description: 'Connect APIs, MCP tools, workflows, memory, observability, and deployment infrastructure.',
+    to: '/documentation',
+    action: 'Explore developer platform',
+  },
+  {
+    icon: Globe2,
+    eyebrow: 'Enterprise',
+    title: 'Scale intelligence with control',
+    description: 'Evaluate security, auditability, infrastructure health, permissions, and supervised autonomy.',
+    to: '/security',
+    action: 'Enter Trust Center',
+  },
+];
+
+const AudiencePaths: React.FC = () => (
+  <section aria-labelledby="audience-heading" className="relative bg-[#020b20] py-20 sm:py-24">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(56,136,255,0.18),transparent_42%)]" />
+    <div className="container relative mx-auto px-4 sm:px-6">
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">One system. Three entry points.</p>
+        <h2 id="audience-heading" className="mt-4 text-3xl font-black text-white sm:text-5xl">Start with the outcome that matters to you</h2>
+        <p className="mt-4 text-blue-100/65">D3VONN.IO adapts to how leaders, builders, and enterprise teams work—without fragmenting the operating system.</p>
+      </div>
+      <div className="mt-12 grid gap-5 lg:grid-cols-3">
+        {audiencePaths.map(({ icon: Icon, eyebrow, title, description, to, action }) => (
+          <Link key={eyebrow} to={to} className="d3-chrome-panel d3-command-surface group rounded-3xl p-6 sm:p-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-300/25 bg-blue-400/10">
+              <Icon className="h-6 w-6 text-blue-200" aria-hidden="true" />
+            </div>
+            <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.2em] text-blue-300">{eyebrow}</p>
+            <h3 className="mt-3 text-2xl font-bold text-white">{title}</h3>
+            <p className="mt-4 text-sm leading-6 text-blue-100/62">{description}</p>
+            <span className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-blue-200">
+              {action} <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
+const D3CoreGateway: React.FC = () => (
+  <section aria-labelledby="d3-core-heading" className="relative overflow-hidden bg-[#031f4f] py-20 sm:py-28">
+    <div className="absolute inset-0 opacity-50 bg-[radial-gradient(circle_at_center,rgba(40,145,255,0.3),transparent_35%)]" />
+    <div className="container relative mx-auto grid items-center gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr]">
+      <div>
+        <div className="d3-system-status">D3 Core online</div>
+        <h2 id="d3-core-heading" className="mt-6 text-3xl font-black text-white sm:text-5xl">Enter the operating system through the D3 Core</h2>
+        <p className="mt-5 max-w-xl text-base leading-7 text-blue-100/68">The D3 Core is the signature gateway into agents, knowledge, workflows, security, and system health. One interaction reveals the full intelligent enterprise.</p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <SmartLaunchLink authedTo="/app" className="d3-command-surface inline-flex items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-semibold text-white shadow-[0_0_34px_rgba(56,136,255,0.45)]">
+            <Command className="h-4 w-4" aria-hidden="true" /> Activate D3 Core
+          </SmartLaunchLink>
+          <Link to="/command-center" className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200/25 bg-blue-300/10 px-6 py-3 font-semibold text-blue-50">
+            Open Command Nexus
+          </Link>
+        </div>
+      </div>
+      <div className="relative mx-auto grid aspect-square w-full max-w-[520px] place-items-center">
+        <div className="absolute inset-[6%] rounded-full border border-blue-200/15 shadow-[0_0_80px_rgba(56,136,255,0.28),inset_0_0_70px_rgba(56,136,255,0.12)]" />
+        <div className="absolute inset-[18%] rounded-full border border-dashed border-blue-300/30 motion-safe:animate-[spin_24s_linear_infinite]" />
+        <div className="absolute inset-[29%] rounded-full border border-blue-200/25 bg-blue-500/10 shadow-[0_0_60px_rgba(56,136,255,0.42)] backdrop-blur-xl" />
+        <img src={MASTER_LOGO_SRC} alt="" aria-hidden="true" className="relative z-10 w-[62%] object-contain drop-shadow-[0_0_42px_rgba(56,136,255,0.8)]" />
+        {[
+          ['Agents', 'left-[2%] top-[28%]'],
+          ['Knowledge', 'right-[-2%] top-[28%]'],
+          ['Automation', 'bottom-[8%] left-[10%]'],
+          ['Security', 'bottom-[8%] right-[12%]'],
+        ].map(([label, position]) => (
+          <span key={label} className={`absolute ${position} rounded-full border border-blue-200/20 bg-[#041534]/90 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-blue-100 shadow-[0_0_24px_rgba(56,136,255,0.22)]`}>
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  </section>
+);
 
 const TrustStrip: React.FC = () => (
   <section className="relative border-y border-blue-200/12 bg-[#031f4f]/90 py-6">
@@ -428,7 +524,7 @@ const Index: React.FC = () => {
   const url = 'https://d3vonn.io/';
 
   return (
-    <div className="flex min-h-screen flex-col overflow-hidden bg-[#031f4f] text-white">
+    <div className="d3-os-shell flex min-h-screen flex-col overflow-hidden text-white">
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -450,6 +546,8 @@ const Index: React.FC = () => {
       <main id="main-content">
         <Hero />
         <TrustStrip />
+        <AudiencePaths />
+        <D3CoreGateway />
         <HowItWorks />
         <HermesOrchestrationDemo />
         <CapabilitiesStrip />
