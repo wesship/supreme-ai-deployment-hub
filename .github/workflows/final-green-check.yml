@@ -1,10 +1,7 @@
 name: Final Green Check
 
+# Manual release-readiness audit. The required PR gate owns broad PR validation.
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
