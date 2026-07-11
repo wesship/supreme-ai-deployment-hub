@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-10 21:56 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-11 19:01 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 123  
+**Total Workflows:** 122  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-10 21:56 UTC
+**Last Updated:** 2026-07-11 19:01 UTC
 
 ## Workflow Capability Catalog
 
@@ -19,23 +19,24 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | A/B Testing Infrastructure | `ab-testing.yml` |  | 2 |
 | API Contract Testing | `api-contract-testing.yml` |  | 3 |
 | Accessibility CI | `accessibility.yml` |  | 2 |
-| Artifact Provenance & Signing | `artifact-provenance.yml` |  | 2 |
+| Artifact Provenance & Signing (Manual Only) | `artifact-provenance.yml` |  | 1 |
 | Auto Merge Safe PRs | `auto-merge.yml` |  | 1 |
 | Automated Billing Reconciliation | `billing-reconciliation.yml` |  | 1 |
 | Automated Dependency Upgrade | `auto-dependency-upgrade.yml` |  | 2 |
 | Automated Threat Intelligence | `threat-intelligence.yml` |  | 4 |
-| Autonomous Remediation | `autonomous-remediation.yml` |  | 6 |
+| Autonomous Remediation | `autonomous-remediation.yml` |  | 1 |
 | Azure Container Apps CI/CD | `azure-container-apps-deploy.yml` |  | 1 |
 | Bundle Size Check | `bundle-size.yml` |  | 1 |
 | CI - Hardened Build Pipeline | `build.yml` |  | 4 |
 | CI Auth Debugger | `ci-auth-debugger.yml` |  | 1 |
-| Chaos Engineering & Resilience Testing | `chaos-engineering.yml` |  | 4 |
+| Chaos Engineering & Resilience Testing | `chaos-engineering.yml` |  | 1 |
 | Code Quality Gates | `code-quality-gates.yml` |  | 1 |
 | CodeQL SAST | `codeql.yml` |  | 1 |
 | Commit Lint | `commitlint.yml` |  | 1 |
 | Cost Optimization | `cost-optimization.yml` |  | 2 |
 | Coverage Enforcement | `coverage-enforcement.yml` |  | 1 |
 | Create Devonn Project Board | `create-project-board.yml` |  | 1 |
+| D3VONN Required PR Gate | `required-pr-gate.yml` |  | 1 |
 | Dependency Review | `dependency-review.yml` |  | 1 |
 | Deploy and Chrome Extension Publish (archived manual lane) | `deploy-and-publish.yml` |  | 1 |
 | Deployment Promotion Gates (archived manual lane) | `deployment-promotion.yml` |  | 1 |
@@ -44,10 +45,9 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Devonn Deploy (archived manual lane) | `devonn-deploy.yml` |  | 1 |
 | Devonn.AI Deploy | `deploy.yml` |  | 3 |
 | Devonn.AI Testing | `testing.yml` |  | 7 |
-| Disaster Recovery Drill | `disaster-recovery-drill.yml` |  | 5 |
+| Disaster Recovery Drill | `disaster-recovery-drill.yml` |  | 1 |
 | E2E Smoke Tests | `e2e-smoke-tests.yml` |  | 1 |
-| E2E Tests | `e2e.yml` |  | 1 |
-| EKS Deploy (OIDC + Trivy) | `eks-deploy-oidc.yml` |  | 3 |
+| EKS Deploy (OIDC + Trivy) | `eks-deploy-oidc.yml` |  | 1 |
 | Edge Functions Typecheck | `edge-functions-typecheck.yml` |  | 1 |
 | Environment Promotion (archived manual lane) | `promotion.yml` |  | 1 |
 | Final Green Check | `final-green-check.yml` |  | 1 |
@@ -56,37 +56,37 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Governance Review v3 | `hermes-v3-gate.yml` |  | 1 |
 | Hermes Recency Sync Gate | `hermes-recency-sync.yml` |  | 1 |
 | Hermes VPS Readiness | `hermes-vps-readiness.yml` |  | 1 |
-| Incident Response & SLO Enforcement | `incident-response.yml` |  | 3 |
+| Incident Response & SLO Enforcement | `incident-response.yml` |  | 1 |
 | Issue Tracker Sync (Jira / Linear) | `issue-tracker-sync.yml` |  | 2 |
 | Issue → AI Fix Trigger | `issue-trigger.yml` |  | 1 |
 | Lighthouse CI | `lighthouse.yml` |  | 1 |
 | Load Tests | `load-test.yml` |  | 1 |
 | Multi-Cloud Cost Arbitrage | `multi-cloud-cost-arbitrage.yml` |  | 1 |
 | Multi-Environment Promotion Automation (archived manual lane) | `multi-env-promotion.yml` |  | 1 |
-| Multi-Region Failover & Backup Verification | `multi-region-failover.yml` |  | 4 |
+| Multi-Region Failover & Backup Verification | `multi-region-failover.yml` |  | 1 |
 | Mutation Tests | `mutation-tests.yml` |  | 2 |
 | OIDC Deployment Federation | `oidc-deploy.yml` |  | 4 |
 | Operational Stress Intelligence | `stress-validation.yml` |  | 2 |
 | PR Automation | `pr-automation.yml` |  | 4 |
-| Performance Regression Detection | `performance-regression.yml` |  | 3 |
+| Performance Regression Detection (Manual Only) | `performance-regression.yml` |  | 1 |
 | Platform Control Plane | `platform-control-plane.yml` |  | 1 |
-| Platform Notifications (Slack & Teams) | `notifications.yml` |  | 2 |
+| Platform Notifications (Manual Only) | `notifications.yml` |  | 1 |
 | Platform Self-Healing v2 | `self-healing-v2.yml` |  | 1 |
-| Predictive Failure Detection | `predictive-failure-detection.yml` |  | 1 |
+| Predictive Failure Detection (Manual Only) | `predictive-failure-detection.yml` |  | 1 |
 | Promotion Validation | `promotion-validation.yml` |  | 1 |
 | Release | `release.yml` |  | 2 |
 | Release Candidate Freeze | `release-candidate.yml` |  | 1 |
 | Release Notes & Changelog Automation | `release-notes.yml` |  | 1 |
-| Reproducible Builds | `reproducible-builds.yml` |  | 2 |
+| Reproducible Builds (Manual Only) | `reproducible-builds.yml` |  | 1 |
 | Reusable Node.js Setup | `reusable-node-setup.yml` |  | 1 |
 | Runtime Recovery Validation | `runtime-recovery-validation.yml` |  | 1 |
 | Runtime Validation Harness | `runtime-validation.yml` |  | 7 |
 | Self-Documenting Platform | `self-documenting-platform.yml` |  | 1 |
-| Staging Release Gate | `staging-release-gate.yml` |  | 7 |
+| Staging Release Gate (Manual Only) | `staging-release-gate.yml` |  | 1 |
 | Stale PR Cleanup | `stale-pr-cleanup.yml` |  | 1 |
 | Supabase Edge Functions | `supabase-edge-functions.yml` |  | 2 |
 | Test Coverage | `coverage.yml` |  | 1 |
-| Trusted Build Infrastructure | `trusted-build.yml` |  | 2 |
+| Trusted Build Infrastructure (Manual Only) | `trusted-build.yml` |  | 1 |
 | Trusted Runner Isolation | `trusted-runner-isolation.yml` |  | 2 |
 | VPS Deploy — D3VONN.IO | `vps-deploy.yml` |  | 1 |
 | Validate VPS deployment | `validate-vps-deploy.yml` |  | 1 |
@@ -100,20 +100,18 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Workflow | File | Triggers | Jobs |
 |----------|------|----------|------|
 | Auto-merge Snyk Security PRs | `auto-merge-snyk.yml` |  | 1 |
-| Compliance and Audit Export (SOC 2) | `compliance-audit-export.yml` |  | 1 |
+| Compliance and Audit Export (Manual Only) | `compliance-audit-export.yml` |  | 1 |
 | Container Hardening | `container-hardening.yml` |  | 2 |
 | Cosign Sign & Verify (Sigstore) | `cosign-sign-verify.yml` |  | 2 |
 | DevonnBench Security Audit | `devonnbench-security.yml` |  | 2 |
-| Falco Runtime Behavioral Detection | `falco-runtime-detection.yml` |  | 2 |
-| Kubernetes Admission Enforcement (Kyverno) | `kyverno-admission.yml` |  | 2 |
+| Falco Runtime Behavioral Detection | `falco-runtime-detection.yml` |  | 1 |
+| Kubernetes Admission Enforcement (Kyverno) | `kyverno-admission.yml` |  | 1 |
 | SBOM & Supply Chain Security | `sbom.yml` |  | 4 |
-| SBOM Generation | `sbom-generation.yml` |  | 2 |
 | SLA Reporting & Compliance Certificates | `sla-reporting.yml` |  | 1 |
 | Secret Scanning (Gitleaks) | `secret-scanning.yml` |  | 2 |
-| Secrets Elimination & Scanning | `secrets-elimination.yml` |  | 3 |
 | Security Hardening | `security-hardening.yml` |  | 4 |
 | Validate Required Secrets | `validate-secrets.yml` |  | 1 |
-| Vault-Backed Secrets Injection | `vault-secrets-injection.yml` |  | 2 |
+| Vault-Backed Secrets Injection (Manual Only) | `vault-secrets-injection.yml` |  | 1 |
 
 ### AI & ML
 
@@ -122,22 +120,22 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | AI Agent Observability | `ai-agent-observability.yml` |  | 1 |
 | AI Model Pipeline | `ai-model-pipeline.yml` |  | 2 |
 | AI Model Version Governance | `ai-model-governance.yml` |  | 3 |
-| AI Safety Guardrails | `ai-safety-guardrails.yml` |  | 3 |
+| AI Safety Guardrails (Manual Only) | `ai-safety-guardrails.yml` |  | 1 |
 | Cost Attribution & LLM ROI Tracking | `cost-attribution.yml` |  | 3 |
 | Feature Flags and Database Migration Safety | `feature-flags-db-safety.yml` |  | 3 |
 | LLM Cost Governance | `llm-cost-governance.yml` |  | 2 |
-| ML-Based Anomaly Detection | `ml-anomaly-detection.yml` |  | 3 |
+| ML-Based Anomaly Detection (Manual Only) | `ml-anomaly-detection.yml` |  | 1 |
 
 ### Infrastructure
 
 | Workflow | File | Triggers | Jobs |
 |----------|------|----------|------|
-| GitOps State Reconciliation | `gitops-reconciliation.yml` |  | 3 |
+| GitOps State Reconciliation | `gitops-reconciliation.yml` |  | 1 |
 | IaC Drift Detection | `iac-drift-detection.yml` |  | 1 |
 | Infrastructure CI/CD Pipeline | `infrastructure-ci-cd.yml` |  | 4 |
 | Terraform AWS | `terraform-aws.yml` |  | 1 |
 | Terraform Validation | `terraform-validation.yml` |  | 1 |
-| Terraform Validation Pipeline | `terraform.yml` |  | 2 |
+| Terraform Validation Pipeline | `terraform.yml` |  | 1 |
 
 ### Observability
 
@@ -145,11 +143,12 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 |----------|------|----------|------|
 | CI Analytics & Failure Intelligence | `ci-analytics.yml` |  | 1 |
 | CI Baseline Metrics | `ci-baseline-metrics.yml` |  | 1 |
-| DORA Metrics Tracking | `dora-metrics.yml` |  | 1 |
+| DORA Metrics Tracking (Manual Only) | `dora-metrics.yml` |  | 1 |
 | Observability & Telemetry | `observability.yml` |  | 3 |
 | Platform Graduation Criteria & Developer Metrics | `platform-graduation.yml` |  | 3 |
-| Platform Health Dashboard | `platform-health-dashboard.yml` |  | 2 |
+| Platform Health Dashboard | `platform-health-dashboard.yml` |  | 1 |
 | Platform Metrics Export (Datadog / Grafana / Prometheus) | `metrics-export.yml` |  | 1 |
+| Playwright E2E Audit | `e2e.yml` |  | 1 |
 | Usage Analytics Pipeline | `usage-analytics.yml` |  | 2 |
 
 ### Developer Experience
