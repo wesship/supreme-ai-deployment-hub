@@ -62,7 +62,7 @@ const EnhancedAgentDemo = lazy(() => import("./pages/EnhancedAgentDemo"));
 const AgentMarketplace = lazy(() => import("./pages/AgentMarketplace"));
 const McpPage = lazy(() => import("./pages/McpPage"));
 const StatusDashboard = lazy(() => import("./pages/StatusDashboard"));
-const CommandCenter = lazy(() => import("./pages/CommandCenter"));
+const CommandCenter = lazy(() => import("./pages/CommandCenterRC1"));
 const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
 const VoiceStudio = lazy(() => import("./pages/VoiceStudio"));
@@ -91,7 +91,7 @@ const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
     const AdminRoute = mod.default;
-    return import("./pages/OperatorCommandCenter").then(occMod => ({
+    return import("./pages/OperatorCommandCenterRC1").then(occMod => ({
       default: () => <AdminRoute><occMod.default /></AdminRoute>
     }));
   })
@@ -183,6 +183,7 @@ function App() {
                 <Route path="/manifest" element={<ManifestPage />} />
                 <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
                 <Route path="/command-center" element={<CommandCenter />} />
+                <Route path="/operations" element={<CommandCenter />} />
                 <Route path="/dkos-ingestion" element={<DkosIngestion />} />
                 <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
                 <Route path="/about" element={<About />} />
