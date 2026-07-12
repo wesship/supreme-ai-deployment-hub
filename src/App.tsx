@@ -210,6 +210,7 @@ function App() {
                 <Route path="/solutions" element={<Solutions />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/security" element={<Security />} />
+                <Route path="/enterprise" element={<Security />} />
                 <Route path="/security/ops" element={<SecurityOps />} />
                 <Route path="/security/dashboard" element={<SecurityDashboard />} />
                 <Route path="/security/command-center" element={<SecurityCommandCenter />} />
