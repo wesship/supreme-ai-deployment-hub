@@ -117,7 +117,6 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Use requestIdleCallback if available, otherwise setTimeout
     const id = ('requestIdleCallback' in window)
       ? (window as any).requestIdleCallback(() => setReady(true))
       : setTimeout(() => setReady(true), 50);
@@ -172,6 +171,7 @@ function App() {
                 <Route path="/api" element={<APIManagement />} />
                 <Route path="/documentation" element={<Documentation />} />
                 <Route path="/agents" element={<AgentDashboard />} />
+                <Route path="/ai-workforce" element={<AgentDashboard />} />
                 <Route path="/devonn" element={<DevonnDashboard />} />
                 <Route path="/flow" element={<FlowEditor />} />
                 <Route path="/workflows" element={<WorkflowManagement />} />
