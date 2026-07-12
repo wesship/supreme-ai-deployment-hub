@@ -43,12 +43,16 @@ jobs:
             api.github.com:443
             registry.npmjs.org:443
             pypi.org:443
+            files.pythonhosted.org:443
             fulcio.sigstore.dev:443
             rekor.sigstore.dev:443
             gcr.io:443
 
       - name: Validate runner policy exists
         run: test -f policy/runner/hardened-runner-config.yaml
+
+      - name: Install policy parser
+        run: python3 -m pip install --disable-pip-version-check --no-input 'PyYAML==6.0.2'
 
       - name: Record runner attestation
         run: |
