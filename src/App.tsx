@@ -65,7 +65,7 @@ const StatusDashboard = lazy(() => import("./pages/StatusDashboard"));
 const CommandCenter = lazy(() => import("./pages/CommandCenter"));
 const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
-const ChatPage = lazy(() => import("./pages/Chat"));
+const VoiceStudio = lazy(() => import("./pages/VoiceStudio"));
 const AdminPage = lazy(() => import("./pages/Admin"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 const MoneyHub = lazy(() => import("./pages/MoneyHub"));
@@ -189,7 +189,8 @@ function App() {
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/privacy-policy" element={<Privacy />} />
-                <Route path="/chat" element={<ChatPage />} />
+                <Route path="/chat" element={<VoiceStudio />} />
+                <Route path="/voice-studio" element={<VoiceStudio />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/occ" element={<AdminRouteWrapper />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
