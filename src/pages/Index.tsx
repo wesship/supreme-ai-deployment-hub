@@ -29,7 +29,8 @@ import {
   Globe2,
   Terminal,
 } from 'lucide-react';
-import Footer from '@/components/Footer';
+import HomepageShell from '@/components/homepage/HomepageShell';
+import HomepageCTAGroup from '@/components/homepage/HomepageCTAGroup';
 import HermesOrchestrationDemo from '@/components/home/HermesOrchestrationDemo';
 import KnowledgeGraphPreview from '@/components/home/KnowledgeGraphPreview';
 import MarketplacePreview from '@/components/home/MarketplacePreview';
@@ -182,21 +183,7 @@ const Hero: React.FC = () => {
               Orchestrate agents, knowledge, workflows, security, and business operations from one governed command layer.
             </p>
 
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <SmartLaunchLink
-                authedTo="/app"
-                className="d3-command-surface inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-semibold text-white shadow-[0_0_38px_rgba(37,126,255,0.45)] hover:bg-blue-400"
-              >
-                <Command className="h-4 w-4" aria-hidden="true" />
-                Enter D3VONN.IO
-              </SmartLaunchLink>
-              <Link
-                to="/solutions"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-200/20 bg-white/[0.035] px-6 py-3 font-semibold text-blue-50 backdrop-blur hover:border-blue-200/40 hover:bg-blue-300/[0.08]"
-              >
-                Explore the platform <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
+            <HomepageCTAGroup className="mt-9" />
 
             <div className="mt-9 grid grid-cols-3 gap-3 border-t border-white/10 pt-6">
               {[
@@ -567,7 +554,7 @@ const Index: React.FC = () => {
   const url = 'https://d3vonn.io/';
 
   return (
-    <div className="d3-os-shell flex min-h-screen flex-col overflow-hidden text-white">
+    <HomepageShell>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -586,7 +573,7 @@ const Index: React.FC = () => {
         style={{ scaleX }}
       />
 
-      <main id="main-content">
+      <>
         <Hero />
         <TrustStrip />
         <AudiencePaths />
@@ -604,10 +591,8 @@ const Index: React.FC = () => {
         <Suspense fallback={<div className="bg-[#031f4f] py-24 text-center text-sm text-blue-100/45">Loading...</div>}>
           <BelowFoldSections />
         </Suspense>
-      </main>
-
-      <Footer />
-    </div>
+      </>
+    </HomepageShell>
   );
 };
 
