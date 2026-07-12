@@ -20,30 +20,46 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
       - name: Enforce one broad PR gate
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           import sys
 
           allowed = {'required-pr-gate.yml', 'workflow-fanout-policy.yml'}
           violations = []
+
+          def on_block(text: str) -> str:
+              lines = text.splitlines()
+              start = next((i for i, line in enumerate(lines) if line == 'on:'), None)
+              if start is None:
+                  return ''
+              block = [lines[start]]
+              for line in lines[start + 1:]:
+                  if line and not line.startswith((' ', '\t', '#')):
+                      break
+                  block.append(line)
+              return '\n'.join(block)
+
           for path in sorted(Path('.github/workflows').glob('*.y*ml')):
               if path.name in allowed:
                   continue
-              lines = path.read_text(encoding='utf-8').splitlines()
-              block = []
-              capture = False
-              for line in lines:
-                  if line.startswith('on:'):
-                      capture = True
-                  if capture:
-                      if block and line and not line.startswith((' ', '\t', '#')):
-                          break
-                      block.append(line)
-              trigger = '\n'.join(block)
-              if 'pull_request' in trigger and 'paths:' not in trigger and 'paths-ignore:' not in trigger:
+
+              trigger = on_block(path.read_text(encoding='utf-8'))
+              has_pull_request = re.search(r'^  pull_request:\s*$', trigger, re.MULTILINE)
+              if not has_pull_request:
+                  continue
+
+              pull_request_section = trigger[has_pull_request.start():]
+              next_event = re.search(r'^  [A-Za-z_][A-Za-z0-9_-]*:\s*$', pull_request_section[1:], re.MULTILINE)
+              if next_event:
+                  pull_request_section = pull_request_section[:next_event.start() + 1]
+
+              scoped = re.search(r'^    (paths|paths-ignore):\s*$', pull_request_section, re.MULTILINE)
+              if not scoped:
                   violations.append(str(path))
 
           if violations:
