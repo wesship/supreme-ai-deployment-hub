@@ -1,8 +1,7 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Command, Search, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -17,9 +16,9 @@ interface NavbarProps {
   transparent?: boolean;
 }
 
-const Navbar = ({ 
-  className, 
-  transparent = false 
+const Navbar = ({
+  className,
+  transparent = false,
 }: NavbarProps) => {
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -27,7 +26,7 @@ const Navbar = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const [prevScrollPos, setPrevScrollPos] = useState(0);
   const [visible, setVisible] = useState(true);
-  
+
   useEffect(() => {
     const openCommandNexus = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
@@ -44,26 +43,15 @@ const Navbar = ({
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollPos = window.scrollY;
-      
-      if (currentScrollPos > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
-      
+      setIsScrolled(currentScrollPos > 10);
+
       const isScrolledDown = prevScrollPos < currentScrollPos;
       const isScrollSignificant = Math.abs(prevScrollPos - currentScrollPos) > 10;
-      
-      if (isScrolledDown && isScrollSignificant && currentScrollPos > 100) {
-        setVisible(false);
-      } else {
-        setVisible(true);
-      }
-      
+      setVisible(!(isScrolledDown && isScrollSignificant && currentScrollPos > 100));
       setPrevScrollPos(currentScrollPos);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [prevScrollPos]);
 
@@ -71,65 +59,74 @@ const Navbar = ({
     <AnimatePresence>
       <motion.header
         className={cn(
-          'fixed top-0 w-full transition-all duration-300 z-40 supports-[backdrop-filter]:bg-[#020817]/75',
+          'fixed top-0 z-40 w-full transition-all duration-300',
           isScrolled || !transparent
-            ? 'border-b border-blue-500/20 bg-[#020817]/90 backdrop-blur-md'
-            : 'bg-transparent',
-          isScrolled && 'shadow-[0_0_15px_rgba(56,136,255,0.12)]',
+            ? 'border-b border-blue-300/15 bg-[#020714]/88 shadow-[0_18px_60px_rgba(0,10,35,0.28)] backdrop-blur-2xl'
+            : 'bg-gradient-to-b from-[#010611]/86 via-[#010611]/45 to-transparent backdrop-blur-sm',
           visible ? 'translate-y-0' : '-translate-y-full',
           className
         )}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.55 }}
       >
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Logo />
-            
+        <div className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between gap-4 lg:h-[72px]">
+            <div className="flex min-w-0 items-center gap-4">
+              <Logo />
+              <div className="hidden h-7 w-px bg-gradient-to-b from-transparent via-blue-200/20 to-transparent 2xl:block" />
+              <div className="hidden 2xl:block">
+                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-blue-200/45">EXU Intelligence Gateway</p>
+                <p className="mt-0.5 text-[10px] font-semibold text-white/45">One Platform. Infinite Intelligence.</p>
+              </div>
+            </div>
+
             {!isMobile && (
               <DesktopNav navigationItems={navigationItems} currentPath={location.pathname} />
             )}
-            
-            <div className="flex items-center space-x-2 sm:space-x-3">
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link
+                to="/security"
+                aria-label="Open Security and Trust Center"
+                className="hidden min-h-11 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 text-xs font-semibold text-white/55 transition hover:border-blue-300/20 hover:bg-blue-400/[0.06] hover:text-blue-100 xl:inline-flex"
+              >
+                <ShieldCheck className="h-4 w-4 text-blue-200/70" aria-hidden="true" />
+                Trust
+              </Link>
+
               <Link
                 to="/command-center"
                 aria-label="Open Command Nexus"
                 title="Command Nexus (⌘K or Ctrl+K)"
-                className="d3-command-surface inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-300/20 bg-blue-400/[0.06] px-3 text-sm font-medium text-blue-50 hover:border-blue-300/45 hover:bg-blue-400/[0.12]"
+                className="d3-command-surface inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-300/20 bg-blue-400/[0.065] px-3 text-sm font-medium text-blue-50 hover:border-blue-300/45 hover:bg-blue-400/[0.12]"
               >
                 <Search className="h-4 w-4 text-blue-200" aria-hidden="true" />
                 <span className="hidden lg:inline">Command Nexus</span>
                 <span className="hidden rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 font-mono text-[10px] text-white/45 xl:inline">⌘K</span>
               </Link>
-              {/* Log In button */}
+
               <Link
                 to="/login"
-                className="hidden sm:inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 hover:border-white/30 transition-colors"
+                className="hidden min-h-11 items-center justify-center rounded-xl border border-white/12 bg-white/[0.03] px-4 text-sm font-medium text-white/72 transition hover:border-white/25 hover:bg-white/[0.07] hover:text-white sm:inline-flex"
               >
                 Log In
               </Link>
 
-              {/* Launch App button */}
               <SmartLaunchLink
                 authedTo="/app"
-                className="hidden sm:inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(56,136,255,0.3)] hover:bg-blue-500 hover:shadow-[0_0_30px_rgba(56,136,255,0.5)] transition-all"
+                className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 text-sm font-semibold text-white shadow-[0_0_26px_rgba(37,126,255,0.34)] transition hover:bg-blue-400 hover:shadow-[0_0_36px_rgba(37,126,255,0.48)] sm:inline-flex"
               >
+                <Command className="h-4 w-4" aria-hidden="true" />
                 Launch App
               </SmartLaunchLink>
-              
-              {/* Mobile menu */}
-              {isMobile && (
-                <MobileMenu navigationItems={navigationItems} />
-              )}
+
+              {isMobile && <MobileMenu navigationItems={navigationItems} />}
             </div>
           </div>
         </div>
-        
-        {/* Gradient border effect when scrolled */}
-        {isScrolled && (
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-blue-500/50 to-transparent w-full" />
-        )}
+
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-blue-300/35 to-transparent" />
       </motion.header>
     </AnimatePresence>
   );
