@@ -45,7 +45,7 @@ const Analytics = lazy(() =>
 const Login = lazy(() => import("./pages/Login"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-const FilmPage = lazy(() => import("./pages/Film"));
+const FilmPage = lazy(() => import("./pages/AIFilms"));
 const WorkflowManagement = lazy(() => import("./pages/WorkflowManagement"));
 const DeploymentDashboard = lazy(() => import("./pages/DeploymentDashboard"));
 const APIManagement = lazy(() => import("./pages/APIManagement"));
@@ -167,6 +167,7 @@ function App() {
                 <Route path="/auth/confirm" element={<AuthCallback />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/film" element={<FilmPage />} />
+                <Route path="/ai-films" element={<FilmPage />} />
                 <Route path="/deployment" element={<DeploymentDashboard />} />
                 <Route path="/api" element={<APIManagement />} />
                 <Route path="/documentation" element={<Documentation />} />
