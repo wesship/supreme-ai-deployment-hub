@@ -4,6 +4,7 @@ packages:
   - 'integrations/*'
   - 'sdk/*'
   - 'packages/*'
+  - '!packages/design-system'
 allowBuilds:
   '@swc/core': true
   esbuild: true
