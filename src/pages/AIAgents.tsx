@@ -1,236 +1,304 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowRight, Bot, Brain, Network, Workflow, ShieldCheck, Zap } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  Bot,
+  Brain,
+  CheckCircle2,
+  Command,
+  Network,
+  ShieldCheck,
+  Sparkles,
+  Workflow,
+  Zap,
+} from 'lucide-react';
 import Footer from '@/components/Footer';
+import SmartLaunchLink from '@/components/SmartLaunchLink';
 
-const features = [
+const capabilities = [
   {
     icon: Brain,
-    title: 'Autonomous reasoning',
-    body: 'ReAct-based agents that plan, call tools, observe results, and adapt — no rigid scripts.',
+    title: 'Reasoning that adapts',
+    body: 'Agents plan, call tools, evaluate outcomes, and adjust execution without rigid scripts.',
   },
   {
     icon: Network,
-    title: 'Multi-agent orchestration',
-    body: 'Coordinate dozens of specialized AI workers across research, ops, sales, and support.',
+    title: 'Multi-agent coordination',
+    body: 'Specialized workers collaborate across research, operations, sales, support, and engineering.',
   },
   {
     icon: Workflow,
-    title: 'MCP tool integration',
-    body: 'Connect Hostinger, Vercel, AWS, GitHub, and any MCP server as agent capabilities.',
+    title: 'Connected business execution',
+    body: 'Agents operate through approved workflows, integrations, APIs, and MCP-enabled capabilities.',
   },
   {
     icon: ShieldCheck,
     title: 'Enterprise governance',
-    body: 'Row-level security, audit logs, and credential encryption baked into every agent run.',
+    body: 'Permissions, audit trails, credential controls, and human approval gates surround every run.',
+  },
+  {
+    icon: Activity,
+    title: 'Live operational visibility',
+    body: 'Watch tasks, retries, escalations, service posture, and outcomes from one command layer.',
   },
   {
     icon: Zap,
-    title: 'Real-time execution',
-    body: 'Live run streams, retries, and recovery — your AI workforce never stalls silently.',
-  },
-  {
-    icon: Bot,
-    title: 'Marketplace-ready',
-    body: 'Deploy pre-built agent templates or publish your own to the D3VONN marketplace.',
+    title: 'Reusable workforce templates',
+    body: 'Launch proven agent roles, adapt them to your organization, and scale with repeatable controls.',
   },
 ];
 
-const useCases = [
-  ['Sales & outreach', 'Prospect research, lead enrichment, and personalized outbound at scale.'],
-  ['Customer support', '24/7 triage, ticket resolution, and intelligent escalation paths.'],
-  ['Operations', 'Invoice processing, vendor reconciliation, and back-office automation.'],
-  ['Research & analysis', 'Multi-source web research, competitive intel, and structured reports.'],
-  ['DevOps & infra', 'Self-healing deployments via Wazuh, ServiceNow, and MCP-driven actions.'],
-  ['Marketing', 'Content production, SEO research, and campaign orchestration.'],
+const workforceRoles = [
+  ['Research Analyst', 'Collects evidence, compares sources, and produces decision-ready intelligence.'],
+  ['Sales Operator', 'Enriches leads, prepares outreach, updates pipeline context, and routes opportunities.'],
+  ['Support Specialist', 'Triages requests, resolves routine issues, and escalates exceptions with full context.'],
+  ['Operations Coordinator', 'Moves work across systems, validates completion, and surfaces blocked processes.'],
+  ['Security Sentinel', 'Monitors risk signals, applies policy checks, and opens governed response workflows.'],
+  ['Developer Agent', 'Assists with code, testing, deployment analysis, and infrastructure diagnostics.'],
+];
+
+const controlPoints = [
+  'Human approval before high-impact actions',
+  'Role-based access and tenant isolation',
+  'Observable plans, tool calls, and outcomes',
+  'Retry, recovery, and escalation policies',
+  'Audit-ready execution history',
+  'Centralized Command Center supervision',
 ];
 
 const faqs = [
   {
-    q: 'What is an AI agent?',
-    a: 'An AI agent is an autonomous software worker that perceives its environment, reasons about goals, calls external tools, and takes actions on your behalf — without needing step-by-step prompts.',
+    q: 'What is the D3VONN.IO AI Workforce?',
+    a: 'It is a governed network of specialized AI agents that can plan, use approved tools, execute workflows, and collaborate under centralized human supervision.',
   },
   {
-    q: 'How is D3VONN different from a chatbot?',
-    a: 'Chatbots respond to messages. D3VONN agents execute multi-step business workflows, integrate with your real systems via MCP, and run continuously inside an orchestrated AI workforce.',
+    q: 'How is this different from a chatbot?',
+    a: 'A chatbot primarily responds to messages. D3VONN.IO agents can execute multi-step operational work, interact with connected systems, transfer tasks, and report outcomes through the Command Center.',
   },
   {
-    q: 'Can AI agents automate my entire business?',
-    a: 'Yes — D3VONN is designed as a multi-agent business operating system, with specialized agents for sales, support, ops, research, and engineering all coordinated from one Command Center.',
+    q: 'Can people stay in control?',
+    a: 'Yes. Approval gates, permissions, policies, audit trails, and escalation paths are core parts of the operating model rather than optional add-ons.',
   },
   {
-    q: 'How do I deploy an AI agent?',
-    a: 'Pick a template from the marketplace, configure credentials, and deploy in minutes. D3VONN handles secure execution, monitoring, and recovery automatically.',
+    q: 'Can I start with one agent?',
+    a: 'Yes. Start with one clearly scoped role, validate its workflow and controls, then expand into a coordinated workforce as operational confidence grows.',
   },
 ];
 
 const AIAgents: React.FC = () => {
   return (
-    <div className="relative min-h-screen bg-background text-foreground">
+    <div className="relative min-h-screen overflow-hidden bg-[#010611] text-white">
       <Helmet>
-        <title>AI Agents Platform — Build Your AI Workforce | D3VONN.IO</title>
+        <title>AI Workforce — Deploy Governed AI Agents | D3VONN.IO</title>
         <meta
           name="description"
-          content="Deploy autonomous AI agents that run your business. Multi-agent orchestration, MCP tool integration, and enterprise governance — all in one platform."
+          content="Build and supervise a governed AI workforce with multi-agent orchestration, enterprise controls, live execution visibility, and connected business workflows."
         />
         <link rel="canonical" href="https://d3vonn.io/ai-agents" />
-        <meta property="og:title" content="AI Agents Platform — Build Your AI Workforce | D3VONN.IO" />
-        <meta
-          property="og:description"
-          content="Autonomous AI agents that plan, reason, and execute real business work. Deploy your AI workforce in minutes."
-        />
+        <meta property="og:title" content="AI Workforce | D3VONN.IO" />
+        <meta property="og:description" content="Deploy specialized AI agents and govern their work from one enterprise command layer." />
         <meta property="og:url" content="https://d3vonn.io/ai-agents" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://d3vonn.io/og-image.png" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="AI Agents Platform — D3VONN.IO" />
-        <meta
-          name="twitter:description"
-          content="Autonomous AI agents that plan, reason, and execute real business work."
-        />
-        <meta name="twitter:image" content="https://d3vonn.io/og-image.png" />
         <script type="application/ld+json">{JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'FAQPage',
-          mainEntity: faqs.map(f => ({
+          mainEntity: faqs.map((faq) => ({
             '@type': 'Question',
-            name: f.q,
-            acceptedAnswer: { '@type': 'Answer', text: f.a },
+            name: faq.q,
+            acceptedAnswer: { '@type': 'Answer', text: faq.a },
           })),
-        })}</script>
-        <script type="application/ld+json">{JSON.stringify({
-          '@context': 'https://schema.org',
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://d3vonn.io/' },
-            { '@type': 'ListItem', position: 2, name: 'AI Agents', item: 'https://d3vonn.io/ai-agents' },
-          ],
         })}</script>
       </Helmet>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden px-6 pt-24 pb-20 md:pt-32">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            background:
-              'radial-gradient(60% 50% at 50% 0%, rgba(112,128,255,0.25), transparent 70%)',
-          }}
-        />
-        <div className="relative mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-primary shadow-[0_0_18px_rgba(112,128,255,0.35)]">
-            <Bot className="h-3 w-3" /> AI Agents Platform
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_8%,rgba(37,126,255,0.18),transparent_31%),radial-gradient(circle_at_78%_22%,rgba(0,212,255,0.10),transparent_28%)]" />
+
+      <section className="relative px-4 pb-20 pt-28 sm:px-6 lg:px-8 lg:pb-28 lg:pt-36">
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/20 bg-blue-400/[0.07] px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-blue-200">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              EXU Workforce Intelligence
+            </div>
+            <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[0.98] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
+              Build an AI workforce.
+              <span className="mt-2 block bg-gradient-to-r from-white via-blue-100 to-blue-400 bg-clip-text text-transparent">
+                Keep your business in command.
+              </span>
+            </h1>
+            <p className="mt-7 max-w-2xl text-base leading-7 text-white/58 sm:text-lg">
+              Deploy specialized AI agents that research, coordinate, execute, and report across your organization—inside one governed operating system with human supervision built in.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <SmartLaunchLink
+                authedTo="/app"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 text-sm font-semibold text-white shadow-[0_0_36px_rgba(37,126,255,0.38)] transition hover:bg-blue-400"
+              >
+                Launch your workforce <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </SmartLaunchLink>
+              <Link
+                to="/command-center"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-blue-200/20 bg-white/[0.035] px-6 text-sm font-semibold text-blue-50 transition hover:border-blue-200/35 hover:bg-blue-300/[0.07]"
+              >
+                <Command className="h-4 w-4" aria-hidden="true" />
+                Open Command Center
+              </Link>
+            </div>
+            <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-xs text-white/42">
+              {['Governed execution', 'Live supervision', 'Connected workflows'].map((item) => (
+                <span key={item} className="inline-flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-300/80" aria-hidden="true" />
+                  {item}
+                </span>
+              ))}
+            </div>
           </div>
-          <h1 className="mt-6 text-4xl font-bold leading-tight md:text-6xl">
-            Build your <span className="text-primary">AI workforce</span>.
-            <br />Run an autonomous business.
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            D3VONN is the multi-agent business operating system. Deploy autonomous AI agents that
-            plan, call tools, and execute real work across sales, support, ops, and engineering.
-          </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/app"
-              className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[0_0_40px_-8px_rgba(112,128,255,0.8)] transition hover:brightness-110"
-            >
-              Launch D3VONN <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
-            </Link>
-            <Link
-              to="/marketplace"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/[0.03] px-6 py-3 text-sm font-semibold text-foreground backdrop-blur-xl transition hover:border-primary/40"
-            >
-              Browse Agent Marketplace
-            </Link>
+
+          <div className="relative">
+            <div className="absolute -inset-8 rounded-full bg-blue-500/10 blur-3xl" />
+            <div className="d3-chrome-panel relative overflow-hidden rounded-[32px] border border-blue-300/20 p-5 shadow-[0_30px_100px_rgba(0,22,70,0.45)] sm:p-7">
+              <div className="flex items-center justify-between border-b border-white/10 pb-5">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-200/60">AI Workforce Command</p>
+                  <h2 className="mt-2 text-xl font-bold">Live operating posture</h2>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/[0.06] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_9px_currentColor]" />
+                  Active
+                </span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-3 gap-3">
+                {[
+                  ['Agents', '12'],
+                  ['Running', '08'],
+                  ['Approvals', '03'],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-white/[0.08] bg-black/20 p-4">
+                    <p className="text-2xl font-black text-white">{value}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/35">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {[
+                  ['Research Analyst', 'Competitive report', 'Running'],
+                  ['Sales Operator', 'Lead enrichment', 'Review'],
+                  ['Security Sentinel', 'Policy inspection', 'Healthy'],
+                  ['Operations Coordinator', 'Vendor reconciliation', 'Queued'],
+                ].map(([agent, task, state]) => (
+                  <div key={agent} className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-blue-300/20 bg-blue-400/[0.08] text-blue-200">
+                      <Bot className="h-5 w-5" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-white">{agent}</p>
+                      <p className="truncate text-xs text-white/38">{task}</p>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-white/[0.035] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">{state}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="relative px-6 py-20">
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold md:text-4xl">Built for autonomous AI agents</h2>
-            <p className="mt-4 text-muted-foreground">
-              Every primitive you need to deploy, govern, and scale an AI workforce in production.
-            </p>
+      <section className="relative border-y border-white/[0.07] bg-white/[0.018] px-4 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="max-w-3xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Enterprise agent foundation</p>
+            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">Everything required to operate AI agents responsibly.</h2>
+            <p className="mt-5 text-base leading-7 text-white/50">D3VONN.IO combines execution, observability, orchestration, and governance so agent activity can become a dependable operating capability.</p>
           </div>
-          <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title, body }) => (
-              <article
-                key={title}
-                className="group relative rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl transition-all duration-300 hover:border-primary/40 hover:-translate-y-0.5"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
-                  <Icon className="h-5 w-5" />
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {capabilities.map(({ icon: Icon, title, body }) => (
+              <article key={title} className="rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-6 transition hover:-translate-y-0.5 hover:border-blue-300/22 hover:bg-blue-400/[0.04]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-300/20 bg-blue-400/[0.08] text-blue-200">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <h3 className="text-lg font-semibold">{title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+                <h3 className="mt-5 text-lg font-bold">{title}</h3>
+                <p className="mt-3 text-sm leading-6 text-white/46">{body}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Use cases */}
-      <section className="relative px-6 py-20">
-        <div className="mx-auto max-w-6xl">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold md:text-4xl">AI agents across every function</h2>
-            <p className="mt-4 text-muted-foreground">
-              From outbound sales to back-office ops — D3VONN agents replace repetitive work and
-              augment your team.
-            </p>
+      <section className="relative px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div className="lg:sticky lg:top-28">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Workforce roles</p>
+            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">One workforce. Specialized intelligence.</h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-white/50">Create clearly bounded agent roles, connect them to approved systems, and coordinate work through shared goals and governed handoffs.</p>
+            <Link to="/marketplace" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-blue-200 hover:text-white">
+              Explore workforce templates <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
           </div>
-          <div className="mt-12 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {useCases.map(([title, body]) => (
-              <div
-                key={title}
-                className="rounded-xl border border-white/10 bg-white/[0.02] p-5 backdrop-blur-xl"
-              >
-                <h3 className="text-base font-semibold text-primary">{title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{body}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {workforceRoles.map(([title, body], index) => (
+              <div key={title} className="rounded-[22px] border border-white/[0.08] bg-white/[0.025] p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-200/45">Role {String(index + 1).padStart(2, '0')}</span>
+                  <Bot className="h-4 w-4 text-blue-200/55" aria-hidden="true" />
+                </div>
+                <h3 className="mt-4 text-base font-bold">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/44">{body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="relative px-6 py-20">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="text-center text-3xl font-bold md:text-4xl">Frequently asked questions</h2>
-          <div className="mt-10 space-y-4">
+      <section className="relative px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+        <div className="mx-auto grid max-w-7xl gap-8 rounded-[32px] border border-blue-300/15 bg-blue-400/[0.035] p-7 sm:p-10 lg:grid-cols-2">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Human-centered governance</p>
+            <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">Autonomy where it helps. Control where it matters.</h2>
+            <p className="mt-5 text-sm leading-7 text-white/50">Every agent can be scoped by role, policy, data access, action authority, and approval requirements. D3VONN.IO is designed to make execution visible—not mysterious.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {controlPoints.map((item) => (
+              <div key={item} className="flex items-start gap-3 rounded-2xl border border-white/[0.08] bg-black/15 p-4">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300/80" aria-hidden="true" />
+                <span className="text-sm leading-6 text-white/58">{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-center text-3xl font-black tracking-tight sm:text-4xl">AI Workforce questions</h2>
+          <div className="mt-8 space-y-3">
             {faqs.map(({ q, a }) => (
-              <details
-                key={q}
-                className="group rounded-xl border border-white/10 bg-white/[0.03] p-5 backdrop-blur-xl"
-              >
-                <summary className="cursor-pointer list-none text-base font-semibold text-foreground">
-                  {q}
-                </summary>
-                <p className="mt-3 text-sm text-muted-foreground">{a}</p>
+              <details key={q} className="group rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 open:border-blue-300/20 open:bg-blue-400/[0.04]">
+                <summary className="cursor-pointer list-none text-base font-semibold text-white">{q}</summary>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-white/48">{a}</p>
               </details>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="relative px-6 py-24">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-primary/30 bg-primary/5 p-10 text-center backdrop-blur-xl shadow-[0_0_60px_-10px_rgba(112,128,255,0.5)]">
-          <h2 className="text-3xl font-bold md:text-4xl">Ready to deploy your AI workforce?</h2>
-          <p className="mt-4 text-muted-foreground">
-            Launch D3VONN and run your first autonomous agent in minutes.
-          </p>
-          <Link
-            to="/app"
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-[0_0_40px_-8px_rgba(112,128,255,0.8)] transition hover:brightness-110"
-          >
-            Launch D3VONN <ArrowRight className="h-4 w-4" />
-          </Link>
+      <section className="relative px-4 pb-24 sm:px-6 lg:px-8">
+        <div className="d3-chrome-panel mx-auto max-w-5xl rounded-[32px] border border-blue-300/20 p-8 text-center sm:p-12">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">One Platform. Infinite Intelligence.</p>
+          <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">Start with one role. Scale into an intelligent workforce.</h2>
+          <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/50">Launch D3VONN.IO, define a governed objective, and supervise your first agent from the Command Center.</p>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <SmartLaunchLink authedTo="/app" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 text-sm font-semibold text-white shadow-[0_0_34px_rgba(37,126,255,0.38)] transition hover:bg-blue-400">
+              Launch D3VONN.IO <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </SmartLaunchLink>
+            <Link to="/contact" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/12 bg-white/[0.035] px-6 text-sm font-semibold text-white/75 transition hover:border-blue-300/25 hover:text-white">
+              Plan your AI workforce
+            </Link>
+          </div>
         </div>
       </section>
 
