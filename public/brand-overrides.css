@@ -1,23 +1,22 @@
-/* D3VONN.IO official brand asset routing — 2026-07-12 */
-img[src^="/d3vonn-logo.webp"] {
-  content: url('/d3vonn-main-logo.svg?v=20260712');
-  object-fit: contain;
-  object-position: center;
-  image-rendering: auto;
-}
-
-.d3vonn-main-brand-surface {
-  background:
-    radial-gradient(circle at 24% 45%, rgba(31, 150, 255, 0.28), transparent 34%),
-    linear-gradient(135deg, #010611 0%, #061a3b 50%, #01040b 100%);
-}
-
-.exu-brand-logo {
+/* D3VONN.IO sole master brand asset — 2026-07-13 */
+img[src^="/d3vonn-logo.webp"],
+img[src^="/d3vonn-main-logo.svg"] {
+  content: url('/d3vonn-main-logo.svg?v=20260713-main');
   display: block;
   width: 100%;
   height: auto;
+  max-width: 100%;
   object-fit: contain;
   object-position: center;
   image-rendering: auto;
-  filter: drop-shadow(0 0 26px rgba(37, 126, 255, 0.48));
+  filter: drop-shadow(0 0 22px rgba(37, 126, 255, 0.38));
+}
+
+.d3vonn-main-brand-surface {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 24% 45%, rgba(31, 150, 255, 0.28), transparent 34%),
+    linear-gradient(135deg, #010611 0%, #061a3b 50%, #01040b 100%);
 }
