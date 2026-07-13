@@ -1,5 +1,5 @@
 {
-  "buildCommand": "pnpm run build && node scripts/generate-route-html.mjs",
+  "buildCommand": "node scripts/generate-brand-assets.mjs && pnpm run build && node scripts/generate-route-html.mjs",
   "outputDirectory": "dist",
   "framework": "vite",
   "cleanUrls": true,
