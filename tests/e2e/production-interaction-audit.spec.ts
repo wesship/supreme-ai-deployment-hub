@@ -28,11 +28,17 @@ async function collectConsoleAndPageErrors(page: Page) {
   return errors;
 }
 
+async function waitForApplication(page: Page) {
+  await expect(page.locator('#root')).not.toBeEmpty({ timeout: 15_000 });
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
+}
+
 test.describe('D3VONN.IO production interaction audit', () => {
   for (const route of PUBLIC_ROUTES) {
     test(`${route} loads and exposes valid interactive controls`, async ({ page, request }) => {
       const runtimeErrors = await collectConsoleAndPageErrors(page);
       const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
+      await waitForApplication(page);
 
       expect(response, `${route} did not return a document response`).not.toBeNull();
       expect(response?.status(), `${route} returned an error status`).toBeLessThan(400);
@@ -87,6 +93,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
 
   test('homepage navigation links reach their intended destinations', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForApplication(page);
 
     const internalLinks = page.locator('a:visible[href^="/"]');
     const count = await internalLinks.count();
@@ -110,6 +117,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
   test('mobile header controls are reachable and do not sit beneath the EXU overlay', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForApplication(page);
 
     const buttons = page.locator('button:visible');
     const count = await buttons.count();
