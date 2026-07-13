@@ -54,9 +54,10 @@ docs/
 *.md
 !README.md
 
-# Scripts — exclude by default but preserve the production prerender generator
+# Scripts — exclude by default but preserve production generators
 scripts/*
 !scripts/generate-route-html.mjs
+!scripts/generate-brand-assets.mjs
 
 # Python
 __pycache__/
