@@ -5,6 +5,7 @@
   "cleanUrls": true,
   "installCommand": "corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile",
   "rewrites": [
+    { "source": "/d3vonn-logo.webp", "destination": "/d3vonn-main-logo.svg" },
     { "source": "/solutions", "destination": "/solutions.html" },
     { "source": "/pricing", "destination": "/pricing.html" },
     { "source": "/security", "destination": "/security.html" },
