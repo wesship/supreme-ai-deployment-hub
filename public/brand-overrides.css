@@ -1,6 +1,5 @@
 /* D3VONN.IO sole master brand asset — 2026-07-13 */
-img[src^="/d3vonn-logo.webp"],
-img[src^="/d3vonn-main-logo.svg"] {
+img[src^="/d3vonn-logo.webp"] {
   content: url('/d3vonn-main-logo.svg?v=20260713-main');
   display: block;
   width: 100%;
