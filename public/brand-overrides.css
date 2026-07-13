@@ -1,0 +1,23 @@
+/* D3VONN.IO official brand asset routing — 2026-07-12 */
+img[src^="/d3vonn-logo.webp"] {
+  content: url('/d3vonn-main-logo.svg?v=20260712');
+  object-fit: contain;
+  object-position: center;
+  image-rendering: auto;
+}
+
+.d3vonn-main-brand-surface {
+  background:
+    radial-gradient(circle at 24% 45%, rgba(31, 150, 255, 0.28), transparent 34%),
+    linear-gradient(135deg, #010611 0%, #061a3b 50%, #01040b 100%);
+}
+
+.exu-brand-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  image-rendering: auto;
+  filter: drop-shadow(0 0 26px rgba(37, 126, 255, 0.48));
+}
