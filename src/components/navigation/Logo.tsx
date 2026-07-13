@@ -10,9 +10,9 @@ const Logo: React.FC = () => {
     >
       <span className="pointer-events-none absolute -inset-3 rounded-2xl bg-blue-500/10 opacity-0 blur-xl transition duration-500 group-hover:opacity-100" />
       <img
-        src="/d3vonn-main-logo.svg?v=20260713-main"
-        alt="D3VONN.IO"
-        className="relative block h-12 w-auto max-w-[220px] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-14 sm:max-w-[280px]"
+        src="/d3vonn-main-logo.svg?v=20260714-approved"
+        alt="D3VONN.IO — One Platform. Infinite Intelligence."
+        className="relative block h-12 w-auto max-w-[235px] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-14 sm:max-w-[310px]"
         decoding="async"
         draggable={false}
       />
