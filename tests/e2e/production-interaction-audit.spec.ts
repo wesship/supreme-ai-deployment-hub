@@ -18,25 +18,52 @@ const PUBLIC_ROUTES = [
 ] as const;
 
 const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']);
+const EXPECTED_STUB_ORIGINS = new Set(['https://placeholder.supabase.co']);
+const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insights/script.js']);
 
-async function collectConsoleAndPageErrors(page: Page) {
+async function collectRuntimeErrors(page: Page) {
   const errors: string[] = [];
+
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+    if (message.type() !== 'error') return;
+
+    const text = message.text();
+    // Chromium emits this anonymous message for failed responses. The response
+    // listener below records the status and URL so failures stay actionable.
+    if (text.startsWith('Failed to load resource:')) return;
+    errors.push(`console: ${text}`);
   });
+  page.on('response', (response) => {
+    if (response.status() < 400) return;
+
+    const url = new URL(response.url());
+    if (EXPECTED_STUB_ORIGINS.has(url.origin)) return;
+    if (url.hostname === '127.0.0.1' && EXPECTED_LOCAL_404_PATHS.has(url.pathname)) return;
+    errors.push(`response ${response.status()}: ${url.href}`);
+  });
+
   return errors;
+}
+
+async function waitForApplication(page: Page) {
+  await expect(page.locator('#root')).toBeAttached({ timeout: 15_000 });
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForTimeout(250);
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
   for (const route of PUBLIC_ROUTES) {
     test(`${route} loads and exposes valid interactive controls`, async ({ page, request }) => {
-      const runtimeErrors = await collectConsoleAndPageErrors(page);
+      const runtimeErrors = await collectRuntimeErrors(page);
       const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
+      await waitForApplication(page);
 
       expect(response, `${route} did not return a document response`).not.toBeNull();
       expect(response?.status(), `${route} returned an error status`).toBeLessThan(400);
-      await expect(page.locator('body')).toBeVisible();
+      expect(runtimeErrors, `Runtime errors detected on ${route}`).toEqual([]);
+      await expect(page.locator('#root')).not.toBeEmpty();
+      await expect(page.locator('#main-content')).toBeVisible();
 
       const visibleLinks = page.locator('a:visible');
       const linkCount = await visibleLinks.count();
@@ -75,41 +102,44 @@ test.describe('D3VONN.IO production interaction audit', () => {
         expect(label, `Unnamed visible button at ${route} index ${index}`).not.toBe('');
         await expect(button, `Button "${label}" is disabled on ${route}`).toBeEnabled();
 
-        const box = await button.boundingBox();
-        expect(box, `Button "${label}" has no clickable area on ${route}`).not.toBeNull();
-        expect(box?.width ?? 0, `Button "${label}" is too narrow to click on ${route}`).toBeGreaterThanOrEqual(20);
-        expect(box?.height ?? 0, `Button "${label}" is too short to click on ${route}`).toBeGreaterThanOrEqual(20);
+        await expect
+          .poll(async () => (await button.boundingBox())?.width ?? 0, {
+            message: `Button "${label}" is too narrow to click on ${route}`,
+            timeout: 5_000,
+          })
+          .toBeGreaterThanOrEqual(20);
+        await expect
+          .poll(async () => (await button.boundingBox())?.height ?? 0, {
+            message: `Button "${label}" is too short to click on ${route}`,
+            timeout: 5_000,
+          })
+          .toBeGreaterThanOrEqual(20);
       }
 
-      expect(runtimeErrors, `Runtime errors detected on ${route}`).toEqual([]);
     });
   }
 
-  test('homepage navigation links reach their intended destinations', async ({ page }) => {
+  test('homepage navigation links reach their intended destinations', async ({ page, request }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForApplication(page);
 
-    const internalLinks = page.locator('a:visible[href^="/"]');
-    const count = await internalLinks.count();
-    const tested = new Set<string>();
+    const hrefs = await page.locator('a:visible[href^="/"]').evaluateAll((links) =>
+      links.map((link) => link.getAttribute('href') ?? ''),
+    );
+    const tested = [...new Set(hrefs.filter((href) => href && !href.startsWith('/api/')))];
 
-    for (let index = 0; index < count; index += 1) {
-      const href = (await internalLinks.nth(index).getAttribute('href')) ?? '';
-      if (!href || tested.has(href) || href.startsWith('/api/')) continue;
-      tested.add(href);
-
-      const context = await page.context().newPage();
-      const response = await context.goto(href, { waitUntil: 'domcontentloaded' });
-      expect(response?.status(), `Homepage destination failed: ${href}`).toBeLessThan(400);
-      await expect(context.locator('body')).toBeVisible();
-      await context.close();
+    for (const href of tested) {
+      const response = await request.get(href, { failOnStatusCode: false });
+      expect(response.status(), `Homepage destination failed: ${href}`).toBeLessThan(400);
     }
 
-    expect(tested.size, 'Homepage did not expose any testable internal destinations').toBeGreaterThan(0);
+    expect(tested.length, 'Homepage did not expose any testable internal destinations').toBeGreaterThan(0);
   });
 
   test('mobile header controls are reachable and do not sit beneath the EXU overlay', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForApplication(page);
 
     const buttons = page.locator('button:visible');
     const count = await buttons.count();

@@ -26,7 +26,7 @@ const HomepageCTAGroup = ({
   <div className={cn('flex flex-col gap-3 sm:flex-row', className)}>
     <SmartLaunchLink
       authedTo="/app"
-      className="d3-command-surface inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 py-3 font-semibold text-white shadow-[0_0_38px_rgba(37,126,255,0.45)] transition hover:bg-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:ring-offset-2 focus-visible:ring-offset-[#010611]"
+      className="d3-command-surface inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 py-3 font-semibold text-white shadow-[0_0_38px_rgba(37,126,255,0.45)] transition hover:bg-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 focus-visible:ring-offset-2 focus-visible:ring-offset-[#010611]"
     >
       <Command className="h-4 w-4" aria-hidden="true" />
       {primaryLabel}

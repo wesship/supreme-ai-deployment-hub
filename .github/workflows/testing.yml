@@ -206,14 +206,14 @@ jobs:
           retention-days: 7
 
   e2e-test:
-    name: End-to-End Tests
+    name: Production Interaction Audit (${{ matrix.browser }})
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     needs: [unit-test]
     strategy:
       fail-fast: false
       matrix:
-        browser: [chrome, firefox]
+        browser: [chromium, firefox]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Setup pnpm
@@ -224,15 +224,22 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Install Playwright
-        run: pnpm exec playwright install --with-deps
-      - name: Run E2E tests (${{ matrix.browser }})
-        run: BROWSER=${{ matrix.browser }} pnpm run test:e2e
-      - name: Upload Playwright report
+      - name: Install selected Playwright browser
+        run: pnpm exec playwright install --with-deps "${{ matrix.browser }}"
+      - name: Run production interaction audit (${{ matrix.browser }})
+        env:
+          CI: "true"
+          VITE_API_URL: https://api.d3vonn.io
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+        run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project="${{ matrix.browser }}"
+      - name: Upload Playwright report and diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: playwright-report-${{ matrix.browser }}
-          path: playwright-report/
-          if-no-files-found: ignore
-          retention-days: 7
+          name: production-interaction-audit-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14

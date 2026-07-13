@@ -135,7 +135,7 @@ const AIAgents: React.FC = () => {
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <SmartLaunchLink
                 authedTo="/app"
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 text-sm font-semibold text-white shadow-[0_0_36px_rgba(37,126,255,0.38)] transition hover:bg-blue-400"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white shadow-[0_0_36px_rgba(37,126,255,0.38)] transition hover:bg-blue-600"
               >
                 Launch your workforce <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </SmartLaunchLink>
@@ -292,7 +292,7 @@ const AIAgents: React.FC = () => {
           <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">Start with one role. Scale into an intelligent workforce.</h2>
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-white/50">Launch D3VONN.IO, define a governed objective, and supervise your first agent from the Command Center.</p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <SmartLaunchLink authedTo="/app" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-6 text-sm font-semibold text-white shadow-[0_0_34px_rgba(37,126,255,0.38)] transition hover:bg-blue-400">
+            <SmartLaunchLink authedTo="/app" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white shadow-[0_0_34px_rgba(37,126,255,0.38)] transition hover:bg-blue-600">
               Launch D3VONN.IO <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </SmartLaunchLink>
             <Link to="/contact" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/12 bg-white/[0.035] px-6 text-sm font-semibold text-white/75 transition hover:border-blue-300/25 hover:text-white">

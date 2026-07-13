@@ -43,8 +43,9 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
     <div className="space-y-4">
       {/* Search Bar */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
+          aria-label="Search marketplace agents"
           placeholder="Search agents..."
           value={filters.search || ''}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value || undefined })}
@@ -103,8 +104,9 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
 
         {/* Sort Dropdown */}
         <div className="flex items-center gap-2 ml-auto">
-          <span className="text-xs text-muted-foreground">Sort by:</span>
+          <label htmlFor="marketplace-sort" className="text-xs text-muted-foreground">Sort by:</label>
           <select
+            id="marketplace-sort"
             value={filters.sortBy || 'popular'}
             onChange={(e) => onFiltersChange({ ...filters, sortBy: e.target.value as FilterType['sortBy'] })}
             className="text-xs bg-background border border-border rounded-md px-2 py-1 focus:border-primary/50 focus:outline-none"

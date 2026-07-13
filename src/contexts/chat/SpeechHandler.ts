@@ -41,7 +41,7 @@ export class SpeechHandler {
 
   private initSpeechRecognition() {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      console.error('Speech recognition not supported in this browser');
+      // Unsupported feature detection is expected on browsers such as Firefox.
       return;
     }
 
