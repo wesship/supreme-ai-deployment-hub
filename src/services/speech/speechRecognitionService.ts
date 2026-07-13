@@ -21,7 +21,7 @@ export class SpeechRecognitionService {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (!SpeechRecognition) {
-        console.error('Speech recognition not supported in this browser');
+        // Unsupported feature detection is expected on browsers such as Firefox.
         return;
       }
 
