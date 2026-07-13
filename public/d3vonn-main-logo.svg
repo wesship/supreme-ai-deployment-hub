@@ -1,36 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1663 620" role="img" aria-labelledby="title desc">
-  <title id="title">D3VONN.IO</title>
-  <desc id="desc">Official chrome-blue D3VONN.IO landscape logo with a winged futuristic helmet.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1170 389" role="img" aria-labelledby="title desc">
+  <title id="title">D3VONN.IO — One Platform. Infinite Intelligence.</title>
+  <desc id="desc">Official approved D3VONN.IO chrome-blue winged helmet landscape logo with the One Platform. Infinite Intelligence. slogan.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#010511"/><stop offset=".5" stop-color="#03122f"/><stop offset="1" stop-color="#01030a"/></linearGradient>
-    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d9fbff"/><stop offset=".16" stop-color="#39d8ff"/><stop offset=".42" stop-color="#0869ed"/><stop offset=".75" stop-color="#071e75"/><stop offset="1" stop-color="#bcefff"/></linearGradient>
-    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffffff"/><stop offset=".15" stop-color="#8fa2b8"/><stop offset=".34" stop-color="#f9fdff"/><stop offset=".55" stop-color="#273544"/><stop offset=".76" stop-color="#e7f5ff"/><stop offset="1" stop-color="#6b7d91"/></linearGradient>
-    <filter id="glow"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <filter id="shadow"><feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#168cff" flood-opacity=".75"/></filter>
-    <pattern id="grid" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" stroke="#0b4c9a" stroke-width=".6" opacity=".22"/></pattern>
+    <linearGradient id="sloganPanel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#020816" stop-opacity="0.98"/>
+      <stop offset="0.5" stop-color="#061735" stop-opacity="0.99"/>
+      <stop offset="1" stop-color="#020816" stop-opacity="0.98"/>
+    </linearGradient>
+    <filter id="textGlow" x="-20%" y="-50%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-  <rect width="1663" height="620" rx="28" fill="url(#bg)"/>
-  <rect width="1663" height="620" rx="28" fill="url(#grid)"/>
-  <g fill="none" stroke="#1187ff" opacity=".6">
-    <path d="M45 86h340l54 42h1090l82 74v292l-54 54H415l-62 34H45" stroke-width="3"/>
-    <path d="M610 42h260l42 38h255l38-32h350" stroke-width="2"/>
-    <path d="M594 564h415l32-28h460" stroke-width="2"/>
-  </g>
-  <circle cx="258" cy="300" r="244" fill="none" stroke="#117cff" stroke-width="2" opacity=".45"/>
-  <circle cx="258" cy="300" r="205" fill="none" stroke="#40d7ff" stroke-width="2" stroke-dasharray="9 15" opacity=".38"/>
-  <g filter="url(#shadow)">
-    <rect x="74" y="88" width="382" height="450" rx="24" fill="#020817" stroke="url(#chrome)" stroke-width="8"/>
-    <path d="M173 138l90-62 96 54 55 116-34 182-102 72-104-67-43-176Z" fill="url(#blue)" stroke="url(#chrome)" stroke-width="10"/>
-    <path d="M196 222l76-38 76 35-21 62H213Z" fill="#02050d" stroke="#bcefff" stroke-width="7"/>
-    <path d="M212 252h101" stroke="#e7fbff" stroke-width="17" stroke-linecap="round" filter="url(#glow)"/>
-    <path d="M173 322l101 29 91-33-22 122-68 50-73-48Z" fill="#082566" stroke="url(#chrome)" stroke-width="8"/>
-    <path d="M359 197l94-108 31 7-55 101 93-73 36 11-92 97 111-52 31 21-135 112-51-24Z" fill="url(#blue)" stroke="url(#chrome)" stroke-width="7"/>
-    <path d="M383 172l82-63m-60 93l104-73m-80 103l119-74m-95 110l133-67" stroke="#dff8ff" stroke-width="5" opacity=".75"/>
-  </g>
-  <g filter="url(#shadow)">
-    <text x="535" y="330" font-family="Arial Black,Inter,Arial,sans-serif" font-size="174" font-weight="900" letter-spacing="-7" fill="url(#chrome)" stroke="#d4f5ff" stroke-width="2">D3VONN.IO</text>
-  </g>
-  <line x1="590" y1="393" x2="790" y2="393" stroke="#2bd1ff" stroke-width="3"/>
-  <line x1="1395" y1="393" x2="1550" y2="393" stroke="#2bd1ff" stroke-width="3"/>
-  <text x="820" y="411" font-family="Inter,Arial,sans-serif" font-size="38" font-weight="700" letter-spacing="8" fill="#83d8ff">ONE PLATFORM. INFINITE INTELLIGENCE.</text>
+  <image href="/d3vonn-logo.webp?v=20260714-approved" x="0" y="0" width="1170" height="389" preserveAspectRatio="xMidYMid meet"/>
+  <rect x="326" y="224" width="812" height="118" rx="8" fill="url(#sloganPanel)"/>
+  <line x1="370" y1="252" x2="515" y2="252" stroke="#40cfff" stroke-width="2" opacity="0.8"/>
+  <line x1="948" y1="252" x2="1093" y2="252" stroke="#40cfff" stroke-width="2" opacity="0.8"/>
+  <text x="732" y="292" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="31" font-weight="700" letter-spacing="3.2" fill="#eaf8ff" filter="url(#textGlow)">ONE PLATFORM. INFINITE INTELLIGENCE.</text>
 </svg>
