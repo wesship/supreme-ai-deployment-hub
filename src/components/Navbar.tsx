@@ -115,7 +115,7 @@ const Navbar = ({
 
               <SmartLaunchLink
                 authedTo="/app"
-                className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-500 px-4 text-sm font-semibold text-white shadow-[0_0_26px_rgba(37,126,255,0.34)] transition hover:bg-blue-400 hover:shadow-[0_0_36px_rgba(37,126,255,0.48)] sm:inline-flex"
+                className="hidden min-h-11 items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 text-sm font-semibold text-white shadow-[0_0_26px_rgba(37,126,255,0.34)] transition hover:bg-blue-600 hover:shadow-[0_0_36px_rgba(37,126,255,0.48)] sm:inline-flex"
               >
                 <Command className="h-4 w-4" aria-hidden="true" />
                 Launch App
