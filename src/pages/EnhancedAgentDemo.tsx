@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Send, Sparkles, Brain, Mic, Settings } from 'lucide-react';
 import LLMSelector from '@/components/llm/LLMSelector';
 import VoiceInterface from '@/components/voice/VoiceInterface';
-import { LLMConfig, LLMMessage, LLMResponse } from '@/types/llm';
+import { LLMConfig, LLMMessage } from '@/types/llm';
 import { UnifiedLLMClient } from '@/services/llm/client';
 import { toast } from 'sonner';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
@@ -17,8 +17,7 @@ const EnhancedAgentDemo = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
-  const [elevenlabsApiKey, setElevenlabsApiKey] = useState('');
-  
+
   const [llmConfig, setLLMConfig] = useState<LLMConfig>({
     provider: 'openai',
     model: 'gpt-4.1-2025-04-14',
@@ -56,7 +55,6 @@ const EnhancedAgentDemo = () => {
     setCurrentResponse('');
 
     try {
-      // Stream the response
       await llmClient.streamResponse(
         allMessages,
         llmConfig,
@@ -81,11 +79,11 @@ const EnhancedAgentDemo = () => {
   };
 
   const handleTestProviders = async () => {
-    const testMessage = "Say hello and briefly describe your capabilities.";
-    
+    const testMessage = 'Say hello and briefly describe your capabilities.';
+
     for (const provider of ['openai', 'anthropic', 'google']) {
       if (!llmConfig.apiKey && provider !== 'huggingface') continue;
-      
+
       try {
         const config = {
           ...llmConfig,
@@ -145,7 +143,6 @@ const EnhancedAgentDemo = () => {
           </TabsList>
 
           <TabsContent value="chat" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Chat Interface */}
             <div className="lg:col-span-2">
               <Card className="h-[600px] flex flex-col">
                 <CardHeader className="pb-3">
@@ -157,15 +154,11 @@ const EnhancedAgentDemo = () => {
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">{llmConfig.provider}</Badge>
                       <Badge variant="outline">{llmConfig.model}</Badge>
-                      <Button variant="outline" size="sm" onClick={clearConversation}>
-                        Clear
-                      </Button>
+                      <Button variant="outline" size="sm" onClick={clearConversation}>Clear</Button>
                     </div>
                   </div>
                 </CardHeader>
-                
                 <CardContent className="flex-1 flex flex-col">
-                  {/* Messages */}
                   <div className="flex-1 overflow-y-auto space-y-4 mb-4">
                     {messages.length === 0 && (
                       <div className="text-center text-muted-foreground py-8">
@@ -173,25 +166,13 @@ const EnhancedAgentDemo = () => {
                         <p>Start a conversation with your AI assistant</p>
                       </div>
                     )}
-                    
                     {messages.map((message, index) => (
-                      <div
-                        key={index}
-                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-[80%] p-3 rounded-lg ${
-                            message.role === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
-                          }`}
-                        >
+                      <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] p-3 rounded-lg ${message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                           <p className="whitespace-pre-wrap">{message.content}</p>
                         </div>
                       </div>
                     ))}
-                    
-                    {/* Current streaming response */}
                     {currentResponse && (
                       <div className="flex justify-start">
                         <div className="max-w-[80%] p-3 rounded-lg bg-muted">
@@ -205,8 +186,6 @@ const EnhancedAgentDemo = () => {
                       </div>
                     )}
                   </div>
-                  
-                  {/* Input */}
                   <div className="flex gap-2">
                     <Textarea
                       value={inputMessage}
@@ -221,11 +200,7 @@ const EnhancedAgentDemo = () => {
                         }
                       }}
                     />
-                    <Button 
-                      onClick={handleSendMessage}
-                      disabled={!inputMessage.trim() || isLoading}
-                      size="icon"
-                    >
+                    <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isLoading} size="icon">
                       <Send className="h-4 w-4" />
                     </Button>
                   </div>
@@ -233,38 +208,20 @@ const EnhancedAgentDemo = () => {
               </Card>
             </div>
 
-            {/* Quick Actions */}
             <div className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Quick Actions</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <Button 
-                    onClick={handleTestProviders}
-                    variant="outline" 
-                    className="w-full"
-                    disabled={isLoading}
-                  >
-                    Test All Providers
-                  </Button>
-                  
+                  <Button onClick={handleTestProviders} variant="outline" className="w-full" disabled={isLoading}>Test All Providers</Button>
                   <div className="space-y-2">
                     <h4 className="text-sm font-medium">Quick Prompts</h4>
                     {[
-                      "Explain quantum computing simply",
-                      "Write a Python function to sort a list",
-                      "What are the latest AI trends?",
-                      "Help me plan a weekend trip"
+                      'Explain quantum computing simply',
+                      'Write a Python function to sort a list',
+                      'What are the latest AI trends?',
+                      'Help me plan a weekend trip',
                     ].map((prompt, index) => (
-                      <Button
-                        key={index}
-                        variant="ghost"
-                        size="sm"
-                        className="w-full text-left justify-start h-auto p-2"
-                        onClick={() => setInputMessage(prompt)}
-                        disabled={isLoading}
-                      >
+                      <Button key={index} variant="ghost" size="sm" className="w-full text-left justify-start h-auto p-2" onClick={() => setInputMessage(prompt)} disabled={isLoading}>
                         <p className="text-xs truncate">{prompt}</p>
                       </Button>
                     ))}
@@ -279,54 +236,28 @@ const EnhancedAgentDemo = () => {
           </TabsContent>
 
           <TabsContent value="voice">
-            <VoiceInterface 
-              apiKey={elevenlabsApiKey}
-              onApiKeyChange={setElevenlabsApiKey}
-            />
+            <VoiceInterface />
           </TabsContent>
 
           <TabsContent value="tools">
             <Card>
-              <CardHeader>
-                <CardTitle>Advanced Tools</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Advanced Tools</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Card className="p-4">
-                    <h3 className="font-medium mb-2">Memory Systems</h3>
-                    <p className="text-sm text-muted-foreground">Persistent conversation memory and context management</p>
-                    <Badge className="mt-2">Coming Soon</Badge>
-                  </Card>
-                  
-                  <Card className="p-4">
-                    <h3 className="font-medium mb-2">Function Calling</h3>
-                    <p className="text-sm text-muted-foreground">Custom tools and API integrations</p>
-                    <Badge className="mt-2">Coming Soon</Badge>
-                  </Card>
-                  
-                  <Card className="p-4">
-                    <h3 className="font-medium mb-2">Quantization</h3>
-                    <p className="text-sm text-muted-foreground">Model optimization for edge deployment</p>
-                    <Badge className="mt-2">Coming Soon</Badge>
-                  </Card>
-                  
-                  <Card className="p-4">
-                    <h3 className="font-medium mb-2">Multi-modal</h3>
-                    <p className="text-sm text-muted-foreground">Image and document processing</p>
-                    <Badge className="mt-2">Coming Soon</Badge>
-                  </Card>
-                  
-                  <Card className="p-4">
-                    <h3 className="font-medium mb-2">n8n Integration</h3>
-                    <p className="text-sm text-muted-foreground">Workflow automation and MCP support</p>
-                    <Badge className="mt-2">Coming Soon</Badge>
-                  </Card>
-                  
-                  <Card className="p-4">
-                    <h3 className="font-medium mb-2">Agent Marketplace</h3>
-                    <p className="text-sm text-muted-foreground">Share and discover AI agents</p>
-                    <Badge className="mt-2">Coming Soon</Badge>
-                  </Card>
+                  {[
+                    ['Memory Systems', 'Persistent conversation memory and context management'],
+                    ['Function Calling', 'Custom tools and API integrations'],
+                    ['Quantization', 'Model optimization for edge deployment'],
+                    ['Multi-modal', 'Image and document processing'],
+                    ['n8n Integration', 'Workflow automation and MCP support'],
+                    ['Agent Marketplace', 'Share and discover AI agents'],
+                  ].map(([title, description]) => (
+                    <Card className="p-4" key={title}>
+                      <h3 className="font-medium mb-2">{title}</h3>
+                      <p className="text-sm text-muted-foreground">{description}</p>
+                      <Badge className="mt-2">Coming Soon</Badge>
+                    </Card>
+                  ))}
                 </div>
               </CardContent>
             </Card>
