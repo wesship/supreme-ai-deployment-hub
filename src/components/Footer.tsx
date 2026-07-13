@@ -72,7 +72,7 @@ const Footer = ({ className }: FooterProps) => {
           <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
             <SmartLaunchLink
               authedTo="/app"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-500 px-5 text-sm font-semibold text-white shadow-[0_0_34px_rgba(37,126,255,0.38)] transition hover:bg-blue-400"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 text-sm font-semibold text-white shadow-[0_0_34px_rgba(37,126,255,0.38)] transition hover:bg-blue-600"
             >
               Launch D3VONN.IO <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </SmartLaunchLink>
