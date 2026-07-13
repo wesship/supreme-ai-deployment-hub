@@ -59,6 +59,7 @@ jobs:
           # axe-core CLI uses --save for JSON output (--output-file not supported)
           axe http://localhost:4173 \
             --tags wcag2a,wcag2aa,wcag21aa \
+            --load-delay 1000 \
             --save axe-results.json || true
         continue-on-error: true
 
