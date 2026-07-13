@@ -1,8 +1,16 @@
 {
-  "standard": "WCAG2AA",
+  "defaults": {
+    "standard": "WCAG2AA",
+    "timeout": 30000,
+    "wait": 750,
+    "chromeLaunchConfig": {
+      "args": [
+        "--no-sandbox",
+        "--disable-setuid-sandbox"
+      ]
+    }
+  },
   "reporter": "cli",
-  "timeout": 30000,
-  "wait": 750,
   "urls": [
     "http://localhost:4173/",
     "http://localhost:4173/solutions",
@@ -18,11 +26,5 @@
     "http://localhost:4173/contact",
     "http://localhost:4173/terms",
     "http://localhost:4173/privacy"
-  ],
-  "chromeLaunchConfig": {
-    "args": [
-      "--no-sandbox",
-      "--disable-setuid-sandbox"
-    ]
-  }
+  ]
 }
