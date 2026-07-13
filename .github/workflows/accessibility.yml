@@ -81,7 +81,8 @@ jobs:
           ")
           echo "Violations found: $VIOLATIONS"
           if [ "$VIOLATIONS" -gt "0" ]; then
-            echo "::warning::$VIOLATIONS WCAG 2.1 AA violations detected. See axe-results.json artifact for details."
+            echo "::error::$VIOLATIONS WCAG 2.1 AA violations detected. See axe-results.json artifact for details."
+            exit 1
           fi
 
       - name: Upload axe results
@@ -96,8 +97,6 @@ jobs:
     name: pa11y WCAG 2.1 Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: axe-audit
-
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
@@ -125,7 +124,5 @@ jobs:
         run: npx wait-on http://localhost:4173 --timeout 30000
 
       - name: Run pa11y-ci
-        # pa11y-ci reads standard/reporter/urls from .pa11yci config file
-        # --standard and --reporter are NOT valid CLI flags for pa11y-ci (they are pa11y flags)
+        # pa11y-ci reads standard/reporter/urls from .pa11yci config file.
         run: pa11y-ci --config .pa11yci
-        continue-on-error: true
