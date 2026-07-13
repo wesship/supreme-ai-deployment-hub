@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500" role="img" aria-labelledby="title desc">
+  <title id="title">D3VONN.IO — One Platform Infinite Intelligence</title>
+  <desc id="desc">Chrome-blue D3VONN.IO landscape mark with a winged Hermes intelligence helmet.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#020713"/><stop offset=".52" stop-color="#061b3d"/><stop offset="1" stop-color="#01040b"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dff8ff"/><stop offset=".18" stop-color="#43d8ff"/><stop offset=".5" stop-color="#0867e8"/><stop offset=".8" stop-color="#0a2d91"/><stop offset="1" stop-color="#d9f7ff"/></linearGradient>
+    <linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".18" stop-color="#8194aa"/><stop offset=".38" stop-color="#fff"/><stop offset=".62" stop-color="#263444"/><stop offset=".82" stop-color="#e8f5ff"/><stop offset="1" stop-color="#64788f"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="shadow"><feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#168cff" flood-opacity=".7"/></filter>
+  </defs>
+  <rect width="1600" height="500" rx="34" fill="url(#bg)"/>
+  <path d="M40 250C40 90 170 35 310 35h1235v430H310C170 465 40 410 40 250Z" fill="none" stroke="#138cff" stroke-width="3" opacity=".75"/>
+  <path d="M540 116h920l60 55v205l-60 28H540" fill="none" stroke="#45c8ff" stroke-width="3" opacity=".75"/>
+  <circle cx="260" cy="250" r="195" fill="none" stroke="#138cff" stroke-width="2" opacity=".45"/>
+  <circle cx="260" cy="250" r="160" fill="none" stroke="#42d8ff" stroke-width="2" stroke-dasharray="8 14" opacity=".38"/>
+  <g filter="url(#shadow)">
+    <rect x="78" y="62" width="355" height="376" rx="25" fill="#030a18" stroke="url(#chrome)" stroke-width="7"/>
+    <path d="M210 106l68-35 73 48 39 92-34 166-82 47-88-58-32-151Z" fill="url(#blue)" stroke="url(#chrome)" stroke-width="9"/>
+    <path d="M225 175l49-25 54 26-18 45h-75Z" fill="#02060d" stroke="#aeeeff" stroke-width="6"/>
+    <path d="M235 199h66" stroke="#d9fbff" stroke-width="14" stroke-linecap="round" filter="url(#glow)"/>
+    <path d="M206 252l74 20 66-25-17 104-52 35-57-42Z" fill="#092365" stroke="url(#chrome)" stroke-width="7"/>
+    <path d="M356 164l70-64 25 6-46 78 75-50 28 9-76 75 88-37 22 16-111 80-37-18Z" fill="url(#blue)" stroke="url(#chrome)" stroke-width="6"/>
+  </g>
+  <g filter="url(#shadow)">
+    <text x="545" y="285" font-family="Arial Black,Arial,sans-serif" font-size="176" font-weight="900" letter-spacing="-8" fill="url(#chrome)" stroke="#bcefff" stroke-width="2">D3VONN.IO</text>
+  </g>
+  <line x1="590" y1="354" x2="760" y2="354" stroke="#25cfff" stroke-width="3"/>
+  <line x1="1378" y1="354" x2="1510" y2="354" stroke="#25cfff" stroke-width="3"/>
+  <text x="785" y="371" font-family="Arial,Helvetica,sans-serif" font-size="42" font-weight="700" letter-spacing="10" fill="#aeeaff">ONE PLATFORM  INFINITE INTELLIGENCE</text>
+</svg>
