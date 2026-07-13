@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node scripts/generate-brand-assets.mjs && pnpm run build && node scripts/generate-route-html.mjs",
+  "buildCommand": "pnpm run vercel-build",
   "outputDirectory": "dist",
   "framework": "vite",
   "cleanUrls": true,

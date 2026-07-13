@@ -54,8 +54,9 @@ docs/
 *.md
 !README.md
 
-# Scripts — exclude by default but preserve production generators
+# Scripts — exclude by default but preserve production build scripts
 scripts/*
+!scripts/verify-build-scripts.mjs
 !scripts/generate-route-html.mjs
 !scripts/generate-brand-assets.mjs
 
