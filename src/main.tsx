@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App.tsx';
-import ExuBrandOverlay from './components/brand/ExuBrandOverlay';
 import './index.css';
 import './styles/d3vonn-new-ui.css';
 
@@ -30,7 +29,6 @@ createRoot(rootElement).render(
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <App />
-        <ExuBrandOverlay />
       </QueryClientProvider>
     </HelmetProvider>
   </StrictMode>
