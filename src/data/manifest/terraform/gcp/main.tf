@@ -4,12 +4,35 @@ provider "google" {
   region      = var.gcp_region
 }
 
-# ----------------------------------------------------
-# Google Cloud Storage Bucket
-# ----------------------------------------------------
+resource "google_storage_bucket" "logs" {
+  name                        = "devonn-ai-${var.environment}-access-logs"
+  location                    = var.gcp_region
+  uniform_bucket_level_access = true
+
+  versioning {
+    enabled = true
+  }
+
+  labels = {
+    environment = var.environment
+    purpose     = "access-logs"
+    terraform   = "true"
+  }
+}
+
 resource "google_storage_bucket" "example" {
-  name     = "devonn-ai-${var.environment}-bucket"
-  location = var.gcp_region
+  name                        = "devonn-ai-${var.environment}-bucket"
+  location                    = var.gcp_region
+  uniform_bucket_level_access = true
+
+  versioning {
+    enabled = true
+  }
+
+  logging {
+    log_bucket        = google_storage_bucket.logs.name
+    log_object_prefix = "storage-access/"
+  }
 
   labels = {
     environment = var.environment
@@ -17,66 +40,62 @@ resource "google_storage_bucket" "example" {
   }
 }
 
-# ----------------------------------------------------
-# Google Compute Engine Instance (Backend)
-# ----------------------------------------------------
 resource "google_compute_instance" "backend" {
   name         = "devonn-ai-${var.environment}-backend"
   machine_type = var.instance_type
   zone         = var.gcp_zone
 
-  # Boot disk configuration
   boot_disk {
     initialize_params {
       image = var.gcp_image
     }
   }
 
-  # Tags
   tags = ["devonn-ai"]
 
-  # Metadata
   metadata = {
-    environment = var.environment
+    environment               = var.environment
+    block-project-ssh-keys    = "true"
+    enable-oslogin            = "true"
   }
 
-  # Network interface block (Required)
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
+  }
+
   network_interface {
-    network = "default" # Default VPC
-    access_config {     # Required for an external IP address
-      // No external IP if you don't want it
-    }
+    network = "default"
   }
 }
 
-# ----------------------------------------------------
-# Google Compute Engine Instance (Frontend)
-# ----------------------------------------------------
 resource "google_compute_instance" "frontend" {
   name         = "devonn-ai-${var.environment}-frontend"
   machine_type = var.instance_type
   zone         = var.gcp_zone
 
-  # Boot disk configuration
   boot_disk {
     initialize_params {
       image = var.gcp_image
     }
   }
 
-  # Tags
   tags = ["devonn-ai"]
 
-  # Metadata
   metadata = {
-    environment = var.environment
+    environment               = var.environment
+    block-project-ssh-keys    = "true"
+    enable-oslogin            = "true"
   }
 
-  # Network interface block (Required)
+  shielded_instance_config {
+    enable_secure_boot          = true
+    enable_vtpm                 = true
+    enable_integrity_monitoring = true
+  }
+
   network_interface {
-    network = "default" # Default VPC
-    access_config {     # Required for an external IP address
-      // No external IP if you don't want it
-    }
+    network = "default"
   }
 }
