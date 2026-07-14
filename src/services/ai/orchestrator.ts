@@ -60,7 +60,9 @@ Current platform status: Production deployment active at d3vonn.io via Vercel fr
 
 // ─── Proxy endpoint ────────────────────────────────────────────────────────────
 // All LLM calls go through the server-side proxy. The backend holds OPENAI_API_KEY.
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.d3vonn.io')
+  .replace(/\/+$/, '')
+  .replace(/\/api$/, '');
 const CHAT_PROXY_URL = `${API_BASE}/api/chat`;
 
 /**
