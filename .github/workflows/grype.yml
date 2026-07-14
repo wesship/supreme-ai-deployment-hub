@@ -1,0 +1,53 @@
+name: Grype Vulnerability Scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'backend/requirements*.txt'
+      - '.github/workflows/grype.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'backend/requirements*.txt'
+      - '.github/workflows/grype.yml'
+  schedule:
+    - cron: '30 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+concurrency:
+  group: grype-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Scan repository dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Run Grype
+        uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
+        with:
+          path: '.'
+          fail-build: true
+          severity-cutoff: high
+          output-format: sarif
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: results.sarif
+          category: grype
