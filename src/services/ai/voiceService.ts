@@ -228,7 +228,12 @@ function startAssemblyAIListening(
       if (!token) throw new Error('The speech service returned no temporary token.');
       if (stopped) return;
 
-      ws = new WebSocket(`wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&token=${encodeURIComponent(token)}`);
+      const params = new URLSearchParams({
+        sample_rate: '16000',
+        speech_model: 'universal-3-pro',
+        token,
+      });
+      ws = new WebSocket(`wss://streaming.assemblyai.com/v3/ws?${params.toString()}`);
       ws.binaryType = 'arraybuffer';
       ws.onmessage = (event) => {
         try {
