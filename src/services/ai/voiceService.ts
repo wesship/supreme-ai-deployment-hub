@@ -1,7 +1,7 @@
 /**
  * D3VONN.IO voice service.
  * TTS: ElevenLabs/OpenAI through the authenticated backend proxy.
- * STT: Web Speech API with authenticated AssemblyAI fallback.
+ * STT: Web Speech API with authenticated AssemblyAI v3 fallback.
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
@@ -42,6 +42,14 @@ type SpeechRecognitionInstance = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
+type AssemblyAITurnMessage = {
+  type?: string;
+  transcript?: string;
+  end_of_turn?: boolean;
+  turn_is_formatted?: boolean;
+  error?: string;
+};
+
 let currentAudio: HTMLAudioElement | null = null;
 let currentAudioUrl: string | null = null;
 let recognition: SpeechRecognitionInstance | null = null;
@@ -49,14 +57,10 @@ let fallbackStop: (() => void) | null = null;
 
 async function getAuthenticatedHeaders(): Promise<Record<string, string>> {
   const { supabase } = await import('@/integrations/supabase/client');
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
+  const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error('Your session has expired. Sign in again to use voice services.');
   }
-
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${session.access_token}`,
@@ -65,7 +69,6 @@ async function getAuthenticatedHeaders(): Promise<Record<string, string>> {
 
 export async function speak(text: string, options: TTSOptions = {}): Promise<void> {
   stopSpeaking();
-
   const headers = await getAuthenticatedHeaders();
   const response = await fetch(`${API_BASE}/api/tools/voice/tts`, {
     method: 'POST',
@@ -81,29 +84,19 @@ export async function speak(text: string, options: TTSOptions = {}): Promise<voi
       },
     }),
   });
-
   if (!response.ok) {
     const detail = await response.text().catch(() => `HTTP ${response.status}`);
     throw new Error(`Voice playback failed (${response.status}): ${detail}`);
   }
-
   const audioBlob = await response.blob();
   if (!audioBlob.size) throw new Error('The voice service returned empty audio.');
-
   const audioUrl = URL.createObjectURL(audioBlob);
   currentAudioUrl = audioUrl;
-
   await new Promise<void>((resolve, reject) => {
     const audio = new Audio(audioUrl);
     currentAudio = audio;
-    audio.onended = () => {
-      cleanupAudio();
-      resolve();
-    };
-    audio.onerror = () => {
-      cleanupAudio();
-      reject(new Error('The browser could not play the generated audio.'));
-    };
+    audio.onended = () => { cleanupAudio(); resolve(); };
+    audio.onerror = () => { cleanupAudio(); reject(new Error('The browser could not play the generated audio.')); };
     audio.play().catch((error) => {
       cleanupAudio();
       reject(error instanceof Error ? error : new Error(String(error)));
@@ -138,7 +131,6 @@ export function startListening(
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
   };
   const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
-
   if (SpeechRecognitionAPI) {
     try {
       recognition = new SpeechRecognitionAPI();
@@ -160,26 +152,16 @@ export function startListening(
         recognition = null;
         onError?.(formatSpeechError(event.error));
       };
-      recognition.onend = () => {
-        recognition = null;
-        onEnd?.();
-      };
+      recognition.onend = () => { recognition = null; onEnd?.(); };
       recognition.start();
-      return () => {
-        recognition?.stop();
-        recognition = null;
-      };
+      return () => { recognition?.stop(); recognition = null; };
     } catch (error) {
       recognition = null;
       console.warn('[voiceService] Browser speech recognition failed; using AssemblyAI fallback.', error);
     }
   }
-
   fallbackStop = startAssemblyAIListening(onResult, onError, onEnd);
-  return () => {
-    fallbackStop?.();
-    fallbackStop = null;
-  };
+  return () => { fallbackStop?.(); fallbackStop = null; };
 }
 
 export function stopListening(): void {
@@ -213,7 +195,14 @@ function startAssemblyAIListening(
   let audioContext: AudioContext | null = null;
   let processor: ScriptProcessorNode | null = null;
   let stopped = false;
+  let ended = false;
 
+  const finish = () => {
+    if (ended) return;
+    ended = true;
+    fallbackStop = null;
+    onEnd?.();
+  };
   const cleanup = () => {
     processor?.disconnect();
     processor = null;
@@ -229,33 +218,38 @@ function startAssemblyAIListening(
     try {
       const headers = await getAuthenticatedHeaders();
       const tokenResp = await fetch(`${API_BASE}/api/tools/voice/stt-token`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ expires_in: 480 }),
+        method: 'POST', headers, body: JSON.stringify({ expires_in: 480 }),
       });
-
       if (!tokenResp.ok) {
         const detail = await tokenResp.text().catch(() => '');
         throw new Error(`Speech service unavailable (${tokenResp.status})${detail ? `: ${detail}` : ''}`);
       }
-
       const { token } = (await tokenResp.json()) as { token?: string };
       if (!token) throw new Error('The speech service returned no temporary token.');
       if (stopped) return;
 
-      ws = new WebSocket(`wss://api.assemblyai.com/v2/realtime/ws?sample_rate=16000&token=${encodeURIComponent(token)}`);
+      const params = new URLSearchParams({
+        sample_rate: '16000',
+        speech_model: 'universal-3-pro',
+        token,
+      });
+      ws = new WebSocket(`wss://streaming.assemblyai.com/v3/ws?${params.toString()}`);
+      ws.binaryType = 'arraybuffer';
       ws.onmessage = (event) => {
-        const message = JSON.parse(event.data) as { message_type?: string; text?: string };
-        if (!message.text) return;
-        if (message.message_type === 'PartialTranscript') onResult(message.text, false);
-        if (message.message_type === 'FinalTranscript') onResult(message.text, true);
+        try {
+          const message = JSON.parse(String(event.data)) as AssemblyAITurnMessage;
+          if (message.type === 'Error') {
+            onError?.(message.error || 'The speech transcription service returned an error.');
+            return;
+          }
+          if (message.type !== 'Turn' || !message.transcript) return;
+          onResult(message.transcript, Boolean(message.end_of_turn || message.turn_is_formatted));
+        } catch (error) {
+          console.warn('[voiceService] Ignored malformed AssemblyAI message.', error);
+        }
       };
       ws.onerror = () => onError?.('The speech transcription connection failed.');
-      ws.onclose = () => {
-        cleanup();
-        fallbackStop = null;
-        onEnd?.();
-      };
+      ws.onclose = () => { cleanup(); finish(); };
       ws.onopen = async () => {
         try {
           mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -276,19 +270,23 @@ function startAssemblyAIListening(
         } catch (error) {
           cleanup();
           onError?.(error instanceof Error ? error.message : String(error));
+          finish();
         }
       };
     } catch (error) {
       cleanup();
-      fallbackStop = null;
       onError?.(error instanceof Error ? error.message : String(error));
-      onEnd?.();
+      finish();
     }
   })();
 
   return () => {
     stopped = true;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'Terminate' }));
+    }
     cleanup();
+    finish();
   };
 }
 

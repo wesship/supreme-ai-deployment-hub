@@ -1,8 +1,6 @@
 """
-Devonn.ai Backend Proxy — /api/tools
-Secure proxy routes for voice (ElevenLabs TTS, AssemblyAI STT),
-GitHub CI/CD (workflow trigger, run status), and n8n workflow execution.
-All API keys are server-side only.
+D3VONN.IO backend proxy routes for voice, GitHub CI/CD, and n8n.
+All provider credentials remain server-side.
 """
 import logging
 from datetime import datetime, timezone
@@ -30,12 +28,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ─── Voice: TTS (ElevenLabs primary, OpenAI fallback) ────────────────────────
-
 @router.post(
     "/tools/voice/tts",
     summary="Text-to-Speech",
-    description="Convert text to speech. Uses ElevenLabs if configured, falls back to OpenAI TTS. Returns audio/mpeg binary.",
+    description="Convert text to speech with ElevenLabs or OpenAI fallback.",
     response_class=Response,
 )
 async def voice_tts(
@@ -45,7 +41,6 @@ async def voice_tts(
 ) -> Response:
     settings = get_settings()
 
-    # ── ElevenLabs path (preferred) ──────────────────────────────────────────
     if settings.elevenlabs_api_key:
         voice_id = request.voice_id or settings.elevenlabs_default_voice_id
         model = request.model or settings.elevenlabs_default_model
@@ -72,17 +67,16 @@ async def voice_tts(
         logger.info("voice_tts provider=elevenlabs user=%s chars=%d", user_id, len(request.text))
         return Response(content=resp.content, media_type="audio/mpeg")
 
-    # ── OpenAI TTS fallback ──────────────────────────────────────────────────
     if settings.openai_api_key:
-        # Map ElevenLabs voice names to OpenAI voices
         openai_voice_map = {
-            "21m00Tcm4TlvDq8ikWAM": "alloy",  # ElevenLabs default → OpenAI alloy
-            "9BWtsMINqrJLrRacOk9x": "nova",   # Aria → nova
-            "CwhRBWXzGAHq8TQ4Fs17": "echo",   # Roger → echo
-            "EXAVITQu4vr4xnSDxMaL": "shimmer", # Sarah → shimmer
+            "21m00Tcm4TlvDq8ikWAM": "alloy",
+            "9BWtsMINqrJLrRacOk9x": "nova",
+            "CwhRBWXzGAHq8TQ4Fs17": "echo",
+            "EXAVITQu4vr4xnSDxMaL": "shimmer",
         }
         openai_voice = openai_voice_map.get(
-            request.voice_id or settings.elevenlabs_default_voice_id, "alloy"
+            request.voice_id or settings.elevenlabs_default_voice_id,
+            "alloy",
         )
         payload = {
             "model": "tts-1",
@@ -104,23 +98,25 @@ async def voice_tts(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"OpenAI TTS error {resp.status_code}: {resp.text[:300]}",
             )
-        logger.info("voice_tts provider=openai user=%s chars=%d voice=%s", user_id, len(request.text), openai_voice)
+        logger.info(
+            "voice_tts provider=openai user=%s chars=%d voice=%s",
+            user_id,
+            len(request.text),
+            openai_voice,
+        )
         return Response(content=resp.content, media_type="audio/mpeg")
 
-    # ── No TTS provider configured ───────────────────────────────────────────
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="TTS service not configured (set ELEVENLABS_API_KEY or OPENAI_API_KEY on server)",
     )
 
 
-# ─── Voice: AssemblyAI STT Token ─────────────────────────────────────────────
-
 @router.post(
     "/tools/voice/stt-token",
     response_model=STTTokenResponse,
     summary="AssemblyAI STT Temporary Token",
-    description="Issue a short-lived AssemblyAI token for real-time transcription in the browser.",
+    description="Issue a short-lived AssemblyAI v3 streaming token for browser transcription.",
 )
 async def voice_stt_token(
     request: STTTokenRequest,
@@ -128,21 +124,21 @@ async def voice_stt_token(
     _rate: None = Depends(rate_limit(20)),
 ) -> STTTokenResponse:
     settings = get_settings()
-
     if not settings.assemblyai_api_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="STT service not configured (ASSEMBLYAI_API_KEY missing on server)",
         )
 
+    expires_in_seconds = max(1, min(request.expires_in, 600))
     async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.post(
-            "https://api.assemblyai.com/v2/realtime/token",
-            json={"expires_in": request.expires_in},
-            headers={
-                "Authorization": settings.assemblyai_api_key,
-                "Content-Type": "application/json",
+        resp = await client.get(
+            "https://streaming.assemblyai.com/v3/token",
+            params={
+                "expires_in_seconds": expires_in_seconds,
+                "max_session_duration_seconds": 3600,
             },
+            headers={"Authorization": settings.assemblyai_api_key},
         )
 
     if resp.status_code != 200:
@@ -152,17 +148,19 @@ async def voice_stt_token(
         )
 
     token = resp.json().get("token", "")
-    logger.info("voice_stt_token user=%s expires_in=%d", user_id, request.expires_in)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AssemblyAI returned no temporary streaming token",
+        )
+    logger.info("voice_stt_token provider=assemblyai_v3 user=%s expires_in=%d", user_id, expires_in_seconds)
     return STTTokenResponse(token=token)
 
-
-# ─── GitHub: Trigger Workflow ─────────────────────────────────────────────────
 
 @router.post(
     "/tools/github/workflows/trigger",
     response_model=GitHubWorkflowTriggerResponse,
-    summary="GitHub Actions Workflow Trigger",
-    description="Trigger a GitHub Actions workflow dispatch event on the configured repo.",
+    summary="GitHub Workflow Trigger",
 )
 async def github_trigger_workflow(
     request: GitHubWorkflowTriggerRequest,
@@ -170,7 +168,6 @@ async def github_trigger_workflow(
     _rate: None = Depends(rate_limit(10)),
 ) -> GitHubWorkflowTriggerResponse:
     settings = get_settings()
-
     if not settings.github_token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -178,7 +175,6 @@ async def github_trigger_workflow(
         )
 
     url = f"https://api.github.com/repos/{settings.github_repo}/actions/workflows/{request.workflow}/dispatches"
-
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(
             url,
@@ -189,7 +185,6 @@ async def github_trigger_workflow(
                 "X-GitHub-Api-Version": "2022-11-28",
             },
         )
-
     if resp.status_code not in (200, 204):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -205,13 +200,10 @@ async def github_trigger_workflow(
     )
 
 
-# ─── GitHub: Workflow Run Status ──────────────────────────────────────────────
-
 @router.get(
     "/tools/github/runs/status",
     response_model=GitHubRunsStatusResponse,
-    summary="GitHub Actions Run Status",
-    description="Fetch recent workflow run statuses from the configured repo.",
+    summary="GitHub Workflow Run Status",
 )
 async def github_runs_status(
     workflow: str | None = None,
@@ -220,31 +212,27 @@ async def github_runs_status(
     _rate: None = Depends(rate_limit(30)),
 ) -> GitHubRunsStatusResponse:
     settings = get_settings()
-
     if not settings.github_token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitHub CI/CD not configured (GITHUB_TOKEN missing on server)",
         )
 
-    if workflow:
-        url = f"https://api.github.com/repos/{settings.github_repo}/actions/workflows/{workflow}/runs"
-    else:
-        url = f"https://api.github.com/repos/{settings.github_repo}/actions/runs"
-
-    params = {"per_page": min(limit, 50)}
-
+    url = (
+        f"https://api.github.com/repos/{settings.github_repo}/actions/workflows/{workflow}/runs"
+        if workflow
+        else f"https://api.github.com/repos/{settings.github_repo}/actions/runs"
+    )
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.get(
             url,
-            params=params,
+            params={"per_page": min(limit, 50)},
             headers={
                 "Authorization": f"Bearer {settings.github_token}",
                 "Accept": "application/vnd.github+json",
                 "X-GitHub-Api-Version": "2022-11-28",
             },
         )
-
     if resp.status_code != 200:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -255,25 +243,21 @@ async def github_runs_status(
     runs_raw = data.get("workflow_runs", [])
     runs = [
         WorkflowRun(
-            name=r.get("name", ""),
-            status=r.get("status", ""),
-            conclusion=r.get("conclusion"),
-            created_at=r.get("created_at", ""),
-            url=r.get("html_url", ""),
+            name=item.get("name", ""),
+            status=item.get("status", ""),
+            conclusion=item.get("conclusion"),
+            created_at=item.get("created_at", ""),
+            url=item.get("html_url", ""),
         )
-        for r in runs_raw[:limit]
+        for item in runs_raw[:limit]
     ]
-
     return GitHubRunsStatusResponse(runs=runs, total=data.get("total_count", len(runs)))
 
-
-# ─── n8n: Execute Workflow ────────────────────────────────────────────────────
 
 @router.post(
     "/tools/n8n/execute",
     response_model=N8NExecuteResponse,
     summary="n8n Workflow Execution",
-    description="Trigger an n8n workflow by name via the n8n REST API.",
 )
 async def n8n_execute(
     request: N8NExecuteRequest,
@@ -281,7 +265,6 @@ async def n8n_execute(
     _rate: None = Depends(rate_limit(20)),
 ) -> N8NExecuteResponse:
     settings = get_settings()
-
     if not settings.n8n_api_key or not settings.n8n_base_url:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -289,16 +272,13 @@ async def n8n_execute(
         )
 
     ts = datetime.now(timezone.utc).isoformat()
-
     try:
-        # First, find the workflow ID by name
         async with httpx.AsyncClient(timeout=15.0) as client:
             list_resp = await client.get(
                 f"{settings.n8n_base_url}/api/v1/workflows",
                 headers={"X-N8N-API-KEY": settings.n8n_api_key},
                 params={"name": request.workflow_name},
             )
-
         if list_resp.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -306,8 +286,7 @@ async def n8n_execute(
             )
 
         workflows = list_resp.json().get("data", [])
-        matched = [w for w in workflows if w.get("name") == request.workflow_name]
-
+        matched = [item for item in workflows if item.get("name") == request.workflow_name]
         if not matched:
             return N8NExecuteResponse(
                 success=False,
@@ -317,8 +296,6 @@ async def n8n_execute(
             )
 
         workflow_id = matched[0]["id"]
-
-        # Execute the workflow
         async with httpx.AsyncClient(timeout=30.0) as client:
             exec_resp = await client.post(
                 f"{settings.n8n_base_url}/api/v1/workflows/{workflow_id}/execute",
@@ -328,7 +305,6 @@ async def n8n_execute(
                     "Content-Type": "application/json",
                 },
             )
-
         if exec_resp.status_code not in (200, 201):
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -338,7 +314,6 @@ async def n8n_execute(
         result = exec_resp.json()
         logger.info("n8n_execute user=%s workflow=%s id=%s", user_id, request.workflow_name, workflow_id)
         return N8NExecuteResponse(success=True, workflow=request.workflow_name, result=result, timestamp=ts)
-
     except HTTPException:
         raise
     except Exception as exc:
