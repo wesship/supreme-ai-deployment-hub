@@ -1,0 +1,47 @@
+name: Checkov Infrastructure Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/data/manifest/terraform/**'
+      - '.github/workflows/checkov.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/data/manifest/terraform/**'
+      - '.github/workflows/checkov.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: checkov-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Scan Terraform configurations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@803f802e15372b44bfa1045780e9427936ab2f5b
+        with:
+          directory: src/data/manifest/terraform
+          framework: terraform
+          soft_fail: false
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+
+      - name: Upload Checkov SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: checkov-results.sarif
+          category: checkov
