@@ -11,7 +11,6 @@ import {
   stopSpeaking,
 } from '../../services/ai/voiceService';
 import { speak as speakBrowser } from '../../services/speech/speechSynthesisService';
-import ConversationalVoiceControls from './ConversationalVoiceControls';
 
 interface VoiceControlsProps {
   lastAssistantMessage?: string;
@@ -20,13 +19,18 @@ interface VoiceControlsProps {
   isStreaming?: boolean;
 }
 
-export const VoiceControls: React.FC<VoiceControlsProps> = (props) => {
-  const elevenLabsAgentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID?.trim();
-  if (elevenLabsAgentId) {
-    return <ConversationalVoiceControls disabled={props.isStreaming} />;
-  }
-  return <LegacyVoiceControls {...props} />;
-};
+/**
+ * Resilient voice controls.
+ *
+ * The standard microphone and read-aloud controls remain available regardless
+ * of whether an ElevenLabs conversational agent ID is configured. This avoids
+ * replacing the working browser/backend voice path with a single provider-only
+ * button that can fail when the remote agent is private, unavailable, or
+ * misconfigured.
+ */
+export const VoiceControls: React.FC<VoiceControlsProps> = (props) => (
+  <LegacyVoiceControls {...props} />
+);
 
 const LegacyVoiceControls: React.FC<VoiceControlsProps> = ({
   lastAssistantMessage,
