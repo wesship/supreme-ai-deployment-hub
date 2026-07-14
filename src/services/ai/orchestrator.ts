@@ -59,8 +59,10 @@ When users ask about deployments, agents, workflows, or infrastructure — you h
 Current platform status: Production deployment active at d3vonn.io via Vercel frontend and Railway-backed API service.`;
 
 // ─── Proxy endpoint ────────────────────────────────────────────────────────────
-// All LLM calls go through the server-side proxy. The backend holds OPENAI_API_KEY.
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
+// Accept either an origin-only value or a legacy value ending in /api.
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.d3vonn.io')
+  .replace(/\/+$/, '')
+  .replace(/\/api$/, '');
 const CHAT_PROXY_URL = `${API_BASE}/api/chat`;
 
 /**
@@ -115,7 +117,12 @@ async function* streamProxy(
     return;
   }
 
-  const reader = response.body!.getReader();
+  if (!response.body) {
+    yield { delta: '', done: true, error: 'Proxy response contained no stream body.' };
+    return;
+  }
+
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
 
