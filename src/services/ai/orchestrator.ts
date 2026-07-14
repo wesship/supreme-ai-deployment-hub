@@ -58,19 +58,15 @@ When users ask about deployments, agents, workflows, or infrastructure — you h
 
 Current platform status: Production deployment active at d3vonn.io via Vercel frontend and Railway-backed API service.`;
 
-// ─── Proxy endpoint ────────────────────────────────────────────────────────────
-// All LLM calls go through the server-side proxy. The backend holds OPENAI_API_KEY.
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
+// Normalize both supported deployment values:
+//   https://api.d3vonn.io
+//   https://api.d3vonn.io/api
+// Route constants append their own canonical /api prefix.
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.d3vonn.io')
+  .replace(/\/+$/, '')
+  .replace(/\/api$/, '');
 const CHAT_PROXY_URL = `${API_BASE}/api/chat`;
 
-/**
- * Stream a chat response via the api.d3vonn.io proxy (SSE).
- * The proxy forwards to OpenAI (or other providers) using server-side secrets.
- *
- * Expected SSE format from proxy:
- *   data: {"delta":"token","done":false,"provider":"openai","model":"gpt-4.1-mini"}
- *   data: {"delta":"","done":true,"provider":"openai","model":"gpt-4.1-mini"}
- */
 async function* streamProxy(
   messages: ChatMessage[],
   config: OrchestratorConfig
@@ -87,9 +83,7 @@ async function* streamProxy(
   try {
     const { data: { session } } = await (await import('@/integrations/supabase/client')).supabase.auth.getSession();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
-    }
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
     response = await fetch(CHAT_PROXY_URL, {
       method: 'POST',
@@ -115,7 +109,12 @@ async function* streamProxy(
     return;
   }
 
-  const reader = response.body!.getReader();
+  if (!response.body) {
+    yield { delta: '', done: true, error: 'Proxy response contained no stream body.' };
+    return;
+  }
+
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
 
@@ -132,7 +131,6 @@ async function* streamProxy(
       const trimmed = line.trim();
       if (!trimmed) continue;
 
-      // Handle OpenAI-compatible SSE format
       if (trimmed === 'data: [DONE]') {
         yield { delta: '', done: true, provider, model };
         return;
@@ -141,8 +139,6 @@ async function* streamProxy(
       if (trimmed.startsWith('data: ')) {
         try {
           const json = JSON.parse(trimmed.slice(6));
-
-          // Devonn proxy format: { delta, done, provider, model }
           if ('delta' in json) {
             if (json.done) {
               yield { delta: '', done: true, provider: json.provider || provider, model: json.model || model };
@@ -154,13 +150,10 @@ async function* streamProxy(
             continue;
           }
 
-          // OpenAI passthrough format: { choices: [{ delta: { content } }] }
           const delta = json.choices?.[0]?.delta?.content || '';
-          if (delta) {
-            yield { delta, done: false, provider, model };
-          }
+          if (delta) yield { delta, done: false, provider, model };
         } catch {
-          // skip malformed chunks
+          // Ignore malformed SSE chunks and continue streaming.
         }
       }
     }
@@ -169,32 +162,23 @@ async function* streamProxy(
   yield { delta: '', done: true, provider, model };
 }
 
-/**
- * Main orchestrator: routes through server-side proxy with RAG injection.
- */
 export async function* streamChat(
   messages: ChatMessage[],
   config: OrchestratorConfig = {}
 ): AsyncGenerator<StreamChunk> {
-  // ── RAG: retrieve relevant context for the latest user message ──────────
   let ragContext = '';
   if (config.useRAG !== false && isRAGAvailable()) {
-    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    if (lastUserMsg) {
-      ragContext = await retrieveContext(lastUserMsg.content);
-    }
+    const lastUserMsg = [...messages].reverse().find((message) => message.role === 'user');
+    if (lastUserMsg) ragContext = await retrieveContext(lastUserMsg.content);
   }
 
-  // Build system prompt — inject RAG context when available
   const systemContent = ragContext
     ? `${DEVONN_SYSTEM_PROMPT}\n\n---\n\n## Retrieved Context (from your document store)\n\nThe following excerpts are relevant to the user's question. Use them to inform your response:\n\n${ragContext}\n\n---`
     : DEVONN_SYSTEM_PROMPT;
 
-  // Prepend system prompt if not already present
-  const fullMessages: ChatMessage[] =
-    messages[0]?.role === 'system'
-      ? [{ role: 'system', content: systemContent }, ...messages.slice(1)]
-      : [{ role: 'system', content: systemContent }, ...messages];
+  const fullMessages: ChatMessage[] = messages[0]?.role === 'system'
+    ? [{ role: 'system', content: systemContent }, ...messages.slice(1)]
+    : [{ role: 'system', content: systemContent }, ...messages];
 
   try {
     yield* streamProxy(fullMessages, config);
@@ -203,9 +187,6 @@ export async function* streamChat(
   }
 }
 
-/**
- * Non-streaming single response (for simple use cases)
- */
 export async function chatOnce(
   messages: ChatMessage[],
   config: OrchestratorConfig = {}
