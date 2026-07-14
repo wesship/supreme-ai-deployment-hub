@@ -28,6 +28,11 @@ FROM node:22-slim AS frontend-builder
 
 WORKDIR /app
 
+# Puppeteer is present as a development/transitive dependency, but the
+# production frontend build does not execute browser tests. Avoid downloading
+# Chrome into the minimal builder image during dependency installation.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
