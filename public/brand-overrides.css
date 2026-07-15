@@ -1,14 +1,25 @@
-/* D3VONN.IO sole master brand asset — 2026-07-13 */
+/* D3VONN.IO official uploaded logo — preserve the original artwork exactly. */
 img[src^="/d3vonn-logo.webp"] {
-  content: url('/d3vonn-main-logo.svg?v=20260713-main');
   display: block;
-  width: 100%;
-  height: auto;
   max-width: 100%;
   object-fit: contain;
   object-position: center;
   image-rendering: auto;
   filter: drop-shadow(0 0 22px rgba(37, 126, 255, 0.38));
+}
+
+/* Make the official logo fill the homepage intelligence-core display clearly. */
+img[alt="D3VONN.IO D3 Core"] {
+  width: 100% !important;
+  height: 100% !important;
+  padding: clamp(0.5rem, 2vw, 1.25rem);
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+/* Remove the old Core 01 badge from the logo display. */
+img[alt="D3VONN.IO D3 Core"] ~ span:first-of-type {
+  display: none !important;
 }
 
 .d3vonn-main-brand-surface {
