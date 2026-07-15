@@ -97,7 +97,7 @@ jobs:
 
   build:
     name: Production Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 20
     needs: [typecheck-and-lint, test]
     steps:
