@@ -80,6 +80,17 @@ const AIFilms = () => {
     return () => window.clearTimeout(timer);
   }, [showIntro]);
 
+  useEffect(() => {
+    const studioRoot = document.getElementById('openmontage-studio-anchor');
+    const nestedSearch = studioRoot?.querySelector<HTMLInputElement>(
+      'input[placeholder="Search films, topics, or series"]',
+    );
+
+    if (nestedSearch && !nestedSearch.hasAttribute('aria-label')) {
+      nestedSearch.setAttribute('aria-label', 'Search OpenMontage films, topics, or series');
+    }
+  }, []);
+
   const visibleMovies = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return movies.filter((movie) => {
@@ -99,7 +110,7 @@ const AIFilms = () => {
   };
 
   const scrollToStudio = () => {
-    document.getElementById('openmontage-studio')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('openmontage-studio-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
@@ -282,7 +293,7 @@ const AIFilms = () => {
           )}
         </div>
 
-        <div id="openmontage-studio" className="scroll-mt-24 border-t border-border/70">
+        <div id="openmontage-studio-anchor" className="scroll-mt-24 border-t border-border/70">
           <FilmPage />
         </div>
       </section>
