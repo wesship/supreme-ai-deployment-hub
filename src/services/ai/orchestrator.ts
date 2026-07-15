@@ -117,7 +117,12 @@ async function* streamProxy(
     return;
   }
 
-  const reader = response.body!.getReader();
+  if (!response.body) {
+    yield { delta: '', done: true, error: 'Proxy response contained no stream body.' };
+    return;
+  }
+
+  const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
 
