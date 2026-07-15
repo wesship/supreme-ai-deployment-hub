@@ -1,6 +1,6 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-15 09:59 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-15 10:31 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
@@ -8,7 +8,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 
 **Total Workflows:** 123  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-15 09:59 UTC
+**Last Updated:** 2026-07-15 10:31 UTC
 
 ## Workflow Capability Catalog
 
@@ -21,11 +21,11 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Accessibility CI | `accessibility.yml` |  | 2 |
 | Artifact Provenance & Signing (Manual Only) | `artifact-provenance.yml` |  | 1 |
 | Auto Merge Safe PRs | `auto-merge.yml` |  | 1 |
-| Automated Billing Reconciliation | `billing-reconciliation.yml` |  | 1 |
 | Automated Dependency Upgrade | `auto-dependency-upgrade.yml` |  | 2 |
 | Automated Threat Intelligence | `threat-intelligence.yml` |  | 4 |
 | Autonomous Remediation | `autonomous-remediation.yml` |  | 1 |
 | Azure Container Apps CI/CD | `azure-container-apps-deploy.yml` |  | 1 |
+| Billing Reconciliation Audit (Manual Only) | `billing-reconciliation.yml` |  | 1 |
 | Bundle Size Check | `bundle-size.yml` |  | 1 |
 | CI - Hardened Build Pipeline | `build.yml` |  | 4 |
 | CI Auth Debugger | `ci-auth-debugger.yml` |  | 1 |
