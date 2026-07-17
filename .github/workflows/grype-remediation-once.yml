@@ -1,0 +1,65 @@
+name: One-shot Grype Dependency Remediation
+
+on:
+  push:
+    branches:
+      - security/grype-assurance
+    paths:
+      - '.github/workflows/grype-remediation-once.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: grype-remediation-once
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    name: Regenerate lockfile and validate fixes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout remediation branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: security/grype-assurance
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Regenerate dependency graph
+        run: pnpm update vite@6.4.3 form-data@4.0.6 --lockfile-only
+
+      - name: Validate frozen installation
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Commit exact dependency remediation
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo 'No dependency changes were generated.'
+            exit 1
+          fi
+          git commit -m 'fix(deps): remediate high severity Grype findings'
+          git push origin HEAD:security/grype-assurance
