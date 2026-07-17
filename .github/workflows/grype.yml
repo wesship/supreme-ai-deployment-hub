@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   security-events: write
 
 concurrency:
@@ -28,53 +28,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  remediate-branch:
-    name: Regenerate vulnerable dependency lock entries
-    if: github.event_name == 'pull_request' && github.head_ref == 'security/grype-assurance' && github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout remediation branch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: security/grype-assurance
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-        with:
-          version: 9.15.9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Regenerate dependency graph
-        run: pnpm update vite@6.4.3 form-data@4.0.6 --lockfile-only
-
-      - name: Validate frozen installation
-        run: pnpm install --frozen-lockfile
-
-      - name: Validate application
-        run: |
-          pnpm typecheck
-          pnpm test
-          pnpm build
-
-      - name: Commit generated remediation
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package.json pnpm-lock.yaml
-          if git diff --cached --quiet; then
-            echo 'Dependency graph already contains the fixed versions.'
-            exit 0
-          fi
-          git commit -m 'fix(deps): remediate high severity Grype findings'
-          git push origin HEAD:security/grype-assurance
-
   scan:
     name: Scan dependency SBOM
     runs-on: ubuntu-latest
