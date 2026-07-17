@@ -1,0 +1,36 @@
+name: GitHub Runner Canary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/runner-canary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu-latest:
+    name: ubuntu-latest canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm runner execution
+        run: |
+          echo "runner=$RUNNER_NAME"
+          echo "os=$RUNNER_OS"
+          echo "arch=$RUNNER_ARCH"
+          uname -a
+
+  ubuntu-2204:
+    name: ubuntu-22.04 canary
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Confirm runner execution
+        run: |
+          echo "runner=$RUNNER_NAME"
+          echo "os=$RUNNER_OS"
+          echo "arch=$RUNNER_ARCH"
+          uname -a
