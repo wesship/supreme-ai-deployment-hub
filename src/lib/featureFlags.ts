@@ -38,6 +38,7 @@ export const FLAG_DEFAULTS = {
   cost_dashboard:          false,  // Show AWS cost dashboard
   supabase_realtime:       true,   // Use Supabase realtime subscriptions
   lighthouse_score_badge:  false,  // Show Lighthouse score badge in header
+  ai_film_companion:       false,  // Keep the AI Film Companion hidden until controlled rollout
 } as const;
 
 export type FeatureFlagKey = keyof typeof FLAG_DEFAULTS;
