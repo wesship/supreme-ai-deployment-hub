@@ -20,8 +20,41 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Check Dependency Review availability
+        id: capability
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          endpoint="https://api.github.com/repos/${REPOSITORY}/dependency-graph/compare/${BASE_SHA}...${HEAD_SHA}"
+          status="$(curl --silent --show-error --output dependency-review-capability.json --write-out '%{http_code}' \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$endpoint")"
+
+          case "$status" in
+            200)
+              echo 'supported=true' >> "$GITHUB_OUTPUT"
+              ;;
+            403|404)
+              echo 'supported=false' >> "$GITHUB_OUTPUT"
+              echo "::notice::GitHub Dependency Review is unavailable (HTTP ${status}). Enable Dependency Graph and GitHub Advanced Security in repository security settings. Grype remains the blocking high/critical vulnerability gate."
+              ;;
+            *)
+              echo "::error::Dependency Review capability check failed with HTTP ${status}."
+              cat dependency-review-capability.json
+              exit 1
+              ;;
+          esac
+
       - name: Dependency Review
         id: review
+        if: steps.capability.outputs.supported == 'true'
         continue-on-error: true
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
         with:
@@ -34,7 +67,7 @@ jobs:
           retry-on-snapshot-warnings-timeout: 120
 
       - name: Persist dependency-review diagnostics
-        if: always()
+        if: always() && steps.capability.outputs.supported == 'true'
         shell: bash
         env:
           COMMENT_CONTENT: ${{ steps.review.outputs.comment-content }}
@@ -67,7 +100,7 @@ jobs:
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload dependency-review diagnostics
-        if: always()
+        if: always() && steps.capability.outputs.supported == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: dependency-review-diagnostics-${{ github.run_id }}
@@ -79,8 +112,18 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Enforce dependency-review result
-        if: steps.review.outcome == 'failure'
+      - name: Record unavailable capability
+        if: steps.capability.outputs.supported == 'false'
         run: |
-          echo '::error::Dependency Review action failed. See action log and diagnostics artifact.'
+          {
+            echo '## Dependency Review unavailable'
+            echo
+            echo 'GitHub Dependency Graph / Advanced Security is not enabled for this repository.'
+            echo 'The standalone Grype workflow remains the blocking high/critical vulnerability control.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce dependency-review result
+        if: steps.capability.outputs.supported == 'true' && steps.review.outcome == 'failure'
+        run: |
+          echo '::error::Dependency Review found a policy violation. See diagnostics artifact.'
           exit 1
