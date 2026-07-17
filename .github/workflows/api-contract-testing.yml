@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -50,17 +52,21 @@ jobs:
 
       - name: Check for breaking changes
         if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          git fetch origin "${{ github.base_ref }}" --depth=1
-          if git diff --quiet "origin/${{ github.base_ref }}...HEAD" -- api/openapi.yaml; then
+          git fetch origin "$BASE_SHA" "$HEAD_SHA" --no-tags
+          if git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- api/openapi.yaml; then
             echo "OpenAPI specification is unchanged; skipping breaking-change comparison"
             exit 0
           fi
 
-          git show "origin/${{ github.base_ref }}:api/openapi.yaml" > /tmp/base-openapi.yaml
+          git show "$BASE_SHA:api/openapi.yaml" > /tmp/base-openapi.yaml
+          git show "$HEAD_SHA:api/openapi.yaml" > /tmp/head-openapi.yaml
           npx --yes @optic/api-checks@0.6.2 compare \
             --from /tmp/base-openapi.yaml \
-            --to api/openapi.yaml \
+            --to /tmp/head-openapi.yaml \
             --check breaking-changes
 
   schema-completeness:
