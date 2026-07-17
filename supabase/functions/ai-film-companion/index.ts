@@ -11,6 +11,10 @@ Deno.serve(async (request) => {
   }
 
   try {
+    if (Deno.env.get('AI_FILM_COMPANION_ENABLED') !== 'true') {
+      return json({ error: 'FEATURE_DISABLED', message: 'The AI Film Companion is not enabled.' }, 503);
+    }
+
     const authorization = request.headers.get('Authorization');
     if (!authorization) {
       return json({ error: 'UNAUTHORIZED', message: 'Authorization is required.' }, 401);
