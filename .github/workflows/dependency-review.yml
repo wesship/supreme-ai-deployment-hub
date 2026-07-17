@@ -5,9 +5,9 @@ on:
     paths:
       - 'package.json'
       - 'pnpm-lock.yaml'
-      - 'requirements.txt'
-      - 'requirements-devonn.txt'
-      - 'backend/requirements.txt'
+      - 'requirements*.txt'
+      - 'backend/requirements*.txt'
+      - '.github/workflows/dependency-review.yml'
 
 permissions:
   contents: read
@@ -20,12 +20,55 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Dependency Review
+        id: review
+        continue-on-error: true
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
         with:
           fail-on-severity: high
           allow-ghsas: ''
           comment-summary-in-pr: always
           deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+          show-patched-versions: true
+          retry-on-snapshot-warnings: true
+          retry-on-snapshot-warnings-timeout: 120
+
+      - name: Publish dependency-review diagnostics
+        if: always()
+        shell: bash
+        env:
+          COMMENT_CONTENT: ${{ steps.review.outputs.comment-content }}
+          VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
+          INVALID_LICENSE_CHANGES: ${{ steps.review.outputs.invalid-license-changes }}
+          DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## Dependency Review diagnostics'
+            echo
+            echo "${COMMENT_CONTENT:-No summary returned.}"
+            echo
+            echo '### Vulnerable changes'
+            echo '```json'
+            printf '%s\n' "${VULNERABLE_CHANGES:-[]}" | jq .
+            echo '```'
+            echo '### Invalid license changes'
+            echo '```json'
+            printf '%s\n' "${INVALID_LICENSE_CHANGES:-[]}" | jq .
+            echo '```'
+            echo '### Denied changes'
+            echo '```json'
+            printf '%s\n' "${DENIED_CHANGES:-[]}" | jq .
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce dependency-review result
+        if: steps.review.outcome == 'failure'
+        run: |
+          echo '::error::Dependency Review found a policy violation. See diagnostics above.'
+          exit 1
