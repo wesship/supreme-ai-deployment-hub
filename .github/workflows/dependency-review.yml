@@ -38,7 +38,7 @@ jobs:
           retry-on-snapshot-warnings: true
           retry-on-snapshot-warnings-timeout: 120
 
-      - name: Publish dependency-review diagnostics
+      - name: Persist dependency-review diagnostics
         if: always()
         shell: bash
         env:
@@ -48,27 +48,44 @@ jobs:
           DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
         run: |
           set -euo pipefail
+          printf '%s\n' "${COMMENT_CONTENT:-No summary returned.}" > dependency-review-summary.md
+          printf '%s\n' "${VULNERABLE_CHANGES:-[]}" | jq . > dependency-review-vulnerable.json
+          printf '%s\n' "${INVALID_LICENSE_CHANGES:-[]}" | jq . > dependency-review-invalid-licenses.json
+          printf '%s\n' "${DENIED_CHANGES:-[]}" | jq . > dependency-review-denied.json
           {
             echo '## Dependency Review diagnostics'
             echo
-            echo "${COMMENT_CONTENT:-No summary returned.}"
+            cat dependency-review-summary.md
             echo
             echo '### Vulnerable changes'
             echo '```json'
-            printf '%s\n' "${VULNERABLE_CHANGES:-[]}" | jq .
+            cat dependency-review-vulnerable.json
             echo '```'
             echo '### Invalid license changes'
             echo '```json'
-            printf '%s\n' "${INVALID_LICENSE_CHANGES:-[]}" | jq .
+            cat dependency-review-invalid-licenses.json
             echo '```'
             echo '### Denied changes'
             echo '```json'
-            printf '%s\n' "${DENIED_CHANGES:-[]}" | jq .
+            cat dependency-review-denied.json
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload dependency-review diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: dependency-review-diagnostics-${{ github.run_id }}
+          path: |
+            dependency-review-summary.md
+            dependency-review-vulnerable.json
+            dependency-review-invalid-licenses.json
+            dependency-review-denied.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Enforce dependency-review result
         if: steps.review.outcome == 'failure'
         run: |
-          echo '::error::Dependency Review found a policy violation. See diagnostics above.'
+          echo '::error::Dependency Review found a policy violation. See diagnostics artifact.'
           exit 1
