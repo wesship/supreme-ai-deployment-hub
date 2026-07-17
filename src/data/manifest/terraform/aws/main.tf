@@ -58,6 +58,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "example" {
 
     filter {}
 
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
     noncurrent_version_transition {
       noncurrent_days = 30
       storage_class   = "STANDARD_IA"
