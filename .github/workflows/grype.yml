@@ -1,0 +1,72 @@
+name: Grype Vulnerability Assurance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'backend/requirements*.txt'
+      - '.github/workflows/grype.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'backend/requirements*.txt'
+      - '.github/workflows/grype.yml'
+  schedule:
+    - cron: '30 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: grype-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Scan repository dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Generate SARIF report
+        id: report
+        uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
+        with:
+          path: '.'
+          fail-build: false
+          severity-cutoff: negligible
+          output-format: sarif
+
+      - name: Preserve SARIF artifact
+        if: always() && steps.report.outputs.sarif != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: grype-sarif-${{ github.run_id }}
+          path: ${{ steps.report.outputs.sarif }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload SARIF to GitHub Security
+        if: always() && steps.report.outputs.sarif != ''
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: ${{ steps.report.outputs.sarif }}
+          category: grype
+
+      - name: Enforce high-severity threshold
+        uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
+        with:
+          path: '.'
+          fail-build: true
+          severity-cutoff: high
+          output-format: table
