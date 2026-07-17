@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   scan:
-    name: Scan repository dependencies
+    name: Scan dependency SBOM
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -38,11 +38,19 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Generate repository SBOM
+        uses: anchore/sbom-action@b1b13de3df818f1657380c7d558539b493c17f2b
+        with:
+          path: '.'
+          format: spdx-json
+          output-file: repository-sbom.spdx.json
+          upload-artifact: false
+
       - name: Generate SARIF report
         id: sarif
         uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
         with:
-          path: '.'
+          sbom: repository-sbom.spdx.json
           fail-build: false
           severity-cutoff: negligible
           output-format: sarif
@@ -51,7 +59,7 @@ jobs:
         id: json
         uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
         with:
-          path: '.'
+          sbom: repository-sbom.spdx.json
           fail-build: false
           severity-cutoff: negligible
           output-format: json
@@ -63,12 +71,9 @@ jobs:
           GRYPE_JSON: ${{ steps.json.outputs.json }}
         run: |
           python - <<'PY'
-          import json
-          import os
+          import json, os
           from pathlib import Path
-
-          report_path = Path(os.environ['GRYPE_JSON'])
-          payload = json.loads(report_path.read_text(encoding='utf-8'))
+          payload = json.loads(Path(os.environ['GRYPE_JSON']).read_text(encoding='utf-8'))
           rows = []
           for match in payload.get('matches', []):
               vulnerability = match.get('vulnerability', {})
@@ -76,34 +81,18 @@ jobs:
               if severity not in {'high', 'critical'}:
                   continue
               artifact = match.get('artifact', {})
-              fix = vulnerability.get('fix', {}) or {}
-              rows.append({
-                  'severity': severity.upper(),
-                  'package': artifact.get('name', 'unknown'),
-                  'installed': artifact.get('version', 'unknown'),
-                  'id': vulnerability.get('id', 'unknown'),
-                  'fixed': ', '.join(fix.get('versions', [])) or 'No fixed version reported',
-                  'location': ', '.join(
-                      location.get('path', '')
-                      for location in artifact.get('locations', [])
-                      if location.get('path')
-                  ) or 'unknown',
-              })
-
-          rows.sort(key=lambda row: (row['severity'] != 'CRITICAL', row['package'], row['id']))
+              fixes = (vulnerability.get('fix') or {}).get('versions', [])
+              rows.append((severity.upper(), artifact.get('name', 'unknown'), artifact.get('version', 'unknown'), vulnerability.get('id', 'unknown'), ', '.join(fixes) or 'No fixed version reported'))
+          rows.sort()
           output = Path('grype-high-findings.md')
           with output.open('w', encoding='utf-8') as handle:
               handle.write('## Grype high and critical findings\n\n')
               if not rows:
                   handle.write('No high or critical findings detected.\n')
               else:
-                  handle.write('| Severity | Package | Installed | Advisory | Fixed version | Location |\n')
-                  handle.write('|---|---|---:|---|---|---|\n')
+                  handle.write('| Severity | Package | Installed | Advisory | Fixed version |\n|---|---|---:|---|---|\n')
                   for row in rows:
-                      handle.write(
-                          f"| {row['severity']} | {row['package']} | {row['installed']} | "
-                          f"{row['id']} | {row['fixed']} | {row['location']} |\n"
-                      )
+                      handle.write('| ' + ' | '.join(row) + ' |\n')
           print(output.read_text(encoding='utf-8'))
           with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a', encoding='utf-8') as summary:
               summary.write(output.read_text(encoding='utf-8'))
@@ -116,6 +105,7 @@ jobs:
         with:
           name: grype-reports-${{ github.run_id }}
           path: |
+            repository-sbom.spdx.json
             ${{ steps.sarif.outputs.sarif }}
             ${{ steps.json.outputs.json }}
             grype-high-findings.md
@@ -134,7 +124,7 @@ jobs:
         if: always()
         uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
         with:
-          path: '.'
+          sbom: repository-sbom.spdx.json
           fail-build: true
           severity-cutoff: high
           output-format: table
