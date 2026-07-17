@@ -54,9 +54,9 @@ resource "google_compute_instance" "backend" {
   tags = ["devonn-ai"]
 
   metadata = {
-    environment               = var.environment
-    block-project-ssh-keys    = "true"
-    enable-oslogin            = "true"
+    environment            = var.environment
+    block-project-ssh-keys = "true"
+    enable-oslogin         = "true"
   }
 
   shielded_instance_config {
@@ -84,9 +84,9 @@ resource "google_compute_instance" "frontend" {
   tags = ["devonn-ai"]
 
   metadata = {
-    environment               = var.environment
-    block-project-ssh-keys    = "true"
-    enable-oslogin            = "true"
+    environment            = var.environment
+    block-project-ssh-keys = "true"
+    enable-oslogin         = "true"
   }
 
   shielded_instance_config {
