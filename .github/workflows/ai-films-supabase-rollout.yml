@@ -1,0 +1,92 @@
+name: AI Films Supabase Rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Deployment target
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+      mode:
+        description: Preview or apply changes
+        required: true
+        default: preview
+        type: choice
+        options: [preview, apply]
+      deploy_function:
+        description: Deploy ai-film-companion after migrations
+        required: true
+        default: false
+        type: boolean
+      confirmation:
+        description: Type APPLY_AI_FILMS for apply mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-films-supabase-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    name: ${{ inputs.mode }} AI Films on ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.target }}
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate requested operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_PROJECT_ID"
+          test -n "$SUPABASE_DB_PASSWORD"
+          if [[ "${{ inputs.mode }}" == "apply" && "${{ inputs.confirmation }}" != "APPLY_AI_FILMS" ]]; then
+            echo "::error::Apply mode requires confirmation value APPLY_AI_FILMS"
+            exit 1
+          fi
+          if [[ "${{ inputs.target }}" == "production" && "${{ inputs.mode }}" != "preview" ]]; then
+            echo "Production apply requires approval through the protected GitHub environment."
+          fi
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Link target project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Lint database schema
+        run: supabase db lint --linked --level warning
+
+      - name: Preview pending migrations
+        run: supabase db push --linked --dry-run --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply pending migrations
+        if: inputs.mode == 'apply'
+        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Deploy disabled Edge Function
+        if: inputs.mode == 'apply' && inputs.deploy_function
+        run: supabase functions deploy ai-film-companion --project-ref "$SUPABASE_PROJECT_ID" --use-api
+
+      - name: Rollout reminder
+        if: inputs.mode == 'apply'
+        run: |
+          echo "The function remains fail-closed unless AI_FILM_COMPANION_ENABLED=true is configured."
+          echo "Do not enable the remote ai_film_companion flag until RLS and retrieval tests pass."
