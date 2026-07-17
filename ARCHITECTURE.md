@@ -1,6 +1,6 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-17 18:13 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-17 18:44 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
@@ -8,7 +8,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 
 **Total Workflows:** 124  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-17 18:13 UTC
+**Last Updated:** 2026-07-17 18:44 UTC
 
 ## Workflow Capability Catalog
 
@@ -17,7 +17,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Workflow | File | Triggers | Jobs |
 |----------|------|----------|------|
 | A/B Testing Infrastructure | `ab-testing.yml` |  | 2 |
-| API Contract Testing | `api-contract-testing.yml` |  | 3 |
+| API Contract Testing | `api-contract-testing.yml` |  | 2 |
 | Accessibility CI | `accessibility.yml` |  | 2 |
 | Artifact Provenance & Signing (Manual Only) | `artifact-provenance.yml` |  | 1 |
 | Auto Merge Safe PRs | `auto-merge.yml` |  | 1 |
