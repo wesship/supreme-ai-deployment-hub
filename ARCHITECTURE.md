@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-17 18:44 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-17 22:58 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 124  
+**Total Workflows:** 125  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-17 18:44 UTC
+**Last Updated:** 2026-07-17 22:58 UTC
 
 ## Workflow Capability Catalog
 
@@ -54,6 +54,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Get Route53 NS Records | `get-route53-ns.yml` |  | 1 |
 | Governance Review | `hermes-gate.yml` |  | 1 |
 | Governance Review v3 | `hermes-v3-gate.yml` |  | 1 |
+| Grype Vulnerability Assurance | `grype.yml` |  | 1 |
 | Hermes Recency Sync Gate | `hermes-recency-sync.yml` |  | 1 |
 | Hermes VPS Readiness | `hermes-vps-readiness.yml` |  | 1 |
 | Incident Response & SLO Enforcement | `incident-response.yml` |  | 1 |
