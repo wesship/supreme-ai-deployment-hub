@@ -63,3 +63,5 @@ jobs:
           fi
           git commit -m 'fix(deps): remediate high severity Grype findings'
           git push origin HEAD:security/grype-assurance
+
+# Triggered after initial workflow registration.
