@@ -40,35 +40,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Run Grype
-        id: grype
+      - name: Generate Grype SARIF report
+        id: grype_report
+        uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
+        with:
+          path: '.'
+          fail-build: false
+          severity-cutoff: high
+          output-format: sarif
+
+      - name: Validate SARIF report
+        run: test -s "${{ steps.grype_report.outputs.sarif }}"
+
+      - name: Preserve Grype SARIF artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: grype-sarif-${{ github.run_id }}
+          path: ${{ steps.grype_report.outputs.sarif }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish SARIF to GitHub code scanning
         continue-on-error: true
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: ${{ steps.grype_report.outputs.sarif }}
+          category: grype
+
+      - name: Enforce high-severity vulnerability threshold
         uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
         with:
           path: '.'
           fail-build: true
           severity-cutoff: high
-          output-format: sarif
-
-      - name: Preserve Grype SARIF artifact
-        if: always() && steps.grype.outputs.sarif != ''
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: grype-sarif-${{ github.run_id }}
-          path: ${{ steps.grype.outputs.sarif }}
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish SARIF to GitHub code scanning
-        if: always() && steps.grype.outputs.sarif != ''
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
-        with:
-          sarif_file: ${{ steps.grype.outputs.sarif }}
-          category: grype
-
-      - name: Enforce Grype result
-        if: steps.grype.outcome == 'failure'
-        run: |
-          echo 'Grype reported high-severity findings or failed operationally. Review the preserved SARIF artifact and scanner logs.'
-          exit 1
+          output-format: table
