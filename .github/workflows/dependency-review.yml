@@ -20,11 +20,6 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-
       - name: Dependency Review
         id: review
         continue-on-error: true
@@ -87,5 +82,5 @@ jobs:
       - name: Enforce dependency-review result
         if: steps.review.outcome == 'failure'
         run: |
-          echo '::error::Dependency Review found a policy violation. See diagnostics artifact.'
+          echo '::error::Dependency Review action failed. See action log and diagnostics artifact.'
           exit 1
