@@ -33,11 +33,16 @@ jobs:
     name: Scan repository dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      GRYPE_DB_AUTO_UPDATE: 'true'
+      GRYPE_DB_MAX_ALLOWED_BUILT_AGE: '120h'
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Run Grype
+        id: grype
+        continue-on-error: true
         uses: anchore/scan-action@3343887d815d7b07465f6fdcd395bd66508d486a
         with:
           path: '.'
@@ -46,8 +51,14 @@ jobs:
           output-format: sarif
 
       - name: Upload SARIF
-        if: always()
+        if: always() && steps.grype.outputs.sarif != ''
         uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
-          sarif_file: results.sarif
+          sarif_file: ${{ steps.grype.outputs.sarif }}
           category: grype
+
+      - name: Enforce Grype result
+        if: steps.grype.outcome == 'failure'
+        run: |
+          echo 'Grype reported high-severity findings or failed operationally. Review the uploaded SARIF and scanner logs.'
+          exit 1
