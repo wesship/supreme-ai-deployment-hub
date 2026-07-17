@@ -1,0 +1,43 @@
+name: OSSF Security Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+  id-token: write
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scorecard:
+    name: Evaluate repository security posture
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Run OSSF Scorecard
+        uses: ossf/scorecard-action@dc50aa9510b46c811795eb24b2f1ba02a914e534
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: false
+
+      - name: Upload Scorecard SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: scorecard-results.sarif
+          category: ossf-scorecard
