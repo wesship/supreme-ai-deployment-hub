@@ -52,13 +52,16 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=1
-          git show "origin/${{ github.base_ref }}:api/openapi.yaml" > /tmp/base-openapi.yaml 2>/dev/null || true
-          if [ -s /tmp/base-openapi.yaml ]; then
-            npx --yes @optic/api-checks@0.6.2 compare \
-              --from /tmp/base-openapi.yaml \
-              --to api/openapi.yaml \
-              --check breaking-changes
+          if git diff --quiet "origin/${{ github.base_ref }}...HEAD" -- api/openapi.yaml; then
+            echo "OpenAPI specification is unchanged; skipping breaking-change comparison"
+            exit 0
           fi
+
+          git show "origin/${{ github.base_ref }}:api/openapi.yaml" > /tmp/base-openapi.yaml
+          npx --yes @optic/api-checks@0.6.2 compare \
+            --from /tmp/base-openapi.yaml \
+            --to api/openapi.yaml \
+            --check breaking-changes
 
   schema-completeness:
     name: Validate documented route coverage
