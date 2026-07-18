@@ -1,0 +1,93 @@
+{
+  "version": "1.0.0",
+  "status": "canonical",
+  "source": "docs/PRIMETIME_PRODUCTION_BLUEPRINT.md",
+  "product": "PRIMETIME",
+  "parentPlatform": "Devonn.AI",
+  "releaseOrder": [
+    {
+      "release": 1,
+      "name": "Governed CRM Foundation",
+      "criticalModules": ["authentication", "workspaces", "roles", "people", "households", "leads", "pipeline", "tasks", "activities", "consent_registry", "audit_records"],
+      "exitGate": "100% of open leads have owner, stage, next action, consent state, and last activity."
+    },
+    {
+      "release": 2,
+      "name": "Scheduling and Daily Operations",
+      "criticalModules": ["appointments", "calendar_sync", "booking_page", "reminders", "no_show_recovery", "daily_dashboard", "mobile_quick_actions"],
+      "exitGate": "Appointments can be booked, confirmed, rescheduled, and completed; all events appear in CRM; missed appointments create follow-up tasks."
+    },
+    {
+      "release": 3,
+      "name": "Governed Communications",
+      "criticalModules": ["sms", "email", "templates", "template_approvals", "quiet_hours", "opt_outs", "delivery_tracking", "communication_audit"],
+      "exitGate": "No communication is sent without a policy check; opt-outs are immediate; every outbound message has a template or approval record."
+    },
+    {
+      "release": 4,
+      "name": "AI Assistance",
+      "criticalModules": ["intake_agent", "followup_agent", "scheduling_agent", "meeting_preparation_agent", "compliance_reviewer", "knowledge_agent"],
+      "exitGate": "Every AI action is logged; restricted actions require approval; RAG responses cite approved sources; AI cannot independently make product recommendations."
+    },
+    {
+      "release": 5,
+      "name": "PRIMETIME Academy",
+      "criticalModules": ["courses", "lessons", "quizzes", "practice_exams", "simulations", "readiness_score", "progress_dashboard", "credential_tracking"],
+      "exitGate": "Learners receive measurable mastery and readiness reports; weak topics generate study assignments."
+    },
+    {
+      "release": 6,
+      "name": "Insurance Lifecycle",
+      "criticalModules": ["needs_analysis", "applications", "underwriting_tracking", "policies", "beneficiaries", "annual_reviews", "referrals", "persistency_reporting"],
+      "exitGate": "A client can be tracked from first lead through active policy servicing; every stage has required evidence and audit history."
+    },
+    {
+      "release": 7,
+      "name": "Controlled Voice",
+      "criticalModules": ["inbound_receptionist", "confirmation_calls", "reminder_calls", "rescheduling", "human_transfer", "voice_disclosure", "call_summaries", "consent_based_campaigns"],
+      "exitGate": "AI disclosure is enforced; opt-outs are respected; calls are logged; human transfer works; restricted sales behavior is blocked."
+    },
+    {
+      "release": 8,
+      "name": "Growth Modules",
+      "criticalModules": ["recruiting", "team_onboarding", "media_production", "campaign_intelligence", "international_workspaces", "carrier_integrations", "advanced_agent_mesh"],
+      "exitGate": "Core modules maintain agreed reliability, adoption, and compliance targets."
+    }
+  ],
+  "nonNegotiableRules": [
+    "no_lead_without_owner",
+    "no_open_opportunity_without_next_action",
+    "no_communication_without_consent_check",
+    "no_ai_execution_without_audit_record",
+    "no_regulated_recommendation_without_licensed_human",
+    "no_unapproved_template_in_production",
+    "no_knowledge_response_from_expired_or_unapproved_sources",
+    "no_sensitive_export_without_authorization",
+    "no_business_critical_state_stored_only_in_n8n",
+    "no_agent_bypass_compliance_layer",
+    "no_module_without_tests_and_monitoring",
+    "no_expansion_before_current_release_exit_gate"
+  ],
+  "immediateBacklog": [
+    {"order": 1, "item": "Freeze canonical architecture and domain boundaries", "priority": "critical"},
+    {"order": 2, "item": "Create normalized PostgreSQL schema", "priority": "critical"},
+    {"order": 3, "item": "Implement workspaces and role-based access", "priority": "critical"},
+    {"order": 4, "item": "Implement people, households, and deduplication", "priority": "critical"},
+    {"order": 5, "item": "Implement consent and suppression registry", "priority": "critical"},
+    {"order": 6, "item": "Implement governed pipeline stages", "priority": "critical"},
+    {"order": 7, "item": "Enforce owner and next-action requirements", "priority": "critical"},
+    {"order": 8, "item": "Implement immutable activity and audit events", "priority": "critical"},
+    {"order": 9, "item": "Build representative daily dashboard", "priority": "high"},
+    {"order": 10, "item": "Build tasks and appointments", "priority": "high"},
+    {"order": 11, "item": "Add calendar synchronization", "priority": "high"},
+    {"order": 12, "item": "Build approved communication templates", "priority": "critical"},
+    {"order": 13, "item": "Add SMS/email policy checks", "priority": "critical"},
+    {"order": 14, "item": "Add delivery and opt-out event handling", "priority": "critical"},
+    {"order": 15, "item": "Implement AI action and approval framework", "priority": "critical"},
+    {"order": 16, "item": "Add Intake and Follow-Up agents", "priority": "high"},
+    {"order": 17, "item": "Add Compliance Reviewer", "priority": "critical"},
+    {"order": 18, "item": "Add governed knowledge base", "priority": "high"},
+    {"order": 19, "item": "Build Academy data model", "priority": "high"},
+    {"order": 20, "item": "Add testing, metrics, and release gates", "priority": "critical"}
+  ]
+}
