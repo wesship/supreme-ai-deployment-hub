@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "release": "Release 1 - Governed CRM Foundation",
+  "requiredTables": [
+    "workspaces",
+    "roles",
+    "workspace_memberships",
+    "people",
+    "households",
+    "household_members",
+    "pipeline_stages",
+    "leads",
+    "stage_transitions",
+    "tasks",
+    "activities",
+    "consent_records",
+    "suppression_records",
+    "audit_events",
+    "release_gate_exceptions"
+  ],
+  "exitGate": {
+    "description": "100% of open leads have owner, stage, next action, consent state, source, activity record, last contact date, and aging indicator.",
+    "requiredOpenLeadFields": [
+      "owner_user_id",
+      "stage_id",
+      "next_action",
+      "next_action_due_at",
+      "consent_state",
+      "source",
+      "last_activity_at",
+      "aging_started_at"
+    ]
+  },
+  "nonNegotiableRules": [
+    "No lead without an owner.",
+    "No open opportunity without a next action.",
+    "No communication without a consent check.",
+    "No AI execution without an audit record.",
+    "No regulated recommendation without a licensed human."
+  ]
+}
