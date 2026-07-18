@@ -13,6 +13,7 @@ def test_router_exposes_required_prefix_and_endpoints():
     for route in [
         '/workspaces',
         '/people',
+        '/people/duplicates',
         '/households',
         '/pipeline-stages',
         '/leads',
@@ -39,6 +40,18 @@ def test_router_validates_supabase_host_and_uuid_values():
     assert 'supabase\\.co|supabase\\.in' in text
     assert '_validate_uuid' in text
     assert 'Invalid {label}: must be a UUID' in text
+
+
+def test_router_has_role_gates_and_audit_writer():
+    text = ROUTER.read_text()
+    assert 'RoleName' in text
+    assert '_require_role' in text
+    assert '_WRITE_ROLES' in text
+    assert '_COMPLIANCE_ROLES' in text
+    assert 'audit_events' in text
+    assert 'async def _audit' in text
+    assert 'lead.created' in text
+    assert 'consent.recorded' in text
 
 
 def test_router_does_not_delete_regulated_records():
