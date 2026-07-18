@@ -15,10 +15,7 @@ export default function CommandCenterRC1() {
         />
         <link rel="canonical" href="https://d3vonn.io/command-center" />
       </Helmet>
-      <section aria-labelledby="command-center-workspace-heading">
-        <h1 id="command-center-workspace-heading" className="sr-only">
-          D3VONN.IO AI Operations Command Center
-        </h1>
+      <section aria-label="D3VONN.IO AI Operations Command Center">
         <CommandCenter />
       </section>
     </PublicPageShell>
