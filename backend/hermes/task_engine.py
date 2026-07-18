@@ -6,36 +6,33 @@ All DB operations go through the Supabase service-role client (bypasses RLS).
 """
 from __future__ import annotations
 
-import os
-import uuid
 import asyncio
+import hashlib
+import hmac
+import json
 import logging
+import os
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 import httpx
+
+from backend.hermes.contracts import RunStatus, TASK_TRANSITIONS, TaskStatus, can_transition
+from backend.hermes.registry import BUILTIN_AGENT_REGISTRY
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Valid task states and legal transitions
+# Legacy-compatible projections of canonical v1 contracts
 # ---------------------------------------------------------------------------
-TASK_STATES = {
-    "PENDING", "LOCKED", "RUNNING", "COMPLETED",
-    "FAILED", "RETRY", "MANUAL_REVIEW", "ESCALATED", "PAUSED",
-}
 
+TASK_STATES = {status.value for status in TaskStatus}
 VALID_TRANSITIONS: dict[str, set[str]] = {
-    "PENDING":       {"LOCKED", "PAUSED", "CANCELLED"},
-    "LOCKED":        {"RUNNING", "PENDING", "FAILED"},
-    "RUNNING":       {"COMPLETED", "FAILED", "PAUSED", "ESCALATED", "MANUAL_REVIEW"},
-    "FAILED":        {"RETRY", "MANUAL_REVIEW", "ESCALATED"},
-    "RETRY":         {"PENDING"},
-    "PAUSED":        {"PENDING", "RUNNING"},
-    "MANUAL_REVIEW": {"PENDING", "ESCALATED", "COMPLETED"},
-    "ESCALATED":     {"MANUAL_REVIEW", "COMPLETED", "FAILED"},
-    "COMPLETED":     set(),   # terminal
+    current.value: {target.value for target in targets}
+    for current, targets in TASK_TRANSITIONS.items()
 }
+AGENT_HIERARCHY = BUILTIN_AGENT_REGISTRY.hierarchy()
+
 
 # ---------------------------------------------------------------------------
 # Supabase REST client helpers
@@ -44,11 +41,14 @@ VALID_TRANSITIONS: dict[str, set[str]] = {
 def _supabase_url() -> str:
     return os.getenv("SUPABASE_URL", "")
 
+
 def _service_key() -> str:
     return os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
+
 def _is_configured() -> bool:
     return bool(_supabase_url() and _service_key())
+
 
 def _headers() -> dict[str, str]:
     return {
@@ -58,39 +58,43 @@ def _headers() -> dict[str, str]:
         "Prefer": "return=representation",
     }
 
+
 async def _sb_get(table: str, params: dict[str, str]) -> list[dict]:
     if not _is_configured():
         return []
     url = f"{_supabase_url()}/rest/v1/{table}"
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(url, headers=_headers(), params=params)
-        r.raise_for_status()
-        return r.json()
+        response = await client.get(url, headers=_headers(), params=params)
+        response.raise_for_status()
+        return response.json()
+
 
 async def _sb_post(table: str, payload: dict) -> dict:
     if not _is_configured():
         return {}
     url = f"{_supabase_url()}/rest/v1/{table}"
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.post(url, headers=_headers(), json=payload)
-        r.raise_for_status()
-        data = r.json()
+        response = await client.post(url, headers=_headers(), json=payload)
+        response.raise_for_status()
+        data = response.json()
         return data[0] if isinstance(data, list) and data else data
+
 
 async def _sb_patch(table: str, row_id: str, payload: dict) -> dict:
     if not _is_configured():
         return {}
     url = f"{_supabase_url()}/rest/v1/{table}"
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.patch(
+        response = await client.patch(
             url,
             headers=_headers(),
             params={"id": f"eq.{row_id}"},
             json=payload,
         )
-        r.raise_for_status()
-        data = r.json()
+        response.raise_for_status()
+        data = response.json()
         return data[0] if isinstance(data, list) and data else data
+
 
 # ---------------------------------------------------------------------------
 # Task CRUD
@@ -109,11 +113,11 @@ async def create_task(
     deadline_at: str | None = None,
     correlation_id: str | None = None,
 ) -> dict:
-    """Create a new Hermes task in PENDING state."""
+    """Create a new Hermes task in the canonical pending state."""
     payload: dict[str, Any] = {
         "title": title,
         "task_type": task_type,
-        "status": "PENDING",
+        "status": TaskStatus.PENDING.value,
         "priority": priority,
         "source": source,
         "retry_count": 0,
@@ -139,6 +143,7 @@ async def create_task(
         event="task.created",
         message=f"Task '{title}' created (type={task_type})",
         agent_name=agent_name,
+        correlation_id=correlation_id,
     )
     return task
 
@@ -149,7 +154,7 @@ async def get_task(task_id: str) -> dict | None:
 
 
 async def list_tasks(
-    status: str | None = None,
+    status: str | TaskStatus | None = None,
     agent_name: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
@@ -158,7 +163,7 @@ async def list_tasks(
         "limit": str(limit),
     }
     if status:
-        params["status"] = f"eq.{status}"
+        params["status"] = f"eq.{TaskStatus(status).value}"
     if agent_name:
         params["agent_name"] = f"eq.{agent_name}"
     return await _sb_get("hermes_tasks", params)
@@ -166,49 +171,61 @@ async def list_tasks(
 
 async def transition_task(
     task_id: str,
-    new_status: str,
+    new_status: str | TaskStatus,
     output_data: dict | None = None,
     error_message: str | None = None,
     agent_name: str | None = None,
 ) -> dict:
-    """Apply a state transition with validation."""
+    """Apply a canonical state transition while preserving legacy string inputs."""
     task = await get_task(task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
 
-    current = task["status"]
-    allowed = VALID_TRANSITIONS.get(current, set())
-    if new_status not in allowed:
+    try:
+        current_status = TaskStatus(task["status"])
+        target_status = TaskStatus(new_status)
+    except ValueError as exc:
+        raise ValueError(f"Unknown Hermes task status: {exc}") from exc
+
+    if not can_transition(current_status, target_status):
+        allowed = sorted(status.value for status in TASK_TRANSITIONS[current_status])
         raise ValueError(
-            f"Invalid transition {current} → {new_status}. "
-            f"Allowed: {sorted(allowed)}"
+            f"Invalid transition {current_status.value} → {target_status.value}. "
+            f"Allowed: {allowed}"
         )
 
-    patch: dict[str, Any] = {"status": new_status}
+    persisted_status = target_status
+    patch: dict[str, Any] = {"status": target_status.value}
     now = datetime.now(timezone.utc).isoformat()
 
-    if new_status == "RUNNING":
+    if target_status is TaskStatus.RUNNING:
         patch["started_at"] = now
         if agent_name:
             patch["agent_name"] = agent_name
             patch["assigned_at"] = now
-    elif new_status in {"COMPLETED", "FAILED"}:
+    elif target_status in {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}:
         patch["completed_at"] = now
     if output_data:
         patch["output_data"] = output_data
     if error_message:
         patch["error_message"] = error_message
-    if new_status == "RETRY":
+    if target_status is TaskStatus.RETRY:
         patch["retry_count"] = task.get("retry_count", 0) + 1
-        patch["status"] = "PENDING"  # RETRY resets to PENDING
+        persisted_status = TaskStatus.PENDING
+        patch["status"] = persisted_status.value
 
     updated = await _sb_patch("hermes_tasks", task_id, patch)
     await log_event(
         task_id=task_id,
-        event=f"task.{new_status.lower()}",
-        message=f"Task transitioned {current} → {new_status}",
+        event=f"task.{target_status.value.lower()}",
+        message=f"Task transitioned {current_status.value} → {target_status.value}",
         agent_name=agent_name or task.get("agent_name"),
-        data={"previous_status": current, "new_status": new_status},
+        data={
+            "previous_status": current_status.value,
+            "requested_status": target_status.value,
+            "persisted_status": persisted_status.value,
+        },
+        correlation_id=task.get("correlation_id"),
     )
     return updated
 
@@ -222,7 +239,7 @@ async def start_run(task_id: str, agent_name: str, run_number: int = 1) -> dict:
         "task_id": task_id,
         "agent_name": agent_name,
         "run_number": run_number,
-        "status": "RUNNING",
+        "status": RunStatus.RUNNING.value,
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
     return await _sb_post("hermes_runs", payload)
@@ -230,15 +247,19 @@ async def start_run(task_id: str, agent_name: str, run_number: int = 1) -> dict:
 
 async def finish_run(
     run_id: str,
-    status: str,
+    status: str | RunStatus,
     output_snapshot: dict | None = None,
     error_detail: str | None = None,
     tokens_used: int | None = None,
     cost_usd: float | None = None,
     duration_ms: int | None = None,
 ) -> dict:
+    run_status = RunStatus(status)
+    if run_status not in {RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED}:
+        raise ValueError(f"finish_run requires a terminal status, got {run_status.value}")
+
     patch: dict[str, Any] = {
-        "status": status,
+        "status": run_status.value,
         "finished_at": datetime.now(timezone.utc).isoformat(),
     }
     if output_snapshot:
@@ -308,27 +329,21 @@ def fire_log_event(event: str, message: str | None = None, **kwargs) -> None:
 # Agent dispatch
 # ---------------------------------------------------------------------------
 
-AGENT_HIERARCHY = {
-    "HERMES":   {"role": "orchestrator", "children": ["TARS", "ION", "SAPPHIRE", "GUARDIAN"]},
-    "TARS":     {"role": "execution",    "children": []},
-    "ION":      {"role": "analytics",    "children": []},
-    "SAPPHIRE": {"role": "memory",       "children": []},
-    "GUARDIAN": {"role": "safety",       "children": []},
-}
-
-
 async def dispatch_to_agent(
     agent_name: str,
     task_id: str,
     input_data: dict | None = None,
 ) -> dict:
-    """
-    Dispatch a task to a named agent.
-    Currently enqueues via Supabase Edge Function `enqueue-task`.
-    Falls back to a local no-op if Supabase is not configured.
-    """
-    if agent_name not in AGENT_HIERARCHY:
-        raise ValueError(f"Unknown agent: {agent_name}. Valid: {list(AGENT_HIERARCHY)}")
+    """Dispatch to a manifest-registered agent via the existing enqueue function."""
+    agent_id = agent_name.strip().lower()
+    try:
+        manifest = BUILTIN_AGENT_REGISTRY.get(agent_id)
+    except KeyError as exc:
+        valid = [registered.name for registered in BUILTIN_AGENT_REGISTRY.list()]
+        raise ValueError(f"Unknown agent: {agent_name}. Valid: {valid}") from exc
+
+    if not manifest.enabled:
+        raise ValueError(f"Agent is disabled: {manifest.name}")
 
     supabase_url = _supabase_url()
     webhook_secret = os.getenv("HERMES_WEBHOOK_SECRET", "")
@@ -340,23 +355,22 @@ async def dispatch_to_agent(
     enqueue_url = f"{supabase_url}/functions/v1/enqueue-task"
     payload = {
         "task_id": task_id,
-        "agent": agent_name,
+        "agent": manifest.name,
         "input": input_data or {},
     }
 
-    import hmac, hashlib, json
     body = json.dumps(payload, separators=(",", ":"))
-    sig = hmac.new(webhook_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+    signature = hmac.new(webhook_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
 
     async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.post(
+        response = await client.post(
             enqueue_url,
             content=body,
             headers={
                 "Content-Type": "application/json",
-                "x-hermes-signature": sig,
+                "x-hermes-signature": signature,
                 "Authorization": f"Bearer {_service_key()}",
             },
         )
-        r.raise_for_status()
-        return r.json()
+        response.raise_for_status()
+        return response.json()
