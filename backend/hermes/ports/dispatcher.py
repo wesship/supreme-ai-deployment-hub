@@ -19,5 +19,6 @@ class AgentDispatcher(Protocol):
         task_id: str,
         agent_name: str,
         input_data: dict[str, Any],
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         ...
