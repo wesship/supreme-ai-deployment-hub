@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
 
       - name: Review dependency changes
-        uses: actions/dependency-review-action@0b1d2b5f3b8d1f5a7b8a9e3e1b9d8f0e6c7a4d2f
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294
         with:
           fail-on-severity: high
           deny-licenses: GPL-3.0,AGPL-3.0
