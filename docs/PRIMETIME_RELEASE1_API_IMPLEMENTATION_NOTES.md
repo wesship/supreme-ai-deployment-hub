@@ -30,6 +30,7 @@ GET  /primetime/v1/workspaces
 POST /primetime/v1/workspaces
 GET  /primetime/v1/people
 POST /primetime/v1/people
+GET  /primetime/v1/people/duplicates
 GET  /primetime/v1/households
 POST /primetime/v1/households
 GET  /primetime/v1/pipeline-stages
@@ -50,23 +51,60 @@ GET  /primetime/v1/dashboard/daily
 - Supabase table names are fixed through an allow-list.
 - UUID path and identity values are validated before query use.
 - Workspace membership is checked before workspace-scoped data access.
+- Role gates restrict write, compliance, and administrative actions.
 - No delete endpoint is exposed in Release 1.
-- Sensitive state changes should continue to be captured by database audit triggers and future explicit audit writers.
+- API-level audit events are written for sensitive creates and lead updates.
+
+## Role gates
+
+Initial API roles are intentionally conservative.
+
+| Action area | Roles allowed |
+|---|---|
+| CRM create/update | representative, manager, workspace_admin |
+| Activity creation | representative, manager, workspace_admin, compliance_reviewer |
+| Consent record creation | representative, manager, workspace_admin, compliance_reviewer |
+| Suppression record creation | compliance_reviewer, manager, workspace_admin |
+| Read workspace records | active workspace membership |
+
+Future policy checks should add hierarchy, assigned-owner, shared-record, and auditor read-only controls.
+
+## Audit writer
+
+The router writes `audit_events` for:
+
+- workspace.created
+- person.created
+- household.created
+- lead.created
+- lead.updated
+- task.created
+- activity.created
+- consent.recorded
+- suppression.created
+
+Database-level immutability remains the final control. API audit writes provide action context and user attribution.
+
+## Duplicate lookup
+
+`GET /people/duplicates` supports early duplicate detection by email or phone before creating a person record.
+
+This is only a first-pass lookup. Future work should add normalized phone/email fields, fuzzy name matching, household-aware matching, and merge-review workflows.
 
 ## Intentional limitations
 
-This first API layer is CRUD-oriented and governance-aware, but it is not the final policy engine.
+This API layer is governance-aware but is not the final policy engine.
 
 Still needed:
 
 1. Mount router in the active FastAPI app once the deployment entrypoint is confirmed.
 2. Add typed response models.
-3. Add API-level audit writer for command/action context.
-4. Add role-specific permission checks beyond active workspace membership.
-5. Add pagination cursors and search filters.
-6. Add duplicate detection endpoint for people and households.
-7. Add dashboard aggregation SQL views for performance.
-8. Add integration tests against a disposable Supabase/Postgres instance.
+3. Add owner-specific and hierarchy-specific authorization checks.
+4. Add cursor pagination and safer search sanitization.
+5. Add household duplicate detection and merge review.
+6. Add dashboard aggregation SQL views for performance.
+7. Add integration tests against a disposable Supabase/Postgres instance.
+8. Add OpenAPI examples for frontend implementation.
 
 ## Release gate alignment
 
