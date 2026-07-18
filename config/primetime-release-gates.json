@@ -1,0 +1,100 @@
+{
+  "project": "PRIMETIME",
+  "release_gates_version": "6.0.0",
+  "purpose": "Production hardening gates for the PRIMETIME insurance-agent operating system.",
+  "stack": [
+    {
+      "release": "release-1",
+      "scope": "crm-foundation",
+      "required_prs": [434, 435, 436],
+      "required_routes": ["/primetime", "/primetime/release-1"],
+      "required_backend_prefix": "/primetime/v1"
+    },
+    {
+      "release": "release-2",
+      "scope": "scheduling",
+      "required_prs": [437],
+      "required_routes": ["/primetime/scheduling", "/primetime/release-2"],
+      "required_backend_prefix": "/primetime/v1"
+    },
+    {
+      "release": "release-3",
+      "scope": "communications",
+      "required_prs": [440],
+      "required_routes": ["/primetime/communications", "/primetime/release-3"],
+      "required_backend_prefix": "/primetime/v1"
+    },
+    {
+      "release": "release-4",
+      "scope": "ai-assistance",
+      "required_prs": [441],
+      "required_routes": ["/primetime/ai-assistance", "/primetime/release-4"],
+      "required_backend_prefix": "/primetime/v1"
+    },
+    {
+      "release": "release-5",
+      "scope": "analytics-command-center",
+      "required_prs": [442],
+      "required_routes": ["/primetime/executive-command-center", "/primetime/release-5"],
+      "required_backend_prefix": "/primetime/v1/analytics"
+    },
+    {
+      "release": "release-6",
+      "scope": "production-hardening",
+      "required_routes": [],
+      "required_backend_prefix": null
+    }
+  ],
+  "required_checks": [
+    "build",
+    "lint",
+    "test",
+    "security/snyk",
+    "supabase/migration-dry-run"
+  ],
+  "known_external_checks": [
+    {
+      "name": "security/snyk (wesship8)",
+      "status": "known-duplicate-error",
+      "owner_action_required": true,
+      "notes": "Duplicate scanner check is erroring while security/snyk (wesship) passes across the PRIMETIME stack. Repo owner/security owner must resolve or explicitly accept this branch-protection behavior."
+    }
+  ],
+  "non_negotiable_boundaries": [
+    "no_lead_without_owner",
+    "no_open_opportunity_without_next_action",
+    "no_communication_without_consent_check",
+    "no_ai_execution_without_audit",
+    "no_regulated_recommendation_without_licensed_human_review",
+    "no_unapproved_template_in_production",
+    "no_hard_delete_for_regulated_records",
+    "no_autonomous_outbound_sales_calling",
+    "no_quote_endpoint",
+    "no_policy_recommendation_endpoint",
+    "no_application_submission_endpoint",
+    "no_sensitive_export_without_authorization",
+    "no_agent_bypass_compliance"
+  ],
+  "blocked_endpoint_fragments": [
+    "/send",
+    "/quote",
+    "/recommend-policy",
+    "/submit-application"
+  ],
+  "blocked_http_methods_for_primetime": ["DELETE"],
+  "required_artifacts": [
+    "docs/PRIMETIME_RELEASE6_PRODUCTION_HARDENING_PLAN.md",
+    "docs/PRIMETIME_PRODUCTION_READINESS_CHECKLIST.md",
+    "docs/PRIMETIME_RELEASE_STACK_RUNBOOK.md",
+    "config/primetime-release-gates.json",
+    "backend/tests/test_primetime_release6_production_hardening_static.py"
+  ],
+  "deployment_readiness": {
+    "requires_staging_validation": true,
+    "requires_migration_dry_run": true,
+    "requires_compliance_signoff": true,
+    "requires_workspace_admin_signoff": true,
+    "requires_rollback_plan": true,
+    "requires_incident_owner": true
+  }
+}
