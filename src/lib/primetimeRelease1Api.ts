@@ -83,4 +83,20 @@ export const primetimeRelease1Api = {
   createActivity: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/activities', payload),
   recordConsent: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/consent-records', payload),
   createSuppressionRecord: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/suppression-records', payload),
+
+  listAppointments: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/appointments?${query({ workspace_id: workspaceId, status })}`),
+  createAppointment: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/appointments', payload),
+  updateAppointment: (appointmentId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/appointments/${appointmentId}`, payload),
+  listAvailabilityRules: (workspaceId: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/availability-rules?${query({ workspace_id: workspaceId })}`),
+  createAvailabilityRule: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/availability-rules', payload),
+  createAppointmentAttendee: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/appointment-attendees', payload),
+  listReminders: (workspaceId: string, status = 'pending') =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/reminders?${query({ workspace_id: workspaceId, status })}`),
+  createReminder: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/reminders', payload),
+  listNoShowEvents: (workspaceId: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/no-show-events?${query({ workspace_id: workspaceId })}`),
+  createCalendarSyncEvent: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/calendar-sync-events', payload),
 };

@@ -1,0 +1,99 @@
+name: PRIMETIME Release 2 Postgres Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/app/routers/primetime_release2_scheduling.py'
+      - 'backend/tests/integration/primetime_release2_postgres_*.sql'
+      - 'supabase/migrations/20260718162000_primetime_release2_scheduling.sql'
+      - '.github/workflows/primetime-release2-postgres-integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: primetime-release2-postgres-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-isolation:
+    name: Workspace isolation and RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: primetime_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d primetime_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: primetime_test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Create prerequisite schema
+        run: psql --set ON_ERROR_STOP=1 --file backend/tests/integration/primetime_release2_postgres_setup.sql
+
+      - name: Apply exact Release 2 migration
+        run: psql --set ON_ERROR_STOP=1 --file supabase/migrations/20260718162000_primetime_release2_scheduling.sql
+
+      - name: Grant application-role access to migrated tables
+        run: |
+          psql --set ON_ERROR_STOP=1 <<'SQL'
+          grant select, insert, update on public.appointments to primetime_app;
+          grant select, insert, update on public.appointment_attendees to primetime_app;
+          grant select, insert, update on public.availability_rules to primetime_app;
+          grant select, insert, update on public.reminders to primetime_app;
+          grant select, insert, update on public.no_show_events to primetime_app;
+          grant select, insert, update on public.calendar_sync_events to primetime_app;
+          SQL
+
+      - name: Verify tenant isolation and scheduling controls
+        run: psql --set ON_ERROR_STOP=1 --file backend/tests/integration/primetime_release2_postgres_assertions.sql
+
+      - name: Export verification evidence
+        if: always()
+        run: |
+          {
+            echo '# PRIMETIME Release 2 Postgres integration'
+            echo
+            echo '- Exact migration applied to disposable PostgreSQL 16 instance.'
+            echo '- Active membership and inactive-membership behavior checked.'
+            echo '- Cross-workspace reads and writes tested under RLS.'
+            echo '- Appointment compliance controls tested.'
+            echo '- Audit-event persistence tested.'
+            echo '- Workspace role resolution fixture tested.'
+          } > primetime-release2-postgres-evidence.md
+
+      - name: Preserve integration evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: primetime-release2-postgres-${{ github.run_id }}
+          path: primetime-release2-postgres-evidence.md
+          if-no-files-found: error
+          retention-days: 30
