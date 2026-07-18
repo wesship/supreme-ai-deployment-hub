@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileText, MessageSquareText, ShieldAlert, UserPlus } from 'lucide-react';
 import { primetimeRelease1Api, type PrimetimeRecord } from '@/lib/primetimeRelease1Api';
 
@@ -7,7 +7,7 @@ function recordValue(record: PrimetimeRecord, key: string, fallback = '') {
   return typeof current === 'string' || typeof current === 'number' ? String(current) : fallback;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="text-sm text-slate-300">
       <span className="mb-1 block">{label}</span>
@@ -21,13 +21,14 @@ const buttonClass = 'rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text
 
 interface FormsProps {
   workspaceId: string;
+  userId: string;
   people: PrimetimeRecord[];
   leads: PrimetimeRecord[];
   stages: PrimetimeRecord[];
   onChanged: () => void;
 }
 
-export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onChanged }: FormsProps) {
+export function PrimetimeRelease1Forms({ workspaceId, userId, people, leads, stages, onChanged }: FormsProps) {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [person, setPerson] = useState({ first_name: '', last_name: '', email: '', phone: '', source: 'manual' });
@@ -51,7 +52,6 @@ export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onC
     }
   }
 
-  const ownerId = '';
   const firstStage = recordValue(stages[0] || {}, 'id');
 
   return (
@@ -59,26 +59,15 @@ export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onC
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-white">Controlled create and update actions</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            These forms call only governed Release 1 endpoints. No delete actions are exposed for regulated records.
-          </p>
+          <p className="mt-1 text-sm text-slate-400">These forms call only governed Release 1 endpoints. No delete actions are exposed for regulated records.</p>
         </div>
         <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-200">Audit logged</span>
       </div>
-
-      {status && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100">
-          <CheckCircle2 className="h-4 w-4" /> {status}
-        </div>
-      )}
-      {error && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">
-          <AlertTriangle className="h-4 w-4" /> {error}
-        </div>
-      )}
+      {status && <div className="mt-4 flex items-center gap-2 rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm text-emerald-100"><CheckCircle2 className="h-4 w-4" /> {status}</div>}
+      {error && <div className="mt-4 flex items-center gap-2 rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100"><AlertTriangle className="h-4 w-4" /> {error}</div>}
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
-        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createPerson({ workspace_id: workspaceId, ...person }), 'Person draft created for review.') }>
+        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createPerson({ workspace_id: workspaceId, ...person }), 'Person draft created for review.')}>
           <div className="mb-4 flex items-center gap-2 text-white"><UserPlus className="h-5 w-5 text-blue-300" /><h3 className="font-semibold">Create person</h3></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name"><input className={inputClass} value={person.first_name} onChange={(event) => setPerson({ ...person, first_name: event.target.value })} /></Field>
@@ -89,7 +78,7 @@ export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onC
           <button className={`${buttonClass} mt-4`} disabled={!workspaceId}>Create person</button>
         </form>
 
-        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createLead({ workspace_id: workspaceId, owner_id: ownerId || undefined, pipeline_stage_id: lead.pipeline_stage_id || firstStage, person_id: lead.person_id || undefined, source: lead.source, status: 'open', consent_state: 'unknown', next_action: lead.next_action, next_action_due_at: lead.next_action_due_at }), 'Lead created with required Release 1 controls.') }>
+        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createLead({ workspace_id: workspaceId, owner_id: userId, pipeline_stage_id: lead.pipeline_stage_id || firstStage, person_id: lead.person_id || undefined, source: lead.source, status: 'open', consent_state: 'unknown', next_action: lead.next_action, next_action_due_at: lead.next_action_due_at }), 'Lead created with required Release 1 controls.')}>
           <div className="mb-4 flex items-center gap-2 text-white"><FileText className="h-5 w-5 text-blue-300" /><h3 className="font-semibold">Create lead</h3></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Person"><select className={inputClass} value={lead.person_id} onChange={(event) => setLead({ ...lead, person_id: event.target.value })}><option value="">No linked person</option>{people.map((item) => <option key={recordValue(item, 'id')} value={recordValue(item, 'id')}>{recordValue(item, 'first_name')} {recordValue(item, 'last_name')}</option>)}</select></Field>
@@ -98,11 +87,10 @@ export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onC
             <Field label="Next action"><input className={inputClass} value={lead.next_action} onChange={(event) => setLead({ ...lead, next_action: event.target.value })} required /></Field>
             <Field label="Next-action deadline"><input className={inputClass} type="datetime-local" value={lead.next_action_due_at} onChange={(event) => setLead({ ...lead, next_action_due_at: event.target.value })} required /></Field>
           </div>
-          <p className="mt-3 text-xs text-amber-200/80">Owner defaults to the current authenticated user in the backend once the endpoint supports implicit ownership.</p>
-          <button className={`${buttonClass} mt-4`} disabled={!workspaceId || !lead.next_action_due_at}>Create lead</button>
+          <button className={`${buttonClass} mt-4`} disabled={!workspaceId || !userId || !lead.next_action_due_at || !(lead.pipeline_stage_id || firstStage)}>Create lead</button>
         </form>
 
-        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createTask({ workspace_id: workspaceId, owner_id: ownerId || undefined, lead_id: task.lead_id || undefined, title: task.title, due_at: task.due_at || undefined, priority: task.priority }), 'Task created.') }>
+        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createTask({ workspace_id: workspaceId, owner_id: userId, lead_id: task.lead_id || undefined, title: task.title, due_at: task.due_at || undefined, priority: task.priority }), 'Task created.')}>
           <div className="mb-4 flex items-center gap-2 text-white"><CheckCircle2 className="h-5 w-5 text-blue-300" /><h3 className="font-semibold">Create task</h3></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Lead"><select className={inputClass} value={task.lead_id} onChange={(event) => setTask({ ...task, lead_id: event.target.value })}><option value="">No linked lead</option>{leads.map((item) => <option key={recordValue(item, 'id')} value={recordValue(item, 'id')}>{recordValue(item, 'source', 'Lead')} · {recordValue(item, 'next_action')}</option>)}</select></Field>
@@ -110,10 +98,10 @@ export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onC
             <Field label="Due"><input className={inputClass} type="datetime-local" value={task.due_at} onChange={(event) => setTask({ ...task, due_at: event.target.value })} /></Field>
             <Field label="Priority"><select className={inputClass} value={task.priority} onChange={(event) => setTask({ ...task, priority: event.target.value })}><option>low</option><option>normal</option><option>high</option><option>urgent</option></select></Field>
           </div>
-          <button className={`${buttonClass} mt-4`} disabled={!workspaceId || !task.title}>Create task</button>
+          <button className={`${buttonClass} mt-4`} disabled={!workspaceId || !userId || !task.title}>Create task</button>
         </form>
 
-        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createActivity({ workspace_id: workspaceId, lead_id: activity.lead_id || undefined, person_id: activity.person_id || undefined, activity_type: activity.activity_type, summary: activity.summary }), 'Activity recorded and audit event written.') }>
+        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createActivity({ workspace_id: workspaceId, lead_id: activity.lead_id || undefined, person_id: activity.person_id || undefined, activity_type: activity.activity_type, summary: activity.summary }), 'Activity recorded and audit event written.')}>
           <div className="mb-4 flex items-center gap-2 text-white"><MessageSquareText className="h-5 w-5 text-blue-300" /><h3 className="font-semibold">Record activity</h3></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Lead"><select className={inputClass} value={activity.lead_id} onChange={(event) => setActivity({ ...activity, lead_id: event.target.value })}><option value="">No linked lead</option>{leads.map((item) => <option key={recordValue(item, 'id')} value={recordValue(item, 'id')}>{recordValue(item, 'source', 'Lead')}</option>)}</select></Field>
@@ -124,7 +112,7 @@ export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onC
           <button className={`${buttonClass} mt-4`} disabled={!workspaceId || !activity.summary}>Record activity</button>
         </form>
 
-        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.recordConsent({ workspace_id: workspaceId, person_id: consent.person_id, channel: consent.channel, consent_state: consent.consent_state, source: consent.source, evidence: { captured_by: 'primetime_release1_ui' } }), 'Consent record created.') }>
+        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.recordConsent({ workspace_id: workspaceId, person_id: consent.person_id, channel: consent.channel, consent_state: consent.consent_state, source: consent.source, evidence: { captured_by: 'primetime_release1_ui' } }), 'Consent record created.')}>
           <div className="mb-4 flex items-center gap-2 text-white"><ShieldAlert className="h-5 w-5 text-emerald-300" /><h3 className="font-semibold">Record consent</h3></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Person"><select className={inputClass} value={consent.person_id} onChange={(event) => setConsent({ ...consent, person_id: event.target.value })}><option value="">Select person</option>{people.map((item) => <option key={recordValue(item, 'id')} value={recordValue(item, 'id')}>{recordValue(item, 'first_name')} {recordValue(item, 'last_name')}</option>)}</select></Field>
@@ -135,7 +123,7 @@ export function PrimetimeRelease1Forms({ workspaceId, people, leads, stages, onC
           <button className={`${buttonClass} mt-4`} disabled={!workspaceId || !consent.person_id}>Record consent</button>
         </form>
 
-        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createSuppressionRecord({ workspace_id: workspaceId, person_id: suppression.person_id, channel: suppression.channel, reason: suppression.reason }), 'Suppression record created.') }>
+        <form className="rounded-xl border border-white/10 bg-slate-950/60 p-4" onSubmit={(event) => submit(event, () => primetimeRelease1Api.createSuppressionRecord({ workspace_id: workspaceId, person_id: suppression.person_id, channel: suppression.channel, reason: suppression.reason }), 'Suppression record created.')}>
           <div className="mb-4 flex items-center gap-2 text-white"><ShieldAlert className="h-5 w-5 text-red-300" /><h3 className="font-semibold">Create suppression record</h3></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Person"><select className={inputClass} value={suppression.person_id} onChange={(event) => setSuppression({ ...suppression, person_id: event.target.value })}><option value="">Select person</option>{people.map((item) => <option key={recordValue(item, 'id')} value={recordValue(item, 'id')}>{recordValue(item, 'first_name')} {recordValue(item, 'last_name')}</option>)}</select></Field>
