@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import pytest
+
 from backend.hermes.adapters import SupabaseCheckpointStore
 from backend.hermes.ports import CheckpointStore
 from backend.hermes.testing import InMemoryTaskRepository
 
 
+@pytest.mark.asyncio
 async def test_supabase_checkpoint_store_uses_existing_table_contract() -> None:
     repository = InMemoryTaskRepository()
     store = SupabaseCheckpointStore(repository)  # type: ignore[arg-type]
