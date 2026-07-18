@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-17 22:58 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-18 00:19 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 125  
+**Total Workflows:** 126  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-17 22:58 UTC
+**Last Updated:** 2026-07-18 00:19 UTC
 
 ## Workflow Capability Catalog
 
@@ -133,6 +133,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 
 | Workflow | File | Triggers | Jobs |
 |----------|------|----------|------|
+| Checkov Terraform Assurance | `checkov-terraform.yml` |  | 1 |
 | GitOps State Reconciliation | `gitops-reconciliation.yml` |  | 1 |
 | IaC Drift Detection | `iac-drift-detection.yml` |  | 1 |
 | Infrastructure CI/CD Pipeline | `infrastructure-ci-cd.yml` |  | 4 |
