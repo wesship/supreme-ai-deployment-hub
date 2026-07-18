@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ServiceEndpoint {
   id: string;
@@ -51,10 +52,10 @@ const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
     category: "api",
   },
   {
-    id: "supabase",
-    name: "Supabase (Auth + DB)",
-    url: `${SUPABASE_URL}/rest/v1/`,
-    description: "Authentication, database, and real-time subscriptions",
+    id: "supabase-schema",
+    name: "Supabase Schema Readiness",
+    url: `${SUPABASE_URL}/rest/v1/rpc/dashboard_schema_readiness`,
+    description: "Required dashboard tables, columns, authentication, and database readiness",
     icon: "🗄️",
     category: "database",
   },
@@ -96,7 +97,7 @@ const DEFAULT_ENDPOINTS: ServiceEndpoint[] = [
     : []),
 ];
 
-const STORAGE_KEY = "devonn-service-endpoints-v3";
+const STORAGE_KEY = "devonn-service-endpoints-v4";
 
 export function useServiceHealth() {
   const [endpoints, setEndpoints] = useState<ServiceEndpoint[]>(() => {
@@ -124,6 +125,50 @@ export function useServiceHealth() {
   const checkService = useCallback(async (endpoint: ServiceEndpoint): Promise<ServiceStatus> => {
     const start = performance.now();
     try {
+      if (endpoint.id === "supabase-schema") {
+        const { data, error } = await (supabase as any).rpc("dashboard_schema_readiness");
+        const latency = Math.round(performance.now() - start);
+
+        if (error) {
+          return {
+            id: endpoint.id,
+            name: endpoint.name,
+            url: endpoint.url,
+            status: "degraded",
+            latency,
+            lastChecked: new Date(),
+            error: `Schema readiness failed: ${error.message ?? "RPC unavailable"}`,
+          };
+        }
+
+        const readiness = Array.isArray(data) ? data[0] : data;
+        if (!readiness?.ready) {
+          const missing = Array.isArray(readiness?.missing)
+            ? readiness.missing.join(", ")
+            : "required dashboard schema";
+          return {
+            id: endpoint.id,
+            name: endpoint.name,
+            url: endpoint.url,
+            status: "degraded",
+            latency,
+            lastChecked: new Date(),
+            error: `Missing: ${missing}`,
+            details: "Database reachable; schema incomplete",
+          };
+        }
+
+        return {
+          id: endpoint.id,
+          name: endpoint.name,
+          url: endpoint.url,
+          status: "online",
+          latency,
+          lastChecked: new Date(),
+          details: "Dashboard schema ready",
+        };
+      }
+
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
 
