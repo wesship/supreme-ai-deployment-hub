@@ -1,0 +1,27 @@
+name: Actions Runner Canary
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/actions-runner-canary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actions-runner-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    name: GitHub-hosted runner canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm runner provisioning
+        run: |
+          echo "runner=${RUNNER_NAME}"
+          echo "os=${RUNNER_OS}"
+          echo "arch=${RUNNER_ARCH}"
+          date -u +%Y-%m-%dT%H:%M:%SZ
