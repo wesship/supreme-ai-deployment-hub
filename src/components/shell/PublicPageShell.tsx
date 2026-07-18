@@ -1,5 +1,4 @@
 import React from 'react';
-import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Breadcrumbs, { BreadcrumbItem } from './Breadcrumbs';
 import { cn } from '@/lib/utils';
@@ -15,10 +14,8 @@ const PublicPageShell = ({
   children,
   breadcrumbs,
   className,
-  transparentHeader = false,
 }: PublicPageShellProps) => (
   <div className="min-h-screen bg-[#020714] text-white">
-    <Navbar transparent={transparentHeader} />
     <div className="pt-16 lg:pt-[72px]">
       {breadcrumbs !== false && (
         <div className="border-b border-white/[0.06] bg-black/10">
