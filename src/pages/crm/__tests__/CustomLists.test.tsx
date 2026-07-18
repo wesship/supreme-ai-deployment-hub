@@ -60,4 +60,49 @@ describe('PRIMETIME CRM Custom Lists', () => {
     fireEvent.click(screen.getByRole('button', { name: /clear/i }));
     expect(screen.queryByText(/selected/i)).not.toBeInTheDocument();
   });
+
+  it('creates a custom list through the accessible editor dialog', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /create new custom list/i }));
+    expect(screen.getByRole('dialog', { name: /create custom list/i })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: 'Annual Review Queue' },
+    });
+    fireEvent.change(screen.getByLabelText(/description/i), {
+      target: { value: 'Clients due for an annual protection review.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /create list/i }));
+
+    expect(screen.getByText('Annual Review Queue')).toBeInTheDocument();
+    expect(screen.getByText(/showing 14 of 14 lists/i)).toBeInTheDocument();
+  });
+
+  it('edits an existing list through the accessible editor dialog', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /edit hot list/i }));
+    expect(screen.getByRole('dialog', { name: /edit custom list/i })).toBeInTheDocument();
+
+    const nameInput = screen.getByLabelText(/display name/i);
+    fireEvent.change(nameInput, { target: { value: 'Priority Follow-Up List' } });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    expect(screen.getByText('Priority Follow-Up List')).toBeInTheDocument();
+    expect(screen.queryByText('Hot List')).not.toBeInTheDocument();
+  });
+
+  it('archives a list without deleting contact records', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /archive hot list/i }));
+    expect(screen.getByRole('alertdialog', { name: /archive custom list/i })).toBeInTheDocument();
+    expect(screen.getByText(/contact records will not be deleted/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /archive list/i }));
+
+    expect(screen.queryByText('Hot List')).not.toBeInTheDocument();
+    expect(screen.getByText(/showing 12 of 12 lists/i)).toBeInTheDocument();
+  });
 });
