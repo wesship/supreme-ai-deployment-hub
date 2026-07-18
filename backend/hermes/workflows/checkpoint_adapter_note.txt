@@ -1,1 +1,0 @@
-Checkpoint recovery uses the existing hermes_checkpoints table and introduces no schema migration.
