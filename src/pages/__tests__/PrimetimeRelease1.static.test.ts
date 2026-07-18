@@ -36,7 +36,7 @@ describe('PRIMETIME Release 1 UI wiring', () => {
     expect(PAGE).toContain('Daily operating queue');
   });
 
-  it('exposes controlled create forms without delete actions', () => {
+  it('exposes controlled create forms without destructive handlers', () => {
     expect(FORMS).toContain('Create person');
     expect(FORMS).toContain('Create lead');
     expect(FORMS).toContain('Create task');
@@ -44,6 +44,7 @@ describe('PRIMETIME Release 1 UI wiring', () => {
     expect(FORMS).toContain('Record consent');
     expect(FORMS).toContain('Create suppression record');
     expect(FORMS).toContain('owner_id: userId');
-    expect(FORMS.toLowerCase()).not.toContain('delete');
+    expect(API).not.toContain("method: 'DELETE'");
+    expect(API).not.toContain('.delete(');
   });
 });
