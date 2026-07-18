@@ -122,4 +122,41 @@ export const primetimeRelease1Api = {
   listCommunicationPolicyChecks: (workspaceId: string, communicationId?: string, status?: string) =>
     primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/communication-policy-checks?${query({ workspace_id: workspaceId, communication_id: communicationId, status })}`),
   createCommunicationPolicyCheck: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/communication-policy-checks', payload),
+
+  listAiAgents: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-agents?${query({ workspace_id: workspaceId, status })}`),
+  createAiAgent: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-agents', payload),
+  updateAiAgent: (agentId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/ai-agents/${agentId}`, payload),
+  listAiAgentVersions: (workspaceId: string, agentId?: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-agent-versions?${query({ workspace_id: workspaceId, agent_id: agentId, status })}`),
+  createAiAgentVersion: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-agent-versions', payload),
+  updateAiAgentVersion: (versionId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/ai-agent-versions/${versionId}`, payload),
+  listAiAssistanceRequests: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-assistance-requests?${query({ workspace_id: workspaceId, status })}`),
+  createAiAssistanceRequest: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-assistance-requests', payload),
+  updateAiAssistanceRequest: (requestId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/ai-assistance-requests/${requestId}`, payload),
+  listAiAssistanceOutputs: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-assistance-outputs?${query({ workspace_id: workspaceId, status })}`),
+  createAiAssistanceOutput: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-assistance-outputs', payload),
+  updateAiAssistanceOutput: (outputId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/ai-assistance-outputs/${outputId}`, payload),
+  listAiActionLedger: (workspaceId: string, actionStatus?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-action-ledger?${query({ workspace_id: workspaceId, action_status: actionStatus })}`),
+  createAiActionLedger: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-action-ledger', payload),
+  listAiApprovalRequests: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-approval-requests?${query({ workspace_id: workspaceId, status })}`),
+  createAiApprovalRequest: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-approval-requests', payload),
+  updateAiApprovalRequest: (approvalId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/ai-approval-requests/${approvalId}`, payload),
+  listAiComplianceFindings: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-compliance-findings?${query({ workspace_id: workspaceId, status })}`),
+  createAiComplianceFinding: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-compliance-findings', payload),
+  updateAiComplianceFinding: (findingId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/ai-compliance-findings/${findingId}`, payload),
+  listAiKnowledgeCitations: (workspaceId: string, outputId?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-knowledge-citations?${query({ workspace_id: workspaceId, output_id: outputId })}`),
+  createAiKnowledgeCitation: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-knowledge-citations', payload),
 };
