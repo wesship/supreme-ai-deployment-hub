@@ -1,7 +1,29 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const unsubscribe = vi.fn();
+
+vi.mock('@/integrations/supabase/client', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: {
+          session: {
+            user: { id: 'test-user-id' },
+          },
+        },
+      }),
+      onAuthStateChange: vi.fn(() => ({
+        data: {
+          subscription: { unsubscribe },
+        },
+      })),
+    },
+  },
+}));
+
 import CustomLists from '../CustomLists';
 
 function renderPage() {
