@@ -33,6 +33,10 @@ class RetryPolicy(BaseModel):
 
     max_attempts: int = Field(default=1, ge=1, le=20)
     backoff_seconds: float = Field(default=0.0, ge=0.0, le=86_400.0)
+    backoff_multiplier: float = Field(default=2.0, ge=1.0, le=10.0)
+    max_backoff_seconds: float = Field(default=86_400.0, ge=0.0, le=604_800.0)
+    jitter_ratio: float = Field(default=0.0, ge=0.0, le=1.0)
+    retryable_errors: tuple[str, ...] = ()
 
 
 class WorkflowStepDefinition(BaseModel):
@@ -98,8 +102,12 @@ class WorkflowStepState(BaseModel):
     task_id: str | None = None
     output: dict[str, Any] | None = None
     error: str | None = None
+    error_type: str | None = None
     started_at: str | None = None
     completed_at: str | None = None
+    next_retry_at: str | None = None
+    retry_delay_seconds: float | None = Field(default=None, ge=0.0)
+    dead_letter_ready: bool = False
 
 
 class WorkflowExecutionSnapshot(BaseModel):

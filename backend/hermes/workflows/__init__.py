@@ -1,4 +1,4 @@
-"""Durable Hermes workflow execution, recovery, approval, and reconciliation."""
+"""Durable Hermes workflow execution, recovery, approval, retry, and reconciliation."""
 
 from backend.hermes.workflows.approvals import (
     ApprovalPolicy,
@@ -22,6 +22,7 @@ from backend.hermes.workflows.reconciliation import (
     WorkflowTaskReconciler,
     dispatch_idempotency_key,
 )
+from backend.hermes.workflows.retries import WorkflowRetryService
 
 __all__ = [
     "ApprovalPolicy",
@@ -35,6 +36,7 @@ __all__ = [
     "WorkflowExecutionCoordinator",
     "WorkflowExecutionSnapshot",
     "WorkflowRecoveryService",
+    "WorkflowRetryService",
     "WorkflowStatus",
     "WorkflowStepDefinition",
     "WorkflowStepState",
