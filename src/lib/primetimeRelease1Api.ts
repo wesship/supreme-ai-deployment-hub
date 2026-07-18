@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 
 export type PrimetimeRecord = Record<string, unknown>;
+export type PrimetimePayload = Record<string, unknown>;
 
 export interface PrimetimeDashboard {
   workspaceId: string;
@@ -21,17 +22,34 @@ export interface PrimetimeDashboard {
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    'Content-Type': 'application/json',
+  };
 }
 
-async function primetimeFetch<T>(path: string): Promise<T> {
+async function primetimeFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_URL}${path}`, { headers });
+  const response = await fetch(`${API_URL}${path}`, { ...init, headers: { ...headers, ...(init?.headers || {}) } });
   if (!response.ok) {
     const message = await response.text().catch(() => 'Unknown API error');
     throw new Error(`PRIMETIME API error ${response.status}: ${message}`);
   }
   return response.json();
+}
+
+function post<T>(path: string, payload: PrimetimePayload): Promise<T> {
+  return primetimeFetch<T>(path, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+function patch<T>(path: string, payload: PrimetimePayload): Promise<T> {
+  return primetimeFetch<T>(path, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 function query(params: Record<string, string | number | undefined | null>): string {
@@ -58,4 +76,11 @@ export const primetimeRelease1Api = {
     primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/pipeline-stages?${query({ workspace_id: workspaceId })}`),
   listExceptions: (workspaceId: string, status = 'open') =>
     primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/exceptions?${query({ workspace_id: workspaceId, status })}`),
+  createPerson: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/people', payload),
+  createLead: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/leads', payload),
+  updateLead: (leadId: string, payload: PrimetimePayload) => patch<PrimetimeRecord>(`/primetime/v1/leads/${leadId}`, payload),
+  createTask: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/tasks', payload),
+  createActivity: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/activities', payload),
+  recordConsent: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/consent-records', payload),
+  createSuppressionRecord: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/suppression-records', payload),
 };
