@@ -72,8 +72,8 @@ class SupabaseCheckpointStore:
             "hermes_checkpoints",
             {
                 "goal_id": f"eq.{goal_id}",
-                "title": f"like.workflow:{execution_id}:checkpoint:%",
-                "order": "created_at.desc",
+                "title": f"like.workflow:{execution_id}:checkpoint:*",
+                "order": "title.desc",
                 "limit": "1",
             },
         )
