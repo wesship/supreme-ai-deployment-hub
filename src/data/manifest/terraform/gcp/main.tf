@@ -53,10 +53,10 @@ resource "google_compute_instance" "backend" {
   tags = ["devonn-ai"]
 
   metadata = {
-    environment                  = var.environment
-    block-project-ssh-keys       = "true"
-    enable-oslogin               = "true"
-    disable-legacy-endpoints     = "true"
+    environment              = var.environment
+    block-project-ssh-keys   = "true"
+    enable-oslogin           = "true"
+    disable-legacy-endpoints = "true"
   }
 
   network_interface {
@@ -95,10 +95,10 @@ resource "google_compute_instance" "frontend" {
   tags = ["devonn-ai"]
 
   metadata = {
-    environment                  = var.environment
-    block-project-ssh-keys       = "true"
-    enable-oslogin               = "true"
-    disable-legacy-endpoints     = "true"
+    environment              = var.environment
+    block-project-ssh-keys   = "true"
+    enable-oslogin           = "true"
+    disable-legacy-endpoints = "true"
   }
 
   network_interface {
