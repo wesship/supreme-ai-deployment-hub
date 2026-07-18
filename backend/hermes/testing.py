@@ -126,8 +126,14 @@ class InMemoryAgentDispatcher:
         task_id: str,
         agent_name: str,
         input_data: dict[str, Any],
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
-        call = {"task_id": task_id, "agent": agent_name, "input": deepcopy(input_data)}
+        call = {
+            "task_id": task_id,
+            "agent": agent_name,
+            "input": deepcopy(input_data),
+            "idempotency_key": idempotency_key,
+        }
         self.calls.append(call)
         return {"status": "queued", **call}
 
