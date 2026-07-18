@@ -76,7 +76,7 @@ def test_lease_renewal_and_release_update_worker_capacity():
     lease = service.acquire_lease(task_id="task-1", required_capabilities=["llm"])
     original_expiry = lease.expires_at
 
-    clock.advance(timedelta(seconds=5))
+    clock.current += timedelta(seconds=5)
     service.renew_lease(lease.lease_id)
     assert lease.expires_at > original_expiry
 
@@ -105,7 +105,7 @@ def test_stale_worker_expires_lease_for_recovery():
     register_worker(service, "worker-a")
     lease = service.acquire_lease(task_id="task-1", required_capabilities=["llm"])
 
-    clock.advance(timedelta(seconds=31))
+    clock.current += timedelta(seconds=31)
     expired = service.sweep()
 
     assert [item.lease_id for item in expired] == [lease.lease_id]
@@ -119,7 +119,7 @@ def test_lease_deadline_expires_even_when_worker_is_healthy():
     register_worker(service, "worker-a")
     lease = service.acquire_lease(task_id="task-1", required_capabilities=["llm"])
 
-    clock.advance(timedelta(seconds=21))
+    clock.current += timedelta(seconds=21)
     service.heartbeat("worker-a")
     expired = service.sweep()
 
