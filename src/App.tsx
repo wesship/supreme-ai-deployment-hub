@@ -3,45 +3,31 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import "./App.css";
 import ScrollToTop from "./components/ScrollToTop";
 import SkipToContent from "./components/SkipToContent";
-import { ThemeProvider } from 'next-themes';
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import { ThemeProvider } from "next-themes";
 
-// Critical path — loaded eagerly (needed on first paint)
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
-// Lazy-load the floating chat widget (heavy: imports supabase, AI orchestrator, voice)
 const FloatingChatWidget = lazy(() =>
-  import("./components/ai/FloatingChatWidget").then(m => ({ default: m.FloatingChatWidget }))
+  import("./components/ai/FloatingChatWidget").then((module) => ({ default: module.FloatingChatWidget })),
 );
-
-// Lazy-load the Navbar (it imports supabase for auth state)
 const Navbar = lazy(() => import("./components/Navbar"));
-
-// Lazy-load context providers — they pull in axios, supabase, encryption, etc.
 const ChatProvider = lazy(() =>
-  import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider }))
+  import("./contexts/ChatContext").then((module) => ({ default: module.ChatProvider })),
 );
 const DeploymentProvider = lazy(() =>
-  import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider }))
+  import("./contexts/DeploymentContext").then((module) => ({ default: module.DeploymentProvider })),
 );
 const APIProvider = lazy(() =>
-  import("./contexts/APIContext").then(m => ({ default: m.APIProvider }))
+  import("./contexts/APIContext").then((module) => ({ default: module.APIProvider })),
 );
 const AGUIProvider = lazy(() =>
-  import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider }))
+  import("./contexts/agui/AGUIContext").then((module) => ({ default: module.AGUIProvider })),
 );
+const Toaster = lazy(() => import("./components/ui/sonner").then((module) => ({ default: module.Toaster })));
+const Analytics = lazy(() => import("@vercel/analytics/react").then((module) => ({ default: module.Analytics })));
 
-// Lazy-load non-critical UI
-const Toaster = lazy(() =>
-  import("./components/ui/sonner").then(m => ({ default: m.Toaster }))
-);
-
-// Lazy-load Vercel Analytics (non-critical)
-const Analytics = lazy(() =>
-  import("@vercel/analytics/react").then(m => ({ default: m.Analytics }))
-);
-
-// All other pages are lazy-loaded to reduce the initial bundle
 const Login = lazy(() => import("./pages/Login"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -86,15 +72,19 @@ const SecurityCommandCenter = lazy(() => import("./pages/security/CommandCenter"
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
+const CrmCustomLists = lazy(() => import("./pages/crm/CustomLists"));
 
-// Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
-  import("./components/auth/AdminRoute").then(mod => {
-    const AdminRoute = mod.default;
-    return import("./pages/OperatorCommandCenterRC1").then(occMod => ({
-      default: () => <AdminRoute><occMod.default /></AdminRoute>
+  import("./components/auth/AdminRoute").then((module) => {
+    const AdminRoute = module.default;
+    return import("./pages/OperatorCommandCenterRC1").then((operatorModule) => ({
+      default: () => (
+        <AdminRoute>
+          <operatorModule.default />
+        </AdminRoute>
+      ),
     }));
-  })
+  }),
 );
 
 const PageLoader = () => (
@@ -109,22 +99,20 @@ const PageLoader = () => (
   </div>
 );
 
-/**
- * DeferredProviders — wraps children in context providers but only mounts them
- * after the initial paint (via idle callback) to avoid blocking FCP/LCP.
- */
 function DeferredProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const id = ('requestIdleCallback' in window)
-      ? (window as any).requestIdleCallback(() => setReady(true))
-      : setTimeout(() => setReady(true), 50);
+    const id =
+      "requestIdleCallback" in window
+        ? (window as Window & { requestIdleCallback: (callback: () => void) => number }).requestIdleCallback(() => setReady(true))
+        : window.setTimeout(() => setReady(true), 50);
+
     return () => {
-      if ('cancelIdleCallback' in window) {
-        (window as any).cancelIdleCallback(id);
+      if ("cancelIdleCallback" in window) {
+        (window as Window & { cancelIdleCallback: (handle: number) => void }).cancelIdleCallback(id);
       } else {
-        clearTimeout(id);
+        window.clearTimeout(id);
       }
     };
   }, []);
@@ -136,9 +124,7 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
       <DeploymentProvider>
         <APIProvider>
           <ChatProvider>
-            <AGUIProvider>
-              {children}
-            </AGUIProvider>
+            <AGUIProvider>{children}</AGUIProvider>
           </ChatProvider>
         </APIProvider>
       </DeploymentProvider>
@@ -217,6 +203,15 @@ function App() {
                 <Route path="/security/command-center" element={<SecurityCommandCenter />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
+                <Route
+                  path="/crm/lists"
+                  element={
+                    <ProtectedRoute>
+                      <CrmCustomLists />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/crm" element={<Navigate to="/crm/lists" replace />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/sign-in" element={<Navigate to="/login" replace />} />
