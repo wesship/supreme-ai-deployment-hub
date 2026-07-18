@@ -8,10 +8,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Self
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 CONTRACT_VERSION = "1.0"
 
@@ -86,7 +86,11 @@ def can_transition(current: TaskStatus | str, target: TaskStatus | str) -> bool:
     return target_status in TASK_TRANSITIONS[current_status]
 
 
-class ToolContract(BaseModel):
+class StrictContract(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ToolContract(StrictContract):
     name: str = Field(..., min_length=1, max_length=100)
     version: str = Field(default="1.0.0", min_length=1, max_length=50)
     permissions: list[str] = Field(default_factory=list)
@@ -97,13 +101,10 @@ class ToolContract(BaseModel):
     input_schema: dict[str, Any] = Field(default_factory=dict)
     output_schema: dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        extra = "forbid"
 
-
-class AgentManifest(BaseModel):
+class AgentManifest(StrictContract):
     contract_version: str = CONTRACT_VERSION
-    id: str = Field(..., min_length=2, max_length=64, regex=r"^[a-z][a-z0-9_-]*$")
+    id: str = Field(..., min_length=2, max_length=64, pattern=r"^[a-z][a-z0-9_-]*$")
     name: str = Field(..., min_length=2, max_length=100)
     version: str = Field(..., min_length=1, max_length=50)
     role: AgentRole
@@ -116,20 +117,18 @@ class AgentManifest(BaseModel):
     enabled: bool = True
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @validator("capabilities", "permissions", "models", "children")
+    @field_validator("capabilities", "permissions", "models", "children")
+    @classmethod
     def values_must_be_unique(cls, values: list[str]) -> list[str]:
         if len(values) != len(set(values)):
             raise ValueError("values must be unique")
         return values
 
-    class Config:
-        extra = "forbid"
 
-
-class HermesEvent(BaseModel):
+class HermesEvent(StrictContract):
     contract_version: str = CONTRACT_VERSION
     event_id: UUID = Field(default_factory=uuid4)
-    event_type: str = Field(..., min_length=3, max_length=120, regex=r"^[a-z][a-z0-9_.-]+$")
+    event_type: str = Field(..., min_length=3, max_length=120, pattern=r"^[a-z][a-z0-9_.-]+$")
     occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     source: str = Field(..., min_length=1, max_length=100)
     correlation_id: str | None = Field(default=None, max_length=128)
@@ -140,11 +139,8 @@ class HermesEvent(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        extra = "forbid"
 
-
-class TaskTransition(BaseModel):
+class TaskTransition(StrictContract):
     task_id: UUID
     from_status: TaskStatus
     to_status: TaskStatus
@@ -152,12 +148,10 @@ class TaskTransition(BaseModel):
     actor: str = Field(..., min_length=1, max_length=100)
     correlation_id: str | None = Field(default=None, max_length=128)
 
-    @validator("to_status")
-    def transition_must_be_legal(cls, target: TaskStatus, values: dict[str, Any]) -> TaskStatus:
-        current = values.get("from_status")
-        if current is not None and not can_transition(current, target):
-            raise ValueError(f"invalid task transition: {current.value} -> {target.value}")
-        return target
-
-    class Config:
-        extra = "forbid"
+    @model_validator(mode="after")
+    def transition_must_be_legal(self) -> Self:
+        if not can_transition(self.from_status, self.to_status):
+            raise ValueError(
+                f"invalid task transition: {self.from_status.value} -> {self.to_status.value}"
+            )
+        return self
