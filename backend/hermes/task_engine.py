@@ -2,29 +2,24 @@
 Hermes Task Engine
 ==================
 State machine + CRUD for hermes_tasks, hermes_runs, hermes_logs, and agent dispatch.
-All DB operations go through the Supabase service-role client (bypasses RLS).
+All DB operations go through the shared Supabase service-role adapter.
 """
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import hmac
-import json
 import logging
-import os
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
-
 from backend.hermes.contracts import RunStatus, TASK_TRANSITIONS, TaskStatus, can_transition
+from backend.hermes.infrastructure import (
+    HermesDispatchClient,
+    HermesInfrastructureConfig,
+    SupabaseRestClient,
+)
 from backend.hermes.registry import BUILTIN_AGENT_REGISTRY
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Legacy-compatible projections of canonical v1 contracts
-# ---------------------------------------------------------------------------
 
 TASK_STATES = {status.value for status in TaskStatus}
 VALID_TRANSITIONS: dict[str, set[str]] = {
@@ -33,72 +28,38 @@ VALID_TRANSITIONS: dict[str, set[str]] = {
 }
 AGENT_HIERARCHY = BUILTIN_AGENT_REGISTRY.hierarchy()
 
+_CONFIG = HermesInfrastructureConfig.from_env()
+_SUPABASE = SupabaseRestClient(_CONFIG)
+_DISPATCH = HermesDispatchClient(_CONFIG)
 
-# ---------------------------------------------------------------------------
-# Supabase REST client helpers
-# ---------------------------------------------------------------------------
 
 def _supabase_url() -> str:
-    return os.getenv("SUPABASE_URL", "")
+    return _CONFIG.supabase_url
 
 
 def _service_key() -> str:
-    return os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    return _CONFIG.service_role_key
 
 
 def _is_configured() -> bool:
-    return bool(_supabase_url() and _service_key())
+    return _SUPABASE.configured
 
 
 def _headers() -> dict[str, str]:
-    return {
-        "apikey": _service_key(),
-        "Authorization": f"Bearer {_service_key()}",
-        "Content-Type": "application/json",
-        "Prefer": "return=representation",
-    }
+    return _SUPABASE.headers(return_representation=True)
 
 
 async def _sb_get(table: str, params: dict[str, str]) -> list[dict]:
-    if not _is_configured():
-        return []
-    url = f"{_supabase_url()}/rest/v1/{table}"
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.get(url, headers=_headers(), params=params)
-        response.raise_for_status()
-        return response.json()
+    return await _SUPABASE.get(table, params)
 
 
 async def _sb_post(table: str, payload: dict) -> dict:
-    if not _is_configured():
-        return {}
-    url = f"{_supabase_url()}/rest/v1/{table}"
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.post(url, headers=_headers(), json=payload)
-        response.raise_for_status()
-        data = response.json()
-        return data[0] if isinstance(data, list) and data else data
+    return await _SUPABASE.post(table, payload)
 
 
 async def _sb_patch(table: str, row_id: str, payload: dict) -> dict:
-    if not _is_configured():
-        return {}
-    url = f"{_supabase_url()}/rest/v1/{table}"
-    async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.patch(
-            url,
-            headers=_headers(),
-            params={"id": f"eq.{row_id}"},
-            json=payload,
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data[0] if isinstance(data, list) and data else data
+    return await _SUPABASE.patch(table, row_id, payload)
 
-
-# ---------------------------------------------------------------------------
-# Task CRUD
-# ---------------------------------------------------------------------------
 
 async def create_task(
     title: str,
@@ -158,10 +119,7 @@ async def list_tasks(
     agent_name: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    params: dict[str, str] = {
-        "order": "created_at.desc",
-        "limit": str(limit),
-    }
+    params: dict[str, str] = {"order": "created_at.desc", "limit": str(limit)}
     if status:
         params["status"] = f"eq.{TaskStatus(status).value}"
     if agent_name:
@@ -190,8 +148,7 @@ async def transition_task(
     if not can_transition(current_status, target_status):
         allowed = sorted(status.value for status in TASK_TRANSITIONS[current_status])
         raise ValueError(
-            f"Invalid transition {current_status.value} → {target_status.value}. "
-            f"Allowed: {allowed}"
+            f"Invalid transition {current_status.value} → {target_status.value}. Allowed: {allowed}"
         )
 
     persisted_status = target_status
@@ -230,19 +187,17 @@ async def transition_task(
     return updated
 
 
-# ---------------------------------------------------------------------------
-# Run tracking
-# ---------------------------------------------------------------------------
-
 async def start_run(task_id: str, agent_name: str, run_number: int = 1) -> dict:
-    payload = {
-        "task_id": task_id,
-        "agent_name": agent_name,
-        "run_number": run_number,
-        "status": RunStatus.RUNNING.value,
-        "started_at": datetime.now(timezone.utc).isoformat(),
-    }
-    return await _sb_post("hermes_runs", payload)
+    return await _sb_post(
+        "hermes_runs",
+        {
+            "task_id": task_id,
+            "agent_name": agent_name,
+            "run_number": run_number,
+            "status": RunStatus.RUNNING.value,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
 
 async def finish_run(
@@ -257,7 +212,6 @@ async def finish_run(
     run_status = RunStatus(status)
     if run_status not in {RunStatus.COMPLETED, RunStatus.FAILED, RunStatus.CANCELLED}:
         raise ValueError(f"finish_run requires a terminal status, got {run_status.value}")
-
     patch: dict[str, Any] = {
         "status": run_status.value,
         "finished_at": datetime.now(timezone.utc).isoformat(),
@@ -274,10 +228,6 @@ async def finish_run(
         patch["duration_ms"] = duration_ms
     return await _sb_patch("hermes_runs", run_id, patch)
 
-
-# ---------------------------------------------------------------------------
-# Structured logging
-# ---------------------------------------------------------------------------
 
 async def log_event(
     event: str,
@@ -306,7 +256,6 @@ async def log_event(
         payload["data"] = data
     if correlation_id:
         payload["correlation_id"] = correlation_id
-
     try:
         await _sb_post("hermes_logs", payload)
     except Exception as exc:  # noqa: BLE001
@@ -314,7 +263,7 @@ async def log_event(
 
 
 def fire_log_event(event: str, message: str | None = None, **kwargs) -> None:
-    """Synchronous wrapper for log_event (creates a new event loop if needed)."""
+    """Synchronous wrapper for log_event."""
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
@@ -325,52 +274,24 @@ def fire_log_event(event: str, message: str | None = None, **kwargs) -> None:
         logger.warning("fire_log_event failed: %s", exc)
 
 
-# ---------------------------------------------------------------------------
-# Agent dispatch
-# ---------------------------------------------------------------------------
-
 async def dispatch_to_agent(
     agent_name: str,
     task_id: str,
     input_data: dict | None = None,
 ) -> dict:
-    """Dispatch to a manifest-registered agent via the existing enqueue function."""
+    """Dispatch to a manifest-registered agent via the shared enqueue adapter."""
     agent_id = agent_name.strip().lower()
     try:
         manifest = BUILTIN_AGENT_REGISTRY.get(agent_id)
     except KeyError as exc:
         valid = [registered.name for registered in BUILTIN_AGENT_REGISTRY.list()]
         raise ValueError(f"Unknown agent: {agent_name}. Valid: {valid}") from exc
-
     if not manifest.enabled:
         raise ValueError(f"Agent is disabled: {manifest.name}")
-
-    supabase_url = _supabase_url()
-    webhook_secret = os.getenv("HERMES_WEBHOOK_SECRET", "")
-
-    if not supabase_url or not webhook_secret:
+    if not _DISPATCH.configured:
         logger.warning("Hermes dispatch: Supabase not configured — skipping enqueue")
-        return {"status": "skipped", "reason": "not_configured"}
-
-    enqueue_url = f"{supabase_url}/functions/v1/enqueue-task"
-    payload = {
-        "task_id": task_id,
-        "agent": manifest.name,
-        "input": input_data or {},
-    }
-
-    body = json.dumps(payload, separators=(",", ":"))
-    signature = hmac.new(webhook_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
-
-    async with httpx.AsyncClient(timeout=15) as client:
-        response = await client.post(
-            enqueue_url,
-            content=body,
-            headers={
-                "Content-Type": "application/json",
-                "x-hermes-signature": signature,
-                "Authorization": f"Bearer {_service_key()}",
-            },
-        )
-        response.raise_for_status()
-        return response.json()
+    return await _DISPATCH.enqueue(
+        {"task_id": task_id, "agent": manifest.name, "input": input_data or {}},
+        include_service_authorization=True,
+        signature_header="x-hermes-signature",
+    )
