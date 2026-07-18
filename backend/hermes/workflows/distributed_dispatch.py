@@ -72,13 +72,14 @@ class InMemoryWorkerTransport:
         return True
 
     async def publish(self, envelope: WorkerTaskEnvelope) -> dict[str, Any]:
-        if envelope.delivery_id not in self.messages:
+        duplicate = envelope.delivery_id in self.messages
+        if not duplicate:
             self.messages[envelope.delivery_id] = envelope
             self.order.append(envelope.delivery_id)
         return {
             "delivery_id": envelope.delivery_id,
             "accepted": True,
-            "duplicate": self.messages[envelope.delivery_id] is not envelope,
+            "duplicate": duplicate,
         }
 
 
@@ -161,9 +162,9 @@ class DistributedTaskDispatcher:
 
     def acknowledge(self, *, delivery_id: str, worker_id: str, lease_id: str) -> DeliveryRecord:
         record = self._record(delivery_id)
-        self._validate_ownership(record, worker_id=worker_id, lease_id=lease_id)
         if record.status in {DeliveryStatus.ACKNOWLEDGED, DeliveryStatus.COMPLETED}:
             return record
+        self._validate_ownership(record, worker_id=worker_id, lease_id=lease_id)
         if record.status != DeliveryStatus.DELIVERED:
             raise WorkerRegistryError(f"delivery {delivery_id} is not awaiting acknowledgement")
         record.status = DeliveryStatus.ACKNOWLEDGED
@@ -179,9 +180,9 @@ class DistributedTaskDispatcher:
         error: str | None = None,
     ) -> DeliveryRecord:
         record = self._record(delivery_id)
-        self._validate_ownership(record, worker_id=worker_id, lease_id=lease_id)
         if record.status in {DeliveryStatus.COMPLETED, DeliveryStatus.FAILED}:
             return record
+        self._validate_ownership(record, worker_id=worker_id, lease_id=lease_id)
         if record.status not in {DeliveryStatus.DELIVERED, DeliveryStatus.ACKNOWLEDGED}:
             raise WorkerRegistryError(f"delivery {delivery_id} cannot complete from {record.status.value}")
         record.status = DeliveryStatus.FAILED if error else DeliveryStatus.COMPLETED
@@ -199,6 +200,8 @@ class DistributedTaskDispatcher:
                 continue
             lease = self.registry.leases.get(record.envelope.lease_id)
             if record.envelope.expires_at <= now or not lease or lease.status != LeaseStatus.ACTIVE:
+                if lease and lease.status == LeaseStatus.ACTIVE:
+                    self.registry.release_lease(lease.lease_id, cancelled=True)
                 record.status = DeliveryStatus.EXPIRED
                 record.error = "acknowledgement deadline or worker lease expired"
                 if self.task_deliveries.get(record.envelope.task_id) == record.envelope.delivery_id:
