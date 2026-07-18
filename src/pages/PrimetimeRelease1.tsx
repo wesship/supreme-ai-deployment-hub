@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarClock, CheckCircle2, Search, ShieldCheck, UsersRound } from 'lucide-react';
+import { PrimetimeRelease1Forms } from '@/components/primetime/PrimetimeRelease1Forms';
 import { primetimeRelease1Api, type PrimetimeDashboard, type PrimetimeRecord } from '@/lib/primetimeRelease1Api';
 
 function value(record: PrimetimeRecord, key: string, fallback = '—') {
@@ -58,26 +59,32 @@ export default function PrimetimeRelease1() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load PRIMETIME workspaces'));
   }, []);
 
-  useEffect(() => {
-    if (!workspaceId) return;
+  async function loadWorkspace(currentWorkspaceId = workspaceId) {
+    if (!currentWorkspaceId) return;
     setLoading(true);
     setError('');
-    Promise.all([
-      primetimeRelease1Api.getDailyDashboard(workspaceId),
-      primetimeRelease1Api.listPeople(workspaceId, peopleQuery),
-      primetimeRelease1Api.listLeads(workspaceId),
-      primetimeRelease1Api.listPipelineStages(workspaceId),
-      primetimeRelease1Api.listExceptions(workspaceId),
-    ])
-      .then(([daily, peopleRows, leadRows, stageRows, exceptionRows]) => {
-        setDashboard(daily);
-        setPeople(peopleRows);
-        setLeads(leadRows);
-        setStages(stageRows);
-        setExceptions(exceptionRows);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load PRIMETIME workspace'))
-      .finally(() => setLoading(false));
+    try {
+      const [daily, peopleRows, leadRows, stageRows, exceptionRows] = await Promise.all([
+        primetimeRelease1Api.getDailyDashboard(currentWorkspaceId),
+        primetimeRelease1Api.listPeople(currentWorkspaceId, peopleQuery),
+        primetimeRelease1Api.listLeads(currentWorkspaceId),
+        primetimeRelease1Api.listPipelineStages(currentWorkspaceId),
+        primetimeRelease1Api.listExceptions(currentWorkspaceId),
+      ]);
+      setDashboard(daily);
+      setPeople(peopleRows);
+      setLeads(leadRows);
+      setStages(stageRows);
+      setExceptions(exceptionRows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load PRIMETIME workspace');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadWorkspace(workspaceId);
   }, [workspaceId, peopleQuery]);
 
   const leadsByStage = useMemo(() => {
@@ -146,6 +153,15 @@ export default function PrimetimeRelease1() {
           <StatCard label="Open tasks" value={dashboard?.summary.openTaskCount ?? '—'} icon={CalendarClock} />
           <StatCard label="Open exceptions" value={dashboard?.summary.exceptionCount ?? '—'} icon={AlertTriangle} />
         </section>
+
+        <PrimetimeRelease1Forms
+          workspaceId={workspaceId}
+          userId={dashboard?.userId || ''}
+          people={people}
+          leads={leads}
+          stages={stages}
+          onChanged={() => void loadWorkspace()}
+        />
 
         <section className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5 lg:col-span-2">
