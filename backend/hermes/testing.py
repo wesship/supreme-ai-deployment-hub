@@ -30,6 +30,11 @@ class InMemoryTaskRepository:
             if isinstance(value, str) and value.startswith("eq."):
                 expected = value[3:]
                 rows = [row for row in rows if str(row.get(key)) == expected]
+            elif isinstance(value, str) and value.startswith("like."):
+                pattern = value[5:].replace("%", "")
+                rows = [row for row in rows if pattern in str(row.get(key, ""))]
+        if params.get("order") == "created_at.desc":
+            rows.sort(key=lambda row: str(row.get("created_at", "")), reverse=True)
         limit = int(params.get("limit", len(rows)))
         return rows[:limit]
 
@@ -49,6 +54,63 @@ class InMemoryTaskRepository:
                 row.update(deepcopy(payload))
                 return deepcopy(row)
         return {}
+
+
+@dataclass
+class InMemoryCheckpointStore:
+    configured: bool = True
+    records: list[dict[str, Any]] = field(default_factory=list)
+
+    async def save(
+        self,
+        *,
+        user_id: str,
+        goal_id: str,
+        execution_id: str,
+        sequence: int,
+        envelope: dict[str, Any],
+    ) -> dict[str, Any]:
+        record = {
+            "id": str(uuid4()),
+            "user_id": user_id,
+            "goal_id": goal_id,
+            "execution_id": execution_id,
+            "sequence": sequence,
+            "envelope": deepcopy(envelope),
+        }
+        self.records.append(record)
+        return deepcopy(record)
+
+    async def latest(
+        self,
+        *,
+        goal_id: str,
+        execution_id: str,
+    ) -> dict[str, Any] | None:
+        matches = [
+            record
+            for record in self.records
+            if record["goal_id"] == goal_id and record["execution_id"] == execution_id
+        ]
+        if not matches:
+            return None
+        return deepcopy(max(matches, key=lambda record: int(record["sequence"]))["envelope"])
+
+    async def get(
+        self,
+        *,
+        goal_id: str,
+        execution_id: str,
+        sequence: int,
+    ) -> dict[str, Any] | None:
+        for record in self.records:
+            if (
+                record["goal_id"] == goal_id
+                and record["execution_id"] == execution_id
+                and record["sequence"] == sequence
+            ):
+                return deepcopy(record["envelope"])
+        return None
 
 
 @dataclass
