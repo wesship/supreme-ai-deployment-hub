@@ -99,4 +99,27 @@ export const primetimeRelease1Api = {
   listNoShowEvents: (workspaceId: string) =>
     primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/no-show-events?${query({ workspace_id: workspaceId })}`),
   createCalendarSyncEvent: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/calendar-sync-events', payload),
+
+  listMessageTemplates: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/message-templates?${query({ workspace_id: workspaceId, status })}`),
+  createMessageTemplate: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/message-templates', payload),
+  updateMessageTemplate: (templateId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/message-templates/${templateId}`, payload),
+  listMessageTemplateVersions: (workspaceId: string, templateId?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/message-template-versions?${query({ workspace_id: workspaceId, template_id: templateId })}`),
+  createMessageTemplateVersion: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/message-template-versions', payload),
+  listCommunicationPreferences: (workspaceId: string, personId?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/communication-preferences?${query({ workspace_id: workspaceId, person_id: personId })}`),
+  createCommunicationPreference: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/communication-preferences', payload),
+  listCommunications: (workspaceId: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/communications?${query({ workspace_id: workspaceId, status })}`),
+  createCommunication: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/communications', payload),
+  updateCommunication: (communicationId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/communications/${communicationId}`, payload),
+  listCommunicationEvents: (workspaceId: string, communicationId?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/communication-events?${query({ workspace_id: workspaceId, communication_id: communicationId })}`),
+  createCommunicationEvent: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/communication-events', payload),
+  listCommunicationPolicyChecks: (workspaceId: string, communicationId?: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/communication-policy-checks?${query({ workspace_id: workspaceId, communication_id: communicationId, status })}`),
+  createCommunicationPolicyCheck: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/communication-policy-checks', payload),
 };
