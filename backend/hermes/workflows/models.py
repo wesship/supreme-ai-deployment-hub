@@ -48,6 +48,7 @@ class WorkflowStepDefinition(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)
     retry: RetryPolicy = Field(default_factory=RetryPolicy)
     requires_approval: bool = False
+    timeout_seconds: int | None = Field(default=None, ge=1, le=604_800)
 
 
 class WorkflowDefinition(BaseModel):
@@ -57,6 +58,7 @@ class WorkflowDefinition(BaseModel):
     id: str = Field(min_length=1, max_length=128, pattern=r"^[a-zA-Z0-9_.-]+$")
     version: str = Field(default="1.0.0", min_length=1, max_length=32)
     steps: tuple[WorkflowStepDefinition, ...] = Field(min_length=1)
+    timeout_seconds: int | None = Field(default=None, ge=1, le=2_592_000)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -107,6 +109,7 @@ class WorkflowStepState(BaseModel):
     completed_at: str | None = None
     next_retry_at: str | None = None
     retry_delay_seconds: float | None = Field(default=None, ge=0.0)
+    deadline_at: str | None = None
     dead_letter_ready: bool = False
 
 
@@ -122,4 +125,5 @@ class WorkflowExecutionSnapshot(BaseModel):
     created_at: str
     updated_at: str
     checkpoint_sequence: int = Field(default=0, ge=0)
+    deadline_at: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
