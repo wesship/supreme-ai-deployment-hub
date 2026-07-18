@@ -98,13 +98,20 @@ export default function CustomLists() {
   }, [lists, query, sortAsc]);
 
   const toggleAll = () => {
-    if (selected.size === visibleLists.length) setSelected(new Set());
-    else setSelected(new Set(visibleLists.map((item) => item.id)));
+    if (selected.size === visibleLists.length) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(visibleLists.map((item) => item.id)));
   };
 
   const toggleOne = (id: string) => {
     const next = new Set(selected);
-    next.has(id) ? next.delete(id) : next.add(id);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
     setSelected(next);
   };
 
