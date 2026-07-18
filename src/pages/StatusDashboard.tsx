@@ -136,7 +136,7 @@ export default function StatusDashboard() {
               {overallStatus === "partial_outage" && <XCircle className="h-6 w-6" />}
               {overallStatus === "checking" && <Loader2 className="h-6 w-6 animate-spin" />}
               <div>
-                <h1 className="text-xl font-bold">{overallLabel}</h1>
+                <h2 className="text-xl font-bold">{overallLabel}</h2>
                 <p className="text-sm opacity-70 mt-0.5">
                   {onlineCount}/{endpoints.length} services responding
                 </p>
