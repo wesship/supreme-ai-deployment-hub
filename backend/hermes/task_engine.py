@@ -1,21 +1,21 @@
 """
 Hermes Task Engine
 ==================
-State machine + CRUD for hermes_tasks, hermes_runs, hermes_logs, and agent dispatch.
-All DB operations go through the shared Supabase service-role adapter.
+State machine and orchestration services for Hermes tasks, runs, events, and dispatch.
+Infrastructure is supplied through explicit runtime ports while legacy helpers remain stable.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 from backend.hermes.contracts import RunStatus, TASK_TRANSITIONS, TaskStatus, can_transition
-from backend.hermes.infrastructure import (
-    HermesDispatchClient,
-    HermesInfrastructureConfig,
-    SupabaseRestClient,
+from backend.hermes.dependencies import (
+    HermesDependencies,
+    configure_dependencies,
+    get_dependencies,
+    reset_dependencies,
 )
 from backend.hermes.registry import BUILTIN_AGENT_REGISTRY
 
@@ -28,37 +28,57 @@ VALID_TRANSITIONS: dict[str, set[str]] = {
 }
 AGENT_HIERARCHY = BUILTIN_AGENT_REGISTRY.hierarchy()
 
-_CONFIG = HermesInfrastructureConfig.from_env()
-_SUPABASE = SupabaseRestClient(_CONFIG)
-_DISPATCH = HermesDispatchClient(_CONFIG)
+
+def configure_runtime(dependencies: HermesDependencies) -> None:
+    """Configure Hermes runtime dependencies for tests or alternate deployments."""
+    configure_dependencies(dependencies)
+
+
+def reset_runtime() -> None:
+    """Restore environment-backed production dependencies."""
+    reset_dependencies()
+
+
+def _dependencies() -> HermesDependencies:
+    return get_dependencies()
 
 
 def _supabase_url() -> str:
-    return _CONFIG.supabase_url
+    repository = _dependencies().repository
+    client = getattr(repository, "_client", None)
+    config = getattr(client, "config", None)
+    return getattr(config, "supabase_url", "")
 
 
 def _service_key() -> str:
-    return _CONFIG.service_role_key
+    repository = _dependencies().repository
+    client = getattr(repository, "_client", None)
+    config = getattr(client, "config", None)
+    return getattr(config, "service_role_key", "")
 
 
 def _is_configured() -> bool:
-    return _SUPABASE.configured
+    return _dependencies().repository.configured
 
 
 def _headers() -> dict[str, str]:
-    return _SUPABASE.headers(return_representation=True)
+    repository = _dependencies().repository
+    client = getattr(repository, "_client", None)
+    if client is None or not hasattr(client, "headers"):
+        return {}
+    return client.headers(return_representation=True)
 
 
-async def _sb_get(table: str, params: dict[str, str]) -> list[dict]:
-    return await _SUPABASE.get(table, params)
+async def _sb_get(table: str, params: dict[str, Any]) -> list[dict[str, Any]]:
+    return await _dependencies().repository.list_rows(table, params)
 
 
-async def _sb_post(table: str, payload: dict) -> dict:
-    return await _SUPABASE.post(table, payload)
+async def _sb_post(table: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return await _dependencies().repository.create_row(table, payload)
 
 
-async def _sb_patch(table: str, row_id: str, payload: dict) -> dict:
-    return await _SUPABASE.patch(table, row_id, payload)
+async def _sb_patch(table: str, row_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return await _dependencies().repository.update_row(table, row_id, payload)
 
 
 async def create_task(
@@ -119,7 +139,7 @@ async def list_tasks(
     agent_name: str | None = None,
     limit: int = 50,
 ) -> list[dict]:
-    params: dict[str, str] = {"order": "created_at.desc", "limit": str(limit)}
+    params: dict[str, Any] = {"order": "created_at.desc", "limit": str(limit)}
     if status:
         params["status"] = f"eq.{TaskStatus(status).value}"
     if agent_name:
@@ -153,7 +173,7 @@ async def transition_task(
 
     persisted_status = target_status
     patch: dict[str, Any] = {"status": target_status.value}
-    now = datetime.now(timezone.utc).isoformat()
+    now = _dependencies().clock.now().isoformat()
 
     if target_status is TaskStatus.RUNNING:
         patch["started_at"] = now
@@ -195,7 +215,7 @@ async def start_run(task_id: str, agent_name: str, run_number: int = 1) -> dict:
             "agent_name": agent_name,
             "run_number": run_number,
             "status": RunStatus.RUNNING.value,
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": _dependencies().clock.now().isoformat(),
         },
     )
 
@@ -214,7 +234,7 @@ async def finish_run(
         raise ValueError(f"finish_run requires a terminal status, got {run_status.value}")
     patch: dict[str, Any] = {
         "status": run_status.value,
-        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": _dependencies().clock.now().isoformat(),
     }
     if output_snapshot:
         patch["output_snapshot"] = output_snapshot
@@ -239,7 +259,7 @@ async def log_event(
     data: dict | None = None,
     correlation_id: str | None = None,
 ) -> None:
-    """Fire-and-forget structured log entry to hermes_logs."""
+    """Emit a structured lifecycle event through the configured event sink."""
     if not _is_configured():
         logger.debug("[hermes_log] %s %s", event, message)
         return
@@ -257,7 +277,7 @@ async def log_event(
     if correlation_id:
         payload["correlation_id"] = correlation_id
     try:
-        await _sb_post("hermes_logs", payload)
+        await _dependencies().event_sink.emit(payload)
     except Exception as exc:  # noqa: BLE001
         logger.warning("hermes_log failed: %s", exc)
 
@@ -279,7 +299,7 @@ async def dispatch_to_agent(
     task_id: str,
     input_data: dict | None = None,
 ) -> dict:
-    """Dispatch to a manifest-registered agent via the shared enqueue adapter."""
+    """Dispatch to a manifest-registered agent through the configured port."""
     agent_id = agent_name.strip().lower()
     try:
         manifest = BUILTIN_AGENT_REGISTRY.get(agent_id)
@@ -288,10 +308,12 @@ async def dispatch_to_agent(
         raise ValueError(f"Unknown agent: {agent_name}. Valid: {valid}") from exc
     if not manifest.enabled:
         raise ValueError(f"Agent is disabled: {manifest.name}")
-    if not _DISPATCH.configured:
+    dispatcher = _dependencies().dispatcher
+    if not dispatcher.configured:
         logger.warning("Hermes dispatch: Supabase not configured — skipping enqueue")
-    return await _DISPATCH.enqueue(
-        {"task_id": task_id, "agent": manifest.name, "input": input_data or {}},
-        include_service_authorization=True,
-        signature_header="x-hermes-signature",
+        return {"status": "skipped", "reason": "not_configured"}
+    return await dispatcher.dispatch(
+        task_id=task_id,
+        agent_name=manifest.name,
+        input_data=input_data or {},
     )
