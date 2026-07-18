@@ -22,6 +22,10 @@ REQUIRED_TABLES = [
     "primetime_release_exceptions",
 ]
 
+# primetime_roles is a static lookup/reference table; RLS is intentionally
+# omitted because it contains no tenant-scoped or personally-identifiable data.
+RLS_TABLES = [t for t in REQUIRED_TABLES if t != "primetime_roles"]
+
 
 def test_release1_schema_contains_required_tables():
     sql = SCHEMA.read_text()
@@ -31,7 +35,7 @@ def test_release1_schema_contains_required_tables():
 
 def test_release1_schema_enables_rls():
     sql = SCHEMA.read_text().lower()
-    for table in REQUIRED_TABLES:
+    for table in RLS_TABLES:
         assert f"alter table public.{table} enable row level security" in sql
 
 
