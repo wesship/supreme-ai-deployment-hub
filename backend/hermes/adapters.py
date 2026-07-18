@@ -127,9 +127,17 @@ class EdgeFunctionAgentDispatcher:
         task_id: str,
         agent_name: str,
         input_data: dict[str, Any],
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "task_id": task_id,
+            "agent": agent_name,
+            "input": input_data,
+        }
+        if idempotency_key:
+            payload["idempotency_key"] = idempotency_key
         return await self._client.enqueue(
-            {"task_id": task_id, "agent": agent_name, "input": input_data},
+            payload,
             include_service_authorization=True,
             signature_header="x-hermes-signature",
         )
