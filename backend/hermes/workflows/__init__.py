@@ -1,4 +1,4 @@
-"""Durable workflow contracts, recovery, and execution state machine."""
+"""Durable workflow contracts, recovery, reconciliation, and execution state machine."""
 
 from backend.hermes.workflows.checkpoints import CheckpointEnvelope, WorkflowRecoveryService
 from backend.hermes.workflows.engine import WorkflowEngine
@@ -10,6 +10,10 @@ from backend.hermes.workflows.models import (
     WorkflowStatus,
     WorkflowStepDefinition,
     WorkflowStepState,
+)
+from backend.hermes.workflows.reconciliation import (
+    WorkflowTaskReconciler,
+    dispatch_idempotency_key,
 )
 
 __all__ = [
@@ -23,4 +27,6 @@ __all__ = [
     "WorkflowStatus",
     "WorkflowStepDefinition",
     "WorkflowStepState",
+    "WorkflowTaskReconciler",
+    "dispatch_idempotency_key",
 ]
