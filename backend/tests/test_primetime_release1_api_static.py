@@ -1,6 +1,7 @@
 from pathlib import Path
 
 ROUTER = Path("backend/app/routers/primetime_release1.py")
+MAIN = Path("backend/main.py")
 
 
 def test_release1_router_exists():
@@ -25,6 +26,15 @@ def test_router_exposes_required_prefix_and_endpoints():
         '/dashboard/daily',
     ]:
         assert route in text
+
+
+def test_router_is_mounted_in_canonical_backend_app():
+    text = MAIN.read_text()
+    assert "backend/main.py — D3VONN.IO FastAPI Application Entry Point" in text
+    assert "backend.app.routers.primetime_release1" in text
+    assert "primetime_release1_router" in text
+    assert "app.include_router(primetime_release1_router)" in text
+    assert "PRIMETIME Release 1 router registered at /primetime/v1" in text
 
 
 def test_router_uses_fixed_table_allowlist_and_workspace_guard():
