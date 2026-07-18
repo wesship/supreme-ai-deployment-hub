@@ -37,7 +37,6 @@ import { useCrmCustomLists } from "@/features/crm/lists/useCrmCustomLists";
 
 const WORKSPACE_ID = "d3vonn-main";
 const ACTOR_ID = "development-user";
-const customListRepository = new InMemoryCrmCustomListRepository(WORKSPACE_ID, ACTOR_ID);
 
 const navItems = [
   ["Dashboard", "/crm", LayoutDashboard],
@@ -59,6 +58,10 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 
 export default function CustomLists() {
+  const customListRepository = useMemo(
+    () => new InMemoryCrmCustomListRepository(WORKSPACE_ID, ACTOR_ID),
+    [],
+  );
   const { lists, loading, error, reload, create, update, archive } = useCrmCustomLists({
     repository: customListRepository,
     workspaceId: WORKSPACE_ID,
@@ -75,7 +78,7 @@ export default function CustomLists() {
 
   const visibleLists = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return lists
+    return [...lists]
       .filter((item) => !normalized || `${item.displayName} ${item.description}`.toLowerCase().includes(normalized))
       .sort((a, b) => sortAsc ? a.displayName.localeCompare(b.displayName) : b.displayName.localeCompare(a.displayName));
   }, [lists, query, sortAsc]);
