@@ -159,4 +159,40 @@ export const primetimeRelease1Api = {
   listAiKnowledgeCitations: (workspaceId: string, outputId?: string) =>
     primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/ai-knowledge-citations?${query({ workspace_id: workspaceId, output_id: outputId })}`),
   createAiKnowledgeCitation: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/ai-knowledge-citations', payload),
+
+  listAnalyticsMetricDefinitions: (workspaceId: string, category?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/metric-definitions?${query({ workspace_id: workspaceId, category })}`),
+  createAnalyticsMetricDefinition: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/metric-definitions', payload),
+  updateAnalyticsMetricDefinition: (metricDefinitionId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/analytics/metric-definitions/${metricDefinitionId}`, payload),
+  listExecutiveDashboards: (workspaceId: string, audience?: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/executive-dashboards?${query({ workspace_id: workspaceId, audience, status })}`),
+  createExecutiveDashboard: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/executive-dashboards', payload),
+  updateExecutiveDashboard: (dashboardId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/analytics/executive-dashboards/${dashboardId}`, payload),
+  listDashboardWidgets: (workspaceId: string, dashboardId?: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/dashboard-widgets?${query({ workspace_id: workspaceId, dashboard_id: dashboardId, status })}`),
+  createDashboardWidget: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/dashboard-widgets', payload),
+  updateDashboardWidget: (widgetId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/analytics/dashboard-widgets/${widgetId}`, payload),
+  listAnalyticsSnapshots: (workspaceId: string, metricKey?: string, snapshotPeriod?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/snapshots?${query({ workspace_id: workspaceId, metric_key: metricKey, snapshot_period: snapshotPeriod })}`),
+  createAnalyticsSnapshot: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/snapshots', payload),
+  listFunnelStageSnapshots: (workspaceId: string, snapshotDate?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/funnel-stage-snapshots?${query({ workspace_id: workspaceId, snapshot_date: snapshotDate })}`),
+  createFunnelStageSnapshot: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/funnel-stage-snapshots', payload),
+  listAgentPerformanceSnapshots: (workspaceId: string, snapshotDate?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/agent-performance-snapshots?${query({ workspace_id: workspaceId, snapshot_date: snapshotDate })}`),
+  createAgentPerformanceSnapshot: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/agent-performance-snapshots', payload),
+  listComplianceMetricSnapshots: (workspaceId: string, snapshotDate?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/compliance-metric-snapshots?${query({ workspace_id: workspaceId, snapshot_date: snapshotDate })}`),
+  createComplianceMetricSnapshot: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/compliance-metric-snapshots', payload),
+  listAiActionMetricSnapshots: (workspaceId: string, snapshotDate?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/ai-action-metric-snapshots?${query({ workspace_id: workspaceId, snapshot_date: snapshotDate })}`),
+  createAiActionMetricSnapshot: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/ai-action-metric-snapshots', payload),
+  listReleaseGovernanceObservations: (workspaceId: string, releaseKey?: string, status?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/analytics/release-governance-observations?${query({ workspace_id: workspaceId, release_key: releaseKey, status })}`),
+  createReleaseGovernanceObservation: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/release-governance-observations', payload),
+  updateReleaseGovernanceObservation: (observationId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/analytics/release-governance-observations/${observationId}`, payload),
 };
