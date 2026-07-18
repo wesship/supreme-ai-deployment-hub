@@ -129,7 +129,7 @@ export default function CommandCenter() {
             </div>
           </aside>
 
-          <main aria-label="Command Center content" className="min-w-0 flex-1 overflow-y-auto pb-24 md:pb-0">
+          <section aria-label="Command Center content" className="min-w-0 flex-1 overflow-y-auto pb-24 md:pb-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeView}
@@ -142,7 +142,7 @@ export default function CommandCenter() {
                 <ActiveComponent onNavigate={(view) => setActiveView(view as View)} />
               </motion.div>
             </AnimatePresence>
-          </main>
+          </section>
         </div>
 
         <nav aria-label="Mobile Command Center navigation" className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-blue-300/15 bg-[#020714]/92 p-1.5 shadow-2xl backdrop-blur-2xl md:hidden">

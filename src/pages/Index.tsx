@@ -83,6 +83,8 @@ const HeroLogoMark: React.FC = () => (
     <div className="absolute inset-x-[6%] bottom-[8%] h-12 rounded-full bg-blue-400/25 blur-2xl" />
     <img
       src={MASTER_LOGO_SRC}
+      width={900}
+      height={492}
       alt="D3VONN.IO cinematic blue logo — The AI Business Operating System"
       className="relative z-10 w-full object-contain object-center opacity-[0.98] drop-shadow-[0_0_64px_rgba(0,163,255,0.78)] transition duration-700 hover:scale-[1.01]"
       draggable={false}
@@ -226,6 +228,8 @@ const Hero: React.FC = () => {
                   <div className="absolute h-[42%] w-[42%] rounded-full border border-blue-200/25 bg-blue-500/10 shadow-[0_0_50px_rgba(37,126,255,0.35)] backdrop-blur-xl" />
                   <img
                     src={MASTER_LOGO_SRC}
+                    width={900}
+                    height={492}
                     alt="D3VONN.IO D3 Core"
                     className="relative z-10 w-[88%] object-contain drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
                     loading="eager"
@@ -525,14 +529,14 @@ const Index: React.FC = () => {
         style={{ scaleX }}
       />
 
-      <main>
+      <div>
         <Hero />
         <CapabilitiesSection />
         <IntelligenceStackSection />
         <ProductSection />
         <LiveIntelligenceSection />
         <CTASection />
-      </main>
+      </div>
     </HomepageShell>
   );
 };

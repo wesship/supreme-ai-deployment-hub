@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import "./App.css";
 import ScrollToTop from "./components/ScrollToTop";
 import SkipToContent from "./components/SkipToContent";
+import AuthenticatedRoute from "./components/auth/AuthenticatedRoute";
 import { ThemeProvider } from 'next-themes';
 
 // Critical path — loaded eagerly (needed on first paint)
@@ -205,7 +206,14 @@ function App() {
                 <Route path="/backtesting" element={<Backtesting />} />
                 <Route path="/jetson" element={<JetsonControl />} />
                 <Route path="/jetson-control" element={<JetsonControl />} />
-                <Route path="/app" element={<LaunchApp />} />
+                <Route
+                  path="/app"
+                  element={
+                    <AuthenticatedRoute>
+                      <LaunchApp />
+                    </AuthenticatedRoute>
+                  }
+                />
                 <Route path="/ai-agents" element={<AIAgents />} />
                 <Route path="/business-automation" element={<BusinessAutomation />} />
                 <Route path="/solutions" element={<Solutions />} />
@@ -217,6 +225,8 @@ function App() {
                 <Route path="/security/command-center" element={<SecurityCommandCenter />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
+                <Route path="/analytics" element={<Navigate to="/app" replace />} />
+                <Route path="/rag" element={<Navigate to="/dkos-ingestion" replace />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/sign-in" element={<Navigate to="/login" replace />} />

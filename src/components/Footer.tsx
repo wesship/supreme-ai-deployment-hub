@@ -90,6 +90,8 @@ const Footer = ({ className }: FooterProps) => {
             <Link to="/" className="inline-flex items-center" aria-label="D3VONN.IO home">
               <img
                 src="/d3vonn-logo.webp"
+                width={900}
+                height={492}
                 alt="D3VONN.IO"
                 className="h-16 w-auto max-w-[320px] object-contain object-left drop-shadow-[0_0_24px_rgba(59,130,246,0.42)]"
               />
