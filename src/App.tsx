@@ -88,6 +88,7 @@ const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
 const PrimetimeRelease1 = lazy(() => import("./pages/PrimetimeRelease1"));
 const PrimetimeScheduling = lazy(() => import("./pages/PrimetimeScheduling"));
+const PrimetimeCommunications = lazy(() => import("./pages/PrimetimeCommunications"));
 
 // Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
@@ -192,6 +193,8 @@ function App() {
                 <Route path="/primetime/release-1" element={<PrimetimeRelease1 />} />
                 <Route path="/primetime/scheduling" element={<PrimetimeScheduling />} />
                 <Route path="/primetime/release-2" element={<PrimetimeScheduling />} />
+                <Route path="/primetime/communications" element={<PrimetimeCommunications />} />
+                <Route path="/primetime/release-3" element={<PrimetimeCommunications />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/terms" element={<Terms />} />
