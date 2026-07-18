@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page, type Request, test } from '@playwright/test';
 
 type PrimetimeRecord = Record<string, unknown>;
 
@@ -92,7 +92,7 @@ async function installPrimetimeRelease1Mocks(page: Page) {
     };
   }
 
-  async function body(request: ReturnType<Page['request']['newContext']> extends never ? never : Parameters<Parameters<Page['route']>[1]>[0]['request']) {
+  async function body(request: Request): Promise<PrimetimeRecord | undefined> {
     try {
       return await request.postDataJSON();
     } catch {
