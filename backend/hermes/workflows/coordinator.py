@@ -49,11 +49,22 @@ class WorkflowExecutionCoordinator:
         user_id: str,
         goal_id: str,
         max_steps: int | None = None,
+        selected_step_ids: tuple[str, ...] | None = None,
     ) -> WorkflowExecutionSnapshot:
-        """Dispatch ready steps in deterministic definition order."""
+        """Dispatch ready steps in deterministic definition order.
+
+        ``selected_step_ids`` lets the capacity-aware scheduler delegate a
+        pre-planned batch without duplicating binding or dispatch behavior.
+        """
         self._validate_definition(definition, snapshot)
         updated = snapshot.model_copy(deep=True)
         ready_ids = self._engine.ready_step_ids(definition, updated)
+        if selected_step_ids is not None:
+            unknown = set(selected_step_ids) - set(ready_ids)
+            if unknown:
+                raise ValueError(f"selected steps are not ready: {sorted(unknown)}")
+            selected = set(selected_step_ids)
+            ready_ids = tuple(step_id for step_id in ready_ids if step_id in selected)
         if max_steps is not None:
             if max_steps < 1:
                 raise ValueError("max_steps must be at least 1")

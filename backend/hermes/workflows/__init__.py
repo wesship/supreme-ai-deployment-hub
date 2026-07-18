@@ -1,4 +1,4 @@
-"""Durable Hermes workflow execution, recovery, approval, retry, dead-letter, and reconciliation."""
+"""Durable Hermes workflow execution, recovery, approval, retry, dead-letter, scheduling, and reconciliation."""
 
 from backend.hermes.workflows.approvals import (
     ApprovalPolicy,
@@ -28,6 +28,11 @@ from backend.hermes.workflows.reconciliation import (
     dispatch_idempotency_key,
 )
 from backend.hermes.workflows.retries import WorkflowRetryService
+from backend.hermes.workflows.scheduler import (
+    SchedulerPlan,
+    SchedulerPolicy,
+    WorkflowParallelScheduler,
+)
 
 __all__ = [
     "ApprovalPolicy",
@@ -35,6 +40,8 @@ __all__ = [
     "CheckpointEnvelope",
     "DeadLetterDisposition",
     "RetryPolicy",
+    "SchedulerPlan",
+    "SchedulerPolicy",
     "StepStatus",
     "WorkflowApprovalService",
     "WorkflowDeadLetterService",
@@ -42,6 +49,7 @@ __all__ = [
     "WorkflowEngine",
     "WorkflowExecutionCoordinator",
     "WorkflowExecutionSnapshot",
+    "WorkflowParallelScheduler",
     "WorkflowRecoveryService",
     "WorkflowRetryService",
     "WorkflowStatus",
