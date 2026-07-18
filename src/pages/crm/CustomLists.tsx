@@ -31,36 +31,13 @@ import {
   ArchiveCustomListDialog,
   CustomListEditorDialog,
 } from "@/features/crm/lists/CustomListDialogs";
+import { InMemoryCrmCustomListRepository } from "@/features/crm/lists/inMemoryRepository";
 import type { CrmCustomList } from "@/features/crm/lists/model";
+import { useCrmCustomLists } from "@/features/crm/lists/useCrmCustomLists";
 
 const WORKSPACE_ID = "d3vonn-main";
 const ACTOR_ID = "development-user";
-
-const SEEDED_LISTS: CrmCustomList[] = [
-  ["future-transactions", "Future Transactions", "Contacts with a planned future transaction.", 18],
-  ["hot-list", "Hot List", "High-priority people requiring immediate follow-up.", 12],
-  ["landing-page-leads", "Landing Page Leads", "Leads submitted through public landing pages.", 47],
-  ["licensing-client-leads", "Licensing Client Landing Page Leads", "Training and licensing-related client inquiries.", 9],
-  ["opportunity-leads", "Opportunity Landing Page Leads", "Business-opportunity interest submissions.", 21],
-  ["managed-not-logged-in", "Managed Clients Not Logged In", "Managed clients who have not activated portal access.", 31],
-  ["pending-business", "Pending Business", "Open items awaiting underwriting, documents, or follow-up.", 16],
-  ["retention-pilot", "Proactive Retention Pilot", "Clients included in the proactive service pilot.", 24],
-  ["social-media-leads", "Social Media Lead Generation", "Leads attributed to approved social campaigns.", 53],
-  ["uploads", "Uploads", "Contacts imported through approved file uploads.", 84],
-  ["wall-of-wealth", "Wall of Wealth Landing Page Leads", "Leads from the Wall of Wealth campaign.", 11],
-  ["challenge-call", "90 Day Challenge Call Script", "Contacts assigned to the 90-day calling workflow.", 26],
-  ["challenge-omar", "90 Day Challenge Omar Script", "Contacts assigned to the Omar script variation.", 19],
-].map(([id, displayName, description, recordCount], index) => ({
-  id: String(id),
-  workspaceId: WORKSPACE_ID,
-  displayName: String(displayName),
-  description: String(description),
-  recordCount: Number(recordCount),
-  updatedAt: new Date(Date.now() - index * 86_400_000).toISOString(),
-  archivedAt: null,
-  createdBy: ACTOR_ID,
-  updatedBy: ACTOR_ID,
-}));
+const customListRepository = new InMemoryCrmCustomListRepository(WORKSPACE_ID, ACTOR_ID);
 
 const navItems = [
   ["Dashboard", "/crm", LayoutDashboard],
@@ -82,7 +59,11 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 
 export default function CustomLists() {
-  const [lists, setLists] = useState(SEEDED_LISTS);
+  const { lists, loading, error, reload, create, update, archive } = useCrmCustomLists({
+    repository: customListRepository,
+    workspaceId: WORKSPACE_ID,
+    actorId: ACTOR_ID,
+  });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dense, setDense] = useState(true);
@@ -92,13 +73,12 @@ export default function CustomLists() {
   const [editingList, setEditingList] = useState<CrmCustomList | null>(null);
   const [archiveCandidate, setArchiveCandidate] = useState<CrmCustomList | null>(null);
 
-  const activeLists = useMemo(() => lists.filter((item) => !item.archivedAt), [lists]);
   const visibleLists = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return activeLists
+    return lists
       .filter((item) => !normalized || `${item.displayName} ${item.description}`.toLowerCase().includes(normalized))
       .sort((a, b) => sortAsc ? a.displayName.localeCompare(b.displayName) : b.displayName.localeCompare(a.displayName));
-  }, [activeLists, query, sortAsc]);
+  }, [lists, query, sortAsc]);
 
   const toggleAll = () => {
     if (selected.size === visibleLists.length) {
@@ -126,42 +106,20 @@ export default function CustomLists() {
   };
 
   const saveList = (values: { displayName: string; description: string }) => {
-    const updatedAt = new Date().toISOString();
     if (editingList) {
-      setLists((current) => current.map((item) => item.id === editingList.id ? {
-        ...item,
-        ...values,
-        updatedAt,
-        updatedBy: ACTOR_ID,
-      } : item));
+      void update(editingList.id, values);
       return;
     }
-
-    setLists((current) => [{
-      id: crypto.randomUUID(),
-      workspaceId: WORKSPACE_ID,
-      displayName: values.displayName,
-      description: values.description,
-      recordCount: 0,
-      updatedAt,
-      archivedAt: null,
-      createdBy: ACTOR_ID,
-      updatedBy: ACTOR_ID,
-    }, ...current]);
+    void create(values);
   };
 
   const confirmArchive = () => {
     if (!archiveCandidate) return;
-    const archivedAt = new Date().toISOString();
-    setLists((current) => current.map((item) => item.id === archiveCandidate.id ? {
-      ...item,
-      archivedAt,
-      updatedAt: archivedAt,
-      updatedBy: ACTOR_ID,
-    } : item));
+    const id = archiveCandidate.id;
+    void archive(id);
     setSelected((current) => {
       const next = new Set(current);
-      next.delete(archiveCandidate.id);
+      next.delete(id);
       return next;
     });
     setArchiveCandidate(null);
@@ -201,26 +159,28 @@ export default function CustomLists() {
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-3">
                 <label className="flex min-w-52 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2"><Search className="h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full text-sm outline-none" placeholder="Search custom lists" /></label>
-                <button onClick={() => setQuery("")} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><RefreshCw className="h-4 w-4" />Refresh</button>
+                <button onClick={() => void reload()} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />Refresh</button>
                 <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><ListFilter className="h-4 w-4" />Default view</button>
                 <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><UsersRound className="h-4 w-4" />Group</button>
                 <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><Columns3 className="h-4 w-4" />Fields</button>
                 <button onClick={() => setDense((value) => !value)} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><SlidersHorizontal className="h-4 w-4" />{dense ? "Compact" : "Comfortable"}</button>
               </div>
 
+              {error && <div role="alert" className="flex items-center gap-3 border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"><span>{error}</span><button onClick={() => void reload()} className="ml-auto font-semibold underline">Retry</button></div>}
               {selected.size > 0 && <div className="flex items-center gap-3 border-b bg-blue-50 px-4 py-2 text-sm text-blue-900"><strong>{selected.size} selected</strong><button className="ml-auto rounded px-2 py-1 hover:bg-blue-100" onClick={() => setSelected(new Set())}>Clear</button></div>}
 
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[860px] border-collapse text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="w-12 px-4 py-3"><input type="checkbox" checked={visibleLists.length > 0 && selected.size === visibleLists.length} onChange={toggleAll} aria-label="Select all lists" /></th><th className="px-4 py-3"><button onClick={() => setSortAsc((value) => !value)} className="font-semibold hover:text-blue-700">Display Name {sortAsc ? "↑" : "↓"}</button></th><th className="px-4 py-3 font-semibold">Description</th><th className="px-4 py-3 text-right font-semibold">Record Count</th><th className="px-4 py-3 font-semibold">Last Updated</th><th className="w-28 px-4 py-3 text-right font-semibold">Actions</th></tr></thead>
                   <tbody className="divide-y divide-slate-100">
-                    {visibleLists.map((item) => <tr key={item.id} className="hover:bg-blue-50/40"><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Select ${item.displayName}`} /></td><td className={`px-4 font-semibold text-slate-900 ${dense ? "py-2.5" : "py-4"}`}>{item.displayName}</td><td className={`max-w-xl px-4 text-slate-600 ${dense ? "py-2.5" : "py-4"}`}>{item.description}</td><td className={`px-4 text-right tabular-nums ${dense ? "py-2.5" : "py-4"}`}>{item.recordCount.toLocaleString()}</td><td className={`px-4 whitespace-nowrap text-slate-500 ${dense ? "py-2.5" : "py-4"}`}>{formatDate(item.updatedAt)}</td><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><div className="flex justify-end gap-1"><button onClick={() => openEditDialog(item)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-700" aria-label={`Edit ${item.displayName}`}><MoreHorizontal className="h-4 w-4" /></button><button onClick={() => setArchiveCandidate(item)} className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`Archive ${item.displayName}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}
-                    {visibleLists.length === 0 && <tr><td colSpan={6} className="px-6 py-16 text-center"><p className="font-semibold text-slate-800">No custom lists found</p><p className="mt-1 text-sm text-slate-500">Adjust your search or create a new list.</p></td></tr>}
+                    {loading && <tr><td colSpan={6} className="px-6 py-14 text-center text-slate-500">Loading custom lists…</td></tr>}
+                    {!loading && visibleLists.map((item) => <tr key={item.id} className="hover:bg-blue-50/40"><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Select ${item.displayName}`} /></td><td className={`px-4 font-semibold text-slate-900 ${dense ? "py-2.5" : "py-4"}`}>{item.displayName}</td><td className={`max-w-xl px-4 text-slate-600 ${dense ? "py-2.5" : "py-4"}`}>{item.description}</td><td className={`px-4 text-right tabular-nums ${dense ? "py-2.5" : "py-4"}`}>{item.recordCount.toLocaleString()}</td><td className={`px-4 whitespace-nowrap text-slate-500 ${dense ? "py-2.5" : "py-4"}`}>{formatDate(item.updatedAt)}</td><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><div className="flex justify-end gap-1"><button onClick={() => openEditDialog(item)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-700" aria-label={`Edit ${item.displayName}`}><MoreHorizontal className="h-4 w-4" /></button><button onClick={() => setArchiveCandidate(item)} className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`Archive ${item.displayName}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}
+                    {!loading && visibleLists.length === 0 && <tr><td colSpan={6} className="px-6 py-16 text-center"><p className="font-semibold text-slate-800">No custom lists found</p><p className="mt-1 text-sm text-slate-500">Adjust your search or create a new list.</p></td></tr>}
                   </tbody>
                 </table>
               </div>
 
-              <footer className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><span>Showing {visibleLists.length} of {activeLists.length} lists</span><div className="flex items-center gap-2"><button disabled className="rounded-md border p-2 disabled:opacity-40" aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></button><span className="px-2 font-medium text-slate-700">Page 1 of 1</span><button disabled className="rounded-md border p-2 disabled:opacity-40" aria-label="Next page"><ChevronRight className="h-4 w-4" /></button></div></footer>
+              <footer className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"><span>Showing {visibleLists.length} of {lists.length} lists</span><div className="flex items-center gap-2"><button disabled className="rounded-md border p-2 disabled:opacity-40" aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></button><span className="px-2 font-medium text-slate-700">Page 1 of 1</span><button disabled className="rounded-md border p-2 disabled:opacity-40" aria-label="Next page"><ChevronRight className="h-4 w-4" /></button></div></footer>
             </div>
 
             <p className="mt-4 text-center text-xs text-slate-400">DEVONN CRM is independently operated and is not an official Primerica product.</p>
