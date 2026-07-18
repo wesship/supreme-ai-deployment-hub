@@ -34,9 +34,7 @@ import {
 import { InMemoryCrmCustomListRepository } from "@/features/crm/lists/inMemoryRepository";
 import type { CrmCustomList } from "@/features/crm/lists/model";
 import { useCrmCustomLists } from "@/features/crm/lists/useCrmCustomLists";
-
-const WORKSPACE_ID = "d3vonn-main";
-const ACTOR_ID = "development-user";
+import { useCrmExecutionContext } from "@/features/crm/useCrmExecutionContext";
 
 const navItems = [
   ["Dashboard", "/crm", LayoutDashboard],
@@ -58,14 +56,15 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 
 export default function CustomLists() {
+  const executionContext = useCrmExecutionContext();
   const customListRepository = useMemo(
-    () => new InMemoryCrmCustomListRepository(WORKSPACE_ID, ACTOR_ID),
-    [],
+    () => new InMemoryCrmCustomListRepository(executionContext.workspaceId, executionContext.actorId),
+    [executionContext.actorId, executionContext.workspaceId],
   );
   const { lists, loading, error, reload, create, update, archive } = useCrmCustomLists({
     repository: customListRepository,
-    workspaceId: WORKSPACE_ID,
-    actorId: ACTOR_ID,
+    workspaceId: executionContext.workspaceId,
+    actorId: executionContext.actorId,
   });
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -128,6 +127,8 @@ export default function CustomLists() {
     setArchiveCandidate(null);
   };
 
+  const isLoading = executionContext.loading || loading;
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-100 text-slate-950">
       <header className="sticky top-16 z-30 flex h-14 items-center gap-3 bg-blue-800 px-3 text-white shadow-md lg:px-5">
@@ -136,7 +137,7 @@ export default function CustomLists() {
           <div className="grid h-8 w-8 place-items-center rounded-lg bg-white font-black text-blue-800">D3</div>
           <div className="hidden sm:block"><p className="text-sm font-bold leading-none">DEVONN CRM</p><p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-blue-100">PRIMETIME on d3vonn.io</p></div>
         </div>
-        <button className="ml-2 hidden min-w-40 items-center justify-between rounded-md border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium md:flex">D3VONN Main Workspace <ChevronRight className="h-3.5 w-3.5" /></button>
+        <button className="ml-2 hidden min-w-40 items-center justify-between rounded-md border border-white/20 bg-white/10 px-3 py-2 text-xs font-medium md:flex">{executionContext.workspaceId} <ChevronRight className="h-3.5 w-3.5" /></button>
         <label className="ml-auto hidden w-full max-w-md items-center gap-2 rounded-md bg-white/10 px-3 py-2 md:flex"><Search className="h-4 w-4 text-blue-100" /><input className="w-full bg-transparent text-sm text-white placeholder:text-blue-100/70 focus:outline-none" placeholder="Search contacts, leads, tasks..." /></label>
         <button className="rounded-md p-2 hover:bg-white/10" aria-label="Notifications"><Bell className="h-5 w-5" /></button>
         <button className="rounded-md p-2 hover:bg-white/10" aria-label="Settings"><Settings className="h-5 w-5" /></button>
@@ -156,13 +157,13 @@ export default function CustomLists() {
           <div className="mx-auto max-w-[1500px]">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">Contacts</p><h1 className="text-2xl font-bold tracking-tight">Custom Lists</h1><p className="mt-1 text-sm text-slate-500">Create focused groups for follow-up, campaigns, service, and training workflows.</p></div>
-              <button onClick={openCreateDialog} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"><Plus className="h-4 w-4" />Create New Custom List</button>
+              <button onClick={openCreateDialog} disabled={isLoading} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"><Plus className="h-4 w-4" />Create New Custom List</button>
             </div>
 
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-3">
                 <label className="flex min-w-52 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 py-2"><Search className="h-4 w-4 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full text-sm outline-none" placeholder="Search custom lists" /></label>
-                <button onClick={() => void reload()} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />Refresh</button>
+                <button onClick={() => void reload()} className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />Refresh</button>
                 <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><ListFilter className="h-4 w-4" />Default view</button>
                 <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><UsersRound className="h-4 w-4" />Group</button>
                 <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-slate-50"><Columns3 className="h-4 w-4" />Fields</button>
@@ -176,9 +177,9 @@ export default function CustomLists() {
                 <table className="w-full min-w-[860px] border-collapse text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="w-12 px-4 py-3"><input type="checkbox" checked={visibleLists.length > 0 && selected.size === visibleLists.length} onChange={toggleAll} aria-label="Select all lists" /></th><th className="px-4 py-3"><button onClick={() => setSortAsc((value) => !value)} className="font-semibold hover:text-blue-700">Display Name {sortAsc ? "↑" : "↓"}</button></th><th className="px-4 py-3 font-semibold">Description</th><th className="px-4 py-3 text-right font-semibold">Record Count</th><th className="px-4 py-3 font-semibold">Last Updated</th><th className="w-28 px-4 py-3 text-right font-semibold">Actions</th></tr></thead>
                   <tbody className="divide-y divide-slate-100">
-                    {loading && <tr><td colSpan={6} className="px-6 py-14 text-center text-slate-500">Loading custom lists…</td></tr>}
-                    {!loading && visibleLists.map((item) => <tr key={item.id} className="hover:bg-blue-50/40"><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Select ${item.displayName}`} /></td><td className={`px-4 font-semibold text-slate-900 ${dense ? "py-2.5" : "py-4"}`}>{item.displayName}</td><td className={`max-w-xl px-4 text-slate-600 ${dense ? "py-2.5" : "py-4"}`}>{item.description}</td><td className={`px-4 text-right tabular-nums ${dense ? "py-2.5" : "py-4"}`}>{item.recordCount.toLocaleString()}</td><td className={`px-4 whitespace-nowrap text-slate-500 ${dense ? "py-2.5" : "py-4"}`}>{formatDate(item.updatedAt)}</td><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><div className="flex justify-end gap-1"><button onClick={() => openEditDialog(item)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-700" aria-label={`Edit ${item.displayName}`}><MoreHorizontal className="h-4 w-4" /></button><button onClick={() => setArchiveCandidate(item)} className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`Archive ${item.displayName}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}
-                    {!loading && visibleLists.length === 0 && <tr><td colSpan={6} className="px-6 py-16 text-center"><p className="font-semibold text-slate-800">No custom lists found</p><p className="mt-1 text-sm text-slate-500">Adjust your search or create a new list.</p></td></tr>}
+                    {isLoading && <tr><td colSpan={6} className="px-6 py-14 text-center text-slate-500">Loading custom lists…</td></tr>}
+                    {!isLoading && visibleLists.map((item) => <tr key={item.id} className="hover:bg-blue-50/40"><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleOne(item.id)} aria-label={`Select ${item.displayName}`} /></td><td className={`px-4 font-semibold text-slate-900 ${dense ? "py-2.5" : "py-4"}`}>{item.displayName}</td><td className={`max-w-xl px-4 text-slate-600 ${dense ? "py-2.5" : "py-4"}`}>{item.description}</td><td className={`px-4 text-right tabular-nums ${dense ? "py-2.5" : "py-4"}`}>{item.recordCount.toLocaleString()}</td><td className={`px-4 whitespace-nowrap text-slate-500 ${dense ? "py-2.5" : "py-4"}`}>{formatDate(item.updatedAt)}</td><td className={`px-4 ${dense ? "py-2.5" : "py-4"}`}><div className="flex justify-end gap-1"><button onClick={() => openEditDialog(item)} className="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-blue-700" aria-label={`Edit ${item.displayName}`}><MoreHorizontal className="h-4 w-4" /></button><button onClick={() => setArchiveCandidate(item)} className="rounded-md p-2 text-slate-500 hover:bg-red-50 hover:text-red-700" aria-label={`Archive ${item.displayName}`}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}
+                    {!isLoading && visibleLists.length === 0 && <tr><td colSpan={6} className="px-6 py-16 text-center"><p className="font-semibold text-slate-800">No custom lists found</p><p className="mt-1 text-sm text-slate-500">Adjust your search or create a new list.</p></td></tr>}
                   </tbody>
                 </table>
               </div>
