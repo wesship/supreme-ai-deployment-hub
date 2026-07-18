@@ -1,5 +1,6 @@
-"""Durable workflow contracts and execution state machine."""
+"""Durable workflow contracts, recovery, and execution state machine."""
 
+from backend.hermes.workflows.checkpoints import CheckpointEnvelope, WorkflowRecoveryService
 from backend.hermes.workflows.engine import WorkflowEngine
 from backend.hermes.workflows.models import (
     RetryPolicy,
@@ -12,11 +13,13 @@ from backend.hermes.workflows.models import (
 )
 
 __all__ = [
+    "CheckpointEnvelope",
     "RetryPolicy",
     "StepStatus",
     "WorkflowDefinition",
     "WorkflowEngine",
     "WorkflowExecutionSnapshot",
+    "WorkflowRecoveryService",
     "WorkflowStatus",
     "WorkflowStepDefinition",
     "WorkflowStepState",

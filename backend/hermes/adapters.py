@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from backend.hermes.infrastructure import HermesDispatchClient, SupabaseRestClient
@@ -30,6 +31,84 @@ class SupabaseTaskRepository:
         payload: dict[str, Any],
     ) -> dict[str, Any]:
         return await self._client.patch(table, row_id, payload)
+
+
+class SupabaseCheckpointStore:
+    """CheckpointStore implementation using the existing hermes_checkpoints table."""
+
+    def __init__(self, repository: SupabaseTaskRepository) -> None:
+        self._repository = repository
+
+    @property
+    def configured(self) -> bool:
+        return self._repository.configured
+
+    async def save(
+        self,
+        *,
+        user_id: str,
+        goal_id: str,
+        execution_id: str,
+        sequence: int,
+        envelope: dict[str, Any],
+    ) -> dict[str, Any]:
+        return await self._repository.create_row(
+            "hermes_checkpoints",
+            {
+                "user_id": user_id,
+                "goal_id": goal_id,
+                "title": self._title(execution_id, sequence),
+                "content": json.dumps(envelope, sort_keys=True, separators=(",", ":")),
+            },
+        )
+
+    async def latest(
+        self,
+        *,
+        goal_id: str,
+        execution_id: str,
+    ) -> dict[str, Any] | None:
+        rows = await self._repository.list_rows(
+            "hermes_checkpoints",
+            {
+                "goal_id": f"eq.{goal_id}",
+                "title": f"like.workflow:{execution_id}:checkpoint:*",
+                "order": "title.desc",
+                "limit": "1",
+            },
+        )
+        return self._decode(rows[0]) if rows else None
+
+    async def get(
+        self,
+        *,
+        goal_id: str,
+        execution_id: str,
+        sequence: int,
+    ) -> dict[str, Any] | None:
+        rows = await self._repository.list_rows(
+            "hermes_checkpoints",
+            {
+                "goal_id": f"eq.{goal_id}",
+                "title": f"eq.{self._title(execution_id, sequence)}",
+                "limit": "1",
+            },
+        )
+        return self._decode(rows[0]) if rows else None
+
+    @staticmethod
+    def _title(execution_id: str, sequence: int) -> str:
+        return f"workflow:{execution_id}:checkpoint:{sequence:020d}"
+
+    @staticmethod
+    def _decode(row: dict[str, Any]) -> dict[str, Any]:
+        content = row.get("content")
+        if not isinstance(content, str):
+            raise ValueError("checkpoint content must be JSON text")
+        decoded = json.loads(content)
+        if not isinstance(decoded, dict):
+            raise ValueError("checkpoint content must decode to an object")
+        return decoded
 
 
 class EdgeFunctionAgentDispatcher:
