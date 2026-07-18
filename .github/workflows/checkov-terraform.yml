@@ -54,8 +54,7 @@ jobs:
             --framework terraform \
             --skip-download \
             --compact \
-            --output json \
-            --output-file-path checkov-results.json
+            --output json > checkov-results.json
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           test -s checkov-results.json
@@ -72,8 +71,7 @@ jobs:
             --skip-download \
             --compact \
             --soft-fail \
-            --output sarif \
-            --output-file-path checkov-results.sarif
+            --output sarif > checkov-results.sarif
 
       - name: Summarize and enforce policy results
         shell: bash
@@ -85,10 +83,7 @@ jobs:
           from pathlib import Path
 
           payload = json.loads(Path('checkov-results.json').read_text(encoding='utf-8'))
-          if isinstance(payload, list):
-              reports = payload
-          else:
-              reports = [payload]
+          reports = payload if isinstance(payload, list) else [payload]
 
           failed = []
           passed = 0
@@ -106,7 +101,6 @@ jobs:
                       'resource': check.get('resource', 'unknown'),
                       'file': check.get('file_path', 'unknown'),
                       'lines': '-'.join(str(value) for value in check.get('file_line_range', []) if value is not None) or 'unknown',
-                      'guide': check.get('guideline', '') or '',
                   })
 
           failed.sort(key=lambda row: (row['file'], row['lines'], row['id']))
@@ -151,7 +145,7 @@ jobs:
             checkov-results.json
             checkov-results.sarif
             checkov-failures.md
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
       - name: Upload Checkov SARIF
