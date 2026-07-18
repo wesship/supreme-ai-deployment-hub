@@ -154,6 +154,14 @@ except ImportError as _primetime_release2_scheduling_err:
     logger.warning("PRIMETIME Release 2 scheduling router not found — skipping. (%s)", _primetime_release2_scheduling_err)
 
 try:
+    from backend.app.routers.primetime_release3_communications import router as primetime_release3_communications_router  # type: ignore
+
+    app.include_router(primetime_release3_communications_router)
+    logger.info("PRIMETIME Release 3 communications router registered at /primetime/v1")
+except ImportError as _primetime_release3_communications_err:
+    logger.warning("PRIMETIME Release 3 communications router not found — skipping. (%s)", _primetime_release3_communications_err)
+
+try:
     from backend.api.v1.router import router as v1_router  # type: ignore
 
     app.include_router(v1_router, prefix="/api/v1", tags=["v1"])
