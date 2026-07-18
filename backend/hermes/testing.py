@@ -31,10 +31,12 @@ class InMemoryTaskRepository:
                 expected = value[3:]
                 rows = [row for row in rows if str(row.get(key)) == expected]
             elif isinstance(value, str) and value.startswith("like."):
-                pattern = value[5:].replace("%", "")
+                pattern = value[5:].replace("%", "").replace("*", "")
                 rows = [row for row in rows if pattern in str(row.get(key, ""))]
         if params.get("order") == "created_at.desc":
             rows.sort(key=lambda row: str(row.get("created_at", "")), reverse=True)
+        elif params.get("order") == "title.desc":
+            rows.sort(key=lambda row: str(row.get("title", "")), reverse=True)
         limit = int(params.get("limit", len(rows)))
         return rows[:limit]
 
