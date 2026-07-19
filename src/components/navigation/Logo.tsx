@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const OFFICIAL_LOGO_SRC = '/d3vonn-logo.webp?v=20260715-official';
+export const OFFICIAL_LOGO_SRC = '/d3vonn-main-logo.svg?v=20260719-official';
 
 const Logo: React.FC = () => {
   return (
@@ -14,10 +14,11 @@ const Logo: React.FC = () => {
       <img
         src={OFFICIAL_LOGO_SRC}
         width={900}
-        height={492}
+        height={387}
         alt="D3VONN.IO — One Platform. Infinite Intelligence."
         className="relative block h-auto w-[190px] max-w-[52vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:w-[230px] lg:w-[250px]"
         decoding="async"
+        fetchPriority="high"
         draggable={false}
       />
     </Link>
