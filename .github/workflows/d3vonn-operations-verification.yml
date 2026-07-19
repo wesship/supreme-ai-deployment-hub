@@ -1,0 +1,126 @@
+name: D3VONN Operations Verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/api/v1/router.py'
+      - 'scripts/ops/**'
+      - 'supabase/migrations/*operations_center*.sql'
+      - '.github/workflows/d3vonn-operations-verification.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: d3vonn-operations-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-governance:
+    name: Validate operations governance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - name: Compile operations code
+        run: python -m py_compile scripts/ops/d3vonn_ops_agent.py backend/api/v1/router.py
+      - name: Validate protected-action boundaries
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('scripts/ops/d3vonn_ops_agent.py').read_text()
+          required = {
+              'deploy_production', 'apply_database_migration',
+              'rotate_production_secret', 'change_firewall_policy', 'merge_main'
+          }
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit(f'missing protected actions: {missing}')
+          if 'OPS_AUTO_REMEDIATE' not in text:
+              raise SystemExit('safe opt-in remediation switch missing')
+          PY
+      - name: Validate backup excludes plaintext secrets
+        run: |
+          grep -q 'Never archive plaintext .env files' scripts/ops/backup_production_config.sh
+          grep -q 'age --recipient' scripts/ops/backup_production_config.sh
+
+  external-readiness:
+    name: External TLS, availability, latency, and 5xx checks
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        endpoint:
+          - https://d3vonn.io
+          - https://api.d3vonn.io/health/ready
+    steps:
+      - name: Probe endpoint
+        env:
+          ENDPOINT: ${{ matrix.endpoint }}
+        run: |
+          set -euo pipefail
+          output="$(curl --fail-with-body --silent --show-error --location \
+            --connect-timeout 5 --max-time 15 \
+            --write-out '\n%{http_code} %{time_total} %{ssl_verify_result}\n' \
+            "$ENDPOINT")"
+          metrics="$(printf '%s\n' "$output" | tail -n 1)"
+          code="$(awk '{print $1}' <<<"$metrics")"
+          latency="$(awk '{print $2}' <<<"$metrics")"
+          ssl="$(awk '{print $3}' <<<"$metrics")"
+          test "$ssl" = '0'
+          test "$code" -ge 200 -a "$code" -lt 500
+          python - "$latency" <<'PY'
+          import sys
+          latency = float(sys.argv[1])
+          if latency > 3.0:
+              raise SystemExit(f'latency threshold exceeded: {latency:.3f}s')
+          PY
+          echo "endpoint=$ENDPOINT status=$code latency=${latency}s tls_verify=$ssl" >> "$GITHUB_STEP_SUMMARY"
+
+  schema-readiness:
+    name: Verify production schema readiness
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Require production verification secrets
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Call dashboard schema readiness RPC
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body --silent --show-error \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/dashboard_schema_readiness" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H 'Content-Type: application/json' \
+            -d '{}')"
+          python - "$response" <<'PY'
+          import json, sys
+          payload = json.loads(sys.argv[1])
+          if isinstance(payload, list) and len(payload) == 1:
+              payload = payload[0]
+          if payload != {'ready': True, 'missing': []}:
+              raise SystemExit(f'unexpected readiness response: {payload!r}')
+          print(json.dumps(payload))
+          PY
