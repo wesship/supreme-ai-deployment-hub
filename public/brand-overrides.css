@@ -8,16 +8,30 @@ img[src^="/d3vonn-logo.webp"] {
   filter: drop-shadow(0 0 22px rgba(37, 126, 255, 0.38));
 }
 
-/* Make the official logo fill the homepage intelligence-core display clearly. */
+/* Core 01 uses the approved helmet artwork as a full-bleed cover image. */
 img[alt="D3VONN.IO D3 Core"] {
+  content: url('/core-01-helmet.svg?v=20260719-core01');
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 10;
   width: 100% !important;
   height: 100% !important;
-  padding: clamp(0.5rem, 2vw, 1.25rem);
-  object-fit: contain !important;
-  object-position: center !important;
+  max-width: none !important;
+  padding: 0 !important;
+  border-radius: inherit;
+  object-fit: cover !important;
+  object-position: center 38% !important;
+  filter: saturate(1.08) contrast(1.04) drop-shadow(0 0 32px rgba(62, 155, 255, 0.48));
 }
 
-/* Remove the old Core 01 badge from the logo display. */
+/* Keep status controls readable above the full-bleed Core 01 image. */
+img[alt="D3VONN.IO D3 Core"] ~ span {
+  z-index: 20;
+  backdrop-filter: blur(12px);
+  background: rgba(2, 11, 28, 0.72) !important;
+}
+
+/* Remove the old Core 01 badge from the image display. */
 img[alt="D3VONN.IO D3 Core"] ~ span:first-of-type {
   display: none !important;
 }
