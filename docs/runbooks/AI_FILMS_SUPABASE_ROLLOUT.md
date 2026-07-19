@@ -8,28 +8,31 @@ Deploy the AI Films Phase 3 schema and `ai-film-companion` Edge Function without
 
 Create protected environments named `staging` and `production`.
 
-Each environment must provide:
+Each environment must provide these values under **Environment secrets**, not Environment variables:
 
-- `SUPABASE_ACCESS_TOKEN`
-- `SUPABASE_PROJECT_ID`
-- `SUPABASE_DB_PASSWORD`
+- `SUPABASE_ACCESS_TOKEN` — a Supabase personal access token
+- `SUPABASE_PROJECT_ID` — the target project's reference ID
+- `SUPABASE_DB_PASSWORD` — the target project's database password
 
-Production should require manual approval.
+Configure them at **Repository Settings → Environments → target environment → Environment secrets**. The workflow reports every missing secret by name without printing secret values.
+
+Production must require manual approval. Never store these values in the workflow, repository files, workflow-dispatch inputs, issue comments, or pull-request comments.
 
 ## Deployment sequence
 
-1. Run **AI Films Supabase Rollout** with `target=staging`, `mode=preview`.
-2. Review the migration dry-run output and database lint results.
-3. Run staging with `mode=apply`, confirmation `APPLY_AI_FILMS`, and `deploy_function=true`.
-4. Leave `AI_FILM_COMPANION_ENABLED` unset or set to `false`.
-5. Verify disabled requests return `FEATURE_DISABLED`.
-6. Validate anonymous access cannot execute `match_ai_film_transcript`.
-7. Validate authenticated users can only read published films.
-8. Validate one user cannot read or modify another user's film library rows.
-9. Load one approved test transcript and 1,536-dimension embeddings.
-10. Enable the server variable only in staging and test retrieval, citations, latency, and cost.
-11. Keep the remote `ai_film_companion` UI flag disabled until all tests pass.
-12. Repeat preview and approval-gated apply for production.
+1. Confirm the three required secret names appear in the target GitHub environment.
+2. Run **AI Films Supabase Rollout** with `target=staging`, `mode=preview`.
+3. Review the migration dry-run output and database lint results.
+4. Run staging with `mode=apply`, confirmation `APPLY_AI_FILMS`, and `deploy_function=true`.
+5. Leave `AI_FILM_COMPANION_ENABLED` unset or set to `false`.
+6. Verify disabled requests return `FEATURE_DISABLED`.
+7. Validate anonymous access cannot execute `match_ai_film_transcript`.
+8. Validate authenticated users can only read published films.
+9. Validate one user cannot read or modify another user's film library rows.
+10. Load one approved test transcript and 1,536-dimension embeddings.
+11. Enable the server variable only in staging and test retrieval, citations, latency, and cost.
+12. Keep the remote `ai_film_companion` UI flag disabled until all tests pass.
+13. Repeat preview and approval-gated apply for production.
 
 ## Required access tests
 
