@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - ops/ai-films-staging-preview-20260719
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
