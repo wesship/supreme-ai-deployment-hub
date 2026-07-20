@@ -109,3 +109,23 @@ jobs:
         run: |
           echo "The function remains fail-closed unless AI_FILM_COMPANION_ENABLED=true is configured."
           echo "Do not enable the remote ai_film_companion flag until RLS and retrieval tests pass."
+
+      - name: Write rollout summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## AI Films Supabase Rollout"
+            echo ""
+            echo "- Target: \`${{ inputs.target }}\`"
+            echo "- Mode: \`${{ inputs.mode }}\`"
+            echo "- Deploy function: \`${{ inputs.deploy_function }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo ""
+            if [[ "${{ inputs.mode }}" == "preview" ]]; then
+              echo "No migrations were applied."
+              echo "No Edge Function was deployed."
+            else
+              echo "Migration application was requested."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
