@@ -56,6 +56,7 @@ docs/
 
 # Scripts — exclude by default but preserve production build scripts
 scripts/*
+!scripts/vercel-ignore-build.sh
 !scripts/verify-build-scripts.mjs
 !scripts/generate-route-html.mjs
 !scripts/generate-brand-assets.mjs

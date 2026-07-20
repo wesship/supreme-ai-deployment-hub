@@ -1,5 +1,6 @@
 {
   "buildCommand": "pnpm run vercel-build",
+  "ignoreCommand": "bash scripts/vercel-ignore-build.sh",
   "outputDirectory": "dist",
   "framework": "vite",
   "cleanUrls": true,
