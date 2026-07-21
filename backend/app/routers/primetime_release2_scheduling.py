@@ -38,6 +38,14 @@ _ALLOWED_TABLES = frozenset({
     "audit_events",
 })
 
+_TABLE_NAMES = {
+    "workspace_memberships": "primetime_workspace_memberships",
+    "roles": "primetime_roles",
+    "activities": "primetime_activities",
+    "audit_events": "primetime_audit_events",
+}
+
+
 RoleName = Literal[
     "representative",
     "trainee",
@@ -88,7 +96,7 @@ def _headers(prefer: str = "return=representation") -> dict[str, str]:
 def _path(table: str) -> str:
     if table not in _ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail=f"Unknown table: {table}")
-    return f"/rest/v1/{table}"
+    return f"/rest/v1/{_TABLE_NAMES.get(table, table)}"
 
 
 async def _query(table: str, params: dict[str, str]) -> list[dict[str, Any]]:
@@ -192,7 +200,7 @@ async def _membership_required(workspace_id: str, user_id: str) -> dict[str, Any
     rows = await _query(
         "workspace_memberships",
         {
-            "select": "id,role_id,status,roles(name)",
+            "select": "id,role_id,status,roles:primetime_roles(name)",
             "workspace_id": f"eq.{safe_workspace}",
             "user_id": f"eq.{safe_user}",
             "status": "eq.active",
