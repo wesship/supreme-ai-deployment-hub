@@ -17,8 +17,8 @@ async function installSchedulingMocks(page: Page) {
       owner_id: userId,
       title: 'Family Readiness Review',
       status: 'scheduled',
-      starts_at: '2026-07-19T16:00:00.000Z',
-      ends_at: '2026-07-19T16:30:00.000Z',
+      start_at: '2026-07-19T16:00:00.000Z',
+      end_at: '2026-07-19T16:30:00.000Z',
     },
   ];
   let availabilityRules: PrimetimeRecord[] = [];
@@ -139,6 +139,46 @@ test.describe('PRIMETIME Release 2 scheduling flow', () => {
     await page.locator('article').filter({ hasText: 'New Family Review' }).getByRole('button', { name: 'No-show' }).click();
     await expect(page.getByText('No-show recovery triggered.')).toBeVisible();
     await expect(page.getByText('pending')).toBeVisible();
+
+    const appointmentRequest = requests.find((request) => request.method === 'POST' && request.path === '/primetime/v1/appointments');
+    expect(appointmentRequest?.body).toMatchObject({
+      workspace_id: workspaceId,
+      owner_id: userId,
+      title: 'New Family Review',
+      start_at: '2026-07-20T10:00',
+      end_at: '2026-07-20T10:30',
+      appointment_type: 'review',
+      compliance_state: 'pending',
+    });
+    expect(appointmentRequest?.body).not.toHaveProperty('starts_at');
+    expect(appointmentRequest?.body).not.toHaveProperty('ends_at');
+    expect(appointmentRequest?.body).not.toHaveProperty('meeting_type');
+
+    const availabilityRequest = requests.find((request) => request.method === 'POST' && request.path === '/primetime/v1/availability-rules');
+    expect(availabilityRequest?.body).toMatchObject({
+      workspace_id: workspaceId,
+      user_id: userId,
+      rule_name: 'Standard availability',
+      day_of_week: 1,
+      start_time: '08:00',
+      end_time: '16:00',
+      timezone: 'America/Denver',
+      is_active: true,
+    });
+    expect(availabilityRequest?.body).not.toHaveProperty('owner_id');
+    expect(availabilityRequest?.body).not.toHaveProperty('starts_at');
+    expect(availabilityRequest?.body).not.toHaveProperty('ends_at');
+
+    const reminderRequest = requests.find((request) => request.method === 'POST' && request.path === '/primetime/v1/reminders');
+    expect(reminderRequest?.body).toMatchObject({ recipient_user_id: userId, status: 'pending' });
+
+    const attendeeRequest = requests.find((request) => request.method === 'POST' && request.path === '/primetime/v1/appointment-attendees');
+    expect(attendeeRequest?.body).toMatchObject({ attendee_role: 'prospect' });
+    expect(attendeeRequest?.body).not.toHaveProperty('role');
+
+    const calendarRequest = requests.find((request) => request.method === 'POST' && request.path === '/primetime/v1/calendar-sync-events');
+    expect(calendarRequest?.body).toMatchObject({ direction: 'outbound', status: 'pending' });
+    expect(calendarRequest?.body).not.toHaveProperty('authoritative');
 
     const paths = requests.map((request) => `${request.method} ${request.path}`);
     expect(paths).toContain('POST /primetime/v1/appointments');
