@@ -23,7 +23,10 @@ def test_all_primetime_routers_map_canonical_release1_tables() -> None:
         assert "_TABLE_NAMES" in source
         assert '"primetime_workspace_memberships"' in source or 'f"primetime_{table}"' in source
         assert "_TABLE_NAMES.get(table, table)" in source
-        assert "roles:primetime_roles(name)" in source
+        assert "roles:primetime_roles(code)" in source
+        assert 'role.get("code", "representative")' in source
+        assert "roles:primetime_roles(name)" not in source
+        assert 'role.get("name", "representative")' not in source
 
 
 def test_release1_schema_matches_the_public_api_contract() -> None:
