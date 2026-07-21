@@ -44,7 +44,9 @@ RequestStatus = Literal["requested", "processing", "draft_ready", "review_requir
 OutputStatus = Literal["draft", "review_required", "approved", "rejected", "superseded", "blocked"]
 ActionType = Literal["create_task", "draft_message", "suggest_next_action", "prepare_meeting_brief", "check_compliance", "schedule_appointment_draft", "regulated_recommendation", "quote_generation", "policy_decision", "submit_application", "send_message", "voice_call", "delete_record"]
 ActionStatus = Literal["proposed", "blocked", "approval_required", "approved", "executed", "rejected", "failed"]
+ActionCreateStatus = Literal["proposed", "blocked", "approval_required"]
 ApprovalStatus = Literal["pending", "approved", "rejected", "expired", "cancelled"]
+ApprovalCreateStatus = Literal["pending"]
 ReviewType = Literal["human", "licensed", "compliance", "manager"]
 FindingSeverity = Literal["info", "warning", "critical", "blocked"]
 
@@ -190,7 +192,7 @@ class AssistanceOutputPatch(BaseModel):
 class ActionLedgerCreate(BaseModel):
     workspace_id: str
     action_type: ActionType
-    action_status: ActionStatus = "proposed"
+    action_status: ActionCreateStatus = "proposed"
     request_id: str | None = None
     output_id: str | None = None
     target_table: str | None = None
@@ -202,7 +204,7 @@ class ActionLedgerCreate(BaseModel):
 class ApprovalRequestCreate(BaseModel):
     workspace_id: str
     review_type: ReviewType
-    status: ApprovalStatus = "pending"
+    status: ApprovalCreateStatus = "pending"
     action_id: str | None = None
     output_id: str | None = None
     reason: str | None = None
@@ -272,8 +274,8 @@ def _clean(payload: dict[str, Any]) -> dict[str, Any]:
 def _forbid_regulated_action(action_type: ActionType, status: ActionStatus | None = None) -> None:
     if action_type in _BLOCKED_ACTION_TYPES:
         raise HTTPException(status_code=403, detail=f"Release 4 blocks autonomous regulated action: {action_type}")
-    if status == "executed":
-        raise HTTPException(status_code=403, detail="Release 4 records proposals and approvals but does not execute actions")
+    if status not in {None, "proposed", "blocked", "approval_required"}:
+        raise HTTPException(status_code=400, detail="Release 4 action creation accepts proposals only; decisions require an approval-request review")
 
 
 def _id_filter(value: str, label: str) -> str:
