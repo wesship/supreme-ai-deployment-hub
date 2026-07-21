@@ -1,6 +1,13 @@
 name: D3VONN.IO Launch Readiness
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'vercel.json'
+      - '.github/workflows/d3vonn-launch-readiness.yml'
+      - 'tests/e2e/**'
+      - 'playwright.config.ts'
   workflow_dispatch:
     inputs:
       base_url:
@@ -33,7 +40,7 @@ concurrency:
 jobs:
   secret-preflight:
     name: Production Secret Preflight
-    if: inputs.check_production_secrets
+    if: ${{ github.event_name == 'push' || inputs.check_production_secrets }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 10
@@ -58,7 +65,7 @@ jobs:
         run: node scripts/validate-secret-inventory.mjs config/required-secrets.json production github
 
   live-functional-audit:
-    name: Live Functional Audit (${{ inputs.browser }})
+    name: Live Functional Audit (${{ inputs.browser || 'chromium' }})
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -72,18 +79,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Install selected Playwright browser
-        run: pnpm exec playwright install --with-deps "${{ inputs.browser == 'mobile-chrome' && 'chromium' || inputs.browser }}"
+        env:
+          SELECTED_BROWSER: ${{ inputs.browser || 'chromium' }}
+        run: pnpm exec playwright install --with-deps "${SELECTED_BROWSER/mobile-chrome/chromium}"
       - name: Audit live D3VONN.IO functions
         env:
           CI: 'true'
-          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
-          BROWSER: ${{ inputs.browser }}
-        run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project="${{ inputs.browser }}" --reporter=github,html
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url || 'https://d3vonn.io' }}
+          BROWSER: ${{ inputs.browser || 'chromium' }}
+        run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project="$BROWSER" --reporter=github,html
       - name: Upload Playwright evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: d3vonn-launch-readiness-${{ inputs.browser }}
+          name: d3vonn-launch-readiness-${{ inputs.browser || 'chromium' }}
           path: |
             playwright-report/
             test-results/
