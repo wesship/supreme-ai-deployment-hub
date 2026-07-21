@@ -41,6 +41,9 @@ _ALLOWED_TABLES = frozenset({
     "audit_events",
 })
 
+_TABLE_NAMES = {table: f"primetime_{table}" for table in _ALLOWED_TABLES}
+
+
 RoleName = Literal[
     "representative",
     "trainee",
@@ -88,7 +91,7 @@ def _headers(prefer: str = "return=representation") -> dict[str, str]:
 def _path(table: str) -> str:
     if table not in _ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail=f"Unknown table: {table}")
-    return f"/rest/v1/{table}"
+    return f"/rest/v1/{_TABLE_NAMES.get(table, table)}"
 
 
 async def _query(table: str, params: dict[str, str]) -> list[dict[str, Any]]:
@@ -191,7 +194,7 @@ async def _membership_required(workspace_id: str, user_id: str) -> dict[str, Any
     rows = await _query(
         "workspace_memberships",
         {
-            "select": "id,role_id,status,roles(name)",
+            "select": "id,role_id,status,roles:primetime_roles(name)",
             "workspace_id": f"eq.{safe_workspace}",
             "user_id": f"eq.{safe_user}",
             "status": "eq.active",
@@ -243,6 +246,13 @@ async def list_workspaces(user_id: str = Depends(get_current_user_id)):
 async def create_workspace(body: WorkspaceCreate, user_id: str = Depends(get_current_user_id)):
     safe_user = _validate_uuid(user_id, "user_id")
     workspace = await _insert("workspaces", {"name": body.name, "slug": body.slug, "created_by": safe_user})
+    roles = await _query("roles", {"select": "id", "code": "eq.workspace_admin", "limit": "1"})
+    if not roles:
+        raise HTTPException(status_code=503, detail="PRIMETIME workspace_admin role is not configured")
+    await _insert(
+        "workspace_memberships",
+        {"workspace_id": workspace["id"], "user_id": safe_user, "role_id": roles[0]["id"], "status": "active"},
+    )
     await _audit(workspace["id"], safe_user, "workspace.created", "workspace", workspace.get("id"))
     return workspace
 
