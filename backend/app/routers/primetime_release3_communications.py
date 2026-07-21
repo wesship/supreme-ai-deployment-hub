@@ -7,6 +7,8 @@ It does not expose delete endpoints or delivery/send endpoints.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import os
 import re
 from typing import Any, Literal
@@ -37,6 +39,13 @@ _ALLOWED_TABLES = frozenset({
     "communication_policy_checks",
     "audit_events",
 })
+
+_TABLE_NAMES = {
+    "workspace_memberships": "primetime_workspace_memberships",
+    "roles": "primetime_roles",
+    "audit_events": "primetime_audit_events",
+}
+
 
 RoleName = Literal[
     "representative",
@@ -88,7 +97,7 @@ def _headers(prefer: str = "return=representation") -> dict[str, str]:
 def _path(table: str) -> str:
     if table not in _ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail=f"Unknown table: {table}")
-    return f"/rest/v1/{table}"
+    return f"/rest/v1/{_TABLE_NAMES.get(table, table)}"
 
 
 async def _query(table: str, params: dict[str, str]) -> list[dict[str, Any]]:
@@ -214,7 +223,7 @@ async def _membership_required(workspace_id: str, user_id: str) -> dict[str, Any
     rows = await _query(
         "workspace_memberships",
         {
-            "select": "id,role_id,status,roles(name)",
+            "select": "id,role_id,status,roles:primetime_roles(name)",
             "workspace_id": f"eq.{safe_workspace}",
             "user_id": f"eq.{safe_user}",
             "status": "eq.active",
@@ -281,7 +290,10 @@ async def create_message_template(body: MessageTemplateCreate, user_id: str = De
     _require_role(context, _DRAFT_ROLES)
     if body.status == "approved":
         _require_role(context, _APPROVAL_ROLES)
-    record = await _insert("message_templates", {**body.model_dump(), "workspace_id": context["workspace_id"], "created_by": user_id})
+    payload = {**body.model_dump(), "workspace_id": context["workspace_id"], "created_by": user_id}
+    if body.status == "approved":
+        payload.update({"approved_by": user_id, "approved_at": datetime.now(timezone.utc).isoformat()})
+    record = await _insert("message_templates", payload)
     await _audit(context["workspace_id"], user_id, "message_template.created", "message_template", record.get("id"), {"channel": body.channel})
     return record
 
@@ -297,6 +309,7 @@ async def update_message_template(template_id: str, body: TemplateApprovalPatch,
     payload = _filter_patch_payload(body.model_dump())
     if body.status == "approved":
         payload["approved_by"] = user_id
+        payload["approved_at"] = body.approved_at or datetime.now(timezone.utc).isoformat()
     updated = await _patch("message_templates", {"id": f"eq.{safe_template}"}, payload)
     await _audit(context["workspace_id"], user_id, "message_template.updated", "message_template", safe_template, {"status": body.status})
     return updated
@@ -321,6 +334,7 @@ async def create_message_template_version(body: TemplateVersionCreate, user_id: 
     payload = {**body.model_dump(), "workspace_id": context["workspace_id"], "created_by": user_id}
     if body.status == "approved":
         payload["approved_by"] = user_id
+        payload["approved_at"] = datetime.now(timezone.utc).isoformat()
     record = await _insert("message_template_versions", payload)
     await _audit(context["workspace_id"], user_id, "message_template_version.created", "message_template_version", record.get("id"), {"template_id": body.template_id})
     return record
