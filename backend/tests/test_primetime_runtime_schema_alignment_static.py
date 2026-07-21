@@ -1,6 +1,9 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+RECOVERY = ROOT / "supabase/migrations/20260721141622_restore_primetime_governed_runtime_schema.sql"
+PREFLIGHT = ROOT / "supabase/migrations/20260718162900_primetime_release4_audit_compatibility.sql"
+
 ROUTERS = [
     ROOT / "backend/app/routers/primetime_release1.py",
     ROOT / "backend/app/routers/primetime_release2_scheduling.py",
@@ -24,7 +27,7 @@ def test_all_primetime_routers_map_canonical_release1_tables() -> None:
 
 
 def test_release1_schema_matches_the_public_api_contract() -> None:
-    sql = read(ROOT / "supabase/migrations/20260718150000_primetime_release1_crm_foundation.sql")
+    sql = read(RECOVERY)
     for token in [
         "slug text not null unique",
         "owner_id uuid not null",
@@ -39,7 +42,7 @@ def test_release1_schema_matches_the_public_api_contract() -> None:
 
 
 def test_release2_schema_matches_scheduling_payloads() -> None:
-    sql = read(ROOT / "supabase/migrations/20260718160000_primetime_release2_scheduling.sql")
+    sql = read(RECOVERY)
     for token in [
         "appointment_type text not null",
         "start_at timestamptz not null",
@@ -55,7 +58,7 @@ def test_release2_schema_matches_scheduling_payloads() -> None:
 
 
 def test_release3_schema_matches_communications_payloads() -> None:
-    sql = read(ROOT / "supabase/migrations/20260718161500_primetime_release3_communications.sql")
+    sql = read(RECOVERY)
     for token in [
         "version integer not null",
         "preference_state text not null",
@@ -70,7 +73,7 @@ def test_release3_schema_matches_communications_payloads() -> None:
 
 
 def test_release4_schema_matches_ai_assistance_payloads() -> None:
-    sql = read(ROOT / "supabase/migrations/20260718163000_primetime_release4_ai_assistance.sql")
+    sql = read(RECOVERY)
     for token in [
         "key text not null",
         "system_prompt text not null",
@@ -84,3 +87,8 @@ def test_release4_schema_matches_ai_assistance_payloads() -> None:
         assert token in sql
     assert "new.action_status := 'blocked'" in sql
     assert "primetime_seed_ai_agents_for_workspace" in sql
+
+
+def test_release4_preflight_uses_the_canonical_bigint_audit_key() -> None:
+    sql = read(PREFLIGHT)
+    assert "audit_event_id bigint references public.primetime_audit_events(id)" in sql
