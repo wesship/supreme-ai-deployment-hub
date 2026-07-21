@@ -1,6 +1,13 @@
 name: VPS Deploy — D3VONN.IO
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'deploy/vps/**'
+      - '.github/workflows/vps-deploy.yml'
   workflow_dispatch:
     inputs:
       skip_deploy:
@@ -33,7 +40,7 @@ jobs:
           [ -z "${{ secrets.VPS_USER }}"            ] && missing+=("VPS_USER")
           [ -z "${{ secrets.VPS_SSH_PRIVATE_KEY }}" ] && missing+=("VPS_SSH_PRIVATE_KEY")
           [ -z "${{ secrets.VPS_KNOWN_HOSTS }}"     ] && missing+=("VPS_KNOWN_HOSTS")
-          if [ "${{ github.event.inputs.skip_deploy }}" = "false" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.skip_deploy }}" = "false" ]; then
             [ -z "${{ secrets.OPENAI_API_KEY }}"    ] && missing+=("OPENAI_API_KEY (required for full deploy)")
             [ -z "${{ secrets.PINECONE_API_KEY }}"  ] && missing+=("PINECONE_API_KEY (required for full deploy)")
           fi
@@ -192,7 +199,7 @@ jobs:
 
       # ── 7. Deploy (only when skip_deploy=false) ────────────────────────────
       - name: Deploy (docker compose up)
-        if: ${{ github.event.inputs.skip_deploy == 'false' }}
+        if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
         run: |
           ssh \
             -i ~/.ssh/vps_key \
@@ -208,7 +215,7 @@ jobs:
 
       # ── 8. Verify container health ─────────────────────────────────────────
       - name: Verify container health
-        if: ${{ github.event.inputs.skip_deploy == 'false' }}
+        if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
         run: |
           ssh \
             -i ~/.ssh/vps_key \
@@ -238,7 +245,7 @@ jobs:
 
       # ── 9. Public endpoint smoke test ──────────────────────────────────────
       - name: Public endpoint smoke test
-        if: ${{ github.event.inputs.skip_deploy == 'false' }}
+        if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
         run: |
           sleep 5
           echo "=== Public health check ==="
