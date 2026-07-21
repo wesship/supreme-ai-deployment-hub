@@ -248,11 +248,11 @@ class KnowledgeCitationCreate(BaseModel):
 async def _workspace_context(workspace_id: str, user_id: str) -> dict[str, Any]:
     safe_workspace = _validate_uuid(workspace_id, "workspace_id")
     safe_user = _validate_uuid(user_id, "user_id")
-    rows = await _query("workspace_memberships", {"select": "id,role_id,status,roles:primetime_roles(name)", "workspace_id": f"eq.{safe_workspace}", "user_id": f"eq.{safe_user}", "status": "eq.active", "limit": "1"})
+    rows = await _query("workspace_memberships", {"select": "id,role_id,status,roles:primetime_roles(code)", "workspace_id": f"eq.{safe_workspace}", "user_id": f"eq.{safe_user}", "status": "eq.active", "limit": "1"})
     if not rows:
         raise HTTPException(status_code=403, detail="Workspace access required")
     role = rows[0].get("roles") or {}
-    return {"workspace_id": safe_workspace, "role": role.get("name", "representative")}
+    return {"workspace_id": safe_workspace, "role": role.get("code", "representative")}
 
 
 def _require_role(context: dict[str, Any], allowed: set[str]) -> None:
