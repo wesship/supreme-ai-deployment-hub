@@ -123,6 +123,14 @@ def test_release4_blocks_regulated_autonomous_actions():
     assert "does not execute actions" in source
 
 
+def test_release4_output_creation_cannot_forge_review_decisions():
+    source = read(ROUTER)
+    assert 'OutputCreateStatus = Literal["draft", "review_required", "blocked"]' in source
+    assert 'status: OutputCreateStatus = "draft"' in source
+    assert 'body.status not in {"draft", "review_required", "blocked"}' in source
+    assert "output creation accepts drafts only; decisions require an approval-request review" in source
+
+
 def test_release4_creation_cannot_forge_action_or_approval_decisions():
     source = read(ROUTER)
     assert 'ActionCreateStatus = Literal["proposed", "blocked", "approval_required"]' in source
