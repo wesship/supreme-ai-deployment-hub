@@ -5,6 +5,8 @@ recommendation, application submission, execution, or delete endpoints.
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import os
 import re
 from typing import Any, Literal
@@ -28,6 +30,13 @@ _ALLOWED_TABLES = frozenset({
     "ai_approval_requests", "ai_compliance_findings", "ai_knowledge_citations",
     "audit_events",
 })
+
+_TABLE_NAMES = {
+    "workspace_memberships": "primetime_workspace_memberships",
+    "roles": "primetime_roles",
+    "audit_events": "primetime_audit_events",
+}
+
 
 AgentKey = Literal["intake_agent", "follow_up_agent", "scheduling_agent", "meeting_prep_agent", "compliance_reviewer_agent"]
 AgentStatus = Literal["draft", "pending_review", "approved", "retired", "disabled"]
@@ -70,7 +79,7 @@ def _headers(prefer: str = "return=representation") -> dict[str, str]:
 def _path(table: str) -> str:
     if table not in _ALLOWED_TABLES:
         raise HTTPException(status_code=400, detail=f"Unknown table: {table}")
-    return f"/rest/v1/{table}"
+    return f"/rest/v1/{_TABLE_NAMES.get(table, table)}"
 
 
 async def _query(table: str, params: dict[str, str]) -> list[dict[str, Any]]:
@@ -239,7 +248,7 @@ class KnowledgeCitationCreate(BaseModel):
 async def _workspace_context(workspace_id: str, user_id: str) -> dict[str, Any]:
     safe_workspace = _validate_uuid(workspace_id, "workspace_id")
     safe_user = _validate_uuid(user_id, "user_id")
-    rows = await _query("workspace_memberships", {"select": "id,role_id,status,roles(name)", "workspace_id": f"eq.{safe_workspace}", "user_id": f"eq.{safe_user}", "status": "eq.active", "limit": "1"})
+    rows = await _query("workspace_memberships", {"select": "id,role_id,status,roles:primetime_roles(name)", "workspace_id": f"eq.{safe_workspace}", "user_id": f"eq.{safe_user}", "status": "eq.active", "limit": "1"})
     if not rows:
         raise HTTPException(status_code=403, detail="Workspace access required")
     role = rows[0].get("roles") or {}
@@ -315,7 +324,9 @@ async def list_ai_agent_versions(workspace_id: str = Query(...), agent_id: str |
 async def create_ai_agent_version(body: AiAgentVersionCreate, user_id: str = Depends(get_current_user_id)):
     context = await _workspace_context(body.workspace_id, user_id); _require_role(context, _ADMIN_ROLES if body.status != "approved" else _APPROVAL_ROLES)
     payload = {**body.model_dump(), "workspace_id": context["workspace_id"], "created_by": user_id}
-    if body.status == "approved": payload["approved_by"] = user_id
+    if body.status == "approved":
+        payload["approved_by"] = user_id
+        payload["approved_at"] = datetime.now(timezone.utc).isoformat()
     record = await _insert("ai_agent_versions", payload); await _audit(context["workspace_id"], user_id, "ai_agent_version.created", "ai_agent_version", record.get("id"), {"agent_id": body.agent_id}); return record
 
 
@@ -323,7 +334,9 @@ async def create_ai_agent_version(body: AiAgentVersionCreate, user_id: str = Dep
 async def update_ai_agent_version(version_id: str, body: AiAgentVersionPatch, user_id: str = Depends(get_current_user_id)):
     safe_id, context = await _get_context_for_record("ai_agent_versions", version_id, user_id, "version_id"); _require_role(context, _APPROVAL_ROLES if body.status == "approved" else _ADMIN_ROLES)
     payload = _clean(body.model_dump())
-    if body.status == "approved": payload["approved_by"] = user_id
+    if body.status == "approved":
+        payload["approved_by"] = user_id
+        payload["approved_at"] = body.approved_at or datetime.now(timezone.utc).isoformat()
     updated = await _patch("ai_agent_versions", {"id": f"eq.{safe_id}"}, payload); await _audit(context["workspace_id"], user_id, "ai_agent_version.updated", "ai_agent_version", safe_id, {"fields": sorted(payload)}); return updated
 
 
