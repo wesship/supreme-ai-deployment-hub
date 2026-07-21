@@ -1,0 +1,272 @@
+name: Infrastructure CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'src/data/manifest/terraform/**'
+      - '.github/workflows/infrastructure-ci-cd.yml'
+      - 'scripts/generate-tf-files.cjs'
+      - 'policy/**'
+      - 'tests/infrastructure/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - 'src/data/manifest/terraform/**'
+      - '.github/workflows/infrastructure-ci-cd.yml'
+      - 'policy/**'
+      - 'scripts/generate-tf-files.cjs'
+      - 'tests/infrastructure/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target deployment environment
+        required: true
+        default: production
+        type: choice
+        options: [development, staging, production]
+
+concurrency:
+  group: infrastructure-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: '1.9.8'
+  CHECKOV_VERSION: '3.3.8'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform format check
+        working-directory: src/data/manifest/terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init without backend
+        working-directory: src/data/manifest/terraform
+        run: terraform init -reconfigure -backend=false
+
+      - name: Terraform validate
+        working-directory: src/data/manifest/terraform
+        run: terraform validate
+
+  security-scan:
+    name: Security Scan
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned Checkov
+        run: python -m pip install --disable-pip-version-check "checkov==${CHECKOV_VERSION}"
+
+      - name: Run Checkov and produce JSON
+        id: checkov
+        shell: bash
+        run: |
+          set +e
+          checkov \
+            --directory src/data/manifest/terraform \
+            --framework terraform \
+            --skip-download \
+            --compact \
+            --output json > checkov-results.json
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          test -s checkov-results.json
+          exit 0
+
+      - name: Enforce Checkov results
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          payload = json.loads(Path('checkov-results.json').read_text(encoding='utf-8'))
+          reports = payload if isinstance(payload, list) else [payload]
+          failures = []
+          parsing_errors = 0
+
+          for report in reports:
+              summary = report.get('summary', {}) or {}
+              parsing_errors += int(summary.get('parsing_errors', 0) or 0)
+              failures.extend((report.get('results', {}) or {}).get('failed_checks', []) or [])
+
+          print(f'Checkov failures: {len(failures)}')
+          print(f'Checkov parsing errors: {parsing_errors}')
+
+          if parsing_errors or failures:
+              for check in failures:
+                  print(
+                      f"::error file={check.get('file_path', 'unknown')}::"
+                      f"{check.get('check_id', 'unknown')} - {check.get('check_name', 'unknown')}"
+                  )
+              sys.exit(1)
+          PY
+
+      - name: Generate Checkov SARIF
+        if: always()
+        continue-on-error: true
+        run: |
+          checkov \
+            --directory src/data/manifest/terraform \
+            --framework terraform \
+            --skip-download \
+            --compact \
+            --soft-fail \
+            --output sarif > checkov-results.sarif
+
+      - name: Upload Checkov SARIF
+        if: always() && hashFiles('checkov-results.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: checkov-results.sarif
+          category: checkov-infrastructure
+
+      - name: Preserve Checkov reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: infrastructure-checkov-${{ github.run_id }}
+          path: |
+            checkov-results.json
+            checkov-results.sarif
+          if-no-files-found: error
+          retention-days: 30
+
+  terraform-plan:
+    name: Terraform Plan
+    needs: [validate, security-scan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+    environment: ${{ github.event.inputs.environment }}
+    outputs:
+      plan_exit_code: ${{ steps.plan.outputs.exitcode }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        working-directory: src/data/manifest/terraform
+        run: terraform init -reconfigure
+
+      - name: Terraform plan
+        id: plan
+        working-directory: src/data/manifest/terraform
+        env:
+          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+          TF_VAR_db_password: ${{ secrets.RDS_DB_PASSWORD }}
+        shell: bash
+        run: |
+          set +e
+          terraform plan -out=tfplan -lock=false -detailed-exitcode
+          code=$?
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" -eq 1 ]; then
+            exit 1
+          fi
+          exit 0
+
+      - name: Upload Terraform plan
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: src/data/manifest/terraform/tfplan
+          if-no-files-found: warn
+          retention-days: 1
+
+  terraform-apply:
+    name: Terraform Apply
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.environment == 'production' &&
+      needs.terraform-plan.outputs.plan_exit_code == '2'
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+    environment:
+      name: production
+      url: https://d3vonn.io
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        working-directory: src/data/manifest/terraform
+        run: terraform init -reconfigure
+
+      - name: Terraform apply
+        working-directory: src/data/manifest/terraform
+        run: terraform apply -auto-approve -lock-timeout=5m
