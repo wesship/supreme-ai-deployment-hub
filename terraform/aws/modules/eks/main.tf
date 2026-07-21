@@ -66,13 +66,35 @@ resource "aws_iam_role" "eks" {
   })
 }
 
+resource "aws_kms_key" "eks_secrets" {
+  description             = "KMS key for EKS Kubernetes secrets encryption"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+  tags                    = var.tags
+}
+
+resource "aws_kms_alias" "eks_secrets" {
+  name          = "alias/${var.name_prefix}-eks-secrets"
+  target_key_id = aws_kms_key.eks_secrets.key_id
+}
+
 resource "aws_eks_cluster" "this" {
-  name     = var.cluster_name
-  role_arn = aws_iam_role.eks.arn
-  tags     = var.tags
+  name                      = var.cluster_name
+  role_arn                  = aws_iam_role.eks.arn
+  tags                      = var.tags
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+  encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks_secrets.arn
+    }
+    resources = ["secrets"]
+  }
 
   vpc_config {
-    subnet_ids = var.subnet_ids
+    subnet_ids              = var.subnet_ids
+    endpoint_public_access  = false
+    endpoint_private_access = true
   }
 }
 

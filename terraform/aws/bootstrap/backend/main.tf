@@ -12,6 +12,24 @@ provider "aws" {
   region = var.region
 }
 
+resource "aws_kms_key" "terraform_backend" {
+  description             = "KMS key for Terraform state and lock data"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  tags = merge(var.tags, {
+    Name        = "${var.bucket_name}-kms"
+    Purpose     = "terraform-backend-encryption"
+    ManagedBy   = "terraform"
+    DevonnStack = "supreme-ai-deployment-hub"
+  })
+}
+
+resource "aws_kms_alias" "terraform_backend" {
+  name          = "alias/${var.bucket_name}-terraform-backend"
+  target_key_id = aws_kms_key.terraform_backend.key_id
+}
+
 resource "aws_s3_bucket" "tf_state" {
   bucket = var.bucket_name
 
@@ -36,8 +54,11 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "tf_state" {
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      kms_master_key_id = aws_kms_key.terraform_backend.arn
+      sse_algorithm     = "aws:kms"
     }
+
+    bucket_key_enabled = true
   }
 }
 
@@ -57,6 +78,15 @@ resource "aws_dynamodb_table" "tf_lock" {
   attribute {
     name = "LockID"
     type = "S"
+  }
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.terraform_backend.arn
+  }
+
+  point_in_time_recovery {
+    enabled = true
   }
 
   tags = merge(var.tags, {

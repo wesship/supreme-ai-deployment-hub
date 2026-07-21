@@ -17,6 +17,7 @@ on:
     paths:
       - 'terraform/**'
       - 'src/data/manifest/terraform/**'
+      - '.github/workflows/infrastructure-ci-cd.yml'
       - 'policy/**'
       - 'scripts/generate-tf-files.cjs'
       - 'tests/infrastructure/**'
@@ -25,23 +26,11 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target deployment environment'
+        description: Target deployment environment
         required: true
-        default: 'production'
+        default: production
         type: choice
-        options:
-          - development
-          - staging
-          - production
-      deployment_strategy:
-        description: 'Deployment strategy'
-        required: true
-        default: 'canary'
-        type: choice
-        options:
-          - standard
-          - canary
-          - blue-green
+        options: [development, staging, production]
 
 concurrency:
   group: infrastructure-${{ github.ref }}
@@ -49,8 +38,7 @@ concurrency:
 
 env:
   TF_VERSION: '1.9.8'
-  TF_LOG: 'WARN'
-  COMPLIANCE_STANDARDS: 'cis,gdpr,hipaa,pci'
+  CHECKOV_VERSION: '3.3.8'
 
 permissions:
   contents: read
@@ -60,48 +48,28 @@ jobs:
     name: Validate Terraform
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Terraform Format Check
-        working-directory: ./src/data/manifest/terraform
+      - name: Terraform format check
+        working-directory: src/data/manifest/terraform
         run: terraform fmt -check -recursive
 
-      - name: Terraform Init
-        working-directory: ./src/data/manifest/terraform
+      - name: Terraform init without backend
+        working-directory: src/data/manifest/terraform
         run: terraform init -reconfigure -backend=false
 
-      - name: Terraform Validate
-        working-directory: ./src/data/manifest/terraform
+      - name: Terraform validate
+        working-directory: src/data/manifest/terraform
         run: terraform validate
-
-      - name: Generate Terraform Documentation
-        run: |
-          curl -sSLo ./terraform-docs.tar.gz \
-            https://github.com/terraform-docs/terraform-docs/releases/download/v0.19.0/terraform-docs-v0.19.0-linux-amd64.tar.gz
-          if ! file terraform-docs.tar.gz | grep -q 'gzip compressed data'; then
-            echo "ERROR: Downloaded file is not gzip format"
-            exit 1
-          fi
-          tar -xzf terraform-docs.tar.gz
-          chmod +x terraform-docs
-          sudo mv terraform-docs /usr/local/bin/terraform-docs
-          terraform-docs markdown ./src/data/manifest/terraform > TERRAFORM.md
-
-      - name: Upload Terraform Documentation
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: terraform-docs
-          path: TERRAFORM.md
-          retention-days: 30
 
   security-scan:
     name: Security Scan
@@ -111,173 +79,117 @@ jobs:
     permissions:
       contents: read
       security-events: write
-      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Configure AWS Credentials (OIDC)
-        continue-on-error: true
-        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          persist-credentials: false
 
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-action@a73ebc46fba54691e25cbe901656e7b205fb9bf2
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
-          soft_fail: true
-          format: sarif
-          additional_args: --out tfsec.sarif
+          python-version: '3.12'
 
-      - name: Run checkov
-        uses: bridgecrewio/checkov-action@803f802e15372b44bfa1045780e9427936ab2f5b
-        with:
-          directory: ./src/data/manifest/terraform/azure
-          framework: terraform
-          soft_fail: true
-          output_format: sarif
-          output_file_path: results.sarif
+      - name: Install pinned Checkov
+        run: python -m pip install --disable-pip-version-check "checkov==${CHECKOV_VERSION}"
 
-      - name: Upload tfsec SARIF results
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
-        if: always()
-        with:
-          sarif_file: ./tfsec.sarif
-          category: tfsec
-
-      - name: Upload checkov SARIF results
-        continue-on-error: true
-        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
-        if: always()
-        with:
-          sarif_file: ./results.sarif
-          category: checkov
-
-      - name: Install OPA
+      - name: Run Checkov and produce JSON
+        id: checkov
+        shell: bash
         run: |
-          curl -sSL -o opa \
-            https://openpolicyagent.org/downloads/v0.68.0/opa_linux_amd64_static
-          chmod +x opa
-          sudo mv opa /usr/local/bin/opa
-          opa version
+          set +e
+          checkov \
+            --directory src/data/manifest/terraform \
+            --framework terraform \
+            --skip-download \
+            --compact \
+            --output json > checkov-results.json
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          test -s checkov-results.json
+          exit 0
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-        with:
-          run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Terraform files from manifests
-        run: node scripts/generate-tf-files.cjs
-
-      - name: Generate Terraform Plan for OPA Evaluation
-        continue-on-error: true
-        working-directory: ./src/data/manifest/terraform
-        env:
-          TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
-          TF_VAR_db_password: ${{ secrets.RDS_DB_PASSWORD }}
+      - name: Enforce Checkov results
+        shell: bash
         run: |
-          terraform init -reconfigure
-          terraform plan -out=tfplan -lock=false
-          terraform show -json tfplan > tfplan_raw.json
-
-      - name: Sanitize Terraform Plan
-        continue-on-error: true
-        working-directory: ./src/data/manifest/terraform
-        run: |
-          python3 - <<'EOF'
+          python - <<'PY'
           import json
+          import sys
           from pathlib import Path
 
-          source = Path('tfplan_raw.json')
-          if not source.exists():
-              print('No plan JSON generated; skipping sanitization.')
-              raise SystemExit(0)
+          payload = json.loads(Path('checkov-results.json').read_text(encoding='utf-8'))
+          reports = payload if isinstance(payload, list) else [payload]
+          failures = []
+          parsing_errors = 0
 
-          def redact(obj, depth=0):
-              if depth > 50:
-                  return obj
-              if isinstance(obj, dict):
-                  redact_keys = {
-                      'sensitive_values', 'before_sensitive', 'after_sensitive',
-                      'password', 'secret', 'token', 'key', 'private_key',
-                      'access_key', 'secret_key', 'db_password'
-                  }
-                  return {
-                      k: '[REDACTED]' if k in redact_keys else redact(v, depth + 1)
-                      for k, v in obj.items()
-                  }
-              if isinstance(obj, list):
-                  return [redact(i, depth + 1) for i in obj]
-              return obj
+          for report in reports:
+              summary = report.get('summary', {}) or {}
+              parsing_errors += int(summary.get('parsing_errors', 0) or 0)
+              failures.extend((report.get('results', {}) or {}).get('failed_checks', []) or [])
 
-          with source.open() as f:
-              plan = json.load(f)
-          with open('tfplan.json', 'w') as f:
-              json.dump(redact(plan), f, indent=2)
-          print('Plan sanitized - sensitive values redacted.')
-          EOF
+          print(f'Checkov failures: {len(failures)}')
+          print(f'Checkov parsing errors: {parsing_errors}')
 
-      - name: Run OPA Policy Checks
-        continue-on-error: true
-        working-directory: ./src/data/manifest/terraform
-        run: |
-          if [ ! -f tfplan.json ]; then
-            echo "No sanitized plan found; skipping OPA evaluation."
-            exit 0
-          fi
-          mkdir -p policy-results
-          opa eval \
-            --format pretty \
-            --data ../../../policy/aws_rds_policy.rego \
-            --input tfplan.json \
-            "data.terraform.aws.rds" > policy-results/rds-policy-results.txt
-          cat policy-results/rds-policy-results.txt
+          if parsing_errors or failures:
+              for check in failures:
+                  print(
+                      f"::error file={check.get('file_path', 'unknown')}::"
+                      f"{check.get('check_id', 'unknown')} - {check.get('check_name', 'unknown')}"
+                  )
+              sys.exit(1)
+          PY
 
-      - name: Upload OPA Policy Results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Generate Checkov SARIF
         if: always()
+        continue-on-error: true
+        run: |
+          checkov \
+            --directory src/data/manifest/terraform \
+            --framework terraform \
+            --skip-download \
+            --compact \
+            --soft-fail \
+            --output sarif > checkov-results.sarif
+
+      - name: Upload Checkov SARIF
+        if: always() && hashFiles('checkov-results.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
-          name: policy-check-results
-          path: ./src/data/manifest/terraform/policy-results/
-          retention-days: 14
+          sarif_file: checkov-results.sarif
+          category: checkov-infrastructure
+
+      - name: Preserve Checkov reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: infrastructure-checkov-${{ github.run_id }}
+          path: |
+            checkov-results.json
+            checkov-results.sarif
+          if-no-files-found: error
+          retention-days: 30
 
   terraform-plan:
     name: Terraform Plan
     needs: [validate, security-scan]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-      pull-requests: write
       deployments: write
       id-token: write
-    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
+    environment: ${{ github.event.inputs.environment }}
     outputs:
       plan_exit_code: ${{ steps.plan.outputs.exitcode }}
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
-      - name: Configure AWS Credentials (OIDC)
-        continue-on-error: true
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -288,96 +200,35 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
-        with:
-          run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install Node dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Terraform files from manifests
-        run: node scripts/generate-tf-files.cjs
-
-      - name: Terraform Init
-        working-directory: ./src/data/manifest/terraform
+      - name: Terraform init
+        working-directory: src/data/manifest/terraform
         run: terraform init -reconfigure
 
-      - name: Upload Terraform Lock File
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: terraform-lock
-          path: src/data/manifest/terraform/.terraform.lock.hcl
-          include-hidden-files: true
-          retention-days: 7
-
-      - name: Upload Terraform Config Files
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: terraform-config
-          path: ./src/data/manifest/terraform/*.tf
-          retention-days: 7
-
-      - name: Terraform Plan
-        working-directory: ./src/data/manifest/terraform
+      - name: Terraform plan
+        id: plan
+        working-directory: src/data/manifest/terraform
         env:
-          TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
           TF_VAR_db_password: ${{ secrets.RDS_DB_PASSWORD }}
-        id: plan
+        shell: bash
         run: |
           set +e
-          terraform plan \
-            -out=tfplan \
-            -lock=false \
-            -detailed-exitcode 2>&1 | tee plan_output.txt
-          code=${PIPESTATUS[0]}
+          terraform plan -out=tfplan -lock=false -detailed-exitcode
+          code=$?
           echo "exitcode=$code" >> "$GITHUB_OUTPUT"
-          exit $code
+          if [ "$code" -eq 1 ]; then
+            exit 1
+          fi
+          exit 0
 
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Upload Terraform plan
         if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: terraform-plan
-          path: ./src/data/manifest/terraform/tfplan
+          name: terraform-plan-${{ github.run_id }}
+          path: src/data/manifest/terraform/tfplan
+          if-no-files-found: warn
           retention-days: 1
-
-      - name: Comment Plan Summary on PR
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const path = 'src/data/manifest/terraform/plan_output.txt';
-            const planText = fs.existsSync(path) ? fs.readFileSync(path, 'utf8') : 'No Terraform plan output was generated.';
-            const truncated = planText.length > 60000 ? planText.substring(0, 60000) + '\n...(truncated)' : planText;
-            const body = [
-              '## Terraform Plan Summary',
-              '',
-              '```hcl',
-              truncated,
-              '```',
-              '',
-              `**Exit code:** \`${{ steps.plan.outputs.exitcode }}\``,
-              '> 0 = no changes, 1 = error, 2 = changes pending',
-            ].join('\n');
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body,
-            });
 
   terraform-apply:
     name: Terraform Apply
@@ -394,13 +245,14 @@ jobs:
       id-token: write
     environment:
       name: production
-      url: https://devonn.ai
+      url: https://d3vonn.io
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
 
-      - name: Configure AWS Credentials (OIDC)
-        continue-on-error: true
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -411,17 +263,10 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: terraform-plan
-          path: ./src/data/manifest/terraform/
+      - name: Terraform init
+        working-directory: src/data/manifest/terraform
+        run: terraform init -reconfigure
 
-      - name: Terraform Apply
-        working-directory: ./src/data/manifest/terraform
-        env:
-          TF_VAR_aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          TF_VAR_aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
-          TF_VAR_db_password: ${{ secrets.RDS_DB_PASSWORD }}
-        run: terraform apply -auto-approve tfplan
+      - name: Terraform apply
+        working-directory: src/data/manifest/terraform
+        run: terraform apply -auto-approve -lock-timeout=5m
