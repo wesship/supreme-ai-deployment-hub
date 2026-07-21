@@ -110,7 +110,6 @@ export default function PrimetimeCommunications() {
         channel: formValue(form, 'channel', 'email'),
         purpose: formValue(form, 'purpose', 'education'),
         status: 'draft',
-        created_by: userId,
       }),
       'Template draft created',
     );
@@ -121,7 +120,6 @@ export default function PrimetimeCommunications() {
     await runAction(
       () => primetimeRelease1Api.updateMessageTemplate(templateId, {
         status: 'approved',
-        approved_by: userId,
         approved_at: new Date().toISOString(),
         effective_at: new Date().toISOString(),
       }),
@@ -139,7 +137,6 @@ export default function PrimetimeCommunications() {
         version: Number(formValue(form, 'version', '1')),
         subject: formValue(form, 'subject', 'Family Financial Readiness Review'),
         body: formValue(form, 'body', 'Thanks for completing the readiness challenge. Here is your educational review summary.'),
-        created_by: userId,
       }),
       'Template version created',
     );
@@ -154,11 +151,10 @@ export default function PrimetimeCommunications() {
         workspace_id: workspaceId,
         person_id: formValue(form, 'person_id', uuidFallback),
         channel: formValue(form, 'channel', 'email'),
-        consent_state: formValue(form, 'consent_state', 'granted'),
+        preference_state: formValue(form, 'preference_state', 'allowed'),
         quiet_hours_start: formValue(form, 'quiet_hours_start', '20:00'),
         quiet_hours_end: formValue(form, 'quiet_hours_end', '08:00'),
-        max_messages_per_day: Number(formValue(form, 'max_messages_per_day', '1')),
-        recorded_by: userId,
+        max_frequency_per_day: Number(formValue(form, 'max_frequency_per_day', '1')),
       }),
       'Communication preference recorded',
     );
@@ -178,7 +174,6 @@ export default function PrimetimeCommunications() {
         status: 'draft',
         subject: formValue(form, 'subject', 'Educational follow-up'),
         body: formValue(form, 'body', 'Draft only. Requires policy check and approved workflow before delivery.'),
-        created_by: userId,
       }),
       'Draft communication created',
     );
@@ -192,10 +187,9 @@ export default function PrimetimeCommunications() {
       () => primetimeRelease1Api.createCommunicationPolicyCheck({
         workspace_id: workspaceId,
         communication_id: formValue(form, 'communication_id', selectedCommunicationId),
-        status: formValue(form, 'status', 'approved'),
-        check_type: formValue(form, 'check_type', 'consent'),
-        result: formValue(form, 'result', 'Consent and template review passed for draft workflow.'),
-        reviewed_by: userId,
+        decision: formValue(form, 'decision', 'pass'),
+        checks: { type: formValue(form, 'check_type', 'consent'), source: 'primetime-communications-ui' },
+        reasons: [formValue(form, 'reason', 'Consent and template review passed for draft workflow.')],
       }),
       'Communication policy check recorded',
     );
@@ -209,9 +203,8 @@ export default function PrimetimeCommunications() {
       () => primetimeRelease1Api.createCommunicationEvent({
         workspace_id: workspaceId,
         communication_id: formValue(form, 'communication_id', selectedCommunicationId),
-        event_type: formValue(form, 'event_type', 'reviewed'),
+        event_type: formValue(form, 'event_type', 'review_requested'),
         metadata: { source: 'primetime-communications-ui', note: 'Manual event record only. No autonomous sending.' },
-        created_by: userId,
       }),
       'Communication timeline event recorded',
     );
@@ -288,11 +281,11 @@ export default function PrimetimeCommunications() {
             <form className="grid gap-3" onSubmit={createPreference}>
               <Field label="Person ID"><input className={inputClass} name="person_id" placeholder={uuidFallback} /></Field>
               <Field label="Channel"><select className={inputClass} name="channel"><option>email</option><option>sms</option><option>voice</option></select></Field>
-              <Field label="Consent state"><select className={inputClass} name="consent_state"><option>granted</option><option>not_required</option><option>revoked</option><option>unknown</option></select></Field>
+              <Field label="Preference state"><select className={inputClass} name="preference_state"><option>allowed</option><option>do_not_contact</option><option>transactional_only</option><option>unknown</option></select></Field>
               <div className="grid gap-3 md:grid-cols-3">
                 <Field label="Quiet start"><input className={inputClass} name="quiet_hours_start" defaultValue="20:00" /></Field>
                 <Field label="Quiet end"><input className={inputClass} name="quiet_hours_end" defaultValue="08:00" /></Field>
-                <Field label="Daily cap"><input className={inputClass} name="max_messages_per_day" defaultValue="1" type="number" /></Field>
+                <Field label="Daily cap"><input className={inputClass} name="max_frequency_per_day" defaultValue="1" type="number" /></Field>
               </div>
               <button className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-400" type="submit">Record preference</button>
             </form>
@@ -315,8 +308,8 @@ export default function PrimetimeCommunications() {
             <form className="grid gap-3" onSubmit={recordPolicyCheck}>
               <Field label="Communication ID"><input className={inputClass} name="communication_id" defaultValue={selectedCommunicationId} /></Field>
               <Field label="Check type"><select className={inputClass} name="check_type"><option>consent</option><option>template</option><option>suppression</option><option>quiet_hours</option><option>frequency_cap</option><option>licensed_review</option></select></Field>
-              <Field label="Status"><select className={inputClass} name="status"><option>approved</option><option>blocked</option><option>warning</option><option>pending</option></select></Field>
-              <Field label="Result"><textarea className={inputClass} name="result" rows={3} placeholder="Document the review outcome" /></Field>
+              <Field label="Decision"><select className={inputClass} name="decision"><option value="pass">pass</option><option value="warn">warn</option><option value="block">block</option><option value="review_required">review_required</option></select></Field>
+              <Field label="Result"><textarea className={inputClass} name="reason" rows={3} placeholder="Document the review outcome" /></Field>
               <button className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-400" type="submit">Record policy check</button>
             </form>
             <p className="mt-4 text-sm text-slate-400">Policy checks: {policyChecks.length}</p>
@@ -325,7 +318,7 @@ export default function PrimetimeCommunications() {
           <Card title="Communication timeline">
             <form className="mb-5 grid gap-3" onSubmit={recordCommunicationEvent}>
               <Field label="Communication ID"><input className={inputClass} name="communication_id" defaultValue={selectedCommunicationId} /></Field>
-              <Field label="Event type"><select className={inputClass} name="event_type"><option>reviewed</option><option>approved</option><option>blocked</option><option>scheduled</option><option>delivered_by_external_provider</option></select></Field>
+              <Field label="Event type"><select className={inputClass} name="event_type"><option>review_requested</option><option>approved</option><option>blocked</option><option>scheduled</option><option>provider_callback</option></select></Field>
               <button className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-400" type="submit">Record timeline event</button>
             </form>
             <div className="space-y-3">
