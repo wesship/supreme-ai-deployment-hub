@@ -37,10 +37,10 @@ export default function PrimetimeScheduling() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [appointment, setAppointment] = useState({ title: '', starts_at: '', ends_at: '', meeting_type: 'review', location: '', compliance_state: 'pending_review' });
-  const [availability, setAvailability] = useState({ day_of_week: '1', starts_at: '09:00', ends_at: '17:00', timezone: 'America/Denver' });
+  const [appointment, setAppointment] = useState({ title: '', start_at: '', end_at: '', appointment_type: 'review', location_value: '', compliance_state: 'pending' });
+  const [availability, setAvailability] = useState({ rule_name: 'Standard availability', day_of_week: '1', start_time: '09:00', end_time: '17:00', timezone: 'America/Denver' });
   const [reminder, setReminder] = useState({ appointment_id: '', channel: 'email', scheduled_for: '' });
-  const [attendee, setAttendee] = useState({ appointment_id: '', person_id: '', role: 'prospect' });
+  const [attendee, setAttendee] = useState({ appointment_id: '', person_id: '', attendee_role: 'prospect' });
   const [calendarEvent, setCalendarEvent] = useState({ appointment_id: '', provider: 'google_calendar', external_event_id: '' });
 
   async function loadWorkspaceData(nextWorkspaceId = workspaceId) {
@@ -147,27 +147,29 @@ export default function PrimetimeScheduling() {
 
         <section className="grid gap-6 lg:grid-cols-2">
           <Card title="Create appointment">
-            <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void submit(() => primetimeRelease1Api.createAppointment({ workspace_id: workspaceId, owner_id: userId, title: appointment.title, starts_at: appointment.starts_at, ends_at: appointment.ends_at, meeting_type: appointment.meeting_type, location: appointment.location, compliance_state: appointment.compliance_state }), 'Appointment created and audit logged.'); }}>
+            <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void submit(() => primetimeRelease1Api.createAppointment({ workspace_id: workspaceId, owner_id: userId, title: appointment.title, start_at: appointment.start_at, end_at: appointment.end_at, appointment_type: appointment.appointment_type, location_value: appointment.location_value, compliance_state: appointment.compliance_state }), 'Appointment created and audit logged.'); }}>
               <input className={inputClass} placeholder="Title" value={appointment.title} onChange={(event) => setAppointment({ ...appointment, title: event.target.value })} required />
-              <input className={inputClass} placeholder="Meeting type" value={appointment.meeting_type} onChange={(event) => setAppointment({ ...appointment, meeting_type: event.target.value })} />
-              <input className={inputClass} aria-label="Start" type="datetime-local" value={appointment.starts_at} onChange={(event) => setAppointment({ ...appointment, starts_at: event.target.value })} required />
-              <input className={inputClass} aria-label="End" type="datetime-local" value={appointment.ends_at} onChange={(event) => setAppointment({ ...appointment, ends_at: event.target.value })} required />
-              <input className={inputClass} placeholder="Location" value={appointment.location} onChange={(event) => setAppointment({ ...appointment, location: event.target.value })} />
+              <input className={inputClass} placeholder="Meeting type" value={appointment.appointment_type} onChange={(event) => setAppointment({ ...appointment, appointment_type: event.target.value })} />
+              <input className={inputClass} aria-label="Start" type="datetime-local" value={appointment.start_at} onChange={(event) => setAppointment({ ...appointment, start_at: event.target.value })} required />
+              <input className={inputClass} aria-label="End" type="datetime-local" value={appointment.end_at} onChange={(event) => setAppointment({ ...appointment, end_at: event.target.value })} required />
+              <input className={inputClass} placeholder="Location" value={appointment.location_value} onChange={(event) => setAppointment({ ...appointment, location_value: event.target.value })} />
               <select className={inputClass} value={appointment.compliance_state} onChange={(event) => setAppointment({ ...appointment, compliance_state: event.target.value })}>
-                <option value="pending_review">pending_review</option>
-                <option value="approved">approved</option>
+                <option value="pending">pending</option>
+                <option value="review_required">review_required</option>
+                <option value="passed">passed</option>
+                <option value="blocked">blocked</option>
               </select>
-              <button className={buttonClass} disabled={!workspaceId || !userId || !appointment.title || !appointment.starts_at || !appointment.ends_at}>Create appointment</button>
+              <button className={buttonClass} disabled={!workspaceId || !userId || !appointment.title || !appointment.start_at || !appointment.end_at}>Create appointment</button>
             </form>
           </Card>
 
           <Card title="Availability rule">
-            <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void submit(() => primetimeRelease1Api.createAvailabilityRule({ workspace_id: workspaceId, owner_id: userId, day_of_week: Number(availability.day_of_week), starts_at: availability.starts_at, ends_at: availability.ends_at, timezone: availability.timezone, is_active: true }), 'Availability rule created.'); }}>
+            <form className="grid gap-3 sm:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void submit(() => primetimeRelease1Api.createAvailabilityRule({ workspace_id: workspaceId, user_id: userId, rule_name: availability.rule_name, day_of_week: Number(availability.day_of_week), start_time: availability.start_time, end_time: availability.end_time, timezone: availability.timezone, is_active: true }), 'Availability rule created.'); }}>
               <select className={inputClass} value={availability.day_of_week} onChange={(event) => setAvailability({ ...availability, day_of_week: event.target.value })}>
                 <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option>
               </select>
-              <input className={inputClass} aria-label="Availability start" type="time" value={availability.starts_at} onChange={(event) => setAvailability({ ...availability, starts_at: event.target.value })} />
-              <input className={inputClass} aria-label="Availability end" type="time" value={availability.ends_at} onChange={(event) => setAvailability({ ...availability, ends_at: event.target.value })} />
+              <input className={inputClass} aria-label="Availability start" type="time" value={availability.start_time} onChange={(event) => setAvailability({ ...availability, start_time: event.target.value })} />
+              <input className={inputClass} aria-label="Availability end" type="time" value={availability.end_time} onChange={(event) => setAvailability({ ...availability, end_time: event.target.value })} />
               <input className={inputClass} placeholder="Timezone" value={availability.timezone} onChange={(event) => setAvailability({ ...availability, timezone: event.target.value })} />
               <button className={buttonClass} disabled={!workspaceId || !userId}>Create availability</button>
             </form>
@@ -185,7 +187,7 @@ export default function PrimetimeScheduling() {
                   {rows.map((row) => (
                     <article key={value(row, 'id')} className="rounded-lg bg-white/5 p-3 text-sm">
                       <p className="font-medium text-white">{value(row, 'title')}</p>
-                      <p className="text-slate-400">{shortDate(row.starts_at)} → {shortDate(row.ends_at)}</p>
+                      <p className="text-slate-400">{shortDate(row.start_at)} → {shortDate(row.end_at)}</p>
                       <div className="mt-3 flex gap-2">
                         <button className="rounded-lg bg-emerald-500/20 px-3 py-1 text-xs text-emerald-100" onClick={() => void submit(() => primetimeRelease1Api.updateAppointment(value(row, 'id'), { status: 'completed' }), 'Appointment marked completed.')}>Complete</button>
                         <button className="rounded-lg bg-amber-500/20 px-3 py-1 text-xs text-amber-100" onClick={() => void submit(() => primetimeRelease1Api.updateAppointment(value(row, 'id'), { status: 'no_show' }), 'No-show recovery triggered.')}>No-show</button>
@@ -200,7 +202,7 @@ export default function PrimetimeScheduling() {
 
         <section className="grid gap-6 lg:grid-cols-3">
           <Card title="Reminder queue">
-            <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void submit(() => primetimeRelease1Api.createReminder({ workspace_id: workspaceId, appointment_id: reminder.appointment_id, channel: reminder.channel, scheduled_for: reminder.scheduled_for, status: 'pending' }), 'Reminder queued.'); }}>
+            <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void submit(() => primetimeRelease1Api.createReminder({ workspace_id: workspaceId, appointment_id: reminder.appointment_id, recipient_user_id: userId, channel: reminder.channel, scheduled_for: reminder.scheduled_for, status: 'pending' }), 'Reminder queued.'); }}>
               <select className={inputClass} value={reminder.appointment_id} onChange={(event) => setReminder({ ...reminder, appointment_id: event.target.value })}><option value="">Select appointment</option>{appointments.map((row) => <option key={value(row, 'id')} value={value(row, 'id')}>{value(row, 'title')}</option>)}</select>
               <select className={inputClass} value={reminder.channel} onChange={(event) => setReminder({ ...reminder, channel: event.target.value })}><option>email</option><option>sms</option><option>voice</option></select>
               <input className={inputClass} aria-label="Reminder time" type="datetime-local" value={reminder.scheduled_for} onChange={(event) => setReminder({ ...reminder, scheduled_for: event.target.value })} />
@@ -215,7 +217,7 @@ export default function PrimetimeScheduling() {
               <input className={inputClass} placeholder="Person ID for attendee" value={attendee.person_id} onChange={(event) => setAttendee({ ...attendee, person_id: event.target.value })} />
               <button className={buttonClass} disabled={!workspaceId || !attendee.appointment_id || !attendee.person_id} onClick={() => void submit(() => primetimeRelease1Api.createAppointmentAttendee({ workspace_id: workspaceId, ...attendee }), 'Appointment attendee added.')}>Add attendee</button>
               <input className={inputClass} placeholder="External calendar event ID" value={calendarEvent.external_event_id} onChange={(event) => setCalendarEvent({ ...calendarEvent, external_event_id: event.target.value })} />
-              <button className={`${buttonClass} bg-indigo-500 hover:bg-indigo-400`} disabled={!workspaceId || !calendarEvent.appointment_id || !calendarEvent.external_event_id} onClick={() => void submit(() => primetimeRelease1Api.createCalendarSyncEvent({ workspace_id: workspaceId, ...calendarEvent, direction: 'outbound', status: 'queued', authoritative: false }), 'Calendar sync event recorded as non-authoritative.')}>Record calendar sync</button>
+              <button className={`${buttonClass} bg-indigo-500 hover:bg-indigo-400`} disabled={!workspaceId || !calendarEvent.appointment_id || !calendarEvent.external_event_id} onClick={() => void submit(() => primetimeRelease1Api.createCalendarSyncEvent({ workspace_id: workspaceId, ...calendarEvent, direction: 'outbound', status: 'pending' }), 'Calendar sync event recorded as non-authoritative.')}>Record calendar sync</button>
             </div>
           </Card>
 
