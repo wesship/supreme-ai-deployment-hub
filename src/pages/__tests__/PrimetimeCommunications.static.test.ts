@@ -53,6 +53,19 @@ describe('PrimetimeCommunications static wiring', () => {
     }
   });
 
+  it('uses the exact communications API payload contracts', () => {
+    expect(page).toContain("preference_state: formValue(form, 'preference_state', 'allowed')");
+    expect(page).toContain("max_frequency_per_day: Number(formValue(form, 'max_frequency_per_day', '1'))");
+    expect(page).toContain("decision: formValue(form, 'decision', 'pass')");
+    expect(page).toContain("checks: { type: formValue(form, 'check_type', 'consent')");
+    expect(page).toContain("reasons: [formValue(form, 'reason'");
+    expect(page).toContain("event_type: formValue(form, 'event_type', 'review_requested')");
+    expect(page).not.toContain('consent_state');
+    expect(page).not.toContain('max_messages_per_day');
+    expect(page).not.toContain('created_by: userId');
+    expect(page).not.toContain('reviewed_by: userId');
+  });
+
   it('does not expose send, bulk-send, or delete handlers', () => {
     expect(page).not.toMatch(/sendCommunication|sendMessage|bulkSend|bulk_send|deleteCommunication|deleteTemplate/);
     expect(apiClient).not.toContain('/send');
