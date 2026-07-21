@@ -454,7 +454,7 @@ begin
     a.workspace_id,
     'appointment',
     a.id,
-    rule_code,
+    exception_type,
     severity,
     'open',
     details
@@ -468,9 +468,9 @@ begin
   where a.workspace_id = target_workspace
     and a.status in ('scheduled','confirmed','rescheduled')
     and (
-      (rules.rule_code = 'MISSING_OWNER' and a.owner_id is null)
-      or (rules.rule_code = 'MISSING_TIME_RANGE' and (a.start_at is null or a.end_at is null or a.end_at <= a.start_at))
-      or (rules.rule_code = 'MISSING_COMPLIANCE_STATUS' and (a.compliance_state is null or a.compliance_state = 'blocked'))
+      (rules.exception_type = 'MISSING_OWNER' and a.owner_id is null)
+      or (rules.exception_type = 'MISSING_TIME_RANGE' and (a.start_at is null or a.end_at is null or a.end_at <= a.start_at))
+      or (rules.exception_type = 'MISSING_COMPLIANCE_STATUS' and (a.compliance_state is null or a.compliance_state = 'blocked'))
     )
   on conflict do nothing;
 
