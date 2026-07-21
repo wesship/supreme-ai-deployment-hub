@@ -1,5 +1,4 @@
 -- PRIMETIME Release 3 — Governed Communications Foundation
--- Reconciled to the canonical primetime_* Release 1 base schema; production had not applied the superseded migration.
 -- Purpose: approved templates, consent/opt-out enforcement, quiet hours, frequency caps,
 -- communication records, delivery events, and immutable audit-friendly communication history.
 
@@ -12,8 +11,8 @@ create table if not exists message_templates (
   audience text,
   jurisdiction text,
   status text not null default 'draft' check (status in ('draft','pending_review','approved','expired','retired','rejected')),
-  body text not null,
-  required_disclosures text[] not null default '{}',
+  body text not null default '',
+  disclosures text[] not null default '{}',
   allowed_variables text[] not null default '{}',
   max_sends_per_person_per_day integer not null default 1 check (max_sends_per_person_per_day >= 0 and max_sends_per_person_per_day <= 10),
   approval_required boolean not null default true,
@@ -25,7 +24,7 @@ create table if not exists message_templates (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint message_templates_approval_state check (
-    (status <> 'approved') or (approved_by is not null and approved_at is not null and effective_at is not null)
+    (status <> 'approved') or (approved_by is not null and approved_at is not null)
   ),
   constraint message_templates_effective_window check (expires_at is null or effective_at is null or expires_at > effective_at)
 );
@@ -34,17 +33,21 @@ create table if not exists message_template_versions (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.primetime_workspaces(id) on delete restrict,
   template_id uuid not null references message_templates(id) on delete restrict,
-  version_number integer not null check (version_number > 0),
+  version integer not null check (version > 0),
   status text not null default 'draft' check (status in ('draft','pending_review','approved','expired','retired','rejected')),
+  subject text,
   body text not null,
-  required_disclosures text[] not null default '{}',
+  disclosures text[] not null default '{}',
   allowed_variables text[] not null default '{}',
+  effective_at timestamptz,
+  expires_at timestamptz,
+  approved_by uuid,
   created_by uuid not null,
   reviewed_by uuid,
   reviewed_at timestamptz,
   review_notes text,
   created_at timestamptz not null default now(),
-  unique (template_id, version_number)
+  unique (template_id, version)
 );
 
 create table if not exists communication_preferences (
@@ -52,12 +55,14 @@ create table if not exists communication_preferences (
   workspace_id uuid not null references public.primetime_workspaces(id) on delete restrict,
   person_id uuid not null references public.primetime_people(id) on delete restrict,
   channel text not null check (channel in ('email','sms','voice','mail','in_person')),
-  status text not null default 'unknown' check (status in ('unknown','allowed','do_not_contact','transactional_only')),
+  preference_state text not null default 'unknown' check (preference_state in ('unknown','allowed','do_not_contact','transactional_only')),
   quiet_hours_start time,
   quiet_hours_end time,
   timezone text not null default 'America/Denver',
+  max_frequency_per_day integer check (max_frequency_per_day between 0 and 100),
   updated_by uuid not null,
   updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
   unique (workspace_id, person_id, channel)
 );
 
@@ -85,12 +90,13 @@ create table if not exists communications (
   status text not null default 'draft' check (status in ('draft','pending_review','approved','scheduled','blocked','sent','delivered','failed','responded','opted_out','cancelled')),
   subject text,
   body text not null,
-  scheduled_for timestamptz,
+  metadata jsonb not null default '{}'::jsonb,
+  scheduled_at timestamptz,
   sent_at timestamptz,
   provider text,
   provider_message_id text,
   compliance_state text not null default 'pending_review' check (compliance_state in ('pending_review','approved','blocked','not_required')),
-  block_reason text,
+  blocked_reason text,
   approval_required boolean not null default true,
   approved_by uuid,
   approved_at timestamptz,
@@ -114,7 +120,7 @@ create table if not exists communication_events (
   provider text,
   provider_event_id text,
   metadata jsonb not null default '{}'::jsonb,
-  created_by uuid,
+  recorded_by uuid,
   created_at timestamptz not null default now()
 );
 
@@ -122,14 +128,13 @@ create table if not exists communication_policy_checks (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.primetime_workspaces(id) on delete restrict,
   communication_id uuid references communications(id) on delete restrict,
-  person_id uuid references public.primetime_people(id) on delete restrict,
-  channel text not null check (channel in ('email','sms','voice','mail','in_person')),
-  check_type text not null check (check_type in ('consent','suppression','quiet_hours','frequency_cap','template_approval','disclosure','jurisdiction','licensed_review')),
-  result text not null check (result in ('pass','warn','block')),
-  reason text,
-  metadata jsonb not null default '{}'::jsonb,
+  template_id uuid references message_templates(id) on delete restrict,
+  channel text check (channel in ('email','sms','voice','mail','in_person')),
+  decision text not null check (decision in ('pass','warn','block','review_required')),
+  checks jsonb not null default '{}'::jsonb,
+  reasons text[] not null default '{}',
   checked_by uuid,
-  checked_at timestamptz not null default now()
+  created_at timestamptz not null default now()
 );
 
 create or replace function primetime_touch_communications_updated_at()
@@ -180,7 +185,7 @@ begin
 
     if new.person_id is not null then
       select count(*) into suppressed_count
-      from suppression_records
+      from public.primetime_suppression_records
       where workspace_id = new.workspace_id
         and person_id = new.person_id
         and channel = new.channel;
@@ -190,7 +195,7 @@ begin
       end if;
 
       select count(*) into consent_count
-      from consent_records
+      from public.primetime_consent_records
       where workspace_id = new.workspace_id
         and person_id = new.person_id
         and channel = new.channel
@@ -216,10 +221,10 @@ language plpgsql
 as $$
 begin
   if tg_op = 'INSERT' then
-    insert into communication_events (workspace_id, communication_id, event_type, metadata, created_by)
+    insert into communication_events (workspace_id, communication_id, event_type, metadata, recorded_by)
     values (new.workspace_id, new.id, 'created', jsonb_build_object('status', new.status, 'channel', new.channel), new.created_by);
   elsif tg_op = 'UPDATE' and old.status is distinct from new.status then
-    insert into communication_events (workspace_id, communication_id, event_type, metadata, created_by)
+    insert into communication_events (workspace_id, communication_id, event_type, metadata, recorded_by)
     values (new.workspace_id, new.id,
       case
         when new.status = 'approved' then 'approved'
