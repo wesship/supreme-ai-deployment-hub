@@ -118,6 +118,7 @@ def test_release4_blocks_regulated_autonomous_actions():
     ]:
         assert blocked in source
     assert "_forbid_regulated_action" in source
+    assert 'action_type in _BLOCKED_ACTION_TYPES and status != "blocked"' in source
     assert "Release 4 blocks autonomous regulated action" in source
     assert "does not execute actions" in source
 
