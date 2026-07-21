@@ -1,55 +1,80 @@
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-MIGRATION = ROOT / "supabase" / "migrations" / "20260718163000_primetime_release4_ai_assistance.sql"
-
-REQUIRED_TABLES = [
-    "primetime_ai_agents",
-    "primetime_ai_actions",
-    "primetime_ai_approval_requests",
-    "primetime_knowledge_sources",
-    "primetime_knowledge_versions",
-    "primetime_compliance_checks",
-]
-
-RLS_TABLES = REQUIRED_TABLES  # all AI assistance tables are tenant-scoped
+MIGRATION = Path("supabase/migrations/20260721141622_restore_primetime_governed_runtime_schema.sql")
+PLAN = Path("docs/PRIMETIME_RELEASE4_AI_ASSISTANCE_PLAN.md")
+CONTRACT = Path("docs/PRIMETIME_RELEASE4_API_CONTRACT.md")
 
 
-def test_release4_schema_contains_required_tables():
-    sql = MIGRATION.read_text()
-    for table in REQUIRED_TABLES:
-        assert f"public.{table}" in sql
+def test_release4_migration_exists():
+    assert MIGRATION.exists()
 
 
-def test_release4_schema_enables_rls():
-    sql = MIGRATION.read_text().lower()
-    for table in RLS_TABLES:
-        assert f"alter table public.{table} enable row level security" in sql
+def test_release4_tables_exist():
+    text = MIGRATION.read_text()
+    for table in [
+        "ai_agents",
+        "ai_agent_versions",
+        "ai_assistance_requests",
+        "ai_assistance_outputs",
+        "ai_action_ledger",
+        "ai_approval_requests",
+        "ai_compliance_findings",
+        "ai_knowledge_citations",
+    ]:
+        assert f"create table if not exists public.{table}" in text
+        assert f"alter table public.{table} enable row level security" in text
 
 
-def test_release4_schema_has_transactional_wrapper():
-    sql = MIGRATION.read_text().lower()
-    assert "begin;" in sql
-    assert "commit;" in sql
+def test_release4_blocks_autonomous_regulated_actions():
+    text = MIGRATION.read_text().lower()
+    for blocked in [
+        "regulated_recommendation",
+        "quote",
+        "policy_decision",
+        "submit_application",
+        "autonomous_send",
+        "send_message",
+        "place_call",
+        "delete_record",
+    ]:
+        assert blocked in text
+    assert "primetime_block_autonomous_regulated_ai_actions" in text
+    assert "action_status := 'blocked'" in text
 
 
-def test_release4_ai_actions_require_audit_event_trigger():
-    sql = MIGRATION.read_text().lower()
-    assert "primetime_require_ai_audit_event" in sql
-    assert "primetime_ai_actions_require_audit" in sql
+def test_release4_approval_controls_exist():
+    text = MIGRATION.read_text().lower()
+    assert "ai_approval_requests" in text
+    assert "licensed_review" in text
+    assert "compliance_review" in text
+    assert "decided_approvals_require_reviewer" in text
+    assert "decided_by is not null" in text
 
 
-def test_release4_ai_actions_have_approval_gate():
-    sql = MIGRATION.read_text()
-    assert "requires_approval" in sql
-    assert "awaiting_approval" in sql
-    assert "approved_by" in sql
-    assert "rejected_by" in sql
+def test_release4_audit_event_exists():
+    text = MIGRATION.read_text().lower()
+    assert "primetime_ai_action_audit_event" in text
+    assert "insert into public.primetime_audit_events" in text
+    assert "ai.action." in text
 
 
-def test_release4_knowledge_sources_have_approval_lifecycle():
-    sql = MIGRATION.read_text()
-    assert "'draft'" in sql
-    assert "'approved'" in sql
-    assert "'expired'" in sql
-    assert "expires_at" in sql
+def test_release4_seed_agents_exist():
+    text = MIGRATION.read_text()
+    for agent_key in [
+        "intake_agent",
+        "follow_up_agent",
+        "scheduling_agent",
+        "meeting_prep_agent",
+        "compliance_reviewer_agent",
+    ]:
+        assert agent_key in text
+
+
+def test_release4_plan_and_contract_document_boundaries():
+    plan = PLAN.read_text().lower()
+    contract = CONTRACT.read_text().lower()
+    for forbidden in ["autonomous", "regulated", "quote", "delete", "send"]:
+        assert forbidden in plan
+        assert forbidden in contract
+    assert "post /primetime/v1/ai/send" in contract
+    assert "delete /primetime/v1/ai/*" in contract

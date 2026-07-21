@@ -138,6 +138,46 @@ except ImportError as _proxy_err:
     logger.warning("Proxy router not found — skipping. (%s)", _proxy_err)
 
 try:
+    from backend.app.routers.primetime_release1 import router as primetime_release1_router  # type: ignore
+
+    app.include_router(primetime_release1_router)
+    logger.info("PRIMETIME Release 1 router registered at /primetime/v1")
+except ImportError as _primetime_release1_err:
+    logger.warning("PRIMETIME Release 1 router not found — skipping. (%s)", _primetime_release1_err)
+
+try:
+    from backend.app.routers.primetime_release2_scheduling import router as primetime_release2_scheduling_router  # type: ignore
+
+    app.include_router(primetime_release2_scheduling_router)
+    logger.info("PRIMETIME Release 2 scheduling router registered at /primetime/v1")
+except ImportError as _primetime_release2_scheduling_err:
+    logger.warning("PRIMETIME Release 2 scheduling router not found — skipping. (%s)", _primetime_release2_scheduling_err)
+
+try:
+    from backend.app.routers.primetime_release3_communications import router as primetime_release3_communications_router  # type: ignore
+
+    app.include_router(primetime_release3_communications_router)
+    logger.info("PRIMETIME Release 3 communications router registered at /primetime/v1")
+except ImportError as _primetime_release3_communications_err:
+    logger.warning("PRIMETIME Release 3 communications router not found — skipping. (%s)", _primetime_release3_communications_err)
+
+try:
+    from backend.app.routers.primetime_release4_ai_assistance import router as primetime_release4_ai_assistance_router  # type: ignore
+
+    app.include_router(primetime_release4_ai_assistance_router)
+    logger.info("PRIMETIME Release 4 AI assistance router registered at /primetime/v1")
+except ImportError as _primetime_release4_ai_assistance_err:
+    logger.warning("PRIMETIME Release 4 AI assistance router not found — skipping. (%s)", _primetime_release4_ai_assistance_err)
+
+try:
+    from backend.app.routers.primetime_release5_analytics import router as primetime_release5_analytics_router  # type: ignore
+
+    app.include_router(primetime_release5_analytics_router)
+    logger.info("PRIMETIME Release 5 analytics router registered at /primetime/v1")
+except ImportError as _primetime_release5_analytics_err:
+    logger.warning("PRIMETIME Release 5 analytics router not found — skipping. (%s)", _primetime_release5_analytics_err)
+
+try:
     from backend.api.v1.router import router as v1_router  # type: ignore
 
     app.include_router(v1_router, prefix="/api/v1", tags=["v1"])
