@@ -21,9 +21,9 @@ test.describe('PRIMETIME Release 3 communications', () => {
         id: '66666666-6666-4666-8666-666666666666',
         workspace_id: workspaceId,
         communication_id: communicationId,
-        check_type: 'consent',
-        status: 'approved',
-        result: 'Seeded consent check passed',
+        decision: 'pass',
+        checks: { type: 'consent' },
+        reasons: ['Seeded consent check passed'],
       },
     ];
     let timelineEvents = [
@@ -31,7 +31,7 @@ test.describe('PRIMETIME Release 3 communications', () => {
         id: '77777777-7777-4777-8777-777777777777',
         workspace_id: workspaceId,
         communication_id: communicationId,
-        event_type: 'reviewed',
+        event_type: 'review_requested',
       },
     ];
 
@@ -69,9 +69,9 @@ test.describe('PRIMETIME Release 3 communications', () => {
 
       if (url.includes('/communication-preferences')) {
         if (method === 'POST') {
-          return route.fulfill({ json: { id: '99999999-9999-4999-8999-999999999999', workspace_id: workspaceId, person_id: personId, channel: 'email', consent_state: 'granted' } });
+          return route.fulfill({ json: { id: '99999999-9999-4999-8999-999999999999', workspace_id: workspaceId, person_id: personId, channel: 'email', preference_state: 'allowed' } });
         }
-        return route.fulfill({ json: [{ id: '99999999-9999-4999-8999-999999999999', workspace_id: workspaceId, person_id: personId, channel: 'email', consent_state: 'granted' }] });
+        return route.fulfill({ json: [{ id: '99999999-9999-4999-8999-999999999999', workspace_id: workspaceId, person_id: personId, channel: 'email', preference_state: 'allowed' }] });
       }
 
       if (url.includes('/communication-policy-checks')) {
@@ -130,6 +130,10 @@ test.describe('PRIMETIME Release 3 communications', () => {
 
     expect(requestedUrls.some((url) => url.includes('/send'))).toBe(false);
     expect(methods).not.toContain('DELETE');
+    expect(postedBodies.some((body) => body.preference_state === 'allowed' && body.max_frequency_per_day === 1)).toBe(true);
+    expect(postedBodies.some((body) => body.decision === 'pass' && Array.isArray(body.reasons))).toBe(true);
+    expect(postedBodies.some((body) => body.event_type === 'review_requested')).toBe(true);
+    expect(postedBodies.some((body) => body.created_by || body.approved_by || body.recorded_by || body.reviewed_by)).toBe(false);
     expect(postedBodies.some((body) => body.status === 'draft')).toBe(true);
     expect(postedBodies.some((body) => body.status === 'sent' || body.status === 'delivered')).toBe(false);
   });
