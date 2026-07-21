@@ -1,7 +1,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-MIGRATION = ROOT / "supabase" / "migrations" / "20260718164500_primetime_release5_analytics.sql"
+MIGRATION = ROOT / "supabase" / "migrations" / "20260721141622_restore_primetime_governed_runtime_schema.sql"
 PLAN = ROOT / "docs" / "PRIMETIME_RELEASE5_ANALYTICS_COMMAND_CENTER_PLAN.md"
 CONTRACT = ROOT / "docs" / "PRIMETIME_RELEASE5_API_CONTRACT.md"
 
