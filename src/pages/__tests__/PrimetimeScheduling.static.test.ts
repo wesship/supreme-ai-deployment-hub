@@ -33,6 +33,23 @@ describe('PRIMETIME Release 2 scheduling UI wiring', () => {
     expect(PAGE).toContain('calendar-sync');
   });
 
+  it('uses the exact scheduling API payload contracts', () => {
+    expect(PAGE).toContain('start_at: appointment.start_at');
+    expect(PAGE).toContain('end_at: appointment.end_at');
+    expect(PAGE).toContain('appointment_type: appointment.appointment_type');
+    expect(PAGE).toContain("compliance_state: 'pending'");
+    expect(PAGE).toContain('user_id: userId');
+    expect(PAGE).toContain('rule_name: availability.rule_name');
+    expect(PAGE).toContain('start_time: availability.start_time');
+    expect(PAGE).toContain('end_time: availability.end_time');
+    expect(PAGE).toContain('recipient_user_id: userId');
+    expect(PAGE).toContain('attendee_role');
+    expect(PAGE).not.toContain('starts_at: appointment');
+    expect(PAGE).not.toContain('ends_at: appointment');
+    expect(PAGE).not.toContain('meeting_type: appointment');
+    expect(PAGE).not.toContain('owner_id: userId, day_of_week');
+  });
+
   it('does not expose hard-delete behavior', () => {
     expect(API).not.toContain("method: 'DELETE'");
     expect(PAGE).not.toContain('deleteAppointment');
