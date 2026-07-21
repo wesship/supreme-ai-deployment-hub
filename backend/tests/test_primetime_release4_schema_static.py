@@ -39,7 +39,7 @@ def test_release4_blocks_autonomous_regulated_actions():
     ]:
         assert blocked in text
     assert "primetime_block_autonomous_regulated_ai_actions" in text
-    assert "execution_status := 'blocked'" in text
+    assert "action_status := 'blocked'" in text
 
 
 def test_release4_approval_controls_exist():
@@ -48,7 +48,7 @@ def test_release4_approval_controls_exist():
     assert "licensed_review" in text
     assert "compliance_review" in text
     assert "decided_approvals_require_reviewer" in text
-    assert "reviewer_id is not null" in text
+    assert "decided_by is not null" in text
 
 
 def test_release4_audit_event_exists():
