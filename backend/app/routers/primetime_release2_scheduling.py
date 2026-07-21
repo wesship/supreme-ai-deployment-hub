@@ -200,7 +200,7 @@ async def _membership_required(workspace_id: str, user_id: str) -> dict[str, Any
     rows = await _query(
         "workspace_memberships",
         {
-            "select": "id,role_id,status,roles:primetime_roles(name)",
+            "select": "id,role_id,status,roles:primetime_roles(code)",
             "workspace_id": f"eq.{safe_workspace}",
             "user_id": f"eq.{safe_user}",
             "status": "eq.active",
@@ -211,7 +211,7 @@ async def _membership_required(workspace_id: str, user_id: str) -> dict[str, Any
         raise HTTPException(status_code=403, detail="Workspace access required")
     membership = rows[0]
     role = membership.get("roles") or {}
-    return {"workspace_id": safe_workspace, "role": role.get("name", "representative")}
+    return {"workspace_id": safe_workspace, "role": role.get("code", "representative")}
 
 
 def _require_role(context: dict[str, Any], allowed: set[str]) -> None:
