@@ -1,6 +1,6 @@
 from pathlib import Path
 
-MIGRATION = Path("supabase/migrations/20260718163000_primetime_release4_ai_assistance.sql")
+MIGRATION = Path("supabase/migrations/20260721141622_restore_primetime_governed_runtime_schema.sql")
 PLAN = Path("docs/PRIMETIME_RELEASE4_AI_ASSISTANCE_PLAN.md")
 CONTRACT = Path("docs/PRIMETIME_RELEASE4_API_CONTRACT.md")
 
