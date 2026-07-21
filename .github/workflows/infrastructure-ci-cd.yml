@@ -31,6 +31,10 @@ on:
         default: production
         type: choice
         options: [development, staging, production]
+      confirmation:
+        description: Type APPLY_PRODUCTION to authorize a production plan and apply
+        required: false
+        type: string
 
 concurrency:
   group: infrastructure-${{ github.ref }}
@@ -175,7 +179,10 @@ jobs:
     needs: [validate, security-scan]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    if: github.event_name == 'workflow_dispatch'
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event.inputs.environment != 'production' || github.event.inputs.confirmation == 'APPLY_PRODUCTION')
     permissions:
       contents: read
       deployments: write
@@ -219,15 +226,20 @@ jobs:
           if [ "$code" -eq 1 ]; then
             exit 1
           fi
+          if [ "$code" -eq 2 ]; then
+            sha256sum tfplan > tfplan.sha256
+          fi
           exit 0
 
-      - name: Upload Terraform plan
-        if: always()
+      - name: Upload reviewed Terraform plan
+        if: steps.plan.outputs.exitcode == '2'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: terraform-plan-${{ github.run_id }}
-          path: src/data/manifest/terraform/tfplan
-          if-no-files-found: warn
+          path: |
+            src/data/manifest/terraform/tfplan
+            src/data/manifest/terraform/tfplan.sha256
+          if-no-files-found: error
           retention-days: 1
 
   terraform-apply:
@@ -237,7 +249,9 @@ jobs:
     timeout-minutes: 30
     if: |
       github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
       github.event.inputs.environment == 'production' &&
+      github.event.inputs.confirmation == 'APPLY_PRODUCTION' &&
       needs.terraform-plan.outputs.plan_exit_code == '2'
     permissions:
       contents: read
@@ -267,6 +281,20 @@ jobs:
         working-directory: src/data/manifest/terraform
         run: terraform init -reconfigure
 
-      - name: Terraform apply
+      - name: Download reviewed Terraform plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: src/data/manifest/terraform
+
+      - name: Verify reviewed Terraform plan
         working-directory: src/data/manifest/terraform
-        run: terraform apply -auto-approve -lock-timeout=5m
+        shell: bash
+        run: |
+          test -f tfplan
+          test -f tfplan.sha256
+          sha256sum --check tfplan.sha256
+
+      - name: Apply reviewed Terraform plan
+        working-directory: src/data/manifest/terraform
+        run: terraform apply -lock-timeout=5m tfplan
