@@ -42,6 +42,7 @@ AgentKey = Literal["intake_agent", "follow_up_agent", "scheduling_agent", "meeti
 AgentStatus = Literal["draft", "pending_review", "approved", "retired", "disabled"]
 RequestStatus = Literal["requested", "processing", "draft_ready", "review_required", "blocked", "approved", "rejected", "closed"]
 OutputStatus = Literal["draft", "review_required", "approved", "rejected", "superseded", "blocked"]
+OutputCreateStatus = Literal["draft", "review_required", "blocked"]
 ActionType = Literal["create_task", "draft_message", "suggest_next_action", "prepare_meeting_brief", "check_compliance", "schedule_appointment_draft", "regulated_recommendation", "quote_generation", "policy_decision", "submit_application", "send_message", "voice_call", "delete_record"]
 ActionStatus = Literal["proposed", "blocked", "approval_required", "approved", "executed", "rejected", "failed"]
 ActionCreateStatus = Literal["proposed", "blocked", "approval_required"]
@@ -173,7 +174,7 @@ class AssistanceOutputCreate(BaseModel):
     request_id: str
     output_type: str = Field(min_length=1, max_length=120)
     content: dict[str, Any] = Field(default_factory=dict)
-    status: OutputStatus = "draft"
+    status: OutputCreateStatus = "draft"
     agent_id: str | None = None
     agent_version_id: str | None = None
     requires_human_approval: bool = True
@@ -376,7 +377,9 @@ async def list_ai_assistance_outputs(workspace_id: str = Query(...), request_id:
 
 @router.post("/ai-assistance-outputs")
 async def create_ai_assistance_output(body: AssistanceOutputCreate, user_id: str = Depends(get_current_user_id)):
-    context = await _workspace_context(body.workspace_id, user_id); _require_role(context, _DRAFT_ROLES | _COMPLIANCE_ROLES if body.status != "approved" else _APPROVAL_ROLES)
+    context = await _workspace_context(body.workspace_id, user_id); _require_role(context, _DRAFT_ROLES | _COMPLIANCE_ROLES)
+    if body.status not in {"draft", "review_required", "blocked"}:
+        raise HTTPException(status_code=400, detail="Release 4 output creation accepts drafts only; decisions require an approval-request review")
     record = await _insert("ai_assistance_outputs", {**body.model_dump(), "workspace_id": context["workspace_id"], "created_by": user_id})
     await _audit(context["workspace_id"], user_id, "ai_assistance_output.created", "ai_assistance_output", record.get("id"), {"status": body.status}); return record
 
