@@ -122,6 +122,15 @@ def test_release4_blocks_regulated_autonomous_actions():
     assert "does not execute actions" in source
 
 
+def test_release4_creation_cannot_forge_action_or_approval_decisions():
+    source = read(ROUTER)
+    assert 'ActionCreateStatus = Literal["proposed", "blocked", "approval_required"]' in source
+    assert 'action_status: ActionCreateStatus = "proposed"' in source
+    assert 'ApprovalCreateStatus = Literal["pending"]' in source
+    assert 'status: ApprovalCreateStatus = "pending"' in source
+    assert "decisions require an approval-request review" in source
+
+
 def test_release4_has_no_send_quote_recommendation_submit_or_delete_endpoints():
     source = read(ROUTER)
     forbidden_routes = [
