@@ -272,7 +272,7 @@ def _clean(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _forbid_regulated_action(action_type: ActionType, status: ActionStatus | None = None) -> None:
-    if action_type in _BLOCKED_ACTION_TYPES:
+    if action_type in _BLOCKED_ACTION_TYPES and status != "blocked":
         raise HTTPException(status_code=403, detail=f"Release 4 blocks autonomous regulated action: {action_type}")
     if status not in {None, "proposed", "blocked", "approval_required"}:
         raise HTTPException(status_code=400, detail="Release 4 action creation accepts proposals only; decisions require an approval-request review")
