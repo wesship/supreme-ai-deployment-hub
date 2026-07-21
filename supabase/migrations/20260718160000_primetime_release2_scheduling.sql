@@ -1,5 +1,4 @@
 -- PRIMETIME Release 2 — Scheduling and Daily Operations
--- Reconciled to the canonical primetime_* Release 1 base schema; production had not applied the superseded migration.
 -- Adds appointment booking, attendees, availability rules, reminders, no-show recovery,
 -- calendar-sync boundary records, immutable scheduling audit support, and release gate checks.
 
@@ -16,25 +15,26 @@ create table if not exists public.appointments (
   household_id uuid references public.primetime_households(id) on delete set null,
   owner_id uuid not null references auth.users(id) on delete restrict,
   title text not null,
-  meeting_type text not null default 'consultation',
-  status text not null default 'scheduled' check (status in ('scheduled','confirmed','rescheduled','completed','canceled','no_show')),
-  starts_at timestamptz not null,
-  ends_at timestamptz not null,
+  appointment_type text not null default 'consultation',
+  status text not null default 'scheduled' check (status in ('scheduled','confirmed','rescheduled','completed','cancelled','no_show')),
+  start_at timestamptz not null,
+  end_at timestamptz not null,
   timezone text not null default 'UTC',
   location_type text not null default 'virtual' check (location_type in ('virtual','phone','in_person')),
-  location_details jsonb not null default '{}'::jsonb,
+  location_value text,
+  meeting_url text,
   consent_checked_at timestamptz,
-  compliance_status text not null default 'pending' check (compliance_status in ('pending','passed','blocked','review_required')),
+  compliance_state text not null default 'pending' check (compliance_state in ('pending','passed','blocked','review_required')),
   source text not null default 'manual',
   notes text,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (ends_at > starts_at)
+  check (end_at > start_at)
 );
 
-create index if not exists idx_appointments_workspace_start on public.appointments(workspace_id, starts_at);
-create index if not exists idx_appointments_owner_start on public.appointments(owner_id, starts_at);
+create index if not exists idx_appointments_workspace_start on public.appointments(workspace_id, start_at);
+create index if not exists idx_appointments_owner_start on public.appointments(owner_id, start_at);
 create index if not exists idx_appointments_status on public.appointments(workspace_id, status);
 
 create table if not exists public.appointment_attendees (
@@ -43,9 +43,11 @@ create table if not exists public.appointment_attendees (
   appointment_id uuid not null references public.appointments(id) on delete cascade,
   person_id uuid references public.primetime_people(id) on delete set null,
   user_id uuid references auth.users(id) on delete set null,
-  role text not null default 'attendee' check (role in ('host','co_host','client','prospect','trainer','licensed_representative','attendee')),
+  attendee_role text not null default 'participant' check (attendee_role in ('host','co_host','client','prospect','trainer','licensed_representative','attendee','participant')),
   attendance_status text not null default 'invited' check (attendance_status in ('invited','accepted','declined','tentative','attended','missed')),
   notification_channel text check (notification_channel in ('email','sms','voice','none')),
+  consent_checked_at timestamptz,
+  created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   unique(appointment_id, person_id),
   unique(appointment_id, user_id),
@@ -59,17 +61,20 @@ create table if not exists public.availability_rules (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.primetime_workspaces(id) on delete restrict,
   user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null,
+  rule_name text not null,
   timezone text not null default 'UTC',
   day_of_week int not null check (day_of_week between 0 and 6),
-  starts_at_time time not null,
-  ends_at_time time not null,
+  start_time time not null,
+  end_time time not null,
   is_active boolean not null default true,
+  buffer_minutes integer not null default 15 check (buffer_minutes between 0 and 240),
+  max_daily_appointments integer check (max_daily_appointments between 1 and 100),
+  created_by uuid references auth.users(id) on delete set null,
   effective_from date,
   effective_until date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (ends_at_time > starts_at_time)
+  check (end_time > start_time)
 );
 
 create index if not exists idx_availability_rules_user_day on public.availability_rules(user_id, day_of_week, is_active);
@@ -79,19 +84,21 @@ create table if not exists public.reminders (
   workspace_id uuid not null references public.primetime_workspaces(id) on delete restrict,
   appointment_id uuid references public.appointments(id) on delete cascade,
   task_id uuid references public.primetime_tasks(id) on delete cascade,
-  person_id uuid references public.primetime_people(id) on delete set null,
-  user_id uuid references auth.users(id) on delete set null,
+  recipient_person_id uuid references public.primetime_people(id) on delete set null,
+  recipient_user_id uuid references auth.users(id) on delete set null,
   channel text not null check (channel in ('email','sms','voice','in_app')),
-  reminder_type text not null default 'appointment_reminder',
-  status text not null default 'scheduled' check (status in ('scheduled','sent','failed','canceled','blocked')),
+  template_key text,
+  status text not null default 'pending' check (status in ('pending','scheduled','sent','failed','cancelled','blocked')),
   scheduled_for timestamptz not null,
   sent_at timestamptz,
   blocked_reason text,
-  policy_check jsonb not null default '{}'::jsonb,
+  policy_check_state text not null default 'pending',
+  metadata jsonb not null default '{}'::jsonb,
+  created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (appointment_id is not null or task_id is not null),
-  check (person_id is not null or user_id is not null)
+  check (recipient_person_id is not null or recipient_user_id is not null)
 );
 
 create index if not exists idx_reminders_workspace_due on public.reminders(workspace_id, scheduled_for, status);
@@ -117,14 +124,16 @@ create table if not exists public.calendar_sync_events (
   workspace_id uuid not null references public.primetime_workspaces(id) on delete restrict,
   appointment_id uuid references public.appointments(id) on delete cascade,
   provider text not null check (provider in ('google_calendar','microsoft_calendar','ical','manual')),
-  provider_calendar_id text,
-  provider_event_id text,
+  external_calendar_id text,
+  external_event_id text,
   direction text not null check (direction in ('inbound','outbound')),
   status text not null default 'pending' check (status in ('pending','synced','failed','blocked')),
-  request_hash text,
+  request_payload jsonb not null default '{}'::jsonb,
+  response_payload jsonb not null default '{}'::jsonb,
   error_message text,
   synced_at timestamptz,
-  metadata jsonb not null default '{}'::jsonb,
+  authoritative boolean not null default false check (authoritative = false),
+  created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -176,10 +185,10 @@ begin
     if new.title is null or btrim(new.title) = '' then
       raise exception 'Open appointment requires a title';
     end if;
-    if new.starts_at is null or new.ends_at is null or new.ends_at <= new.starts_at then
+    if new.start_at is null or new.end_at is null or new.end_at <= new.start_at then
       raise exception 'Open appointment requires a valid time range';
     end if;
-    if new.compliance_status = 'blocked' then
+    if new.compliance_state = 'blocked' then
       raise exception 'Blocked appointment cannot be scheduled';
     end if;
   end if;
@@ -250,7 +259,7 @@ as $$
 declare
   inserted_count integer;
 begin
-  insert into public.primetime_release_exceptions(workspace_id, entity_type, entity_id, rule_code, severity, status, details)
+  insert into public.primetime_release_exceptions(workspace_id, entity_type, entity_id, exception_type, severity, status, details)
   select
     a.workspace_id,
     'appointment',
@@ -263,15 +272,15 @@ begin
   cross join lateral (
     values
       ('MISSING_OWNER', 'critical', jsonb_build_object('field','owner_id')),
-      ('MISSING_TIME_RANGE', 'critical', jsonb_build_object('field','starts_at/ends_at')),
-      ('MISSING_COMPLIANCE_STATUS', 'high', jsonb_build_object('field','compliance_status'))
-  ) as rules(rule_code, severity, details)
+      ('MISSING_TIME_RANGE', 'critical', jsonb_build_object('field','start_at/end_at')),
+      ('MISSING_COMPLIANCE_STATUS', 'high', jsonb_build_object('field','compliance_state'))
+  ) as rules(exception_type, severity, details)
   where a.workspace_id = target_workspace
     and a.status in ('scheduled','confirmed','rescheduled')
     and (
       (rules.rule_code = 'MISSING_OWNER' and a.owner_id is null)
-      or (rules.rule_code = 'MISSING_TIME_RANGE' and (a.starts_at is null or a.ends_at is null or a.ends_at <= a.starts_at))
-      or (rules.rule_code = 'MISSING_COMPLIANCE_STATUS' and (a.compliance_status is null or a.compliance_status = 'blocked'))
+      or (rules.rule_code = 'MISSING_TIME_RANGE' and (a.start_at is null or a.end_at is null or a.end_at <= a.start_at))
+      or (rules.rule_code = 'MISSING_COMPLIANCE_STATUS' and (a.compliance_state is null or a.compliance_state = 'blocked'))
     )
   on conflict do nothing;
 
