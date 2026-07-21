@@ -1,11 +1,10 @@
--- PRIMETIME Release 1 — Canonical governed CRM foundation
+begin;
+
 create extension if not exists pgcrypto;
 
 create table if not exists public.primetime_workspaces (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  slug text not null unique,
-  created_by uuid not null references auth.users(id) on delete restrict,
   status text not null default 'active' check (status in ('active','suspended','archived')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -44,7 +43,7 @@ create table if not exists public.primetime_workspace_memberships (
 create table if not exists public.primetime_people (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.primetime_workspaces(id) on delete cascade,
-  owner_id uuid,
+  owner_user_id uuid,
   first_name text,
   last_name text,
   email text,
@@ -52,8 +51,6 @@ create table if not exists public.primetime_people (
   normalized_email text generated always as (lower(nullif(email,''))) stored,
   normalized_phone text,
   lifecycle_status text not null default 'prospect' check (lifecycle_status in ('prospect','lead','client','inactive','archived')),
-  source text,
-  created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -66,8 +63,7 @@ create table if not exists public.primetime_households (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.primetime_workspaces(id) on delete cascade,
   name text not null,
-  owner_id uuid,
-  created_by uuid references auth.users(id) on delete set null,
+  owner_user_id uuid,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -99,21 +95,20 @@ create table if not exists public.primetime_leads (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.primetime_workspaces(id) on delete cascade,
   person_id uuid references public.primetime_people(id) on delete restrict,
-  owner_id uuid not null,
+  owner_user_id uuid not null,
   pipeline_stage_id uuid not null references public.primetime_pipeline_stages(id),
   source text not null,
-  consent_state text not null default 'unknown' check (consent_state in ('unknown','not_required','granted','revoked','expired')),
-  status text not null default 'open' check (status in ('open','closed','converted','not_ready')),
+  consent_state text not null default 'unknown' check (consent_state in ('unknown','granted','denied','revoked','not_required')),
+  status text not null default 'open' check (status in ('open','won','lost','closed','archived')),
   next_action text,
   next_action_due_at timestamptz,
   last_activity_at timestamptz,
   aging_indicator text not null default 'new' check (aging_indicator in ('new','active','aging','stale','exception')),
-  created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint primetime_open_lead_controls check (
     status <> 'open' or (
-      owner_id is not null and
+      owner_user_id is not null and
       pipeline_stage_id is not null and
       source is not null and length(source) > 0 and
       consent_state is not null and
@@ -138,15 +133,12 @@ create table if not exists public.primetime_tasks (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.primetime_workspaces(id) on delete cascade,
   lead_id uuid references public.primetime_leads(id) on delete cascade,
-  owner_id uuid not null,
+  assigned_to_user_id uuid not null,
   title text not null,
-  priority text not null default 'normal' check (priority in ('low','normal','high','urgent')),
-  created_by uuid references auth.users(id) on delete set null,
   status text not null default 'open' check (status in ('open','in_progress','completed','cancelled')),
   due_at timestamptz,
   created_at timestamptz not null default now(),
-  completed_at timestamptz,
-  updated_at timestamptz not null default now()
+  completed_at timestamptz
 );
 
 create table if not exists public.primetime_activities (
@@ -154,12 +146,11 @@ create table if not exists public.primetime_activities (
   workspace_id uuid not null references public.primetime_workspaces(id) on delete cascade,
   lead_id uuid references public.primetime_leads(id) on delete cascade,
   person_id uuid references public.primetime_people(id) on delete set null,
-  actor_id uuid,
+  actor_user_id uuid,
   activity_type text not null,
   channel text,
   outcome text,
   summary text,
-  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -168,9 +159,9 @@ create table if not exists public.primetime_consent_records (
   workspace_id uuid not null references public.primetime_workspaces(id) on delete cascade,
   person_id uuid not null references public.primetime_people(id) on delete cascade,
   channel text not null check (channel in ('sms','email','voice','mail','in_person')),
-  consent_state text not null check (consent_state in ('unknown','not_required','granted','revoked','expired')),
+  status text not null check (status in ('granted','denied','revoked','expired')),
   source text not null,
-  recorded_by uuid,
+  captured_by_user_id uuid,
   captured_at timestamptz not null default now(),
   expires_at timestamptz,
   evidence jsonb not null default '{}'::jsonb
@@ -182,8 +173,7 @@ create table if not exists public.primetime_suppression_records (
   person_id uuid references public.primetime_people(id) on delete cascade,
   channel text check (channel in ('sms','email','voice','mail','all')),
   reason text not null,
-  source text not null default 'manual',
-  created_by uuid references auth.users(id) on delete set null,
+  source text not null,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -191,11 +181,11 @@ create table if not exists public.primetime_suppression_records (
 create table if not exists public.primetime_audit_events (
   id bigint generated always as identity primary key,
   workspace_id uuid,
-  actor_id uuid,
-  action text not null,
+  actor_user_id uuid,
+  event_type text not null,
   entity_type text,
   entity_id uuid,
-  metadata jsonb not null default '{}'::jsonb,
+  event_data jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -212,9 +202,9 @@ create table if not exists public.primetime_release_exceptions (
   resolved_at timestamptz
 );
 
-create index if not exists primetime_leads_workspace_owner_idx on public.primetime_leads(workspace_id, owner_id, status);
+create index if not exists primetime_leads_workspace_owner_idx on public.primetime_leads(workspace_id, owner_user_id, status);
 create index if not exists primetime_leads_next_action_idx on public.primetime_leads(workspace_id, next_action_due_at) where status = 'open';
-create index if not exists primetime_tasks_assignee_due_idx on public.primetime_tasks(workspace_id, owner_id, due_at);
+create index if not exists primetime_tasks_assignee_due_idx on public.primetime_tasks(workspace_id, assigned_to_user_id, due_at);
 create index if not exists primetime_activities_lead_created_idx on public.primetime_activities(lead_id, created_at desc);
 create index if not exists primetime_audit_workspace_created_idx on public.primetime_audit_events(workspace_id, created_at desc);
 
@@ -232,3 +222,5 @@ alter table public.primetime_consent_records enable row level security;
 alter table public.primetime_suppression_records enable row level security;
 alter table public.primetime_audit_events enable row level security;
 alter table public.primetime_release_exceptions enable row level security;
+
+commit;
