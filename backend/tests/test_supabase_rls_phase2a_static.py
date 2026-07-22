@@ -16,8 +16,6 @@ EXPECTED_TABLES = {
     "ai_compliance_findings",
     "ai_agents",
     "ai_agent_versions",
-    "approval_requests",
-    "rag_document_logs",
     "primetime_workspaces",
     "primetime_workspace_memberships",
     "primetime_roles",
@@ -33,6 +31,16 @@ EXPECTED_TABLES = {
     "primetime_consent_records",
     "primetime_suppression_records",
     "primetime_release_exceptions",
+}
+
+DEFERRED_PRODUCTION_DRIFT_TABLES = {
+    "approval_requests",
+    "rag_document_logs",
+}
+
+ACTIVE_OCC_TABLES = {
+    "approval_queue",
+    "rag_documents",
 }
 
 
@@ -70,7 +78,13 @@ def test_phase2a_migration_is_idempotent_and_schema_drift_safe() -> None:
     assert "commit;" in sql
 
 
+def test_phase2a_defers_unreproducible_production_drift_tables() -> None:
+    sql = _sql()
+    for table in DEFERRED_PRODUCTION_DRIFT_TABLES:
+        assert f"'{table}'" not in sql
+
+
 def test_phase2a_does_not_modify_active_occ_tables() -> None:
     sql = _sql()
-    assert "'approval_queue'" not in sql
-    assert "'rag_documents'" not in sql
+    for table in ACTIVE_OCC_TABLES:
+        assert f"'{table}'" not in sql
