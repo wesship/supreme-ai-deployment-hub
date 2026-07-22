@@ -1,137 +1,112 @@
 -- D3VONN.IO Supabase RLS hardening — Phase 1
--- Staging-first migration. Do not promote until backend/service-role and tenant-isolation tests pass.
+-- Validated on isolated Supabase branch rls-hardening-phase1.
+-- Core Hermes tables do not contain user_id and are read directly only by the
+-- administrative OCC. Browser access is therefore admin read-only; trusted
+-- backend and Edge Function service_role paths retain full access.
 
 begin;
 
 -- ---------------------------------------------------------------------------
--- 1. Restore owner/admin isolation on core Hermes tables.
--- Production drift introduced public allow_all policies; the canonical schema
--- defines user_id-scoped access and service_role bypasses RLS automatically.
+-- 1. Replace public Hermes access with admin-only browser reads.
 -- ---------------------------------------------------------------------------
 
-drop policy if exists allow_all on public.hermes_goals;
-drop policy if exists allow_all on public.hermes_tasks;
-drop policy if exists allow_all on public.hermes_events;
-drop policy if exists allow_all on public.hermes_checkpoints;
-drop policy if exists allow_all on public.hermes_interrupts;
+do $$
+declare
+  tbl text;
+  pol record;
+begin
+  foreach tbl in array array[
+    'hermes_goals',
+    'hermes_tasks',
+    'hermes_events',
+    'hermes_checkpoints',
+    'hermes_interrupts'
+  ] loop
+    if to_regclass(format('public.%I', tbl)) is null then
+      continue;
+    end if;
 
--- Remove stale variants before recreating deterministic policies.
-drop policy if exists "owners select hermes_goals" on public.hermes_goals;
-drop policy if exists "owners insert hermes_goals" on public.hermes_goals;
-drop policy if exists "owners update hermes_goals" on public.hermes_goals;
-drop policy if exists "owners delete hermes_goals" on public.hermes_goals;
-create policy "owners select hermes_goals" on public.hermes_goals
-  for select to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners insert hermes_goals" on public.hermes_goals
-  for insert to authenticated
-  with check ((select auth.uid()) = user_id);
-create policy "owners update hermes_goals" on public.hermes_goals
-  for update to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())))
-  with check ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners delete hermes_goals" on public.hermes_goals
-  for delete to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
+    for pol in
+      select policyname
+      from pg_policies
+      where schemaname = 'public' and tablename = tbl
+    loop
+      execute format('drop policy if exists %I on public.%I', pol.policyname, tbl);
+    end loop;
 
-drop policy if exists "owners select hermes_tasks" on public.hermes_tasks;
-drop policy if exists "owners insert hermes_tasks" on public.hermes_tasks;
-drop policy if exists "owners update hermes_tasks" on public.hermes_tasks;
-drop policy if exists "owners delete hermes_tasks" on public.hermes_tasks;
-create policy "owners select hermes_tasks" on public.hermes_tasks
-  for select to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners insert hermes_tasks" on public.hermes_tasks
-  for insert to authenticated
-  with check ((select auth.uid()) = user_id);
-create policy "owners update hermes_tasks" on public.hermes_tasks
-  for update to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())))
-  with check ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners delete hermes_tasks" on public.hermes_tasks
-  for delete to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-
-drop policy if exists "owners select hermes_interrupts" on public.hermes_interrupts;
-drop policy if exists "owners insert hermes_interrupts" on public.hermes_interrupts;
-drop policy if exists "owners update hermes_interrupts" on public.hermes_interrupts;
-drop policy if exists "owners delete hermes_interrupts" on public.hermes_interrupts;
-create policy "owners select hermes_interrupts" on public.hermes_interrupts
-  for select to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners insert hermes_interrupts" on public.hermes_interrupts
-  for insert to authenticated
-  with check ((select auth.uid()) = user_id);
-create policy "owners update hermes_interrupts" on public.hermes_interrupts
-  for update to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())))
-  with check ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners delete hermes_interrupts" on public.hermes_interrupts
-  for delete to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-
-drop policy if exists "owners select hermes_checkpoints" on public.hermes_checkpoints;
-drop policy if exists "owners insert hermes_checkpoints" on public.hermes_checkpoints;
-drop policy if exists "owners update hermes_checkpoints" on public.hermes_checkpoints;
-drop policy if exists "owners delete hermes_checkpoints" on public.hermes_checkpoints;
-create policy "owners select hermes_checkpoints" on public.hermes_checkpoints
-  for select to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners insert hermes_checkpoints" on public.hermes_checkpoints
-  for insert to authenticated
-  with check ((select auth.uid()) = user_id);
-create policy "owners update hermes_checkpoints" on public.hermes_checkpoints
-  for update to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())))
-  with check ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners delete hermes_checkpoints" on public.hermes_checkpoints
-  for delete to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-
-drop policy if exists "owners select hermes_events" on public.hermes_events;
-drop policy if exists "owners insert hermes_events" on public.hermes_events;
-create policy "owners select hermes_events" on public.hermes_events
-  for select to authenticated
-  using ((select auth.uid()) = user_id or public.is_admin((select auth.uid())));
-create policy "owners insert hermes_events" on public.hermes_events
-  for insert to authenticated
-  with check ((select auth.uid()) = user_id);
+    execute format('alter table public.%I enable row level security', tbl);
+    execute format('revoke all on public.%I from anon, authenticated', tbl);
+    execute format('grant select on public.%I to authenticated', tbl);
+    execute format('grant all on public.%I to service_role', tbl);
+    execute format(
+      'create policy %I on public.%I for select to authenticated using (((select auth.jwt() -> ''app_metadata'' ->> ''role'')) = ''admin'')',
+      'admins select ' || tbl,
+      tbl
+    );
+  end loop;
+end $$;
 
 -- ---------------------------------------------------------------------------
--- 2. Remove public service-write bypasses.
--- Service-role requests bypass RLS and retain table privileges; browser clients
--- must not be able to write arbitrary observability or subscription records.
+-- 2. Remove public service-write bypasses when those tables exist.
 -- ---------------------------------------------------------------------------
 
-drop policy if exists "Service insert agent_activity_logs" on public.agent_activity_logs;
-drop policy if exists "Service insert ai_request_logs" on public.ai_request_logs;
-drop policy if exists "Service insert error_logs" on public.error_logs;
-drop policy if exists "Service insert tool_call_logs" on public.tool_call_logs;
-drop policy if exists "Service upsert user_plans" on public.user_plans;
+do $$
+declare
+  tbl text;
+  policy_name text;
+begin
+  foreach tbl in array array[
+    'agent_activity_logs',
+    'ai_request_logs',
+    'error_logs',
+    'tool_call_logs'
+  ] loop
+    if to_regclass(format('public.%I', tbl)) is null then
+      continue;
+    end if;
 
-revoke insert on public.agent_activity_logs from anon, authenticated;
-revoke insert on public.ai_request_logs from anon, authenticated;
-revoke insert on public.error_logs from anon, authenticated;
-revoke insert on public.tool_call_logs from anon, authenticated;
-revoke insert, update, delete on public.user_plans from anon, authenticated;
+    policy_name := case tbl
+      when 'agent_activity_logs' then 'Service insert agent_activity_logs'
+      when 'ai_request_logs' then 'Service insert ai_request_logs'
+      when 'error_logs' then 'Service insert error_logs'
+      when 'tool_call_logs' then 'Service insert tool_call_logs'
+    end;
 
-grant all on public.agent_activity_logs to service_role;
-grant all on public.ai_request_logs to service_role;
-grant all on public.error_logs to service_role;
-grant all on public.tool_call_logs to service_role;
-grant all on public.user_plans to service_role;
+    execute format('drop policy if exists %I on public.%I', policy_name, tbl);
+    execute format('revoke insert on public.%I from anon, authenticated', tbl);
+    execute format('grant all on public.%I to service_role', tbl);
+  end loop;
 
--- Preserve authenticated self-read for user plans, with init-plan-safe auth calls.
-drop policy if exists "Users read own plan" on public.user_plans;
-create policy "Users read own plan" on public.user_plans
-  for select to authenticated
-  using ((select auth.uid()) = user_id or (select auth.jwt() ->> 'role') = 'admin');
+  if to_regclass('public.user_plans') is not null then
+    execute 'drop policy if exists "Service upsert user_plans" on public.user_plans';
+    execute 'revoke insert, update, delete on public.user_plans from anon, authenticated';
+    execute 'grant all on public.user_plans to service_role';
+
+    if exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'user_plans'
+        and column_name = 'user_id'
+    ) then
+      execute 'drop policy if exists "Users read own plan" on public.user_plans';
+      execute 'create policy "Users read own plan" on public.user_plans for select to authenticated using (((select auth.uid()) = user_id) or ((select auth.jwt() -> ''app_metadata'' ->> ''role'') = ''admin''))';
+    end if;
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
--- 3. Pin trigger function search paths.
+-- 3. Pin trigger-function search paths only when the functions exist.
 -- ---------------------------------------------------------------------------
 
-alter function public.set_updated_at() set search_path = public, pg_temp;
-alter function public.hermes_set_updated_at() set search_path = public, pg_temp;
+do $$
+begin
+  if to_regprocedure('public.set_updated_at()') is not null then
+    execute 'alter function public.set_updated_at() set search_path = public, pg_temp';
+  end if;
+
+  if to_regprocedure('public.hermes_set_updated_at()') is not null then
+    execute 'alter function public.hermes_set_updated_at() set search_path = public, pg_temp';
+  end if;
+end $$;
 
 commit;
