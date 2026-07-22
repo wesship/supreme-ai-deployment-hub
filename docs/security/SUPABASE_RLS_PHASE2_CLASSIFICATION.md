@@ -18,24 +18,23 @@ The governed Primetime AI Assistance router:
 
 This means RLS cannot replace the API authorization logic yet. Until a browser-direct use case is intentionally designed and tested, the governed workspace tables remain backend-only.
 
-## Caller trace conclusion
+## Caller trace and schema-drift conclusion
 
-Repository and production-schema tracing found:
+Repository, production-schema, and isolated-branch tracing found:
 
 - The active human-approval path uses `approval_queue`, not `approval_requests`.
 - The active OCC/RAG metadata path uses `rag_documents`, not `rag_document_logs`.
-- `approval_requests` and `rag_document_logs` have no identified application callers.
-- Both legacy tables contain zero production rows at the time of the Phase 2A review.
-- Both legacy tables had broad grants to `anon` and `authenticated`, but RLS had no policies, creating an implicit-deny posture rather than an explicit governed boundary.
+- `approval_requests` and `rag_document_logs` have no identified application callers and contained zero production rows during review.
+- `approval_requests`, `rag_document_logs`, `approval_queue`, and `rag_documents` exist in production but are absent from fresh Supabase branches, demonstrating production schema drift outside the repository migration chain.
 
-Therefore `approval_requests` and `rag_document_logs` are classified as backend-only legacy tables for Phase 2A. No owner-scoped browser policies will be added unless a future supported feature adopts them deliberately.
+Because the two legacy target tables cannot be reproduced and validated from repository migrations, Phase 2A does **not** alter them. They are deferred to a separate drift-remediation phase that must first capture their production schemas in append-only repository migrations.
 
 ## Access classes
 
 - **Backend-only**: no `PUBLIC`, `anon`, or `authenticated` table privileges; trusted `service_role` only.
 - **Workspace-scoped — deferred**: structurally supports workspace policies, but direct browser access is not approved until membership helpers and cross-workspace tests are implemented.
 - **Reference — backend-only**: global reference data read through the governed API, not directly from browsers.
-- **Legacy backend-only**: currently unused table retained for compatibility, denied to browser roles, and available only to trusted service paths.
+- **Production-drift deferred**: production-only table excluded from promotion until its schema is reproducible and staging-tested.
 
 ## P0 classification matrix
 
@@ -48,8 +47,8 @@ Therefore `approval_requests` and `rag_document_logs` are classified as backend-
 | `ai_compliance_findings` | `workspace_id`, `created_by`, `resolved_by` | Governed FastAPI AI router via service role | Backend-only; workspace-scoped deferred | No direct read/write | Test compliance reviewer and manager permissions |
 | `ai_agents` | `workspace_id`, `created_by` | Governed FastAPI AI router via service role | Backend-only; workspace-scoped deferred | No direct read/write | Test admin-only create/update and read-role matrix |
 | `ai_agent_versions` | `workspace_id`, `created_by`, `approved_by` | Governed FastAPI AI router via service role | Backend-only; workspace-scoped deferred | No direct read/write | Test version approval and immutable history expectations |
-| `approval_requests` | `user_id` | No active caller; active feature uses `approval_queue` | Legacy backend-only | No direct read/write | Confirm explicit deny policy, revoked browser grants, and preserved service-role access |
-| `rag_document_logs` | `user_id` | No active caller; active feature uses `rag_documents` | Legacy backend-only | No direct read/write | Confirm explicit deny policy, revoked browser grants, and preserved service-role access |
+| `approval_requests` | `user_id` | No active caller; active feature uses `approval_queue` | Production-drift deferred | Existing production posture unchanged by Phase 2A | Capture schema in migrations, recreate on branch, then validate hardening |
+| `rag_document_logs` | `user_id` | No active caller; active feature uses `rag_documents` | Production-drift deferred | Existing production posture unchanged by Phase 2A | Capture schema in migrations, recreate on branch, then validate hardening |
 | `primetime_workspaces` | `created_by` | Governed Primetime API | Backend-only; workspace-scoped deferred | No direct read/write | Define workspace discovery/bootstrap flow before browser policy |
 | `primetime_workspace_memberships` | `workspace_id`, `user_id` | Authorization source for governed API | Backend-only authorization table | No direct browser mutation or read | Prevent self-escalation; test membership lookup and admin changes |
 | `primetime_roles` | global reference table | Role lookup by governed API | Reference — backend-only | No direct browser read/write | Confirm role seeding and role-code stability |
@@ -68,28 +67,31 @@ Therefore `approval_requests` and `rag_document_logs` are classified as backend-
 
 ## Phase 2A migration boundary
 
-The Phase 2A migration enforces the conservative baseline only:
+Phase 2A covers the 22 P0 tables reproduced by repository migrations:
 
-1. Enable RLS on every existing P0 target table.
+1. Enable RLS on every existing target table.
 2. Revoke all table privileges from `PUBLIC`, `anon`, and `authenticated`.
 3. Grant required table privileges to `service_role`.
 4. Create an explicit false-valued browser deny policy on each target table.
 5. Do not introduce workspace browser policies.
-6. Preserve append-only migration governance and validate on a new isolated Supabase branch.
+6. Do not alter production-only drift tables.
+7. Preserve append-only migration governance and validate on an isolated Supabase branch.
 
 ## Required test matrix
 
-- Anonymous: no table privileges and no visible rows on every P0 table.
-- Ordinary authenticated user: no table privileges and no visible rows on every P0 table.
+- Anonymous: permission denied on every Phase 2A table.
+- Ordinary authenticated user: permission denied on every Phase 2A table.
 - Workspace member: succeeds only through the governed API for their workspace.
 - Cross-workspace member: denied by the API authorization boundary.
 - Workspace admin/compliance roles: only approved API operations succeed.
-- `service_role`: required reads/writes continue to work.
-- `approval_queue` and `rag_documents`: remain unchanged and continue supporting the active OCC workflows.
+- `service_role`: required reads, inserts, updates, and deletes continue to work.
+- Production-drift tables: unchanged by Phase 2A.
+- Active `approval_queue` and `rag_documents`: excluded from Phase 2A.
 
 ## Explicit non-goals
 
 - No direct browser access expansion.
 - No replacement of FastAPI role enforcement with incomplete RLS.
 - No public-read policies for P0 data.
+- No modification of production-only legacy drift tables.
 - No production application of Phase 2A without isolated-branch validation and separate approval.
