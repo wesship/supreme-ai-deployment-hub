@@ -39,7 +39,7 @@ begin
     execute format('grant select on public.%I to authenticated', tbl);
     execute format('grant all on public.%I to service_role', tbl);
     execute format(
-      'create policy %I on public.%I for select to authenticated using (((select auth.jwt() ->> ''role'')) = ''admin'')',
+      'create policy %I on public.%I for select to authenticated using (((select auth.jwt() -> ''app_metadata'' ->> ''role'')) = ''admin'')',
       'admins select ' || tbl,
       tbl
     );
@@ -89,7 +89,7 @@ begin
         and column_name = 'user_id'
     ) then
       execute 'drop policy if exists "Users read own plan" on public.user_plans';
-      execute 'create policy "Users read own plan" on public.user_plans for select to authenticated using (((select auth.uid()) = user_id) or ((select auth.jwt() ->> ''role'') = ''admin''))';
+      execute 'create policy "Users read own plan" on public.user_plans for select to authenticated using (((select auth.uid()) = user_id) or ((select auth.jwt() -> ''app_metadata'' ->> ''role'') = ''admin''))';
     end if;
   end if;
 end $$;
