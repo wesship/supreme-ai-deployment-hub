@@ -2,46 +2,52 @@
 
 Related issue: #498
 
+## Confirmed live schema
+
+The five core Hermes tables do not contain `user_id` or workspace ownership columns. The Operator Command Center reads them directly from Supabase as an administrative observability view. They are therefore classified as:
+
+- browser: authenticated admin read-only
+- anon: no access
+- ordinary authenticated users: no access
+- trusted backend and Edge Functions: full `service_role` access
+
+This model was applied successfully on isolated Supabase branch `rls-hardening-phase1` (`ehghjbphaxkkgpptidbw`). Production was not changed.
+
 ## Scope
 
-This phase removes confirmed production policy drift without changing application table structures.
-
-- Replaces public `allow_all` policies on core Hermes tables with owner/admin policies.
-- Removes public service-write policies from observability and plan tables.
-- Keeps `service_role` access for trusted backend and Edge Function execution.
-- Pins mutable trigger-function search paths.
-- Optimizes new policies to evaluate auth functions once per statement.
+- Removes every existing Hermes policy, including public `allow_all` drift.
+- Revokes browser writes to the five Hermes tables.
+- Creates one admin-only `SELECT` policy per Hermes table using the existing JWT role claim.
+- Preserves `service_role` access.
+- Removes public service-write policies from observability and plan tables when those tables exist.
+- Pins mutable trigger-function search paths when those functions exist.
+- Handles schema differences idempotently.
 
 ## Required staging validation
 
-Do not apply to production until all checks pass in staging.
+### Access matrix
 
-### Identity matrix
-
-Use two ordinary test users in separate workspaces plus one admin test user:
-
-| Actor | Own rows | Other user's rows | Service writes |
+| Actor | Hermes read | Hermes write | Service-table write |
 |---|---:|---:|---:|
-| User A | allowed | denied | denied |
-| User B | allowed | denied | denied |
-| Admin | allowed | allowed where policy permits | denied from browser |
-| service_role backend | allowed | allowed | allowed |
 | anon | denied | denied | denied |
+| ordinary authenticated user | denied | denied | denied |
+| authenticated admin | allowed | denied | denied from browser |
+| service_role backend | allowed | allowed | allowed |
 
 ### Hermes checks
 
 For each of `hermes_goals`, `hermes_tasks`, `hermes_events`, `hermes_checkpoints`, and `hermes_interrupts`:
 
-1. User A can insert a row with `user_id = auth.uid()`.
-2. User A cannot insert a row with User B's ID.
-3. User A can select their own rows.
-4. User A cannot select User B's rows.
-5. User A cannot update or delete User B's rows.
-6. Backend service-role workflows continue to create and update orchestration records.
+1. Anonymous `SELECT`, `INSERT`, `UPDATE`, and `DELETE` are denied.
+2. Ordinary authenticated `SELECT`, `INSERT`, `UPDATE`, and `DELETE` are denied.
+3. An authenticated JWT with `role=admin` can select.
+4. The admin browser cannot insert, update, or delete.
+5. Backend `service_role` orchestration can create and update records.
+6. OCC Hermes renders for an administrator and does not expose data to non-admin accounts.
 
 ### Service-write checks
 
-From an authenticated browser session, verify inserts are denied for:
+Where these tables exist, authenticated browser inserts must be denied:
 
 - `agent_activity_logs`
 - `ai_request_logs`
@@ -49,19 +55,7 @@ From an authenticated browser session, verify inserts are denied for:
 - `tool_call_logs`
 - `user_plans`
 
-Then verify the backend or Edge Function service-role path can still write each required table.
-
-### Application checks
-
-Run:
-
-- Backend integration tests
-- Supabase migration validation
-- Authenticated Playwright audit
-- AI chat request and logging flow
-- Hermes goal/task execution
-- OCC/admin observability reads
-- Subscription/plan read flow
+Backend or Edge Function `service_role` writes must continue to succeed.
 
 ## Policy verification query
 
@@ -78,15 +72,24 @@ where schemaname = 'public'
 order by tablename, policyname;
 ```
 
-Expected outcomes:
+Expected Hermes result:
 
-- No `allow_all` policy remains.
-- No non-SELECT policy has `USING (true)` or `WITH CHECK (true)` for public, anon, or authenticated roles.
-- Hermes policies explicitly target `authenticated` and scope by `user_id`.
-- Observability and plan mutations occur only through `service_role` paths.
+- Exactly one `SELECT` policy per table.
+- Policy role is `authenticated`.
+- Policy condition requires `(auth.jwt()->>'role') = 'admin'`.
+- No `allow_all`, owner, insert, update, or delete browser policy remains.
+
+## Promotion boundary
+
+Do not merge the Supabase development branch into production until:
+
+- repository CI is green
+- OCC admin-read behavior is verified
+- ordinary user denial is verified
+- service-role Hermes execution is verified
+- security advisors are rerun
+- production promotion receives separate explicit approval
 
 ## Rollback
 
-If a trusted backend path unexpectedly uses the authenticated role rather than `service_role`, stop promotion and repair that path. Do not restore public `allow_all` policies.
-
-For an emergency staging rollback only, revert the migration database branch or restore the prior staging snapshot. Production promotion must include a tested forward-fix migration rather than reintroducing unrestricted policies.
+For staging, reset or delete the development branch. Do not restore public `allow_all` policies. Production rollback must use a tested forward-fix migration or a database recovery procedure approved before promotion.
