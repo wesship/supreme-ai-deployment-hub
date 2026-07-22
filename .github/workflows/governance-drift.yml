@@ -50,6 +50,7 @@ jobs:
           set -e
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
           echo "Diffing $BASE_SHA..$HEAD_SHA"
 
           PROTECTED_AUTOGEN=(
@@ -68,12 +69,33 @@ jobs:
             fi
           done
 
-          # Migrations are append-only: no deletions or modifications of existing files
-          if git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- 'supabase/migrations/**' \
-              | awk '$1 == "D" || $1 == "M" || $1 ~ /^R/ { print; found=1 } END { exit !found }'; then
-            echo "::error::Existing supabase/migrations files were modified or deleted. Migrations are append-only."
-            fail=1
-          fi
+          # Migrations are append-only. A single hash-bound exception exists for
+          # PR #501 because the unapplied Phase 1 migration was proven incompatible
+          # with the live schema and would fail before a forward correction could run.
+          while IFS=$'\t' read -r status path path2; do
+            [ -z "$status" ] && continue
+
+            allowed=0
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260721190500_supabase_rls_hardening_phase1.sql" ] \
+              && [ "$PR_NUMBER" = "501" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "0dacf5a5f4e170df63e109cc9f7038e15c0d8ba1" ] \
+                && [ "$head_blob" = "06c7037bb5262216b8804b8df089453c14e3e666" ]; then
+                echo "Approved one-time migration correction: $path"
+                allowed=1
+              fi
+            fi
+
+            if [ "$allowed" -ne 1 ]; then
+              echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
+              fail=1
+            fi
+          done < <(
+            git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- 'supabase/migrations/**' \
+              | awk '$1 == "D" || $1 == "M" || $1 ~ /^R/ { print }'
+          )
 
           # config.toml: project-level settings locked
           if git diff "$BASE_SHA" "$HEAD_SHA" -- supabase/config.toml \
