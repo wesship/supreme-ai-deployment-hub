@@ -1,10 +1,13 @@
 -- D3VONN.IO Supabase RLS hardening — Phase 2A
 --
--- Conservative baseline for governed AI, Primetime, and legacy operational
--- tables that are accessed through trusted FastAPI / service-role paths.
--- Direct browser access is explicitly denied. This migration is append-only,
--- idempotent, and must be validated on an isolated Supabase branch before any
--- production promotion.
+-- Conservative baseline for governed AI and Primetime tables that are
+-- reproducible from repository migrations and accessed through trusted
+-- FastAPI / service-role paths.
+--
+-- Production-only legacy drift tables are intentionally excluded until their
+-- schemas are captured in append-only repository migrations and validated on
+-- an isolated branch. Direct browser access is explicitly denied for every
+-- Phase 2A target. This migration is append-only and idempotent.
 
 begin;
 
@@ -20,8 +23,6 @@ begin
     'ai_compliance_findings',
     'ai_agents',
     'ai_agent_versions',
-    'approval_requests',
-    'rag_document_logs',
     'primetime_workspaces',
     'primetime_workspace_memberships',
     'primetime_roles',
