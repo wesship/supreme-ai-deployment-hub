@@ -30,7 +30,7 @@ test.describe('D3VONN.IO production authentication boundary', () => {
     await page.goto(`${baseUrl}/app`, { waitUntil: 'domcontentloaded' });
 
     await expect(page).toHaveURL(/\/login\?redirect=%2Fapp$/);
-    await expect(page.getByRole('heading', { name: 'D3VONN.IO' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'D3VONN.IO', exact: true })).toBeVisible();
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('input[type="password"]')).toBeVisible();
   });
