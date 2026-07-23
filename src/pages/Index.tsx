@@ -318,7 +318,7 @@ const CapabilitiesSection: React.FC = () => {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-[#020817] py-24 sm:py-32">
+    <section id="platform" className="relative scroll-mt-20 overflow-hidden bg-[#020817] py-24 sm:py-32">
       <BinaryRain />
       <div className="container mx-auto px-4 sm:px-6">
         <div className="mx-auto max-w-3xl text-center">
