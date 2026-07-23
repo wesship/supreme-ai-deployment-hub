@@ -83,8 +83,8 @@ create policy "Deny direct browser access" on public.rag_document_logs
 
 revoke all privileges on table public.approval_queue from public, anon, authenticated;
 revoke all privileges on table public.rag_documents from public, anon, authenticated;
-grant select, insert on table public.approval_queue to authenticated;
-grant select, insert on table public.rag_documents to authenticated;
+grant select, insert, update, delete on table public.approval_queue to authenticated;
+grant select, insert, update, delete on table public.rag_documents to authenticated;
 grant all privileges on table public.approval_queue to service_role;
 grant all privileges on table public.rag_documents to service_role;
 
