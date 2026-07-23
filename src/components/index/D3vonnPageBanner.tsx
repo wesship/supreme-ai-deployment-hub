@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import heroAsset from '@/assets/d3vonn-hero.png.asset.json';
+import D3vonnBackdrop from './D3vonnBackdrop';
 
 interface D3vonnPageBannerProps {
   title?: string;
@@ -11,7 +11,8 @@ interface D3vonnPageBannerProps {
 
 /**
  * Reusable D3VONN.IO branded banner for inner pages.
- * Wraps page content with the futuristic hero image + coin tagline.
+ * Uses an asset-independent visual so public routes remain polished even
+ * when an external image host is unavailable.
  */
 const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
   title,
@@ -25,25 +26,16 @@ const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
         compact ? 'max-h-[380px]' : ''
       }`}
     >
-      {/* Background hero image */}
       <motion.div
-        initial={{ opacity: 0, scale: 1.05 }}
+        initial={{ opacity: 0, scale: 1.03 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.2, ease: 'easeOut' }}
         className="absolute inset-0"
       >
-        <img
-          src={heroAsset.url}
-          alt=""
-          aria-hidden="true"
-          className="w-full h-full object-cover object-center select-none"
-          draggable={false}
-          loading="eager"
-        />
+        <D3vonnBackdrop compact={compact} />
       </motion.div>
 
-      {/* Dark + neon vignette overlays */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-background" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-background" />
       <div
         className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-30"
         style={{
@@ -53,13 +45,11 @@ const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
         aria-hidden="true"
       />
 
-      {/* Content */}
       <div
         className={`relative z-10 container mx-auto px-4 flex flex-col items-center justify-center text-center ${
           compact ? 'py-20 md:py-28' : 'py-32 md:py-44'
         }`}
       >
-        {/* Coin / rebrand badge */}
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -91,7 +81,6 @@ const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
         </motion.p>
       </div>
 
-      {/* Bottom fade into page */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-background" />
     </section>
   );
