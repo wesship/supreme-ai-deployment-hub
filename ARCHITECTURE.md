@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-23 05:39 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-23 16:17 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 131  
+**Total Workflows:** 130  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-23 05:39 UTC
+**Last Updated:** 2026-07-23 16:17 UTC
 
 ## Workflow Capability Catalog
 
@@ -106,7 +106,6 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 
 | Workflow | File | Triggers | Jobs |
 |----------|------|----------|------|
-| Auto-merge Snyk Security PRs | `auto-merge-snyk.yml` |  | 1 |
 | Compliance and Audit Export (Manual Only) | `compliance-audit-export.yml` |  | 1 |
 | Container Hardening | `container-hardening.yml` |  | 2 |
 | Cosign Sign & Verify (Sigstore) | `cosign-sign-verify.yml` |  | 2 |
