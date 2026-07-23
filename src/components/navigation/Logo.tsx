@@ -14,9 +14,9 @@ const Logo: React.FC = () => {
       <img
         src={OFFICIAL_LOGO_SRC}
         width={900}
-        height={387}
+        height={492}
         alt="D3VONN.IO — One Platform. Infinite Intelligence."
-        className="relative block h-auto w-[190px] max-w-[52vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:w-[230px] lg:w-[250px]"
+        className="relative block h-11 w-[160px] max-w-[48vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-12 sm:w-[190px] lg:w-[210px]"
         decoding="async"
         fetchPriority="high"
         draggable={false}
