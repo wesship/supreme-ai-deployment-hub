@@ -42,8 +42,8 @@ def test_legacy_tables_are_explicitly_backend_only() -> None:
 
 def test_active_tables_preserve_owner_flows_and_correct_admin_claim() -> None:
     sql = _sql().lower()
-    assert "grant select, insert on table public.approval_queue to authenticated" in sql
-    assert "grant select, insert on table public.rag_documents to authenticated" in sql
+    assert "grant select, insert, update, delete on table public.approval_queue to authenticated" in sql
+    assert "grant select, insert, update, delete on table public.rag_documents to authenticated" in sql
     assert sql.count("auth.jwt()->'app_metadata'->>'role'") >= 4
     assert "auth.jwt() ->> 'role'" not in sql
     assert "auth.jwt()->>'role'" not in sql
