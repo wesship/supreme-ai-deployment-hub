@@ -1,43 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Bot, ArrowRight, ShieldCheck, Network, Zap } from 'lucide-react';
-import heroAsset from '@/assets/d3vonn-hero.png.asset.json';
+import D3vonnBackdrop from './D3vonnBackdrop';
 
 const D3vonnHeroBanner: React.FC = () => {
-  const [imageAvailable, setImageAvailable] = useState(true);
-
   return (
     <section
       aria-label="D3VONN.IO — The Future Is Autonomous"
       className="relative w-full overflow-hidden bg-black min-h-[520px] sm:min-h-[620px] lg:min-h-[720px]"
     >
-      {/* Full-bleed futuristic hero image. The source may be a platform asset path, so keep a resilient fallback. */}
-      {imageAvailable && (
-        <motion.img
-          src={heroAsset.url}
-          alt="D3VONN.IO — Autonomous AI Business OS futuristic hero"
-          className="absolute inset-0 w-full h-full object-cover select-none"
-          draggable={false}
-          initial={{ opacity: 0, scale: 1.04 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1.2, ease: 'easeOut' }}
-          loading="eager"
-          fetchPriority="high"
-          onError={() => setImageAvailable(false)}
-        />
-      )}
-
-      {/* CSS fallback prevents mobile blank screen if the hosted image path fails on Vercel. */}
-      {!imageAvailable && (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_35%,rgba(112,128,255,0.38),transparent_28%),radial-gradient(circle_at_50%_75%,rgba(0,255,166,0.12),transparent_24%),linear-gradient(135deg,#02030a_0%,#070817_48%,#000_100%)]">
-          <div className="absolute inset-0 opacity-25 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:42px_42px]" />
-          <div className="absolute right-[-10%] top-[8%] w-[560px] h-[560px] rounded-full border border-primary/40 shadow-[0_0_120px_rgba(112,128,255,0.45)]" />
-          <div className="absolute right-[8%] top-[22%] w-[300px] h-[300px] rounded-full border-2 border-primary/50 shadow-[inset_0_0_80px_rgba(112,128,255,0.35),0_0_80px_rgba(112,128,255,0.28)]" />
-          <div className="absolute right-[18%] top-[36%] w-[120px] h-[120px] rounded-full border border-white/30 bg-black/50 backdrop-blur-md flex items-center justify-center text-4xl font-bold text-primary shadow-[0_0_60px_rgba(112,128,255,0.5)]">
-            D3
-          </div>
-        </div>
-      )}
+      <motion.div
+        initial={{ opacity: 0, scale: 1.04 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1.2, ease: 'easeOut' }}
+        className="absolute inset-0"
+      >
+        <D3vonnBackdrop />
+      </motion.div>
 
       <div className="relative z-10 container mx-auto px-6 py-20 sm:py-28 lg:py-36">
         <motion.div
@@ -82,10 +61,8 @@ const D3vonnHeroBanner: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Cinematic gradient fade into the rest of the page */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-background" />
 
-      {/* Subtle scanline / neon glow overlay */}
       <div
         className="pointer-events-none absolute inset-0 mix-blend-overlay opacity-30"
         style={{
@@ -95,7 +72,6 @@ const D3vonnHeroBanner: React.FC = () => {
         aria-hidden="true"
       />
 
-      {/* Rebrand ribbon */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
