@@ -164,7 +164,7 @@ export async function createHealthSnapshot(
   };
 }
 
-export default async function handler(request: Request): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   if (request.method !== "GET") {
     return Response.json(
       { error: "Method not allowed" },
