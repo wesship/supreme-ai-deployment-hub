@@ -1,3 +1,4 @@
+-- CI retrigger: no database behavior change.
 begin;
 
 -- Correct admin role checks and restrict them to authenticated users.
