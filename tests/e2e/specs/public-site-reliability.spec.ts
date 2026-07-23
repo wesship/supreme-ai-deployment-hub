@@ -31,7 +31,7 @@ test.describe('Public site reliability', () => {
     await page.goto('/');
 
     const header = page.locator('header').first();
-    const logo = page.getByRole('img', {
+    const logo = header.getByRole('img', {
       name: 'D3VONN.IO — One Platform. Infinite Intelligence.',
     });
 
