@@ -88,7 +88,7 @@ create or replace function public.dashboard_schema_readiness()
 returns jsonb
 language sql
 stable
-security invoker
+security definer
 set search_path = pg_catalog, public
 as $$
   select jsonb_build_object(
