@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-export const OFFICIAL_LOGO_SRC = '/d3vonn-main-logo.svg?v=20260719-official';
+export const OFFICIAL_LOGO_SRC = '/d3vonn-main-logo.svg?v=20260724-official';
 
 const Logo: React.FC = () => {
   return (
@@ -15,8 +15,8 @@ const Logo: React.FC = () => {
         src={OFFICIAL_LOGO_SRC}
         width={900}
         height={492}
-        alt="D3VONN.IO — One Platform. Infinite Intelligence."
-        className="relative block h-11 w-[160px] max-w-[48vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-12 sm:w-[190px] lg:w-[210px]"
+        alt="D3VONN.IO — One Platform Infinite Intelligences"
+        className="relative block h-12 w-[178px] max-w-[50vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-[52px] sm:w-[205px] lg:w-[224px]"
         decoding="async"
         fetchPriority="high"
         draggable={false}

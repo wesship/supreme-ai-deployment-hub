@@ -77,7 +77,7 @@ const Navbar = ({
               <div className="hidden h-7 w-px bg-gradient-to-b from-transparent via-blue-200/20 to-transparent 2xl:block" />
               <div className="hidden 2xl:block">
                 <p className="text-[9px] font-black uppercase tracking-[0.22em] text-blue-200/45">EXU Intelligence Gateway</p>
-                <p className="mt-0.5 text-[10px] font-semibold text-white/45">One Platform. Infinite Intelligence.</p>
+                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">One Platform Infinite Intelligences</p>
               </div>
             </div>
 
