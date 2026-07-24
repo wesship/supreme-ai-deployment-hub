@@ -8,6 +8,7 @@ const authConfigured = Boolean(testEmail && testPassword);
 
 async function signIn(page: import('@playwright/test').Page) {
   await page.goto(`${baseUrl}/login?redirect=%2Fapp`, { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle');
 
   const email = page.locator('input[type="email"]');
   const password = page.locator('input[type="password"]');
@@ -15,11 +16,19 @@ async function signIn(page: import('@playwright/test').Page) {
   await expect(email).toBeVisible();
   await expect(password).toBeVisible();
 
-  await email.fill(testEmail!);
-  await password.fill(testPassword!);
+  // React hydration can replace the initial form controls after DOMContentLoaded.
+  // Refill and verify both controlled values in a retry loop so submission only
+  // happens after the hydrated form has retained the test credentials.
+  await expect(async () => {
+    await email.fill(testEmail!);
+    await password.fill(testPassword!);
+    await expect(email).toHaveValue(testEmail!);
+    await expect(password).toHaveValue(testPassword!);
+  }).toPass({ timeout: 10_000 });
 
   const submit = page.locator('button[type="submit"]').filter({ hasText: /sign in|log in/i }).first();
   await expect(submit).toBeVisible();
+  await expect(submit).toBeEnabled();
   await submit.click();
 
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/, { timeout: 20_000 });
