@@ -1,8 +1,6 @@
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,9 +21,10 @@ const Login = () => {
   );
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const emailSubmittingRef = useRef(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -64,42 +63,28 @@ const Login = () => {
     }
   };
 
-  const handleEmailSubmitCapture = async (event: FormEvent<HTMLDivElement>) => {
-    const form = event.target;
-
-    // Supabase Auth UI 0.4.x keeps its own email/password state. Browser
-    // autofill and automation can update the real inputs without updating
-    // that state, causing the library to submit empty credentials. The
-    // rendered controls do not consistently expose name attributes, so read
-    // them by their stable input types inside the submitted form.
-    if (!(form instanceof HTMLFormElement) || form.id !== 'auth-sign-in') return;
-
+  const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    event.stopPropagation();
+    if (emailLoading) return;
 
-    if (emailSubmittingRef.current) return;
-
-    const email =
-      form.querySelector<HTMLInputElement>('input[type="email"]')?.value.trim() ?? '';
-    const password =
-      form.querySelector<HTMLInputElement>('input[type="password"]')?.value ?? '';
-
-    if (!email || !password) {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail || !password) {
       setEmailError('Enter your email and password.');
       return;
     }
 
-    emailSubmittingRef.current = true;
     setEmailLoading(true);
     setEmailError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
       if (error) setEmailError(error.message || 'Email sign-in failed');
     } catch (err) {
       setEmailError(err instanceof Error ? err.message : 'Email sign-in failed');
     } finally {
-      emailSubmittingRef.current = false;
       setEmailLoading(false);
     }
   };
@@ -136,7 +121,7 @@ const Login = () => {
 
           <Button
             onClick={handleGoogle}
-            disabled={googleLoading}
+            disabled={googleLoading || emailLoading}
             variant="outline"
             className="w-full mb-4 font-medium"
           >
@@ -149,7 +134,7 @@ const Login = () => {
             {googleLoading ? 'Redirecting…' : 'Continue with Google'}
           </Button>
           {googleError && (
-            <p className="text-sm text-destructive mb-3 text-center">{googleError}</p>
+            <p role="alert" className="text-sm text-destructive mb-3 text-center">{googleError}</p>
           )}
           <div className="flex items-center gap-3 mb-4">
             <div className="h-px flex-1 bg-border" />
@@ -157,41 +142,43 @@ const Login = () => {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <div
-            onSubmitCapture={handleEmailSubmitCapture}
-            aria-busy={emailLoading}
-          >
-            <Auth
-              supabaseClient={supabase as any}
-              appearance={{
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: '#7080FF',
-                      brandAccent: '#5C6FFF',
-                      inputBackground: 'rgba(15, 23, 42, 0.5)',
-                      inputText: 'white',
-                      inputBorder: 'rgba(112, 128, 255, 0.3)',
-                      inputBorderFocus: 'rgba(112, 128, 255, 0.8)',
-                    },
-                  },
-                },
-                className: {
-                  container: 'space-y-4',
-                  input: 'bg-background/50 border-border text-foreground',
-                },
-              }}
-              providers={[]}
-              view="sign_in"
-              redirectTo={authCallbackUrl}
-            />
-          </div>
-          {emailLoading && (
-            <p role="status" className="text-sm text-muted-foreground mt-3 text-center">
-              Signing in…
-            </p>
-          )}
+          <form id="auth-sign-in" onSubmit={handleEmailSubmit} aria-busy={emailLoading} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={emailLoading}
+                className="flex h-10 w-full rounded-md border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={emailLoading}
+                className="flex h-10 w-full rounded-md border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+            <Button type="submit" disabled={emailLoading || googleLoading} className="w-full">
+              {emailLoading ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
           {emailError && (
             <p role="alert" className="text-sm text-destructive mt-3 text-center">
               {emailError}
