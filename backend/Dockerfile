@@ -13,7 +13,7 @@ FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
+    PYTHONPATH=/app:/app/backend \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
@@ -29,15 +29,18 @@ COPY --from=builder /install /usr/local
 RUN groupadd --gid 1001 appgroup \
     && useradd --uid 1001 --gid 1001 --no-create-home --shell /usr/sbin/nologin appuser
 
-COPY --chown=appuser:appgroup . .
+# Railway may configure this directory as the service root. Preserve the
+# canonical Python package layout so imports such as `backend.app.routers`
+# resolve instead of being silently skipped by backend/main.py.
+COPY --chown=appuser:appgroup . ./backend/
 
 RUN mkdir -p /app/.devonn/api-vault \
-    && chown -R appuser:appgroup /app/.devonn
+    && chown -R appuser:appgroup /app/.devonn /app/backend
 
 USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:8000/health/live || exit 1
+    CMD-SHELL curl -f "http://localhost:${PORT:-8000}/health/live" || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--log-level", "info"]
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --log-level info"]
