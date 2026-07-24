@@ -1,5 +1,6 @@
 name: D3VONN.IO Backend API Audit
 
+# A workflow-file update triggers one stabilized certification run on main.
 on:
   workflow_dispatch:
   schedule:
