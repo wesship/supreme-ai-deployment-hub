@@ -16,7 +16,7 @@ const Logo: React.FC = () => {
         width={900}
         height={492}
         alt="D3VONN.IO — One Platform Infinite Intelligences"
-        className="relative block h-12 w-[178px] max-w-[50vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-13 sm:w-[205px] lg:w-[224px]"
+        className="relative block h-12 w-[178px] max-w-[50vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-[52px] sm:w-[205px] lg:w-[224px]"
         decoding="async"
         fetchPriority="high"
         draggable={false}
