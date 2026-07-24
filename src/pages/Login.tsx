@@ -1,8 +1,6 @@
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,13 +21,19 @@ const Login = () => {
   );
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate(redirect, { replace: true });
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) navigate(redirect, { replace: true });
     });
     return () => subscription.unsubscribe();
@@ -58,6 +62,33 @@ const Login = () => {
     } catch (err) {
       setGoogleError(err instanceof Error ? err.message : 'Google sign-in failed');
       setGoogleLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setEmailError(null);
+
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail || !password) {
+      setEmailError('Enter both your email address and password.');
+      return;
+    }
+
+    setEmailLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (error) {
+        setEmailError(error.message || 'Email sign-in failed');
+        setEmailLoading(false);
+      }
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Email sign-in failed');
+      setEmailLoading(false);
     }
   };
 
@@ -93,52 +124,75 @@ const Login = () => {
 
           <Button
             onClick={handleGoogle}
-            disabled={googleLoading}
+            disabled={googleLoading || emailLoading}
             variant="outline"
             className="w-full mb-4 font-medium"
           >
-            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 0 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
             {googleLoading ? 'Redirecting…' : 'Continue with Google'}
           </Button>
           {googleError && (
-            <p className="text-sm text-destructive mb-3 text-center">{googleError}</p>
+            <p role="alert" className="text-sm text-destructive mb-3 text-center">
+              {googleError}
+            </p>
           )}
+
           <div className="flex items-center gap-3 mb-4">
             <div className="h-px flex-1 bg-border" />
             <span className="text-xs text-muted-foreground uppercase tracking-wider">or email</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <Auth
-            supabaseClient={supabase as any}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#7080FF',
-                    brandAccent: '#5C6FFF',
-                    inputBackground: 'rgba(15, 23, 42, 0.5)',
-                    inputText: 'white',
-                    inputBorder: 'rgba(112, 128, 255, 0.3)',
-                    inputBorderFocus: 'rgba(112, 128, 255, 0.8)',
-                  },
-                },
-              },
-              className: {
-                container: 'space-y-4',
-                input: 'bg-background/50 border-border text-foreground',
-              },
-            }}
-            providers={[]}
-            view="sign_in"
-            redirectTo={authCallbackUrl}
-          />
+          <form onSubmit={handleEmailLogin} className="space-y-4" noValidate>
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-foreground">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                disabled={emailLoading || googleLoading}
+                required
+                className="w-full rounded-md border border-border bg-background/50 px-3 py-2 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-foreground">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                disabled={emailLoading || googleLoading}
+                required
+                className="w-full rounded-md border border-border bg-background/50 px-3 py-2 text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
+              />
+            </div>
+
+            {emailError && (
+              <p role="alert" className="text-sm text-destructive">
+                {emailError}
+              </p>
+            )}
+
+            <Button type="submit" className="w-full" disabled={emailLoading || googleLoading}>
+              {emailLoading ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
         </div>
       </motion.div>
     </div>
