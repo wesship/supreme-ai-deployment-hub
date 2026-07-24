@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '47 9 * * 1'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/d3vonn-backend-api-audit.yml'
 
 permissions:
   contents: read
