@@ -69,7 +69,9 @@ const Login = () => {
 
     // Supabase Auth UI 0.4.x keeps its own email/password state. Browser
     // autofill and automation can update the real inputs without updating
-    // that state, causing the library to submit empty credentials.
+    // that state, causing the library to submit empty credentials. The
+    // rendered controls do not consistently expose name attributes, so read
+    // them by their stable input types inside the submitted form.
     if (!(form instanceof HTMLFormElement) || form.id !== 'auth-sign-in') return;
 
     event.preventDefault();
@@ -78,9 +80,9 @@ const Login = () => {
     if (emailSubmittingRef.current) return;
 
     const email =
-      form.querySelector<HTMLInputElement>('input[name="email"]')?.value.trim() ?? '';
+      form.querySelector<HTMLInputElement>('input[type="email"]')?.value.trim() ?? '';
     const password =
-      form.querySelector<HTMLInputElement>('input[name="password"]')?.value ?? '';
+      form.querySelector<HTMLInputElement>('input[type="password"]')?.value ?? '';
 
     if (!email || !password) {
       setEmailError('Enter your email and password.');
