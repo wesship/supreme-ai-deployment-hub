@@ -11,6 +11,11 @@ on:
       - completed
     branches:
       - main
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/d3vonn-backend-api-audit.yml'
 
 permissions:
   contents: read
@@ -41,6 +46,9 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
+      - name: Allow production deployments to stabilize
+        if: github.event_name == 'push'
+        run: sleep 120
       - name: Probe public API routes
         run: |
           set -u
