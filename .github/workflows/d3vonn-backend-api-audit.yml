@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: d3vonn-backend-production-audit
@@ -36,6 +37,8 @@ jobs:
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Run production backend API certification
+        id: certification
+        continue-on-error: true
         env:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://d3vonn.io
@@ -53,3 +56,26 @@ jobs:
             test-results/
           if-no-files-found: warn
           retention-days: 30
+      - name: Publish one-time certification result
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.certification.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          title="Backend API Audit ${OUTCOME}: ${HEAD_SHA:0:7}"
+          body=$(cat <<EOF
+          D3VONN.IO Backend API certification outcome: **${OUTCOME}**
+
+          Run: ${RUN_URL}
+          Commit: ${HEAD_SHA}
+
+          The Playwright evidence artifact is attached to the workflow run. Credentials and JWT tracing are disabled.
+          EOF
+          )
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+      - name: Enforce certification result
+        if: steps.certification.outcome != 'success'
+        run: exit 1
