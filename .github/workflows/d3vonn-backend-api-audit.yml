@@ -1,17 +1,9 @@
 name: D3VONN.IO Backend API Audit
 
-# A workflow-file update triggers one stabilized certification run on main.
 on:
   workflow_dispatch:
   schedule:
     - cron: '47 9 * * 1'
-  workflow_run:
-    workflows:
-      - Devonn.AI Deploy
-    types:
-      - completed
-    branches:
-      - main
   push:
     branches:
       - main
@@ -23,20 +15,17 @@ permissions:
   issues: write
 
 concurrency:
-  group: d3vonn-backend-production-audit
-  cancel-in-progress: true
+  group: d3vonn-backend-production-audit-${{ github.event_name }}-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   backend-api-audit:
     name: Backend API Certification (chromium)
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -82,12 +71,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Publish temporary certification result
-        if: always() && github.event_name != 'schedule'
+        if: always() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           OUTCOME: ${{ steps.certification.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           title="Backend API Audit ${OUTCOME}: ${HEAD_SHA:0:7}"
