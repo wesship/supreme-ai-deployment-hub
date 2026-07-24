@@ -4,11 +4,13 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '47 9 * * 1'
-  push:
+  workflow_run:
+    workflows:
+      - Devonn.AI Deploy
+    types:
+      - completed
     branches:
       - main
-    paths:
-      - '.github/workflows/d3vonn-backend-api-audit.yml'
 
 permissions:
   contents: read
@@ -21,11 +23,14 @@ concurrency:
 jobs:
   backend-api-audit:
     name: Backend API Certification (chromium)
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -36,6 +41,17 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
+      - name: Probe public API routes
+        run: |
+          set -u
+          : > /tmp/api-probes.txt
+          for path in /health /health/ready /api/v1/health /api/v1/ops/health /api/deploy/probe; do
+            body_file="$(mktemp)"
+            code="$(curl --silent --show-error --location --connect-timeout 5 --max-time 20 --output "$body_file" --write-out '%{http_code}' "https://api.d3vonn.io${path}" || printf '000')"
+            body="$(tr '\n' ' ' < "$body_file" | cut -c1-300)"
+            printf '%s -> HTTP %s | %s\n' "$path" "$code" "$body" | tee -a /tmp/api-probes.txt
+            rm -f "$body_file"
+          done
       - name: Run production backend API certification
         id: certification
         continue-on-error: true
@@ -56,21 +72,27 @@ jobs:
             test-results/
           if-no-files-found: warn
           retention-days: 30
-      - name: Publish one-time certification result
-        if: always() && github.event_name == 'push'
+      - name: Publish temporary certification result
+        if: always() && github.event_name != 'schedule'
         env:
           GH_TOKEN: ${{ github.token }}
           OUTCOME: ${{ steps.certification.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          HEAD_SHA: ${{ github.sha }}
+          HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -euo pipefail
           title="Backend API Audit ${OUTCOME}: ${HEAD_SHA:0:7}"
+          probes="$(cat /tmp/api-probes.txt 2>/dev/null || true)"
           body=$(cat <<EOF
           D3VONN.IO Backend API certification outcome: **${OUTCOME}**
 
           Run: ${RUN_URL}
           Commit: ${HEAD_SHA}
+
+          Public route probes:
+          \`\`\`
+          ${probes}
+          \`\`\`
 
           The Playwright evidence artifact is attached to the workflow run. Credentials and JWT tracing are disabled.
           EOF
