@@ -22,7 +22,7 @@ async def deploy_probe():
     return {
         "status": "ok",
         "router_registry": "backend.app.routers",
-        "deployment_marker": "voice-proxy-2026-07-13",
+        "deployment_marker": "backend-api-certification-2026-07-24",
         "proxy_vault_expected": "/api/proxy/config",
         "voice_routes_expected": [
             "/api/tools/voice/tts",
