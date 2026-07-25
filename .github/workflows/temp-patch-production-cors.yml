@@ -1,0 +1,63 @@
+name: Temporary Production CORS Patch
+
+on:
+  push:
+    branches:
+      - fix/railway-production-cors
+    paths:
+      - '.github/workflows/temp-patch-production-cors.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: fix/railway-production-cors
+          fetch-depth: 0
+      - name: Integrate production CORS helper
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/main.py')
+          text = path.read_text(encoding='utf-8')
+
+          import_anchor = 'from fastapi.responses import JSONResponse\n\n'
+          import_block = '''from fastapi.responses import JSONResponse
+
+try:
+    from backend.cors_config import build_allowed_origins
+except ModuleNotFoundError:  # Allows `cd backend && uvicorn main:app` local startup.
+    from cors_config import build_allowed_origins
+
+'''
+          if import_anchor not in text:
+              raise SystemExit('FastAPI import anchor was not found')
+          text = text.replace(import_anchor, import_block, 1)
+
+          old_block = '''PRODUCTION_ORIGINS = "https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io"
+
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", PRODUCTION_ORIGINS).split(",")
+    if origin.strip()
+]
+'''
+          new_block = '''ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
+'''
+          if old_block not in text:
+              raise SystemExit('Existing CORS origin block was not found')
+          path.write_text(text.replace(old_block, new_block, 1), encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/temp-patch-production-cors.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/main.py .github/workflows/temp-patch-production-cors.yml
+          git commit -m 'fix(cors): extend Railway allowlist with official origins'
+          git push origin HEAD:fix/railway-production-cors
