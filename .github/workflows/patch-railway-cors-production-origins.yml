@@ -1,0 +1,58 @@
+name: Patch Railway CORS Production Origins
+
+on:
+  push:
+    branches:
+      - fix/railway-cors-production-origins
+    paths:
+      - '.github/workflows/patch-railway-cors-production-origins.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: fix/railway-cors-production-origins
+          fetch-depth: 0
+
+      - name: Wire CORS origin merger into FastAPI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/main.py')
+          text = path.read_text(encoding='utf-8')
+
+          import_anchor = 'from fastapi.responses import JSONResponse\n\n'
+          import_replacement = '''from fastapi.responses import JSONResponse\n\ntry:\n    from backend.cors_config import build_allowed_origins\nexcept ModuleNotFoundError:  # Allows `cd backend && uvicorn main:app` local startup.\n    from cors_config import build_allowed_origins\n\n'''
+          if import_anchor not in text:
+              raise SystemExit('FastAPI import anchor not found')
+          text = text.replace(import_anchor, import_replacement, 1)
+
+          old_block = '''PRODUCTION_ORIGINS = "https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io"\n\nALLOWED_ORIGINS = [\n    origin.strip()\n    for origin in os.getenv("ALLOWED_ORIGINS", PRODUCTION_ORIGINS).split(",")\n    if origin.strip()\n]\n'''
+          new_block = '''# Railway-provided origins extend the required public D3VONN.IO origins.\n# They must never replace them, or browser CORS requests from production fail.\nALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))\n'''
+          if old_block not in text:
+              raise SystemExit('CORS configuration block not found')
+          text = text.replace(old_block, new_block, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validate focused CORS tests
+        run: |
+          python3 -m pip install --disable-pip-version-check -q pytest
+          python3 -m pytest backend/tests/test_cors_config.py -q
+          python3 -m compileall -q backend/cors_config.py backend/main.py
+
+      - name: Remove temporary workflow and commit
+        run: |
+          rm .github/workflows/patch-railway-cors-production-origins.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/main.py backend/cors_config.py backend/tests/test_cors_config.py .github/workflows/patch-railway-cors-production-origins.yml
+          git commit -m 'fix(cors): retain D3VONN production origins on Railway'
+          git push origin HEAD:fix/railway-cors-production-origins
