@@ -152,11 +152,14 @@ async def list_project_evaluations(
         principal.user_id,
         limit=limit,
     )
+    latest_id = str(evaluations[0]["id"]) if evaluations else None
+    latest_filter = {"evaluation_run_id": f"eq.{latest_id}"} if latest_id else {"id": "is.null"}
     findings = await service.repo.list_rows(
         "genesis_findings",
         project_id,
         principal.user_id,
         limit=200,
+        extra_params=latest_filter,
     )
     gates = await service.repo.list_rows(
         "genesis_release_gates",
@@ -164,6 +167,7 @@ async def list_project_evaluations(
         principal.user_id,
         order="updated_at.desc",
         limit=100,
+        extra_params=latest_filter,
     )
     return {"evaluations": evaluations, "findings": findings, "gates": gates}
 
