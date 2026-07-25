@@ -11,6 +11,7 @@ import StoragePackageWorkspace from '@/features/ai-films/StoragePackageWorkspace
 import ReleaseControlWorkspace from '@/features/ai-films/ReleaseControlWorkspace';
 import StoryboardWorkspace from '@/features/ai-films/StoryboardWorkspace';
 import DeliveryWorkspace from '@/features/ai-films/DeliveryWorkspace';
+import EnterpriseStudioWorkspace from '@/features/ai-films/EnterpriseStudioWorkspace';
 import {
   ensureSovereignSignalProject,
   fetchProjectAssets,
@@ -19,7 +20,7 @@ import {
   type AIFilmProject,
 } from '@/features/ai-films/assetManagerService';
 
-const breadcrumbs = [{ label: 'AI Films', href: '/ai-films' }, { label: 'Studio' }, { label: 'Delivery' }];
+const breadcrumbs = [{ label: 'AI Films', href: '/ai-films' }, { label: 'Studio' }, { label: 'Enterprise' }];
 
 const seedAssets: AIFilmAsset[] = aiFilmImageTaxonomy.map((asset, index) => ({
   id: `seed-${index}`,
@@ -60,9 +61,7 @@ const AIFilmStudio = () => {
     }
   };
 
-  useEffect(() => {
-    void loadRemoteWorkspace();
-  }, []);
+  useEffect(() => { void loadRemoteWorkspace(); }, []);
 
   const importDump = async () => {
     setBusy(true);
@@ -75,15 +74,12 @@ const AIFilmStudio = () => {
       setMessage(imported > 0 ? `${imported} assets imported into the Knowledge Core.` : 'The completed image dump is already fully imported.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The dump could not be imported.');
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   };
 
   const refreshAssets = async () => {
     if (!project) return;
-    const remoteAssets = await fetchProjectAssets(project.id);
-    setAssets(remoteAssets);
+    setAssets(await fetchProjectAssets(project.id));
   };
 
   const visibleAssets = useMemo(() => {
@@ -106,9 +102,9 @@ const AIFilmStudio = () => {
           <div className="overflow-hidden rounded-3xl border border-border/70 bg-[radial-gradient(circle_at_80%_20%,rgba(34,211,238,.18),transparent_28%),linear-gradient(135deg,rgba(8,22,48,.98),rgba(2,6,15,.98))] p-7 text-white shadow-2xl sm:p-10">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <Badge variant="secondary">Release 6 · Delivery Cloud</Badge>
+                <Badge variant="secondary">Release 7 · Enterprise Film OS</Badge>
                 <h1 id="ai-film-studio-title" className="mt-5 text-4xl font-black tracking-tight sm:text-6xl">AI Film Studio</h1>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Manage canon, storyboards, private media, reviews, render orchestration, export packages, subtitles, archives, and controlled publishing for Sovereign Signal and The Genesis Weave.</p>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Operate canon, storyboards, media, reviews, render delivery, collaborators, analytics, and commercial release planning from one enterprise production workspace.</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button type="button" variant="secondary" onClick={() => void loadRemoteWorkspace()} disabled={busy}><Database className="mr-2 h-4 w-4" />Connect Knowledge Core</Button>
@@ -131,17 +127,16 @@ const AIFilmStudio = () => {
           <StoragePackageWorkspace project={project} assets={assets} onAssetUploaded={refreshAssets} />
           <ReleaseControlWorkspace project={project} assets={assets} onAssetsChanged={refreshAssets} />
           <DeliveryWorkspace project={project} />
+          <EnterpriseStudioWorkspace project={project} assets={assets} />
 
           <section aria-labelledby="asset-library-heading">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div><p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Digital Asset Intelligence</p><h2 id="asset-library-heading" className="mt-2 text-3xl font-bold">Production Asset Library</h2></div>
               <div className="relative w-full lg:max-w-md"><label htmlFor="asset-search" className="sr-only">Search production assets</label><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input id="asset-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search filename, tag, symbol, world, or category" className="pl-10" /></div>
             </div>
-
             <div className="mt-6 flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Asset categories">
               {['All', ...aiFilmImageCategories].map((item) => <Button key={item} type="button" size="sm" variant={category === item ? 'default' : 'outline'} aria-pressed={category === item} onClick={() => setCategory(item)}>{item.replaceAll('_', ' ')}</Button>)}
             </div>
-
             <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3" aria-live="polite">
               {visibleAssets.map((asset) => (
                 <Card key={asset.id} className="overflow-hidden border-border/70">
