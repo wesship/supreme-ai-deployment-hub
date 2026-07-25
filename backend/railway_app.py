@@ -2,18 +2,35 @@
 
 This wrapper keeps the production app defined in ``backend.main`` while adding
 non-sensitive deployment diagnostics that prove which image and router surface
-are active behind ``api.d3vonn.io``.
+are active behind the Railway service hostname.
 """
 from __future__ import annotations
 
 from backend.main import app
 
-DEPLOYMENT_REVISION = "railway-canonical-router-2026-07-24"
+DEPLOYMENT_REVISION = "railway-intelligence-mount-2026-07-24"
+INTELLIGENCE_IMPORT_ERROR: str | None = None
+
+
+def _paths() -> set[str]:
+    return {getattr(route, "path", "") for route in app.routes}
+
+
+# The canonical app defensively skips optional routers on ImportError. Retry the
+# intelligence router here so Railway either mounts it or exposes a safe,
+# actionable diagnostic instead of silently serving a partial API surface.
+if "/api/intelligence/prompts" not in _paths():
+    try:
+        from backend.intelligence.api_router import router as intelligence_router
+
+        app.include_router(intelligence_router, prefix="/api", tags=["intelligence"])
+    except Exception as exc:  # pragma: no cover - production diagnostic guard
+        INTELLIGENCE_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
 
 @app.get("/health/deployment", tags=["ops"])
 async def deployment_info() -> dict[str, object]:
-    paths = {getattr(route, "path", "") for route in app.routes}
+    paths = _paths()
     return {
         "status": "ok",
         "revision": DEPLOYMENT_REVISION,
@@ -27,4 +44,5 @@ async def deployment_info() -> dict[str, object]:
             "occ": "/api/occ/stats" in paths,
             "admin": "/api/admin/overview" in paths,
         },
+        "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
     }
