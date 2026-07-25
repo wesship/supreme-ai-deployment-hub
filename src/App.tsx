@@ -42,6 +42,7 @@ const AgentMarketplace = lazy(() => import("./pages/AgentMarketplace"));
 const McpPage = lazy(() => import("./pages/McpPage"));
 const StatusDashboard = lazy(() => import("./pages/StatusDashboard"));
 const CommandCenter = lazy(() => import("./pages/CommandCenterRC1"));
+const GenesisCommandCenter = lazy(() => import("./pages/GenesisCommandCenter"));
 const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
 const VoiceStudio = lazy(() => import("./pages/VoiceStudio"));
@@ -160,6 +161,9 @@ function App() {
                 <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
                 <Route path="/command-center" element={<CommandCenter />} />
                 <Route path="/operations" element={<CommandCenter />} />
+                <Route path="/genesis" element={<AuthenticatedRoute><GenesisCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/genesis/command-center" element={<AuthenticatedRoute><GenesisCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/app/genesis" element={<AuthenticatedRoute><GenesisCommandCenter /></AuthenticatedRoute>} />
                 <Route path="/dkos-ingestion" element={<DkosIngestion />} />
                 <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
                 <Route path="/primetime" element={<PrimetimeRelease1 />} />
