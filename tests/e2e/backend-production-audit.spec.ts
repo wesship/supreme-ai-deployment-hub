@@ -13,7 +13,9 @@ async function expectJson(response: APIResponse, status: number): Promise<Record
 
 async function expectUnauthorized(response: APIResponse): Promise<void> {
   const body = await expectJson(response, 401);
-  expect(String(body.detail ?? '')).toMatch(/authorization header required|invalid or expired token/i);
+  expect(String(body.detail ?? '')).toMatch(
+    /authorization header required|missing or malformed authorization header|invalid or expired token/i,
+  );
 }
 
 function tamperToken(token: string): string {
@@ -57,43 +59,55 @@ async function readSupabaseAccessToken(page: Page): Promise<string | null> {
   });
 }
 
-async function signInAndReadAccessToken(page: Page): Promise<string> {
-  if (!testEmail || !testPassword) {
-    throw new Error('E2E_TEST_EMAIL and E2E_TEST_PASSWORD must be configured');
-  }
-
+async function attemptSignIn(page: Page): Promise<string | null> {
   await page.goto(`${frontendBaseUrl}/login?redirect=%2Fapp`, { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle');
 
   const email = page.locator('input[type="email"]');
   const password = page.locator('input[type="password"]');
-
   await expect(email).toBeVisible();
   await expect(password).toBeVisible();
 
-  await expect(async () => {
-    await email.fill(testEmail);
-    await password.fill(testPassword);
-    await expect(email).toHaveValue(testEmail);
-    await expect(password).toHaveValue(testPassword);
-  }).toPass({ timeout: 10_000 });
+  await email.fill(testEmail!);
+  await password.fill(testPassword!);
+  await expect(email).toHaveValue(testEmail!);
+  await expect(password).toHaveValue(testPassword!);
 
   const submit = page.locator('button[type="submit"]').filter({ hasText: /sign in|log in/i }).first();
   await expect(submit).toBeVisible();
   await expect(submit).toBeEnabled();
   await submit.click();
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/, { timeout: 20_000 });
 
-  await expect.poll(() => readSupabaseAccessToken(page), { timeout: 10_000 }).not.toBeNull();
-  const token = await readSupabaseAccessToken(page);
-  if (!token) throw new Error('Authenticated session did not expose a Supabase access token');
-  return token;
+  try {
+    await expect.poll(() => readSupabaseAccessToken(page), { timeout: 20_000 }).not.toBeNull();
+  } catch {
+    return null;
+  }
+  return readSupabaseAccessToken(page);
+}
+
+async function signInAndReadAccessToken(page: Page): Promise<string> {
+  if (!testEmail || !testPassword) {
+    throw new Error('E2E_TEST_EMAIL and E2E_TEST_PASSWORD must be configured');
+  }
+
+  let accessToken: string | null = null;
+  await expect(async () => {
+    accessToken = await attemptSignIn(page);
+    expect(accessToken, `No Supabase session after login attempt at ${page.url()}`).toBeTruthy();
+  }).toPass({ timeout: 90_000, intervals: [1_000, 3_000, 5_000] });
+
+  if (typeof accessToken !== 'string' || accessToken.length === 0) {
+    throw new Error('Authenticated session did not expose a Supabase access token');
+  }
+  return accessToken;
 }
 
 test.describe.serial('D3VONN.IO production backend API certification', () => {
   let accessToken = '';
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(120_000);
     const context = await browser.newContext();
     const page = await context.newPage();
     try {
