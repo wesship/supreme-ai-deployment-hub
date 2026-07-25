@@ -227,14 +227,23 @@ const Hero: React.FC = () => {
                   <div className="absolute h-[62%] w-[62%] rounded-full border border-dashed border-blue-300/25 motion-safe:animate-[spin_28s_linear_infinite]" />
                   <div className="absolute h-[42%] w-[42%] rounded-full border border-blue-200/25 bg-blue-500/10 shadow-[0_0_50px_rgba(37,126,255,0.35)] backdrop-blur-xl" />
                   <img
-                    src={MASTER_LOGO_SRC}
-                    width={900}
-                    height={492}
+                    src="/core-01-helmet.svg?v=20260719-core01"
+                    width={480}
+                    height={720}
                     alt="D3VONN.IO D3 Core"
-                    className="relative z-10 w-[88%] object-contain drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
+                    className="relative z-10 h-[92%] w-auto max-w-[88%] object-contain drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
                     loading="eager"
                     decoding="async"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      if (img.dataset.fallback !== 'true') {
+                        img.dataset.fallback = 'true';
+                        img.src = MASTER_LOGO_SRC;
+                        img.style.background = '#020b1c';
+                      }
+                    }}
                   />
+
                   <span className="absolute left-4 top-4 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Core 01</span>
                   <span className="absolute bottom-4 right-4 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Hermes linked</span>
                 </div>
