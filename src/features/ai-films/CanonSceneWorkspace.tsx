@@ -16,7 +16,7 @@ import {
   type CanonRule,
   type FilmScene,
 } from './canonSceneService';
-import { sovereignSignalCanonSeeds } from './sovereignSignalCanon';
+import { sovereignSignalCanonSeeds } from './canonSeeds';
 import type { AIFilmAsset, AIFilmProject } from './assetManagerService';
 
 type Props = {
@@ -170,10 +170,10 @@ export default function CanonSceneWorkspace({ project, assets }: Props) {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <Input aria-label="Scene number" type="number" min={1} value={sceneDraft.sceneNumber} onChange={(event) => setSceneDraft((current) => ({ ...current, sceneNumber: Number(event.target.value) }))} />
             <Input aria-label="Episode number" type="number" min={1} placeholder="Episode (optional)" onChange={(event) => setSceneDraft((current) => ({ ...current, episodeNumber: event.target.value ? Number(event.target.value) : null }))} />
-            <Input className="sm:col-span-2" placeholder="Scene title" value={sceneDraft.title} onChange={(event) => setSceneDraft((current) => ({ ...current, title: event.target.value }))} />
-            <Input className="sm:col-span-2" placeholder="Location" value={sceneDraft.location} onChange={(event) => setSceneDraft((current) => ({ ...current, location: event.target.value }))} />
-            <textarea className="min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm sm:col-span-2" placeholder="Synopsis" value={sceneDraft.synopsis} onChange={(event) => setSceneDraft((current) => ({ ...current, synopsis: event.target.value }))} />
-            <textarea className="min-h-40 rounded-md border border-input bg-background px-3 py-2 text-sm sm:col-span-2" placeholder="Screenplay text" value={sceneDraft.screenplay} onChange={(event) => setSceneDraft((current) => ({ ...current, screenplay: event.target.value }))} />
+            <Input aria-label="Scene title" className="sm:col-span-2" placeholder="Scene title" value={sceneDraft.title} onChange={(event) => setSceneDraft((current) => ({ ...current, title: event.target.value }))} />
+            <Input aria-label="Scene location" className="sm:col-span-2" placeholder="Location" value={sceneDraft.location} onChange={(event) => setSceneDraft((current) => ({ ...current, location: event.target.value }))} />
+            <textarea aria-label="Scene synopsis" className="min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm sm:col-span-2" placeholder="Synopsis" value={sceneDraft.synopsis} onChange={(event) => setSceneDraft((current) => ({ ...current, synopsis: event.target.value }))} />
+            <textarea aria-label="Scene screenplay text" className="min-h-40 rounded-md border border-input bg-background px-3 py-2 text-sm sm:col-span-2" placeholder="Screenplay text" value={sceneDraft.screenplay} onChange={(event) => setSceneDraft((current) => ({ ...current, screenplay: event.target.value }))} />
           </div>
           <Button className="mt-4" type="button" onClick={() => void addScene()} disabled={!project || busy || !sceneDraft.title.trim()}><Plus className="mr-2 h-4 w-4" /> Add Scene</Button>
         </Card>
