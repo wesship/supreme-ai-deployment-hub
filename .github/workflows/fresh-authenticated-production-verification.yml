@@ -1,0 +1,134 @@
+name: Fresh Authenticated Production Verification
+
+on:
+  push:
+    branches:
+      - ops/authenticated-audit-fresh-verification
+    paths:
+      - '.github/workflows/fresh-authenticated-production-verification.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: fresh-authenticated-production-verification
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Fresh authentication and workspace verification
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check protected environment inputs
+        id: protected
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          if [[ -n "${E2E_TEST_EMAIL}" ]]; then
+            echo "::add-mask::${E2E_TEST_EMAIL}"
+          else
+            missing+=(E2E_TEST_EMAIL)
+          fi
+          if [[ -n "${E2E_TEST_PASSWORD}" ]]; then
+            echo "::add-mask::${E2E_TEST_PASSWORD}"
+          else
+            missing+=(E2E_TEST_PASSWORD)
+          fi
+
+          if (( ${#missing[@]} == 0 )); then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+            echo 'missing=none' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            joined="$(IFS=,; echo "${missing[*]}")"
+            echo "missing=${joined}" >> "$GITHUB_OUTPUT"
+            echo 'The production environment does not contain both required audit secrets.'
+          fi
+
+      - name: Setup pnpm
+        if: steps.protected.outputs.ready == 'true'
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+
+      - name: Setup Node.js
+        if: steps.protected.outputs.ready == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.protected.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        if: steps.protected.outputs.ready == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run authenticated production audit without evidence upload
+        id: audit
+        if: steps.protected.outputs.ready == 'true'
+        continue-on-error: true
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://d3vonn.io
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${E2E_TEST_EMAIL}"
+          echo "::add-mask::${E2E_TEST_PASSWORD}"
+          rm -rf playwright-report test-results
+          pnpm exec playwright test tests/e2e/authenticated-production-audit.spec.ts \
+            --project=chromium \
+            --reporter=github,line \
+            --trace=off
+
+      - name: Publish verification result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          READY: ${{ steps.protected.outputs.ready }}
+          MISSING: ${{ steps.protected.outputs.missing }}
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${READY}" != 'true' ]]; then
+            title="Authenticated production audit blocked: ${HEAD_SHA:0:7}"
+            result='blocked'
+            detail="Missing production environment secrets: ${MISSING}"
+          elif [[ "${AUDIT_OUTCOME}" == 'success' ]]; then
+            title="Authenticated production audit success: ${HEAD_SHA:0:7}"
+            result='success'
+            detail='The protected-route and authenticated workspace suite completed successfully. No Playwright evidence artifact was uploaded.'
+          else
+            title="Authenticated production audit failure: ${HEAD_SHA:0:7}"
+            result='failure'
+            detail='Both protected environment secrets were present, but the production audit failed. Inspect the masked workflow log for the failing assertion.'
+          fi
+
+          body=$(cat <<EOF
+          Fresh authenticated production verification outcome: **${result}**
+
+          Run: ${RUN_URL}
+          Commit: ${HEAD_SHA}
+
+          ${detail}
+
+          This workflow masks both protected values, prints no secret contents, disables Playwright tracing, and uploads no test artifacts.
+          EOF
+          )
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+
+      - name: Enforce verification
+        if: steps.protected.outputs.ready != 'true' || steps.audit.outcome != 'success'
+        run: exit 1
