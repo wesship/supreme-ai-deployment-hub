@@ -1,0 +1,53 @@
+name: Temporary Railway CSP Patch
+
+on:
+  push:
+    branches:
+      - fix/temporary-railway-csp
+    paths:
+      - '.github/workflows/temp-patch-railway-csp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: fix/temporary-railway-csp
+          fetch-depth: 0
+      - name: Patch production CSP and resource hints
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          railway = 'https://devonn-ai-api-production.up.railway.app'
+
+          vercel = Path('vercel.json')
+          text = vercel.read_text(encoding='utf-8')
+          old = "connect-src 'self' https://api.d3vonn.io https://*.supabase.co"
+          new = f"connect-src 'self' https://api.d3vonn.io {railway} https://*.supabase.co"
+          if old not in text:
+              raise SystemExit('Expected CSP connect-src segment was not found')
+          vercel.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          index = Path('index.html')
+          html = index.read_text(encoding='utf-8')
+          old_links = '''    <link rel="preconnect" href="https://api.d3vonn.io" crossorigin />
+              <link rel="dns-prefetch" href="https://api.d3vonn.io" />'''.replace('          ', '')
+          new_links = f'''    <link rel="preconnect" href="{railway}" crossorigin />
+              <link rel="dns-prefetch" href="{railway}" />'''.replace('          ', '')
+          if old_links not in html:
+              raise SystemExit('Expected API resource hints were not found')
+          index.write_text(html.replace(old_links, new_links, 1), encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/temp-patch-railway-csp.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add vercel.json index.html .github/workflows/temp-patch-railway-csp.yml
+          git commit -m 'fix(frontend): allow certified Railway API in browser CSP'
+          git push origin HEAD:fix/temporary-railway-csp
