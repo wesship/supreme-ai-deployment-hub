@@ -31,7 +31,7 @@ using (
     select 1
     from public.genesis_provider_jobs j
     join public.genesis_render_requests r on r.id = j.render_request_id
-    where j.id = provider_job_id and public.genesis_has_project_access(r.project_id)
+    where j.id = genesis_provider_outputs.provider_job_id and public.genesis_has_project_access(r.project_id)
   )
 );
 
