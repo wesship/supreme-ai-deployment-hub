@@ -1,0 +1,130 @@
+name: D3VONN.IO Temporary Railway Cutover
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/d3vonn-temporary-railway-cutover.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  TARGET_API_URL: https://devonn-ai-api-production.up.railway.app
+  DEFAULT_VERCEL_TEAM_ID: team_MqA4TlHv2PGblpjtakT4de7I
+  DEFAULT_VERCEL_PROJECT_ID: prj_q3XjGUI4brXftpMCxp0XSceidhpr
+
+jobs:
+  cutover:
+    name: Update production VITE_API_URL
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Validate Vercel credentials
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ]; then
+            echo "VERCEL_TOKEN is missing from the production environment." >&2
+            exit 1
+          fi
+
+      - name: Update production API URL in Vercel
+        id: update
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          SECRET_TEAM_ID: ${{ secrets.VERCEL_ORG_ID }}
+          SECRET_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+
+          TEAM_ID="${SECRET_TEAM_ID:-${DEFAULT_VERCEL_TEAM_ID}}"
+          PROJECT_ID="${SECRET_PROJECT_ID:-${DEFAULT_VERCEL_PROJECT_ID}}"
+          API_ROOT="https://api.vercel.com/v9/projects/${PROJECT_ID}/env"
+          AUTH_HEADER="Authorization: Bearer ${VERCEL_TOKEN}"
+
+          curl --fail-with-body --silent --show-error \
+            "${API_ROOT}?teamId=${TEAM_ID}" \
+            -H "${AUTH_HEADER}" > /tmp/vercel-env.json
+
+          python3 - <<'PY' > /tmp/vercel-api-env-ids.txt
+          import json
+
+          with open('/tmp/vercel-env.json', encoding='utf-8') as handle:
+              payload = json.load(handle)
+
+          for item in payload.get('envs', []):
+              targets = item.get('target') or []
+              if item.get('key') == 'VITE_API_URL' and 'production' in targets:
+                  env_id = item.get('id')
+                  if env_id:
+                      print(env_id)
+          PY
+
+          while IFS= read -r ENV_ID; do
+            [ -n "${ENV_ID}" ] || continue
+            curl --fail-with-body --silent --show-error \
+              -X DELETE "${API_ROOT}/${ENV_ID}?teamId=${TEAM_ID}" \
+              -H "${AUTH_HEADER}" > /dev/null
+          done < /tmp/vercel-api-env-ids.txt
+
+          python3 - <<'PY' > /tmp/new-env.json
+          import json
+          import os
+
+          print(json.dumps({
+              'key': 'VITE_API_URL',
+              'value': os.environ['TARGET_API_URL'],
+              'type': 'encrypted',
+              'target': ['production'],
+          }))
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            -X POST "${API_ROOT}?teamId=${TEAM_ID}" \
+            -H "${AUTH_HEADER}" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/new-env.json > /tmp/vercel-env-created.json
+
+          python3 - <<'PY'
+          import json
+
+          with open('/tmp/vercel-env-created.json', encoding='utf-8') as handle:
+              created = json.load(handle)
+
+          if not created.get('id'):
+              raise SystemExit('Vercel did not return an environment-variable id')
+
+          print('VITE_API_URL updated for the production environment.')
+          PY
+
+      - name: Publish cutover result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.update.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          title="Vercel Railway cutover ${OUTCOME}: ${HEAD_SHA:0:7}"
+          body=$(cat <<EOF
+          Temporary production API cutover outcome: **${OUTCOME}**
+
+          Run: ${RUN_URL}
+          Commit: ${HEAD_SHA}
+          Target: \`${TARGET_API_URL}\`
+
+          Only the public production variable \`VITE_API_URL\` was changed. No secret values were printed. A new production deployment is required before the browser bundle uses this value.
+          EOF
+          )
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+
+      - name: Enforce cutover result
+        if: steps.update.outcome != 'success'
+        run: exit 1
