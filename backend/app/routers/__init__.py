@@ -82,3 +82,11 @@ try:
     logger.info("Proxy vault router registered at /api/proxy/*.")
 except ImportError as exc:
     logger.warning("Proxy vault router not registered: %s", exc)
+
+try:
+    from backend.ai_films.router import router as ai_film_router
+
+    proxy_router.include_router(ai_film_router, tags=["ai-films"])
+    logger.info("AI Film provider router registered at /api/ai-films/*.")
+except ImportError as exc:
+    logger.warning("AI Film provider router not registered: %s", exc)
