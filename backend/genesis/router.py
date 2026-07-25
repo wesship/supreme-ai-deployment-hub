@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from .auth import GenesisPrincipal, require_genesis_user
+from .quality import quality_service
 from .render_gateway import public_provider_health
 from .schemas import (
     ApprovalDecisionRequest,
@@ -34,6 +35,7 @@ async def genesis_health() -> dict[str, Any]:
             "data_model": "migration_ready",
             "workflow_runtime": "ready",
             "render_gateway": "adapter_ready",
+            "quality_framework": "ready",
             "creator_api": "ready",
         },
     }
@@ -131,6 +133,39 @@ async def create_render_request(
     principal: Principal,
 ) -> dict[str, Any]:
     return await service.create_render_request(project_id, body, principal.user_id)
+
+
+@router.post("/projects/{project_id}/evaluate", status_code=status.HTTP_201_CREATED)
+async def evaluate_project(project_id: UUID, principal: Principal) -> dict[str, Any]:
+    return await quality_service.run(project_id, principal.user_id)
+
+
+@router.get("/projects/{project_id}/evaluations")
+async def list_project_evaluations(
+    project_id: UUID,
+    principal: Principal,
+    limit: int = Query(default=25, ge=1, le=100),
+) -> dict[str, Any]:
+    evaluations = await service.repo.list_rows(
+        "genesis_evaluation_runs",
+        project_id,
+        principal.user_id,
+        limit=limit,
+    )
+    findings = await service.repo.list_rows(
+        "genesis_findings",
+        project_id,
+        principal.user_id,
+        limit=200,
+    )
+    gates = await service.repo.list_rows(
+        "genesis_release_gates",
+        project_id,
+        principal.user_id,
+        order="updated_at.desc",
+        limit=100,
+    )
+    return {"evaluations": evaluations, "findings": findings, "gates": gates}
 
 
 @router.post("/approvals/{approval_id}/decide")
