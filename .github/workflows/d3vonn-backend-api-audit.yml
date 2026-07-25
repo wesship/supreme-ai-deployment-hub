@@ -1,6 +1,7 @@
 name: D3VONN.IO Backend API Audit
 
 # Diagnostic certification trigger for the current Railway service.
+# Re-certification target: Railway intelligence-router fix f2e55ae.
 on:
   workflow_dispatch:
   schedule:
