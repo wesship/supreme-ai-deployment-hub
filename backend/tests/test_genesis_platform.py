@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.genesis.quality import evaluate_project_state
 from backend.genesis.render_gateway import estimate_cost, select_route
 from backend.genesis.router import router
 from backend.genesis.workflow import (
@@ -71,6 +72,48 @@ def test_video_estimate_is_bounded_and_explains_assumptions(monkeypatch: pytest.
     assert any("duration=8s" in item for item in estimate.assumptions)
 
 
+def test_quality_framework_blocks_incomplete_project() -> None:
+    result = evaluate_project_state(
+        counts={
+            "locked_canon": 0,
+            "blocked_tasks": 2,
+            "pending_approvals": 1,
+            "assets": 0,
+            "approved_assets": 0,
+            "open_tasks": 4,
+        },
+        tasks=[],
+        providers=[{"configured": False, "manual": True}],
+    )
+    assert result.release_ready is False
+    assert result.status == "failed"
+    assert any(finding["category"] == "canon" and finding["blocking"] for finding in result.findings)
+    assert any(gate["gate_key"] == "workflow_complete" and gate["status"] == "blocked" for gate in result.gates)
+
+
+def test_quality_framework_passes_complete_governed_project() -> None:
+    result = evaluate_project_state(
+        counts={
+            "locked_canon": 2,
+            "blocked_tasks": 0,
+            "pending_approvals": 0,
+            "assets": 3,
+            "approved_assets": 3,
+            "open_tasks": 0,
+        },
+        tasks=[
+            {"status": "completed"},
+            {"status": "approved"},
+            {"status": "completed"},
+        ],
+        providers=[{"configured": True, "manual": False}],
+    )
+    assert result.release_ready is True
+    assert result.status == "passed"
+    assert result.overall_score >= 85
+    assert not [finding for finding in result.findings if finding["blocking"]]
+
+
 def test_genesis_router_exposes_vertical_slice() -> None:
     paths = {route.path for route in router.routes}
     assert "/genesis/health" in paths
@@ -78,6 +121,8 @@ def test_genesis_router_exposes_vertical_slice() -> None:
     assert "/genesis/projects/{project_id}/snapshot" in paths
     assert "/genesis/projects/{project_id}/workflows/bootstrap" in paths
     assert "/genesis/projects/{project_id}/render-requests" in paths
+    assert "/genesis/projects/{project_id}/evaluate" in paths
+    assert "/genesis/projects/{project_id}/evaluations" in paths
     assert "/genesis/approvals/{approval_id}/decide" in paths
 
 
@@ -97,3 +142,13 @@ def test_migration_contains_security_and_durability_contracts() -> None:
     )
     for fragment in required_fragments:
         assert fragment in sql
+
+
+def test_quality_migration_contains_evaluation_and_gate_contracts() -> None:
+    root = Path(__file__).resolve().parents[2]
+    migration = root / "supabase" / "migrations" / "20260725201500_genesis_quality_framework.sql"
+    sql = migration.read_text(encoding="utf-8")
+    assert "create table if not exists public.genesis_evaluation_runs" in sql
+    assert "create table if not exists public.genesis_findings" in sql
+    assert "create table if not exists public.genesis_release_gates" in sql
+    assert "alter table public.genesis_evaluation_runs enable row level security" in sql
