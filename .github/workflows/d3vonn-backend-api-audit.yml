@@ -1,6 +1,6 @@
 name: D3VONN.IO Backend API Audit
 
-# Diagnostic certification trigger for the active Railway image.
+# Diagnostic certification trigger for the active Railway image and custom domain.
 on:
   workflow_dispatch:
   schedule:
@@ -37,16 +37,21 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
-      - name: Probe public API routes
+      - name: Probe DNS and public API routes
         run: |
           set -u
           : > /tmp/api-probes.txt
-          for path in /health /health/ready /health/deployment /api/v1/health /api/v1/ops/health /api/deploy/probe; do
-            body_file="$(mktemp)"
-            code="$(curl --silent --show-error --location --connect-timeout 5 --max-time 20 --output "$body_file" --write-out '%{http_code}' "https://api.d3vonn.io${path}" || printf '000')"
-            body="$(tr '\n' ' ' < "$body_file" | cut -c1-500)"
-            printf '%s -> HTTP %s | %s\n' "$path" "$code" "$body" | tee -a /tmp/api-probes.txt
-            rm -f "$body_file"
+          dns_json="$(curl --silent --show-error --max-time 20 'https://cloudflare-dns.com/dns-query?name=api.d3vonn.io&type=CNAME' -H 'accept: application/dns-json' || true)"
+          printf 'DNS CNAME -> %s\n' "$dns_json" | tee -a /tmp/api-probes.txt
+          for base in https://api.d3vonn.io https://devonn-ai-api-production.up.railway.app; do
+            printf 'BASE %s\n' "$base" | tee -a /tmp/api-probes.txt
+            for path in /health /health/ready /health/deployment /api/v1/health /api/v1/ops/health /api/deploy/probe; do
+              body_file="$(mktemp)"
+              code="$(curl --silent --show-error --location --connect-timeout 5 --max-time 20 --output "$body_file" --write-out '%{http_code}' "${base}${path}" || printf '000')"
+              body="$(tr '\n' ' ' < "$body_file" | cut -c1-500)"
+              printf '%s -> HTTP %s | %s\n' "$path" "$code" "$body" | tee -a /tmp/api-probes.txt
+              rm -f "$body_file"
+            done
           done
       - name: Run production backend API certification
         id: certification
@@ -85,7 +90,7 @@ jobs:
           Run: ${RUN_URL}
           Commit: ${HEAD_SHA}
 
-          Public route probes:
+          DNS and public route probes:
           \`\`\`
           ${probes}
           \`\`\`
