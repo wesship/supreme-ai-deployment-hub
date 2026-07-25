@@ -64,7 +64,8 @@ jobs:
       matrix:
         endpoint:
           - https://d3vonn.io
-          - https://api.d3vonn.io/health/ready
+          # Temporary canonical backend until the branded custom-domain cutover in Issue #540.
+          - https://devonn-ai-api-production.up.railway.app/health/ready
     steps:
       - name: Probe endpoint
         env:

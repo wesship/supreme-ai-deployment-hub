@@ -23,10 +23,12 @@ Backend environment:
 ```text
 OPS_ADMIN_TOKEN=<random 32+ byte secret>
 OPS_FRONTEND_URL=https://d3vonn.io
-OPS_BACKEND_READY_URL=https://api.d3vonn.io/health/ready
+OPS_BACKEND_READY_URL=https://devonn-ai-api-production.up.railway.app/health/ready
 SUPABASE_URL=<production project URL>
 SUPABASE_SERVICE_ROLE_KEY=<secret manager value>
 ```
+
+`OPS_BACKEND_READY_URL` intentionally targets the certified Railway service while Issue #540 tracks the permanent `api.d3vonn.io` custom-domain cutover. Change it back to the branded hostname only after the custom domain serves the canonical Railway deployment and passes the full backend API audit.
 
 VPS agent environment:
 
@@ -124,7 +126,7 @@ Plaintext environment files are never placed in the archive. They are included o
 
 - Operations migration applied
 - `/api/v1/ops/health` returns healthy or documented degraded states
-- Scheduled external verification passes TLS, availability, latency, and 5xx checks
+- Scheduled external verification passes TLS, availability, latency, and 5xx checks against the current canonical backend
 - Production `dashboard_schema_readiness` returns `{"ready": true, "missing": []}`
 - Backup archive passes SHA-256 verification and encrypted secret recovery test
 - Every remediation contains evidence and a rollback reference
