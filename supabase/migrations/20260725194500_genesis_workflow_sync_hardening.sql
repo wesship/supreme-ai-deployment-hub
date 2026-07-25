@@ -1,9 +1,30 @@
 -- Genesis workflow synchronization and security hardening.
 
--- Canonical project keys are tenant-scoped. Downstream entity keys include the
--- project key, so this avoids cross-tenant title collisions without weakening identity.
+-- Canonical project keys are tenant-scoped. The trigger appends a stable owner
+-- suffix before downstream canon, agent, and asset keys are generated.
 alter table public.genesis_projects
   drop constraint if exists genesis_projects_canonical_key_key;
+
+create or replace function public.genesis_scope_project_canonical_key()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_suffix text;
+begin
+  v_suffix := upper(substr(replace(new.owner_id::text, '-', ''), 1, 8));
+  if right(new.canonical_key, length(v_suffix) + 1) <> '.' || v_suffix then
+    new.canonical_key := regexp_replace(new.canonical_key, '[.]+$', '') || '.' || v_suffix;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists genesis_projects_scope_canonical_key on public.genesis_projects;
+create trigger genesis_projects_scope_canonical_key
+before insert or update of owner_id, canonical_key on public.genesis_projects
+for each row execute function public.genesis_scope_project_canonical_key();
 
 create unique index if not exists genesis_projects_owner_canonical_key_idx
   on public.genesis_projects(owner_id, canonical_key);
