@@ -96,6 +96,14 @@ test.describe.serial('D3VONN.IO production backend API certification', () => {
     expect((ready.services as Record<string, unknown>).redis).toBe('reachable');
     expect((ready.services as Record<string, unknown>).supabase).toBe('configured');
 
+    const deployment = await expectJson(await request.get(`${apiBaseUrl}/health/deployment`), 200);
+    expect(deployment.entrypoint).toBe('backend.railway_app:app');
+    const routers = deployment.routers as Record<string, unknown>;
+    for (const routerName of ['proxy', 'api_v1', 'operations', 'intelligence', 'occ', 'admin']) {
+      expect(routers[routerName], `${routerName} router must be mounted`).toBe(true);
+    }
+    expect(deployment.intelligence_import_error ?? null).toBeNull();
+
     const versioned = await expectJson(await request.get(`${apiBaseUrl}/api/v1/health`), 200);
     expect(versioned.api).toBe('v1');
     expect(versioned.status).toBe('ok');
@@ -116,11 +124,16 @@ test.describe.serial('D3VONN.IO production backend API certification', () => {
     expect((await request.get(`${apiBaseUrl}/api/tools/github/runs/status?limit=1`)).status()).toBe(401);
 
     const authHeaders = { Authorization: `Bearer ${accessToken}` };
-    const runs = await expectJson(
-      await request.get(`${apiBaseUrl}/api/tools/github/runs/status?limit=1`, { headers: authHeaders }),
-      200,
-    );
-    expect(Array.isArray(runs.runs)).toBe(true);
+    const runsResponse = await request.get(`${apiBaseUrl}/api/tools/github/runs/status?limit=1`, {
+      headers: authHeaders,
+    });
+    expect([200, 503]).toContain(runsResponse.status());
+    const runsBody = (await runsResponse.json()) as Record<string, unknown>;
+    if (runsResponse.status() === 200) {
+      expect(Array.isArray(runsBody.runs)).toBe(true);
+    } else {
+      expect(String(runsBody.detail ?? '')).toContain('GITHUB_TOKEN missing');
+    }
 
     expect((await request.get(`${apiBaseUrl}/api/intelligence/prompts`)).status()).toBe(401);
     const prompts = await expectJson(
