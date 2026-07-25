@@ -22,8 +22,9 @@ async def deploy_probe():
     return {
         "status": "ok",
         "router_registry": "backend.app.routers",
-        "deployment_marker": "backend-api-certification-2026-07-24",
+        "deployment_marker": "genesis-platform-foundation-2026-07-25",
         "proxy_vault_expected": "/api/proxy/config",
+        "genesis_expected": "/api/genesis/health",
         "voice_routes_expected": [
             "/api/tools/voice/tts",
             "/api/tools/voice/stt-token",
@@ -90,3 +91,11 @@ try:
     logger.info("AI Film provider router registered at /api/ai-films/*.")
 except ImportError as exc:
     logger.warning("AI Film provider router not registered: %s", exc)
+
+try:
+    from backend.genesis.router import router as genesis_router
+
+    proxy_router.include_router(genesis_router, tags=["genesis"])
+    logger.info("Genesis production OS router registered at /api/genesis/*.")
+except ImportError as exc:
+    logger.warning("Genesis production OS router not registered: %s", exc)
