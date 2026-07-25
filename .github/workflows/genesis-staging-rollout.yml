@@ -1,0 +1,126 @@
+name: Genesis Staging Rollout
+
+on:
+  push:
+    branches:
+      - feat/genesis-platform-foundation
+    paths:
+      - "supabase/migrations/20260725193000_genesis_platform_foundation.sql"
+      - "supabase/migrations/20260725194500_genesis_workflow_sync_hardening.sql"
+      - "supabase/migrations/20260725195500_genesis_internal_table_security.sql"
+      - "supabase/migrations/20260725200000_genesis_api_only_mutations.sql"
+      - "supabase/migrations/20260725201500_genesis_quality_framework.sql"
+      - "supabase/migrations/20260725202000_genesis_canonical_key_backfill.sql"
+      - "supabase/migrations/20260725202500_genesis_quality_history.sql"
+      - ".github/workflows/genesis-staging-rollout.yml"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preview or apply the isolated Genesis migration set
+        required: true
+        default: preview
+        type: choice
+        options: [preview, apply]
+      confirmation:
+        description: Type APPLY_GENESIS_STAGING for apply mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: genesis-staging-rollout
+  cancel-in-progress: false
+
+env:
+  EXPECTED_STAGING_PROJECT_ID: ypomzwhtaamxdmcwtpyf
+
+jobs:
+  rollout:
+    name: Genesis migrations on staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate staging boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_ID SUPABASE_DB_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error title=Missing staging secret::${name} is not configured in the staging environment."
+              exit 1
+            fi
+          done
+          if [[ "$SUPABASE_PROJECT_ID" != "$EXPECTED_STAGING_PROJECT_ID" ]]; then
+            echo "::error title=Staging boundary violation::Expected project $EXPECTED_STAGING_PROJECT_ID but received $SUPABASE_PROJECT_ID."
+            exit 1
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.mode }}" == "apply" && "${{ inputs.confirmation }}" != "APPLY_GENESIS_STAGING" ]]; then
+            echo "::error title=Invalid confirmation::Apply mode requires APPLY_GENESIS_STAGING."
+            exit 1
+          fi
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.109.1
+
+      - name: Prepare isolated migration workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          workdir="$RUNNER_TEMP/genesis-rollout"
+          mkdir -p "$workdir/supabase/migrations"
+          cp supabase/migrations/20260725193000_genesis_platform_foundation.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725194500_genesis_workflow_sync_hardening.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725195500_genesis_internal_table_security.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725200000_genesis_api_only_mutations.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725201500_genesis_quality_framework.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725202000_genesis_canonical_key_backfill.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725202500_genesis_quality_history.sql "$workdir/supabase/migrations/"
+          cd "$workdir"
+          supabase init --force
+          echo "GENESIS_WORKDIR=$workdir" >> "$GITHUB_ENV"
+
+      - name: Link staging project
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Preview Genesis migrations
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase db push --linked --dry-run --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply Genesis migrations
+        if: github.event_name == 'push' || inputs.mode == 'apply'
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Lint resulting staging schema
+        if: github.event_name == 'push' || inputs.mode == 'apply'
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase db lint --linked --level warning
+
+      - name: Write rollout summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Genesis Staging Rollout"
+            echo ""
+            echo "- Staging project: \`$EXPECTED_STAGING_PROJECT_ID\`"
+            echo "- Event: \`${{ github.event_name }}\`"
+            echo "- Mode: \`${{ inputs.mode || 'apply-on-branch-push' }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Migration scope: seven isolated Genesis migrations"
+          } >> "$GITHUB_STEP_SUMMARY"
