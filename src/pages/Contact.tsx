@@ -1,21 +1,73 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import Container from '@/components/Container';
 import SectionHeading from '@/components/SectionHeading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MailIcon, MapPin, Phone, Globe } from 'lucide-react';
+import { Globe, Loader2, MailIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
+import { env } from '@/lib/env';
+
+type ContactFormState = {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  website: string;
+};
+
+const EMPTY_FORM: ContactFormState = {
+  name: '',
+  email: '',
+  subject: '',
+  message: '',
+  website: '',
+};
 
 const Contact: React.FC = () => {
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success('Message sent successfully!', {
-      description: 'We will get back to you as soon as possible.',
-    });
+  const [form, setForm] = useState<ContactFormState>(EMPTY_FORM);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const updateField = (field: keyof ContactFormState, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${env.apiUrl.replace(/\/$/, '')}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { detail?: string; message?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.detail || 'Your message could not be delivered.');
+      }
+
+      setForm(EMPTY_FORM);
+      toast.success('Message delivered', {
+        description: payload?.message || 'We will get back to you as soon as possible.',
+      });
+    } catch (error) {
+      toast.error('Message not delivered', {
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Please email info@d3vonn.io directly and try again later.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -25,14 +77,12 @@ const Contact: React.FC = () => {
         <title>Contact Us - D3VONN.IO</title>
       </Helmet>
       <Container>
-        <SectionHeading
-          subheading="Get in touch with our team for support or inquiries"
-        >
+        <SectionHeading subheading="Get in touch with our team for support or inquiries">
           Contact Us
         </SectionHeading>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 py-8">
-          <div className="lg:col-span-1 space-y-4">
+
+        <div className="grid grid-cols-1 gap-8 py-8 lg:grid-cols-3">
+          <div className="space-y-4 lg:col-span-1">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -44,51 +94,35 @@ const Contact: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-start space-x-3">
-                    <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium">Address</p>
-                      <p className="text-sm text-muted-foreground">
-                        123 AI Boulevard<br />
-                        San Francisco, CA 94107<br />
-                        United States
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <Phone className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium">Phone</p>
-                      <p className="text-sm text-muted-foreground">
-                        +1 (555) 123-4567
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start space-x-3">
-                    <MailIcon className="h-5 w-5 text-primary mt-0.5" />
+                    <MailIcon className="mt-0.5 h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Email</p>
-                      <p className="text-sm text-muted-foreground">
+                      <a
+                        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                        href="mailto:info@d3vonn.io"
+                      >
                         info@d3vonn.io
-                      </p>
+                      </a>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-start space-x-3">
-                    <Globe className="h-5 w-5 text-primary mt-0.5" />
+                    <Globe className="mt-0.5 h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Website</p>
-                      <p className="text-sm text-muted-foreground">
+                      <a
+                        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                        href="https://www.d3vonn.io"
+                      >
                         www.d3vonn.io
-                      </p>
+                      </a>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
           </div>
-          
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -101,14 +135,18 @@ const Contact: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <label htmlFor="name" className="text-sm font-medium">
                         Your Name
                       </label>
                       <input
                         id="name"
-                        className="w-full p-2 border rounded-md bg-background"
+                        value={form.name}
+                        onChange={(event) => updateField('name', event.target.value)}
+                        className="w-full rounded-md border bg-background p-2"
+                        autoComplete="name"
+                        maxLength={100}
                         required
                       />
                     </div>
@@ -119,23 +157,30 @@ const Contact: React.FC = () => {
                       <input
                         id="email"
                         type="email"
-                        className="w-full p-2 border rounded-md bg-background"
+                        value={form.email}
+                        onChange={(event) => updateField('email', event.target.value)}
+                        className="w-full rounded-md border bg-background p-2"
+                        autoComplete="email"
+                        maxLength={254}
                         required
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label htmlFor="subject" className="text-sm font-medium">
                       Subject
                     </label>
                     <input
                       id="subject"
-                      className="w-full p-2 border rounded-md bg-background"
+                      value={form.subject}
+                      onChange={(event) => updateField('subject', event.target.value)}
+                      className="w-full rounded-md border bg-background p-2"
+                      maxLength={160}
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label htmlFor="message" className="text-sm font-medium">
                       Your Message
@@ -143,13 +188,36 @@ const Contact: React.FC = () => {
                     <textarea
                       id="message"
                       rows={6}
-                      className="w-full p-2 border rounded-md bg-background resize-none"
+                      value={form.message}
+                      onChange={(event) => updateField('message', event.target.value)}
+                      className="w-full resize-none rounded-md border bg-background p-2"
+                      minLength={10}
+                      maxLength={5000}
                       required
-                    ></textarea>
+                    />
                   </div>
-                  
-                  <Button type="submit" className="w-full sm:w-auto">
-                    Send Message
+
+                  <div className="absolute -left-[10000px]" aria-hidden="true">
+                    <label htmlFor="website">Website</label>
+                    <input
+                      id="website"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={form.website}
+                      onChange={(event) => updateField('website', event.target.value)}
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending…
+                      </>
+                    ) : (
+                      'Send Message'
+                    )}
                   </Button>
                 </form>
               </CardContent>
