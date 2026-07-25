@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { aiFilmImageCategories, aiFilmImageTaxonomy } from '@/features/ai-films/imageTaxonomy';
+import CanonSceneWorkspace from '@/features/ai-films/CanonSceneWorkspace';
 import {
   ensureSovereignSignalProject,
   fetchProjectAssets,
@@ -36,7 +37,7 @@ const AIFilmStudio = () => {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('Showing the completed 16-image dump. Sign in and deploy the foundation migration to sync it to Supabase.');
+  const [message, setMessage] = useState('Showing the completed 16-image dump. Sign in and connect the Knowledge Core to sync it to Supabase.');
 
   const loadRemoteWorkspace = async () => {
     setBusy(true);
@@ -86,16 +87,16 @@ const AIFilmStudio = () => {
 
   const canonCount = assets.filter((asset) => asset.status === 'canon').length;
   const categoryCount = new Set(assets.map((asset) => asset.category)).size;
-  const remoteConnected = assets.some((asset) => !asset.id.startsWith('seed-'));
+  const remoteConnected = Boolean(project);
 
   return (
     <PublicPageShell breadcrumbs={breadcrumbs}>
       <section className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:px-8" aria-labelledby="ai-film-studio-title">
-        <div className="mx-auto max-w-7xl space-y-8">
+        <div className="mx-auto max-w-7xl space-y-10">
           <div className="overflow-hidden rounded-3xl border border-border/70 bg-[radial-gradient(circle_at_80%_20%,rgba(34,211,238,.18),transparent_28%),linear-gradient(135deg,rgba(8,22,48,.98),rgba(2,6,15,.98))] p-7 text-white shadow-2xl sm:p-10">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <Badge variant="secondary">Release 1 · Knowledge Core</Badge>
+                <Badge variant="secondary">Release 2 · Canon + Scenes</Badge>
                 <h1 id="ai-film-studio-title" className="mt-5 text-4xl font-black tracking-tight sm:text-6xl">AI Film Studio</h1>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Manage canon, production assets, scene references, and the visual intelligence behind Sovereign Signal and The Genesis Weave.</p>
               </div>
@@ -114,6 +115,8 @@ const AIFilmStudio = () => {
           </div>
 
           <Card className="border-primary/20 p-4 text-sm text-muted-foreground" role="status" aria-live="polite">{message}</Card>
+
+          <CanonSceneWorkspace project={project} assets={assets} />
 
           <section aria-labelledby="asset-library-heading">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
