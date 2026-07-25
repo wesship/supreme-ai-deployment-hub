@@ -21,6 +21,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 try:
+    from backend.cors_config import build_allowed_origins
+except ModuleNotFoundError:  # Allows `cd backend && uvicorn main:app` local startup.
+    from cors_config import build_allowed_origins
+
+try:
     from backend.observability.wandb_weave import init_weave
 except ModuleNotFoundError:  # Allows `cd backend && uvicorn main:app` local startup.
     from observability.wandb_weave import init_weave
@@ -75,13 +80,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-PRODUCTION_ORIGINS = "https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io"
-
-ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", PRODUCTION_ORIGINS).split(",")
-    if origin.strip()
-]
+# Railway-provided origins extend the required public D3VONN.IO origins.
+# They must never replace them, or browser CORS requests from production fail.
+ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
 ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or None
 
