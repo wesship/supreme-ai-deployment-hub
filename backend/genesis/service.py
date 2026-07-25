@@ -13,6 +13,14 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
+from .permissions import (
+    APPROVAL_DECISION_ROLES,
+    CANON_LOCK_ROLES,
+    CANON_PROPOSE_ROLES,
+    PLANNING_ROLES,
+    RENDER_REQUEST_ROLES,
+    TASK_MUTATION_ROLES,
+)
 from .render_gateway import estimate_cost, public_provider_health
 from .repository import GenesisRepository, repository
 from .schemas import (
@@ -178,8 +186,9 @@ class GenesisService:
         body: CreateCanonEntryRequest,
         user_id: str,
     ) -> dict[str, Any]:
+        allowed_roles = CANON_LOCK_ROLES if body.lock else CANON_PROPOSE_ROLES
+        await self.repo.require_project_role(project_id, user_id, allowed_roles)
         project = await self.repo.get_row("genesis_projects", project_id)
-        await self.repo.require_project_access(project_id, user_id)
         if not project:
             raise HTTPException(404, "Project not found")
         entry = await self.repo.insert_project_row(
@@ -210,6 +219,7 @@ class GenesisService:
         return entry
 
     async def create_goal(self, project_id: UUID, body: CreateGoalRequest, user_id: str) -> dict[str, Any]:
+        await self.repo.require_project_role(project_id, user_id, PLANNING_ROLES)
         goal = await self.repo.insert_project_row(
             "genesis_goals",
             project_id,
@@ -241,6 +251,7 @@ class GenesisService:
         body: BootstrapWorkflowRequest,
         user_id: str,
     ) -> dict[str, Any]:
+        await self.repo.require_project_role(project_id, user_id, PLANNING_ROLES)
         goal = await self.create_goal(
             project_id,
             CreateGoalRequest(
@@ -333,27 +344,25 @@ class GenesisService:
         task = await self.repo.get_row("genesis_tasks", task_id)
         if not task:
             raise HTTPException(404, "Genesis task not found")
-        await self.repo.require_project_access(task["project_id"], user_id)
+        await self.repo.require_project_role(task["project_id"], user_id, TASK_MUTATION_ROLES)
         try:
             validate_task_transition(task["status"], body.status)
         except InvalidTransition as exc:
             raise HTTPException(422, str(exc)) from exc
-        update: dict[str, Any] = {"status": body.status}
-        if body.output is not None:
-            update["output"] = body.output
-        if body.status in {"completed", "cancelled", "failed"}:
-            update["completed_at"] = datetime.now(timezone.utc).isoformat()
-        updated = await self.repo.update_row("genesis_tasks", task_id, update)
-        await self.repo.emit_event(
-            project_id=task["project_id"],
-            event_type=f"task.{body.status}",
-            aggregate_type="task",
-            aggregate_id=task_id,
-            actor_type="user",
-            actor_id=user_id,
-            payload={"previous_status": task["status"], "reason": body.reason},
+        completed_at = (
+            datetime.now(timezone.utc).isoformat()
+            if body.status in {"completed", "cancelled", "failed"}
+            else None
         )
-        return updated
+        return await self.repo.transition_task_atomic(
+            task_id=task_id,
+            expected_status=task["status"],
+            new_status=body.status,
+            output=body.output,
+            completed_at=completed_at,
+            actor_id=user_id,
+            reason=body.reason,
+        )
 
     async def create_render_request(
         self,
@@ -361,7 +370,7 @@ class GenesisService:
         body: CreateRenderRequest,
         user_id: str,
     ) -> dict[str, Any]:
-        await self.repo.require_project_access(project_id, user_id)
+        await self.repo.require_project_role(project_id, user_id, RENDER_REQUEST_ROLES)
         estimate = estimate_cost(
             domain=body.domain,
             operation=body.operation,
@@ -425,33 +434,20 @@ class GenesisService:
         approval = await self.repo.get_row("genesis_approvals", approval_id)
         if not approval:
             raise HTTPException(404, "Genesis approval not found")
-        await self.repo.require_project_access(approval["project_id"], user_id)
+        await self.repo.require_project_role(
+            approval["project_id"],
+            user_id,
+            APPROVAL_DECISION_ROLES,
+        )
         if approval["status"] != "pending":
             raise HTTPException(409, "Approval has already been decided")
-        decided = await self.repo.update_row(
-            "genesis_approvals",
-            approval_id,
-            {
-                "status": body.decision,
-                "decided_by_user_id": user_id,
-                "decision_notes": body.notes,
-                "conditions": body.conditions or approval.get("conditions") or {},
-                "decided_at": datetime.now(timezone.utc).isoformat(),
-            },
+        return await self.repo.decide_approval_atomic(
+            approval_id=approval_id,
+            decision=body.decision,
+            decided_by_user_id=user_id,
+            notes=body.notes,
+            conditions=body.conditions or approval.get("conditions") or {},
         )
-        if approval["target_type"] == "render_request":
-            render_status = "queued" if body.decision in {"approved", "approved_with_conditions"} else "rejected"
-            await self.repo.update_row("genesis_render_requests", approval["target_id"], {"status": render_status})
-        await self.repo.emit_event(
-            project_id=approval["project_id"],
-            event_type=f"approval.{body.decision}",
-            aggregate_type="approval",
-            aggregate_id=approval_id,
-            actor_type="user",
-            actor_id=user_id,
-            payload={"target_type": approval["target_type"], "target_id": approval["target_id"]},
-        )
-        return decided
 
 
 service = GenesisService()
