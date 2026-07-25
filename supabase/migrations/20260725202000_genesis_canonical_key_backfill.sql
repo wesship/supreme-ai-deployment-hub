@@ -11,7 +11,9 @@ begin
   if exists (
     select 1
     from public.genesis_projects p
-    where right(p.canonical_key, 9) <> '.' || upper(substr(replace(p.owner_id::text, '-', ''), 1, 8))
+    where right(p.canonical_key, 9) <> (
+      '.' || upper(substr(replace(p.owner_id::text, '-', ''), 1, 8))
+    )
   ) then
     raise exception 'genesis_project_canonical_key_backfill_failed';
   end if;
