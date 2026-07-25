@@ -6,47 +6,25 @@ import SkipToContent from "./components/SkipToContent";
 import AuthenticatedRoute from "./components/auth/AuthenticatedRoute";
 import { ThemeProvider } from 'next-themes';
 
-// Critical path — loaded eagerly (needed on first paint)
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
-// Lazy-load the floating chat widget (heavy: imports supabase, AI orchestrator, voice)
 const FloatingChatWidget = lazy(() =>
   import("./components/ai/FloatingChatWidget").then(m => ({ default: m.FloatingChatWidget }))
 );
-
-// Lazy-load the Navbar (it imports supabase for auth state)
 const Navbar = lazy(() => import("./components/Navbar"));
+const ChatProvider = lazy(() => import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider })));
+const DeploymentProvider = lazy(() => import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider })));
+const APIProvider = lazy(() => import("./contexts/APIContext").then(m => ({ default: m.APIProvider })));
+const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider })));
+const Toaster = lazy(() => import("./components/ui/sonner").then(m => ({ default: m.Toaster })));
+const Analytics = lazy(() => import("@vercel/analytics/react").then(m => ({ default: m.Analytics })));
 
-// Lazy-load context providers — they pull in axios, supabase, encryption, etc.
-const ChatProvider = lazy(() =>
-  import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider }))
-);
-const DeploymentProvider = lazy(() =>
-  import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider }))
-);
-const APIProvider = lazy(() =>
-  import("./contexts/APIContext").then(m => ({ default: m.APIProvider }))
-);
-const AGUIProvider = lazy(() =>
-  import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider }))
-);
-
-// Lazy-load non-critical UI
-const Toaster = lazy(() =>
-  import("./components/ui/sonner").then(m => ({ default: m.Toaster }))
-);
-
-// Lazy-load Vercel Analytics (non-critical)
-const Analytics = lazy(() =>
-  import("@vercel/analytics/react").then(m => ({ default: m.Analytics }))
-);
-
-// All other pages are lazy-loaded to reduce the initial bundle
 const Login = lazy(() => import("./pages/Login"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FilmPage = lazy(() => import("./pages/AIFilms"));
+const AIFilmStudio = lazy(() => import("./pages/AIFilmStudio"));
 const WorkflowManagement = lazy(() => import("./pages/WorkflowManagement"));
 const DeploymentDashboard = lazy(() => import("./pages/DeploymentDashboard"));
 const APIManagement = lazy(() => import("./pages/APIManagement"));
@@ -93,7 +71,6 @@ const PrimetimeCommunications = lazy(() => import("./pages/PrimetimeCommunicatio
 const PrimetimeAiAssistance = lazy(() => import("./pages/PrimetimeAiAssistance"));
 const PrimetimeExecutiveCommandCenter = lazy(() => import("./pages/PrimetimeExecutiveCommandCenter"));
 
-// Wrapper for AdminRoute since lazy components can't directly accept children as JSX
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
     const AdminRoute = mod.default;
@@ -115,10 +92,6 @@ const PageLoader = () => (
   </div>
 );
 
-/**
- * DeferredProviders — wraps children in context providers but only mounts them
- * after the initial paint (via idle callback) to avoid blocking FCP/LCP.
- */
 function DeferredProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
@@ -142,9 +115,7 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
       <DeploymentProvider>
         <APIProvider>
           <ChatProvider>
-            <AGUIProvider>
-              {children}
-            </AGUIProvider>
+            <AGUIProvider>{children}</AGUIProvider>
           </ChatProvider>
         </APIProvider>
       </DeploymentProvider>
@@ -158,9 +129,7 @@ function App() {
       <Router>
         <ScrollToTop />
         <SkipToContent />
-        <Suspense fallback={null}>
-          <Navbar />
-        </Suspense>
+        <Suspense fallback={null}><Navbar /></Suspense>
         <DeferredProviders>
           <main id="main-content" tabIndex={-1} className="min-h-screen pt-16 focus:outline-none">
             <Suspense fallback={<PageLoader />}>
@@ -173,6 +142,7 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/film" element={<FilmPage />} />
                 <Route path="/ai-films" element={<FilmPage />} />
+                <Route path="/ai-films/studio" element={<AuthenticatedRoute><AIFilmStudio /></AuthenticatedRoute>} />
                 <Route path="/deployment" element={<DeploymentDashboard />} />
                 <Route path="/api" element={<APIManagement />} />
                 <Route path="/documentation" element={<Documentation />} />
@@ -221,14 +191,7 @@ function App() {
                 <Route path="/backtesting" element={<Backtesting />} />
                 <Route path="/jetson" element={<JetsonControl />} />
                 <Route path="/jetson-control" element={<JetsonControl />} />
-                <Route
-                  path="/app"
-                  element={
-                    <AuthenticatedRoute>
-                      <LaunchApp />
-                    </AuthenticatedRoute>
-                  }
-                />
+                <Route path="/app" element={<AuthenticatedRoute><LaunchApp /></AuthenticatedRoute>} />
                 <Route path="/ai-agents" element={<AIAgents />} />
                 <Route path="/business-automation" element={<BusinessAutomation />} />
                 <Route path="/solutions" element={<Solutions />} />
@@ -252,14 +215,9 @@ function App() {
               </Routes>
             </Suspense>
           </main>
-          <Suspense fallback={null}>
-            <FloatingChatWidget />
-          </Suspense>
+          <Suspense fallback={null}><FloatingChatWidget /></Suspense>
         </DeferredProviders>
-        <Suspense fallback={null}>
-          <Toaster />
-          <Analytics />
-        </Suspense>
+        <Suspense fallback={null}><Toaster /><Analytics /></Suspense>
       </Router>
     </ThemeProvider>
   );
