@@ -9,6 +9,10 @@ MIGRATION = ROOT / "supabase" / "migrations" / "20260719090000_d3vonn_operations
 WORKFLOW = ROOT / ".github" / "workflows" / "d3vonn-operations-verification.yml"
 
 
+CANONICAL_RAILWAY_READY = "https://devonn-ai-api-production.up.railway.app/health/ready"
+STALE_BRANDED_READY = "https://api.d3vonn.io/health/ready"
+
+
 def test_unified_health_and_incident_routes_exist():
     text = ROUTER.read_text(encoding="utf-8")
     assert '@router.get("/ops/health"' in text
@@ -65,3 +69,9 @@ def test_continuous_verification_covers_tls_latency_5xx_and_schema():
     assert '"$code" -lt 500' in text
     assert "dashboard_schema_readiness" in text
     assert "environment: production" in text
+
+
+def test_continuous_verification_targets_canonical_backend():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert CANONICAL_RAILWAY_READY in text
+    assert STALE_BRANDED_READY not in text
