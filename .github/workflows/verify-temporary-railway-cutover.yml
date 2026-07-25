@@ -1,0 +1,125 @@
+name: Verify Temporary Railway Cutover
+
+on:
+  push:
+    branches:
+      - ops/verify-temporary-railway-cutover
+    paths:
+      - '.github/workflows/verify-temporary-railway-cutover.yml'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    name: Live browser cutover verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify live CORS, CSP, bundle, and health
+        id: verify
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+
+          SITE='https://d3vonn.io'
+          API='https://devonn-ai-api-production.up.railway.app'
+          ORIGIN='https://d3vonn.io'
+
+          preflight_code="$(curl --silent --show-error --location \
+            --dump-header /tmp/preflight.headers \
+            --output /tmp/preflight.body \
+            --write-out '%{http_code}' \
+            --request OPTIONS "${API}/api/v1/health" \
+            --header "Origin: ${ORIGIN}" \
+            --header 'Access-Control-Request-Method: GET' \
+            --header 'Access-Control-Request-Headers: authorization,content-type' \
+            --connect-timeout 10 --max-time 30)"
+
+          tr -d '\r' < /tmp/preflight.headers > /tmp/preflight.normalized
+          test "${preflight_code}" = '200'
+          grep -Eiq '^access-control-allow-origin: https://d3vonn\.io$' /tmp/preflight.normalized
+          grep -Eiq '^access-control-allow-credentials: true$' /tmp/preflight.normalized
+          grep -Eiq '^access-control-allow-methods: .*GET' /tmp/preflight.normalized
+
+          get_code="$(curl --silent --show-error --location \
+            --dump-header /tmp/get.headers \
+            --output /tmp/get.body \
+            --write-out '%{http_code}' \
+            "${API}/api/v1/health" \
+            --header "Origin: ${ORIGIN}" \
+            --connect-timeout 10 --max-time 30)"
+
+          tr -d '\r' < /tmp/get.headers > /tmp/get.normalized
+          test "${get_code}" = '200'
+          grep -Eiq '^access-control-allow-origin: https://d3vonn\.io$' /tmp/get.normalized
+          python3 - <<'PY'
+          import json
+          with open('/tmp/get.body', encoding='utf-8') as handle:
+              payload = json.load(handle)
+          assert payload.get('api') == 'v1', payload
+          assert payload.get('status') == 'ok', payload
+          PY
+
+          curl --fail --silent --show-error --location \
+            --dump-header /tmp/site.headers \
+            --output /tmp/site.html \
+            "${SITE}/" --connect-timeout 10 --max-time 30
+          tr -d '\r' < /tmp/site.headers > /tmp/site.normalized
+          grep -Fq "connect-src 'self' https://api.d3vonn.io ${API}" /tmp/site.normalized
+          grep -Fq "<link rel=\"preconnect\" href=\"${API}\" crossorigin />" /tmp/site.html
+
+          main_asset="$(grep -Eo '/assets/index-[A-Za-z0-9_-]+\.js' /tmp/site.html | head -n 1)"
+          test -n "${main_asset}"
+          curl --fail --silent --show-error --location \
+            --output /tmp/main.js "${SITE}${main_asset}" \
+            --connect-timeout 10 --max-time 30
+
+          api_chunk="$(grep -Eo 'assets/primetimeRelease1Api-[A-Za-z0-9_-]+\.js' /tmp/main.js | head -n 1)"
+          test -n "${api_chunk}"
+          curl --fail --silent --show-error --location \
+            --output /tmp/api-chunk.js "${SITE}/${api_chunk}" \
+            --connect-timeout 10 --max-time 30
+          grep -Fq "${API}" /tmp/api-chunk.js
+
+          {
+            echo "Preflight HTTP: ${preflight_code}"
+            grep -Ei '^access-control-(allow-origin|allow-credentials|allow-methods|allow-headers):' /tmp/preflight.normalized
+            echo "Health GET HTTP: ${get_code}"
+            cat /tmp/get.body
+            echo
+            echo "Main asset: ${main_asset}"
+            echo "API chunk: ${api_chunk}"
+            echo "Compiled API target: ${API}"
+          } > /tmp/verification-summary.txt
+
+      - name: Publish verification result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.verify.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          summary="$(cat /tmp/verification-summary.txt 2>/dev/null || printf 'Verification stopped before the summary was generated.')"
+          title="Temporary Railway cutover ${OUTCOME}: ${HEAD_SHA:0:7}"
+          body=$(cat <<EOF
+          Production browser cutover verification outcome: **${OUTCOME}**
+
+          Run: ${RUN_URL}
+          Commit: ${HEAD_SHA}
+
+          \`\`\`
+          ${summary}
+          \`\`\`
+
+          This check sends no credentials. It verifies the live D3VONN.IO CSP and bundle plus Railway CORS and API-v1 health from the D3VONN.IO browser origin.
+          EOF
+          )
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+
+      - name: Enforce verification
+        if: steps.verify.outcome != 'success'
+        run: exit 1
