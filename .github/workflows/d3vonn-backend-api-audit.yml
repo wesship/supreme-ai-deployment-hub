@@ -1,6 +1,6 @@
 name: D3VONN.IO Backend API Audit
 
-# Diagnostic certification trigger for the active Railway image and custom domain.
+# Diagnostic certification trigger for the current Railway service.
 on:
   workflow_dispatch:
   schedule:
@@ -53,13 +53,13 @@ jobs:
               rm -f "$body_file"
             done
           done
-      - name: Run production backend API certification
+      - name: Run Railway backend API certification
         id: certification
         continue-on-error: true
         env:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://d3vonn.io
-          API_BASE_URL: https://api.d3vonn.io
+          API_BASE_URL: https://devonn-ai-api-production.up.railway.app
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
         run: pnpm exec playwright test tests/e2e/backend-production-audit.spec.ts --project=chromium --reporter=github,html --trace=off
@@ -82,10 +82,10 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          title="Backend API Audit ${OUTCOME}: ${HEAD_SHA:0:7}"
+          title="Railway Backend API Audit ${OUTCOME}: ${HEAD_SHA:0:7}"
           probes="$(cat /tmp/api-probes.txt 2>/dev/null || true)"
           body=$(cat <<EOF
-          D3VONN.IO Backend API certification outcome: **${OUTCOME}**
+          Railway-generated endpoint certification outcome: **${OUTCOME}**
 
           Run: ${RUN_URL}
           Commit: ${HEAD_SHA}
