@@ -9,8 +9,9 @@ on:
       - "backend/tests/test_genesis_platform.py"
       - "src/lib/genesisApi.ts"
       - "src/pages/GenesisCommandCenter.tsx"
+      - "src/pages/GenesisQualityCenter.tsx"
       - "src/App.tsx"
-      - "supabase/migrations/20260725193000_genesis_platform_foundation.sql"
+      - "supabase/migrations/*genesis*.sql"
       - ".github/workflows/genesis-platform-verification.yml"
   workflow_dispatch:
 
