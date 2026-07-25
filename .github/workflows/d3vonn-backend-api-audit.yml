@@ -63,21 +63,14 @@ jobs:
         continue-on-error: true
         env:
           CI: 'true'
+          E2E_DISABLE_CREDENTIAL_TRACING: '1'
           PLAYWRIGHT_BASE_URL: https://d3vonn.io
           API_BASE_URL: https://devonn-ai-api-production.up.railway.app
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-        run: pnpm exec playwright test tests/e2e/backend-production-audit.spec.ts --project=chromium --reporter=github,html --trace=off
-      - name: Upload Playwright evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: d3vonn-backend-api-audit
-          path: |
-            playwright-report/
-            test-results/
-          if-no-files-found: warn
-          retention-days: 30
+        run: |
+          rm -rf playwright-report test-results
+          pnpm exec playwright test tests/e2e/backend-production-audit.spec.ts --project=chromium --reporter=github,line --trace=off
       - name: Publish temporary certification result
         if: always() && github.event_name == 'push'
         env:
@@ -100,7 +93,7 @@ jobs:
           ${probes}
           \`\`\`
 
-          The Playwright evidence artifact is attached to the workflow run. Credentials and JWT tracing are disabled.
+          No Playwright report, trace, screenshot, or test artifact is uploaded. Protected values remain masked and are not printed.
           EOF
           )
           gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
