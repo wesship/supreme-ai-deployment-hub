@@ -82,6 +82,7 @@ export interface GenesisEvaluation {
 
 export interface GenesisFinding {
   id: string;
+  evaluation_run_id?: string | null;
   severity: string;
   category: string;
   title: string;
@@ -94,6 +95,7 @@ export interface GenesisFinding {
 
 export interface GenesisReleaseGate {
   id?: string;
+  evaluation_run_id?: string | null;
   gate_key: string;
   name: string;
   category: string;
