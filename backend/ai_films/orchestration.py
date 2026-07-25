@@ -131,7 +131,7 @@ async def create_test_production(access_token: str, title: str) -> dict[str, Any
                 "scene_id": scene["id"],
                 "owner_id": user.id,
                 "title": "The Signal Answers — Storyboard",
-                "status": "planned",
+                "status": "draft",
                 "style_prompt": "Prestige metaphysical techno-thriller, restrained indigo and gold, centered composition",
                 "frame_count": 5,
                 "metadata": {"planner": "director-ai-v1", "acceptance_run": True},
