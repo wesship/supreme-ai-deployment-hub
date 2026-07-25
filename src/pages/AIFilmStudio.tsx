@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { aiFilmImageCategories, aiFilmImageTaxonomy } from '@/features/ai-films/imageTaxonomy';
 import CanonSceneWorkspace from '@/features/ai-films/CanonSceneWorkspace';
 import StoragePackageWorkspace from '@/features/ai-films/StoragePackageWorkspace';
+import ReleaseControlWorkspace from '@/features/ai-films/ReleaseControlWorkspace';
 import {
   ensureSovereignSignalProject,
   fetchProjectAssets,
@@ -16,7 +17,7 @@ import {
   type AIFilmProject,
 } from '@/features/ai-films/assetManagerService';
 
-const breadcrumbs = [{ label: 'AI Films', href: '/ai-films' }, { label: 'Studio' }, { label: 'Production' }];
+const breadcrumbs = [{ label: 'AI Films', href: '/ai-films' }, { label: 'Studio' }, { label: 'Release Control' }];
 
 const seedAssets: AIFilmAsset[] = aiFilmImageTaxonomy.map((asset, index) => ({
   id: `seed-${index}`,
@@ -103,9 +104,9 @@ const AIFilmStudio = () => {
           <div className="overflow-hidden rounded-3xl border border-border/70 bg-[radial-gradient(circle_at_80%_20%,rgba(34,211,238,.18),transparent_28%),linear-gradient(135deg,rgba(8,22,48,.98),rgba(2,6,15,.98))] p-7 text-white shadow-2xl sm:p-10">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <Badge variant="secondary">Release 3 · Production Delivery</Badge>
+                <Badge variant="secondary">Release 4 · Review + Render Control</Badge>
                 <h1 id="ai-film-studio-title" className="mt-5 text-4xl font-black tracking-tight sm:text-6xl">AI Film Studio</h1>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Manage canon, production assets, scenes, private media, and complete delivery packages for Sovereign Signal and The Genesis Weave.</p>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Manage canon, production assets, scenes, private media, approvals, release blockers, and render orchestration for Sovereign Signal and The Genesis Weave.</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button type="button" variant="secondary" onClick={() => void loadRemoteWorkspace()} disabled={busy}><Database className="mr-2 h-4 w-4" />Connect Knowledge Core</Button>
@@ -125,6 +126,7 @@ const AIFilmStudio = () => {
 
           <CanonSceneWorkspace project={project} assets={assets} />
           <StoragePackageWorkspace project={project} assets={assets} onAssetUploaded={refreshAssets} />
+          <ReleaseControlWorkspace project={project} assets={assets} onAssetsChanged={refreshAssets} />
 
           <section aria-labelledby="asset-library-heading">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -140,7 +142,7 @@ const AIFilmStudio = () => {
               {visibleAssets.map((asset) => (
                 <Card key={asset.id} className="overflow-hidden border-border/70">
                   <div className="aspect-video bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.28),transparent_30%),linear-gradient(135deg,#07152f,#02040a)] p-5">
-                    <div className="flex items-start justify-between gap-3"><Badge variant="secondary">{asset.category.replaceAll('_', ' ')}</Badge><Badge variant="outline" className="border-white/30 text-white">{asset.status}</Badge></div>
+                    <div className="flex items-start justify-between gap-3"><Badge variant="secondary">{asset.category.replaceAll('_', ' ')}</Badge><Badge variant="outline" className="border-white/30 text-white">{asset.status === 'selected' ? 'review' : asset.status}</Badge></div>
                     <Film className="mt-12 h-10 w-10 text-cyan-200" aria-hidden="true" />
                   </div>
                   <div className="space-y-3 p-5">
