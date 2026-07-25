@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.ai_films.providers import provider_health, validate_provider
 
-router = APIRouter(prefix="/api/ai-films", tags=["ai-films"])
+router = APIRouter(prefix="/ai-films", tags=["ai-films"])
 
 
 @router.get("/providers/health")
