@@ -1,6 +1,6 @@
 name: D3VONN.IO Backend API Audit
 
-# Final certification trigger after the Railway package-layout correction.
+# Diagnostic certification trigger for the active Railway image.
 on:
   workflow_dispatch:
   schedule:
@@ -41,10 +41,10 @@ jobs:
         run: |
           set -u
           : > /tmp/api-probes.txt
-          for path in /health /health/ready /api/v1/health /api/v1/ops/health /api/deploy/probe; do
+          for path in /health /health/ready /health/deployment /api/v1/health /api/v1/ops/health /api/deploy/probe; do
             body_file="$(mktemp)"
             code="$(curl --silent --show-error --location --connect-timeout 5 --max-time 20 --output "$body_file" --write-out '%{http_code}' "https://api.d3vonn.io${path}" || printf '000')"
-            body="$(tr '\n' ' ' < "$body_file" | cut -c1-300)"
+            body="$(tr '\n' ' ' < "$body_file" | cut -c1-500)"
             printf '%s -> HTTP %s | %s\n' "$path" "$code" "$body" | tee -a /tmp/api-probes.txt
             rm -f "$body_file"
           done
