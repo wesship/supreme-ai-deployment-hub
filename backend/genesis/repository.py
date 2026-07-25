@@ -1,12 +1,13 @@
 """Supabase REST repository for the Genesis platform.
 
-The backend uses the service role only inside this trusted process and performs an
-explicit project-access check before every project-scoped operation. Database RLS
-remains enabled as defense in depth for direct user-scoped access.
+The backend uses the service role only inside this trusted process and performs explicit
+project-role checks before governed project mutations. Database RLS remains enabled as
+defense in depth for direct user-scoped access.
 """
 from __future__ import annotations
 
 import os
+from collections.abc import Collection
 from typing import Any
 from uuid import UUID
 
@@ -76,31 +77,53 @@ class GenesisRepository:
             return None
         return response.json()
 
-    async def has_project_access(self, project_id: UUID | str, user_id: str) -> bool:
+    async def get_project_role(self, project_id: UUID | str, user_id: str) -> str | None:
         project_rows = await self._request(
             "GET",
             "genesis_projects",
             params={"id": f"eq.{project_id}", "select": "id,owner_id", "limit": "1"},
         )
         if not project_rows:
-            return False
+            return None
         if str(project_rows[0].get("owner_id")) == user_id:
-            return True
+            return "owner"
         member_rows = await self._request(
             "GET",
             "genesis_project_members",
             params={
                 "project_id": f"eq.{project_id}",
                 "user_id": f"eq.{user_id}",
-                "select": "project_id",
+                "select": "role",
                 "limit": "1",
             },
         )
-        return bool(member_rows)
+        if not member_rows:
+            return None
+        role = member_rows[0].get("role")
+        return str(role) if role else None
 
-    async def require_project_access(self, project_id: UUID | str, user_id: str) -> None:
-        if not await self.has_project_access(project_id, user_id):
+    async def has_project_access(self, project_id: UUID | str, user_id: str) -> bool:
+        return await self.get_project_role(project_id, user_id) is not None
+
+    async def require_project_access(self, project_id: UUID | str, user_id: str) -> str:
+        role = await self.get_project_role(project_id, user_id)
+        if role is None:
             raise HTTPException(status_code=404, detail="Genesis project not found or access denied.")
+        return role
+
+    async def require_project_role(
+        self,
+        project_id: UUID | str,
+        user_id: str,
+        allowed_roles: Collection[str],
+    ) -> str:
+        role = await self.require_project_access(project_id, user_id)
+        if role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Genesis project role '{role}' cannot perform this action.",
+            )
+        return role
 
     async def list_projects(self, user_id: str) -> list[dict[str, Any]]:
         owned = await self._request(
@@ -227,6 +250,74 @@ class GenesisRepository:
             params={"id": f"eq.{row_id}", "select": "*", "limit": "1"},
         )
         return rows[0] if rows else None
+
+    @staticmethod
+    def _single_rpc_row(result: Any) -> dict[str, Any] | None:
+        if isinstance(result, dict):
+            return result
+        if isinstance(result, list):
+            return result[0] if result else None
+        return None
+
+    async def transition_task_atomic(
+        self,
+        *,
+        task_id: UUID | str,
+        expected_status: str,
+        new_status: str,
+        output: dict[str, Any] | None,
+        completed_at: str | None,
+        actor_id: UUID | str,
+        reason: str | None,
+    ) -> dict[str, Any]:
+        result = await self._request(
+            "POST",
+            "rpc/genesis_transition_task",
+            payload={
+                "p_task_id": str(task_id),
+                "p_expected_status": expected_status,
+                "p_new_status": new_status,
+                "p_output": output,
+                "p_completed_at": completed_at,
+                "p_actor_id": str(actor_id),
+                "p_reason": reason,
+            },
+        )
+        row = self._single_rpc_row(result)
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Task changed concurrently; reload it before retrying the transition.",
+            )
+        return row
+
+    async def decide_approval_atomic(
+        self,
+        *,
+        approval_id: UUID | str,
+        decision: str,
+        decided_by_user_id: UUID | str,
+        notes: str | None,
+        conditions: dict[str, Any],
+    ) -> dict[str, Any]:
+        result = await self._request(
+            "POST",
+            "rpc/genesis_decide_approval",
+            payload={
+                "p_approval_id": str(approval_id),
+                "p_decision": decision,
+                "p_decided_by_user_id": str(decided_by_user_id),
+                "p_notes": notes,
+                "p_conditions": conditions,
+            },
+        )
+        row = self._single_rpc_row(result)
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Approval has already been decided.",
+            )
+        return row
 
     async def emit_event(
         self,
