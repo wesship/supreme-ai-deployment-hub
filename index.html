@@ -68,6 +68,48 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      (() => {
+        const CORE_ALT = 'D3VONN.IO D3 Core';
+        const CORE_SRC = '/core-01-helmet.svg?v=20260725-core-fix';
+        const FALLBACK_SRC = '/d3vonn-main-logo.svg?v=20260724-official';
+
+        const repairCoreArtwork = () => {
+          const image = document.querySelector(`img[alt="${CORE_ALT}"]`);
+          if (!(image instanceof HTMLImageElement)) return false;
+
+          if (!image.dataset.coreArtworkRepaired) {
+            image.dataset.coreArtworkRepaired = 'true';
+            image.style.backgroundColor = '#020b1c';
+            image.style.maxHeight = '390px';
+            image.style.width = '88%';
+            image.style.objectFit = 'contain';
+            image.onerror = () => {
+              if (!image.src.includes('d3vonn-main-logo.svg')) {
+                image.src = FALLBACK_SRC;
+              }
+            };
+          }
+
+          if (!image.src.includes('core-01-helmet.svg') && !image.src.includes('d3vonn-main-logo.svg')) {
+            image.src = CORE_SRC;
+          }
+
+          return true;
+        };
+
+        const observer = new MutationObserver(() => {
+          if (repairCoreArtwork()) observer.disconnect();
+        });
+
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+        window.addEventListener('DOMContentLoaded', repairCoreArtwork, { once: true });
+        window.setTimeout(() => {
+          repairCoreArtwork();
+          observer.disconnect();
+        }, 10000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
