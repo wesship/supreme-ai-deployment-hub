@@ -1,0 +1,46 @@
+name: Genesis Policy Source Fix
+
+on:
+  push:
+    branches:
+      - feat/genesis-platform-foundation
+    paths:
+      - ".github/workflows/genesis-policy-source-fix.yml"
+      - "supabase/migrations/20260725193000_genesis_platform_foundation.sql"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: genesis-policy-source-fix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: feat/genesis-platform-foundation
+          persist-credentials: true
+
+      - name: Qualify provider output foreign key
+        shell: bash
+        run: |
+          set -euo pipefail
+          file="supabase/migrations/20260725193000_genesis_platform_foundation.sql"
+          old="where j.id = provider_job_id and public.genesis_has_project_access(r.project_id)"
+          new="where j.id = genesis_provider_outputs.provider_job_id and public.genesis_has_project_access(r.project_id)"
+          if ! grep -Fq "$old" "$file"; then
+            echo "Source is already corrected."
+            exit 0
+          fi
+          sed -i "s/$old/$new/g" "$file"
+          count="$(grep -Fc "$new" "$file")"
+          test "$count" -eq 2
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          git commit -m "fix(genesis): qualify provider output policy key"
+          git push origin HEAD:feat/genesis-platform-foundation
