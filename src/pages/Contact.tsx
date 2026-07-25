@@ -143,6 +143,7 @@ const Contact: React.FC = () => {
                       <input
                         id="name"
                         name="name"
+                        type="text"
                         value={form.name}
                         onChange={(event) => updateField('name', event.target.value)}
                         className="w-full rounded-md border bg-background p-2"
@@ -176,6 +177,7 @@ const Contact: React.FC = () => {
                     <input
                       id="subject"
                       name="subject"
+                      type="text"
                       value={form.subject}
                       onChange={(event) => updateField('subject', event.target.value)}
                       className="w-full rounded-md border bg-background p-2"
@@ -206,6 +208,7 @@ const Contact: React.FC = () => {
                     <input
                       id="website"
                       name="website"
+                      type="text"
                       tabIndex={-1}
                       autoComplete="off"
                       value={form.website}
