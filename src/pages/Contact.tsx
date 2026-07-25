@@ -142,6 +142,7 @@ const Contact: React.FC = () => {
                       </label>
                       <input
                         id="name"
+                        name="name"
                         value={form.name}
                         onChange={(event) => updateField('name', event.target.value)}
                         className="w-full rounded-md border bg-background p-2"
@@ -156,6 +157,7 @@ const Contact: React.FC = () => {
                       </label>
                       <input
                         id="email"
+                        name="email"
                         type="email"
                         value={form.email}
                         onChange={(event) => updateField('email', event.target.value)}
@@ -173,6 +175,7 @@ const Contact: React.FC = () => {
                     </label>
                     <input
                       id="subject"
+                      name="subject"
                       value={form.subject}
                       onChange={(event) => updateField('subject', event.target.value)}
                       className="w-full rounded-md border bg-background p-2"
@@ -187,6 +190,7 @@ const Contact: React.FC = () => {
                     </label>
                     <textarea
                       id="message"
+                      name="message"
                       rows={6}
                       value={form.message}
                       onChange={(event) => updateField('message', event.target.value)}
