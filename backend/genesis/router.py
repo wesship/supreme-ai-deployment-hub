@@ -20,7 +20,8 @@ from .schemas import (
 from .service import service
 
 
-router = APIRouter(prefix="/api/genesis", tags=["genesis"])
+# Mounted by backend.app.routers.proxy_router, which already owns the /api prefix.
+router = APIRouter(prefix="/genesis", tags=["genesis"])
 Principal = Annotated[GenesisPrincipal, Depends(require_genesis_user)]
 
 
