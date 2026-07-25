@@ -21,11 +21,16 @@ jobs:
         id: verify
         continue-on-error: true
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          exec > >(tee /tmp/verification-summary.txt) 2>&1
 
           SITE='https://d3vonn.io'
           API='https://devonn-ai-api-production.up.railway.app'
           ORIGIN='https://d3vonn.io'
+          failed=0
+
+          pass() { printf 'PASS: %s\n' "$1"; }
+          fail() { printf 'FAIL: %s\n' "$1"; failed=1; }
 
           preflight_code="$(curl --silent --show-error --location \
             --dump-header /tmp/preflight.headers \
@@ -35,13 +40,21 @@ jobs:
             --header "Origin: ${ORIGIN}" \
             --header 'Access-Control-Request-Method: GET' \
             --header 'Access-Control-Request-Headers: authorization,content-type' \
-            --connect-timeout 10 --max-time 30)"
+            --connect-timeout 10 --max-time 30 || printf '000')"
 
-          tr -d '\r' < /tmp/preflight.headers > /tmp/preflight.normalized
-          test "${preflight_code}" = '200'
-          grep -Eiq '^access-control-allow-origin: https://d3vonn\.io$' /tmp/preflight.normalized
-          grep -Eiq '^access-control-allow-credentials: true$' /tmp/preflight.normalized
-          grep -Eiq '^access-control-allow-methods: .*GET' /tmp/preflight.normalized
+          tr -d '\r' < /tmp/preflight.headers > /tmp/preflight.normalized 2>/dev/null || :
+          echo "Preflight HTTP: ${preflight_code}"
+          grep -Ei '^access-control-(allow-origin|allow-credentials|allow-methods|allow-headers):' /tmp/preflight.normalized || true
+          [ "${preflight_code}" = '200' ] && pass 'CORS preflight returns HTTP 200' || fail 'CORS preflight must return HTTP 200'
+          grep -Eiq '^access-control-allow-origin: https://d3vonn\.io$' /tmp/preflight.normalized \
+            && pass 'Preflight allows the D3VONN.IO origin' \
+            || fail 'Preflight does not allow the D3VONN.IO origin'
+          grep -Eiq '^access-control-allow-credentials: true$' /tmp/preflight.normalized \
+            && pass 'Preflight permits credentials' \
+            || fail 'Preflight does not permit credentials'
+          grep -Eiq '^access-control-allow-methods: .*GET' /tmp/preflight.normalized \
+            && pass 'Preflight permits GET' \
+            || fail 'Preflight does not permit GET'
 
           get_code="$(curl --silent --show-error --location \
             --dump-header /tmp/get.headers \
@@ -49,50 +62,70 @@ jobs:
             --write-out '%{http_code}' \
             "${API}/api/v1/health" \
             --header "Origin: ${ORIGIN}" \
-            --connect-timeout 10 --max-time 30)"
+            --connect-timeout 10 --max-time 30 || printf '000')"
 
-          tr -d '\r' < /tmp/get.headers > /tmp/get.normalized
-          test "${get_code}" = '200'
-          grep -Eiq '^access-control-allow-origin: https://d3vonn\.io$' /tmp/get.normalized
-          python3 - <<'PY'
+          tr -d '\r' < /tmp/get.headers > /tmp/get.normalized 2>/dev/null || :
+          echo "Health GET HTTP: ${get_code}"
+          grep -Ei '^access-control-(allow-origin|allow-credentials):' /tmp/get.normalized || true
+          cat /tmp/get.body 2>/dev/null || true
+          echo
+          [ "${get_code}" = '200' ] && pass 'API-v1 health returns HTTP 200' || fail 'API-v1 health must return HTTP 200'
+          grep -Eiq '^access-control-allow-origin: https://d3vonn\.io$' /tmp/get.normalized \
+            && pass 'Health response allows the D3VONN.IO origin' \
+            || fail 'Health response does not allow the D3VONN.IO origin'
+          if python3 - <<'PY'
           import json
           with open('/tmp/get.body', encoding='utf-8') as handle:
               payload = json.load(handle)
           assert payload.get('api') == 'v1', payload
           assert payload.get('status') == 'ok', payload
           PY
+          then
+            pass 'API-v1 health body is valid'
+          else
+            fail 'API-v1 health body is invalid'
+          fi
 
-          curl --fail --silent --show-error --location \
+          site_code="$(curl --silent --show-error --location \
             --dump-header /tmp/site.headers \
             --output /tmp/site.html \
-            "${SITE}/" --connect-timeout 10 --max-time 30
-          tr -d '\r' < /tmp/site.headers > /tmp/site.normalized
-          grep -Fq "connect-src 'self' https://api.d3vonn.io ${API}" /tmp/site.normalized
-          grep -Fq "<link rel=\"preconnect\" href=\"${API}\" crossorigin />" /tmp/site.html
+            --write-out '%{http_code}' \
+            "${SITE}/" --connect-timeout 10 --max-time 30 || printf '000')"
+          tr -d '\r' < /tmp/site.headers > /tmp/site.normalized 2>/dev/null || :
+          echo "Site HTTP: ${site_code}"
+          [ "${site_code}" = '200' ] && pass 'D3VONN.IO returns HTTP 200' || fail 'D3VONN.IO must return HTTP 200'
+          grep -Fq "connect-src 'self' https://api.d3vonn.io ${API}" /tmp/site.normalized \
+            && pass 'Live CSP permits the Railway backend' \
+            || fail 'Live CSP does not permit the Railway backend'
+          grep -Fq "<link rel=\"preconnect\" href=\"${API}\" crossorigin />" /tmp/site.html \
+            && pass 'Live HTML preconnects to Railway' \
+            || fail 'Live HTML does not preconnect to Railway'
 
-          main_asset="$(grep -Eo '/assets/index-[A-Za-z0-9_-]+\.js' /tmp/site.html | head -n 1)"
-          test -n "${main_asset}"
-          curl --fail --silent --show-error --location \
+          main_asset="$(grep -Eo '/assets/index-[A-Za-z0-9_-]+\.js' /tmp/site.html 2>/dev/null | head -n 1 || true)"
+          echo "Main asset: ${main_asset:-missing}"
+          if [ -n "${main_asset}" ] && curl --fail --silent --show-error --location \
             --output /tmp/main.js "${SITE}${main_asset}" \
-            --connect-timeout 10 --max-time 30
+            --connect-timeout 10 --max-time 30; then
+            pass 'Main JavaScript asset is reachable'
+          else
+            fail 'Main JavaScript asset is not reachable'
+          fi
 
-          api_chunk="$(grep -Eo 'assets/primetimeRelease1Api-[A-Za-z0-9_-]+\.js' /tmp/main.js | head -n 1)"
-          test -n "${api_chunk}"
-          curl --fail --silent --show-error --location \
+          api_chunk="$(grep -Eo 'assets/primetimeRelease1Api-[A-Za-z0-9_-]+\.js' /tmp/main.js 2>/dev/null | head -n 1 || true)"
+          echo "API chunk: ${api_chunk:-missing}"
+          if [ -n "${api_chunk}" ] && curl --fail --silent --show-error --location \
             --output /tmp/api-chunk.js "${SITE}/${api_chunk}" \
-            --connect-timeout 10 --max-time 30
-          grep -Fq "${API}" /tmp/api-chunk.js
+            --connect-timeout 10 --max-time 30; then
+            pass 'Compiled API client chunk is reachable'
+          else
+            fail 'Compiled API client chunk is not reachable'
+          fi
+          grep -Fq "${API}" /tmp/api-chunk.js 2>/dev/null \
+            && pass 'Compiled production API target is Railway' \
+            || fail 'Compiled production API target is not Railway'
 
-          {
-            echo "Preflight HTTP: ${preflight_code}"
-            grep -Ei '^access-control-(allow-origin|allow-credentials|allow-methods|allow-headers):' /tmp/preflight.normalized
-            echo "Health GET HTTP: ${get_code}"
-            cat /tmp/get.body
-            echo
-            echo "Main asset: ${main_asset}"
-            echo "API chunk: ${api_chunk}"
-            echo "Compiled API target: ${API}"
-          } > /tmp/verification-summary.txt
+          echo "Compiled API target expected: ${API}"
+          exit "${failed}"
 
       - name: Publish verification result
         if: always()
@@ -103,7 +136,7 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          summary="$(cat /tmp/verification-summary.txt 2>/dev/null || printf 'Verification stopped before the summary was generated.')"
+          summary="$(cat /tmp/verification-summary.txt 2>/dev/null || printf 'Verification stopped before diagnostics were generated.')"
           title="Temporary Railway cutover ${OUTCOME}: ${HEAD_SHA:0:7}"
           body=$(cat <<EOF
           Production browser cutover verification outcome: **${OUTCOME}**
