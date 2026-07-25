@@ -3,11 +3,6 @@ name: Fresh Authenticated Production Verification
 on:
   push:
     branches:
-      - ops/authenticated-audit-fresh-verification
-    paths:
-      - '.github/workflows/fresh-authenticated-production-verification.yml'
-  pull_request:
-    branches:
       - main
     paths:
       - '.github/workflows/fresh-authenticated-production-verification.yml'
@@ -17,7 +12,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: fresh-authenticated-production-verification-${{ github.event.pull_request.number || github.ref }}
+  group: fresh-authenticated-production-verification
   cancel-in-progress: true
 
 jobs:
