@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+from .permissions import EVALUATION_ROLES
 from .render_gateway import public_provider_health
 from .repository import GenesisRepository, repository
 
@@ -34,10 +35,11 @@ def evaluate_project_state(
 ) -> QualityResult:
     total_tasks = len(tasks)
     completed_tasks = sum(1 for task in tasks if task.get("status") in {"approved", "completed"})
+    failed_tasks = sum(1 for task in tasks if task.get("status") == "failed")
     workflow_score = _clamp((completed_tasks / total_tasks) * 100 if total_tasks else 25)
     canon_score = 100.0 if counts.get("locked_canon", 0) > 0 else 20.0
     blocked_tasks = counts.get("blocked_tasks", 0)
-    continuity_score = _clamp(100 - blocked_tasks * 25)
+    continuity_score = _clamp(100 - blocked_tasks * 25 - failed_tasks * 35)
     pending_approvals = counts.get("pending_approvals", 0)
     governance_score = _clamp(100 - pending_approvals * 15)
     assets = counts.get("assets", 0)
@@ -93,6 +95,16 @@ def evaluate_project_state(
             "remediation": "Run the Genesis bootstrap workflow.",
             "blocking": True,
             "evidence": {"task_count": 0},
+        })
+    if failed_tasks:
+        findings.append({
+            "severity": "high",
+            "category": "workflow",
+            "title": f"{failed_tasks} production task(s) failed",
+            "description": "Failed terminal tasks are incomplete production work and block release readiness.",
+            "remediation": "Retry, replace, or explicitly complete the failed work before release evaluation.",
+            "blocking": True,
+            "evidence": {"failed_tasks": failed_tasks},
         })
     if blocked_tasks:
         findings.append({
@@ -160,11 +172,16 @@ def evaluate_project_state(
         overall >= 85
         and not blocking_findings
         and counts.get("open_tasks", 0) == 0
+        and failed_tasks == 0
         and pending_approvals == 0
         and assets > 0
         and approved_assets == assets
     )
-    status = "passed" if release_ready else ("failed" if any(item["severity"] == "critical" for item in findings) else "passed_with_warnings")
+    severe_blocker = any(
+        item["blocking"] and item["severity"] in {"high", "critical"}
+        for item in findings
+    )
+    status = "passed" if release_ready else ("failed" if severe_blocker else "passed_with_warnings")
     summary = (
         "All required Genesis release gates passed."
         if release_ready
@@ -182,8 +199,14 @@ def evaluate_project_state(
             "gate_key": "workflow_complete",
             "name": "Workflow completion",
             "category": "workflow",
-            "status": "passed" if counts.get("open_tasks", 0) == 0 and total_tasks > 0 else "blocked",
-            "evidence": {"open_tasks": counts.get("open_tasks", 0), "total_tasks": total_tasks},
+            "status": "passed"
+            if counts.get("open_tasks", 0) == 0 and failed_tasks == 0 and total_tasks > 0
+            else "blocked",
+            "evidence": {
+                "open_tasks": counts.get("open_tasks", 0),
+                "failed_tasks": failed_tasks,
+                "total_tasks": total_tasks,
+            },
         },
         {
             "gate_key": "assets_approved",
@@ -223,6 +246,7 @@ class GenesisQualityService:
         self.repo = repo
 
     async def run(self, project_id: UUID, user_id: str) -> dict[str, Any]:
+        await self.repo.require_project_role(project_id, user_id, EVALUATION_ROLES)
         dashboard = await self.repo.command_center(project_id, user_id)
         counts = dashboard.get("counts") or {}
         tasks = await self.repo.list_rows("genesis_tasks", project_id, user_id, limit=500)
