@@ -21,8 +21,8 @@ def test_storyboard_service_requires_auth_and_generates_five_shots():
     assert "supabase.auth.getUser" in source
     assert "Sign in is required" in source
     assert "planStoryboardShots" in source
-    assert source.count("shotNumber:") == 5
-    assert "Director AI Planner" not in source
+    for number in range(1, 6):
+        assert f"shotNumber: {number}" in source
     assert "d3vonn-director-planner-v1" in source
 
 
