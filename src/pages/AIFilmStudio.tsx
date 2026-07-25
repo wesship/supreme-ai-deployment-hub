@@ -10,6 +10,7 @@ import CanonSceneWorkspace from '@/features/ai-films/CanonSceneWorkspace';
 import StoragePackageWorkspace from '@/features/ai-films/StoragePackageWorkspace';
 import ReleaseControlWorkspace from '@/features/ai-films/ReleaseControlWorkspace';
 import StoryboardWorkspace from '@/features/ai-films/StoryboardWorkspace';
+import DeliveryWorkspace from '@/features/ai-films/DeliveryWorkspace';
 import {
   ensureSovereignSignalProject,
   fetchProjectAssets,
@@ -18,7 +19,7 @@ import {
   type AIFilmProject,
 } from '@/features/ai-films/assetManagerService';
 
-const breadcrumbs = [{ label: 'AI Films', href: '/ai-films' }, { label: 'Studio' }, { label: 'Pre-Production' }];
+const breadcrumbs = [{ label: 'AI Films', href: '/ai-films' }, { label: 'Studio' }, { label: 'Delivery' }];
 
 const seedAssets: AIFilmAsset[] = aiFilmImageTaxonomy.map((asset, index) => ({
   id: `seed-${index}`,
@@ -105,9 +106,9 @@ const AIFilmStudio = () => {
           <div className="overflow-hidden rounded-3xl border border-border/70 bg-[radial-gradient(circle_at_80%_20%,rgba(34,211,238,.18),transparent_28%),linear-gradient(135deg,rgba(8,22,48,.98),rgba(2,6,15,.98))] p-7 text-white shadow-2xl sm:p-10">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
               <div className="max-w-3xl">
-                <Badge variant="secondary">Release 5 · AI Pre-Production</Badge>
+                <Badge variant="secondary">Release 6 · Delivery Cloud</Badge>
                 <h1 id="ai-film-studio-title" className="mt-5 text-4xl font-black tracking-tight sm:text-6xl">AI Film Studio</h1>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Manage canon, media, approvals, storyboards, shot lists, camera direction, lighting plans, release blockers, and render orchestration for Sovereign Signal and The Genesis Weave.</p>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100">Manage canon, storyboards, private media, reviews, render orchestration, export packages, subtitles, archives, and controlled publishing for Sovereign Signal and The Genesis Weave.</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button type="button" variant="secondary" onClick={() => void loadRemoteWorkspace()} disabled={busy}><Database className="mr-2 h-4 w-4" />Connect Knowledge Core</Button>
@@ -129,6 +130,7 @@ const AIFilmStudio = () => {
           <StoryboardWorkspace project={project} />
           <StoragePackageWorkspace project={project} assets={assets} onAssetUploaded={refreshAssets} />
           <ReleaseControlWorkspace project={project} assets={assets} onAssetsChanged={refreshAssets} />
+          <DeliveryWorkspace project={project} />
 
           <section aria-labelledby="asset-library-heading">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
