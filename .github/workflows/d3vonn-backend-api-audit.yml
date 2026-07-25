@@ -1,7 +1,7 @@
 name: D3VONN.IO Backend API Audit
 
-# Diagnostic certification trigger for the current Railway service.
-# Re-certification target: package-relative intelligence imports.
+# Production certification for the canonical Railway backend surface.
+# Re-certification target: authoritative Supabase OCC token validation.
 on:
   workflow_dispatch:
   schedule:
@@ -12,6 +12,7 @@ on:
     paths:
       - '.github/workflows/d3vonn-backend-api-audit.yml'
       - 'backend/railway_app.py'
+      - 'backend/auth/**'
       - 'backend/intelligence/**'
       - 'tests/e2e/backend-production-audit.spec.ts'
 
