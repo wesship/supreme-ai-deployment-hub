@@ -3,5 +3,5 @@
 # because it expands the transitive attack surface and is not required at runtime.
 torch>=2.8.0
 transformers>=5.0.0
-accelerate==0.26.1
+accelerate==1.14.0
 bitsandbytes==0.49.2
