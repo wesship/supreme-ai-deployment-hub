@@ -14,6 +14,7 @@ on:
       - "supabase/migrations/20260725202500_genesis_quality_history.sql"
       - "supabase/migrations/20260725203000_genesis_access_helper_hardening.sql"
       - "supabase/migrations/20260725203500_genesis_policy_performance_hardening.sql"
+      - "supabase/migrations/20260725204000_genesis_atomic_mutation_rpcs.sql"
       - ".github/workflows/genesis-staging-rollout.yml"
   workflow_dispatch:
     inputs:
@@ -103,6 +104,7 @@ jobs:
           cp supabase/migrations/20260725202500_genesis_quality_history.sql "$workdir/supabase/migrations/"
           cp supabase/migrations/20260725203000_genesis_access_helper_hardening.sql "$workdir/supabase/migrations/"
           cp supabase/migrations/20260725203500_genesis_policy_performance_hardening.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725204000_genesis_atomic_mutation_rpcs.sql "$workdir/supabase/migrations/"
           cd "$workdir"
           supabase init --force
           echo "GENESIS_WORKDIR=$workdir" >> "$GITHUB_ENV"
@@ -139,5 +141,5 @@ jobs:
             echo "- Mode: \`${{ inputs.mode || 'apply-on-pull-request' }}\`"
             echo "- Automated credentials available: \`${{ steps.guard.outputs.available || 'false' }}\`"
             echo "- Commit: \`${{ github.sha }}\`"
-            echo "- Migration scope: nine isolated Genesis migrations"
+            echo "- Migration scope: ten isolated Genesis migrations"
           } >> "$GITHUB_STEP_SUMMARY"
