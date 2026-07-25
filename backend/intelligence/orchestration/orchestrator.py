@@ -18,9 +18,9 @@ import httpx
 from pydantic import BaseModel, Field
 
 from backend.app.config import get_settings
-from intelligence.executor.agent_executor import AgentExecutor, AgentResult
-from intelligence.memory.memory import conversation_memory, long_term_memory
-from intelligence.router.router import tool_router
+from ..executor.agent_executor import AgentExecutor, AgentResult
+from ..memory.memory import conversation_memory, long_term_memory
+from ..router.router import tool_router
 
 logger = logging.getLogger(__name__)
 
