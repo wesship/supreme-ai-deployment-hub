@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { AIFilmAsset } from './assetManagerService';
+import type { AIFilmAsset, AIFilmRecordStatus } from './assetManagerService';
 import type { FilmScene } from './canonSceneService';
 
 const requireUser = async () => {
@@ -181,7 +181,7 @@ export const snapshotAssetVersion = async (asset: AIFilmAsset, changeNote: strin
   if (error) throw error;
 };
 
-export const updateAssetStatus = async (asset: AIFilmAsset, status: 'draft' | 'review' | 'approved' | 'canon' | 'archived') => {
+export const updateAssetStatus = async (asset: AIFilmAsset, status: AIFilmRecordStatus) => {
   await snapshotAssetVersion(asset, `Status changed to ${status}`);
   const { error } = await (supabase as any).from('ai_film_assets').update({ status }).eq('id', asset.id);
   if (error) throw error;
