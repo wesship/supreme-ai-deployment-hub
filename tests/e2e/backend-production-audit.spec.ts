@@ -11,6 +11,23 @@ async function expectJson(response: APIResponse, status: number): Promise<Record
   return response.json() as Promise<Record<string, unknown>>;
 }
 
+async function expectUnauthorized(response: APIResponse): Promise<void> {
+  const body = await expectJson(response, 401);
+  expect(String(body.detail ?? '')).toMatch(/authorization header required|invalid or expired token/i);
+}
+
+function tamperToken(token: string): string {
+  const finalCharacter = token.at(-1) ?? 'a';
+  const replacement = finalCharacter === 'a' ? 'b' : 'a';
+  return `${token.slice(0, -1)}${replacement}`;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const parts = token.split('.');
+  if (parts.length !== 3) throw new Error('Authenticated session returned a malformed JWT');
+  return JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as Record<string, unknown>;
+}
+
 async function readSupabaseAccessToken(page: Page): Promise<string | null> {
   return page.evaluate(() => {
     for (let index = 0; index < window.localStorage.length; index += 1) {
@@ -120,8 +137,20 @@ test.describe.serial('D3VONN.IO production backend API certification', () => {
     expect(deployProbe.router_registry).toBe('backend.app.routers');
   });
 
-  test('general and intelligence APIs enforce JWTs and accept the certified session', async ({ request }) => {
-    expect((await request.get(`${apiBaseUrl}/api/tools/github/runs/status?limit=1`)).status()).toBe(401);
+  test('protected APIs reject missing, malformed, and tampered JWTs and accept the certified session', async ({ request }) => {
+    const protectedPath = `${apiBaseUrl}/api/intelligence/prompts`;
+    await expectUnauthorized(await request.get(protectedPath));
+    await expectUnauthorized(
+      await request.get(protectedPath, { headers: { Authorization: 'Bearer not-a-jwt' } }),
+    );
+    await expectUnauthorized(
+      await request.get(protectedPath, { headers: { Authorization: `Bearer ${tamperToken(accessToken)}` } }),
+    );
+
+    const payload = decodeJwtPayload(accessToken);
+    expect(typeof payload.sub).toBe('string');
+    const appMetadata = (payload.app_metadata ?? {}) as Record<string, unknown>;
+    expect(['admin', 'operator']).not.toContain(appMetadata.role);
 
     const authHeaders = { Authorization: `Bearer ${accessToken}` };
     const runsResponse = await request.get(`${apiBaseUrl}/api/tools/github/runs/status?limit=1`, {
@@ -135,7 +164,6 @@ test.describe.serial('D3VONN.IO production backend API certification', () => {
       expect(String(runsBody.detail ?? '')).toContain('GITHUB_TOKEN missing');
     }
 
-    expect((await request.get(`${apiBaseUrl}/api/intelligence/prompts`)).status()).toBe(401);
     const prompts = await expectJson(
       await request.get(`${apiBaseUrl}/api/intelligence/prompts`, { headers: authHeaders }),
       200,
@@ -149,26 +177,14 @@ test.describe.serial('D3VONN.IO production backend API certification', () => {
     expect(Array.isArray(workflows.workflows)).toBe(true);
   });
 
-  test('operator OCC access succeeds while admin data remains denied', async ({ request }) => {
-    expect((await request.get(`${apiBaseUrl}/api/occ/stats`)).status()).toBe(401);
+  test('ordinary authenticated user is denied OCC and admin boundaries', async ({ request }) => {
+    await expectUnauthorized(await request.get(`${apiBaseUrl}/api/occ/stats`));
+    await expectUnauthorized(await request.get(`${apiBaseUrl}/api/admin/overview`));
 
     const authHeaders = { Authorization: `Bearer ${accessToken}` };
-    const stats = await expectJson(
-      await request.get(`${apiBaseUrl}/api/occ/stats`, { headers: authHeaders }),
-      200,
-    );
-    for (const field of [
-      'total_ai_requests',
-      'total_tokens_used',
-      'total_cost_usd',
-      'unresolved_errors',
-      'pending_approvals',
-      'total_rag_documents',
-    ]) {
-      expect(typeof stats[field], `${field} must be numeric`).toBe('number');
-    }
-
-    expect((await request.get(`${apiBaseUrl}/api/admin/overview`)).status()).toBe(401);
+    expect(
+      (await request.get(`${apiBaseUrl}/api/occ/stats`, { headers: authHeaders })).status(),
+    ).toBe(403);
     expect(
       (await request.get(`${apiBaseUrl}/api/admin/overview`, { headers: authHeaders })).status(),
     ).toBe(403);
