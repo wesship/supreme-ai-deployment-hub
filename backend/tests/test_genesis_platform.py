@@ -4,6 +4,14 @@ from pathlib import Path
 
 import pytest
 
+from backend.genesis.permissions import (
+    APPROVAL_DECISION_ROLES,
+    CANON_LOCK_ROLES,
+    EVALUATION_ROLES,
+    PLANNING_ROLES,
+    RENDER_REQUEST_ROLES,
+    TASK_MUTATION_ROLES,
+)
 from backend.genesis.quality import evaluate_project_state
 from backend.genesis.render_gateway import estimate_cost, select_route
 from backend.genesis.router import router
@@ -50,6 +58,20 @@ def test_weighted_progress_counts_only_terminal_success_states() -> None:
     assert progress == 0.4
 
 
+def test_viewer_cannot_perform_governed_mutations() -> None:
+    governed_role_sets = (
+        CANON_LOCK_ROLES,
+        PLANNING_ROLES,
+        TASK_MUTATION_ROLES,
+        RENDER_REQUEST_ROLES,
+        APPROVAL_DECISION_ROLES,
+        EVALUATION_ROLES,
+    )
+    assert all("viewer" not in roles for roles in governed_role_sets)
+    assert "owner" in APPROVAL_DECISION_ROLES
+    assert "executive_producer" in APPROVAL_DECISION_ROLES
+
+
 def test_render_gateway_falls_back_to_manual_route_without_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in ("OPENAI_API_KEY", "GENESIS_VIDEO_API_KEY", "RUNWAY_API_KEY", "ELEVENLABS_API_KEY", "GENESIS_LOCAL_WORKER_URL"):
         monkeypatch.delenv(key, raising=False)
@@ -89,6 +111,36 @@ def test_quality_framework_blocks_incomplete_project() -> None:
     assert result.status == "failed"
     assert any(finding["category"] == "canon" and finding["blocking"] for finding in result.findings)
     assert any(gate["gate_key"] == "workflow_complete" and gate["status"] == "blocked" for gate in result.gates)
+
+
+def test_quality_framework_blocks_failed_terminal_task() -> None:
+    result = evaluate_project_state(
+        counts={
+            "locked_canon": 2,
+            "blocked_tasks": 0,
+            "pending_approvals": 0,
+            "assets": 2,
+            "approved_assets": 2,
+            "open_tasks": 0,
+        },
+        tasks=[
+            {"status": "completed"},
+            {"status": "completed"},
+            {"status": "failed"},
+        ],
+        providers=[{"configured": True, "manual": False}],
+    )
+    assert result.release_ready is False
+    assert result.status == "failed"
+    assert any(
+        finding["category"] == "workflow"
+        and finding["blocking"]
+        and finding["evidence"].get("failed_tasks") == 1
+        for finding in result.findings
+    )
+    workflow_gate = next(gate for gate in result.gates if gate["gate_key"] == "workflow_complete")
+    assert workflow_gate["status"] == "blocked"
+    assert workflow_gate["evidence"]["failed_tasks"] == 1
 
 
 def test_quality_framework_passes_complete_governed_project() -> None:
@@ -152,3 +204,28 @@ def test_quality_migration_contains_evaluation_and_gate_contracts() -> None:
     assert "create table if not exists public.genesis_findings" in sql
     assert "create table if not exists public.genesis_release_gates" in sql
     assert "alter table public.genesis_evaluation_runs enable row level security" in sql
+
+
+def test_atomic_mutation_migration_guards_concurrency_and_audit() -> None:
+    root = Path(__file__).resolve().parents[2]
+    migration = root / "supabase" / "migrations" / "20260725204000_genesis_atomic_mutation_rpcs.sql"
+    sql = migration.read_text(encoding="utf-8")
+    assert "create or replace function public.genesis_transition_task" in sql
+    assert "and status = p_expected_status" in sql
+    assert "create or replace function public.genesis_decide_approval" in sql
+    assert "and status = 'pending'" in sql
+    assert sql.count("perform public.genesis_emit_event") == 2
+    assert "grant execute on function public.genesis_transition_task" in sql
+    assert "grant execute on function public.genesis_decide_approval" in sql
+
+
+def test_services_use_role_checks_and_atomic_repository_commands() -> None:
+    root = Path(__file__).resolve().parents[2]
+    service_source = (root / "backend" / "genesis" / "service.py").read_text(encoding="utf-8")
+    quality_source = (root / "backend" / "genesis" / "quality.py").read_text(encoding="utf-8")
+    repository_source = (root / "backend" / "genesis" / "repository.py").read_text(encoding="utf-8")
+    assert "require_project_role" in service_source
+    assert "transition_task_atomic" in service_source
+    assert "decide_approval_atomic" in service_source
+    assert "EVALUATION_ROLES" in quality_source
+    assert "async def get_project_role" in repository_source
