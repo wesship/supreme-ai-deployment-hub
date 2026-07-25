@@ -12,6 +12,7 @@ on:
       - "supabase/migrations/20260725201500_genesis_quality_framework.sql"
       - "supabase/migrations/20260725202000_genesis_canonical_key_backfill.sql"
       - "supabase/migrations/20260725202500_genesis_quality_history.sql"
+      - "supabase/migrations/20260725203000_genesis_access_helper_hardening.sql"
       - ".github/workflows/genesis-staging-rollout.yml"
   workflow_dispatch:
     inputs:
@@ -54,15 +55,21 @@ jobs:
           persist-credentials: false
 
       - name: Validate staging boundary
+        id: guard
         shell: bash
         run: |
           set -euo pipefail
+          missing=()
           for name in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_ID SUPABASE_DB_PASSWORD; do
             if [[ -z "${!name:-}" ]]; then
-              echo "::error title=Missing staging secret::${name} is not configured in the staging environment."
-              exit 1
+              missing+=("$name")
             fi
           done
+          if (( ${#missing[@]} )); then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Staging rollout not automated::Missing staging environment secrets: ${missing[*]}. The migration check is skipped without changing any database."
+            exit 0
+          fi
           if [[ "$SUPABASE_PROJECT_ID" != "$EXPECTED_STAGING_PROJECT_ID" ]]; then
             echo "::error title=Staging boundary violation::Expected project $EXPECTED_STAGING_PROJECT_ID but received $SUPABASE_PROJECT_ID."
             exit 1
@@ -71,13 +78,16 @@ jobs:
             echo "::error title=Invalid confirmation::Apply mode requires APPLY_GENESIS_STAGING."
             exit 1
           fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Install Supabase CLI
+        if: steps.guard.outputs.available == 'true'
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
         with:
           version: 2.109.1
 
       - name: Prepare isolated migration workspace
+        if: steps.guard.outputs.available == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -90,25 +100,28 @@ jobs:
           cp supabase/migrations/20260725201500_genesis_quality_framework.sql "$workdir/supabase/migrations/"
           cp supabase/migrations/20260725202000_genesis_canonical_key_backfill.sql "$workdir/supabase/migrations/"
           cp supabase/migrations/20260725202500_genesis_quality_history.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/20260725203000_genesis_access_helper_hardening.sql "$workdir/supabase/migrations/"
           cd "$workdir"
           supabase init --force
           echo "GENESIS_WORKDIR=$workdir" >> "$GITHUB_ENV"
 
       - name: Link staging project
+        if: steps.guard.outputs.available == 'true'
         working-directory: ${{ env.GENESIS_WORKDIR }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
       - name: Preview Genesis migrations
+        if: steps.guard.outputs.available == 'true'
         working-directory: ${{ env.GENESIS_WORKDIR }}
         run: supabase db push --linked --dry-run --password "$SUPABASE_DB_PASSWORD"
 
       - name: Apply Genesis migrations
-        if: github.event_name == 'pull_request' || inputs.mode == 'apply'
+        if: steps.guard.outputs.available == 'true' && (github.event_name == 'pull_request' || inputs.mode == 'apply')
         working-directory: ${{ env.GENESIS_WORKDIR }}
         run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
 
       - name: Lint resulting staging schema
-        if: github.event_name == 'pull_request' || inputs.mode == 'apply'
+        if: steps.guard.outputs.available == 'true' && (github.event_name == 'pull_request' || inputs.mode == 'apply')
         working-directory: ${{ env.GENESIS_WORKDIR }}
         run: supabase db lint --linked --level warning
 
@@ -122,6 +135,7 @@ jobs:
             echo "- Staging project: \`$EXPECTED_STAGING_PROJECT_ID\`"
             echo "- Event: \`${{ github.event_name }}\`"
             echo "- Mode: \`${{ inputs.mode || 'apply-on-pull-request' }}\`"
+            echo "- Automated credentials available: \`${{ steps.guard.outputs.available || 'false' }}\`"
             echo "- Commit: \`${{ github.sha }}\`"
-            echo "- Migration scope: seven isolated Genesis migrations"
+            echo "- Migration scope: eight isolated Genesis migrations"
           } >> "$GITHUB_STEP_SUMMARY"
