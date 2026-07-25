@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import type { AIFilmAsset, AIFilmProject } from './assetManagerService';
+import type { AIFilmAsset, AIFilmProject, AIFilmRecordStatus } from './assetManagerService';
 import { fetchScenes, type FilmScene } from './canonSceneService';
 import {
   calculateReleaseBlockers,
@@ -86,13 +86,13 @@ export default function ReleaseControlWorkspace({ project, assets, onAssetsChang
     } finally { setBusy(false); }
   };
 
-  const changeAssetStatus = async (status: 'review' | 'approved' | 'canon' | 'archived') => {
+  const changeAssetStatus = async (status: AIFilmRecordStatus) => {
     if (!selectedAsset) return;
     setBusy(true);
     try {
       await updateAssetStatus(selectedAsset, status);
       await onAssetsChanged();
-      setMessage(`${selectedAsset.title} moved to ${status}.`);
+      setMessage(`${selectedAsset.title} moved to ${status === 'selected' ? 'review' : status}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Asset status could not be updated.');
     } finally { setBusy(false); }
@@ -170,11 +170,11 @@ export default function ReleaseControlWorkspace({ project, assets, onAssetsChang
           <label className="mt-4 block text-sm font-medium">Production asset
             <select className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2" value={selectedAssetId} onChange={(event) => setSelectedAssetId(event.target.value)}>
               <option value="">Select an asset</option>
-              {assets.filter((asset) => !asset.id.startsWith('seed-')).map((asset) => <option key={asset.id} value={asset.id}>{asset.title} · {asset.status}</option>)}
+              {assets.filter((asset) => !asset.id.startsWith('seed-')).map((asset) => <option key={asset.id} value={asset.id}>{asset.title} · {asset.status === 'selected' ? 'review' : asset.status}</option>)}
             </select>
           </label>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled={!selectedAsset || busy} onClick={() => void changeAssetStatus('review')}>Send to Review</Button>
+            <Button type="button" variant="outline" disabled={!selectedAsset || busy} onClick={() => void changeAssetStatus('selected')}>Send to Review</Button>
             <Button type="button" variant="outline" disabled={!selectedAsset || busy} onClick={() => void changeAssetStatus('approved')}>Approve</Button>
             <Button type="button" disabled={!selectedAsset || busy} onClick={() => void changeAssetStatus('canon')}><ShieldCheck className="mr-2 h-4 w-4" />Promote to Canon</Button>
             <Button type="button" variant="secondary" disabled={!selectedAsset || busy} onClick={() => void changeAssetStatus('archived')}>Archive</Button>
