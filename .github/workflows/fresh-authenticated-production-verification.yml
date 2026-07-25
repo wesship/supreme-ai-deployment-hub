@@ -6,13 +6,18 @@ on:
       - ops/authenticated-audit-fresh-verification
     paths:
       - '.github/workflows/fresh-authenticated-production-verification.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/fresh-authenticated-production-verification.yml'
 
 permissions:
   contents: read
   issues: write
 
 concurrency:
-  group: fresh-authenticated-production-verification
+  group: fresh-authenticated-production-verification-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
