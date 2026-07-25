@@ -14,7 +14,7 @@ declare
   v_suffix text;
 begin
   v_suffix := upper(substr(replace(new.owner_id::text, '-', ''), 1, 8));
-  if right(new.canonical_key, length(v_suffix) + 1) <> '.' || v_suffix then
+  if right(new.canonical_key, length(v_suffix) + 1) <> ('.' || v_suffix) then
     new.canonical_key := regexp_replace(new.canonical_key, '[.]+$', '') || '.' || v_suffix;
   end if;
   return new;
