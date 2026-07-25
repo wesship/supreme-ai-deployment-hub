@@ -68,6 +68,46 @@ export interface GenesisProviderHealth {
   capabilities: string[];
 }
 
+export interface GenesisEvaluation {
+  id: string;
+  evaluation_type: string;
+  status: string;
+  scores: Record<string, number>;
+  overall_score: number;
+  release_ready: boolean;
+  summary?: string | null;
+  started_at: string;
+  completed_at?: string | null;
+}
+
+export interface GenesisFinding {
+  id: string;
+  severity: string;
+  category: string;
+  title: string;
+  description?: string | null;
+  remediation?: string | null;
+  blocking: boolean;
+  status: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface GenesisReleaseGate {
+  id?: string;
+  gate_key: string;
+  name: string;
+  category: string;
+  required?: boolean;
+  status: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface GenesisEvaluationResult {
+  evaluation: GenesisEvaluation;
+  findings: GenesisFinding[];
+  gates: GenesisReleaseGate[];
+}
+
 export interface GenesisSnapshot {
   project: GenesisProject;
   counts: GenesisCounts;
@@ -162,6 +202,15 @@ export const genesisApi = {
       body: JSON.stringify({ status }),
     },
   ),
+  runEvaluation: (projectId: string) => request<GenesisEvaluationResult>(
+    `/api/genesis/projects/${projectId}/evaluate`,
+    { method: 'POST' },
+  ),
+  getEvaluations: (projectId: string) => request<{
+    evaluations: GenesisEvaluation[];
+    findings: GenesisFinding[];
+    gates: GenesisReleaseGate[];
+  }>(`/api/genesis/projects/${projectId}/evaluations`),
   decideApproval: (approvalId: string, decision: 'approved' | 'approved_with_conditions' | 'rejected') =>
     request<Record<string, unknown>>(`/api/genesis/approvals/${approvalId}/decide`, {
       method: 'POST',
