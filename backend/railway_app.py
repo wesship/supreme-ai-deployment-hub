@@ -6,10 +6,27 @@ are active behind the Railway service hostname.
 """
 from __future__ import annotations
 
+import os
+
+from fastapi.middleware.cors import CORSMiddleware
+
+from backend.cors_config import build_allowed_origins
 from backend.main import app
 
-DEPLOYMENT_REVISION = "railway-intelligence-mount-2026-07-24"
+DEPLOYMENT_REVISION = "railway-production-cors-2026-07-24"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
+RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
+
+# Railway may provide ALLOWED_ORIGINS for preview or internal clients. Mount an
+# outer production CORS boundary so those values extend—rather than replace—the
+# three official D3VONN.IO browser origins configured in backend.cors_config.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=RAILWAY_ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"],
+)
 
 
 def _paths() -> set[str]:
@@ -45,4 +62,7 @@ async def deployment_info() -> dict[str, object]:
             "admin": "/api/admin/overview" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
+        "official_cors_origins": [
+            origin for origin in RAILWAY_ALLOWED_ORIGINS if origin.endswith("d3vonn.io")
+        ],
     }
