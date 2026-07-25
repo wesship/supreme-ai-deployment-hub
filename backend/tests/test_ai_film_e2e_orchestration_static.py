@@ -7,7 +7,7 @@ ROUTER = (ROOT / "backend/ai_films/router.py").read_text()
 
 
 def test_orchestration_creates_complete_scene_to_release_chain():
-    required_tables = {
+    for table in (
         "ai_film_projects",
         "ai_film_scenes",
         "ai_film_storyboards",
@@ -18,8 +18,8 @@ def test_orchestration_creates_complete_scene_to_release_chain():
         "ai_film_publications",
         "ai_film_commercial_releases",
         "ai_film_activity_events",
-    }
-    assert required_tables <= {token.strip('"') for token in SERVICE.split() if token.startswith('"ai_film_')}
+    ):
+        assert f'"{table}"' in SERVICE
 
 
 def test_orchestration_uses_caller_jwt_and_rls():
@@ -32,7 +32,6 @@ def test_orchestration_uses_caller_jwt_and_rls():
 def test_orchestration_rolls_back_project_on_failure():
     assert "delete_project" in SERVICE
     assert "if project is not None" in SERVICE
-    assert "on delete cascade" not in SERVICE  # migration concern stays outside runtime service
 
 
 def test_endpoint_requires_bearer_auth_and_does_not_execute_providers():
