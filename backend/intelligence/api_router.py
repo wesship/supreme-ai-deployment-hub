@@ -12,12 +12,12 @@ from pydantic import BaseModel
 
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.middleware.rate_limit import rate_limit
-from intelligence.executor.agent_executor import agent_executor
-from intelligence.memory.memory import conversation_memory, long_term_memory
-from intelligence.orchestration.orchestrator import orchestrator
-from intelligence.prompts.engine import prompt_engine
-from intelligence.router.router import tool_router
-from intelligence.workflows.engine import workflow_engine
+from .executor.agent_executor import agent_executor
+from .memory.memory import conversation_memory, long_term_memory
+from .orchestration.orchestrator import orchestrator
+from .prompts.engine import prompt_engine
+from .router.router import tool_router
+from .workflows.engine import workflow_engine
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/intelligence", tags=["intelligence"])
