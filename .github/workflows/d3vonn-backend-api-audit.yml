@@ -1,5 +1,6 @@
 name: D3VONN.IO Backend API Audit
 
+# Final certification trigger after the Railway package-layout correction.
 on:
   workflow_dispatch:
   schedule:
