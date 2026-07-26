@@ -32,6 +32,8 @@ def test_custom_lists_router_enforces_governance_controls():
     assert '"removed_at": "is.null"' in source
     assert '"archived_at": "is.null"' in source
     assert "record_count" in source
+    assert "_active_list_required" in source
+    assert "Archived custom lists cannot change membership" in source
 
 
 def test_custom_lists_router_emits_append_only_audit_actions():
