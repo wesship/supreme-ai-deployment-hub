@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Archive, Edit3, ListFilter, Plus, RefreshCw, Search, ShieldCheck, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
@@ -6,6 +6,7 @@ import {
   type PrimetimeCustomList,
   type PrimetimeRecord,
 } from '@/lib/primetimeRelease1Api';
+import { PrimetimeCustomListMembersDialog } from '@/components/primetime/PrimetimeCustomListMembersDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +57,7 @@ export default function PrimetimeCustomLists() {
   const [error, setError] = useState('');
   const [editor, setEditor] = useState<EditorState>({ open: false, list: null });
   const [archiveCandidate, setArchiveCandidate] = useState<PrimetimeCustomList | null>(null);
+  const [memberList, setMemberList] = useState<PrimetimeCustomList | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [description, setDescription] = useState('');
 
@@ -214,7 +216,7 @@ export default function PrimetimeCustomLists() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="bg-slate-950/60 text-xs uppercase tracking-wide text-slate-400">
                 <tr><th className="px-4 py-3">Display name</th><th className="px-4 py-3">Description</th><th className="px-4 py-3 text-right">Records</th><th className="px-4 py-3">Updated</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr>
               </thead>
@@ -227,7 +229,13 @@ export default function PrimetimeCustomLists() {
                     <td className="px-4 py-3 text-right tabular-nums">{list.record_count.toLocaleString()}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-slate-400">{formattedDate(list.updated_at)}</td>
                     <td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-xs ${list.archived_at ? 'bg-slate-700 text-slate-300' : 'bg-emerald-400/10 text-emerald-300'}`}>{list.archived_at ? 'Archived' : 'Active'}</span></td>
-                    <td className="px-4 py-3"><div className="flex justify-end gap-1"><button onClick={() => openEdit(list)} disabled={Boolean(list.archived_at)} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-blue-300 disabled:opacity-30" aria-label={`Edit ${list.display_name}`}><Edit3 className="h-4 w-4" /></button><button onClick={() => setArchiveCandidate(list)} disabled={Boolean(list.archived_at)} className="rounded-lg p-2 text-slate-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-30" aria-label={`Archive ${list.display_name}`}><Archive className="h-4 w-4" /></button></div></td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => setMemberList(list)} disabled={Boolean(list.archived_at)} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-emerald-300 disabled:opacity-30" aria-label={`Manage members for ${list.display_name}`}><UsersRound className="h-4 w-4" /></button>
+                        <button onClick={() => openEdit(list)} disabled={Boolean(list.archived_at)} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-blue-300 disabled:opacity-30" aria-label={`Edit ${list.display_name}`}><Edit3 className="h-4 w-4" /></button>
+                        <button onClick={() => setArchiveCandidate(list)} disabled={Boolean(list.archived_at)} className="rounded-lg p-2 text-slate-400 hover:bg-red-500/10 hover:text-red-300 disabled:opacity-30" aria-label={`Archive ${list.display_name}`}><Archive className="h-4 w-4" /></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
                 {!loading && filteredLists.length === 0 && <tr><td colSpan={6} className="px-4 py-16 text-center"><p className="font-semibold text-white">No custom lists found</p><p className="mt-1 text-slate-400">Choose a workspace, adjust the search, or create the first governed list.</p></td></tr>}
@@ -247,6 +255,13 @@ export default function PrimetimeCustomLists() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <PrimetimeCustomListMembersDialog
+        workspaceId={workspaceId}
+        list={memberList}
+        onOpenChange={(open) => { if (!open) setMemberList(null); }}
+        onChanged={() => void loadLists()}
+      />
 
       <AlertDialog open={Boolean(archiveCandidate)} onOpenChange={(open) => { if (!open) setArchiveCandidate(null); }}>
         <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Archive custom list?</AlertDialogTitle><AlertDialogDescription>{archiveCandidate ? `“${archiveCandidate.display_name}” will leave active views. Its people records and audit history will remain intact.` : 'The list will leave active views.'}</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => void archiveList()} disabled={saving} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Archive list</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
