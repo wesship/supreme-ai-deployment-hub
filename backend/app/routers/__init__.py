@@ -36,6 +36,13 @@ async def deploy_probe():
 
 
 try:
+    from backend.app.routers.primetime_custom_lists_mount import release1_router as _custom_lists_release1_router
+
+    logger.info("PRIMETIME Custom Lists routes attached to the Release 1 router.")
+except ImportError as exc:
+    logger.warning("PRIMETIME Custom Lists router not registered: %s", exc)
+
+try:
     from backend.app.routers.chat import router as chat_router
 
     proxy_router.include_router(chat_router, tags=["chat"])
