@@ -113,6 +113,13 @@ async def _list_required(list_id: str, workspace_id: str) -> dict[str, Any]:
     return rows[0]
 
 
+async def _active_list_required(list_id: str, workspace_id: str) -> dict[str, Any]:
+    record = await _list_required(list_id, workspace_id)
+    if record.get("archived_at"):
+        raise HTTPException(status_code=409, detail="Archived custom lists cannot change membership")
+    return record
+
+
 async def _person_required(person_id: str, workspace_id: str) -> None:
     safe_person = _validate_uuid(person_id, "person_id")
     rows = await _query(
@@ -233,7 +240,7 @@ async def add_custom_list_member(
 ):
     context = await _membership_required(body.workspace_id, user_id)
     _require_role(context, _WRITE_ROLES)
-    await _list_required(list_id, context["workspace_id"])
+    await _active_list_required(list_id, context["workspace_id"])
     await _person_required(body.person_id, context["workspace_id"])
     record = await _insert(
         "custom_list_members",
@@ -264,7 +271,7 @@ async def remove_custom_list_member(
 ):
     context = await _membership_required(body.workspace_id, user_id)
     _require_role(context, _WRITE_ROLES)
-    await _list_required(list_id, context["workspace_id"])
+    await _active_list_required(list_id, context["workspace_id"])
     removed_at = _now()
     record = await _patch(
         "custom_list_members",
