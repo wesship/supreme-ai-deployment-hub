@@ -33,6 +33,10 @@ concurrency:
 
 env:
   RAILWAY_CLI_VERSION: 5.27.2
+  RAILWAY_PROJECT_ID: 65a00bf6-1a68-414e-bbe9-a30052595a83
+  RAILWAY_ENVIRONMENT: staging
+  RAILWAY_SERVICE: devonn-ai-api
+  GENESIS_STAGING_API_URL: https://devonn-ai-api-staging.up.railway.app
 
 jobs:
   staging:
@@ -42,10 +46,6 @@ jobs:
     environment: staging
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
-      RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
-      RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
-      GENESIS_STAGING_API_URL: ${{ vars.GENESIS_STAGING_API_URL }}
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -58,21 +58,6 @@ jobs:
         run: |
           set -euo pipefail
           requested_mode="${{ inputs.mode || 'readiness' }}"
-          missing=()
-          for name in RAILWAY_TOKEN RAILWAY_PROJECT_ID RAILWAY_ENVIRONMENT_ID RAILWAY_SERVICE_ID GENESIS_STAGING_API_URL; do
-            if [[ -z "${!name:-}" ]]; then
-              missing+=("$name")
-            fi
-          done
-
-          if (( ${#missing[@]} )); then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Railway staging is not connected::Missing staging settings: ${missing[*]}. No deployment was attempted."
-            if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$requested_mode" == "deploy" ]]; then
-              exit 1
-            fi
-            exit 0
-          fi
 
           if [[ ! "$GENESIS_STAGING_API_URL" =~ ^https:// ]]; then
             echo "::error title=Invalid staging URL::GENESIS_STAGING_API_URL must use HTTPS."
@@ -82,42 +67,66 @@ jobs:
             echo "::error title=Production boundary violation::The staging workflow cannot target the production API."
             exit 1
           fi
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$requested_mode" == "deploy" && "${{ inputs.confirmation }}" != "DEPLOY_GENESIS_STAGING" ]]; then
-            echo "::error title=Invalid confirmation::Deploy mode requires DEPLOY_GENESIS_STAGING."
-            exit 1
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$requested_mode" == "deploy" ]]; then
+            if [[ "${{ inputs.confirmation }}" != "DEPLOY_GENESIS_STAGING" ]]; then
+              echo "::error title=Invalid confirmation::Deploy mode requires DEPLOY_GENESIS_STAGING."
+              exit 1
+            fi
+            if [[ -z "${RAILWAY_TOKEN:-}" ]]; then
+              echo "::error title=Railway token missing::Only RAILWAY_TOKEN is required for deploy mode."
+              exit 1
+            fi
           fi
-          echo "available=true" >> "$GITHUB_OUTPUT"
+
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          if [[ -n "${RAILWAY_TOKEN:-}" ]]; then
+            echo "token_available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "token_available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Probe existing Genesis staging health
+        id: probe
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --connect-timeout 5 \
+            --max-time 20 \
+            "${GENESIS_STAGING_API_URL%/}/api/genesis/health" \
+            | python3 -c "import json,sys; payload=json.load(sys.stdin); assert payload.get('status') == 'ok'; assert payload.get('components', {}).get('workflow_runtime') == 'ready'"
 
       - name: Set up Node.js
-        if: steps.guard.outputs.available == 'true'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy' && steps.guard.outputs.token_available == 'true'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
 
       - name: Install pinned Railway CLI
-        if: steps.guard.outputs.available == 'true'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy' && steps.guard.outputs.token_available == 'true'
         run: npm install --global "@railway/cli@${RAILWAY_CLI_VERSION}"
 
-      - name: Link exact staging target
-        if: steps.guard.outputs.available == 'true'
+      - name: Link staging target by stable names
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy' && steps.guard.outputs.token_available == 'true'
         run: |
           railway link \
             --project "$RAILWAY_PROJECT_ID" \
-            --environment "$RAILWAY_ENVIRONMENT_ID" \
-            --service "$RAILWAY_SERVICE_ID"
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$RAILWAY_SERVICE"
           railway status --json > /tmp/railway-staging-status.json
 
       - name: Deploy current branch to Railway staging
-        if: steps.guard.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy'
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy' && steps.guard.outputs.token_available == 'true'
         run: |
           railway up \
             --ci \
             --project "$RAILWAY_PROJECT_ID" \
-            --environment "$RAILWAY_ENVIRONMENT_ID" \
-            --service "$RAILWAY_SERVICE_ID"
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$RAILWAY_SERVICE"
 
-      - name: Verify Genesis staging health
-        if: steps.guard.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy'
+      - name: Verify deployed Genesis staging health
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'deploy' && steps.guard.outputs.token_available == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -144,7 +153,12 @@ jobs:
             echo ""
             echo "- Event: \`${{ github.event_name }}\`"
             echo "- Requested mode: \`${{ inputs.mode || 'readiness' }}\`"
-            echo "- Railway settings available: \`${{ steps.guard.outputs.available || 'false' }}\`"
+            echo "- Railway token available: \`${{ steps.guard.outputs.token_available || 'false' }}\`"
+            echo "- Existing health probe: \`${{ steps.probe.outcome || 'not-run' }}\`"
+            echo "- Project: \`$RAILWAY_PROJECT_ID\`"
+            echo "- Environment: \`$RAILWAY_ENVIRONMENT\`"
+            echo "- Service: \`$RAILWAY_SERVICE\`"
+            echo "- URL: \`$GENESIS_STAGING_API_URL\`"
             echo "- Branch: \`${{ github.head_ref || github.ref_name }}\`"
             echo "- Commit: \`${{ github.sha }}\`"
             echo "- Production targets are explicitly rejected."
