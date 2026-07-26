@@ -100,6 +100,10 @@ PR #580 was synchronized with `main` at commit `5e93073497345a5eb23f409cb2314968
 
 The ten Genesis migrations were resequenced to `20260726000000` through `20260726000900`, after the restored production ledger. The dedicated staging project ledger was reconciled to the same versions without replaying DDL. Genesis must still complete authenticated staging API acceptance before production promotion.
 
+## Railway staging deployment
+
+The persistent Railway `staging` environment is connected to `feat/genesis-platform-foundation`. This documentation commit intentionally triggers the first branch-aligned staging deployment. The blocking `Genesis Backend Staging` workflow must confirm that `/api/genesis/health` returns `workflow_runtime: ready` and `data_model: ready` before authenticated acceptance or merge.
+
 ## Next engineering increment
 
 The next increment should add concrete provider adapters and workers for submission, webhook verification, quarantine ingestion, technical validation, asset-version registration, cost reconciliation, and workflow resumption. The schema and gateway contracts in this foundation are designed for that extension without changing the Creator UI contract.
