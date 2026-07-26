@@ -96,7 +96,9 @@ python -m pytest backend/tests/test_genesis_platform.py -q
 
 ## Main synchronization
 
-PR #580 was synchronized with `main` at commit `5e93073497345a5eb23f409cb2314968c151a53b`. The merged base includes the restored user-plan-log prerequisite and Hermes runtime-ledger migrations, tests, and incident documentation. Genesis remains isolated to its own ten migrations and must still complete staging API acceptance before production promotion.
+PR #580 was synchronized with `main` at commit `5e93073497345a5eb23f409cb2314968c151a53b`. The merged base includes the restored user-plan-log prerequisite and Hermes runtime-ledger migrations, tests, and incident documentation.
+
+The ten Genesis migrations were resequenced to `20260726000000` through `20260726000900`, after the restored production ledger. The dedicated staging project ledger was reconciled to the same versions without replaying DDL. Genesis must still complete authenticated staging API acceptance before production promotion.
 
 ## Next engineering increment
 
