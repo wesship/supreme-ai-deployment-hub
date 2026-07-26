@@ -1,7 +1,9 @@
 """Genesis production operating system API routes."""
 from __future__ import annotations
 
+import hashlib
 from typing import Annotated, Any
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -45,6 +47,23 @@ async def genesis_health() -> dict[str, Any]:
             "quality_framework": "ready",
             "creator_api": "ready",
         },
+    }
+
+
+@router.get("/runtime-config")
+async def genesis_runtime_config() -> dict[str, Any]:
+    """Temporary non-secret fingerprint used to verify staging environment binding."""
+    key = service.repo.service_key
+    hostname = urlparse(service.repo.base_url).hostname or ""
+    project_ref = hostname.split(".", 1)[0] if hostname else None
+    key_kind = "opaque" if key.startswith("sb_") else "legacy_jwt" if key.startswith("eyJ") else "unknown"
+    fingerprint = hashlib.sha256(key.encode("utf-8")).hexdigest()[:12] if key else None
+    return {
+        "status": "diagnostic",
+        "marker": "genesis-key-diagnostic-v1",
+        "supabase_project_ref": project_ref,
+        "service_key_kind": key_kind,
+        "service_key_fingerprint": fingerprint,
     }
 
 
