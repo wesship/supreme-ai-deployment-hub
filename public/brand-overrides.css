@@ -1,5 +1,6 @@
-/* D3VONN.IO official uploaded logo — preserve the original artwork exactly. */
-img[src^="/d3vonn-logo.webp"] {
+/* D3VONN.IO official uploaded logo — preserve the approved artwork exactly. */
+img[src^="/d3vonn-logo.webp"],
+img[src^="/d3vonn-main-logo.svg"] {
   display: block;
   max-width: 100%;
   object-fit: contain;
@@ -8,23 +9,29 @@ img[src^="/d3vonn-logo.webp"] {
   filter: drop-shadow(0 0 22px rgba(37, 126, 255, 0.38));
 }
 
-/* Core 01 uses the approved helmet artwork as a full-bleed cover image. */
+/* Use the main D3VONN.IO logo inside the Command Interface and show the full image. */
 img[alt="D3VONN.IO D3 Core"] {
-  content: url('/core-01-helmet.svg?v=20260719-core01');
+  content: url('/d3vonn-main-logo.svg?v=20260726-command-interface');
   position: absolute !important;
   inset: 0 !important;
   z-index: 10;
   width: 100% !important;
   height: 100% !important;
-  max-width: none !important;
-  padding: 0 !important;
+  max-width: 100% !important;
+  padding: 12px !important;
   border-radius: inherit;
-  object-fit: cover !important;
-  object-position: center 38% !important;
+  object-fit: contain !important;
+  object-position: center !important;
   filter: saturate(1.08) contrast(1.04) drop-shadow(0 0 32px rgba(62, 155, 255, 0.48));
 }
 
-/* Keep status controls readable above the full-bleed Core 01 image. */
+/* Convert the former portrait artwork slot into a landscape logo surface. */
+div:has(> img[alt="D3VONN.IO D3 Core"]) {
+  min-height: 0 !important;
+  aspect-ratio: 900 / 492;
+}
+
+/* Keep status controls readable above the full logo image. */
 img[alt="D3VONN.IO D3 Core"] ~ span {
   z-index: 20;
   backdrop-filter: blur(12px);
