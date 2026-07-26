@@ -30,11 +30,17 @@ class GenesisRepository:
     @property
     def _headers(self) -> dict[str, str]:
         self._ensure_configured()
-        return {
+        headers = {
             "apikey": self.service_key,
-            "Authorization": f"Bearer {self.service_key}",
             "Content-Type": "application/json",
         }
+        # Modern Supabase secret keys are opaque values, not JWTs. Sending an
+        # sb_secret_* key as Bearer makes the platform parse it as a JWT and reject
+        # the request. Legacy service_role keys remain JWTs and still require the
+        # Authorization header for direct PostgREST calls.
+        if not self.service_key.startswith("sb_"):
+            headers["Authorization"] = f"Bearer {self.service_key}"
+        return headers
 
     async def _request(
         self,
