@@ -180,7 +180,7 @@ def test_genesis_router_exposes_vertical_slice() -> None:
 
 def test_migration_contains_security_and_durability_contracts() -> None:
     root = Path(__file__).resolve().parents[2]
-    migration = root / "supabase" / "migrations" / "20260725193000_genesis_platform_foundation.sql"
+    migration = root / "supabase" / "migrations" / "20260726000000_genesis_platform_foundation.sql"
     sql = migration.read_text(encoding="utf-8")
     required_fragments = (
         "create table if not exists public.genesis_projects",
@@ -198,7 +198,7 @@ def test_migration_contains_security_and_durability_contracts() -> None:
 
 def test_quality_migration_contains_evaluation_and_gate_contracts() -> None:
     root = Path(__file__).resolve().parents[2]
-    migration = root / "supabase" / "migrations" / "20260725201500_genesis_quality_framework.sql"
+    migration = root / "supabase" / "migrations" / "20260726000400_genesis_quality_framework.sql"
     sql = migration.read_text(encoding="utf-8")
     assert "create table if not exists public.genesis_evaluation_runs" in sql
     assert "create table if not exists public.genesis_findings" in sql
@@ -208,7 +208,7 @@ def test_quality_migration_contains_evaluation_and_gate_contracts() -> None:
 
 def test_atomic_mutation_migration_guards_concurrency_and_audit() -> None:
     root = Path(__file__).resolve().parents[2]
-    migration = root / "supabase" / "migrations" / "20260725204000_genesis_atomic_mutation_rpcs.sql"
+    migration = root / "supabase" / "migrations" / "20260726000900_genesis_atomic_mutation_rpcs.sql"
     sql = migration.read_text(encoding="utf-8")
     assert "create or replace function public.genesis_transition_task" in sql
     assert "and status = p_expected_status" in sql
