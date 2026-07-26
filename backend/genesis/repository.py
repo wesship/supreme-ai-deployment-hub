@@ -17,8 +17,8 @@ from fastapi import HTTPException, status
 
 class GenesisRepository:
     def __init__(self) -> None:
-        self.base_url = os.getenv("SUPABASE_URL", "").rstrip("/")
-        self.service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        self.base_url = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+        self.service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
 
     def _ensure_configured(self) -> None:
         if not self.base_url or not self.service_key:
