@@ -18,7 +18,7 @@ This implementation turns the Genesis architecture into a working D3VONN.IO vert
 ## Rollout order
 
 1. Merge the pull request after required checks pass.
-2. Apply `supabase/migrations/20260725193000_genesis_platform_foundation.sql` to staging.
+2. Apply `supabase/migrations/20260726000000_genesis_platform_foundation.sql` to staging.
 3. Verify the migration with a signed-in test user.
 4. Deploy the backend so `/api/genesis/health` is available.
 5. Deploy the frontend and sign in before opening `/genesis`.
