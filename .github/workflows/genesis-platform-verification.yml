@@ -70,4 +70,15 @@ jobs:
         run: python -m compileall -q backend/genesis
 
       - name: Run Genesis tests
-        run: python -m pytest backend/tests/test_genesis_platform.py -q
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest backend/tests/test_genesis_platform.py -vv --tb=long 2>&1 | tee genesis-test.log
+
+      - name: Upload Genesis test diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: genesis-test-diagnostics
+          path: genesis-test.log
+          retention-days: 7
