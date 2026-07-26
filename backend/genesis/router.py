@@ -28,11 +28,18 @@ Principal = Annotated[GenesisPrincipal, Depends(require_genesis_user)]
 
 @router.get("/health")
 async def genesis_health() -> dict[str, Any]:
+    # A successful table read proves both persistence credentials and the Genesis schema.
+    # Production does not receive these migrations until the separate promotion change.
+    await service.repo._request(
+        "GET",
+        "genesis_projects",
+        params={"select": "id", "limit": "1"},
+    )
     return {
         "status": "ok",
         "version": "1.0.0",
         "components": {
-            "data_model": "migration_ready",
+            "data_model": "ready",
             "workflow_runtime": "ready",
             "render_gateway": "adapter_ready",
             "quality_framework": "ready",
