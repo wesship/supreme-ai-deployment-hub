@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const DEVONN_SUPABASE_URL = 'https://tjygexesognbkwualywq.supabase.co';
+const GENESIS_STAGING_SUPABASE_URL = 'https://ypomzwhtaamxdmcwtpyf.supabase.co';
+const GENESIS_STAGING_PUBLISHABLE_KEY = 'sb_publishable_XuVi1TS5dJgG6lbTWTUMNQ_qXrnRmc5';
+
+const hostname = typeof window === 'undefined' ? '' : window.location.hostname;
+const isVercelPreview = hostname.endsWith('.vercel.app') && hostname.startsWith('supreme-ai-deployment-');
 
 const normalizeSupabaseUrl = (value: string | undefined) => {
   if (!value) return DEVONN_SUPABASE_URL;
@@ -20,9 +25,12 @@ const normalizeSupabaseUrl = (value: string | undefined) => {
   return withProtocol;
 };
 
-const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = isVercelPreview
+  ? GENESIS_STAGING_SUPABASE_URL
+  : normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
+const SUPABASE_PUBLISHABLE_KEY = isVercelPreview
+  ? GENESIS_STAGING_PUBLISHABLE_KEY
+  : import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
