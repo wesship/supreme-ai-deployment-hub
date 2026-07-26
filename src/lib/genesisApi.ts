@@ -1,6 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'https://api.d3vonn.io').replace(/\/$/, '');
+const hostname = typeof window === 'undefined' ? '' : window.location.hostname;
+const isVercelPreview = hostname.endsWith('.vercel.app') && hostname.startsWith('supreme-ai-deployment-');
+const API_URL = (
+  isVercelPreview
+    ? 'https://devonn-ai-api-staging.up.railway.app'
+    : import.meta.env.VITE_API_URL || 'https://api.d3vonn.io'
+).replace(/\/$/, '');
 
 export interface GenesisProject {
   id: string;
