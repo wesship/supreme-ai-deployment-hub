@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -81,7 +81,9 @@ describe('PRIMETIME governed Custom Lists', () => {
     renderPage();
     expect(await screen.findByRole('heading', { name: /governed custom lists/i })).toBeInTheDocument();
     expect(await screen.findByText('Annual Review Queue')).toBeInTheDocument();
-    expect(screen.getByText('7')).toBeInTheDocument();
+    const listRow = screen.getByText('Annual Review Queue').closest('tr');
+    expect(listRow).not.toBeNull();
+    expect(within(listRow as HTMLElement).getByText('7')).toBeInTheDocument();
     expect(api.listCustomLists).toHaveBeenCalledWith(workspaceId, false);
   });
 
