@@ -19,6 +19,30 @@ export interface PrimetimeDashboard {
   };
 }
 
+export interface PrimetimeCustomList {
+  id: string;
+  workspace_id: string;
+  display_name: string;
+  description: string;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+  record_count: number;
+}
+
+export interface PrimetimeCustomListMember {
+  id: string;
+  workspace_id: string;
+  custom_list_id: string;
+  person_id: string;
+  added_by: string;
+  added_at: string;
+  removed_by: string | null;
+  removed_at: string | null;
+}
+
 async function getAuthHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
@@ -52,7 +76,7 @@ function patch<T>(path: string, payload: PrimetimePayload): Promise<T> {
   });
 }
 
-function query(params: Record<string, string | number | undefined | null>): string {
+function query(params: Record<string, string | number | boolean | undefined | null>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && String(value).length > 0) {
@@ -83,6 +107,21 @@ export const primetimeRelease1Api = {
   createActivity: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/activities', payload),
   recordConsent: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/consent-records', payload),
   createSuppressionRecord: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/suppression-records', payload),
+
+  listCustomLists: (workspaceId: string, includeArchived = false) =>
+    primetimeFetch<PrimetimeCustomList[]>(`/primetime/v1/custom-lists?${query({ workspace_id: workspaceId, include_archived: includeArchived })}`),
+  createCustomList: (payload: { workspace_id: string; display_name: string; description?: string }) =>
+    post<PrimetimeCustomList>('/primetime/v1/custom-lists', payload),
+  updateCustomList: (listId: string, payload: { workspace_id: string; display_name?: string; description?: string }) =>
+    patch<PrimetimeCustomList>(`/primetime/v1/custom-lists/${listId}`, payload),
+  archiveCustomList: (listId: string, workspaceId: string) =>
+    patch<PrimetimeCustomList>(`/primetime/v1/custom-lists/${listId}/archive`, { workspace_id: workspaceId }),
+  listCustomListMembers: (listId: string, workspaceId: string) =>
+    primetimeFetch<PrimetimeCustomListMember[]>(`/primetime/v1/custom-lists/${listId}/members?${query({ workspace_id: workspaceId })}`),
+  addCustomListMember: (listId: string, payload: { workspace_id: string; person_id: string }) =>
+    post<PrimetimeCustomListMember>(`/primetime/v1/custom-lists/${listId}/members`, payload),
+  removeCustomListMember: (listId: string, personId: string, workspaceId: string) =>
+    patch<PrimetimeCustomListMember>(`/primetime/v1/custom-lists/${listId}/members/${personId}/remove`, { workspace_id: workspaceId }),
 
   listAppointments: (workspaceId: string, status?: string) =>
     primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/appointments?${query({ workspace_id: workspaceId, status })}`),
