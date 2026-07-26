@@ -94,6 +94,10 @@ python -m pytest backend/tests/test_genesis_platform.py -q
 7. Approval updates the render request to `queued` or `rejected`.
 8. Every consequential action emits a domain event and outbox record.
 
+## Main synchronization
+
+PR #580 was synchronized with `main` at commit `5e93073497345a5eb23f409cb2314968c151a53b`. The merged base includes the restored user-plan-log prerequisite and Hermes runtime-ledger migrations, tests, and incident documentation. Genesis remains isolated to its own ten migrations and must still complete staging API acceptance before production promotion.
+
 ## Next engineering increment
 
 The next increment should add concrete provider adapters and workers for submission, webhook verification, quarantine ingestion, technical validation, asset-version registration, cost reconciliation, and workflow resumption. The schema and gateway contracts in this foundation are designed for that extension without changing the Creator UI contract.
