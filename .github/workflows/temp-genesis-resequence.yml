@@ -1,0 +1,88 @@
+name: Temporary Genesis Migration Resequence
+
+on:
+  push:
+    branches:
+      - feat/genesis-platform-foundation
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-genesis-migration-resequence
+  cancel-in-progress: false
+
+jobs:
+  resequence:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out Genesis branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: feat/genesis-platform-foundation
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Resequence Genesis migrations after restore ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          declare -A renames=(
+            [20260725193000_genesis_platform_foundation.sql]=20260726000000_genesis_platform_foundation.sql
+            [20260725194500_genesis_workflow_sync_hardening.sql]=20260726000100_genesis_workflow_sync_hardening.sql
+            [20260725195500_genesis_internal_table_security.sql]=20260726000200_genesis_internal_table_security.sql
+            [20260725200000_genesis_api_only_mutations.sql]=20260726000300_genesis_api_only_mutations.sql
+            [20260725201500_genesis_quality_framework.sql]=20260726000400_genesis_quality_framework.sql
+            [20260725202000_genesis_canonical_key_backfill.sql]=20260726000500_genesis_canonical_key_backfill.sql
+            [20260725202500_genesis_quality_history.sql]=20260726000600_genesis_quality_history.sql
+            [20260725203000_genesis_access_helper_hardening.sql]=20260726000700_genesis_access_helper_hardening.sql
+            [20260725203500_genesis_policy_performance_hardening.sql]=20260726000800_genesis_policy_performance_hardening.sql
+            [20260725204000_genesis_atomic_mutation_rpcs.sql]=20260726000900_genesis_atomic_mutation_rpcs.sql
+          )
+
+          for old in "${!renames[@]}"; do
+            new="${renames[$old]}"
+            git mv "supabase/migrations/$old" "supabase/migrations/$new"
+          done
+
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              "20260725193000_genesis_platform_foundation.sql": "20260726000000_genesis_platform_foundation.sql",
+              "20260725194500_genesis_workflow_sync_hardening.sql": "20260726000100_genesis_workflow_sync_hardening.sql",
+              "20260725195500_genesis_internal_table_security.sql": "20260726000200_genesis_internal_table_security.sql",
+              "20260725200000_genesis_api_only_mutations.sql": "20260726000300_genesis_api_only_mutations.sql",
+              "20260725201500_genesis_quality_framework.sql": "20260726000400_genesis_quality_framework.sql",
+              "20260725202000_genesis_canonical_key_backfill.sql": "20260726000500_genesis_canonical_key_backfill.sql",
+              "20260725202500_genesis_quality_history.sql": "20260726000600_genesis_quality_history.sql",
+              "20260725203000_genesis_access_helper_hardening.sql": "20260726000700_genesis_access_helper_hardening.sql",
+              "20260725203500_genesis_policy_performance_hardening.sql": "20260726000800_genesis_policy_performance_hardening.sql",
+              "20260725204000_genesis_atomic_mutation_rpcs.sql": "20260726000900_genesis_atomic_mutation_rpcs.sql",
+          }
+
+          for filename in [
+              ".github/workflows/genesis-staging-rollout.yml",
+              "docs/genesis/IMPLEMENTATION.md",
+          ]:
+              path = Path(filename)
+              text = path.read_text()
+              for old, new in replacements.items():
+                  text = text.replace(old, new)
+              path.write_text(text)
+          PY
+
+          if grep -R "20260725\(193000\|194500\|195500\|200000\|201500\|202000\|202500\|203000\|203500\|204000\)_genesis" \
+            .github docs backend src supabase --exclude-dir=node_modules; then
+            echo "Old Genesis migration reference remains" >&2
+            exit 1
+          fi
+
+          git rm .github/workflows/temp-genesis-resequence.yml
+          git add -A
+          git commit -m "chore(genesis): resequence migrations after restore ledger"
+          git push origin HEAD:refs/heads/feat/genesis-platform-foundation
