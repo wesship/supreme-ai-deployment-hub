@@ -53,6 +53,11 @@ export default defineConfig(({ mode }) => {
     // Add support for importing .tf files as raw text
     assetsInclude: ["**/*.tf"],
     build: {
+      // Several legacy manifest source files use ESM syntax with a .cjs suffix.
+      // Let Rollup transform those mixed modules instead of parsing them as pure CJS.
+      commonjsOptions: {
+        transformMixedEsModules: true,
+      },
       // Target modern browsers for smaller output
       target: "es2020",
       // Enable CSS code splitting
