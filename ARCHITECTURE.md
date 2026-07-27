@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-27 03:04 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-27 11:19 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 132  
+**Total Workflows:** 133  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-27 03:04 UTC
+**Last Updated:** 2026-07-27 11:19 UTC
 
 ## Workflow Capability Catalog
 
@@ -116,6 +116,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Kubernetes Admission Enforcement (Kyverno) | `kyverno-admission.yml` |  | 1 |
 | SBOM & Supply Chain Security | `sbom.yml` |  | 4 |
 | SLA Reporting & Compliance Certificates | `sla-reporting.yml` |  | 1 |
+| Secret Governance Audit | `secret-governance.yml` |  | 2 |
 | Secret Scanning (Gitleaks) | `secret-scanning.yml` |  | 2 |
 | Security Hardening | `security-hardening.yml` |  | 4 |
 | Validate Required Secrets | `validate-secrets.yml` |  | 1 |
