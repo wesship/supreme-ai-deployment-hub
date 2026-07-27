@@ -9,6 +9,7 @@ const outputArg = process.argv.find((arg) => arg.startsWith('--output='));
 const catalogPath = path.resolve(root, catalogArg?.split('=', 2)[1] || 'config/secret-inventory.json');
 const outputPath = outputArg ? path.resolve(root, outputArg.split('=', 2)[1]) : null;
 const strict = args.has('--strict');
+const syncSupabase = args.has('--sync-supabase');
 
 const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
 const records = Array.isArray(catalog.records) ? catalog.records : [];
@@ -106,11 +107,65 @@ if (outputPath) {
   fs.writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`);
 }
 
+async function syncReferenceMetadata() {
+  const supabaseUrl = process.env.SUPABASE_URL?.trim() || process.env.VITE_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('WARN Supabase metadata sync skipped because SUPABASE_URL/VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is unavailable.');
+    return { attempted: false, updated: 0, failed: 0 };
+  }
+
+  let updated = 0;
+  let failed = 0;
+  const scannedAt = report.generated_at;
+
+  for (const record of reportRecords) {
+    const endpoint = new URL('/rest/v1/secret_inventory', supabaseUrl);
+    endpoint.searchParams.set('name', `eq.${record.name}`);
+    endpoint.searchParams.set('platform', `eq.${record.platform}`);
+    endpoint.searchParams.set('environment', `eq.${record.environment}`);
+
+    const response = await fetch(endpoint, {
+      method: 'PATCH',
+      headers: {
+        apikey: serviceRoleKey,
+        authorization: `Bearer ${serviceRoleKey}`,
+        'content-type': 'application/json',
+        prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        reference_count: record.reference_count,
+        reference_files: record.reference_files,
+        last_reference_scan_at: scannedAt,
+      }),
+    });
+
+    if (response.ok) {
+      updated += 1;
+      continue;
+    }
+
+    failed += 1;
+    const responseText = await response.text();
+    console.error(`ERROR Failed to sync ${record.name}: HTTP ${response.status} ${responseText.slice(0, 300)}`);
+  }
+
+  return { attempted: true, updated, failed };
+}
+
 console.log(`Secret inventory audit: ${records.length} records, ${files.length} files scanned`);
 console.log(`Policy violations: ${violations.length}`);
 console.log(`Potentially unused records: ${warnings.length}`);
 for (const violation of violations) console.error(`ERROR ${violation}`);
 for (const warning of warnings) console.warn(`WARN ${warning}`);
+
+let syncResult = { attempted: false, updated: 0, failed: 0 };
+if (syncSupabase) {
+  syncResult = await syncReferenceMetadata();
+  console.log(`Supabase metadata sync: ${syncResult.attempted ? `${syncResult.updated} updated, ${syncResult.failed} failed` : 'skipped'}`);
+}
+
 console.log('No secret values were read or printed.');
 
-if (strict && violations.length > 0) process.exit(1);
+if ((strict && violations.length > 0) || syncResult.failed > 0) process.exit(1);
