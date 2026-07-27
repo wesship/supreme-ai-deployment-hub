@@ -1,10 +1,11 @@
 -- D3VONN Secrets Vault
 -- Metadata-only secrets governance. This schema never stores credential values.
+-- Initial launch is admin-only; delegated reader roles require a separate reviewed migration.
 
 CREATE TABLE IF NOT EXISTS public.user_roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'operator', 'viewer', 'user')),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'user')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (user_id, role)
 );
@@ -70,12 +71,13 @@ ALTER TABLE public.secret_inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.secret_inventory_audit ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Secrets vault readers can view inventory" ON public.secret_inventory;
-CREATE POLICY "Secrets vault readers can view inventory"
+DROP POLICY IF EXISTS "Secrets vault admins can view inventory" ON public.secret_inventory;
+CREATE POLICY "Secrets vault admins can view inventory"
     ON public.secret_inventory FOR SELECT
     USING (
         EXISTS (
             SELECT 1 FROM public.user_roles ur
-            WHERE ur.user_id = auth.uid() AND ur.role IN ('admin', 'operator')
+            WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
         )
     );
 
@@ -116,12 +118,13 @@ CREATE POLICY "Secrets vault admins can delete inventory"
     );
 
 DROP POLICY IF EXISTS "Secrets vault readers can view audit" ON public.secret_inventory_audit;
-CREATE POLICY "Secrets vault readers can view audit"
+DROP POLICY IF EXISTS "Secrets vault admins can view audit" ON public.secret_inventory_audit;
+CREATE POLICY "Secrets vault admins can view audit"
     ON public.secret_inventory_audit FOR SELECT
     USING (
         EXISTS (
             SELECT 1 FROM public.user_roles ur
-            WHERE ur.user_id = auth.uid() AND ur.role IN ('admin', 'operator')
+            WHERE ur.user_id = auth.uid() AND ur.role = 'admin'
         )
     );
 
