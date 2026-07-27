@@ -1,0 +1,18 @@
+-- Expand the D3VONN Secrets Vault catalog with active aliases and CI credentials.
+-- Metadata only. No credential values are stored.
+
+INSERT INTO public.secret_inventory
+(name, platform, environment, sensitivity, owner, purpose, used_by, expected_storage_locations, source_of_truth, rotation_interval_days, notes)
+VALUES
+('SUPABASE_PROJECT_ID', 'Supabase', 'ci', 'internal', 'D3VONN.IO Platform Owner', 'Supabase project identifier used by deployment workflows', ARRAY['GitHub Actions'], ARRAY['GitHub production environment'], 'Supabase project settings', NULL, 'Reconcile with SUPABASE_PROJECT_REF and retire one alias only after all workflows are updated.'),
+('SUPABASE_URL', 'Supabase', 'production', 'public', 'D3VONN.IO Platform Owner', 'Server-side Supabase API URL', ARRAY['Backend','Automation'], ARRAY['Railway backend','Hostinger VPS','GitHub production environment'], 'Supabase project settings', NULL, 'Public endpoint configuration, not a credential.'),
+('SUPABASE_ANON_KEY', 'Supabase', 'production', 'public', 'D3VONN.IO Platform Owner', 'Legacy server-side low-privilege Supabase client key', ARRAY['Backend'], ARRAY['Railway backend','Hostinger VPS'], 'Supabase API settings', 365, 'Prefer a modern publishable key where supported.'),
+('VITE_SUPABASE_ANON_KEY', 'Supabase', 'all', 'public', 'D3VONN.IO Platform Owner', 'Legacy browser-safe Supabase client key', ARRAY['Frontend','Legacy client'], ARRAY['Vercel production','Vercel preview','Local development'], 'Supabase API settings', 365, 'Retain only while the frontend fallback remains in use.'),
+('VITE_API_URL', 'D3VONN.IO', 'all', 'public', 'D3VONN.IO Platform Owner', 'Browser-visible backend API base URL', ARRAY['Frontend'], ARRAY['Vercel production','Vercel preview','Local development'], 'D3VONN.IO deployment configuration', NULL, 'Public endpoint configuration.'),
+('VITE_SENTRY_DSN', 'Sentry', 'all', 'public', 'D3VONN.IO Platform Owner', 'Browser-visible Sentry telemetry destination', ARRAY['Frontend'], ARRAY['Vercel production','Vercel preview'], 'Sentry project settings', 365, 'Public identifier; scope by environment.'),
+('CODECOV_TOKEN', 'Codecov', 'ci', 'critical', 'D3VONN.IO Platform Owner', 'Authenticated coverage uploads', ARRAY['GitHub Actions'], ARRAY['GitHub repository or environment secrets'], 'Codecov repository settings', 90, 'Remove if tokenless uploads or OIDC fully replace it.'),
+('SNYK_TOKEN', 'Snyk', 'ci', 'critical', 'D3VONN.IO Platform Owner', 'Authenticated dependency and code scanning', ARRAY['GitHub Actions','Security scanning'], ARRAY['GitHub repository or environment secrets'], 'Snyk service account settings', 90, NULL),
+('GH_PAT', 'GitHub', 'ci', 'critical', 'D3VONN.IO Platform Owner', 'Legacy GitHub personal access token alias', ARRAY['GitHub Actions','Legacy automation'], ARRAY['GitHub environment secrets'], 'GitHub personal access tokens', 90, 'Consolidate with GITHUB_PAT only after repository reference and workflow validation.'),
+('E2E_TEST_EMAIL', 'D3VONN.IO', 'ci', 'internal', 'D3VONN.IO Platform Owner', 'Dedicated authenticated production-audit account identifier', ARRAY['Authenticated production audit'], ARRAY['GitHub production environment'], 'Supabase Authentication test account', NULL, 'Do not use a personal administrator account.'),
+('E2E_TEST_PASSWORD', 'D3VONN.IO', 'ci', 'critical', 'D3VONN.IO Platform Owner', 'Dedicated authenticated production-audit account password', ARRAY['Authenticated production audit'], ARRAY['GitHub production environment'], 'Supabase Authentication test account', 90, 'Rotate after suspected exposure or test-account access changes.')
+ON CONFLICT (name, platform, environment) DO NOTHING;
