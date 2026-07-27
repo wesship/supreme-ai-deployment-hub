@@ -15,12 +15,11 @@ The D3VONN Secrets Vault is a metadata-only governance system. It records secret
 
 ## Access model
 
-- `admin`: read and modify metadata
-- `operator`: read metadata and audit history
-- everyone else: no access
-- Supabase service role: emergency and automation access only
+- `admin`: read and modify metadata and review audit history
+- everyone else: no vault access
+- Supabase service role: emergency and approved automation access only
 
-The UI is protected by the existing `AdminRoute`; the database independently enforces row-level security.
+The initial release is intentionally admin-only because D3VONN.IO currently has one administrator. The UI is protected by the existing `AdminRoute`; the database independently enforces row-level security. Any future delegated read-only role requires a separate reviewed role migration, route guard, and regression tests.
 
 ## Initial verification procedure
 
