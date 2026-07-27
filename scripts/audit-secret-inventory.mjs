@@ -16,7 +16,13 @@ const records = Array.isArray(catalog.records) ? catalog.records : [];
 const allowedFields = new Set(['name', 'platform', 'environment', 'sensitivity', 'used_by', 'rotation_days']);
 const allowedSensitivity = new Set(['public', 'internal', 'critical']);
 const ignoredDirectories = new Set(['.git', 'node_modules', 'dist', 'coverage', '.next', '.vercel', 'artifacts']);
-const ignoredPrefixes = ['docs/', 'config/secret-inventory.json', 'supabase/migrations/20260727090000_d3vonn_secrets_vault.sql'];
+const ignoredPrefixes = [
+  'docs/',
+  'config/secret-inventory.json',
+  'config/required-secrets.json',
+  'supabase/migrations/20260727090000_d3vonn_secrets_vault.sql',
+  'supabase/migrations/20260727100000_d3vonn_secrets_vault_catalog_expansion.sql',
+];
 const scannedExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.py', '.sh', '.yml', '.yaml', '.json', '.toml', '.tf', '.sql', '.mdx']);
 
 const violations = [];
@@ -85,7 +91,7 @@ const reportRecords = records.map((record) => {
     references.push(file.rel);
   }
 
-  if (count === 0) warnings.push(`${record.name} has no repository references`);
+  if (count === 0) warnings.push(`${record.name} has no non-declarative repository references`);
   return { ...record, reference_count: count, reference_files: references.sort() };
 });
 
