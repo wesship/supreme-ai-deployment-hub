@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-28 14:59 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-28 15:11 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 133  
+**Total Workflows:** 134  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-28 14:59 UTC
+**Last Updated:** 2026-07-28 15:11 UTC
 
 ## Workflow Capability Catalog
 
@@ -33,6 +33,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Code Quality Gates | `code-quality-gates.yml` |  | 1 |
 | CodeQL SAST | `codeql.yml` |  | 1 |
 | Commit Lint | `commitlint.yml` |  | 1 |
+| Contact Production Canary | `contact-production-canary.yml` |  | 1 |
 | Cost Optimization | `cost-optimization.yml` |  | 2 |
 | Coverage Enforcement | `coverage-enforcement.yml` |  | 1 |
 | Create Devonn Project Board | `create-project-board.yml` |  | 1 |
