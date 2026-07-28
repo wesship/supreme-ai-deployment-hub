@@ -1,0 +1,65 @@
+name: D3VONN.IO Production Performance Certification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 10 * * 2'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/d3vonn-production-performance.yml'
+      - 'lighthouse-config.json'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d3vonn-production-performance
+  cancel-in-progress: true
+
+jobs:
+  lighthouse-production:
+    name: Lighthouse Production Baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Build production Lighthouse config
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('lighthouse-config.json', 'utf8'));
+          config.ci.collect.url = [
+            'https://d3vonn.io/',
+            'https://d3vonn.io/film'
+          ];
+          config.ci.collect.numberOfRuns = 3;
+          config.ci.upload = { target: 'filesystem', outputDir: '.lighthouseci' };
+          fs.writeFileSync('lighthouse-production-config.json', JSON.stringify(config, null, 2));
+          NODE
+
+      - name: Run Lighthouse production certification
+        env:
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+        run: npx --yes @lhci/cli@0.14.0 autorun --config=lighthouse-production-config.json
+
+      - name: Upload Lighthouse evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d3vonn-production-lighthouse-${{ github.sha }}
+          path: |
+            .lighthouseci/
+            lighthouse-production-config.json
+          if-no-files-found: warn
+          retention-days: 30
