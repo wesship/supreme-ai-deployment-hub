@@ -20,15 +20,7 @@
  * Those must stay server-side only.
  */
 
-// Temporary production override while Issue #540 tracks the permanent
-// api.d3vonn.io DNS and Railway custom-domain correction.
-const TEMPORARY_PRODUCTION_API_URL = 'https://devonn-ai-api-production.up.railway.app';
-
 function requireEnv(key: string): string {
-  if (key === 'VITE_API_URL' && import.meta.env.PROD) {
-    return TEMPORARY_PRODUCTION_API_URL;
-  }
-
   const value = import.meta.env[key];
   if (!value) {
     throw new Error(
@@ -82,4 +74,3 @@ export const env = {
 } as const;
 
 export type Env = typeof env;
-// Production API: https://api.d3vonn.io (permanent target after Issue #540)
