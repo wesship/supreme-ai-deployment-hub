@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-28 15:45 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-28 16:56 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 135  
+**Total Workflows:** 136  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-28 15:45 UTC
+**Last Updated:** 2026-07-28 16:56 UTC
 
 ## Workflow Capability Catalog
 
@@ -43,6 +43,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | D3VONN.IO Backend API Audit | `d3vonn-backend-api-audit.yml` |  | 1 |
 | D3VONN.IO Launch Readiness | `d3vonn-launch-readiness.yml` |  | 2 |
 | D3VONN.IO Post-Deploy Audit | `d3vonn-post-deploy-audit.yml` |  | 1 |
+| D3VONN.IO Post-Deploy Mobile Audit | `d3vonn-post-deploy-audit-mobile.yml` |  | 1 |
 | D3VONN.IO Temporary Railway Cutover | `d3vonn-temporary-railway-cutover.yml` |  | 1 |
 | Dependency Review | `dependency-review.yml` |  | 1 |
 | Deploy and Chrome Extension Publish (archived manual lane) | `deploy-and-publish.yml` |  | 1 |
