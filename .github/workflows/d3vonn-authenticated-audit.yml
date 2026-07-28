@@ -2,6 +2,13 @@ name: D3VONN.IO Authenticated Audit
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/d3vonn-authenticated-audit.yml'
+      - 'src/pages/Login.tsx'
+      - 'tests/e2e/authenticated-production-audit.spec.ts'
   schedule:
     - cron: '17 9 * * 1'
 
