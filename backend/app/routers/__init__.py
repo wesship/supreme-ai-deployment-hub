@@ -24,6 +24,7 @@ async def deploy_probe():
         "router_registry": "backend.app.routers",
         "deployment_marker": "backend-api-certification-2026-07-24",
         "proxy_vault_expected": "/api/proxy/config",
+        "contact_route_expected": "/api/contact",
         "voice_routes_expected": [
             "/api/tools/voice/tts",
             "/api/tools/voice/stt-token",
@@ -74,6 +75,14 @@ try:
     logger.info("Admin proxy router registered.")
 except ImportError as exc:
     logger.warning("Admin proxy router not registered: %s", exc)
+
+try:
+    from backend.app.routers.contact import router as contact_router
+
+    proxy_router.include_router(contact_router, tags=["contact"])
+    logger.info("Contact delivery router registered at /api/contact.")
+except ImportError as exc:
+    logger.warning("Contact delivery router not registered: %s", exc)
 
 try:
     from backend.app.routers.proxy_vault import router as proxy_vault_router
