@@ -1,0 +1,59 @@
+name: Contact Production Canary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/contact-production-canary.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contact-production-canary
+  cancel-in-progress: false
+
+jobs:
+  certify-contact-delivery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Submit uniquely tagged production contact canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="D3VONN-CONTACT-CANARY-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          payload=$(jq -n \
+            --arg name "D3VONN Launch Canary" \
+            --arg email "launch-canary@d3vonn.io" \
+            --arg subject "$tag" \
+            --arg message "Automated production delivery certification for D3VONN.IO. GitHub run ${GITHUB_RUN_ID}, attempt ${GITHUB_RUN_ATTEMPT}." \
+            '{name:$name,email:$email,subject:$subject,message:$message,website:""}')
+
+          http_code=$(curl --silent --show-error --fail-with-body \
+            --connect-timeout 10 --max-time 30 \
+            --output response.json \
+            --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' \
+            --data "$payload" \
+            https://api.d3vonn.io/contact) || {
+              rc=$?
+              echo "Contact request failed before certification (curl exit $rc)."
+              test -f response.json && cat response.json
+              exit "$rc"
+            }
+
+          echo "HTTP status: $http_code"
+          jq . response.json
+          test "$http_code" = "202"
+          test "$(jq -r '.status // empty' response.json)" = "sent"
+
+          {
+            echo "## Contact production canary"
+            echo "- Tag: \`$tag\`"
+            echo "- Endpoint: \`https://api.d3vonn.io/contact\`"
+            echo "- HTTP: \`$http_code\`"
+            echo "- API status: \`$(jq -r '.status' response.json)\`"
+            echo "- Mailbox receipt still requires operator confirmation."
+          } >> "$GITHUB_STEP_SUMMARY"
