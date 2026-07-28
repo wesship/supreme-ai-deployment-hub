@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-28 15:22 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-28 15:45 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 134  
+**Total Workflows:** 135  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-28 15:22 UTC
+**Last Updated:** 2026-07-28 15:45 UTC
 
 ## Workflow Capability Catalog
 
@@ -131,6 +131,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | AI Films Supabase Rollout | `ai-films-supabase-rollout.yml` |  | 1 |
 | AI Model Pipeline | `ai-model-pipeline.yml` |  | 2 |
 | AI Model Version Governance | `ai-model-governance.yml` |  | 3 |
+| AI Platform Read-Only Certification | `ai-platform-readonly-certification.yml` |  | 1 |
 | AI Safety Guardrails (Manual Only) | `ai-safety-guardrails.yml` |  | 1 |
 | Cost Attribution & LLM ROI Tracking | `cost-attribution.yml` |  | 3 |
 | Feature Flags and Database Migration Safety | `feature-flags-db-safety.yml` |  | 3 |
