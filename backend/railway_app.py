@@ -7,6 +7,7 @@ are active behind the Railway service hostname.
 from __future__ import annotations
 
 import os
+from importlib import import_module
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,7 +19,7 @@ from backend.cors_config import build_allowed_origins
 if railway_environment := os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip():
     os.environ["ENVIRONMENT"] = railway_environment
 
-from backend.main import app
+app = import_module("backend.main").app
 
 DEPLOYMENT_REVISION = "railway-staging-acceptance-2026-07-29"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
