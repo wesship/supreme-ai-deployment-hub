@@ -14,6 +14,7 @@ from backend.cors_config import build_allowed_origins
 from backend.main import app
 
 DEPLOYMENT_REVISION = "railway-api-health-alias-2026-07-29"
+# Railway watch-pattern redeploy marker: 2026-07-29T12:50:00Z
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
