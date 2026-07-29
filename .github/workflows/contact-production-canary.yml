@@ -23,6 +23,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # This workflow is intentionally safe to retrigger for launch certification.
           tag="D3VONN-CONTACT-CANARY-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           payload=$(jq -n \
             --arg name "D3VONN Launch Canary" \
