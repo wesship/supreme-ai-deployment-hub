@@ -9,11 +9,17 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 logger = logging.getLogger(__name__)
 
 proxy_router = APIRouter(prefix="/api")
+
+
+@proxy_router.get("/health", tags=["ops"])
+async def api_health_compatibility(request: Request) -> dict[str, str]:
+    """Compatibility liveness probe for clients that expect an /api prefix."""
+    return {"status": "ok", "version": request.app.version}
 
 
 @proxy_router.get("/deploy/probe", tags=["ops"])
