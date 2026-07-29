@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.cors_config import build_allowed_origins
 from backend.main import app
 
-DEPLOYMENT_REVISION = "railway-production-cors-2026-07-24"
+DEPLOYMENT_REVISION = "railway-api-health-alias-2026-07-29"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -45,6 +45,12 @@ if "/api/intelligence/prompts" not in _paths():
         INTELLIGENCE_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
 
+@app.get("/api/health", tags=["ops"])
+async def api_health_compatibility() -> dict[str, str]:
+    """Compatibility liveness probe for clients that expect an /api prefix."""
+    return {"status": "ok", "version": app.version}
+
+
 @app.get("/health/deployment", tags=["ops"])
 async def deployment_info() -> dict[str, object]:
     paths = _paths()
@@ -54,6 +60,7 @@ async def deployment_info() -> dict[str, object]:
         "entrypoint": "backend.railway_app:app",
         "route_count": len(paths),
         "routers": {
+            "api_health": "/api/health" in paths,
             "proxy": "/api/deploy/probe" in paths,
             "api_v1": "/api/v1/health" in paths,
             "operations": "/api/v1/ops/health" in paths,
