@@ -46,12 +46,6 @@ if "/api/intelligence/prompts" not in _paths():
         INTELLIGENCE_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
 
-@app.get("/api/health", tags=["ops"])
-async def api_health_compatibility() -> dict[str, str]:
-    """Compatibility liveness probe for clients that expect an /api prefix."""
-    return {"status": "ok", "version": app.version}
-
-
 @app.get("/health/deployment", tags=["ops"])
 async def deployment_info() -> dict[str, object]:
     paths = _paths()
