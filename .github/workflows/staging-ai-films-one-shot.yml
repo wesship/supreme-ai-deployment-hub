@@ -31,11 +31,13 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - name: Checkout repository
+        id: checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
 
       - name: Validate staging boundary and required secrets
+        id: validate
         shell: bash
         run: |
           set -euo pipefail
@@ -55,27 +57,49 @@ jobs:
           fi
 
       - name: Install pinned Supabase CLI
+        id: setup
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
         with:
           version: 2.109.1
 
       - name: Verify Supabase CLI version
+        id: version
         run: test "$(supabase --version)" = "2.109.1"
 
       - name: Link staging project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+        id: link
+        shell: bash
+        run: |
+          set -o pipefail
+          supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD" 2>&1 | tee link.log
 
       - name: Lint current staging schema
-        run: supabase db lint --linked --level warning
+        id: lint
+        shell: bash
+        run: |
+          set -o pipefail
+          supabase db lint --linked --level warning 2>&1 | tee lint.log
 
       - name: Preview every missing repository migration
-        run: supabase db push --linked --include-all --dry-run --password "$SUPABASE_DB_PASSWORD"
+        id: preview
+        shell: bash
+        run: |
+          set -o pipefail
+          supabase db push --linked --include-all --dry-run --password "$SUPABASE_DB_PASSWORD" 2>&1 | tee preview.log
 
       - name: Apply every missing repository migration
-        run: supabase db push --linked --include-all --password "$SUPABASE_DB_PASSWORD"
+        id: apply
+        shell: bash
+        run: |
+          set -o pipefail
+          supabase db push --linked --include-all --password "$SUPABASE_DB_PASSWORD" 2>&1 | tee apply.log
 
       - name: Deploy disabled AI Film companion function
-        run: supabase functions deploy ai-film-companion --project-ref "$SUPABASE_PROJECT_ID" --use-api
+        id: deploy
+        shell: bash
+        run: |
+          set -o pipefail
+          supabase functions deploy ai-film-companion --project-ref "$SUPABASE_PROJECT_ID" --use-api 2>&1 | tee deploy.log
 
       - name: Write rollout summary
         if: always()
@@ -87,28 +111,55 @@ jobs:
             echo "- Target project: \`$EXPECTED_STAGING_PROJECT_REF\`"
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Result: \`${{ job.status }}\`"
-            echo "- Migration mode: \`--include-all\`"
-            echo "- Edge Function: \`ai-film-companion\` deployed; activation remains controlled by its feature flag/secret."
+            echo "- Validate: \`${{ steps.validate.outcome }}\`"
+            echo "- Setup CLI: \`${{ steps.setup.outcome }}\`"
+            echo "- Link: \`${{ steps.link.outcome }}\`"
+            echo "- Lint: \`${{ steps.lint.outcome }}\`"
+            echo "- Preview: \`${{ steps.preview.outcome }}\`"
+            echo "- Apply: \`${{ steps.apply.outcome }}\`"
+            echo "- Deploy function: \`${{ steps.deploy.outcome }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Report result on health-fix pull request
+      - name: Report result and diagnostics on health-fix pull request
         if: always()
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
         with:
           script: |
+            const fs = require('fs');
             const status = '${{ job.status }}';
             const icon = status === 'success' ? '✅' : '❌';
+            const outcomes = [
+              ['validate', '${{ steps.validate.outcome }}'],
+              ['setup', '${{ steps.setup.outcome }}'],
+              ['version', '${{ steps.version.outcome }}'],
+              ['link', '${{ steps.link.outcome }}'],
+              ['lint', '${{ steps.lint.outcome }}'],
+              ['preview', '${{ steps.preview.outcome }}'],
+              ['apply', '${{ steps.apply.outcome }}'],
+              ['deploy', '${{ steps.deploy.outcome }}'],
+            ];
+            const logs = ['link.log', 'lint.log', 'preview.log', 'apply.log', 'deploy.log']
+              .filter((path) => fs.existsSync(path))
+              .map((path) => `### ${path}\n${fs.readFileSync(path, 'utf8')}`)
+              .join('\n\n');
+            let safeLogs = logs;
+            for (const secret of [process.env.SUPABASE_ACCESS_TOKEN, process.env.SUPABASE_DB_PASSWORD]) {
+              if (secret) safeLogs = safeLogs.split(secret).join('[REDACTED]');
+            }
+            safeLogs = safeLogs.slice(-5000);
             const body = [
               `${icon} **Staging AI Films migration rollout: ${status}**`,
               '',
               `- Project ref: \`${process.env.EXPECTED_STAGING_PROJECT_REF}\``,
               `- Commit: \`${context.sha}\``,
               '- Mode: repository migrations with `supabase db push --include-all`',
-              '- Edge Function: `ai-film-companion` deployment requested',
+              '',
+              ...outcomes.map(([name, outcome]) => `- ${name}: \`${outcome || 'skipped'}\``),
               '',
               status === 'success'
                 ? 'The database is ready for post-rollout schema, RLS, and endpoint verification.'
-                : 'Inspect the failed Actions step before retrying; no production project was targeted.'
+                : 'No production project was targeted. Diagnostic output follows.',
+              safeLogs ? `\n<details><summary>Sanitized rollout log tail</summary>\n\n\`\`\`text\n${safeLogs}\n\`\`\`\n</details>` : ''
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
