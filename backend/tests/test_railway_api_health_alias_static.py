@@ -13,8 +13,13 @@ def test_canonical_router_exposes_api_health_compatibility_route():
     assert 'return {"status": "ok", "version": request.app.version}' in text
 
 
-def test_deployment_diagnostics_report_api_health_route():
+def test_deployment_diagnostics_report_api_health_route_and_environment():
     text = RAILWAY_APP.read_text(encoding="utf-8")
 
+    assert 'os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip()' in text
+    assert 'os.environ["ENVIRONMENT"] = railway_environment' in text
+    assert 'app = import_module("backend.main").app' in text
     assert '"api_health": "/api/health" in paths' in text
-    assert 'DEPLOYMENT_REVISION = "railway-api-health-alias-2026-07-29"' in text
+    assert '"railway_environment": os.getenv("RAILWAY_ENVIRONMENT_NAME", "unknown")' in text
+    assert '"railway_deployment_id": os.getenv("RAILWAY_DEPLOYMENT_ID")' in text
+    assert 'DEPLOYMENT_REVISION = "railway-environment-metadata-2026-07-29"' in text
