@@ -25,9 +25,8 @@ jobs:
     timeout-minutes: 45
     environment: staging
     env:
-      EXPECTED_STAGING_PROJECT_REF: ypomzwhtaamxdmcwtpyf
+      SUPABASE_PROJECT_ID: ypomzwhtaamxdmcwtpyf
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - name: Checkout repository
@@ -41,20 +40,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
+          : > validation.log
           missing=0
-          for name in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_ID SUPABASE_DB_PASSWORD; do
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD; do
             if [[ -z "${!name:-}" ]]; then
+              echo "MISSING_SECRET_NAME=${name}" | tee -a validation.log
               echo "::error title=Missing staging environment secret::${name} is not configured in the GitHub staging environment."
               missing=1
             fi
           done
+          echo "TARGET_PROJECT_REF=${SUPABASE_PROJECT_ID}" >> validation.log
           (( missing == 0 )) || exit 1
-
-          if [[ "$SUPABASE_PROJECT_ID" != "$EXPECTED_STAGING_PROJECT_REF" ]]; then
-            echo "::error title=Staging project mismatch::Refusing rollout because SUPABASE_PROJECT_ID is not the expected staging project."
-            exit 1
-          fi
 
       - name: Install pinned Supabase CLI
         id: setup
@@ -108,7 +104,7 @@ jobs:
           {
             echo "## One-shot Staging AI Films Rollout"
             echo ""
-            echo "- Target project: \`$EXPECTED_STAGING_PROJECT_REF\`"
+            echo "- Target project: \`$SUPABASE_PROJECT_ID\`"
             echo "- Commit: \`${GITHUB_SHA}\`"
             echo "- Result: \`${{ job.status }}\`"
             echo "- Validate: \`${{ steps.validate.outcome }}\`"
@@ -138,7 +134,7 @@ jobs:
               ['apply', '${{ steps.apply.outcome }}'],
               ['deploy', '${{ steps.deploy.outcome }}'],
             ];
-            const logs = ['link.log', 'lint.log', 'preview.log', 'apply.log', 'deploy.log']
+            const logs = ['validation.log', 'link.log', 'lint.log', 'preview.log', 'apply.log', 'deploy.log']
               .filter((path) => fs.existsSync(path))
               .map((path) => `### ${path}\n${fs.readFileSync(path, 'utf8')}`)
               .join('\n\n');
@@ -150,7 +146,7 @@ jobs:
             const body = [
               `${icon} **Staging AI Films migration rollout: ${status}**`,
               '',
-              `- Project ref: \`${process.env.EXPECTED_STAGING_PROJECT_REF}\``,
+              `- Project ref: \`${process.env.SUPABASE_PROJECT_ID}\``,
               `- Commit: \`${context.sha}\``,
               '- Mode: repository migrations with `supabase db push --include-all`',
               '',
