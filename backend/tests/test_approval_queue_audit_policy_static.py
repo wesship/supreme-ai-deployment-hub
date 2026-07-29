@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -23,6 +24,9 @@ def test_approval_queue_audit_remains_service_only() -> None:
 def test_policy_does_not_grant_browser_roles() -> None:
     sql = MIGRATION.read_text(encoding="utf-8").lower()
 
-    assert "grant" not in sql.split("to service_role")[0].split("revoke all")[-1]
-    assert "to anon" not in sql
-    assert "to authenticated" not in sql
+    browser_role_grant = re.search(
+        r"\bgrant\b[^;]*\bto\s+(?:public|anon|authenticated)\b",
+        sql,
+    )
+
+    assert browser_role_grant is None
