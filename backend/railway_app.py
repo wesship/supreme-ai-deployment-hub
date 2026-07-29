@@ -11,9 +11,16 @@ import os
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.cors_config import build_allowed_origins
+
+# Railway provides the authoritative environment name to every deployment.
+# Normalize the generic application variable before importing backend.main so
+# readiness payloads, Sentry, and logs cannot mislabel staging as production.
+if railway_environment := os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip():
+    os.environ["ENVIRONMENT"] = railway_environment
+
 from backend.main import app
 
-DEPLOYMENT_REVISION = "railway-production-cors-2026-07-24"
+DEPLOYMENT_REVISION = "railway-staging-acceptance-2026-07-29"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -52,8 +59,13 @@ async def deployment_info() -> dict[str, object]:
         "status": "ok",
         "revision": DEPLOYMENT_REVISION,
         "entrypoint": "backend.railway_app:app",
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "railway_environment": os.getenv("RAILWAY_ENVIRONMENT_NAME", "unknown"),
+        "railway_deployment_id": os.getenv("RAILWAY_DEPLOYMENT_ID"),
+        "railway_git_commit_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA"),
         "route_count": len(paths),
         "routers": {
+            "api_health": "/api/health" in paths,
             "proxy": "/api/deploy/probe" in paths,
             "api_v1": "/api/v1/health" in paths,
             "operations": "/api/v1/ops/health" in paths,
