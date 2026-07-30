@@ -43,6 +43,8 @@ const AgentMarketplace = lazy(() => import("./pages/AgentMarketplace"));
 const McpPage = lazy(() => import("./pages/McpPage"));
 const StatusDashboard = lazy(() => import("./pages/StatusDashboard"));
 const CommandCenter = lazy(() => import("./pages/CommandCenterRC1"));
+const GenesisCommandCenter = lazy(() => import("./pages/GenesisCommandCenter"));
+const GenesisQualityCenter = lazy(() => import("./pages/GenesisQualityCenter"));
 const ManifestPage = lazy(() => import("./pages/ManifestPage"));
 const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiagnostic"));
 const VoiceStudio = lazy(() => import("./pages/VoiceStudio"));
@@ -75,9 +77,9 @@ const PrimetimeExecutiveCommandCenter = lazy(() => import("./pages/PrimetimeExec
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
-    const AdminRoute = mod.default;
+    const AdminRouteComponent = mod.default;
     return import("./pages/OperatorCommandCenterRC1").then(occMod => ({
-      default: () => <AdminRoute><occMod.default /></AdminRoute>
+      default: () => <AdminRouteComponent><occMod.default /></AdminRouteComponent>
     }));
   })
 );
@@ -162,6 +164,11 @@ function App() {
                 <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
                 <Route path="/command-center" element={<CommandCenter />} />
                 <Route path="/operations" element={<CommandCenter />} />
+                <Route path="/genesis" element={<AuthenticatedRoute><GenesisCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/genesis/command-center" element={<AuthenticatedRoute><GenesisCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/genesis/quality" element={<AuthenticatedRoute><GenesisQualityCenter /></AuthenticatedRoute>} />
+                <Route path="/app/genesis" element={<AuthenticatedRoute><GenesisCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/app/genesis/quality" element={<AuthenticatedRoute><GenesisQualityCenter /></AuthenticatedRoute>} />
                 <Route path="/dkos-ingestion" element={<DkosIngestion />} />
                 <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
                 <Route path="/primetime" element={<PrimetimeRelease1 />} />
