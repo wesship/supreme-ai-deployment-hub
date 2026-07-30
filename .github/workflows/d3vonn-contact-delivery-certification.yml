@@ -1,0 +1,65 @@
+name: D3VONN.IO Contact Delivery Certification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d3vonn-contact-delivery-certification
+  cancel-in-progress: false
+
+jobs:
+  contact-delivery:
+    name: Verify production contact provider acceptance
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - name: Send uniquely tagged production contact canary
+        env:
+          CONTACT_ENDPOINT: https://api.d3vonn.io/contact
+        run: |
+          set -euo pipefail
+          tag="D3VONN-CONTACT-CERT-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          payload=$(jq -n \
+            --arg name "D3VONN.IO Production Certification" \
+            --arg email "wesship8@gmail.com" \
+            --arg subject "$tag" \
+            --arg message "Protected production contact delivery certification. Tag: $tag" \
+            '{name:$name,email:$email,subject:$subject,message:$message,website:""}')
+
+          response_file=$(mktemp)
+          status=$(curl --silent --show-error --location \
+            --connect-timeout 15 --max-time 45 \
+            --output "$response_file" \
+            --write-out '%{http_code}' \
+            --header 'Content-Type: application/json' \
+            --data "$payload" \
+            "$CONTACT_ENDPOINT")
+
+          echo "Canary tag: $tag"
+          echo "HTTP status: $status"
+
+          test "$status" = "202" || {
+            echo "Contact endpoint did not return HTTP 202"
+            jq -c '{status,error,detail}' "$response_file" 2>/dev/null || true
+            exit 1
+          }
+
+          jq -e '.status == "sent"' "$response_file" >/dev/null || {
+            echo "Contact endpoint did not confirm provider acceptance"
+            jq -c '{status,error,detail}' "$response_file" 2>/dev/null || true
+            exit 1
+          }
+
+          provider_id=$(jq -r '.id // .message_id // .provider_id // "not-returned"' "$response_file")
+          echo "Provider acceptance: confirmed"
+          echo "Provider message identifier: $provider_id"
+          echo "CONTACT_CANARY_TAG=$tag" >> "$GITHUB_ENV"
+
+      - name: Publish mailbox verification instruction
+        run: |
+          echo "Confirm receipt of subject/tag: ${CONTACT_CANARY_TAG}"
+          echo "Do not mark delivery complete until the destination mailbox contains this exact tag."

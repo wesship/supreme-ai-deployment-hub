@@ -1,0 +1,98 @@
+name: D3VONN.IO AI Functional Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/d3vonn-ai-functional-certification.yml'
+      - 'tests/e2e/ai-production-canary.spec.ts'
+      - 'backend/app/routers/chat.py'
+      - 'backend/app/routers/rag.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d3vonn-ai-functional-production-certification
+  cancel-in-progress: false
+
+jobs:
+  ai-functional-canary:
+    name: Authenticated Chat and RAG Canary
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Validate protected inputs
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$E2E_TEST_EMAIL" || { echo 'Missing E2E_TEST_EMAIL'; exit 1; }
+          test -n "$E2E_TEST_PASSWORD" || { echo 'Missing E2E_TEST_PASSWORD'; exit 1; }
+
+      - name: Run read-only route and runtime certification
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 30 https://api.d3vonn.io/health/deep > /tmp/health.json
+          curl --fail --silent --show-error --max-time 30 https://api.d3vonn.io/api/openapi.json > /tmp/openapi.json
+          python - <<'PY'
+          import json
+          health=json.load(open('/tmp/health.json'))
+          schema=json.load(open('/tmp/openapi.json'))
+          assert health.get('status') == 'ok', health
+          services=health.get('services', {})
+          assert services.get('supabase') == 'configured', services
+          assert services.get('redis') == 'reachable', services
+          paths=set(schema.get('paths', {}))
+          required=['/api/chat','/api/rag/ingest','/api/rag/retrieve','/api/rag/delete']
+          missing=[p for p in required if p not in paths]
+          assert not missing, missing
+          PY
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run bounded production canaries
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://d3vonn.io
+          D3VONN_API_URL: https://api.d3vonn.io
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          E2E_DISABLE_CREDENTIAL_TRACING: '1'
+        run: |
+          set -euo pipefail
+          rm -rf playwright-report test-results
+          pnpm exec playwright test tests/e2e/ai-production-canary.spec.ts \
+            --project=chromium \
+            --reporter=github,line \
+            --trace=off
+
+      - name: Publish certification summary
+        if: success()
+        run: |
+          {
+            echo '## D3VONN.IO AI Functional Certification'
+            echo '- Read-only runtime and route checks: passed'
+            echo '- Authenticated bounded chat canary: passed'
+            echo '- RAG ingest/retrieve/delete round trip: passed'
+            echo '- Cleanup: verified'
+            echo '- Credential artifacts: none uploaded'
+          } >> "$GITHUB_STEP_SUMMARY"
