@@ -60,6 +60,7 @@ scripts/*
 !scripts/verify-build-scripts.mjs
 !scripts/generate-route-html.mjs
 !scripts/generate-brand-assets.mjs
+!scripts/assert-no-client-secrets.mjs
 
 # Python
 __pycache__/

@@ -37,6 +37,16 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
+      - name: Block direct Railway production API fallbacks
+        run: |
+          set -euo pipefail
+          if git grep -n "devonn-ai-api-production\.up\.railway\.app" -- \
+            vite.config.ts src package.json vercel.json 2>/dev/null; then
+            echo "ERROR: Direct Railway production API hostname found in frontend/build configuration."
+            echo "Production must use VITE_API_URL=https://api.d3vonn.io."
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
 
@@ -94,6 +104,13 @@ jobs:
             *)           echo "api_url=https://api.d3vonn.io" >> $GITHUB_OUTPUT ;;
           esac
 
+      - name: Enforce branded production API target
+        if: steps.env.outputs.name == 'production'
+        run: |
+          set -euo pipefail
+          test "${{ steps.env.outputs.api_url }}" = "https://api.d3vonn.io"
+          echo "Production API target certified: ${{ steps.env.outputs.api_url }}"
+
       - name: Validate OpenAI API Key
         if: steps.env.outputs.name == 'production'
         run: |
@@ -110,6 +127,20 @@ jobs:
         env:
           NODE_ENV: ${{ steps.env.outputs.name }}
           VITE_API_URL: ${{ steps.env.outputs.api_url }}
+
+      - name: Verify compiled bundle API target
+        if: steps.env.outputs.name == 'production'
+        run: |
+          set -euo pipefail
+          if grep -R -n "devonn-ai-api-production\.up\.railway\.app" dist; then
+            echo "ERROR: Compiled production bundle still contains the direct Railway hostname."
+            exit 1
+          fi
+          if ! grep -R -q "https://api\.d3vonn\.io" dist; then
+            echo "ERROR: Compiled production bundle does not contain the branded API hostname."
+            exit 1
+          fi
+          echo "Compiled bundle uses api.d3vonn.io and contains no direct Railway fallback."
 
       - name: Package extension
         run: |
@@ -163,6 +194,52 @@ jobs:
       (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/'))
 
     steps:
-      - name: Verify deployment
-        continue-on-error: true
-        run: echo "Smoke test placeholder - add real verification here"
+      - name: Verify branded API endpoints
+        run: |
+          set -euo pipefail
+          for path in \
+            /health \
+            /health/ready \
+            /health/live \
+            /health/deployment \
+            /api/v1/health \
+            /api/v1/ops/health \
+            /api/deploy/probe; do
+            echo "Checking https://api.d3vonn.io${path}"
+            curl --fail --silent --show-error \
+              --retry 6 --retry-delay 10 --retry-all-errors \
+              --connect-timeout 10 --max-time 30 \
+              "https://api.d3vonn.io${path}" > /dev/null
+          done
+
+      - name: Verify production frontend and compiled API hostname
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          trap 'rm -rf "$workdir"' EXIT
+
+          curl --fail --silent --show-error \
+            --retry 6 --retry-delay 10 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 \
+            https://d3vonn.io/ -o "$workdir/index.html"
+
+          grep -oE 'src="[^"]+\.js[^"]*"' "$workdir/index.html" \
+            | sed -E 's/^src="//; s/"$//' \
+            | while read -r asset; do
+                case "$asset" in
+                  http*) url="$asset" ;;
+                  /*)    url="https://d3vonn.io$asset" ;;
+                  *)     url="https://d3vonn.io/$asset" ;;
+                esac
+                curl --fail --silent --show-error "$url" >> "$workdir/bundle.js"
+              done
+
+          if grep -q "devonn-ai-api-production\.up\.railway\.app" "$workdir/bundle.js"; then
+            echo "ERROR: Live frontend bundle still contains the direct Railway hostname."
+            exit 1
+          fi
+          if ! grep -q "https://api\.d3vonn\.io" "$workdir/bundle.js"; then
+            echo "ERROR: Live frontend bundle does not contain api.d3vonn.io."
+            exit 1
+          fi
+          echo "Live frontend bundle certified for api.d3vonn.io."

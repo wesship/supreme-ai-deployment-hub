@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-25 23:30 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-30 22:06 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 132  
+**Total Workflows:** 139  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-25 23:30 UTC
+**Last Updated:** 2026-07-30 22:06 UTC
 
 ## Workflow Capability Catalog
 
@@ -33,6 +33,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Code Quality Gates | `code-quality-gates.yml` |  | 1 |
 | CodeQL SAST | `codeql.yml` |  | 1 |
 | Commit Lint | `commitlint.yml` |  | 1 |
+| Contact Production Canary | `contact-production-canary.yml` |  | 1 |
 | Cost Optimization | `cost-optimization.yml` |  | 2 |
 | Coverage Enforcement | `coverage-enforcement.yml` |  | 1 |
 | Create Devonn Project Board | `create-project-board.yml` |  | 1 |
@@ -40,9 +41,13 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | D3VONN Required PR Gate | `required-pr-gate.yml` |  | 1 |
 | D3VONN.IO Authenticated Audit | `d3vonn-authenticated-audit.yml` |  | 1 |
 | D3VONN.IO Backend API Audit | `d3vonn-backend-api-audit.yml` |  | 1 |
+| D3VONN.IO Contact Delivery Certification | `d3vonn-contact-delivery-certification.yml` |  | 1 |
 | D3VONN.IO Launch Readiness | `d3vonn-launch-readiness.yml` |  | 2 |
 | D3VONN.IO Post-Deploy Audit | `d3vonn-post-deploy-audit.yml` |  | 1 |
+| D3VONN.IO Post-Deploy Mobile Audit | `d3vonn-post-deploy-audit-mobile.yml` |  | 1 |
+| D3VONN.IO Production Performance Certification | `d3vonn-production-performance.yml` |  | 1 |
 | D3VONN.IO Temporary Railway Cutover | `d3vonn-temporary-railway-cutover.yml` |  | 1 |
+| D3VONN.IO Testing | `testing.yml` |  | 7 |
 | Dependency Review | `dependency-review.yml` |  | 1 |
 | Deploy and Chrome Extension Publish (archived manual lane) | `deploy-and-publish.yml` |  | 1 |
 | Deployment Promotion Gates (archived manual lane) | `deployment-promotion.yml` |  | 1 |
@@ -50,7 +55,6 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Deprecated api.devonn.ai Route 53 CNAME | `apply-api-cname.yml` |  | 1 |
 | Devonn Deploy (archived manual lane) | `devonn-deploy.yml` |  | 1 |
 | Devonn.AI Deploy | `deploy.yml` |  | 3 |
-| Devonn.AI Testing | `testing.yml` |  | 7 |
 | Disaster Recovery Drill | `disaster-recovery-drill.yml` |  | 1 |
 | E2E Smoke Tests | `e2e-smoke-tests.yml` |  | 1 |
 | EKS Deploy (OIDC + Trivy) | `eks-deploy-oidc.yml` |  | 1 |
@@ -116,6 +120,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | Kubernetes Admission Enforcement (Kyverno) | `kyverno-admission.yml` |  | 1 |
 | SBOM & Supply Chain Security | `sbom.yml` |  | 4 |
 | SLA Reporting & Compliance Certificates | `sla-reporting.yml` |  | 1 |
+| Secret Governance Audit | `secret-governance.yml` |  | 2 |
 | Secret Scanning (Gitleaks) | `secret-scanning.yml` |  | 2 |
 | Security Hardening | `security-hardening.yml` |  | 4 |
 | Validate Required Secrets | `validate-secrets.yml` |  | 1 |
@@ -129,8 +134,10 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | AI Films Supabase Rollout | `ai-films-supabase-rollout.yml` |  | 1 |
 | AI Model Pipeline | `ai-model-pipeline.yml` |  | 2 |
 | AI Model Version Governance | `ai-model-governance.yml` |  | 3 |
+| AI Platform Read-Only Certification | `ai-platform-readonly-certification.yml` |  | 1 |
 | AI Safety Guardrails (Manual Only) | `ai-safety-guardrails.yml` |  | 1 |
 | Cost Attribution & LLM ROI Tracking | `cost-attribution.yml` |  | 3 |
+| D3VONN.IO AI Functional Certification | `d3vonn-ai-functional-certification.yml` |  | 1 |
 | Feature Flags and Database Migration Safety | `feature-flags-db-safety.yml` |  | 3 |
 | LLM Cost Governance | `llm-cost-governance.yml` |  | 2 |
 | ML-Based Anomaly Detection (Manual Only) | `ml-anomaly-detection.yml` |  | 1 |

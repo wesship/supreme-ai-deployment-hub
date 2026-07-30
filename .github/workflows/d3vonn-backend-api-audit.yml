@@ -1,6 +1,6 @@
 name: D3VONN.IO Backend API Audit
 
-# Production certification for the canonical Railway backend surface.
+# Production certification for the permanent branded API hostname.
 # Re-certification target: authoritative Supabase OCC token validation.
 on:
   workflow_dispatch:
@@ -26,14 +26,14 @@ concurrency:
 
 jobs:
   backend-api-audit:
-    name: Backend API Certification (chromium)
+    name: Branded API Certification (chromium)
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Setup pnpm
-        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
@@ -58,20 +58,20 @@ jobs:
               rm -f "$body_file"
             done
           done
-      - name: Run Railway backend API certification
+      - name: Run branded backend API certification
         id: certification
         continue-on-error: true
         env:
           CI: 'true'
           E2E_DISABLE_CREDENTIAL_TRACING: '1'
           PLAYWRIGHT_BASE_URL: https://d3vonn.io
-          API_BASE_URL: https://devonn-ai-api-production.up.railway.app
+          API_BASE_URL: https://api.d3vonn.io
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
         run: |
           rm -rf playwright-report test-results
           pnpm exec playwright test tests/e2e/backend-production-audit.spec.ts --project=chromium --reporter=github,line --trace=off
-      - name: Publish temporary certification result
+      - name: Publish branded certification result
         if: always() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,10 +80,10 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          title="Railway Backend API Audit ${OUTCOME}: ${HEAD_SHA:0:7}"
+          title="Branded Backend API Audit ${OUTCOME}: ${HEAD_SHA:0:7}"
           probes="$(cat /tmp/api-probes.txt 2>/dev/null || true)"
           body=$(cat <<EOF
-          Railway-generated endpoint certification outcome: **${OUTCOME}**
+          Branded endpoint certification outcome: **${OUTCOME}**
 
           Run: ${RUN_URL}
           Commit: ${HEAD_SHA}

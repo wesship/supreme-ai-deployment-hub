@@ -1,0 +1,68 @@
+name: D3VONN.IO Post-Deploy Mobile Audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 10 * * 1'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/d3vonn-post-deploy-audit-mobile.yml'
+      - 'tests/e2e/production-interaction-audit.spec.ts'
+      - 'playwright.config.ts'
+      - 'src/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d3vonn-post-deploy-mobile-audit
+  cancel-in-progress: true
+
+jobs:
+  mobile-production-audit:
+    name: Live Functional Audit (mobile-chrome)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Audit deployed D3VONN.IO production on Pixel 7 profile
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://d3vonn.io
+          BROWSER: mobile-chrome
+        run: |
+          set -euo pipefail
+          rm -rf playwright-report test-results
+          pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts \
+            --project=mobile-chrome \
+            --reporter=github,line \
+            --trace=off
+
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: d3vonn-post-deploy-audit-mobile-chrome
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 30

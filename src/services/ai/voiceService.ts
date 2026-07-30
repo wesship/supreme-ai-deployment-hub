@@ -133,11 +133,12 @@ export function startListening(
   const SpeechRecognitionAPI = win.SpeechRecognition || win.webkitSpeechRecognition;
   if (SpeechRecognitionAPI) {
     try {
-      recognition = new SpeechRecognitionAPI();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const rec = new SpeechRecognitionAPI();
+      recognition = rec;
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = 'en-US';
+      rec.onresult = (event: SpeechRecognitionEvent) => {
         let interim = '';
         let final = '';
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
@@ -148,12 +149,12 @@ export function startListening(
         if (final) onResult(final, true);
         else if (interim) onResult(interim, false);
       };
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      rec.onerror = (event: SpeechRecognitionErrorEvent) => {
         recognition = null;
         onError?.(formatSpeechError(event.error));
       };
-      recognition.onend = () => { recognition = null; onEnd?.(); };
-      recognition.start();
+      rec.onend = () => { recognition = null; onEnd?.(); };
+      rec.start();
       return () => { recognition?.stop(); recognition = null; };
     } catch (error) {
       recognition = null;

@@ -4,17 +4,10 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
-// Temporary launch-safe cutover while Issue #540 tracks the permanent
-// api.d3vonn.io DNS/Railway custom-domain correction.
-const TEMPORARY_PRODUCTION_API_URL = "https://devonn-ai-api-production.up.railway.app";
-
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const loadedEnv = loadEnv(mode, process.cwd(), "");
-  const effectiveApiUrl =
-    mode === "production"
-      ? TEMPORARY_PRODUCTION_API_URL
-      : loadedEnv.VITE_API_URL;
+  const effectiveApiUrl = loadedEnv.VITE_API_URL;
 
   return {
     // Direct import.meta.env.VITE_API_URL references are replaced at build time.
@@ -53,6 +46,11 @@ export default defineConfig(({ mode }) => {
     // Add support for importing .tf files as raw text
     assetsInclude: ["**/*.tf"],
     build: {
+      // Several legacy manifest source files use ESM syntax with a .cjs suffix.
+      // Let Rollup transform those mixed modules instead of parsing them as pure CJS.
+      commonjsOptions: {
+        transformMixedEsModules: true,
+      },
       // Target modern browsers for smaller output
       target: "es2020",
       // Enable CSS code splitting

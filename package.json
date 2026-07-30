@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && pnpm run security:bundle-scan",
     "build:dev": "vite build --mode development",
     "generate:brand": "node scripts/generate-brand-assets.mjs",
     "generate:routes": "node scripts/generate-route-html.mjs",
@@ -26,6 +26,7 @@
     "repo:entropy": "bash scripts/repo-entropy-scan.sh",
     "pins:validate": "bash scripts/action-pin-validator.sh",
     "security:scan": "node scripts/secret-scan.mjs",
+    "security:bundle-scan": "node scripts/assert-no-client-secrets.mjs",
     "devonnbench:security": "python -m devonnbench.cli run devonnbench/suites/security-smoke.yaml --base-url ${DEVONN_BASE_URL:-http://localhost:8000} --env ${DEVONN_ENV:-local} --threshold 100",
     "audit:repo": "pnpm security:scan && pnpm lint && pnpm typecheck && pnpm test",
     "memory:export": "node scripts/memory-tree-export.mjs",
