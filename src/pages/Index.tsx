@@ -382,14 +382,13 @@ const IntelligenceStackSection: React.FC = () => {
             <p className="mt-6 max-w-xl text-lg leading-8 text-blue-50/58">
               Every layer has a clear responsibility: orchestration, knowledge, governance, and execution. Together they form a resilient intelligence infrastructure for real business operations.
             </p>
-            <SmartLaunchLink
-              authedTo="/documentation"
-              anonTo="/documentation"
+            <Link
+              to="/documentation"
               className="mt-9 inline-flex items-center gap-2 rounded-xl border border-blue-300/20 bg-blue-400/10 px-5 py-3 font-semibold text-blue-100 transition hover:border-blue-300/45 hover:bg-blue-400/15"
             >
               View architecture
               <ArrowRight className="h-4 w-4" />
-            </SmartLaunchLink>
+            </Link>
           </div>
 
           <div className="grid gap-4">
