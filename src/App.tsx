@@ -4,6 +4,7 @@ import "./App.css";
 import ScrollToTop from "./components/ScrollToTop";
 import SkipToContent from "./components/SkipToContent";
 import AuthenticatedRoute from "./components/auth/AuthenticatedRoute";
+import AdminRoute from "./components/auth/AdminRoute";
 import { ThemeProvider } from 'next-themes';
 
 import Index from "./pages/Index";
@@ -64,6 +65,7 @@ const Security = lazy(() => import("./pages/Security"));
 const SecurityDashboard = lazy(() => import("./pages/security/SecurityDashboard"));
 const SecurityOps = lazy(() => import("./pages/security/SecurityOps"));
 const SecurityCommandCenter = lazy(() => import("./pages/security/CommandCenter"));
+const SecretsVault = lazy(() => import("./pages/security/SecretsVault"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
@@ -75,9 +77,9 @@ const PrimetimeExecutiveCommandCenter = lazy(() => import("./pages/PrimetimeExec
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
-    const AdminRoute = mod.default;
+    const AdminRouteComponent = mod.default;
     return import("./pages/OperatorCommandCenterRC1").then(occMod => ({
-      default: () => <AdminRoute><occMod.default /></AdminRoute>
+      default: () => <AdminRouteComponent><occMod.default /></AdminRouteComponent>
     }));
   })
 );
@@ -208,6 +210,7 @@ function App() {
                 <Route path="/security/ops" element={<SecurityOps />} />
                 <Route path="/security/dashboard" element={<SecurityDashboard />} />
                 <Route path="/security/command-center" element={<SecurityCommandCenter />} />
+                <Route path="/security/secrets" element={<AdminRoute><SecretsVault /></AdminRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
                 <Route path="/analytics" element={<Navigate to="/app" replace />} />
