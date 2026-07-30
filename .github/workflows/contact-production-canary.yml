@@ -6,6 +6,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/contact-production-canary.yml"
+      - ".env.example"
+      - "backend/app/routers/contact.py"
+      - "backend/tests/test_contact_delivery.py"
+      - "src/pages/Contact.tsx"
 
 permissions:
   contents: read
