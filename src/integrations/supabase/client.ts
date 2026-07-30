@@ -17,7 +17,6 @@ const normalizeSupabaseUrl = (value: string | undefined) => {
 
   const withProtocol = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
 
-  // Guard against a known truncated project ref that can break OAuth redirects.
   if (withProtocol.includes('ognbkwualywq.supabase.co') && !withProtocol.includes('tjygexesognbkwualywq')) {
     return DEVONN_SUPABASE_URL;
   }
@@ -31,9 +30,6 @@ const SUPABASE_URL = isVercelPreview
 const SUPABASE_PUBLISHABLE_KEY = isVercelPreview
   ? GENESIS_STAGING_PUBLISHABLE_KEY
   : import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY!, {
   auth: {
