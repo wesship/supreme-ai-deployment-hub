@@ -63,7 +63,7 @@ const Contact: React.FC = () => {
         description:
           error instanceof Error
             ? error.message
-            : 'Please email info@d3vonn.io directly and try again later.',
+            : 'Please email hello@d3vonn.io directly and try again later.',
       });
     } finally {
       setIsSubmitting(false);
@@ -99,9 +99,9 @@ const Contact: React.FC = () => {
                       <p className="font-medium">Email</p>
                       <a
                         className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-                        href="mailto:info@d3vonn.io"
+                        href="mailto:hello@d3vonn.io"
                       >
-                        info@d3vonn.io
+                        hello@d3vonn.io
                       </a>
                     </div>
                   </div>
