@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Send uniquely tagged production contact canary
         env:
-          CONTACT_ENDPOINT: https://api.d3vonn.io/contact
+          CONTACT_ENDPOINT: https://api.d3vonn.io/api/contact
         run: |
           set -euo pipefail
           tag="D3VONN-CONTACT-CERT-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
