@@ -151,15 +151,20 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
         setConversationTitle(title);
       }
 
-      // Build message history for LLM
+      // Build message history for LLM.
+      // Empty / whitespace-only messages are never sent upstream — the API
+      // rejects `content: ''` with HTTP 422 (issue #638).
       const history: ChatMessage[] = updatedMessages
+        .filter(m => m.content.trim().length > 0)
         .slice(-maxHistory)
-        .map(m => ({ role: m.role, content: m.content }));
+        .map(m => ({ role: m.role, content: m.content.trim() }));
 
       abortRef.current = new AbortController();
       let fullContent = '';
+      let errorContent = '';
       let finalProvider = '';
       let finalModel = '';
+
 
       // Determine routing: agent mode for operational messages, direct for conversational
       const useAgents = agentMode && shouldUseAgentMode(text);
