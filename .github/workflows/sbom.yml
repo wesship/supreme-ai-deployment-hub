@@ -107,6 +107,7 @@ jobs:
     timeout-minutes: 20
     needs: [sbom-frontend, sbom-backend]
     permissions:
+      contents: read
       security-events: write
 
     steps:
