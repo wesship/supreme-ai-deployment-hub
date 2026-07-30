@@ -28,8 +28,9 @@ async def deploy_probe():
     return {
         "status": "ok",
         "router_registry": "backend.app.routers",
-        "deployment_marker": "genesis-platform-foundation-2026-07-25",
+        "deployment_marker": "genesis-platform-foundation-2026-07-30",
         "proxy_vault_expected": "/api/proxy/config",
+        "contact_route_expected": "/api/contact",
         "genesis_expected": "/api/genesis/health",
         "voice_routes_expected": [
             "/api/tools/voice/tts",
@@ -62,10 +63,6 @@ try:
     from backend.app.routers.tools import router as tools_router
 
     proxy_router.include_router(tools_router, tags=["tools"])
-    # Compatibility mount for environments where VITE_API_URL was configured
-    # with a trailing /api and frontend callers also append /api/tools/*.
-    # This prevents /api/api/tools/* from returning 404 while deployments are
-    # migrated to the canonical origin-only API base URL.
     proxy_router.include_router(tools_router, prefix="/api", tags=["tools-compat"])
     logger.info(
         "Tools proxy router registered at /api/tools/* with temporary "
@@ -81,6 +78,14 @@ try:
     logger.info("Admin proxy router registered.")
 except ImportError as exc:
     logger.warning("Admin proxy router not registered: %s", exc)
+
+try:
+    from backend.app.routers.contact import router as contact_router
+
+    proxy_router.include_router(contact_router, tags=["contact"])
+    logger.info("Contact delivery router registered at /api/contact.")
+except ImportError as exc:
+    logger.warning("Contact delivery router not registered: %s", exc)
 
 try:
     from backend.app.routers.proxy_vault import router as proxy_vault_router
