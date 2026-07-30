@@ -1,9 +1,6 @@
 /**
  * useDevonnChat — core hook for Devonn.ai conversational AI
  * Powers both the FloatingWidget and the /chat workspace page.
- * Phase 3: Tool-calling via agent mode routing
- * Phase 4: Voice transcript injection
- * Phase 5: Multi-agent graph execution
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -39,6 +36,11 @@ export interface UseDevonnChatOptions {
   agentMode?: boolean;
 }
 
+const normalizeError = (prefix: string, error: unknown): string => {
+  const detail = error instanceof Error ? error.message : String(error);
+  return `${prefix}: ${detail}`;
+};
+
 export function useDevonnChat(options: UseDevonnChatOptions = {}) {
   const { userId, config = {}, maxHistory = 20, agentMode = true } = options;
 
@@ -52,18 +54,16 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
   const [activeAgentGraph, setActiveAgentGraph] = useState<AgentGraph | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Load conversation history on mount
   useEffect(() => {
     getConversations(userId).then(setConversations);
   }, [userId]);
 
-  // Load a specific conversation
   const loadConversation = useCallback((conv: Conversation) => {
     setActiveConversationId(conv.id);
     setConversationTitle(conv.title);
     setMessages(
       conv.messages
-        .filter(m => m.role !== 'system')
+        .filter(m => m.role !== 'system' && m.content.trim().length > 0)
         .map(m => ({
           id: m.id,
           role: m.role as 'user' | 'assistant',
@@ -75,7 +75,6 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
     );
   }, []);
 
-  // Start a new conversation
   const newConversation = useCallback(() => {
     setActiveConversationId(uuidv4());
     setConversationTitle('New conversation');
@@ -83,17 +82,18 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
     setActiveAgentGraph(null);
   }, []);
 
-  // Persist current conversation
   const persistConversation = useCallback(
     async (msgs: UIMessage[], title: string) => {
-      const stored: StoredMessage[] = msgs.map(m => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        timestamp: m.timestamp.toISOString(),
-        provider: m.provider,
-        model: m.model,
-      }));
+      const stored: StoredMessage[] = msgs
+        .filter(m => m.content.trim().length > 0)
+        .map(m => ({
+          id: m.id,
+          role: m.role,
+          content: m.content.trim(),
+          timestamp: m.timestamp.toISOString(),
+          provider: m.provider,
+          model: m.model,
+        }));
 
       const conv: Conversation = {
         id: activeConversationId,
@@ -118,7 +118,6 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
     [activeConversationId, userId]
   );
 
-  // Send a message and stream the response
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isStreaming) return;
@@ -144,32 +143,30 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
       setIsStreaming(true);
       setActiveAgentGraph(null);
 
-      // Update title from first user message
       let title = conversationTitle;
       if (messages.length === 0) {
         title = generateTitle(text);
         setConversationTitle(title);
       }
 
-      // Build message history for LLM
       const history: ChatMessage[] = updatedMessages
+        .filter(m => m.content.trim().length > 0)
         .slice(-maxHistory)
-        .map(m => ({ role: m.role, content: m.content }));
+        .map(m => ({ role: m.role, content: m.content.trim() }));
 
       abortRef.current = new AbortController();
       let fullContent = '';
+      let terminalContent = '';
       let finalProvider = '';
       let finalModel = '';
 
-      // Determine routing: agent mode for operational messages, direct for conversational
       const useAgents = agentMode && shouldUseAgentMode(text);
 
       try {
         if (useAgents) {
-          // ── Phase 5: Multi-agent routing ──────────────────────────────────
           for await (const { chunk, graph } of routeToAgents(text, history, {
             config: { ...config, signal: abortRef.current.signal },
-            onAgentUpdate: (g) => {
+            onAgentUpdate: g => {
               setActiveAgentGraph({ ...g });
               setMessages(prev =>
                 prev.map(m =>
@@ -199,17 +196,17 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
             );
           }
         } else {
-          // ── Direct streaming (Phase 1 + RAG) ──────────────────────────────
           for await (const chunk of streamChat(history, {
             ...config,
             signal: abortRef.current.signal,
             useRAG: true,
           })) {
             if (chunk.error) {
+              terminalContent = `Error: ${chunk.error}`;
               setMessages(prev =>
                 prev.map(m =>
                   m.id === assistantId
-                    ? { ...m, content: `Error: ${chunk.error}`, streaming: false, error: true }
+                    ? { ...m, content: terminalContent, streaming: false, error: true }
                     : m
                 )
               );
@@ -238,33 +235,38 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
           }
         }
       } catch (err) {
+        terminalContent = normalizeError('Connection error', err);
         setMessages(prev =>
           prev.map(m =>
             m.id === assistantId
-              ? { ...m, content: `Connection error: ${err}`, streaming: false, error: true }
+              ? { ...m, content: terminalContent, streaming: false, error: true }
               : m
           )
         );
       } finally {
         setIsStreaming(false);
-        // Mark streaming done
         setMessages(prev =>
           prev.map(m =>
             m.id === assistantId ? { ...m, streaming: false } : m
           )
         );
-        // Persist after streaming completes
-        const finalMessages: UIMessage[] = [
-          ...updatedMessages,
-          {
-            id: assistantId,
-            role: 'assistant',
-            content: fullContent,
-            timestamp: new Date(),
-            provider: finalProvider,
-            model: finalModel,
-          },
-        ];
+
+        const persistedAssistantContent = (terminalContent || fullContent).trim();
+        const finalMessages: UIMessage[] = persistedAssistantContent
+          ? [
+              ...updatedMessages,
+              {
+                id: assistantId,
+                role: 'assistant',
+                content: persistedAssistantContent,
+                timestamp: new Date(),
+                provider: finalProvider,
+                model: finalModel,
+                error: Boolean(terminalContent),
+              },
+            ]
+          : updatedMessages;
+
         await persistConversation(finalMessages, title);
       }
     },
