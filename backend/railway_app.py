@@ -13,21 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.cors_config import build_allowed_origins
 
-# Railway provides the authoritative environment name to every deployment.
-# Normalize the generic application variable before importing backend.main so
-# readiness payloads, Sentry, and logs cannot mislabel staging as production.
 if railway_environment := os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip():
     os.environ["ENVIRONMENT"] = railway_environment
 
 app = import_module("backend.main").app
 
-DEPLOYMENT_REVISION = "railway-environment-metadata-2026-07-29"
+DEPLOYMENT_REVISION = "genesis-platform-sync-2026-07-30"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
-# Railway may provide ALLOWED_ORIGINS for preview or internal clients. Mount an
-# outer production CORS boundary so those values extend—rather than replace—the
-# three official D3VONN.IO browser origins configured in backend.cors_config.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=RAILWAY_ALLOWED_ORIGINS,
@@ -41,9 +35,6 @@ def _paths() -> set[str]:
     return {getattr(route, "path", "") for route in app.routes}
 
 
-# The canonical app defensively skips optional routers on ImportError. Retry the
-# intelligence router here so Railway either mounts it or exposes a safe,
-# actionable diagnostic instead of silently serving a partial API surface.
 if "/api/intelligence/prompts" not in _paths():
     try:
         from backend.intelligence.api_router import router as intelligence_router
@@ -73,6 +64,8 @@ async def deployment_info() -> dict[str, object]:
             "intelligence": "/api/intelligence/prompts" in paths,
             "occ": "/api/occ/stats" in paths,
             "admin": "/api/admin/overview" in paths,
+            "contact": "/api/contact" in paths,
+            "genesis": "/api/genesis/health" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
         "official_cors_origins": [
