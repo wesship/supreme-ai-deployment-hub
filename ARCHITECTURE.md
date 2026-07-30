@@ -1,14 +1,14 @@
 # Devonn.AI Platform Architecture
 
-> Auto-generated on 2026-07-30 18:11 UTC by the Self-Documenting Platform workflow.
+> Auto-generated on 2026-07-30 19:42 UTC by the Self-Documenting Platform workflow.
 
 ## Overview
 
 The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.
 
-**Total Workflows:** 137  
+**Total Workflows:** 139  
 **Platform Version:** v19.0  
-**Last Updated:** 2026-07-30 18:11 UTC
+**Last Updated:** 2026-07-30 19:42 UTC
 
 ## Workflow Capability Catalog
 
@@ -41,6 +41,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | D3VONN Required PR Gate | `required-pr-gate.yml` |  | 1 |
 | D3VONN.IO Authenticated Audit | `d3vonn-authenticated-audit.yml` |  | 1 |
 | D3VONN.IO Backend API Audit | `d3vonn-backend-api-audit.yml` |  | 1 |
+| D3VONN.IO Contact Delivery Certification | `d3vonn-contact-delivery-certification.yml` |  | 1 |
 | D3VONN.IO Launch Readiness | `d3vonn-launch-readiness.yml` |  | 2 |
 | D3VONN.IO Post-Deploy Audit | `d3vonn-post-deploy-audit.yml` |  | 1 |
 | D3VONN.IO Post-Deploy Mobile Audit | `d3vonn-post-deploy-audit-mobile.yml` |  | 1 |
@@ -136,6 +137,7 @@ The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestra
 | AI Platform Read-Only Certification | `ai-platform-readonly-certification.yml` |  | 1 |
 | AI Safety Guardrails (Manual Only) | `ai-safety-guardrails.yml` |  | 1 |
 | Cost Attribution & LLM ROI Tracking | `cost-attribution.yml` |  | 3 |
+| D3VONN.IO AI Functional Certification | `d3vonn-ai-functional-certification.yml` |  | 1 |
 | Feature Flags and Database Migration Safety | `feature-flags-db-safety.yml` |  | 3 |
 | LLM Cost Governance | `llm-cost-governance.yml` |  | 2 |
 | ML-Based Anomaly Detection (Manual Only) | `ml-anomaly-detection.yml` |  | 1 |
