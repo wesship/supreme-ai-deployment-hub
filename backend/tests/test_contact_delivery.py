@@ -27,6 +27,7 @@ def test_contact_fails_truthfully_when_delivery_is_not_configured(monkeypatch: p
 
     assert exc_info.value.status_code == 503
     assert "temporarily unavailable" in str(exc_info.value.detail)
+    assert "hello@d3vonn.io" in str(exc_info.value.detail)
 
 
 def test_honeypot_is_accepted_without_external_delivery(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -60,8 +61,8 @@ def test_contact_uses_server_side_resend_configuration(monkeypatch: pytest.Monke
             return FakeResponse()
 
     monkeypatch.setenv("RESEND_API_KEY", "server-secret")
-    monkeypatch.setenv("CONTACT_TO_EMAIL", "owner@d3vonn.io")
-    monkeypatch.setenv("CONTACT_FROM_EMAIL", "D3VONN.IO <contact@d3vonn.io>")
+    monkeypatch.setenv("CONTACT_TO_EMAIL", "hello@d3vonn.io")
+    monkeypatch.setenv("CONTACT_FROM_EMAIL", "D3VONN.IO <hello@d3vonn.io>")
     monkeypatch.setattr(contact.httpx, "AsyncClient", FakeClient)
 
     result = asyncio.run(contact.send_contact_message(VALID_REQUEST))
@@ -74,7 +75,8 @@ def test_contact_uses_server_side_resend_configuration(monkeypatch: pytest.Monke
     }
     request_json = captured["json"]
     assert isinstance(request_json, dict)
-    assert request_json["to"] == ["owner@d3vonn.io"]
+    assert request_json["from"] == "D3VONN.IO <hello@d3vonn.io>"
+    assert request_json["to"] == ["hello@d3vonn.io"]
     assert request_json["reply_to"] == "sender@example.com"
 
 
@@ -83,5 +85,7 @@ def test_frontend_no_longer_claims_success_without_network_delivery() -> None:
     assert "fetch(`${env.apiUrl.replace" in source
     assert "/api/contact" in source
     assert "Message not delivered" in source
+    assert "hello@d3vonn.io" in source
+    assert "info@d3vonn.io" not in source
     assert "123 AI Boulevard" not in source
     assert "+1 (555) 123-4567" not in source

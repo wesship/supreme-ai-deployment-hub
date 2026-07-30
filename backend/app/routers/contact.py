@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/contact", tags=["contact"])
 
 _EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+_PUBLIC_CONTACT_EMAIL = "hello@d3vonn.io"
 
 
 class ContactRequest(BaseModel):
@@ -60,7 +61,7 @@ async def send_contact_message(payload: ContactRequest) -> ContactResponse:
         logger.error("Contact delivery is not configured")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Contact delivery is temporarily unavailable. Please email info@d3vonn.io.",
+            detail=f"Contact delivery is temporarily unavailable. Please email {_PUBLIC_CONTACT_EMAIL}.",
         )
 
     safe_name = html.escape(payload.name)
@@ -102,7 +103,7 @@ async def send_contact_message(payload: ContactRequest) -> ContactResponse:
         logger.exception("Contact delivery request failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Your message could not be delivered. Please email info@d3vonn.io.",
+            detail=f"Your message could not be delivered. Please email {_PUBLIC_CONTACT_EMAIL}.",
         ) from exc
 
     if response.status_code >= 400:
@@ -113,7 +114,7 @@ async def send_contact_message(payload: ContactRequest) -> ContactResponse:
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Your message could not be delivered. Please email info@d3vonn.io.",
+            detail=f"Your message could not be delivered. Please email {_PUBLIC_CONTACT_EMAIL}.",
         )
 
     return ContactResponse(status="sent", message="Your message was delivered successfully.")
