@@ -45,7 +45,7 @@ const Eyebrow: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">{children}</p>
 );
 
-const workforce = [
+const workforce: Array<[string, string, string, string, React.ElementType]> = [
   ['Hermes', 'Orchestrator', 'Online', '3 queued', BrainCircuit],
   ['Scout', 'Research', 'Ready', '1 running', Bot],
   ['Builder', 'Implementation', 'Ready', '2 queued', GitBranch],
@@ -85,7 +85,7 @@ export const AIWorkforceVisualization: React.FC = () => (
   </Shell>
 );
 
-const architecture = [
+const architecture: Array<[string, string, React.ElementType]> = [
   ['User Intent', 'Business goal enters the system.', Users],
   ['Gateway', 'Routes authenticated requests and public-safe traffic.', Gauge],
   ['Hermes', 'Plans, assigns, pauses, retries, and governs.', BrainCircuit],
@@ -183,7 +183,7 @@ export const CustomerUseCaseCarousel: React.FC = () => {
   );
 };
 
-const trust = [
+const trust: Array<[string, string, React.ElementType]> = [
   ['Public Status', 'Operational preview', Gauge],
   ['Audit Logs', 'Evidence-ready path', CheckCircle2],
   ['RBAC Path', 'Role-based roadmap', Lock],
