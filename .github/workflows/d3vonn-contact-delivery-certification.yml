@@ -2,9 +2,14 @@ name: D3VONN.IO Contact Delivery Certification
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/d3vonn-contact-delivery-certification.yml'
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: d3vonn-contact-delivery-certification
@@ -23,6 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="D3VONN-CONTACT-CERT-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "CONTACT_CANARY_TAG=$tag" >> "$GITHUB_ENV"
           payload=$(jq -n \
             --arg name "D3VONN.IO Production Certification" \
             --arg email "wesship8@gmail.com" \
@@ -39,9 +45,7 @@ jobs:
             --data "$payload" \
             "$CONTACT_ENDPOINT")
 
-          echo "Canary tag: $tag"
           echo "HTTP status: $status"
-
           test "$status" = "202" || {
             echo "Contact endpoint did not return HTTP 202"
             jq -c '{status,error,detail}' "$response_file" 2>/dev/null || true
@@ -55,11 +59,24 @@ jobs:
           }
 
           provider_id=$(jq -r '.id // .message_id // .provider_id // "not-returned"' "$response_file")
-          echo "Provider acceptance: confirmed"
-          echo "Provider message identifier: $provider_id"
-          echo "CONTACT_CANARY_TAG=$tag" >> "$GITHUB_ENV"
+          echo "CONTACT_PROVIDER_ID=$provider_id" >> "$GITHUB_ENV"
+          echo "Provider acceptance confirmed"
 
-      - name: Publish mailbox verification instruction
+      - name: Publish certification evidence
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
         run: |
-          echo "Confirm receipt of subject/tag: ${CONTACT_CANARY_TAG}"
-          echo "Do not mark delivery complete until the destination mailbox contains this exact tag."
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          body=$(cat <<EOF
+          ## Contact delivery certification
+          - Status: **${JOB_STATUS}**
+          - Run: ${run_url}
+          - Commit: \`${GITHUB_SHA}\`
+          - Canary tag: \`${CONTACT_CANARY_TAG:-not-generated}\`
+          - Provider identifier: \`${CONTACT_PROVIDER_ID:-not-returned}\`
+          - Mailbox receipt: requires confirmation of the exact canary tag
+          EOF
+          )
+          gh issue comment 599 --repo "$GITHUB_REPOSITORY" --body "$body"

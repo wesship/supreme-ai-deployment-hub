@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 concurrency:
   group: d3vonn-ai-functional-production-certification
@@ -85,14 +86,21 @@ jobs:
             --reporter=github,line \
             --trace=off
 
-      - name: Publish certification summary
-        if: success()
+      - name: Publish certification evidence
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
         run: |
-          {
-            echo '## D3VONN.IO AI Functional Certification'
-            echo '- Read-only runtime and route checks: passed'
-            echo '- Authenticated bounded chat canary: passed'
-            echo '- RAG ingest/retrieve/delete round trip: passed'
-            echo '- Cleanup: verified'
-            echo '- Credential artifacts: none uploaded'
-          } >> "$GITHUB_STEP_SUMMARY"
+          run_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          body=$(cat <<EOF
+          ## AI functional certification
+          - Status: **${JOB_STATUS}**
+          - Run: ${run_url}
+          - Commit: \`${GITHUB_SHA}\`
+          - Read-only runtime/routes, bounded Chat, RAG round trip, and cleanup are enforced by this workflow.
+          - Credential artifacts: none uploaded
+          EOF
+          )
+          gh issue comment 603 --repo "$GITHUB_REPOSITORY" --body "$body"
+          gh issue comment 599 --repo "$GITHUB_REPOSITORY" --body "$body"
