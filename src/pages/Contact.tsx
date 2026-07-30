@@ -4,7 +4,7 @@ import Container from '@/components/Container';
 import SectionHeading from '@/components/SectionHeading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Globe, Loader2, MailIcon } from 'lucide-react';
+import { Globe, Loader2, MailIcon, UserRound } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
@@ -63,7 +63,7 @@ const Contact: React.FC = () => {
         description:
           error instanceof Error
             ? error.message
-            : 'Please email info@d3vonn.io directly and try again later.',
+            : 'Please email hello@d3vonn.io directly and try again later.',
       });
     } finally {
       setIsSubmitting(false);
@@ -94,14 +94,22 @@ const Contact: React.FC = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-start space-x-3">
+                    <UserRound className="mt-0.5 h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Creator & Founder</p>
+                      <p className="text-sm text-muted-foreground">Wesley K. Little</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3">
                     <MailIcon className="mt-0.5 h-5 w-5 text-primary" />
                     <div>
                       <p className="font-medium">Email</p>
                       <a
                         className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-                        href="mailto:info@d3vonn.io"
+                        href="mailto:hello@d3vonn.io"
                       >
-                        info@d3vonn.io
+                        hello@d3vonn.io
                       </a>
                     </div>
                   </div>
