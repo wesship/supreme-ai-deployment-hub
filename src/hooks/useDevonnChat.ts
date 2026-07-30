@@ -245,34 +245,47 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
           }
         }
       } catch (err) {
+        errorContent = `Connection error: ${err}`;
         setMessages(prev =>
           prev.map(m =>
             m.id === assistantId
-              ? { ...m, content: `Connection error: ${err}`, streaming: false, error: true }
+              ? { ...m, content: errorContent, streaming: false, error: true }
               : m
           )
         );
       } finally {
         setIsStreaming(false);
-        // Mark streaming done
+
+        // Resolved assistant content: streamed text, else the displayed error
+        // text. Never persist or keep an empty assistant message — it would be
+        // replayed as `content: ''` on the next request and 422 (issue #638).
+        const resolvedContent = fullContent.trim() || errorContent.trim();
+
         setMessages(prev =>
-          prev.map(m =>
-            m.id === assistantId ? { ...m, streaming: false } : m
-          )
+          prev
+            .map(m =>
+              m.id === assistantId
+                ? { ...m, content: m.content.trim() || resolvedContent, streaming: false }
+                : m
+            )
+            .filter(m => m.id !== assistantId || m.content.trim().length > 0)
         );
+
         // Persist after streaming completes
-        const finalMessages: UIMessage[] = [
-          ...updatedMessages,
-          {
+        const finalMessages: UIMessage[] = [...updatedMessages];
+        if (resolvedContent) {
+          finalMessages.push({
             id: assistantId,
             role: 'assistant',
-            content: fullContent,
+            content: resolvedContent,
             timestamp: new Date(),
             provider: finalProvider,
             model: finalModel,
-          },
-        ];
+            error: !fullContent.trim() && !!errorContent,
+          });
+        }
         await persistConversation(finalMessages, title);
+
       }
     },
     [messages, isStreaming, config, maxHistory, conversationTitle, persistConversation, agentMode]
