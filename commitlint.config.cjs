@@ -23,7 +23,6 @@ module.exports = {
         'perf',
         'refactor',
         'revert',
-        'security',
         'style',
         'test',
         'wave-30',
