@@ -1,67 +1,74 @@
 /**
- * env.ts — Centralised, type-safe environment configuration
+ * env.ts — Centralised, type-safe public environment configuration.
  *
- * Replaces the insecure deployment/environments.js (plain JS, no type safety,
- * no validation) and the deployment/env-config.template.ts (which referenced
- * process.env directly in the browser bundle, leaking build-time values).
+ * IMPORTANT: use only direct import.meta.env.VITE_* property access in this file.
+ * Dynamic access such as import.meta.env[key] forces Vite to serialize the entire
+ * client environment object and can expose unrelated VITE_* values in the bundle.
  *
- * All runtime config is read from import.meta.env (Vite) which:
- *   1. Only exposes variables prefixed with VITE_ to the browser bundle.
- *   2. Replaces values at build time — secrets are never in the bundle.
- *   3. Throws at startup if a required variable is missing.
+ * Required public deployment variables:
+ *   VITE_API_URL
+ *   VITE_SUPABASE_URL
+ *   VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY
  *
- * Required Vercel / .env.local variables:
- *   VITE_API_URL          — Backend API base URL
- *   VITE_SUPABASE_URL     — Supabase project URL
- *   VITE_SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_ANON_KEY — Supabase public key
- *   VITE_SENTRY_DSN       — Sentry DSN (optional but recommended)
+ * Optional public variables:
+ *   VITE_SENTRY_DSN
+ *   VITE_ENVIRONMENT
  *
- * NEVER prefix secrets (OPENAI_API_KEY, JWT_SECRET, etc.) with VITE_.
- * Those must stay server-side only.
+ * NEVER prefix provider credentials or other secrets with VITE_.
+ * OPENAI_API_KEY, PINECONE_API_KEY, RESEND_API_KEY, JWT_SECRET, and similar
+ * credentials must remain server-side only.
  */
 
-function requireEnv(key: string): string {
-  const value = import.meta.env[key];
+const PUBLIC_ENV = {
+  apiUrl: import.meta.env.VITE_API_URL as string | undefined,
+  supabaseUrl: import.meta.env.VITE_SUPABASE_URL as string | undefined,
+  supabasePublishableKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined,
+  supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined,
+  sentryDsn: import.meta.env.VITE_SENTRY_DSN as string | undefined,
+  environment: import.meta.env.VITE_ENVIRONMENT as string | undefined,
+} as const;
+
+function requireValue(key: string, value: string | undefined): string {
   if (!value) {
     throw new Error(
       `[env] Missing required environment variable: ${key}\n` +
-      `Add it to your .env.local (development) or deployment environment variables (production).`
+        'Add it to your .env.local (development) or deployment environment variables (production).',
     );
   }
-  return value as string;
+  return value;
 }
 
-function optionalEnv(key: string, fallback = ''): string {
-  return (import.meta.env[key] as string | undefined) ?? fallback;
-}
-
-function requireAnyEnv(keys: string[]): string {
-  for (const key of keys) {
-    const value = import.meta.env[key];
-    if (value) return value as string;
+function requireAnyValue(entries: ReadonlyArray<readonly [string, string | undefined]>): string {
+  for (const [, value] of entries) {
+    if (value) return value;
   }
 
   throw new Error(
-    `[env] Missing required environment variable. Set one of: ${keys.join(', ')}\n` +
-    `Add it to your .env.local (development) or deployment environment variables (production).`
+    `[env] Missing required environment variable. Set one of: ${entries
+      .map(([key]) => key)
+      .join(', ')}\n` +
+      'Add it to your .env.local (development) or deployment environment variables (production).',
   );
 }
 
 export const env = {
   /** Backend FastAPI base URL */
-  apiUrl: requireEnv('VITE_API_URL'),
+  apiUrl: requireValue('VITE_API_URL', PUBLIC_ENV.apiUrl),
 
   /** Supabase project URL */
-  supabaseUrl: requireEnv('VITE_SUPABASE_URL'),
+  supabaseUrl: requireValue('VITE_SUPABASE_URL', PUBLIC_ENV.supabaseUrl),
 
   /** Supabase public key — safe to expose in browser */
-  supabaseAnonKey: requireAnyEnv(['VITE_SUPABASE_PUBLISHABLE_KEY', 'VITE_SUPABASE_ANON_KEY']),
+  supabaseAnonKey: requireAnyValue([
+    ['VITE_SUPABASE_PUBLISHABLE_KEY', PUBLIC_ENV.supabasePublishableKey],
+    ['VITE_SUPABASE_ANON_KEY', PUBLIC_ENV.supabaseAnonKey],
+  ]),
 
-  /** Sentry DSN for error tracking (optional) */
-  sentryDsn: optionalEnv('VITE_SENTRY_DSN'),
+  /** Sentry DSN for browser error tracking (public by design) */
+  sentryDsn: PUBLIC_ENV.sentryDsn ?? '',
 
   /** Current environment name */
-  environment: optionalEnv('VITE_ENVIRONMENT', 'development') as
+  environment: (PUBLIC_ENV.environment ?? 'development') as
     | 'development'
     | 'staging'
     | 'production',
