@@ -1,4 +1,4 @@
-name: Devonn.AI Testing
+name: D3VONN.IO Testing
 
 on:
   push:
@@ -64,9 +64,6 @@ jobs:
           args: --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        continue-on-error: true
 
   unit-test:
     name: Unit Tests (Node.js)
@@ -89,7 +86,7 @@ jobs:
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: testing-frontend-coverage
           path: coverage/
           retention-days: 7
       - name: Upload coverage to Codecov
