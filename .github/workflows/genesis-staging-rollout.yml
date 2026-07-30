@@ -42,7 +42,6 @@ env:
 jobs:
   rollout:
     name: Genesis migrations on staging
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/genesis-platform-foundation'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: staging
