@@ -211,15 +211,17 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
             useRAG: true,
           })) {
             if (chunk.error) {
+              errorContent = `Error: ${chunk.error}`;
               setMessages(prev =>
                 prev.map(m =>
                   m.id === assistantId
-                    ? { ...m, content: `Error: ${chunk.error}`, streaming: false, error: true }
+                    ? { ...m, content: errorContent, streaming: false, error: true }
                     : m
                 )
               );
               break;
             }
+
 
             fullContent += chunk.delta;
             if (chunk.provider) finalProvider = chunk.provider;
