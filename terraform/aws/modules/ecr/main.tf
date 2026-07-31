@@ -9,11 +9,29 @@ variable "tags" {
   default     = {}
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_kms_key" "ecr" {
   description             = "KMS key for ECR repository encryption"
   deletion_window_in_days = 30
   enable_key_rotation     = true
-  tags                    = var.tags
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableAccountAdministration"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = var.tags
 }
 
 resource "aws_kms_alias" "ecr" {
