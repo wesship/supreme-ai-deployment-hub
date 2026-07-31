@@ -73,6 +73,15 @@ const Security: React.FC = () => {
             </div>
           </section>
 
+          <section className="mx-auto mt-14 max-w-4xl overflow-hidden rounded-3xl border border-blue-500/20 bg-blue-950/10" aria-label="Governed AI operations illustration">
+            <img
+              src="/illustrations/governed-operations.svg"
+              alt="Governed AI operations: agent proposals pass a human approval checkpoint with fail-closed policy before governed execution"
+              className="h-auto w-full"
+              loading="lazy"
+            />
+          </section>
+
           <section className="mt-20 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Enterprise security controls">
             {controls.map((item) => (
               <article key={item.title} className="d3-chrome-panel d3-command-surface rounded-2xl p-6">
