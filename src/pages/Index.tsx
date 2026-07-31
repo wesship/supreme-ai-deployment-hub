@@ -228,10 +228,10 @@ const Hero: React.FC = () => {
                   <div className="absolute h-[62%] w-[62%] rounded-full border border-dashed border-blue-300/25 motion-safe:animate-[spin_28s_linear_infinite]" />
                   <div className="absolute h-[42%] w-[42%] rounded-full border border-blue-200/25 bg-blue-500/10 shadow-[0_0_50px_rgba(37,126,255,0.35)] backdrop-blur-xl" />
                   <img
-                    src="/core-01-helmet.svg?v=20260719-core01"
-                    width={480}
-                    height={720}
-                    alt="D3VONN.IO D3 Core"
+                    src="/d3vonn-logo.png?v=20260731-official"
+                    width={1254}
+                    height={1254}
+                    alt="Official D3VONN.IO blue-chrome crest logo — One Platform Infinite Intelligence"
                     className="relative z-10 h-[92%] w-auto max-w-[88%] object-contain drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
                     loading="eager"
                     decoding="async"
