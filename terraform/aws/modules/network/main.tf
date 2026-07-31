@@ -21,12 +21,24 @@ variable "tags" {
 }
 
 resource "aws_vpc" "this" {
+  #checkov:skip=CKV2_AWS_11:VPC flow logs require a separately managed centralized log destination and service role; this exception must be removed when that logging stack is provisioned.
   cidr_block           = var.cidr_block
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-vpc"
+  })
+}
+
+resource "aws_default_security_group" "this" {
+  vpc_id = aws_vpc.this.id
+
+  ingress = []
+  egress  = []
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-default-deny"
   })
 }
 

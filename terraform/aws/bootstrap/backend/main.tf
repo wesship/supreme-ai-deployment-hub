@@ -12,10 +12,27 @@ provider "aws" {
   region = var.region
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_kms_key" "terraform_backend" {
   description             = "KMS key for Terraform state and lock data"
   deletion_window_in_days = 30
   enable_key_rotation     = true
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableAccountAdministration"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = merge(var.tags, {
     Name        = "${var.bucket_name}-kms"
@@ -31,6 +48,9 @@ resource "aws_kms_alias" "terraform_backend" {
 }
 
 resource "aws_s3_bucket" "tf_state" {
+  #checkov:skip=CKV2_AWS_62:Terraform state changes are audited through version history and CI; bucket event delivery requires a separately operated destination.
+  #checkov:skip=CKV_AWS_18:This bootstrap bucket cannot safely log to itself; organization-level CloudTrail data events are the required access-audit control.
+  #checkov:skip=CKV_AWS_144:Cross-region replication is intentionally deferred until a separately administered disaster-recovery account and destination key exist.
   bucket = var.bucket_name
 
   tags = merge(var.tags, {
@@ -47,6 +67,27 @@ resource "aws_s3_bucket_versioning" "tf_state" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "tf_state" {
+  bucket = aws_s3_bucket.tf_state.id
+
+  rule {
+    id     = "retain-noncurrent-state-versions"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = 365
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.tf_state]
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "tf_state" {
