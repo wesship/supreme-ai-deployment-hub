@@ -58,33 +58,28 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Discover Terraform root
+      - name: Discover deployment Terraform root
         id: terraform-root
         shell: bash
         run: |
           set -euo pipefail
-          roots=()
-          while IFS= read -r -d '' file; do
-            root=$(dirname "$file")
-            if [[ ! " ${roots[*]} " =~ " ${root} " ]]; then
-              roots+=("$root")
+          root=''
+          for candidate in src/data/manifest/terraform terraform; do
+            if [ -d "$candidate" ] && find "$candidate" -type f -name '*.tf' -print -quit | grep -q .; then
+              root="$candidate"
+              break
             fi
-          done < <(find terraform src/data/manifest/terraform -type f -name '*.tf' -print0 2>/dev/null || true)
+          done
 
-          if [ "${#roots[@]}" -eq 0 ]; then
+          if [ -z "$root" ]; then
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "No Terraform files found; validation is neutral."
             exit 0
           fi
 
-          if [ "${#roots[@]}" -gt 1 ]; then
-            printf '::error::Multiple Terraform roots detected: %s\n' "${roots[*]}"
-            exit 1
-          fi
-
           echo "present=true" >> "$GITHUB_OUTPUT"
-          echo "root=${roots[0]}" >> "$GITHUB_OUTPUT"
-          echo "Terraform root: ${roots[0]}"
+          echo "root=$root" >> "$GITHUB_OUTPUT"
+          echo "Deployment Terraform root: $root"
 
       - name: Setup Terraform
         if: steps.terraform-root.outputs.present == 'true'
@@ -125,22 +120,19 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Discover Terraform root
+      - name: Discover Terraform files
         id: terraform-root
         shell: bash
         run: |
           set -euo pipefail
-          roots=()
-          while IFS= read -r -d '' file; do
-            root=$(dirname "$file")
-            if [[ ! " ${roots[*]} " =~ " ${root} " ]]; then
-              roots+=("$root")
-            fi
-          done < <(find terraform src/data/manifest/terraform -type f -name '*.tf' -print0 2>/dev/null || true)
+          if find terraform src/data/manifest/terraform -type f -name '*.tf' -print -quit 2>/dev/null | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "Terraform files found; Checkov will scan all configured roots from the repository root."
+            exit 0
+          fi
 
-          if [ "${#roots[@]}" -eq 0 ]; then
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            cat > checkov-results.json <<'JSON'
+          echo "present=false" >> "$GITHUB_OUTPUT"
+          cat > checkov-results.json <<'JSON'
           {
             "check_type": "terraform",
             "results": {"passed_checks": [], "failed_checks": [], "skipped_checks": [], "parsing_errors": []},
@@ -148,25 +140,14 @@ jobs:
             "neutral_reason": "No Terraform files were found in configured repository roots."
           }
           JSON
-            cat > checkov-results.sarif <<'JSON'
+          cat > checkov-results.sarif <<'JSON'
           {
             "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
             "version": "2.1.0",
             "runs": [{"tool": {"driver": {"name": "Checkov", "informationUri": "https://www.checkov.io/", "rules": []}}, "results": []}]
           }
           JSON
-            echo "No Terraform files found; Checkov result is neutral."
-            exit 0
-          fi
-
-          if [ "${#roots[@]}" -gt 1 ]; then
-            printf '::error::Multiple Terraform roots detected: %s\n' "${roots[*]}"
-            exit 1
-          fi
-
-          echo "present=true" >> "$GITHUB_OUTPUT"
-          echo "root=${roots[0]}" >> "$GITHUB_OUTPUT"
-          echo "Terraform root: ${roots[0]}"
+          echo "No Terraform files found; Checkov result is neutral."
 
       - name: Setup Python
         if: steps.terraform-root.outputs.present == 'true'
@@ -185,7 +166,7 @@ jobs:
         run: |
           set +e
           checkov \
-            --directory "${{ steps.terraform-root.outputs.root }}" \
+            --directory . \
             --framework terraform \
             --skip-download \
             --compact \
@@ -231,7 +212,7 @@ jobs:
         continue-on-error: true
         run: |
           checkov \
-            --directory "${{ steps.terraform-root.outputs.root }}" \
+            --directory . \
             --framework terraform \
             --skip-download \
             --compact \
