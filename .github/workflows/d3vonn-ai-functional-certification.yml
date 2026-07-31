@@ -73,7 +73,7 @@ jobs:
       - name: Run bounded production canaries
         env:
           CI: 'true'
-          PLAYWRIGHT_BASE_URL: https://d3vonn.io
+          PLAYWRIGHT_BASE_URL: https://www.d3vonn.io
           D3VONN_API_URL: https://api.d3vonn.io
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
