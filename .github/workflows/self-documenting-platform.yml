@@ -16,6 +16,7 @@ on:
 permissions:
   contents: write
   actions: read
+  pull-requests: write
 
 jobs:
   generate-architecture-docs:
@@ -44,7 +45,6 @@ jobs:
 
           workflows = sorted(glob.glob(".github/workflows/*.yml"))
 
-          # Categorize workflows
           categories = {
               "CI/CD Core": [],
               "Security & Compliance": [],
@@ -75,7 +75,6 @@ jobs:
                   jobs = list(wf.get("jobs", {}).keys())
                   filename = wf_path.split("/")[-1]
 
-                  # Categorize
                   assigned = False
                   for cat, keywords in category_keywords.items():
                       if any(kw in filename.lower() or kw in name.lower() for kw in keywords):
@@ -86,10 +85,9 @@ jobs:
                       categories["CI/CD Core"].append({"name": name, "file": filename, "triggers": triggers, "jobs": len(jobs)})
 
                   wf_data.append({"name": name, "file": filename, "triggers": triggers, "jobs": jobs})
-              except Exception as e:
+              except Exception:
                   pass
 
-          # Generate ARCHITECTURE.md
           now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
           lines = [
               "# Devonn.AI Platform Architecture",
@@ -120,7 +118,6 @@ jobs:
                   lines.append(f"| {wf['name']} | `{wf['file']}` | {triggers_str} | {wf['jobs']} |")
               lines.append("")
 
-          # Platform maturity matrix
           lines += [
               "## Platform Maturity Matrix",
               "",
@@ -192,25 +189,40 @@ jobs:
                   name = wf.get("name", wf_path.split("/")[-1])
                   triggers = wf.get("on", {})
 
-                  # Check if triggered by workflow_run
                   if isinstance(triggers, dict) and "workflow_run" in triggers:
                       parent_wfs = triggers["workflow_run"].get("workflows", [])
                       for parent in parent_wfs:
                           print(f"  [{parent}] --> [{name}]")
-              except:
+              except Exception:
                   pass
           PYEOF
 
-      - name: Commit updated ARCHITECTURE.md
-        continue-on-error: true  # Branch protection may block automated pushes
+      - name: Publish architecture update as draft PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_BRANCH: automation/self-documenting-platform
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git add ARCHITECTURE.md
+
           if git diff --staged --quiet; then
             echo "No changes to ARCHITECTURE.md"
+            exit 0
+          fi
+
+          git checkout -B "$UPDATE_BRANCH"
+          git commit -m "docs: auto-update ARCHITECTURE.md [skip ci]"
+          git fetch origin "$UPDATE_BRANCH":refs/remotes/origin/"$UPDATE_BRANCH" || true
+          git push --force-with-lease origin HEAD:"$UPDATE_BRANCH"
+
+          if gh pr list --head "$UPDATE_BRANCH" --base main --state open --json number --jq 'length' | grep -q '^0$'; then
+            gh pr create \
+              --base main \
+              --head "$UPDATE_BRANCH" \
+              --title "docs: refresh generated architecture documentation" \
+              --body "Automated refresh from the Self-Documenting Platform workflow. This PR replaces direct bot pushes to main and must pass normal review and required checks before merge." \
+              --draft
           else
-            git commit -m "docs: auto-update ARCHITECTURE.md [skip ci]"
-            git push
-            echo "ARCHITECTURE.md updated and pushed"
+            echo "Existing automation PR updated"
           fi
