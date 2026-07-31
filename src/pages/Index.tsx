@@ -36,6 +36,7 @@ import KnowledgeGraphPreview from '@/components/home/KnowledgeGraphPreview';
 import MarketplacePreview from '@/components/home/MarketplacePreview';
 import TrustCenterPreview from '@/components/home/TrustCenterPreview';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
+import PlatformVideosSection from '@/components/home/PlatformVideosSection';
 import {
   defaultHomepageTelemetry,
   fetchHomepageTelemetry,
@@ -543,6 +544,7 @@ const Index: React.FC = () => {
         <CapabilitiesSection />
         <IntelligenceStackSection />
         <ProductSection />
+        <PlatformVideosSection />
         <LiveIntelligenceSection />
         <CTASection />
       </div>

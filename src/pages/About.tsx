@@ -139,4 +139,13 @@ const About: React.FC = () => {
   );
 };
 
-export default About;
+export default About;        <section className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-3xl border border-blue-500/20 bg-blue-950/10">
+          <img
+            src="/illustrations/governed-operations.svg"
+            alt="D3VONN.IO's supervised-autonomy philosophy: every consequential agent action passes a human approval checkpoint"
+            className="h-auto w-full"
+            loading="lazy"
+          />
+        </section>
+
+
