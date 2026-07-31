@@ -53,7 +53,16 @@ const Resources: React.FC = () => {
           ))}
         </section>
 
-        <section className="mt-16 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-8 text-center">
+        <section className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02]">
+          <img
+            src="/illustrations/workflow-pipeline.svg"
+            alt="D3VONN.IO pilot workflow: goal, Hermes plan, governed execution, measured outcome"
+            className="h-auto w-full"
+            loading="lazy"
+          />
+        </section>
+
+        <section className="mt-12 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-8 text-center">
           <Download className="mx-auto h-10 w-10 text-blue-300" />
           <h2 className="mt-4 text-3xl font-black">Pilot checklist</h2>
           <p className="mx-auto mt-3 max-w-2xl text-white/70">
