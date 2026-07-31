@@ -112,6 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      actions: read
       contents: read
       security-events: write
     steps:
@@ -212,6 +213,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf checkov-sarif-output
           checkov \
             --directory . \
             --framework terraform \
@@ -219,7 +221,8 @@ jobs:
             --compact \
             --soft-fail \
             --output sarif \
-            --output-file-path checkov-results.sarif >/dev/null
+            --output-file-path checkov-sarif-output >/dev/null
+          mv checkov-sarif-output/results_sarif.sarif checkov-results.sarif
           test -s checkov-results.sarif
           python -m json.tool checkov-results.sarif >/dev/null
 
