@@ -38,6 +38,15 @@ const Solutions: React.FC = () => {
           </p>
         </section>
 
+        <section className="mx-auto mt-14 max-w-4xl overflow-hidden rounded-3xl border border-blue-500/20 bg-blue-950/10">
+          <img
+            src="/illustrations/agent-orchestration.svg"
+            alt="Hermes orchestrating the D3VONN.IO agent swarm — TARS research, ION execution, SAPPHIRE memory, GUARDIAN safety, workflows, and the RAG knowledge vault"
+            className="h-auto w-full"
+            loading="lazy"
+          />
+        </section>
+
         <section className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {solutions.map((item) => (
             <article key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_0_40px_-12px_rgba(56,136,255,0.25)]">
@@ -50,7 +59,16 @@ const Solutions: React.FC = () => {
           ))}
         </section>
 
-        <section className="mt-20 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-8 text-center">
+        <section className="mx-auto mt-20 max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02]">
+          <img
+            src="/illustrations/workflow-pipeline.svg"
+            alt="D3VONN.IO workflow pipeline: business goal to Hermes task plan to governed agent execution to measured outcome"
+            className="h-auto w-full"
+            loading="lazy"
+          />
+        </section>
+
+        <section className="mt-12 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-8 text-center">
           <h2 className="text-3xl font-black">Best next pilot</h2>
           <p className="mx-auto mt-3 max-w-2xl text-white/70">
             Start with one high-value repeatable workflow: sales research, client onboarding, content production, executive reporting, or operations triage.
