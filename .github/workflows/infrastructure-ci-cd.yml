@@ -207,21 +207,24 @@ jobs:
               sys.exit(1)
           PY
 
-      - name: Generate Checkov SARIF
+      - name: Generate and validate Checkov SARIF
         if: always() && steps.terraform-root.outputs.present == 'true'
-        continue-on-error: true
+        shell: bash
         run: |
+          set -euo pipefail
           checkov \
             --directory . \
             --framework terraform \
             --skip-download \
             --compact \
             --soft-fail \
-            --output sarif > checkov-results.sarif
+            --output sarif \
+            --output-file-path checkov-results.sarif >/dev/null
+          test -s checkov-results.sarif
+          python -m json.tool checkov-results.sarif >/dev/null
 
       - name: Upload Checkov SARIF
         if: always() && hashFiles('checkov-results.sarif') != ''
-        continue-on-error: true
         uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
           sarif_file: checkov-results.sarif
