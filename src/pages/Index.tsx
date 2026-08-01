@@ -227,7 +227,7 @@ const Hero: React.FC = () => {
                   <img
                     src={ENTERPRISE_CORE_SRC}
                     alt="D3VONN.IO Enterprise Intelligence Core — AI workforce, domain intelligence, and knowledge graph command center"
-                    className="absolute inset-0 h-full w-full object-cover object-center"
+                    className="absolute inset-0 h-full w-full object-contain object-center p-2 sm:p-3"
                     loading="eager"
                     decoding="async"
                   />

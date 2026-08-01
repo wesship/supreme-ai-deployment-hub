@@ -16,7 +16,7 @@ interface D3vonnPageBannerProps {
  */
 const D3vonnPageBanner: React.FC<D3vonnPageBannerProps> = ({
   title,
-  subtitle = "You're here at an opportune time — so live.",
+  subtitle = 'ONE PLATFORM. INFINITE INTELLIGENCE.',
   compact = true,
 }) => {
   return (
