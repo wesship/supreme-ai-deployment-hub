@@ -43,7 +43,7 @@ import {
   type HomepageTelemetry,
 } from '@/lib/homepageTelemetry';
 
-const MASTER_LOGO_SRC = '/d3vonn-logo.webp?v=20260713';
+const MASTER_LOGO_SRC = '/d3vonn-logo-clean.png?v=20260801-clean';
 
 const useHomepageTelemetry = () => {
   const [telemetry, setTelemetry] = useState<HomepageTelemetry>(defaultHomepageTelemetry);
@@ -84,8 +84,8 @@ const HeroLogoMark: React.FC = () => (
     <div className="absolute inset-x-[6%] bottom-[8%] h-12 rounded-full bg-blue-400/25 blur-2xl" />
     <img
       src={MASTER_LOGO_SRC}
-      width={900}
-      height={492}
+      width={1170}
+      height={320}
       alt="D3VONN.IO cinematic blue logo — The AI Business Operating System"
       className="relative z-10 w-full object-contain object-center opacity-[0.98] drop-shadow-[0_0_64px_rgba(0,163,255,0.78)] transition duration-700 hover:scale-[1.01]"
       draggable={false}
@@ -225,10 +225,10 @@ const Hero: React.FC = () => {
                 <div className="relative min-h-[360px] overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <img
                     src={MASTER_LOGO_SRC}
-                    width={900}
-                    height={492}
+                    width={1170}
+                    height={320}
                     alt="D3VONN.IO official winged warrior logo — One Platform. Infinite Intelligence."
-                    className="absolute inset-0 h-full w-full object-contain object-center p-6 sm:object-cover sm:p-0"
+                    className="absolute inset-0 h-full w-full object-contain object-center p-4 sm:object-cover sm:p-0"
                     loading="eager"
                     decoding="async"
                   />
