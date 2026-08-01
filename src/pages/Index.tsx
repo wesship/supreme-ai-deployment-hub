@@ -225,7 +225,7 @@ const Hero: React.FC = () => {
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
                 <div className="relative min-h-[360px] overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <img
-                    src={enterpriseCoreAsset.url}
+                    src={ENTERPRISE_CORE_SRC}
                     alt="D3VONN.IO Enterprise Intelligence Core — AI workforce, domain intelligence, and knowledge graph command center"
                     className="absolute inset-0 h-full w-full object-cover object-center"
                     loading="eager"
