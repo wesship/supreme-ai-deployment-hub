@@ -1,0 +1,94 @@
+name: Manual VPS Release Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Git tag or commit to deploy
+        required: true
+        default: v2.0.0
+      run_diagnostics:
+        description: Run 502 diagnostic after deployment
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-vps-release-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    steps:
+      - name: Validate required secrets
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$VPS_HOST" || { echo "Missing production secret: VPS_HOST"; exit 1; }
+          test -n "$VPS_USER" || { echo "Missing production secret: VPS_USER"; exit 1; }
+          test -n "$VPS_SSH_KEY" || { echo "Missing production secret: VPS_SSH_KEY"; exit 1; }
+
+      - name: Configure SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy release and validate
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+          RUN_DIAGNOSTICS: ${{ inputs.run_diagnostics }}
+        run: |
+          set -euo pipefail
+          ssh -o BatchMode=yes "$VPS_USER@$VPS_HOST" \
+            "RELEASE_REF='$RELEASE_REF' RUN_DIAGNOSTICS='$RUN_DIAGNOSTICS' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/supreme-ai-deployment-hub
+
+          git fetch --tags --prune
+          git checkout --detach "$RELEASE_REF"
+
+          docker compose \
+            --env-file deploy/vps/env/.env.production \
+            -f deploy/vps/docker-compose.yml \
+            config >/dev/null
+
+          docker compose \
+            --env-file deploy/vps/env/.env.production \
+            -f deploy/vps/docker-compose.yml \
+            up -d --build
+
+          docker compose \
+            --env-file deploy/vps/env/.env.production \
+            -f deploy/vps/docker-compose.yml \
+            ps
+
+          curl --fail --show-error --silent --max-time 20 \
+            http://127.0.0.1:8000/health/ready
+          echo
+
+          curl --fail --show-error --silent --max-time 30 \
+            https://api.d3vonn.io/health/ready
+          echo
+
+          if [ "$RUN_DIAGNOSTICS" = "true" ]; then
+            bash deploy/vps/scripts/diagnose-502.sh \
+              | tee /tmp/d3vonn-502-diagnosis.txt
+          fi
+          REMOTE
