@@ -1,18 +1,21 @@
-
 import axios from 'axios';
 
-// Set base URL for API endpoints
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const defaultApiUrl = import.meta.env.PROD
+  ? 'https://api.d3vonn.io'
+  : 'http://localhost:8000';
 
-// Configure axios instance
+// Keep one canonical origin-only API base. Individual services own their /api paths.
+export const API_BASE_URL = (configuredApiUrl || defaultApiUrl).replace(/\/+$/, '');
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30_000,
 });
 
-// Error handling helper
 export const handleServiceError = (error: unknown, message: string): never => {
   if (axios.isAxiosError(error)) {
     console.error(`${message}:`, error.response?.data || error.message);
