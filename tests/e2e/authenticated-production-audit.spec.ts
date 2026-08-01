@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+// Release certification suite for production authentication and protected workspace routes.
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? 'https://d3vonn.io';
 const testEmail = process.env.E2E_TEST_EMAIL?.trim();
 const testPassword = process.env.E2E_TEST_PASSWORD?.trim();
