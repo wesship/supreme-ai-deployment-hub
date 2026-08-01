@@ -225,15 +225,13 @@ const Hero: React.FC = () => {
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
                 <div className="relative min-h-[360px] overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <img
-                    src={MASTER_LOGO_SRC}
-                    width={1170}
-                    height={320}
-                    alt="D3VONN.IO official winged warrior logo — One Platform. Infinite Intelligence."
-                    className="absolute inset-0 h-full w-full object-contain object-center p-5 sm:p-8"
+                    src={enterpriseCoreAsset.url}
+                    alt="D3VONN.IO Enterprise Intelligence Core — AI workforce, domain intelligence, and knowledge graph command center"
+                    className="absolute inset-0 h-full w-full object-cover object-center"
                     loading="eager"
                     decoding="async"
                   />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#020b1c]/80 via-[#020b1c]/20 to-[#020b1c]/55" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#020b1c]/85 via-[#020b1c]/30 to-[#020b1c]/60" />
 
                   <span className="absolute left-4 top-4 z-10 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Core 01</span>
                   <span className="absolute bottom-4 right-4 z-10 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Hermes linked</span>
