@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+// Release certification suite for authenticated OpenAI chat and bounded RAG round-trip checks.
 const siteUrl = process.env.PLAYWRIGHT_BASE_URL ?? 'https://d3vonn.io';
 const apiUrl = process.env.D3VONN_API_URL ?? 'https://api.d3vonn.io';
 const email = process.env.E2E_TEST_EMAIL?.trim();
