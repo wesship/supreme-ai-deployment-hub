@@ -1,18 +1,16 @@
 name: One-time brace-expansion remediation
 
 on:
-  push:
-    branches:
-      - fix/security-grype-highs-clean
-    paths:
-      - '.github/workflows/one-time-brace-expansion-repair.yml'
-      - '.github/brace-expansion-repair-trigger'
+  pull_request:
+    branches: [main]
+    types: [reopened]
 
 permissions:
   contents: write
 
 jobs:
   repair:
+    if: github.head_ref == 'fix/security-grype-highs-clean'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
