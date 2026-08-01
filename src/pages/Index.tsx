@@ -222,20 +222,20 @@ const Hero: React.FC = () => {
               </div>
 
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
-                <div className="relative grid min-h-[360px] place-items-center overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
-                  <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,rgba(44,136,255,0.26),transparent_46%)]" />
+                <div className="relative min-h-[360px] overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <img
                     src={MASTER_LOGO_SRC}
                     width={900}
                     height={492}
                     alt="D3VONN.IO official winged warrior logo — One Platform. Infinite Intelligence."
-                    className="relative z-10 w-full h-auto max-h-[78%] object-contain object-center drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
+                    className="absolute inset-0 h-full w-full object-cover object-center"
                     loading="eager"
                     decoding="async"
                   />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#020b1c]/80 via-[#020b1c]/20 to-[#020b1c]/55" />
 
-                  <span className="absolute left-4 top-4 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Core 01</span>
-                  <span className="absolute bottom-4 right-4 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Hermes linked</span>
+                  <span className="absolute left-4 top-4 z-10 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Core 01</span>
+                  <span className="absolute bottom-4 right-4 z-10 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Hermes linked</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
