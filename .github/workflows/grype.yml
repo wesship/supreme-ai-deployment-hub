@@ -81,24 +81,24 @@ jobs:
 
           payload = json.loads(Path('grype-results.json').read_text(encoding='utf-8'))
           rows = []
-          for match in payload.get('matches', []):
-              vulnerability = match.get('vulnerability', {})
-              severity = str(vulnerability.get('severity', '')).lower()
+          for match in payload.get('matches') or []:
+              vulnerability = match.get('vulnerability') or {}
+              severity = str(vulnerability.get('severity') or '').lower()
               if severity not in {'high', 'critical'}:
                   continue
-              artifact = match.get('artifact', {})
-              fixes = (vulnerability.get('fix') or {}).get('versions', [])
+              artifact = match.get('artifact') or {}
+              fixes = (vulnerability.get('fix') or {}).get('versions') or []
               locations = ', '.join(
-                  location.get('path', '')
-                  for location in artifact.get('locations', [])
-                  if location.get('path')
+                  str(location.get('path') or '')
+                  for location in (artifact.get('locations') or [])
+                  if isinstance(location, dict) and location.get('path')
               ) or 'unknown'
               rows.append((
                   severity.upper(),
-                  artifact.get('name', 'unknown'),
-                  artifact.get('version', 'unknown'),
-                  vulnerability.get('id', 'unknown'),
-                  ', '.join(fixes) or 'No fixed version reported',
+                  str(artifact.get('name') or 'unknown'),
+                  str(artifact.get('version') or 'unknown'),
+                  str(vulnerability.get('id') or 'unknown'),
+                  ', '.join(str(version) for version in fixes) or 'No fixed version reported',
                   locations,
               ))
 
@@ -138,7 +138,7 @@ jobs:
           retention-days: 30
 
       - name: Upload SARIF to GitHub Security
-        if: always() && hashFiles('grype-results.sarif') != ''
+        if: always() && hashFiles('grype-results.sarif') != '' && github.actor != 'dependabot[bot]'
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
