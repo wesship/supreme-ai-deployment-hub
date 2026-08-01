@@ -1,14 +1,25 @@
-"""Tests for Pinecone index-name discovery when no explicit host is configured."""
+"""Tests for Pinecone index discovery, runtime dimension, and SDK fallback."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi import HTTPException
 
 from backend.app.routers.rag import (
+    _describe_pinecone_index,
     _pinecone_delete,
     _pinecone_query,
+    _pinecone_runtime_config,
     _pinecone_upsert,
 )
+
+
+@pytest.fixture(autouse=True)
+def clear_pinecone_description_cache():
+    _describe_pinecone_index.cache_clear()
+    yield
+    _describe_pinecone_index.cache_clear()
 
 
 @pytest.mark.asyncio
@@ -75,3 +86,60 @@ async def test_delete_uses_sdk_index_when_host_is_missing():
         filter={"filename": {"$eq": "fixture.txt"}},
         namespace="documents",
     )
+
+
+@pytest.mark.asyncio
+async def test_runtime_config_prefers_discovered_host_and_dimension():
+    settings = SimpleNamespace(
+        pinecone_api_key="pinecone-key",
+        pinecone_index_name="devonn-rag",
+        pinecone_host="stale-host.example",
+        pinecone_dimension=768,
+    )
+
+    with patch(
+        "backend.app.routers.rag._describe_pinecone_index",
+        return_value={"host": "live-host.svc.pinecone.io", "dimension": 1536},
+    ):
+        host, dimension = await _pinecone_runtime_config(settings)
+
+    assert host == "live-host.svc.pinecone.io"
+    assert dimension == 1536
+
+
+@pytest.mark.asyncio
+async def test_runtime_config_falls_back_to_explicit_host_when_description_fails():
+    settings = SimpleNamespace(
+        pinecone_api_key="pinecone-key",
+        pinecone_index_name="devonn-rag",
+        pinecone_host="configured-host.svc.pinecone.io",
+        pinecone_dimension=768,
+    )
+
+    with patch(
+        "backend.app.routers.rag._describe_pinecone_index",
+        side_effect=HTTPException(status_code=502, detail="control plane unavailable"),
+    ):
+        host, dimension = await _pinecone_runtime_config(settings)
+
+    assert host == "configured-host.svc.pinecone.io"
+    assert dimension == 768
+
+
+@pytest.mark.asyncio
+async def test_runtime_config_requires_discovery_when_no_host_is_configured():
+    settings = SimpleNamespace(
+        pinecone_api_key="pinecone-key",
+        pinecone_index_name="devonn-rag",
+        pinecone_host="",
+        pinecone_dimension=768,
+    )
+
+    with patch(
+        "backend.app.routers.rag._describe_pinecone_index",
+        side_effect=HTTPException(status_code=502, detail="control plane unavailable"),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await _pinecone_runtime_config(settings)
+
+    assert exc_info.value.status_code == 502
