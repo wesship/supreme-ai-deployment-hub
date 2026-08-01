@@ -1,0 +1,73 @@
+name: One-time minimatch compatibility repair
+
+on:
+  pull_request:
+    types: [reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.event.pull_request.head.ref == 'fix/security-grype-highs-final'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: fix/security-grype-highs-final
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Apply targeted minimatch compatibility override
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.pnpm ??= {};
+          pkg.pnpm.overrides ??= {};
+          pkg.pnpm.overrides['minimatch@<4'] = '10.2.5';
+          pkg.pnpm.overrides['brace-expansion'] = '5.0.9';
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+
+      - name: Regenerate and verify lockfile
+        run: |
+          pnpm install --lockfile-only
+          pnpm install --frozen-lockfile
+
+      - name: Validate compatibility and application
+        run: |
+          pnpm run typecheck
+          pnpm exec eslint src --ext .ts,.tsx,.js,.jsx --no-error-on-unmatched-pattern --quiet
+          pnpm test
+
+      - name: Verify secure dependency graph
+        run: |
+          if grep -nE 'brace-expansion@1\.|brace-expansion: 1\.' pnpm-lock.yaml; then
+            echo '::error::Legacy brace-expansion remains in lockfile'
+            exit 1
+          fi
+          pnpm why minimatch || true
+
+      - name: Remove temporary workflow and commit repair
+        run: |
+          rm .github/workflows/one-time-minimatch-compatibility-repair.yml
+          rm .github/minimatch-compatibility-trigger
+          git config user.name 'd3vonn-security-bot'
+          git config user.email '37167955+wesship@users.noreply.github.com'
+          git add package.json pnpm-lock.yaml .github/workflows/one-time-minimatch-compatibility-repair.yml .github/minimatch-compatibility-trigger
+          git commit -m 'fix(security): restore minimatch compatibility'
+          git push origin HEAD:fix/security-grype-highs-final
