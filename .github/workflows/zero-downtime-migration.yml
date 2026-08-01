@@ -1,6 +1,13 @@
 name: Zero-Downtime Migration
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/migrations/**'
+      - 'backend/alembic/**'
+      - 'supabase/migrations/**'
+      - 'database/**'
   push:
     branches: [main]
     paths:
@@ -24,7 +31,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: zero-downtime-migration
+  group: zero-downtime-migration-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -46,19 +53,68 @@ jobs:
       - name: Install migration tools
         run: pip install alembic sqlparse pyyaml --quiet
 
+      - name: Collect changed migration files
+        id: migration_files
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          case "$EVENT_NAME" in
+            pull_request)
+              base="$PR_BASE_SHA"
+              head="$PR_HEAD_SHA"
+              ;;
+            push)
+              base="$BEFORE_SHA"
+              head="$CURRENT_SHA"
+              if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
+                base="$(git rev-parse "${head}^")"
+              fi
+              ;;
+            workflow_dispatch)
+              head="$CURRENT_SHA"
+              base="$(git rev-parse "${head}^")"
+              ;;
+            *)
+              echo "Unsupported event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "Comparing migration changes: $base..$head"
+          git diff --name-only --diff-filter=ACMR "$base" "$head" -- \
+            backend/migrations backend/alembic supabase/migrations database \
+            | grep -E '^(backend/migrations/|backend/alembic/|supabase/migrations/|database/).+\.(sql|py)$' \
+            | sort -u > /tmp/migration-files.txt || true
+
+          count="$(wc -l < /tmp/migration-files.txt | tr -d ' ')"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Migration files selected: $count"
+          if [[ "$count" -gt 0 ]]; then
+            cat /tmp/migration-files.txt
+          fi
+
       - name: Scan migrations for data-loss operations
         id: migration_scan
         run: |
           python3 - << 'PYEOF'
-          import os, glob, re, json
-          from datetime import datetime
+          import json
+          import os
+          import re
+          from datetime import datetime, timezone
+          from pathlib import Path
 
           print("ZERO-DOWNTIME MIGRATION SAFETY SCANNER")
-          print(f"Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+          print(f"Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
           print("=" * 55)
 
-          # Patterns that indicate destructive operations
-          DESTRUCTIVE_PATTERNS = [
+          destructive_patterns = [
               (r'\bDROP\s+TABLE\b',        "CRITICAL", "DROP TABLE"),
               (r'\bDROP\s+COLUMN\b',       "CRITICAL", "DROP COLUMN"),
               (r'\bTRUNCATE\b',            "CRITICAL", "TRUNCATE"),
@@ -69,59 +125,81 @@ jobs:
               (r'\bDROP\s+CONSTRAINT\b',   "MEDIUM",   "DROP CONSTRAINT"),
           ]
 
-          # Zero-downtime safe patterns
-          SAFE_PATTERNS = [
-              r'\bCREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\b',
-              r'\bADD\s+COLUMN\b',
-              r'\bCREATE\s+INDEX\s+CONCURRENTLY\b',
-              r'\bCREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\b',
-          ]
+          def strip_sql_comments(content: str) -> str:
+              content = re.sub(r'/\*.*?\*/', ' ', content, flags=re.DOTALL)
+              return re.sub(r'--[^\n]*', ' ', content)
 
-          migration_dirs = [
-              "backend/migrations",
-              "backend/alembic/versions",
-              "supabase/migrations",
-              "database/migrations",
-          ]
+          def normalize_non_destructive_sql(content: str) -> str:
+              # ALTER PUBLICATION ... DROP TABLE removes a table from logical
+              # replication; it does not delete the table or its data.
+              return re.sub(
+                  r'\bALTER\s+PUBLICATION\s+\S+\s+DROP\s+TABLE\b',
+                  'ALTER PUBLICATION __PUBLICATION__ REMOVE TABLE',
+                  content,
+                  flags=re.IGNORECASE,
+              )
+
+          file_list = Path('/tmp/migration-files.txt')
+          files = [
+              Path(line.strip())
+              for line in file_list.read_text().splitlines()
+              if line.strip()
+          ] if file_list.exists() else []
 
           all_issues = []
           files_scanned = 0
 
-          for mdir in migration_dirs:
-              if not os.path.exists(mdir):
+          for migration_file in files:
+              if not migration_file.is_file():
+                  print(f"  [WARNING] Changed migration file is unavailable: {migration_file}")
                   continue
-              sql_files = glob.glob(f"{mdir}/**/*.sql", recursive=True)
-              py_files  = glob.glob(f"{mdir}/**/*.py",  recursive=True)
 
-              for f in sql_files + py_files:
-                  files_scanned += 1
-                  content = open(f).read().upper()
-                  file_issues = []
+              files_scanned += 1
+              raw_content = migration_file.read_text(encoding='utf-8')
+              scan_content = raw_content
+              if migration_file.suffix.lower() == '.sql':
+                  scan_content = strip_sql_comments(scan_content)
+                  scan_content = normalize_non_destructive_sql(scan_content)
+              scan_content = scan_content.upper()
 
-                  for pattern, severity, label in DESTRUCTIVE_PATTERNS:
-                      if re.search(pattern, content, re.IGNORECASE):
-                          file_issues.append({"severity": severity, "operation": label})
+              file_issues = []
+              for pattern, severity, label in destructive_patterns:
+                  if re.search(pattern, scan_content, re.IGNORECASE):
+                      file_issues.append({"severity": severity, "operation": label})
 
-                  # Check for downgrade function in Alembic
-                  if f.endswith('.py') and 'def upgrade' in open(f).read():
-                      if 'def downgrade' not in open(f).read():
-                          file_issues.append({"severity": "HIGH", "operation": "Missing downgrade() function"})
-                      elif 'pass' in open(f).read().split('def downgrade')[1][:100]:
-                          file_issues.append({"severity": "MEDIUM", "operation": "Empty downgrade() function"})
+              if migration_file.suffix.lower() == '.py' and 'def upgrade' in raw_content:
+                  if 'def downgrade' not in raw_content:
+                      file_issues.append({
+                          "severity": "HIGH",
+                          "operation": "Missing downgrade() function",
+                      })
+                  elif 'pass' in raw_content.split('def downgrade', 1)[1][:100]:
+                      file_issues.append({
+                          "severity": "MEDIUM",
+                          "operation": "Empty downgrade() function",
+                      })
 
-                  if file_issues:
-                      all_issues.append({"file": f, "issues": file_issues})
-                      for issue in file_issues:
-                          print(f"  [{issue['severity']}] {f}: {issue['operation']}")
+              if file_issues:
+                  all_issues.append({"file": str(migration_file), "issues": file_issues})
+                  for issue in file_issues:
+                      print(f"  [{issue['severity']}] {migration_file}: {issue['operation']}")
 
-          print(f"\nFiles scanned: {files_scanned}")
-          print(f"Files with issues: {len(all_issues)}")
-
-          critical_issues = [i for f_issues in all_issues for i in f_issues["issues"] if i["severity"] == "CRITICAL"]
-          high_issues     = [i for f_issues in all_issues for i in f_issues["issues"] if i["severity"] == "HIGH"]
+          critical_issues = [
+              issue
+              for file_issues in all_issues
+              for issue in file_issues["issues"]
+              if issue["severity"] == "CRITICAL"
+          ]
+          high_issues = [
+              issue
+              for file_issues in all_issues
+              for issue in file_issues["issues"]
+              if issue["severity"] == "HIGH"
+          ]
 
           report = {
-              "generated": datetime.utcnow().isoformat(),
+              "generated": datetime.now(timezone.utc).isoformat(),
+              "scan_scope": "changed_migrations",
               "files_scanned": files_scanned,
               "files_with_issues": len(all_issues),
               "critical_count": len(critical_issues),
@@ -130,54 +208,64 @@ jobs:
               "safe_to_deploy": len(critical_issues) == 0,
           }
 
-          with open("/tmp/migration-safety-report.json", "w") as f:
-              json.dump(report, f, indent=2)
+          with open('/tmp/migration-safety-report.json', 'w', encoding='utf-8') as report_file:
+              json.dump(report, report_file, indent=2)
 
-          print(f"\nCritical issues: {len(critical_issues)}")
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output_file:
+              output_file.write(
+                  f"safe_to_deploy={'true' if report['safe_to_deploy'] else 'false'}\n"
+              )
+              output_file.write(f"files_scanned={files_scanned}\n")
+
+          print(f"\nFiles scanned: {files_scanned}")
+          print(f"Files with issues: {len(all_issues)}")
+          print(f"Critical issues: {len(critical_issues)}")
           print(f"High issues: {len(high_issues)}")
           print(f"Safe to deploy: {report['safe_to_deploy']}")
 
-          if not report["safe_to_deploy"]:
-              print("\nERROR: Critical migration issues detected. Deployment blocked.")
-              exit(1)
-          elif files_scanned == 0:
-              print("\nNo migration files found - skipping migration safety check")
+          if not files:
+              print("\nNo changed migration files found - safety gate has nothing to evaluate")
+          elif report['safe_to_deploy']:
+              print("\nMigration safety scan completed without critical findings")
           else:
-              print("\nMigration safety check: PASSED")
+              print("\nCritical findings recorded; final gate will block after artifacts upload")
           PYEOF
 
       - name: Validate zero-downtime migration patterns
         run: |
           python3 - << 'PYEOF'
-          import os, glob, re
+          import re
+          from pathlib import Path
 
           print("ZERO-DOWNTIME PATTERN VALIDATION")
           print("=" * 45)
 
-          # Best practices checklist
           checks = {
               "expand_contract": False,
               "concurrent_indexes": False,
-              "backward_compatible": True,  # Assume true unless proven otherwise
+              "backward_compatible": True,
               "rollback_scripts": False,
           }
 
-          migration_dirs = [
-              "backend/migrations", "backend/alembic/versions",
-              "supabase/migrations", "database/migrations",
-          ]
+          file_list = Path('/tmp/migration-files.txt')
+          files = [
+              Path(line.strip())
+              for line in file_list.read_text().splitlines()
+              if line.strip()
+          ] if file_list.exists() else []
 
-          for mdir in migration_dirs:
-              if not os.path.exists(mdir):
+          for migration_file in files:
+              if not migration_file.is_file():
                   continue
-              for f in glob.glob(f"{mdir}/**/*.sql", recursive=True):
-                  content = open(f).read().upper()
-                  if re.search(r'CREATE\s+INDEX\s+CONCURRENTLY', content):
-                      checks["concurrent_indexes"] = True
-              for f in glob.glob(f"{mdir}/**/*rollback*", recursive=True):
-                  checks["rollback_scripts"] = True
-              for f in glob.glob(f"{mdir}/**/*down*", recursive=True):
-                  checks["rollback_scripts"] = True
+              if 'rollback' in migration_file.name.lower() or 'down' in migration_file.name.lower():
+                  checks['rollback_scripts'] = True
+              if migration_file.suffix.lower() != '.sql':
+                  continue
+              content = migration_file.read_text(encoding='utf-8').upper()
+              if re.search(r'CREATE\s+INDEX\s+CONCURRENTLY', content):
+                  checks['concurrent_indexes'] = True
+              if re.search(r'ADD\s+COLUMN|CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS', content):
+                  checks['expand_contract'] = True
 
           print("\nZero-Downtime Best Practices:")
           for check, status in checks.items():
@@ -190,8 +278,8 @@ jobs:
       - name: Generate migration execution plan
         run: |
           python3 - << 'PYEOF'
-          import os, glob, json
-          from datetime import datetime
+          import json
+          from datetime import datetime, timezone
 
           print("MIGRATION EXECUTION PLAN")
           print("=" * 45)
@@ -213,21 +301,22 @@ jobs:
               print(f"  {step}")
 
           plan = {
-              "generated": datetime.utcnow().isoformat(),
+              "generated": datetime.now(timezone.utc).isoformat(),
               "strategy": "expand-contract",
               "estimated_downtime_seconds": 0,
               "rollback_window_minutes": 30,
               "steps": steps,
           }
 
-          with open("/tmp/migration-plan.json", "w") as f:
-              json.dump(plan, f, indent=2)
+          with open('/tmp/migration-plan.json', 'w', encoding='utf-8') as plan_file:
+              json.dump(plan, plan_file, indent=2)
 
           print(f"\nEstimated downtime: {plan['estimated_downtime_seconds']}s")
           print(f"Rollback window: {plan['rollback_window_minutes']} minutes")
           PYEOF
 
       - name: Upload migration artifacts
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: migration-plan-${{ github.run_id }}
@@ -235,3 +324,26 @@ jobs:
             /tmp/migration-safety-report.json
             /tmp/migration-plan.json
           retention-days: 90
+
+      - name: Enforce migration safety gate
+        if: always()
+        run: |
+          python3 - << 'PYEOF'
+          import json
+          from pathlib import Path
+
+          report_path = Path('/tmp/migration-safety-report.json')
+          if not report_path.exists():
+              raise SystemExit('Migration safety report was not generated; deployment blocked.')
+
+          report = json.loads(report_path.read_text(encoding='utf-8'))
+          if not report.get('safe_to_deploy', False):
+              print('ERROR: Critical migration issues detected in changed files. Deployment blocked.')
+              for file_issue in report.get('issues', []):
+                  for issue in file_issue.get('issues', []):
+                      if issue.get('severity') == 'CRITICAL':
+                          print(f"  [CRITICAL] {file_issue['file']}: {issue['operation']}")
+              raise SystemExit(1)
+
+          print('Migration safety gate: PASSED')
+          PYEOF
