@@ -224,25 +224,14 @@ const Hero: React.FC = () => {
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
                 <div className="relative grid min-h-[360px] place-items-center overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_center,rgba(44,136,255,0.26),transparent_46%)]" />
-                  <div className="absolute h-[82%] w-[82%] rounded-full border border-blue-200/10 shadow-[0_0_70px_rgba(37,126,255,0.16)]" />
-                  <div className="absolute h-[62%] w-[62%] rounded-full border border-dashed border-blue-300/25 motion-safe:animate-[spin_28s_linear_infinite]" />
-                  <div className="absolute h-[42%] w-[42%] rounded-full border border-blue-200/25 bg-blue-500/10 shadow-[0_0_50px_rgba(37,126,255,0.35)] backdrop-blur-xl" />
                   <img
-                    src="/d3vonn-logo.png?v=20260731-official"
-                    width={1254}
-                    height={1254}
-                    alt="Official D3VONN.IO blue-chrome crest logo — One Platform Infinite Intelligence"
-                    className="relative z-10 h-[92%] w-auto max-w-[88%] object-contain drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
+                    src={MASTER_LOGO_SRC}
+                    width={900}
+                    height={492}
+                    alt="D3VONN.IO official winged warrior logo — One Platform. Infinite Intelligence."
+                    className="relative z-10 w-full max-w-full h-auto max-h-[85%] object-contain object-center drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
                     loading="eager"
                     decoding="async"
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      if (img.dataset.fallback !== 'true') {
-                        img.dataset.fallback = 'true';
-                        img.src = MASTER_LOGO_SRC;
-                        img.style.background = '#020b1c';
-                      }
-                    }}
                   />
 
                   <span className="absolute left-4 top-4 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Core 01</span>
