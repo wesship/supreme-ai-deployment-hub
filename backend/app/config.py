@@ -5,6 +5,7 @@ All secrets loaded from environment variables only. Never hardcoded.
 import json
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,7 +13,13 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # ── LLM ────────────────────────────────────────────────────────────────────
-    openai_api_key: str = ""
+    # Railway production currently stores the OpenAI project key as `OpenAiKey`.
+    # Prefer that exact name when present, while retaining the conventional
+    # `OPENAI_API_KEY` name and direct Python field construction as fallbacks.
+    openai_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("OpenAiKey", "OPENAI_API_KEY", "openai_api_key"),
+    )
     openai_default_model: str = "gpt-4.1-mini"
     openai_max_tokens: int = 2048
     openai_temperature: float = 0.7
