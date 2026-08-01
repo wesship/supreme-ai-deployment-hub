@@ -229,7 +229,7 @@ const Hero: React.FC = () => {
                     width={900}
                     height={492}
                     alt="D3VONN.IO official winged warrior logo — One Platform. Infinite Intelligence."
-                    className="relative z-10 w-full max-w-full h-auto max-h-[85%] object-contain object-center drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
+                    className="relative z-10 w-full h-auto max-h-[78%] object-contain object-center drop-shadow-[0_0_32px_rgba(62,155,255,0.62)]"
                     loading="eager"
                     decoding="async"
                   />
