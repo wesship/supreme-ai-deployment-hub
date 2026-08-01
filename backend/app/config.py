@@ -39,9 +39,26 @@ class Settings(BaseSettings):
     n8n_base_url: str = "https://n8n.d3vonn.io"
 
     # ── Vector DB ──────────────────────────────────────────────────────────────
-    pinecone_api_key: str = ""
-    pinecone_host: str = ""
-    pinecone_index_name: str = "document-store"
+    # Accept both the current proxy names and the established Railway/VPS names.
+    # `PINECONE_INDEX` is preferred over the newer static `PINECONE_INDEX_NAME`
+    # because existing deployments use it to identify the live index.
+    pinecone_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("PineconeApiKey", "PINECONE_API_KEY", "pinecone_api_key"),
+    )
+    pinecone_host: str = Field(
+        default="",
+        validation_alias=AliasChoices("PineconeHost", "PINECONE_HOST", "pinecone_host"),
+    )
+    pinecone_index_name: str = Field(
+        default="document-store",
+        validation_alias=AliasChoices(
+            "PineconeIndex",
+            "PINECONE_INDEX",
+            "PINECONE_INDEX_NAME",
+            "pinecone_index_name",
+        ),
+    )
     pinecone_dimension: int = 768
     pinecone_namespace: str = "documents"
     rag_top_k: int = 5
