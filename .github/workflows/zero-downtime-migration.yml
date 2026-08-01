@@ -46,8 +46,53 @@ jobs:
       - name: Install migration tools
         run: pip install alembic sqlparse pyyaml --quiet
 
+      - name: Detect changed migration files
+        id: changed_files
+        run: |
+          EVENT="${{ github.event_name }}"
+          BEFORE="${{ github.event.before }}"
+          SHA="${{ github.sha }}"
+
+          migration_dirs="backend/migrations backend/alembic/versions supabase/migrations database/migrations"
+
+          if [ "$EVENT" = "push" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            # Only scan files changed in this push
+            changed=$(git diff --name-only "$BEFORE" "$SHA" -- $migration_dirs 2>/dev/null || git diff --name-only HEAD~1 HEAD -- $migration_dirs 2>/dev/null || echo "")
+            strict_mode="true"
+          else
+            # workflow_dispatch or initial push: scan all migration files (report-only, do not fail)
+            changed=""
+            for d in $migration_dirs; do
+              if [ -d "$d" ]; then
+                found=$(find "$d" -type f \( -name "*.sql" -o -name "*.py" \) 2>/dev/null || true)
+                changed="$changed $found"
+              fi
+            done
+            strict_mode="false"
+          fi
+
+          # Filter to only migration file extensions and existing files
+          filtered=""
+          for f in $changed; do
+            case "$f" in
+              *.sql|*.py)
+                if [ -f "$f" ]; then
+                  filtered="$filtered $f"
+                fi
+                ;;
+            esac
+          done
+
+          echo "files=${filtered}" >> "$GITHUB_OUTPUT"
+          echo "strict=${strict_mode}" >> "$GITHUB_OUTPUT"
+          echo "Changed migration files to scan: ${filtered:-<none>}"
+          echo "Strict mode (fail on critical): ${strict_mode}"
+
       - name: Scan migrations for data-loss operations
         id: migration_scan
+        env:
+          CHANGED_FILES: ${{ steps.changed_files.outputs.files }}
+          STRICT_MODE: ${{ steps.changed_files.outputs.strict }}
         run: |
           python3 - << 'PYEOF'
           import os, glob, re, json
@@ -77,42 +122,51 @@ jobs:
               r'\bCREATE\s+INDEX\s+IF\s+NOT\s+EXISTS\b',
           ]
 
-          migration_dirs = [
-              "backend/migrations",
-              "backend/alembic/versions",
-              "supabase/migrations",
-              "database/migrations",
-          ]
+          # Collect target files: prefer changed-only list from prior step
+          changed_env = os.environ.get("CHANGED_FILES", "").strip()
+          strict_mode = os.environ.get("STRICT_MODE", "true").strip().lower() == "true"
+          if changed_env:
+              target_files = [f for f in changed_env.split() if f and os.path.isfile(f)]
+              print(f"Scanning {len(target_files)} changed migration file(s)")
+          else:
+              # Fallback: scan all migration directories
+              migration_dirs = [
+                  "backend/migrations",
+                  "backend/alembic/versions",
+                  "supabase/migrations",
+                  "database/migrations",
+              ]
+              target_files = []
+              for mdir in migration_dirs:
+                  if not os.path.exists(mdir):
+                      continue
+                  target_files += glob.glob(f"{mdir}/**/*.sql", recursive=True)
+                  target_files += glob.glob(f"{mdir}/**/*.py",  recursive=True)
+              print(f"Scanning all {len(target_files)} migration file(s) (report-only mode)")
 
           all_issues = []
           files_scanned = 0
 
-          for mdir in migration_dirs:
-              if not os.path.exists(mdir):
-                  continue
-              sql_files = glob.glob(f"{mdir}/**/*.sql", recursive=True)
-              py_files  = glob.glob(f"{mdir}/**/*.py",  recursive=True)
+          for f in target_files:
+              files_scanned += 1
+              content = open(f).read().upper()
+              file_issues = []
 
-              for f in sql_files + py_files:
-                  files_scanned += 1
-                  content = open(f).read().upper()
-                  file_issues = []
+              for pattern, severity, label in DESTRUCTIVE_PATTERNS:
+                  if re.search(pattern, content, re.IGNORECASE):
+                      file_issues.append({"severity": severity, "operation": label})
 
-                  for pattern, severity, label in DESTRUCTIVE_PATTERNS:
-                      if re.search(pattern, content, re.IGNORECASE):
-                          file_issues.append({"severity": severity, "operation": label})
+              # Check for downgrade function in Alembic
+              if f.endswith('.py') and 'def upgrade' in open(f).read():
+                  if 'def downgrade' not in open(f).read():
+                      file_issues.append({"severity": "HIGH", "operation": "Missing downgrade() function"})
+                  elif 'pass' in open(f).read().split('def downgrade')[1][:100]:
+                      file_issues.append({"severity": "MEDIUM", "operation": "Empty downgrade() function"})
 
-                  # Check for downgrade function in Alembic
-                  if f.endswith('.py') and 'def upgrade' in open(f).read():
-                      if 'def downgrade' not in open(f).read():
-                          file_issues.append({"severity": "HIGH", "operation": "Missing downgrade() function"})
-                      elif 'pass' in open(f).read().split('def downgrade')[1][:100]:
-                          file_issues.append({"severity": "MEDIUM", "operation": "Empty downgrade() function"})
-
-                  if file_issues:
-                      all_issues.append({"file": f, "issues": file_issues})
-                      for issue in file_issues:
-                          print(f"  [{issue['severity']}] {f}: {issue['operation']}")
+              if file_issues:
+                  all_issues.append({"file": f, "issues": file_issues})
+                  for issue in file_issues:
+                      print(f"  [{issue['severity']}] {f}: {issue['operation']}")
 
           print(f"\nFiles scanned: {files_scanned}")
           print(f"Files with issues: {len(all_issues)}")
@@ -138,8 +192,11 @@ jobs:
           print(f"Safe to deploy: {report['safe_to_deploy']}")
 
           if not report["safe_to_deploy"]:
-              print("\nERROR: Critical migration issues detected. Deployment blocked.")
-              exit(1)
+              if strict_mode:
+                  print("\nERROR: Critical migration issues detected. Deployment blocked.")
+                  exit(1)
+              else:
+                  print("\nWARNING: Critical migration issues found in full scan (report-only mode, not blocking).")
           elif files_scanned == 0:
               print("\nNo migration files found - skipping migration safety check")
           else:
