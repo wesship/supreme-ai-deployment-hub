@@ -4,7 +4,9 @@ RAG pipeline: document ingestion, context retrieval, and deletion.
 Uses OpenAI for embeddings and Pinecone for vector storage.
 All API keys are server-side only.
 """
+import asyncio
 import logging
+from typing import Any
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -46,27 +48,74 @@ async def _embed_texts(texts: list[str], api_key: str, model: str, dimensions: i
     return [item["embedding"] for item in data["data"]]
 
 
+def _pinecone_sdk_index(api_key: str, index_name: str) -> Any:
+    """Build a Pinecone index client that discovers the provider host by name."""
+    if not index_name:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Pinecone index name not configured",
+        )
+    try:
+        from pinecone import Pinecone
+
+        return Pinecone(api_key=api_key).Index(index_name)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Pinecone index initialization error: {str(exc)[:300]}",
+        ) from exc
+
+
+def _pinecone_response_dict(result: Any) -> dict:
+    if isinstance(result, dict):
+        return result
+    if hasattr(result, "to_dict"):
+        payload = result.to_dict()
+        return payload if isinstance(payload, dict) else {}
+    return {}
+
+
 async def _pinecone_upsert(
     vectors: list[dict],
     host: str,
     api_key: str,
     namespace: str,
+    index_name: str = "",
     batch_size: int = 100,
 ) -> None:
-    """Upsert vectors to Pinecone in batches."""
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        for i in range(0, len(vectors), batch_size):
-            batch = vectors[i : i + batch_size]
-            resp = await client.post(
-                f"https://{host}/vectors/upsert",
-                json={"vectors": batch, "namespace": namespace},
-                headers={"Content-Type": "application/json", "Api-Key": api_key},
-            )
-            if resp.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail=f"Pinecone upsert error {resp.status_code}: {resp.text[:300]}",
+    """Upsert vectors using a configured host or SDK index-name discovery."""
+    if host:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for i in range(0, len(vectors), batch_size):
+                batch = vectors[i : i + batch_size]
+                resp = await client.post(
+                    f"https://{host}/vectors/upsert",
+                    json={"vectors": batch, "namespace": namespace},
+                    headers={"Content-Type": "application/json", "Api-Key": api_key},
                 )
+                if resp.status_code != 200:
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"Pinecone upsert error {resp.status_code}: {resp.text[:300]}",
+                    )
+        return
+
+    def upsert_by_index_name() -> None:
+        index = _pinecone_sdk_index(api_key, index_name)
+        for i in range(0, len(vectors), batch_size):
+            index.upsert(vectors=vectors[i : i + batch_size], namespace=namespace)
+
+    try:
+        await asyncio.to_thread(upsert_by_index_name)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Pinecone upsert error: {str(exc)[:300]}",
+        ) from exc
 
 
 async def _pinecone_query(
@@ -75,20 +124,87 @@ async def _pinecone_query(
     api_key: str,
     namespace: str,
     top_k: int,
+    index_name: str = "",
 ) -> list[dict]:
-    """Query Pinecone for nearest neighbors."""
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            f"https://{host}/query",
-            json={"vector": vector, "topK": top_k, "includeMetadata": True, "namespace": namespace},
-            headers={"Content-Type": "application/json", "Api-Key": api_key},
+    """Query Pinecone using a configured host or SDK index-name discovery."""
+    if host:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"https://{host}/query",
+                json={"vector": vector, "topK": top_k, "includeMetadata": True, "namespace": namespace},
+                headers={"Content-Type": "application/json", "Api-Key": api_key},
+            )
+        if resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Pinecone query error {resp.status_code}: {resp.text[:300]}",
+            )
+        return resp.json().get("matches", [])
+
+    def query_by_index_name() -> Any:
+        index = _pinecone_sdk_index(api_key, index_name)
+        return index.query(
+            vector=vector,
+            namespace=namespace,
+            top_k=top_k,
+            include_metadata=True,
         )
-    if resp.status_code != 200:
+
+    try:
+        result = await asyncio.to_thread(query_by_index_name)
+    except HTTPException:
+        raise
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Pinecone query error {resp.status_code}: {resp.text[:300]}",
-        )
-    return resp.json().get("matches", [])
+            detail=f"Pinecone query error: {str(exc)[:300]}",
+        ) from exc
+    return _pinecone_response_dict(result).get("matches", [])
+
+
+async def _pinecone_delete(
+    filename: str,
+    host: str,
+    api_key: str,
+    namespace: str,
+    index_name: str = "",
+) -> None:
+    """Delete filename-scoped vectors using host REST or index-name discovery."""
+    vector_filter = {"filename": {"$eq": filename}}
+    if host:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"https://{host}/vectors/delete",
+                json={"filter": vector_filter, "namespace": namespace},
+                headers={"Content-Type": "application/json", "Api-Key": api_key},
+            )
+        if resp.status_code not in (200, 204):
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Pinecone delete error {resp.status_code}: {resp.text[:300]}",
+            )
+        return
+
+    def delete_by_index_name() -> None:
+        index = _pinecone_sdk_index(api_key, index_name)
+        index.delete(filter=vector_filter, namespace=namespace)
+
+    try:
+        await asyncio.to_thread(delete_by_index_name)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Pinecone delete error: {str(exc)[:300]}",
+        ) from exc
+
+
+def _pinecone_configured(settings: Any) -> bool:
+    return bool(
+        settings.pinecone_api_key
+        and (settings.pinecone_host or settings.pinecone_index_name)
+    )
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
@@ -106,10 +222,10 @@ async def rag_ingest(
 ) -> RAGIngestResponse:
     settings = get_settings()
 
-    if not settings.openai_api_key or not settings.pinecone_api_key or not settings.pinecone_host:
+    if not settings.openai_api_key or not _pinecone_configured(settings):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="RAG service not configured (OPENAI_API_KEY, PINECONE_API_KEY, or PINECONE_HOST missing)",
+            detail="RAG service not configured (OpenAI key plus Pinecone key and host/index required)",
         )
 
     try:
@@ -134,7 +250,7 @@ async def rag_ingest(
                 "metadata": {
                     "text": chunk.text,
                     **chunk.metadata.model_dump(),
-                    "userId": user_id,  # override with authenticated user ID
+                    "userId": user_id,
                 },
             }
             for idx, chunk in enumerate(request.chunks)
@@ -145,6 +261,7 @@ async def rag_ingest(
             settings.pinecone_host,
             settings.pinecone_api_key,
             settings.pinecone_namespace,
+            settings.pinecone_index_name,
         )
 
         logger.info("rag_ingest user=%s filename=%s chunks=%d", user_id, request.filename, len(request.chunks))
@@ -170,8 +287,7 @@ async def rag_retrieve(
 ) -> RAGRetrieveResponse:
     settings = get_settings()
 
-    if not settings.openai_api_key or not settings.pinecone_api_key or not settings.pinecone_host:
-        # Return empty results gracefully — don't break chat
+    if not settings.openai_api_key or not _pinecone_configured(settings):
         return RAGRetrieveResponse(results=[], query=request.query)
 
     try:
@@ -188,6 +304,7 @@ async def rag_retrieve(
             settings.pinecone_api_key,
             settings.pinecone_namespace,
             request.topK,
+            settings.pinecone_index_name,
         )
 
         results = [
@@ -222,27 +339,19 @@ async def rag_delete(
 ) -> dict:
     settings = get_settings()
 
-    if not settings.pinecone_api_key or not settings.pinecone_host:
+    if not _pinecone_configured(settings):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Pinecone not configured",
+            detail="Pinecone not configured (API key plus host or index required)",
         )
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(
-            f"https://{settings.pinecone_host}/vectors/delete",
-            json={
-                "filter": {"filename": {"$eq": request.filename}},
-                "namespace": settings.pinecone_namespace,
-            },
-            headers={"Content-Type": "application/json", "Api-Key": settings.pinecone_api_key},
-        )
-
-    if resp.status_code not in (200, 204):
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Pinecone delete error {resp.status_code}: {resp.text[:300]}",
-        )
+    await _pinecone_delete(
+        request.filename,
+        settings.pinecone_host,
+        settings.pinecone_api_key,
+        settings.pinecone_namespace,
+        settings.pinecone_index_name,
+    )
 
     logger.info("rag_delete user=%s filename=%s", user_id, request.filename)
     return {"success": True, "filename": request.filename}
