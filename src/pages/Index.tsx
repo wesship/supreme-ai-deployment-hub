@@ -42,9 +42,9 @@ import {
   fetchHomepageTelemetry,
   type HomepageTelemetry,
 } from '@/lib/homepageTelemetry';
-import enterpriseCoreAsset from '@/assets/d3vonn-enterprise-core.jpg.asset.json';
 
 const MASTER_LOGO_SRC = '/d3vonn-logo-clean.png?v=20260801-clean';
+const ENTERPRISE_CORE_SRC = '/d3vonn-enterprise-core.jpg?v=20260801';
 
 const useHomepageTelemetry = () => {
   const [telemetry, setTelemetry] = useState<HomepageTelemetry>(defaultHomepageTelemetry);
