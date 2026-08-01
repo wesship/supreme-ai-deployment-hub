@@ -223,7 +223,7 @@ const Hero: React.FC = () => {
               </div>
 
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
-                <div className="relative min-h-[360px] overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
+                <div className="relative aspect-[1376/768] w-full overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:aspect-auto sm:min-h-[430px]">
                   <img
                     src={ENTERPRISE_CORE_SRC}
                     alt="D3VONN.IO Enterprise Intelligence Core — AI workforce, domain intelligence, and knowledge graph command center"
@@ -233,8 +233,8 @@ const Hero: React.FC = () => {
                   />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#020b1c]/85 via-[#020b1c]/30 to-[#020b1c]/60" />
 
-                  <span className="absolute left-4 top-4 z-10 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Core 01</span>
-                  <span className="absolute bottom-4 right-4 z-10 rounded-full border border-blue-200/15 bg-blue-300/[0.06] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/55">Hermes linked</span>
+                  <span className="absolute left-4 top-4 z-10 rounded-full border border-blue-200/25 bg-[#020b1c]/80 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/85 backdrop-blur-sm">Core 01</span>
+                  <span className="absolute bottom-4 right-4 z-10 rounded-full border border-blue-200/25 bg-[#020b1c]/80 px-3 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-blue-100/85 backdrop-blur-sm">Hermes linked</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
