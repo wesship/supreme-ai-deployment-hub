@@ -105,8 +105,8 @@ const HeroSection: React.FC = () => {
                 textClassName={`${isMobile ? 'text-5xl sm:text-6xl' : 'text-6xl lg:text-7xl xl:text-8xl'} font-display font-bold tracking-tight`}
               />
               
-              <p className="text-2xl text-primary/90 font-mono mb-3 max-w-md">
-                Here at an opportune time.
+              <p className="text-2xl text-primary/90 font-mono mb-3 max-w-md uppercase tracking-wide">
+                One Platform. Infinite Intelligence.
               </p>
               
               <p className="text-secondary-opacity text-lg max-w-md paragraph-width leading-relaxed">
