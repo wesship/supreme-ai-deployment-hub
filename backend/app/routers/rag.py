@@ -6,6 +6,7 @@ All API keys are server-side only.
 """
 import asyncio
 import logging
+from functools import lru_cache
 from typing import Any
 
 import httpx
@@ -48,6 +49,87 @@ async def _embed_texts(texts: list[str], api_key: str, model: str, dimensions: i
     return [item["embedding"] for item in data["data"]]
 
 
+def _pinecone_response_dict(result: Any) -> dict:
+    if isinstance(result, dict):
+        return result
+    if hasattr(result, "to_dict"):
+        payload = result.to_dict()
+        return payload if isinstance(payload, dict) else {}
+    return {}
+
+
+def _pinecone_field(result: Any, name: str, default: Any = None) -> Any:
+    payload = _pinecone_response_dict(result)
+    value = payload.get(name)
+    if value is not None:
+        return value
+    return getattr(result, name, default)
+
+
+@lru_cache(maxsize=8)
+def _describe_pinecone_index(api_key: str, index_name: str) -> dict[str, Any]:
+    """Return stable runtime metadata for a Pinecone index.
+
+    The description supplies the authoritative host and vector dimension. It is
+    cached per process so production data operations do not repeatedly call the
+    control plane.
+    """
+    if not index_name:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Pinecone index name not configured",
+        )
+    try:
+        from pinecone import Pinecone
+
+        description = Pinecone(api_key=api_key).describe_index(name=index_name)
+        host = str(_pinecone_field(description, "host", "")).strip()
+        dimension = int(_pinecone_field(description, "dimension", 0) or 0)
+        if host.startswith("https://"):
+            host = host.removeprefix("https://")
+        host = host.rstrip("/")
+        if not host or dimension <= 0:
+            raise ValueError("Pinecone index description omitted host or dimension")
+        return {"host": host, "dimension": dimension}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Pinecone index description error: {str(exc)[:300]}",
+        ) from exc
+
+
+async def _pinecone_runtime_config(settings: Any) -> tuple[str, int]:
+    """Resolve the effective Pinecone host and embedding dimension."""
+    discovered: dict[str, Any] = {}
+    if settings.pinecone_api_key and settings.pinecone_index_name:
+        try:
+            discovered = await asyncio.to_thread(
+                _describe_pinecone_index,
+                settings.pinecone_api_key,
+                settings.pinecone_index_name,
+            )
+        except HTTPException:
+            if not settings.pinecone_host:
+                raise
+            logger.warning("Pinecone index discovery failed; using configured host and dimension")
+
+    host = discovered.get("host") or settings.pinecone_host
+    dimension = int(discovered.get("dimension") or settings.pinecone_dimension)
+    if not host:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Pinecone host could not be resolved",
+        )
+    if dimension <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Pinecone vector dimension could not be resolved",
+        )
+    return host, dimension
+
+
 def _pinecone_sdk_index(api_key: str, index_name: str) -> Any:
     """Build a Pinecone index client that discovers the provider host by name."""
     if not index_name:
@@ -66,15 +148,6 @@ def _pinecone_sdk_index(api_key: str, index_name: str) -> Any:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Pinecone index initialization error: {str(exc)[:300]}",
         ) from exc
-
-
-def _pinecone_response_dict(result: Any) -> dict:
-    if isinstance(result, dict):
-        return result
-    if hasattr(result, "to_dict"):
-        payload = result.to_dict()
-        return payload if isinstance(payload, dict) else {}
-    return {}
 
 
 async def _pinecone_upsert(
@@ -98,7 +171,7 @@ async def _pinecone_upsert(
                 if resp.status_code != 200:
                     raise HTTPException(
                         status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail=f"Pinecone upsert error {resp.status_code}: {resp.text[:300]}",
+                        detail=f"Pinecone upsert error {resp.status_code}: {resp.text[:500]}",
                     )
         return
 
@@ -114,7 +187,7 @@ async def _pinecone_upsert(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Pinecone upsert error: {str(exc)[:300]}",
+            detail=f"Pinecone upsert error: {str(exc)[:500]}",
         ) from exc
 
 
@@ -137,7 +210,7 @@ async def _pinecone_query(
         if resp.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Pinecone query error {resp.status_code}: {resp.text[:300]}",
+                detail=f"Pinecone query error {resp.status_code}: {resp.text[:500]}",
             )
         return resp.json().get("matches", [])
 
@@ -157,7 +230,7 @@ async def _pinecone_query(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Pinecone query error: {str(exc)[:300]}",
+            detail=f"Pinecone query error: {str(exc)[:500]}",
         ) from exc
     return _pinecone_response_dict(result).get("matches", [])
 
@@ -181,7 +254,7 @@ async def _pinecone_delete(
         if resp.status_code not in (200, 204):
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Pinecone delete error {resp.status_code}: {resp.text[:300]}",
+                detail=f"Pinecone delete error {resp.status_code}: {resp.text[:500]}",
             )
         return
 
@@ -196,7 +269,7 @@ async def _pinecone_delete(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Pinecone delete error: {str(exc)[:300]}",
+            detail=f"Pinecone delete error: {str(exc)[:500]}",
         ) from exc
 
 
@@ -229,6 +302,7 @@ async def rag_ingest(
         )
 
     try:
+        pinecone_host, pinecone_dimension = await _pinecone_runtime_config(settings)
         texts = [chunk.text for chunk in request.chunks]
         batch_size = settings.embed_batch_size
         all_embeddings: list[list[float]] = []
@@ -239,7 +313,7 @@ async def rag_ingest(
                 batch,
                 settings.openai_api_key,
                 settings.embedding_model,
-                settings.pinecone_dimension,
+                pinecone_dimension,
             )
             all_embeddings.extend(embeddings)
 
@@ -258,13 +332,19 @@ async def rag_ingest(
 
         await _pinecone_upsert(
             vectors,
-            settings.pinecone_host,
+            pinecone_host,
             settings.pinecone_api_key,
             settings.pinecone_namespace,
             settings.pinecone_index_name,
         )
 
-        logger.info("rag_ingest user=%s filename=%s chunks=%d", user_id, request.filename, len(request.chunks))
+        logger.info(
+            "rag_ingest user=%s filename=%s chunks=%d dimension=%d",
+            user_id,
+            request.filename,
+            len(request.chunks),
+            pinecone_dimension,
+        )
         return RAGIngestResponse(success=True, chunksIngested=len(request.chunks), filename=request.filename)
 
     except HTTPException:
@@ -291,16 +371,17 @@ async def rag_retrieve(
         return RAGRetrieveResponse(results=[], query=request.query)
 
     try:
+        pinecone_host, pinecone_dimension = await _pinecone_runtime_config(settings)
         [query_embedding] = await _embed_texts(
             [request.query],
             settings.openai_api_key,
             settings.embedding_model,
-            settings.pinecone_dimension,
+            pinecone_dimension,
         )
 
         matches = await _pinecone_query(
             query_embedding,
-            settings.pinecone_host,
+            pinecone_host,
             settings.pinecone_api_key,
             settings.pinecone_namespace,
             request.topK,
@@ -345,9 +426,10 @@ async def rag_delete(
             detail="Pinecone not configured (API key plus host or index required)",
         )
 
+    pinecone_host, _ = await _pinecone_runtime_config(settings)
     await _pinecone_delete(
         request.filename,
-        settings.pinecone_host,
+        pinecone_host,
         settings.pinecone_api_key,
         settings.pinecone_namespace,
         settings.pinecone_index_name,
