@@ -30,17 +30,17 @@ jobs:
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
         run: |
           set -euo pipefail
           test -n "$VPS_HOST" || { echo "Missing production secret: VPS_HOST"; exit 1; }
           test -n "$VPS_USER" || { echo "Missing production secret: VPS_USER"; exit 1; }
-          test -n "$VPS_SSH_KEY" || { echo "Missing production secret: VPS_SSH_KEY"; exit 1; }
+          test -n "$VPS_SSH_KEY" || { echo "Missing production secret: HOSTINGER_VPS_SSH_KEY"; exit 1; }
 
       - name: Configure SSH
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
         run: |
           set -euo pipefail
           install -m 700 -d ~/.ssh
