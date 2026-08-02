@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mic, ShieldCheck, Volume2 } from 'lucide-react';
+import { Mic, PhoneCall, ShieldCheck, Volume2 } from 'lucide-react';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
 
 interface VoiceInterfaceProps {
@@ -12,12 +12,17 @@ interface VoiceInterfaceProps {
 /**
  * Production voice surface.
  *
- * ElevenLabs credentials remain server-side. The browser receives only the
- * public agent identifier through VITE_ELEVENLABS_AGENT_ID and requests
- * microphone access after an explicit user gesture.
+ * Vapi is the preferred browser/PSTN orchestration layer. ElevenLabs remains
+ * the direct browser fallback and can also be selected as Vapi's voice engine.
+ * Provider private keys remain server-side.
  */
 const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
-  const agentConfigured = Boolean(import.meta.env.VITE_ELEVENLABS_AGENT_ID?.trim());
+  const vapiConfigured = Boolean(
+    import.meta.env.VITE_VAPI_PUBLIC_KEY?.trim() &&
+      import.meta.env.VITE_VAPI_ASSISTANT_ID?.trim(),
+  );
+  const elevenLabsConfigured = Boolean(import.meta.env.VITE_ELEVENLABS_AGENT_ID?.trim());
+  const provider = vapiConfigured ? 'Vapi + ElevenLabs' : elevenLabsConfigured ? 'ElevenLabs' : null;
 
   return (
     <Card>
@@ -27,8 +32,8 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
             <Volume2 className="h-5 w-5" />
             D3VONN.IO Voice Assistant
           </CardTitle>
-          <Badge variant={agentConfigured ? 'default' : 'secondary'}>
-            {agentConfigured ? 'Production agent configured' : 'Browser voice mode'}
+          <Badge variant={provider ? 'default' : 'secondary'}>
+            {provider ? `${provider} configured` : 'Voice configuration required'}
           </Badge>
         </div>
       </CardHeader>
@@ -36,18 +41,23 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
         <div className="rounded-lg border bg-muted/40 p-4">
           <div className="flex items-start gap-3">
             <div className="rounded-md border bg-background p-2">
-              <Mic className="h-5 w-5" />
+              {vapiConfigured ? <PhoneCall className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </div>
             <div className="flex-1 space-y-2">
-              <h3 className="font-medium">Start a secure voice session</h3>
+              <h3 className="font-medium">Start a secure D3VONN voice session</h3>
               <p className="text-sm text-muted-foreground">
-                Tap the microphone control, allow microphone access when prompted, and speak naturally.
-                Your ElevenLabs API key is never entered or stored in the browser.
+                Tap the control, allow microphone access, and speak naturally. Vapi manages the
+                browser or phone conversation, ElevenLabs supplies the production voice, and Hermes
+                remains the D3VONN reasoning and tool-execution layer.
               </p>
               <div className="flex items-center gap-3 pt-1">
                 <ConversationalVoiceControls />
                 <span className="text-sm text-muted-foreground">
-                  {agentConfigured ? 'Tap to connect' : 'Configure VITE_ELEVENLABS_AGENT_ID to enable live conversation'}
+                  {vapiConfigured
+                    ? 'Tap to start a Vapi call'
+                    : elevenLabsConfigured
+                      ? 'Vapi is not configured; ElevenLabs fallback is active'
+                      : 'Add the Vapi public key and assistant ID in Vercel to activate voice'}
                 </span>
               </div>
             </div>
@@ -57,7 +67,9 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
         <div className="flex items-start gap-2 text-sm text-muted-foreground">
           <ShieldCheck className="mt-0.5 h-4 w-4 flex-shrink-0" />
           <p>
-            Voice access is limited to D3VONN.IO, begins only after your action, and can be ended from the same control.
+            The browser receives only publishable configuration. Vapi and ElevenLabs private keys,
+            webhook credentials, call tools, and Hermes authorization remain on trusted server-side
+            infrastructure.
           </p>
         </div>
       </CardContent>
