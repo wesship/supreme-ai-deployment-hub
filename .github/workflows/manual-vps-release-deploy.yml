@@ -29,12 +29,12 @@ jobs:
       - name: Validate required secrets
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_USER: ${{ secrets.VPS_USER || secrets.ROOT }}
           VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
         run: |
           set -euo pipefail
           test -n "$VPS_HOST" || { echo "Missing production secret: VPS_HOST"; exit 1; }
-          test -n "$VPS_USER" || { echo "Missing production secret: VPS_USER"; exit 1; }
+          test -n "$VPS_USER" || { echo "Missing production secret: VPS_USER (or legacy ROOT)"; exit 1; }
           test -n "$VPS_SSH_KEY" || { echo "Missing production secret: HOSTINGER_VPS_SSH_KEY"; exit 1; }
 
       - name: Configure SSH
@@ -51,7 +51,7 @@ jobs:
       - name: Deploy release and validate
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_USER: ${{ secrets.VPS_USER || secrets.ROOT }}
           RELEASE_REF: ${{ inputs.release_ref }}
           RUN_DIAGNOSTICS: ${{ inputs.run_diagnostics }}
         run: |
