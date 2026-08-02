@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_ref:
-        description: Git tag or commit to deploy
+        description: Protected main commit SHA or release tag to deploy
         required: true
         default: v2.0.0
       run_diagnostics:
@@ -26,19 +26,26 @@ jobs:
     environment: production
     timeout-minutes: 45
     steps:
-      - name: Validate VPS runner
+      - name: Validate deployment request
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          RUN_DIAGNOSTICS: ${{ inputs.run_diagnostics }}
         run: |
           set -euo pipefail
-          test -d /opt/supreme-ai-deployment-hub/.git || {
-            echo "Missing deployment repository: /opt/supreme-ai-deployment-hub"
+          if [[ ! "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]] && \
+             [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "release_ref must be a full lowercase commit SHA or semver-style vX.Y.Z tag"
+            exit 1
+          fi
+          [[ "$RUN_DIAGNOSTICS" == "true" || "$RUN_DIAGNOSTICS" == "false" ]] || {
+            echo "run_diagnostics must be true or false"
             exit 1
           }
-          test -f /opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production || {
-            echo "Missing production environment file"
-            exit 1
-          }
-          command -v docker >/dev/null
-          docker compose version
+
+      - name: Validate restricted deployment wrapper
+        run: |
+          set -euo pipefail
+          sudo -n /usr/local/sbin/d3vonn-deploy-release --check
 
       - name: Deploy release and validate
         env:
@@ -46,35 +53,5 @@ jobs:
           RUN_DIAGNOSTICS: ${{ inputs.run_diagnostics }}
         run: |
           set -euo pipefail
-          cd /opt/supreme-ai-deployment-hub
-
-          git fetch --tags --prune
-          git checkout --detach --force "$RELEASE_REF"
-
-          docker compose \
-            --env-file deploy/vps/env/.env.production \
-            -f deploy/vps/docker-compose.yml \
-            config >/dev/null
-
-          docker compose \
-            --env-file deploy/vps/env/.env.production \
-            -f deploy/vps/docker-compose.yml \
-            up -d --build
-
-          docker compose \
-            --env-file deploy/vps/env/.env.production \
-            -f deploy/vps/docker-compose.yml \
-            ps
-
-          curl --fail --show-error --silent --max-time 20 \
-            http://127.0.0.1:8000/health/ready
-          echo
-
-          curl --fail --show-error --silent --max-time 30 \
-            https://api.d3vonn.io/health/ready
-          echo
-
-          if [ "$RUN_DIAGNOSTICS" = "true" ]; then
-            bash deploy/vps/scripts/diagnose-502.sh \
-              | tee /tmp/d3vonn-502-diagnosis.txt
-          fi
+          sudo -n /usr/local/sbin/d3vonn-deploy-release \
+            "$RELEASE_REF" "$RUN_DIAGNOSTICS"
