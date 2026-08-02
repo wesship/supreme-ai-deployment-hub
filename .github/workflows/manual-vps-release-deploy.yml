@@ -22,57 +22,34 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, d3vonn-vps]
     environment: production
     timeout-minutes: 45
     steps:
-      - name: Validate required secrets
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER || secrets.ROOT }}
-          VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
-          VPS_SSH_KEY_B64: ${{ secrets.HOSTINGER_VPS_SSH_KEY_B64 }}
+      - name: Validate VPS runner
         run: |
           set -euo pipefail
-          test -n "$VPS_HOST" || { echo "Missing production secret: VPS_HOST"; exit 1; }
-          test -n "$VPS_USER" || { echo "Missing production secret: VPS_USER (or legacy ROOT)"; exit 1; }
-          if [ -z "$VPS_SSH_KEY" ] && [ -z "$VPS_SSH_KEY_B64" ]; then
-            echo "Missing production secret: HOSTINGER_VPS_SSH_KEY or HOSTINGER_VPS_SSH_KEY_B64"
+          test -d /opt/supreme-ai-deployment-hub/.git || {
+            echo "Missing deployment repository: /opt/supreme-ai-deployment-hub"
             exit 1
-          fi
-
-      - name: Configure SSH
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
-          VPS_SSH_KEY_B64: ${{ secrets.HOSTINGER_VPS_SSH_KEY_B64 }}
-        run: |
-          set -euo pipefail
-          install -m 700 -d ~/.ssh
-          if [ -n "$VPS_SSH_KEY" ]; then
-            printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
-          else
-            printf '%s' "$VPS_SSH_KEY_B64" | base64 --decode > ~/.ssh/id_ed25519
-          fi
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          }
+          test -f /opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production || {
+            echo "Missing production environment file"
+            exit 1
+          }
+          command -v docker >/dev/null
+          docker compose version
 
       - name: Deploy release and validate
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER || secrets.ROOT }}
           RELEASE_REF: ${{ inputs.release_ref }}
           RUN_DIAGNOSTICS: ${{ inputs.run_diagnostics }}
         run: |
           set -euo pipefail
-          ssh -o BatchMode=yes "$VPS_USER@$VPS_HOST" \
-            "RELEASE_REF='$RELEASE_REF' RUN_DIAGNOSTICS='$RUN_DIAGNOSTICS' bash -s" <<'REMOTE'
-          set -euo pipefail
           cd /opt/supreme-ai-deployment-hub
 
           git fetch --tags --prune
-          git checkout --detach "$RELEASE_REF"
+          git checkout --detach --force "$RELEASE_REF"
 
           docker compose \
             --env-file deploy/vps/env/.env.production \
@@ -101,4 +78,3 @@ jobs:
             bash deploy/vps/scripts/diagnose-502.sh \
               | tee /tmp/d3vonn-502-diagnosis.txt
           fi
-          REMOTE
