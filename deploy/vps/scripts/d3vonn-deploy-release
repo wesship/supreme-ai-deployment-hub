@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_DIR="/opt/supreme-ai-deployment-hub"
+ENV_FILE="${REPO_DIR}/deploy/vps/env/.env.production"
+COMPOSE_FILE="${REPO_DIR}/deploy/vps/docker-compose.yml"
+
+if [[ "${1:-}" == "--check" ]]; then
+  test "${EUID}" -eq 0
+  test -d "${REPO_DIR}/.git"
+  test -f "${ENV_FILE}"
+  test -f "${COMPOSE_FILE}"
+  command -v git >/dev/null
+  command -v docker >/dev/null
+  docker compose version >/dev/null
+  echo "Restricted deployment wrapper is ready."
+  exit 0
+fi
+
+RELEASE_REF="${1:-}"
+RUN_DIAGNOSTICS="${2:-false}"
+
+if [[ ! "${RELEASE_REF}" =~ ^[0-9a-f]{40}$ ]] && \
+   [[ ! "${RELEASE_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid release ref. Use a full lowercase SHA or semver-style vX.Y.Z tag." >&2
+  exit 2
+fi
+
+if [[ "${RUN_DIAGNOSTICS}" != "true" && "${RUN_DIAGNOSTICS}" != "false" ]]; then
+  echo "run_diagnostics must be true or false." >&2
+  exit 2
+fi
+
+cd "${REPO_DIR}"
+
+git fetch origin main --tags --prune
+RESOLVED_COMMIT="$(git rev-parse --verify "${RELEASE_REF}^{commit}")"
+
+# Only commits already reachable from protected main may be deployed. Release
+# tags remain supported when they point to a protected-main commit.
+if ! git merge-base --is-ancestor "${RESOLVED_COMMIT}" origin/main; then
+  echo "Ref ${RELEASE_REF} resolves outside protected main; deployment denied." >&2
+  exit 3
+fi
+
+echo "Deploying verified commit ${RESOLVED_COMMIT}"
+git checkout --detach --force "${RESOLVED_COMMIT}"
+
+docker compose \
+  --env-file "${ENV_FILE}" \
+  -f "${COMPOSE_FILE}" \
+  config >/dev/null
+
+docker compose \
+  --env-file "${ENV_FILE}" \
+  -f "${COMPOSE_FILE}" \
+  up -d --build
+
+docker compose \
+  --env-file "${ENV_FILE}" \
+  -f "${COMPOSE_FILE}" \
+  ps
+
+curl --fail --show-error --silent --max-time 20 \
+  http://127.0.0.1:8000/health/ready
+echo
+
+curl --fail --show-error --silent --max-time 30 \
+  https://api.d3vonn.io/health/ready
+echo
+
+if [[ "${RUN_DIAGNOSTICS}" == "true" ]]; then
+  bash "${REPO_DIR}/deploy/vps/scripts/diagnose-502.sh" \
+    | tee /tmp/d3vonn-502-diagnosis.txt
+fi
