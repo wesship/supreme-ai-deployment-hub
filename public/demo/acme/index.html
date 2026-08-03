@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Acme Manufacturing Demo Mode | D3VONN.IO</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#050914;color:#f8fafc}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#10234b 0,#050914 44%);min-height:100vh}.wrap{width:min(1120px,calc(100% - 32px));margin:auto;padding:40px 0 72px}.eyebrow{letter-spacing:.18em;text-transform:uppercase;color:#7dd3fc;font-size:.75rem;font-weight:700}.hero{padding:28px;border:1px solid #243b67;border-radius:24px;background:rgba(9,20,44,.78);box-shadow:0 24px 80px rgba(0,0,0,.35)}h1{font-size:clamp(2rem,5vw,4rem);line-height:1;margin:.5rem 0 1rem}p{line-height:1.6}.notice{border:1px solid #f59e0b66;background:#f59e0b18;color:#fde68a;border-radius:16px;padding:16px;margin:24px 0}.grid{display:grid;gap:18px}.two{grid-template-columns:1.35fr .65fr}@media(max-width:800px){.two{grid-template-columns:1fr}}.card{border:1px solid #263a62;border-radius:20px;background:rgba(8,17,36,.84);padding:22px}.muted{color:#94a3b8}.buttons{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}button{border-radius:12px;border:1px solid #38bdf8;padding:11px 16px;font-weight:700;cursor:pointer;background:#0284c7;color:white}button.secondary{background:transparent;color:#bae6fd}button:disabled{opacity:.55;cursor:not-allowed}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{border:1px solid #263a62;border-radius:14px;padding:14px}.metric strong{font-size:1.5rem;display:block}.stages{display:grid;gap:10px;margin-top:14px}.stage{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:start;border:1px solid #263a62;border-radius:16px;padding:16px;background:#071027}.status{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:2px solid #64748b}.complete .status{border-color:#22c55e;color:#86efac}.approval .status{border-color:#f59e0b;color:#fde68a}.owner{font-size:.75rem;border:1px solid #334b78;border-radius:999px;padding:5px 9px;color:#93c5fd}.section-title{margin:34px 0 12px}.sources{margin:0;padding-left:20px;color:#94a3b8}.footer{margin-top:28px;text-align:center;color:#64748b;font-size:.8rem}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">D3VONN.IO · Product simulation</div>
+      <h1>Acme Manufacturing Demo Mode</h1>
+      <p class="muted">A deterministic, resettable demonstration of Hermes planning, specialized-agent execution, human approval, and governed delivery.</p>
+    </section>
+    <div class="notice"><strong>Simulation environment.</strong> All organizations, people, metrics, sources, and outcomes are fictional. No email, CRM, billing, or production data writes occur.</div>
+    <section class="grid two">
+      <article class="card"><h2>Canonical business goal</h2><p class="muted">Research Acme Manufacturing, prepare an executive opportunity brief, draft personalized outreach, route it through compliance, and submit the package for human approval.</p><div class="buttons"><button id="approve">Approve and continue</button><button class="secondary" id="reset">Reset demo</button></div></article>
+      <article class="card"><h2>Command metrics</h2><div class="metrics"><div class="metric"><strong>4</strong><span class="muted">Agents coordinated</span></div><div class="metric"><strong id="tasks">6 / 7</strong><span class="muted">Tasks completed</span></div><div class="metric"><strong>6</strong><span class="muted">Sources reviewed</span></div><div class="metric"><strong id="approvals">0 / 1</strong><span class="muted">Approvals recorded</span></div></div></article>
+    </section>
+    <h2 class="section-title">Hermes execution plan</h2>
+    <section class="stages" id="stages"></section>
+    <section class="grid two section-title">
+      <article class="card"><h2>Approval package</h2><p class="muted"><strong>Executive brief:</strong> Plant modernization and supplier-risk opportunity summary.</p><p class="muted"><strong>Outreach draft:</strong> Personalized executive message with no unverified performance claims.</p><p class="muted"><strong>Compliance:</strong> External delivery remains blocked until human approval.</p><p class="muted"><strong>Boundary:</strong> No message is transmitted from this simulation.</p></article>
+      <article class="card"><h2>Grounding sources</h2><ul class="sources"><li>2026 Operations Strategy — Simulation</li><li>Plant Modernization Brief — Simulation</li><li>Supplier Risk Summary — Simulation</li><li>Customer Support Trends — Simulation</li><li>Executive Meeting Notes — Simulation</li><li>Product Portfolio Overview — Simulation</li></ul></article>
+    </section>
+    <p class="footer">D3VONN.IO · Intelligence, under command.</p>
+  </main>
+<script>
+const base=[
+['Goal intake','Hermes','Goal normalized into a measurable execution plan.','complete'],
+['Prospect research','Research Scout','Six fictional knowledge sources reviewed and cited.','complete'],
+['Opportunity analysis','Market Intelligence','Operational priorities and buying signals summarized.','complete'],
+['Executive brief','Communications Agent','Brief and outreach package prepared from grounded evidence.','complete'],
+['Compliance review','Compliance Reviewer','Claims, tone, and external-action boundaries checked.','complete'],
+['Human approval','Human operator','Consequential external delivery is paused for review.','approval'],
+['Final delivery','Hermes','Simulation package is released only after approval.','pending']];
+let approved=false;
+function render(){document.getElementById('stages').innerHTML=base.map((s,i)=>{let status=s[3],detail=s[2];if(approved&&i>4){status='complete';detail=i===5?'Human approval recorded in the simulation audit trail.':'Executive package released inside the isolated simulation.'}return `<article class="stage ${status}"><div class="status">${status==='complete'?'✓':status==='approval'?'Ⅱ':'·'}</div><div><strong>${i+1}. ${s[0]}</strong><p class="muted">${detail}</p></div><span class="owner">${s[1]}</span></article>`}).join('');document.getElementById('tasks').textContent=approved?'7 / 7':'6 / 7';document.getElementById('approvals').textContent=approved?'1 / 1':'0 / 1';const b=document.getElementById('approve');b.disabled=approved;b.textContent=approved?'Approved':'Approve and continue'}
+document.getElementById('approve').onclick=()=>{approved=true;render()};document.getElementById('reset').onclick=()=>{approved=false;render()};render();
+</script>
+</body>
+</html>
