@@ -1,0 +1,106 @@
+{
+  "schema_version": "1.0",
+  "classification": "SIMULATION",
+  "workflow_id": "acme-golden-demo-v1",
+  "title": "Acme Manufacturing Executive Opportunity Package",
+  "goal": "Research Acme Manufacturing, prepare an executive opportunity brief, draft a personalized outreach package, route it through compliance, request human approval, and generate the final deliverable.",
+  "reset_state": "ready",
+  "agents": [
+    {"id": "research-scout", "name": "Research Scout", "responsibility": "Collect and cite relevant evidence"},
+    {"id": "market-intelligence", "name": "Market Intelligence", "responsibility": "Assess opportunity fit and operational priorities"},
+    {"id": "communications", "name": "Communications Agent", "responsibility": "Draft executive outreach using the approved style guide"},
+    {"id": "compliance-reviewer", "name": "Compliance Reviewer", "responsibility": "Check claims, sources, tone, and required approvals"}
+  ],
+  "stages": [
+    {
+      "order": 1,
+      "id": "intake",
+      "title": "Goal intake",
+      "owner": "hermes",
+      "status": "ready",
+      "output": "Normalized goal, constraints, and success criteria"
+    },
+    {
+      "order": 2,
+      "id": "research",
+      "title": "Evidence research",
+      "owner": "research-scout",
+      "depends_on": ["intake"],
+      "required_sources": ["KB-001", "KB-002", "KB-003", "KB-004"],
+      "output": "Source-backed account research summary"
+    },
+    {
+      "order": 3,
+      "id": "qualification",
+      "title": "Opportunity qualification",
+      "owner": "market-intelligence",
+      "depends_on": ["research"],
+      "output": "Fit assessment, priorities, risks, and recommended approach"
+    },
+    {
+      "order": 4,
+      "id": "brief",
+      "title": "Executive opportunity brief",
+      "owner": "market-intelligence",
+      "depends_on": ["qualification"],
+      "output": "One-page executive brief with citations"
+    },
+    {
+      "order": 5,
+      "id": "outreach",
+      "title": "Personalized outreach draft",
+      "owner": "communications",
+      "depends_on": ["brief"],
+      "output": "Email draft addressed to Priya Shah"
+    },
+    {
+      "order": 6,
+      "id": "compliance",
+      "title": "Compliance review",
+      "owner": "compliance-reviewer",
+      "depends_on": ["outreach"],
+      "checks": [
+        "Every material claim has a source",
+        "No unsupported savings or certification claims",
+        "No real customer or personal data",
+        "External send remains disabled"
+      ],
+      "output": "Review notes and approval recommendation"
+    },
+    {
+      "order": 7,
+      "id": "human-approval",
+      "title": "Human approval",
+      "owner": "authorized-reviewer",
+      "depends_on": ["compliance"],
+      "gate": true,
+      "allowed_decisions": ["approve", "request_changes", "reject"],
+      "default_decision": "request_changes",
+      "output": "Recorded approval decision and reviewer note"
+    },
+    {
+      "order": 8,
+      "id": "delivery",
+      "title": "Final package delivery",
+      "owner": "hermes",
+      "depends_on": ["human-approval"],
+      "condition": "approval decision equals approve",
+      "output": "Executive brief, outreach draft, compliance record, next actions, and audit summary"
+    }
+  ],
+  "expected_demo_metrics": {
+    "classification": "SIMULATION",
+    "agents_coordinated": 4,
+    "tasks_completed": 8,
+    "sources_reviewed": 6,
+    "human_approvals": 1,
+    "external_messages_sent": 0
+  },
+  "success_criteria": [
+    "The workflow visibly pauses at the approval gate",
+    "At least four source identifiers appear in the final brief",
+    "No external message is sent",
+    "The final package is available only after approval",
+    "The audit summary records goal, stages, agents, sources, and decision"
+  ]
+}
