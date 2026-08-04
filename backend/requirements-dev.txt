@@ -9,5 +9,5 @@ pytest-cov==6.0.0
 anyio==4.6.2
 
 # Linting / formatting
-ruff==0.8.0
+ruff==0.16.1
 mypy==1.13.0
