@@ -282,6 +282,18 @@ jobs:
               fi
             fi
 
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260725225100_restore_hermes_runtime_ledger.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "70f26c4a5ca16745162dd932610600ce6a8310bb" ] \
+                && [ "$head_blob" = "459a8d9f6498738945aabbc9e4b1c369934a1312" ]; then
+                echo "Approved one-time Hermes ledger compatibility correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
