@@ -19,16 +19,25 @@ GRANT SELECT ON public.agent_reviews_public TO anon, authenticated;
 -- =========================================================
 -- 2) subscription_tiers: hide stripe_price_id_* from clients
 -- =========================================================
-DROP POLICY IF EXISTS "Authenticated users can view subscription tiers" ON public.subscription_tiers;
+-- Billing is optional in clean previews and in deployments that have not
+-- installed the subscription module. Harden it only when the base table exists.
+DO $subscription_tiers$
+BEGIN
+  IF to_regclass('public.subscription_tiers') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Authenticated users can view subscription tiers" ON public.subscription_tiers';
 
--- Admin-manage policy remains. No SELECT for regular users on base table.
+    -- Admin-manage policy remains. No SELECT for regular users on base table.
+    EXECUTE $view$
+      CREATE OR REPLACE VIEW public.subscription_tiers_public
+      WITH (security_invoker = on) AS
+      SELECT id, name, price_monthly, price_yearly, features, created_at
+      FROM public.subscription_tiers
+    $view$;
 
-CREATE OR REPLACE VIEW public.subscription_tiers_public
-WITH (security_invoker = on) AS
-SELECT id, name, price_monthly, price_yearly, features, created_at
-FROM public.subscription_tiers;
-
-GRANT SELECT ON public.subscription_tiers_public TO anon, authenticated;
+    EXECUTE 'GRANT SELECT ON public.subscription_tiers_public TO anon, authenticated';
+  END IF;
+END
+$subscription_tiers$;
 
 -- =========================================================
 -- 3) realtime.messages: scope channel access by auth.uid() topic prefix
