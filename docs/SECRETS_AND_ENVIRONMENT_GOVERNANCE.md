@@ -57,6 +57,21 @@ Recommended:
 - SLACK_WEBHOOK_URL
 - SLACK_WEBHOOK_DEPLOYS
 
+## Supabase Key Map
+
+Use the following names consistently. Never copy a key into a variable with a different security class.
+
+| Supabase dashboard item | Typical format | D3VONN.IO variable | Exposure | Notes |
+|---|---|---|---|---|
+| Publishable key | `sb_publishable_...` | `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser-safe | Preferred frontend key. |
+| Legacy anon key | JWT beginning `eyJ...` | `VITE_SUPABASE_ANON_KEY` or server compatibility alias `SUPABASE_ANON_KEY` | Browser-safe with RLS | Current frontend accepts this only as a fallback to the publishable key. |
+| Legacy service-role key | JWT beginning `eyJ...` with service-role claims | `SUPABASE_SERVICE_ROLE_KEY` | Server-only critical secret | Current backend code expects this exact variable name. It bypasses RLS. |
+| Modern secret key | `sb_secret_...` | No canonical runtime alias yet | Server-only critical secret | Do not substitute it for `SUPABASE_SERVICE_ROLE_KEY` until every backend consumer is migrated and tested. |
+| JWT key ID | Short identifier shown with a JWT signing key | Not an API-key environment variable | Non-secret identifier | Used to identify a signing key in JWT/JWKS verification. It is not `JWT_SECRET`, not an anon key, and not a service-role key. |
+| Project ID / project ref | Project reference string | `SUPABASE_PROJECT_ID`, `SUPABASE_PROJECT_REF` | Non-sensitive configuration | Store as GitHub environment variables when possible. |
+
+The Supabase project URL belongs in `VITE_SUPABASE_URL` for browser builds and `SUPABASE_URL` for server runtimes. Staging and production must use different project refs, URLs, and credentials.
+
 ## Frontend Exposure Rule
 
 Only variables intentionally prefixed with `VITE_` may be exposed to the browser.
@@ -64,7 +79,7 @@ Only variables intentionally prefixed with `VITE_` may be exposed to the browser
 Never expose:
 
 - provider API keys intended for server use
-- database service-role keys
+- database service-role or modern secret keys
 - JWT signing secrets
 - encryption keys
 - GitHub tokens
