@@ -204,6 +204,18 @@ jobs:
               fi
             fi
 
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260622170939_2a94f546-3120-4b67-95cf-c16b5c11ccf8.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "8fc918a425aa032048c4774faf3a1c67ae4f8a18" ] \
+                && [ "$head_blob" = "6ddc0a48da36c70e484b575521ffaf4d3507b7f1" ]; then
+                echo "Approved one-time optional billing policy compatibility correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
