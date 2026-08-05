@@ -110,6 +110,18 @@ jobs:
               fi
             fi
 
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260528_occ_tables.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "ed9d20907758f77f0ac8734db7f63a68a91ff2d4" ] \
+                && [ "$head_blob" = "15043ca841fa3d6ce0c853f554a4628636539b8d" ]; then
+                echo "Approved one-time OCC compatibility migration correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
