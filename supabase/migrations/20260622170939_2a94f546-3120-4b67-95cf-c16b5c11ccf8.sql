@@ -42,29 +42,51 @@ $subscription_tiers$;
 -- =========================================================
 -- 3) realtime.messages: scope channel access by auth.uid() topic prefix
 -- =========================================================
-ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+-- Supabase owns this platform table as supabase_realtime_admin. Apply the
+-- custom policies only in environments where the migration role owns it (or
+-- is a true superuser); managed projects safely retain the platform defaults.
+DO $realtime_messages$
+DECLARE
+  can_manage boolean;
+BEGIN
+  SELECT
+    c.relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
+    OR (SELECT rolsuper FROM pg_roles WHERE rolname = current_user)
+  INTO can_manage
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'realtime' AND c.relname = 'messages';
 
-DROP POLICY IF EXISTS "Users can receive on their own topic" ON realtime.messages;
-DROP POLICY IF EXISTS "Users can send on their own topic" ON realtime.messages;
+  IF coalesce(can_manage, false) THEN
+    EXECUTE 'ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY';
+    EXECUTE 'DROP POLICY IF EXISTS "Users can receive on their own topic" ON realtime.messages';
+    EXECUTE 'DROP POLICY IF EXISTS "Users can send on their own topic" ON realtime.messages';
 
-CREATE POLICY "Users can receive on their own topic"
-  ON realtime.messages FOR SELECT
-  TO authenticated
-  USING (
-    realtime.topic() IS NOT NULL
-    AND (
-      realtime.topic() = auth.uid()::text
-      OR realtime.topic() LIKE auth.uid()::text || ':%'
-    )
-  );
+    EXECUTE $receive_policy$
+      CREATE POLICY "Users can receive on their own topic"
+        ON realtime.messages FOR SELECT
+        TO authenticated
+        USING (
+          realtime.topic() IS NOT NULL
+          AND (
+            realtime.topic() = auth.uid()::text
+            OR realtime.topic() LIKE auth.uid()::text || ':%'
+          )
+        )
+    $receive_policy$;
 
-CREATE POLICY "Users can send on their own topic"
-  ON realtime.messages FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    realtime.topic() IS NOT NULL
-    AND (
-      realtime.topic() = auth.uid()::text
-      OR realtime.topic() LIKE auth.uid()::text || ':%'
-    )
-  );
+    EXECUTE $send_policy$
+      CREATE POLICY "Users can send on their own topic"
+        ON realtime.messages FOR INSERT
+        TO authenticated
+        WITH CHECK (
+          realtime.topic() IS NOT NULL
+          AND (
+            realtime.topic() = auth.uid()::text
+            OR realtime.topic() LIKE auth.uid()::text || ':%'
+          )
+        )
+    $send_policy$;
+  END IF;
+END
+$realtime_messages$;
