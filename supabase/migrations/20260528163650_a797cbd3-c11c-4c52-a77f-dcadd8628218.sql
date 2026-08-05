@@ -1,13 +1,8 @@
 -- Apply optional-module hardening only when the related tables exist.
 
--- 1. Drop the misleadingly named plain-text token column when MCP connections exist.
-DO $$
-BEGIN
-  IF to_regclass('public.mcp_connections') IS NOT NULL THEN
-    EXECUTE 'ALTER TABLE public.mcp_connections DROP COLUMN IF EXISTS api_token_encrypted';
-  END IF;
-END
-$$;
+-- 1. The legacy api_token_encrypted column is intentionally retained here.
+-- Removing a column is a contract migration and must follow application
+-- deprecation plus an explicit rollback window.
 
 -- 2. Hide reviewer UUIDs from anonymous users when agent reviews exist.
 DO $$
