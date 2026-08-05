@@ -294,6 +294,21 @@ jobs:
               fi
             fi
 
+            # This index migration is applied in staging, where the optional
+            # Genesis table exists, but is pending in production and absent in
+            # clean previews. The guarded form is behavior-identical in staging.
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260729130000_add_remaining_public_fk_index.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "b1e88f138ddf9d180761cb01e76e8566e2a31962" ] \
+                && [ "$head_blob" = "cbb82f4f6081ce131afa9efbcafcb16090464891" ]; then
+                echo "Approved one-time optional Genesis index correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
