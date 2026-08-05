@@ -80,6 +80,11 @@ alter table public.hermes_runs add column if not exists error_detail text;
 alter table public.hermes_runs add column if not exists tokens_used bigint;
 alter table public.hermes_runs add column if not exists cost_usd numeric(14, 6);
 alter table public.hermes_runs add column if not exists duration_ms bigint;
+-- These legacy columns exist in production but not in the canonical fresh
+-- replay schema. Add them before the compatibility backfill references them.
+alter table public.hermes_runs add column if not exists ended_at timestamptz;
+alter table public.hermes_runs add column if not exists exit_status text;
+alter table public.hermes_runs add column if not exists output jsonb;
 
 update public.hermes_runs
 set
@@ -265,18 +270,37 @@ begin
 end
 $$;
 
-insert into public.agent_registry (agent_name, display_name, role, capabilities, status)
-values
-  ('HERMES', 'Hermes Coordinator', 'orchestrator',
-   '["task_planning","agent_dispatch","memory_management"]'::jsonb, 'active'),
-  ('TARS', 'TARS Executor', 'executor',
-   '["code_execution","tool_use","api_calls"]'::jsonb, 'active'),
-  ('ION', 'ION Analytics', 'analyst',
-   '["data_analysis","reporting","visualization"]'::jsonb, 'active'),
-  ('SAPPHIRE', 'Sapphire Memory', 'memory',
-   '["vector_search","knowledge_retrieval","summarization"]'::jsonb, 'active'),
-  ('GUARDIAN', 'Guardian Safety', 'safety',
-   '["content_filtering","policy_enforcement","audit_logging"]'::jsonb, 'active')
-on conflict (agent_name) do nothing;
+do $agent_registry_seed$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'agent_registry'
+      and column_name = 'agent_name'
+  ) and exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'agent_registry'
+      and column_name = 'capabilities'
+      and data_type = 'jsonb'
+  ) then
+    execute $seed$
+      insert into public.agent_registry (agent_name, display_name, role, capabilities, status)
+      values
+        ('HERMES', 'Hermes Coordinator', 'orchestrator',
+         '["task_planning","agent_dispatch","memory_management"]'::jsonb, 'active'),
+        ('TARS', 'TARS Executor', 'executor',
+         '["code_execution","tool_use","api_calls"]'::jsonb, 'active'),
+        ('ION', 'ION Analytics', 'analyst',
+         '["data_analysis","reporting","visualization"]'::jsonb, 'active'),
+        ('SAPPHIRE', 'Sapphire Memory', 'memory',
+         '["vector_search","knowledge_retrieval","summarization"]'::jsonb, 'active'),
+        ('GUARDIAN', 'Guardian Safety', 'safety',
+         '["content_filtering","policy_enforcement","audit_logging"]'::jsonb, 'active')
+      on conflict (agent_name) do nothing
+    $seed$;
+  end if;
+end
+$agent_registry_seed$;
 
 commit;
