@@ -2,8 +2,12 @@
 alter table public.agent_activity_logs
   add column if not exists event_type text;
 
-update public.agent_activity_logs
-set event_type = coalesce(nullif(action, ''), nullif(agent_type, ''), 'activity')
+update public.agent_activity_logs as activity
+set event_type = coalesce(
+  nullif(to_jsonb(activity)->>'action', ''),
+  nullif(to_jsonb(activity)->>'agent_type', ''),
+  'activity'
+)
 where event_type is null;
 
 alter table public.agent_activity_logs

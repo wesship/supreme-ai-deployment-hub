@@ -5,6 +5,9 @@
 --              MANUAL_REVIEW, ESCALATED, PAUSED
 -- =============================================================================
 
+CREATE SCHEMA IF NOT EXISTS extensions;
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+
 -- ---------------------------------------------------------------------------
 -- 1. hermes_tasks — primary work queue
 -- ---------------------------------------------------------------------------
@@ -126,7 +129,7 @@ CREATE TABLE IF NOT EXISTS public.hermes_memory (
 
   key             TEXT,                             -- optional lookup key
   content         TEXT NOT NULL,
-  embedding       VECTOR(1536),                     -- OpenAI text-embedding-3-small dimension
+  embedding       extensions.vector(1536),                     -- OpenAI text-embedding-3-small dimension
   metadata        JSONB,
 
   source_task_id  UUID REFERENCES public.hermes_tasks(id) ON DELETE SET NULL,
