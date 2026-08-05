@@ -122,6 +122,18 @@ jobs:
               fi
             fi
 
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260529_hermes_brain.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "a0c6cc854b9eaef5ae77e58f1c16844b6257cb19" ] \
+                && [ "$head_blob" = "27566271920acfe811f427914143e153d879b6d1" ]; then
+                echo "Approved one-time Hermes vector migration correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
