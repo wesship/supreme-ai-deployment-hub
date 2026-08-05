@@ -138,7 +138,7 @@ jobs:
             # Accept only the exact content-preserving rename to 202605290001.
             if [[ "$status" =~ ^R ]] \
               && [ "$path" = "supabase/migrations/20260529_hermes_brain_additive.sql" ] \
-              && [ "$path2" = "supabase/migrations/202605290001_hermes_brain_additive.sql" ] \
+              && [ "$path2" = "supabase/migrations/20260530_hermes_brain_additive.sql" ] \
               && [ "$PR_NUMBER" = "707" ]; then
               base_blob="$(git rev-parse "$BASE_SHA:$path")"
               head_blob="$(git rev-parse "$HEAD_SHA:$path2")"
@@ -154,7 +154,7 @@ jobs:
               && [ "$path" = "supabase/migrations/20260529_hermes_brain_additive.sql" ] \
               && [ "$PR_NUMBER" = "707" ]; then
               base_blob="$(git rev-parse "$BASE_SHA:$path")"
-              head_blob="$(git rev-parse "$HEAD_SHA:supabase/migrations/202605290001_hermes_brain_additive.sql")"
+              head_blob="$(git rev-parse "$HEAD_SHA:supabase/migrations/20260530_hermes_brain_additive.sql")"
               if [ "$base_blob" = "4415a15790ed2679f793115de5fc6ccde16884a0" ] \
                 && [ "$head_blob" = "1aa03765948d0d15a5bc0e9ccfbaf8a329f5090e" ] \
                 && ! git cat-file -e "$HEAD_SHA:$path" 2>/dev/null; then
