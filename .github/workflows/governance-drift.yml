@@ -163,6 +163,35 @@ jobs:
               fi
             fi
 
+            # The user_roles migration also shared legacy version 20260529.
+            # Accept only the exact content-preserving rename to a unique version.
+            if [[ "$status" =~ ^R ]] \
+              && [ "$path" = "supabase/migrations/20260529_user_roles.sql" ] \
+              && [ "$path2" = "supabase/migrations/202605290001_user_roles.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path2")"
+              if [ "$base_blob" = "bc9a2ebc87326dc16f6c3bcd47b73fd9fda66d7b" ] \
+                && [ "$head_blob" = "bc9a2ebc87326dc16f6c3bcd47b73fd9fda66d7b" ]; then
+                echo "Approved one-time user_roles migration rename: $path -> $path2"
+                allowed=1
+              fi
+            fi
+
+            # Some git versions may report the same operation as delete + add.
+            if [ "$status" = "D" ] \
+              && [ "$path" = "supabase/migrations/20260529_user_roles.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:supabase/migrations/202605290001_user_roles.sql")"
+              if [ "$base_blob" = "bc9a2ebc87326dc16f6c3bcd47b73fd9fda66d7b" ] \
+                && [ "$head_blob" = "bc9a2ebc87326dc16f6c3bcd47b73fd9fda66d7b" ] \
+                && ! git cat-file -e "$HEAD_SHA:$path" 2>/dev/null; then
+                echo "Approved one-time user_roles migration move: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
