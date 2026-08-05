@@ -309,6 +309,21 @@ jobs:
               fi
             fi
 
+            # Production applied this backfill against legacy columns; staging
+            # and clean previews use the normalized schema. JSON lookup preserves
+            # legacy behavior while tolerating missing optional columns.
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260801204856_add_event_type_to_agent_activity_logs.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "6a59125e85e14fe5838f0dfcc3a50e0f529bb2a3" ] \
+                && [ "$head_blob" = "b1e94b21c6f089e3c8dd252162ff47a5c0271a63" ]; then
+                echo "Approved one-time agent activity compatibility correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
