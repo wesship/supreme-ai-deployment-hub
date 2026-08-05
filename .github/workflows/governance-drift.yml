@@ -228,6 +228,60 @@ jobs:
               fi
             fi
 
+            # Two D3VONN SOC migrations shared legacy version 20260630.
+            # Preserve contents and ordering with unique timestamp versions.
+            if [[ "$status" =~ ^R ]] \
+              && [ "$path" = "supabase/migrations/20260630_d3vonn_soc.sql" ] \
+              && [ "$path2" = "supabase/migrations/20260630000000_d3vonn_soc.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path2")"
+              if [ "$base_blob" = "971712230f2315c604a6388433c0086fa7b2772a" ] \
+                && [ "$head_blob" = "971712230f2315c604a6388433c0086fa7b2772a" ]; then
+                echo "Approved one-time D3VONN migration rename: $path -> $path2"
+                allowed=1
+              fi
+            fi
+
+            if [ "$status" = "D" ] \
+              && [ "$path" = "supabase/migrations/20260630_d3vonn_soc.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:supabase/migrations/20260630000000_d3vonn_soc.sql")"
+              if [ "$base_blob" = "971712230f2315c604a6388433c0086fa7b2772a" ] \
+                && [ "$head_blob" = "971712230f2315c604a6388433c0086fa7b2772a" ] \
+                && ! git cat-file -e "$HEAD_SHA:$path" 2>/dev/null; then
+                echo "Approved one-time D3VONN migration move: $path"
+                allowed=1
+              fi
+            fi
+
+            if [[ "$status" =~ ^R ]] \
+              && [ "$path" = "supabase/migrations/20260630_d3vonn_soc_v2.sql" ] \
+              && [ "$path2" = "supabase/migrations/20260630000001_d3vonn_soc_v2.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path2")"
+              if [ "$base_blob" = "f02ae505c1e326dc7fb8c56675c061117b1fd1b1" ] \
+                && [ "$head_blob" = "f02ae505c1e326dc7fb8c56675c061117b1fd1b1" ]; then
+                echo "Approved one-time D3VONN migration rename: $path -> $path2"
+                allowed=1
+              fi
+            fi
+
+            if [ "$status" = "D" ] \
+              && [ "$path" = "supabase/migrations/20260630_d3vonn_soc_v2.sql" ] \
+              && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:supabase/migrations/20260630000001_d3vonn_soc_v2.sql")"
+              if [ "$base_blob" = "f02ae505c1e326dc7fb8c56675c061117b1fd1b1" ] \
+                && [ "$head_blob" = "f02ae505c1e326dc7fb8c56675c061117b1fd1b1" ] \
+                && ! git cat-file -e "$HEAD_SHA:$path" 2>/dev/null; then
+                echo "Approved one-time D3VONN migration move: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
