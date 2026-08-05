@@ -1,6 +1,6 @@
--- Restore the historical api_connections prerequisite required by later
--- security migrations. This migration was part of the original schema history
--- but was missing from the repository, which made fresh Supabase preview
+-- Restore historical API-connection prerequisites required by later
+-- security migrations. These objects were part of the original schema history
+-- but were missing from the repository, which made fresh Supabase preview
 -- branches fail before feature migrations could run.
 
 CREATE TYPE public.auth_type AS ENUM (
@@ -50,7 +50,7 @@ FOR DELETE
 TO authenticated
 USING ((SELECT auth.uid()) = user_id);
 
-CREATE OR REPLACE FUNCTION public.set_api_connections_updated_at()
+CREATE OR REPLACE FUNCTION public.update_workflow_timestamp()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY INVOKER
@@ -65,7 +65,7 @@ $$;
 CREATE TRIGGER update_api_connections_updated_at
 BEFORE UPDATE ON public.api_connections
 FOR EACH ROW
-EXECUTE FUNCTION public.set_api_connections_updated_at();
+EXECUTE FUNCTION public.update_workflow_timestamp();
 
 CREATE INDEX idx_api_connections_user_id
   ON public.api_connections(user_id);
