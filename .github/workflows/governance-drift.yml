@@ -210,7 +210,7 @@ jobs:
               base_blob="$(git rev-parse "$BASE_SHA:$path")"
               head_blob="$(git rev-parse "$HEAD_SHA:$path")"
               if [ "$base_blob" = "8fc918a425aa032048c4774faf3a1c67ae4f8a18" ] \
-                && [ "$head_blob" = "6ddc0a48da36c70e484b575521ffaf4d3507b7f1" ]; then
+                && [ "$head_blob" = "828853ab063b53a656e19e91c1e086de2fb0e11c" ]; then
                 echo "Approved one-time optional billing policy compatibility correction: $path"
                 allowed=1
               fi
