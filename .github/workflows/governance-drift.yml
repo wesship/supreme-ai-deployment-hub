@@ -69,9 +69,9 @@ jobs:
             fi
           done
 
-          # Migrations are append-only. A single hash-bound exception exists for
-          # PR #501 because the unapplied Phase 1 migration was proven incompatible
-          # with the live schema and would fail before a forward correction could run.
+          # Migrations are append-only. Hash-bound exceptions are allowed only
+          # when an unapplied migration is proven incompatible with the live schema
+          # and would fail before a forward correction could run.
           while IFS=$'\t' read -r status path path2; do
             [ -z "$status" ] && continue
 
@@ -83,6 +83,28 @@ jobs:
               head_blob="$(git rev-parse "$HEAD_SHA:$path")"
               if [ "$base_blob" = "0dacf5a5f4e170df63e109cc9f7038e15c0d8ba1" ] \
                 && [ "$head_blob" = "06c7037bb5262216b8804b8df089453c14e3e666" ]; then
+                echo "Approved one-time migration correction: $path"
+                allowed=1
+              fi
+            fi
+
+            # PR #707 repairs two unapplied, policy-only migrations so clean
+            # preview databases can replay schemas where optional modules are absent.
+            # The exception is limited to the exact reviewed before/after blobs.
+            if [ "$status" = "M" ] && [ "$PR_NUMBER" = "707" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+
+              if [ "$path" = "supabase/migrations/20260525053524_a06587cd-ea1b-428b-b2c0-b182d6ac63d8.sql" ] \
+                && [ "$base_blob" = "8f505bf6a5eb226099c21d053812b350486fb484" ] \
+                && [ "$head_blob" = "f3becd69b213b2b90ed1ff363b52e805a813aaa4" ]; then
+                echo "Approved one-time migration correction: $path"
+                allowed=1
+              fi
+
+              if [ "$path" = "supabase/migrations/20260528163650_a797cbd3-c11c-4c52-a77f-dcadd8628218.sql" ] \
+                && [ "$base_blob" = "e8d9587b832a81db3f240695be8dab637c56253a" ] \
+                && [ "$head_blob" = "7976b1bd843f9a321895ad494313da9d28d5466a" ]; then
                 echo "Approved one-time migration correction: $path"
                 allowed=1
               fi
