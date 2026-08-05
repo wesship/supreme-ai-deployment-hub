@@ -29,7 +29,7 @@ declare global {
 
 const VAPI_SCRIPT_ID = 'd3vonn-vapi-web-sdk';
 const VAPI_SCRIPT_URL =
-  'https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js';
+  'https://cdn.jsdelivr.net/gh/VapiAI/client-sdk-html-script-tag@749efa096d174c61d34e2e7d875b214709a497cc/dist/assets/index.js';
 
 const loadVapiScript = (): Promise<void> =>
   new Promise((resolve, reject) => {
