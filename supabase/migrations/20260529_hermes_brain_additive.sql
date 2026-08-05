@@ -160,20 +160,43 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Seed agent registry
-INSERT INTO public.agent_registry (agent_name, display_name, role, capabilities, status)
-VALUES
-  ('HERMES', 'Hermes Coordinator', 'orchestrator',
-   '["task_planning","agent_dispatch","memory_management"]'::JSONB, 'active'),
-  ('TARS', 'TARS Executor', 'executor',
-   '["code_execution","tool_use","api_calls"]'::JSONB, 'active'),
-  ('ION', 'ION Analytics', 'analyst',
-   '["data_analysis","reporting","visualization"]'::JSONB, 'active'),
-  ('SAPPHIRE', 'Sapphire Memory', 'memory',
-   '["vector_search","knowledge_retrieval","summarization"]'::JSONB, 'active'),
-  ('GUARDIAN', 'Guardian Safety', 'safety',
-   '["content_filtering","policy_enforcement","audit_logging"]'::JSONB, 'active')
-ON CONFLICT (agent_name) DO NOTHING;
+-- Seed the registry only when this migration created or inherited the
+-- agent_name/jsonb variant. The canonical name/text[] variant is seeded by
+-- the preceding Hermes migration and must not be rewritten here.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'agent_registry'
+      AND column_name = 'agent_name'
+  ) AND EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'agent_registry'
+      AND column_name = 'capabilities'
+      AND data_type = 'jsonb'
+  ) THEN
+    EXECUTE $seed$
+      INSERT INTO public.agent_registry (agent_name, display_name, role, capabilities, status)
+      VALUES
+        ('HERMES', 'Hermes Coordinator', 'orchestrator',
+         '["task_planning","agent_dispatch","memory_management"]'::jsonb, 'active'),
+        ('TARS', 'TARS Executor', 'executor',
+         '["code_execution","tool_use","api_calls"]'::jsonb, 'active'),
+        ('ION', 'ION Analytics', 'analyst',
+         '["data_analysis","reporting","visualization"]'::jsonb, 'active'),
+        ('SAPPHIRE', 'Sapphire Memory', 'memory',
+         '["vector_search","knowledge_retrieval","summarization"]'::jsonb, 'active'),
+        ('GUARDIAN', 'Guardian Safety', 'safety',
+         '["content_filtering","policy_enforcement","audit_logging"]'::jsonb, 'active')
+      ON CONFLICT (agent_name) DO NOTHING
+    $seed$;
+  END IF;
+END
+$$;
 
 -- ── 11. Create user_roles table if missing ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.user_roles (
@@ -193,7 +216,11 @@ END $$;
 
 -- ── 12. updated_at triggers for new tables ───────────────────────────────────
 CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
