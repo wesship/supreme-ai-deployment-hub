@@ -150,12 +150,12 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = public
-AS $
+AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS update_user_plans_updated_at ON user_plans;
 CREATE TRIGGER update_user_plans_updated_at
@@ -192,7 +192,7 @@ CREATE TABLE IF NOT EXISTS rag_documents (
 -- Create compatibility indexes only when the referenced column exists.
 -- Older OCC schemas use different column names, and CREATE TABLE IF NOT EXISTS
 -- intentionally does not rewrite those live tables.
-DO $
+DO $$
 DECLARE
     idx record;
 BEGIN
@@ -241,7 +241,7 @@ BEGIN
         END IF;
     END LOOP;
 END
-$;
+$$;
 
 DROP TRIGGER IF EXISTS update_rag_documents_updated_at ON rag_documents;
 CREATE TRIGGER update_rag_documents_updated_at
@@ -274,7 +274,7 @@ CREATE POLICY "Users can read own plan"
 
 -- Older RAG schemas use user_id while newer schemas use uploaded_by.
 -- Select the available owner column; create no policy if neither exists.
-DO $
+DO $$
 BEGIN
     DROP POLICY IF EXISTS "Users can read own documents" ON public.rag_documents;
 
@@ -294,7 +294,7 @@ BEGIN
         EXECUTE 'CREATE POLICY "Users can read own documents" ON public.rag_documents FOR SELECT TO authenticated USING ((SELECT auth.uid()) = user_id)';
     END IF;
 END
-$;
+$$;
 
 -- Service role (backend) has full access via service_role key (bypasses RLS)
 -- Admin dashboard must use SUPABASE_SERVICE_ROLE_KEY, never anon key
