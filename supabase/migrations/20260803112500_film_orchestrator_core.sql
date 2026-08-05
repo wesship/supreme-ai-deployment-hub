@@ -177,6 +177,25 @@ create index if not exists film_scenes_project_idx on public.film_scenes(project
 create index if not exists film_shots_scene_idx on public.film_shots(scene_id);
 create index if not exists film_jobs_shot_idx on public.film_generation_jobs(shot_id);
 create index if not exists film_outputs_shot_idx on public.film_generation_outputs(shot_id);
+create index if not exists film_canon_rules_owner_idx on public.film_canon_rules(owner_id);
+create index if not exists film_characters_owner_idx on public.film_characters(owner_id);
+create index if not exists film_generation_jobs_owner_idx on public.film_generation_jobs(owner_id);
+create index if not exists film_generation_jobs_project_idx on public.film_generation_jobs(project_id);
+create index if not exists film_generation_outputs_job_idx on public.film_generation_outputs(job_id);
+create index if not exists film_generation_outputs_owner_idx on public.film_generation_outputs(owner_id);
+create index if not exists film_generation_outputs_project_idx on public.film_generation_outputs(project_id);
+create index if not exists film_qa_reviews_output_idx on public.film_qa_reviews(output_id);
+create index if not exists film_qa_reviews_owner_idx on public.film_qa_reviews(owner_id);
+create index if not exists film_qa_reviews_project_idx on public.film_qa_reviews(project_id);
+create index if not exists film_qa_reviews_shot_idx on public.film_qa_reviews(shot_id);
+create index if not exists film_reference_assets_owner_idx on public.film_reference_assets(owner_id);
+create index if not exists film_reference_assets_project_idx on public.film_reference_assets(project_id);
+create index if not exists film_reference_assets_shot_idx on public.film_reference_assets(shot_id);
+create index if not exists film_scenes_owner_idx on public.film_scenes(owner_id);
+create index if not exists film_shots_owner_idx on public.film_shots(owner_id);
+create index if not exists film_shots_project_idx on public.film_shots(project_id);
+create index if not exists film_timeline_items_output_idx on public.film_timeline_items(output_id);
+create index if not exists film_timeline_items_owner_idx on public.film_timeline_items(owner_id);
 
 alter table public.film_projects enable row level security;
 alter table public.film_characters enable row level security;
@@ -200,9 +219,16 @@ begin
     'film_provider_accounts','film_timeline_items'
   ]
   loop
+    execute format('revoke all on table public.%I from anon, authenticated', table_name);
+    execute format(
+      'grant select, insert, update, delete on table public.%I to authenticated',
+      table_name
+    );
+    execute format('grant all on table public.%I to service_role', table_name);
+
     execute format('drop policy if exists %I_owner_all on public.%I', table_name, table_name);
     execute format(
-      'create policy %I_owner_all on public.%I for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id)',
+      'create policy %I_owner_all on public.%I for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id)',
       table_name, table_name
     );
   end loop;
