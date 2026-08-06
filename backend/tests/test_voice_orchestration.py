@@ -9,7 +9,7 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.routers.voice_orchestration import router
+from backend.app.routers.voice_orchestration import effective_webhook_secret, router
 
 
 def make_client() -> TestClient:
@@ -18,7 +18,7 @@ def make_client() -> TestClient:
     return TestClient(app)
 
 
-def test_health_reports_partial_without_secrets(monkeypatch):
+def clear_voice_env(monkeypatch) -> None:
     for name in (
         "VAPI_ASSISTANT_ID",
         "VITE_VAPI_ASSISTANT_ID",
@@ -28,30 +28,71 @@ def test_health_reports_partial_without_secrets(monkeypatch):
         "VAPI_SIGNING_SECRET",
         "ELEVENLABS_API_KEY",
         "ELEVENLABS_DEFAULT_VOICE_ID",
+        "ELEVENLABS_VOICE_ID",
         "HERMES_VOICE_URL",
     ):
         monkeypatch.delenv(name, raising=False)
+
+
+def test_health_reports_partial_without_provider_secrets(monkeypatch):
+    clear_voice_env(monkeypatch)
 
     response = make_client().get("/api/voice/health")
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "partial"
+    assert body["checks"]["vapi_private_key"] is False
+    assert body["checks"]["vapi_webhook_auth"] is False
+    assert body["checks"]["elevenlabs_api"] is False
     assert body["checks"]["hermes_internal_adapter"] is True
+    assert body["webhook_auth_mode"] == "unavailable"
     assert body["secrets_exposed"] is False
 
 
-def test_health_reports_configured_with_required_provider_values(monkeypatch):
+def test_health_uses_defaults_and_derived_auth_with_provider_keys(monkeypatch):
+    clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_PRIVATE_KEY", "vapi-private-real-value")
-    monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "webhook-real-value")
     monkeypatch.setenv("ELEVENLABS_API_KEY", "eleven-real-value")
-    monkeypatch.setenv("ELEVENLABS_DEFAULT_VOICE_ID", "voice-real-value")
 
     response = make_client().get("/api/voice/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "configured"
+    body = response.json()
+    assert body["status"] == "configured"
+    assert body["checks"]["vapi_webhook_auth"] is True
+    assert body["checks"]["elevenlabs_voice"] is True
+    assert body["webhook_auth_mode"] == "derived"
+
+
+def test_effective_webhook_secret_is_deterministic_and_explicit_wins(monkeypatch):
+    clear_voice_env(monkeypatch)
+    monkeypatch.setenv("VAPI_PRIVATE_KEY", "vapi-private-real-value")
+
+    first = effective_webhook_secret()
+    second = effective_webhook_secret()
+    assert first == second
+    assert len(first) == 64
+
+    monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "explicit-webhook-secret")
+    assert effective_webhook_secret() == "explicit-webhook-secret"
+
+
+def test_webhook_accepts_derived_server_secret(monkeypatch):
+    clear_voice_env(monkeypatch)
+    monkeypatch.setenv("VAPI_PRIVATE_KEY", "vapi-private-real-value")
+    secret = effective_webhook_secret()
+
+    response = make_client().post(
+        "/api/voice/vapi/webhook",
+        json={"message": {"id": "evt-derived-secret", "type": "status-update"}},
+        headers={"x-vapi-secret": secret},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["event_type"] == "status-update"
 
 
 def test_webhook_rejects_invalid_auth(monkeypatch):
+    clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "correct-secret")
     response = make_client().post(
         "/api/voice/vapi/webhook",
@@ -62,9 +103,8 @@ def test_webhook_rejects_invalid_auth(monkeypatch):
 
 
 def test_webhook_accepts_vapi_server_secret_header(monkeypatch):
+    clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "server-secret")
-    monkeypatch.delenv("VAPI_SIGNING_SECRET", raising=False)
-    monkeypatch.delenv("HERMES_VOICE_URL", raising=False)
 
     response = make_client().post(
         "/api/voice/vapi/webhook",
@@ -77,9 +117,8 @@ def test_webhook_accepts_vapi_server_secret_header(monkeypatch):
 
 
 def test_webhook_accepts_hmac_and_replays_cached_response(monkeypatch):
-    monkeypatch.delenv("VAPI_WEBHOOK_SECRET", raising=False)
+    clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_SIGNING_SECRET", "signing-secret")
-    monkeypatch.delenv("HERMES_VOICE_URL", raising=False)
     payload = {"id": "evt-hmac-cache", "type": "call-ended", "credential": "do-not-log"}
     raw = json.dumps(payload, separators=(",", ":")).encode()
     signature = hmac.new(b"signing-secret", raw, hashlib.sha256).hexdigest()
@@ -104,9 +143,8 @@ def test_webhook_accepts_hmac_and_replays_cached_response(monkeypatch):
 
 
 def test_assistant_request_returns_published_assistant(monkeypatch):
+    clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "assistant-secret")
-    monkeypatch.delenv("VAPI_ASSISTANT_ID", raising=False)
-    monkeypatch.delenv("VITE_VAPI_ASSISTANT_ID", raising=False)
 
     response = make_client().post(
         "/api/voice/vapi/webhook",
@@ -119,6 +157,7 @@ def test_assistant_request_returns_published_assistant(monkeypatch):
 
 
 def test_unknown_tool_is_rejected_with_vapi_result_shape(monkeypatch):
+    clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "tool-secret")
     response = make_client().post(
         "/api/voice/vapi/webhook",
@@ -139,6 +178,7 @@ def test_unknown_tool_is_rejected_with_vapi_result_shape(monkeypatch):
 
 
 def test_hermes_tool_queues_task_and_returns_result(monkeypatch):
+    clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "queue-secret")
 
     async def fake_create_task(**kwargs):

@@ -21,14 +21,47 @@ _MAX_BODY_BYTES = 1_000_000
 _MAX_CACHE_ITEMS = 2_000
 _IDEMPOTENCY_TTL_SECONDS = 86_400
 _PUBLISHED_ASSISTANT_ID = "8491eea7-e385-426b-8cdc-3e2aaf9a4cbf"
+_DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
+_WEBHOOK_DERIVATION_LABEL = b"d3vonn:vapi:webhook:v1"
 _ALLOWED_HERMES_TOOLS = {"create_hermes_task", "enqueue_hermes_task", "hermes_task"}
 _event_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
 _SENSITIVE_KEY = re.compile(r"api[_-]?key|authorization|token|secret|password|credential", re.I)
 
 
+def _env_value(*names: str) -> str:
+    for name in names:
+        value = os.getenv(name, "").strip()
+        if value and not value.lower().startswith(("paste_", "change_me", "your_", "placeholder")):
+            return value
+    return ""
+
+
 def _configured(name: str) -> bool:
-    value = os.getenv(name, "").strip()
-    return bool(value and not value.lower().startswith(("paste_", "change_me", "your_", "placeholder")))
+    return bool(_env_value(name))
+
+
+def effective_vapi_private_key() -> str:
+    """Return the configured server-side Vapi credential without exposing it."""
+    return _env_value("VAPI_PRIVATE_KEY", "VAPI_API_KEY")
+
+
+def effective_webhook_secret() -> str:
+    """Return explicit webhook auth or a deterministic secret derived from Vapi's private key."""
+    explicit = _env_value("VAPI_WEBHOOK_SECRET")
+    if explicit:
+        return explicit
+    private_key = effective_vapi_private_key()
+    if not private_key:
+        return ""
+    return hmac.new(private_key.encode("utf-8"), _WEBHOOK_DERIVATION_LABEL, hashlib.sha256).hexdigest()
+
+
+def effective_assistant_id() -> str:
+    return _env_value("VAPI_ASSISTANT_ID", "VITE_VAPI_ASSISTANT_ID") or _PUBLISHED_ASSISTANT_ID
+
+
+def effective_elevenlabs_voice_id() -> str:
+    return _env_value("ELEVENLABS_DEFAULT_VOICE_ID", "ELEVENLABS_VOICE_ID") or _DEFAULT_ELEVENLABS_VOICE_ID
 
 
 def _redact(value: Any) -> Any:
@@ -85,8 +118,8 @@ def _verify_request(
     signature: str | None,
     vapi_secret: str | None,
 ) -> None:
-    webhook_secret = os.getenv("VAPI_WEBHOOK_SECRET", "").strip()
-    signing_secret = os.getenv("VAPI_SIGNING_SECRET", "").strip()
+    webhook_secret = effective_webhook_secret()
+    signing_secret = _env_value("VAPI_SIGNING_SECRET")
     if not webhook_secret and not signing_secret:
         raise HTTPException(status_code=503, detail="Vapi webhook authentication is not configured")
 
@@ -198,12 +231,12 @@ async def _handle_tool_calls(message: dict[str, Any], event_id: str) -> dict[str
 
 
 async def _relay_external(event_type: str, event_id: str, payload: dict[str, Any]) -> bool:
-    relay_url = os.getenv("HERMES_VOICE_URL", "").strip()
+    relay_url = _env_value("HERMES_VOICE_URL")
     if not relay_url:
         return False
 
     relay_headers = {"Content-Type": "application/json", "X-D3VONN-Event-ID": event_id}
-    relay_token = os.getenv("HERMES_VOICE_TOKEN", "").strip()
+    relay_token = _env_value("HERMES_VOICE_TOKEN")
     if relay_token:
         relay_headers["Authorization"] = f"Bearer {relay_token}"
 
@@ -226,20 +259,27 @@ async def _relay_external(event_type: str, event_id: str, payload: dict[str, Any
 
 @router.get("/health")
 async def voice_health() -> dict[str, Any]:
+    vapi_key_ready = bool(effective_vapi_private_key())
+    webhook_ready = bool(effective_webhook_secret()) or _configured("VAPI_SIGNING_SECRET")
     checks = {
-        "vapi_public_configuration": _configured("VAPI_ASSISTANT_ID")
-        or _configured("VITE_VAPI_ASSISTANT_ID")
-        or bool(_PUBLISHED_ASSISTANT_ID),
-        "vapi_private_key": _configured("VAPI_PRIVATE_KEY") or _configured("VAPI_API_KEY"),
-        "vapi_webhook_auth": _configured("VAPI_WEBHOOK_SECRET") or _configured("VAPI_SIGNING_SECRET"),
+        "vapi_public_configuration": bool(effective_assistant_id()),
+        "vapi_private_key": vapi_key_ready,
+        "vapi_webhook_auth": webhook_ready,
         "elevenlabs_api": _configured("ELEVENLABS_API_KEY"),
-        "elevenlabs_voice": _configured("ELEVENLABS_DEFAULT_VOICE_ID"),
+        "elevenlabs_voice": bool(effective_elevenlabs_voice_id()),
         "hermes_internal_adapter": True,
     }
     return {
         "status": "configured" if all(checks.values()) else "partial",
         "provider": "vapi+elevenlabs",
         "checks": checks,
+        "webhook_auth_mode": (
+            "explicit"
+            if _configured("VAPI_WEBHOOK_SECRET") or _configured("VAPI_SIGNING_SECRET")
+            else "derived"
+            if vapi_key_ready
+            else "unavailable"
+        ),
         "optional_external_relay": _configured("HERMES_VOICE_URL"),
         "secrets_exposed": False,
     }
@@ -274,11 +314,7 @@ async def vapi_webhook(
     event_type = str(message.get("type") or payload.get("type") or "unknown")
 
     if event_type == "assistant-request":
-        response = {
-            "assistantId": os.getenv("VAPI_ASSISTANT_ID")
-            or os.getenv("VITE_VAPI_ASSISTANT_ID")
-            or _PUBLISHED_ASSISTANT_ID
-        }
+        response = {"assistantId": effective_assistant_id()}
     elif event_type == "tool-calls":
         response = await _handle_tool_calls(message, event_id)
     else:

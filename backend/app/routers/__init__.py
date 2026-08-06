@@ -7,13 +7,40 @@ prevent the rest of the API proxy surface from mounting in production.
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
+from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, FastAPI, Request
 
 logger = logging.getLogger(__name__)
 
-proxy_router = APIRouter(prefix="/api")
+
+@asynccontextmanager
+async def proxy_lifespan(_: FastAPI):
+    """Run Railway-native voice activation alongside the canonical app lifespan."""
+    activation_task: asyncio.Task[None] | None = None
+    try:
+        from backend.app.voice_activation import activate_voice_runtime
+
+        activation_task = asyncio.create_task(
+            activate_voice_runtime(),
+            name="d3vonn-voice-activation",
+        )
+        logger.info("Railway-native voice activation scheduled.")
+    except ImportError as exc:
+        logger.warning("Railway-native voice activation unavailable: %s", exc)
+
+    yield
+
+    if activation_task and not activation_task.done():
+        activation_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await activation_task
+
+
+proxy_router = APIRouter(prefix="/api", lifespan=proxy_lifespan)
 
 
 @proxy_router.get("/health", tags=["ops"])
