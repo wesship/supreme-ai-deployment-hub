@@ -61,7 +61,7 @@ jobs:
 
               if chroot /host /usr/bin/id -nG github-runner \
                 | tr " " "\n" | grep -qx docker; then
-                chroot /host /usr/sbin/gpasswd -d github-runner docker
+                chroot /host /usr/bin/gpasswd -d github-runner docker
               fi
             '
 
