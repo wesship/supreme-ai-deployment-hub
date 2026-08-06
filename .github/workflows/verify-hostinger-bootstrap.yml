@@ -21,6 +21,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  hosted-recovery-inventory:
+    name: Inspect repository recovery aliases
+    if: github.head_ref == 'agent/repair-hostinger-deployment' && github.actor == 'wesship'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      HOSTINGER_VPS_HOST: ${{ secrets.HOSTINGER_VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      ROOT_ALIAS: ${{ secrets.ROOT }}
+      HOSTINGER_VPS_USER: ${{ secrets.HOSTINGER_VPS_USER }}
+      HOSTINGER_VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
+      HOSTINGER_VPS_SSH_KEY_B64: ${{ secrets.HOSTINGER_VPS_SSH_KEY_B64 }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+    steps:
+      - name: Report names-only recovery availability
+        run: |
+          python - <<'PY'
+          import os
+          for name in (
+              'VPS_HOST','HOSTINGER_VPS_HOST','VPS_USER','ROOT_ALIAS','HOSTINGER_VPS_USER',
+              'HOSTINGER_VPS_SSH_KEY','HOSTINGER_VPS_SSH_KEY_B64','VPS_SSH_KEY',
+              'VPS_SSH_PRIVATE_KEY','VPS_KNOWN_HOSTS',
+          ):
+              print(f"{'PRESENT' if os.environ.get(name, '').strip() else 'ABSENT'} {name}")
+          PY
+
   verify:
     name: Verify runner privilege reduction
     if: github.event_name == 'push' || (github.head_ref == 'agent/repair-hostinger-deployment' && github.actor == 'wesship')
