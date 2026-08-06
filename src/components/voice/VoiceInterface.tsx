@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mic, PhoneCall, ShieldCheck, Volume2 } from 'lucide-react';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
+import { getVapiAssistantId } from '@/config/voice';
 
 interface VoiceInterfaceProps {
   apiKey?: string;
@@ -17,9 +18,9 @@ interface VoiceInterfaceProps {
  * Provider private keys remain server-side.
  */
 const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
+  const vapiAssistantId = getVapiAssistantId();
   const vapiConfigured = Boolean(
-    import.meta.env.VITE_VAPI_PUBLIC_KEY?.trim() &&
-      import.meta.env.VITE_VAPI_ASSISTANT_ID?.trim(),
+    import.meta.env.VITE_VAPI_PUBLIC_KEY?.trim() && vapiAssistantId,
   );
   const elevenLabsConfigured = Boolean(import.meta.env.VITE_ELEVENLABS_AGENT_ID?.trim());
   const provider = vapiConfigured ? 'Vapi + ElevenLabs' : elevenLabsConfigured ? 'ElevenLabs' : null;
@@ -54,10 +55,10 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
                 <ConversationalVoiceControls />
                 <span className="text-sm text-muted-foreground">
                   {vapiConfigured
-                    ? 'Tap to start a Vapi call'
+                    ? 'Tap to start the published D3VONN Vapi assistant'
                     : elevenLabsConfigured
-                      ? 'Vapi is not configured; ElevenLabs fallback is active'
-                      : 'Add the Vapi public key and assistant ID in Vercel to activate voice'}
+                      ? 'Vapi public access is not configured; ElevenLabs fallback is active'
+                      : 'Add the Vapi public key in Vercel to activate voice'}
                 </span>
               </div>
             </div>
