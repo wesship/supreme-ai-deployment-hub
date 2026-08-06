@@ -7,6 +7,8 @@ prevent the rest of the API proxy surface from mounting in production.
 """
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 
 from fastapi import APIRouter, Request
@@ -14,6 +16,34 @@ from fastapi import APIRouter, Request
 logger = logging.getLogger(__name__)
 
 proxy_router = APIRouter(prefix="/api")
+_voice_activation_task: asyncio.Task[None] | None = None
+
+
+@proxy_router.on_event("startup")
+async def start_railway_native_voice_activation() -> None:
+    """Activate Vapi and ElevenLabs after the API process begins accepting traffic."""
+    global _voice_activation_task
+    try:
+        from backend.app.voice_activation import activate_voice_runtime
+
+        _voice_activation_task = asyncio.create_task(
+            activate_voice_runtime(),
+            name="d3vonn-voice-activation",
+        )
+        logger.info("Railway-native voice activation scheduled.")
+    except ImportError as exc:
+        logger.warning("Railway-native voice activation unavailable: %s", exc)
+
+
+@proxy_router.on_event("shutdown")
+async def stop_railway_native_voice_activation() -> None:
+    """Cancel a still-running provider activation task during graceful shutdown."""
+    global _voice_activation_task
+    if _voice_activation_task and not _voice_activation_task.done():
+        _voice_activation_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await _voice_activation_task
+    _voice_activation_task = None
 
 
 @proxy_router.get("/health", tags=["ops"])
