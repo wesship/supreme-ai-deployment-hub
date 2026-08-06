@@ -76,7 +76,7 @@ export function redactProviderPayload(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactProviderPayload);
   if (!value || typeof value !== 'object') return value;
 
-  const sensitive = /api[_-]?key|authorization|token|secret|password/i;
+  const sensitive = /api[_-]?key|authorization|token|secret|password|signed[_-]?url|output[_-]?url/i;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, item]) => [
       key,
