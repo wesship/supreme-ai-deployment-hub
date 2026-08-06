@@ -27,10 +27,14 @@ describe('redactProviderPayload', () => {
     expect(redactProviderPayload({
       referenceAssets: [{ type: 'character', signedUrl: 'https://assets.example/private?token=abc' }],
       outputUrl: 'https://assets.example/output?signature=secret',
+      signed_url: 'https://assets.example/private-snake?token=abc',
+      output_url: 'https://assets.example/output-snake?signature=secret',
       publicUrl: 'https://example.com/public-reference',
     })).toEqual({
       referenceAssets: [{ type: 'character', signedUrl: '[REDACTED]' }],
       outputUrl: '[REDACTED]',
+      signed_url: '[REDACTED]',
+      output_url: '[REDACTED]',
       publicUrl: 'https://example.com/public-reference',
     });
   });
