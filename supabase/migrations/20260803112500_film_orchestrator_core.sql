@@ -219,6 +219,24 @@ create index if not exists film_shots_project_idx on public.film_shots(project_i
 create index if not exists film_timeline_items_output_idx on public.film_timeline_items(output_id);
 create index if not exists film_timeline_items_owner_idx on public.film_timeline_items(owner_id);
 
+create index if not exists film_characters_project_owner_idx on public.film_characters(project_id, owner_id);
+create index if not exists film_canon_rules_project_owner_idx on public.film_canon_rules(project_id, owner_id);
+create index if not exists film_scenes_project_owner_idx on public.film_scenes(project_id, owner_id);
+create index if not exists film_shots_scene_owner_idx on public.film_shots(scene_id, owner_id);
+create index if not exists film_shots_project_owner_idx on public.film_shots(project_id, owner_id);
+create index if not exists film_reference_assets_project_owner_idx on public.film_reference_assets(project_id, owner_id);
+create index if not exists film_reference_assets_shot_owner_idx on public.film_reference_assets(shot_id, owner_id);
+create index if not exists film_jobs_project_owner_idx on public.film_generation_jobs(project_id, owner_id);
+create index if not exists film_jobs_shot_owner_idx on public.film_generation_jobs(shot_id, owner_id);
+create index if not exists film_outputs_job_owner_idx on public.film_generation_outputs(job_id, owner_id);
+create index if not exists film_outputs_project_owner_idx on public.film_generation_outputs(project_id, owner_id);
+create index if not exists film_outputs_shot_owner_idx on public.film_generation_outputs(shot_id, owner_id);
+create index if not exists film_qa_output_owner_idx on public.film_qa_reviews(output_id, owner_id);
+create index if not exists film_qa_project_owner_idx on public.film_qa_reviews(project_id, owner_id);
+create index if not exists film_qa_shot_owner_idx on public.film_qa_reviews(shot_id, owner_id);
+create index if not exists film_timeline_project_owner_idx on public.film_timeline_items(project_id, owner_id);
+create index if not exists film_timeline_output_owner_idx on public.film_timeline_items(output_id, owner_id);
+
 alter table public.film_projects enable row level security;
 alter table public.film_characters enable row level security;
 alter table public.film_canon_rules enable row level security;
