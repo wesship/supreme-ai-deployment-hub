@@ -26,10 +26,13 @@ def clear_voice_env(monkeypatch) -> None:
         "VAPI_API_KEY",
         "VAPI_WEBHOOK_SECRET",
         "VAPI_SIGNING_SECRET",
+        "VOICE_SESSION_SIGNING_SECRET",
         "ELEVENLABS_API_KEY",
         "ELEVENLABS_DEFAULT_VOICE_ID",
         "ELEVENLABS_VOICE_ID",
         "HERMES_VOICE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "JWT_SECRET",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -41,8 +44,10 @@ def test_health_reports_partial_without_provider_secrets(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "partial"
+    assert body["browser_voice_ready"] is False
     assert body["checks"]["vapi_private_key"] is False
     assert body["checks"]["vapi_webhook_auth"] is False
+    assert body["checks"]["inline_authenticated_sessions"] is False
     assert body["checks"]["elevenlabs_api"] is False
     assert body["checks"]["hermes_internal_adapter"] is True
     assert body["webhook_auth_mode"] == "unavailable"
@@ -58,7 +63,9 @@ def test_health_uses_defaults_and_derived_auth_with_provider_keys(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "configured"
+    assert body["browser_voice_ready"] is True
     assert body["checks"]["vapi_webhook_auth"] is True
+    assert body["checks"]["inline_authenticated_sessions"] is True
     assert body["checks"]["elevenlabs_voice"] is True
     assert body["webhook_auth_mode"] == "derived"
 
@@ -177,19 +184,22 @@ def test_unknown_tool_is_rejected_with_vapi_result_shape(monkeypatch):
     assert json.loads(result["result"])["status"] == "rejected"
 
 
-def test_hermes_tool_queues_task_and_returns_result(monkeypatch):
+def test_provider_authenticated_tool_requires_user_bound_session(monkeypatch):
     clear_voice_env(monkeypatch)
     monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "queue-secret")
+    called = False
 
     async def fake_create_task(**kwargs):
-        return {"id": "task-123", "title": kwargs["title"]}
+        nonlocal called
+        called = True
+        return {"id": "task-should-not-run", "title": kwargs["title"]}
 
     monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
     response = make_client().post(
         "/api/voice/vapi/webhook",
         json={
             "message": {
-                "id": "evt-hermes-tool",
+                "id": "evt-provider-tool",
                 "type": "tool-calls",
                 "toolCallList": [
                     {
@@ -206,5 +216,6 @@ def test_hermes_tool_queues_task_and_returns_result(monkeypatch):
     assert response.status_code == 200
     result = response.json()["results"][0]
     decoded = json.loads(result["result"])
-    assert decoded["status"] == "queued"
-    assert decoded["task_id"] == "task-123"
+    assert decoded["status"] == "rejected"
+    assert "authenticated D3VONN voice session" in decoded["message"]
+    assert called is False
