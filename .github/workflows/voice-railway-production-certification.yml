@@ -1,0 +1,591 @@
+name: D3VONN Railway Voice Production Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - backend/app/routers/voice_orchestration.py
+      - backend/tests/test_voice_orchestration.py
+      - .github/workflows/voice-railway-production-certification.yml
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: d3vonn-railway-voice-production
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Synchronize and certify the live Railway voice backend
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 35
+    env:
+      RAILWAY_PROJECT_ID: 65a00bf6-f159-49db-a1fa-4e74b8dd3d31
+      RAILWAY_ENVIRONMENT_ID: 34b626ab-0ab9-4d0a-960e-866d5ca21651
+      RAILWAY_SERVICE_ID: 475dde82-ab48-4631-b17b-3326ce358f9a
+      VOICE_HEALTH_URL: https://api.d3vonn.io/api/voice/health
+      VAPI_WEBHOOK_URL: https://api.d3vonn.io/api/voice/vapi/webhook
+      VAPI_PRIVATE_KEY_SECRET: ${{ secrets.VAPI_PRIVATE_KEY }}
+      VAPI_API_KEY_SECRET: ${{ secrets.VAPI_API_KEY }}
+      VAPI_WEBHOOK_SECRET_SECRET: ${{ secrets.VAPI_WEBHOOK_SECRET }}
+      VAPI_ASSISTANT_ID_SECRET: ${{ secrets.VAPI_ASSISTANT_ID }}
+      VAPI_ASSISTANT_ID_VAR: ${{ vars.VAPI_ASSISTANT_ID }}
+      ELEVENLABS_API_KEY_SECRET: ${{ secrets.ELEVENLABS_API_KEY }}
+      ELEVENLABS_DEFAULT_VOICE_ID_SECRET: ${{ secrets.ELEVENLABS_DEFAULT_VOICE_ID }}
+      ELEVENLABS_VOICE_ID_SECRET: ${{ secrets.ELEVENLABS_VOICE_ID }}
+      RAILWAY_TOKEN_SECRET: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_TOKEN_SECRET: ${{ secrets.RAILWAY_PROJECT_TOKEN }}
+      RAILWAY_SERVICE_TOKEN_SECRET: ${{ secrets.RAILWAY_SERVICE_TOKEN }}
+      RAILWAY_API_TOKEN_SECRET: ${{ secrets.RAILWAY_API_TOKEN }}
+
+    steps:
+      - name: Check out the exact release
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+
+      - name: Publish pending certification status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          payload = json.dumps({
+              "state": "pending",
+              "context": "voice/railway-production-certification",
+              "description": "Synchronizing Vapi and ElevenLabs with the live Railway backend",
+              "target_url": os.environ["RUN_URL"],
+          }).encode()
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/statuses/{os.environ['SHA']}",
+              data=payload,
+              method="POST",
+          )
+          req.add_header("Authorization", f"Bearer {os.environ['GH_TOKEN']}")
+          req.add_header("Accept", "application/vnd.github+json")
+          req.add_header("Content-Type", "application/json")
+          req.add_header("User-Agent", "d3vonn-voice-certification")
+          req.add_header("X-GitHub-Api-Version", "2022-11-28")
+          with urllib.request.urlopen(req, timeout=30) as response:
+              if response.status not in (200, 201):
+                  raise SystemExit(f"Unexpected GitHub status response: {response.status}")
+          PY
+
+      - name: Resolve protected provider and Railway credentials
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os
+          import pathlib
+          import secrets
+
+          env_path = pathlib.Path("/opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production")
+          file_values = {}
+          if env_path.exists():
+              for raw_line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+                  line = raw_line.strip()
+                  if not line or line.startswith("#") or "=" not in line:
+                      continue
+                  key, value = line.split("=", 1)
+                  file_values[key.strip()] = value.strip()
+
+          def first(*values):
+              for value in values:
+                  if value is not None and str(value).strip():
+                      return str(value).strip()
+              return ""
+
+          def valid(name, value, *, minimum=1):
+              lowered = value.lower()
+              invalid_prefixes = ("paste_", "change_me", "your_", "placeholder", "<")
+              if not value or len(value) < minimum or lowered.startswith(invalid_prefixes) or value.endswith(">"):
+                  raise SystemExit(f"{name} is missing or still contains a placeholder")
+              if "\n" in value or "\r" in value:
+                  raise SystemExit(f"{name} contains an invalid newline")
+              return value
+
+          vapi_private = first(
+              os.getenv("VAPI_PRIVATE_KEY_SECRET"),
+              os.getenv("VAPI_API_KEY_SECRET"),
+              os.getenv("VAPI_PRIVATE_KEY"),
+              os.getenv("VAPI_API_KEY"),
+              file_values.get("VAPI_PRIVATE_KEY"),
+              file_values.get("VAPI_API_KEY"),
+          )
+          eleven_key = first(
+              os.getenv("ELEVENLABS_API_KEY_SECRET"),
+              os.getenv("ELEVENLABS_API_KEY"),
+              file_values.get("ELEVENLABS_API_KEY"),
+          )
+          assistant_id = first(
+              os.getenv("VAPI_ASSISTANT_ID_SECRET"),
+              os.getenv("VAPI_ASSISTANT_ID_VAR"),
+              os.getenv("VAPI_ASSISTANT_ID"),
+              file_values.get("VAPI_ASSISTANT_ID"),
+              "8491eea7-e385-426b-8cdc-3e2aaf9a4cbf",
+          )
+          voice_id = first(
+              os.getenv("ELEVENLABS_DEFAULT_VOICE_ID_SECRET"),
+              os.getenv("ELEVENLABS_VOICE_ID_SECRET"),
+              os.getenv("ELEVENLABS_DEFAULT_VOICE_ID"),
+              os.getenv("ELEVENLABS_VOICE_ID"),
+              file_values.get("ELEVENLABS_DEFAULT_VOICE_ID"),
+              file_values.get("ELEVENLABS_VOICE_ID"),
+              "21m00Tcm4TlvDq8ikWAM",
+          )
+          webhook_secret = first(
+              os.getenv("VAPI_WEBHOOK_SECRET_SECRET"),
+              os.getenv("VAPI_WEBHOOK_SECRET"),
+              file_values.get("VAPI_WEBHOOK_SECRET"),
+          ) or secrets.token_hex(32)
+
+          project_token = first(
+              os.getenv("RAILWAY_TOKEN_SECRET"),
+              os.getenv("RAILWAY_PROJECT_TOKEN_SECRET"),
+              os.getenv("RAILWAY_SERVICE_TOKEN_SECRET"),
+              os.getenv("RAILWAY_TOKEN"),
+              os.getenv("RAILWAY_PROJECT_TOKEN"),
+              os.getenv("RAILWAY_SERVICE_TOKEN"),
+              file_values.get("RAILWAY_TOKEN"),
+              file_values.get("RAILWAY_PROJECT_TOKEN"),
+              file_values.get("RAILWAY_SERVICE_TOKEN"),
+          )
+          api_token = first(
+              os.getenv("RAILWAY_API_TOKEN_SECRET"),
+              os.getenv("RAILWAY_API_TOKEN"),
+              file_values.get("RAILWAY_API_TOKEN"),
+          )
+
+          values = {
+              "VAPI_PRIVATE_KEY": valid("VAPI_PRIVATE_KEY", vapi_private, minimum=12),
+              "VAPI_ASSISTANT_ID": valid("VAPI_ASSISTANT_ID", assistant_id, minimum=12),
+              "VAPI_WEBHOOK_SECRET": valid("VAPI_WEBHOOK_SECRET", webhook_secret, minimum=24),
+              "ELEVENLABS_API_KEY": valid("ELEVENLABS_API_KEY", eleven_key, minimum=12),
+              "ELEVENLABS_DEFAULT_VOICE_ID": valid("ELEVENLABS_DEFAULT_VOICE_ID", voice_id, minimum=8),
+              "ELEVENLABS_DEFAULT_MODEL": "eleven_turbo_v2_5",
+          }
+
+          if project_token:
+              values["RAILWAY_AUTH_KIND"] = "project"
+              values["RAILWAY_TOKEN_RESOLVED"] = valid("RAILWAY_TOKEN", project_token, minimum=12)
+          elif api_token:
+              values["RAILWAY_AUTH_KIND"] = "api"
+              values["RAILWAY_TOKEN_RESOLVED"] = valid("RAILWAY_API_TOKEN", api_token, minimum=12)
+          else:
+              values["RAILWAY_AUTH_KIND"] = "cached"
+              values["RAILWAY_TOKEN_RESOLVED"] = ""
+
+          for key in (
+              "VAPI_PRIVATE_KEY",
+              "VAPI_WEBHOOK_SECRET",
+              "ELEVENLABS_API_KEY",
+              "RAILWAY_TOKEN_RESOLVED",
+          ):
+              value = values[key]
+              if value:
+                  print(f"::add-mask::{value}")
+
+          github_env = pathlib.Path(os.environ["GITHUB_ENV"])
+          with github_env.open("a", encoding="utf-8") as handle:
+              for key, value in values.items():
+                  handle.write(f"{key}={value}\n")
+          PY
+
+          if [[ "$RAILWAY_AUTH_KIND" == "cached" ]]; then
+            if ! command -v railway >/dev/null 2>&1; then
+              echo "::error::No Railway token was found and the Railway CLI is not installed on the runner."
+              exit 1
+            fi
+            if ! railway whoami >/dev/null 2>&1; then
+              echo "::error::No Railway token was found and the runner has no cached Railway login."
+              exit 1
+            fi
+          fi
+
+          echo "Provider credentials resolved without printing secret values."
+
+      - name: Validate Vapi and ElevenLabs credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          def get_json(url, headers):
+              req = urllib.request.Request(url)
+              for key, value in headers.items():
+                  req.add_header(key, value)
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", errors="replace")[:500]
+                  raise SystemExit(f"Provider validation returned HTTP {exc.code}: {body}") from exc
+
+          eleven_status, voice = get_json(
+              f"https://api.elevenlabs.io/v1/voices/{os.environ['ELEVENLABS_DEFAULT_VOICE_ID']}",
+              {"xi-api-key": os.environ["ELEVENLABS_API_KEY"]},
+          )
+          if eleven_status != 200 or voice.get("voice_id") != os.environ["ELEVENLABS_DEFAULT_VOICE_ID"]:
+              raise SystemExit("ElevenLabs key or voice ID validation failed")
+
+          vapi_status, assistant = get_json(
+              f"https://api.vapi.ai/assistant/{os.environ['VAPI_ASSISTANT_ID']}",
+              {"Authorization": f"Bearer {os.environ['VAPI_PRIVATE_KEY']}"},
+          )
+          if vapi_status != 200 or assistant.get("id") != os.environ["VAPI_ASSISTANT_ID"]:
+              raise SystemExit("Vapi private key or assistant ID validation failed")
+
+          print(f"ElevenLabs voice validated: {voice.get('name', 'configured voice')}")
+          print("Vapi assistant credentials validated.")
+          PY
+
+      - name: Synchronize voice variables to the Hostinger VPS copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          ENV_FILE="/opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production"
+          INPUT_FILE="$(mktemp)"
+          UPDATER_FILE="$(mktemp)"
+          trap 'shred -u "$INPUT_FILE" "$UPDATER_FILE" 2>/dev/null || rm -f "$INPUT_FILE" "$UPDATER_FILE"' EXIT
+
+          python3 - "$INPUT_FILE" <<'PY'
+          import json
+          import os
+          import sys
+          keys = (
+              "VAPI_PRIVATE_KEY",
+              "VAPI_ASSISTANT_ID",
+              "VAPI_WEBHOOK_SECRET",
+              "ELEVENLABS_API_KEY",
+              "ELEVENLABS_DEFAULT_VOICE_ID",
+              "ELEVENLABS_DEFAULT_MODEL",
+          )
+          with open(sys.argv[1], "w", encoding="utf-8") as handle:
+              json.dump({key: os.environ[key] for key in keys}, handle)
+          PY
+
+          cat > "$UPDATER_FILE" <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+          import tempfile
+
+          path = pathlib.Path(sys.argv[1])
+          updates = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
+          path.parent.mkdir(parents=True, exist_ok=True)
+          lines = path.read_text(encoding="utf-8", errors="replace").splitlines() if path.exists() else []
+          output = []
+          written = set()
+          for line in lines:
+              key = line.split("=", 1)[0] if "=" in line else None
+              if key in updates:
+                  if key not in written:
+                      output.append(f"{key}={updates[key]}")
+                      written.add(key)
+              else:
+                  output.append(line)
+          for key, value in updates.items():
+              if key not in written:
+                  output.append(f"{key}={value}")
+          fd, temp_name = tempfile.mkstemp(prefix=".env.production.", dir=str(path.parent))
+          try:
+              with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                  handle.write("\n".join(output) + "\n")
+              os.chmod(temp_name, 0o600)
+              os.replace(temp_name, path)
+              os.chmod(path, 0o600)
+          finally:
+              if os.path.exists(temp_name):
+                  os.unlink(temp_name)
+          PY
+
+          if [[ "$(id -u)" == "0" || -w "$ENV_FILE" || -w "$(dirname "$ENV_FILE")" ]]; then
+            python3 "$UPDATER_FILE" "$ENV_FILE" "$INPUT_FILE"
+          elif sudo -n true 2>/dev/null; then
+            sudo -n python3 "$UPDATER_FILE" "$ENV_FILE" "$INPUT_FILE"
+            sudo -n chown root:root "$ENV_FILE"
+          else
+            echo "::warning::The runner could not update the optional VPS environment copy. Railway remains the live target."
+          fi
+
+      - name: Synchronize variables to the live Railway backend and deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$RAILWAY_AUTH_KIND" == "cached" ]]; then
+            railway link \
+              --project "$RAILWAY_PROJECT_ID" \
+              --environment "$RAILWAY_ENVIRONMENT_ID" \
+              --service "$RAILWAY_SERVICE_ID" >/dev/null
+            for key in \
+              VAPI_PRIVATE_KEY \
+              VAPI_ASSISTANT_ID \
+              VAPI_WEBHOOK_SECRET \
+              ELEVENLABS_API_KEY \
+              ELEVENLABS_DEFAULT_VOICE_ID \
+              ELEVENLABS_DEFAULT_MODEL
+            do
+              printf '%s' "${!key}" | railway variable set "$key" --stdin --skip-deploys \
+                --service "$RAILWAY_SERVICE_ID" \
+                --environment "$RAILWAY_ENVIRONMENT_ID" >/dev/null
+            done
+            railway redeploy --service "$RAILWAY_SERVICE_ID" --yes >/dev/null
+          else
+            python3 <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          endpoint = "https://backboard.railway.com/graphql/v2"
+          token = os.environ["RAILWAY_TOKEN_RESOLVED"]
+          auth_kind = os.environ["RAILWAY_AUTH_KIND"]
+          headers = {"Content-Type": "application/json"}
+          if auth_kind == "project":
+              headers["Project-Access-Token"] = token
+          else:
+              headers["Authorization"] = f"Bearer {token}"
+
+          def graphql(query, variables):
+              payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
+              req = urllib.request.Request(endpoint, data=payload, method="POST")
+              for key, value in headers.items():
+                  req.add_header(key, value)
+              try:
+                  with urllib.request.urlopen(req, timeout=45) as response:
+                      body = json.load(response)
+              except urllib.error.HTTPError as exc:
+                  safe_body = exc.read().decode("utf-8", errors="replace")[:1200]
+                  raise SystemExit(f"Railway API returned HTTP {exc.code}: {safe_body}") from exc
+              if body.get("errors"):
+                  safe_errors = [{"message": item.get("message", "GraphQL error")} for item in body["errors"]]
+                  raise SystemExit(f"Railway GraphQL request failed: {safe_errors}")
+              return body.get("data") or {}
+
+          variables = {
+              "VAPI_PRIVATE_KEY": os.environ["VAPI_PRIVATE_KEY"],
+              "VAPI_ASSISTANT_ID": os.environ["VAPI_ASSISTANT_ID"],
+              "VAPI_WEBHOOK_SECRET": os.environ["VAPI_WEBHOOK_SECRET"],
+              "ELEVENLABS_API_KEY": os.environ["ELEVENLABS_API_KEY"],
+              "ELEVENLABS_DEFAULT_VOICE_ID": os.environ["ELEVENLABS_DEFAULT_VOICE_ID"],
+              "ELEVENLABS_DEFAULT_MODEL": os.environ["ELEVENLABS_DEFAULT_MODEL"],
+          }
+          graphql(
+              "mutation($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }",
+              {
+                  "input": {
+                      "projectId": os.environ["RAILWAY_PROJECT_ID"],
+                      "environmentId": os.environ["RAILWAY_ENVIRONMENT_ID"],
+                      "serviceId": os.environ["RAILWAY_SERVICE_ID"],
+                      "variables": variables,
+                      "skipDeploys": True,
+                  }
+              },
+          )
+          deployment = graphql(
+              "mutation($serviceId: String!, $environmentId: String!) { serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId) }",
+              {
+                  "serviceId": os.environ["RAILWAY_SERVICE_ID"],
+                  "environmentId": os.environ["RAILWAY_ENVIRONMENT_ID"],
+              },
+          )
+          if not deployment.get("serviceInstanceDeploy"):
+              raise SystemExit("Railway did not return a deployment identifier")
+          print("Railway voice variables synchronized and deployment triggered.")
+          PY
+          fi
+
+      - name: Wait for the live Railway voice backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          for attempt in {1..90}; do
+            if curl --fail --silent --show-error "$VOICE_HEALTH_URL" -o "$response_file"; then
+              if python3 - "$response_file" <<'PY'
+          import json
+          import sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          required = (
+              "vapi_public_configuration",
+              "vapi_private_key",
+              "vapi_webhook_auth",
+              "elevenlabs_api",
+              "elevenlabs_voice",
+              "hermes_internal_adapter",
+          )
+          checks = data.get("checks") or {}
+          raise SystemExit(0 if data.get("status") == "configured" and all(checks.get(key) is True for key in required) else 1)
+          PY
+              then
+                echo "Live Railway voice backend reports configured."
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "::error::Railway deployed, but the live voice health endpoint did not become configured."
+          cat "$response_file" 2>/dev/null || true
+          exit 1
+
+      - name: Configure the Vapi assistant with ElevenLabs and the production webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          assistant_id = os.environ["VAPI_ASSISTANT_ID"]
+          headers = {"Authorization": f"Bearer {os.environ['VAPI_PRIVATE_KEY']}"}
+
+          def request_json(url, *, method="GET", payload=None):
+              body = None if payload is None else json.dumps(payload).encode("utf-8")
+              req = urllib.request.Request(url, data=body, method=method)
+              for key, value in headers.items():
+                  req.add_header(key, value)
+              if payload is not None:
+                  req.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as exc:
+                  safe_body = exc.read().decode("utf-8", errors="replace")[:1200]
+                  raise SystemExit(f"Vapi API returned HTTP {exc.code}: {safe_body}") from exc
+
+          _, assistant = request_json(f"https://api.vapi.ai/assistant/{assistant_id}")
+          current_voice = assistant.get("voice") if isinstance(assistant.get("voice"), dict) else {}
+          voice = {
+              key: value
+              for key, value in current_voice.items()
+              if key in {
+                  "stability",
+                  "similarityBoost",
+                  "style",
+                  "speed",
+                  "useSpeakerBoost",
+                  "optimizeStreamingLatency",
+                  "pronunciationDictionaryLocators",
+              }
+          }
+          voice.update({
+              "provider": "11labs",
+              "voiceId": os.environ["ELEVENLABS_DEFAULT_VOICE_ID"],
+              "model": os.environ["ELEVENLABS_DEFAULT_MODEL"],
+          })
+
+          server_messages = set(assistant.get("serverMessages") or [])
+          server_messages.update({"assistant-request", "tool-calls", "status-update", "end-of-call-report", "transcript"})
+          patch = {
+              "server": {
+                  "url": os.environ["VAPI_WEBHOOK_URL"],
+                  "secret": os.environ["VAPI_WEBHOOK_SECRET"],
+                  "timeoutSeconds": 20,
+              },
+              "serverMessages": sorted(server_messages),
+              "voice": voice,
+          }
+          status, updated = request_json(
+              f"https://api.vapi.ai/assistant/{assistant_id}",
+              method="PATCH",
+              payload=patch,
+          )
+          if status != 200:
+              raise SystemExit("Vapi assistant update failed")
+          updated_server = updated.get("server") or {}
+          updated_voice = updated.get("voice") or {}
+          if updated_server.get("url") != os.environ["VAPI_WEBHOOK_URL"]:
+              raise SystemExit("Vapi production webhook URL did not persist")
+          if updated_voice.get("provider") != "11labs" or updated_voice.get("voiceId") != os.environ["ELEVENLABS_DEFAULT_VOICE_ID"]:
+              raise SystemExit("Vapi ElevenLabs voice configuration did not persist")
+          print("Vapi assistant production webhook and ElevenLabs voice verified.")
+          PY
+
+      - name: Certify authenticated Vapi delivery into Hermes
+        shell: bash
+        run: |
+          set -euo pipefail
+          event_id="railway-voice-cert-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          curl --fail --silent --show-error \
+            -X POST "$VAPI_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -H "x-vapi-secret: $VAPI_WEBHOOK_SECRET" \
+            --data "{\"message\":{\"id\":\"$event_id\",\"type\":\"status-update\",\"status\":\"railway-production-certified\"}}" \
+            -o "$response_file"
+          python3 - "$response_file" "$event_id" <<'PY'
+          import json
+          import sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          if data.get("ok") is not True or data.get("event_id") != sys.argv[2]:
+              raise SystemExit(f"Authenticated webhook certification failed: {data}")
+          if data.get("hermes_recorded") is not True:
+              raise SystemExit(f"Hermes did not persist the certified event: {data}")
+          print("Vapi authentication, Railway delivery, and Hermes persistence certified.")
+          PY
+
+      - name: Publish final certification status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          succeeded = os.environ.get("JOB_STATUS") == "success"
+          payload = json.dumps({
+              "state": "success" if succeeded else "failure",
+              "context": "voice/railway-production-certification",
+              "description": (
+                  "Vapi, ElevenLabs, Railway, and Hermes certified in production"
+                  if succeeded else
+                  "Voice production certification failed; open the workflow run"
+              ),
+              "target_url": os.environ["RUN_URL"],
+          }).encode()
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/statuses/{os.environ['SHA']}",
+              data=payload,
+              method="POST",
+          )
+          req.add_header("Authorization", f"Bearer {os.environ['GH_TOKEN']}")
+          req.add_header("Accept", "application/vnd.github+json")
+          req.add_header("Content-Type", "application/json")
+          req.add_header("User-Agent", "d3vonn-voice-certification")
+          req.add_header("X-GitHub-Api-Version", "2022-11-28")
+          with urllib.request.urlopen(req, timeout=30) as response:
+              if response.status not in (200, 201):
+                  raise SystemExit(f"Unexpected GitHub status response: {response.status}")
+          PY
