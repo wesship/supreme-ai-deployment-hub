@@ -112,9 +112,7 @@ jobs:
           echo "RECOVERY_OK $service_name"
           REMOTE
 
-      - name: Record temporary success marker
-        env:
-          MARKER_PATH: .github/hostinger-recovery-status.txt
+      - name: Publish temporary success marker
         run: |
           set -euo pipefail
           printf '%s\n' \
@@ -124,22 +122,6 @@ jobs:
             "verified_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             > /tmp/hostinger-recovery-status.txt
 
-          encoded="$(base64 -w 0 /tmp/hostinger-recovery-status.txt)"
-          python - <<'PY' > /tmp/marker.json
-          import json, os
-          print(json.dumps({
-              "message": "ci(vps): record Hostinger recovery success",
-              "content": os.environ["ENCODED"],
-              "branch": "agent/repair-hostinger-deployment",
-          }))
-          PY
-        env:
-          MARKER_PATH: .github/hostinger-recovery-status.txt
-          ENCODED: ${{ env.encoded }}
-
-      - name: Publish temporary success marker
-        run: |
-          set -euo pipefail
           encoded="$(base64 -w 0 /tmp/hostinger-recovery-status.txt)"
           payload="$(python -c 'import json,sys; print(json.dumps({"message":"ci(vps): record Hostinger recovery success","content":sys.argv[1],"branch":"agent/repair-hostinger-deployment"}))' "$encoded")"
           curl --fail --silent --show-error --retry 5 \
