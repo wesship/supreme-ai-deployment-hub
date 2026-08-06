@@ -191,7 +191,7 @@ create table if not exists public.film_timeline_items (
   created_at timestamptz not null default now(),
   unique(project_id, track, sequence_index),
   foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade,
-  foreign key (output_id, owner_id) references public.film_generation_outputs(id, owner_id) on delete set null
+  foreign key (output_id, owner_id) references public.film_generation_outputs(id, owner_id) on delete set null (output_id)
 );
 
 create index if not exists film_projects_owner_idx on public.film_projects(owner_id);
