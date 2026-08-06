@@ -1,4 +1,0 @@
-# Autonomous Fix Engine Dependencies
-# Install with: pip install -r requirements.txt
-
-openai>=1.0.0

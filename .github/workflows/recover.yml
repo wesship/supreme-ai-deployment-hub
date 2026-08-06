@@ -1,0 +1,160 @@
+name: One-Shot Hostinger Recovery
+
+on:
+  push:
+    branches:
+      - ops/hostinger-recovery-one-shot
+    paths:
+      - '.github/workflows/recover.yml'
+      - 'deploy/vps/scripts/d3vonn-deploy-release'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-hostinger-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Harden and recover Hostinger runner
+    if: github.actor == 'wesship'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+    steps:
+      - name: Validate recovery credentials without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in VPS_HOST VPS_USER VPS_SSH_PRIVATE_KEY VPS_KNOWN_HOSTS; do
+            test -n "${!name}" || { echo "Missing repository recovery secret: $name"; exit 1; }
+          done
+          echo "OK RECOVERY_CREDENTIALS_PRESENT"
+
+      - name: Fetch reviewed deployment wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 5 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.raw+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/wesship/supreme-ai-deployment-hub/contents/deploy/vps/scripts/d3vonn-deploy-release?ref=$GITHUB_SHA" \
+            --output /tmp/d3vonn-deploy-release
+          chmod 0755 /tmp/d3vonn-deploy-release
+          grep -q 'WORKSPACE_ROOT="/home/github-runner/_work/supreme-ai-deployment-hub"' \
+            /tmp/d3vonn-deploy-release
+          echo "OK REVIEWED_WRAPPER_FETCHED"
+
+      - name: Configure verified SSH transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/d3vonn_recovery"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/d3vonn_recovery" "$HOME/.ssh/known_hosts"
+
+      - name: Install least-privilege controls and restart runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          SSH=(
+            -i "$HOME/.ssh/d3vonn_recovery"
+            -o BatchMode=yes
+            -o ConnectTimeout=20
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts"
+          )
+
+          scp "${SSH[@]}" /tmp/d3vonn-deploy-release \
+            "$VPS_USER@$VPS_HOST:/tmp/d3vonn-deploy-release"
+
+          ssh "${SSH[@]}" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          sudo install -o root -g root -m 0755 \
+            /tmp/d3vonn-deploy-release \
+            /usr/local/sbin/d3vonn-deploy-release
+          rm -f /tmp/d3vonn-deploy-release
+
+          printf '%s\n' \
+            'github-runner ALL=(root) NOPASSWD: /usr/local/sbin/d3vonn-deploy-release *' \
+            | sudo tee /etc/sudoers.d/d3vonn-github-runner-deploy >/dev/null
+          sudo chmod 0440 /etc/sudoers.d/d3vonn-github-runner-deploy
+          sudo visudo -cf /etc/sudoers.d/d3vonn-github-runner-deploy
+
+          if id -nG github-runner | tr ' ' '\n' | grep -qx docker; then
+            sudo gpasswd -d github-runner docker
+          fi
+
+          service_name="$(systemctl list-unit-files --type=service --no-legend \
+            | awk '{print $1}' \
+            | grep '^actions\.runner\.wesship-supreme-ai-deployment-hub\..*\.service$' \
+            | head -n 1)"
+          test -n "$service_name"
+          sudo systemctl restart "$service_name"
+          sleep 5
+          sudo systemctl is-active --quiet "$service_name"
+
+          if id -nG github-runner | tr ' ' '\n' | grep -qx docker; then
+            echo 'Docker-group removal did not persist.' >&2
+            exit 1
+          fi
+
+          sudo -u github-runner sudo -n \
+            /usr/local/sbin/d3vonn-deploy-release --check
+          echo "REMOTE_RECOVERY_OK $service_name"
+          REMOTE
+
+          sleep 10
+          ssh "${SSH[@]}" "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          if id -nG github-runner | tr ' ' '\n' | grep -qx docker; then
+            echo 'github-runner remains in Docker group.' >&2
+            exit 1
+          fi
+          sudo -u github-runner sudo -n \
+            /usr/local/sbin/d3vonn-deploy-release --check
+          service_name="$(systemctl list-unit-files --type=service --no-legend \
+            | awk '{print $1}' \
+            | grep '^actions\.runner\.wesship-supreme-ai-deployment-hub\..*\.service$' \
+            | head -n 1)"
+          sudo systemctl is-active --quiet "$service_name"
+          echo "POST_RESTART_VERIFIED $service_name"
+          REMOTE
+
+      - name: Publish recovery success marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            'HOSTINGER_RECOVERY_OK' \
+            "commit=$GITHUB_SHA" \
+            "run=$GITHUB_RUN_ID" \
+            "verified_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+            > /tmp/RECOVERY_STATUS.txt
+          encoded="$(base64 -w 0 /tmp/RECOVERY_STATUS.txt)"
+          payload="$(python -c 'import json,sys; print(json.dumps({"message":"ops: record Hostinger recovery success","content":sys.argv[1],"branch":"ops/hostinger-recovery-one-shot"}))' "$encoded")"
+          curl --fail --silent --show-error --retry 5 \
+            -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d "$payload" \
+            "https://api.github.com/repos/wesship/supreme-ai-deployment-hub/contents/RECOVERY_STATUS.txt" \
+            >/dev/null
+          echo "SUCCESS_MARKER_PUBLISHED"
+
+      - name: Remove local recovery material
+        if: always()
+        shell: bash
+        run: |
+          rm -f /tmp/d3vonn-deploy-release /tmp/RECOVERY_STATUS.txt \
+            "$HOME/.ssh/d3vonn_recovery" "$HOME/.ssh/known_hosts"

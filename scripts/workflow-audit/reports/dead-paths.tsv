@@ -1,7 +1,0 @@
-workflow	kind	reference
-bundle-size.yml	workdir	base-branch
-developer-onboarding.yml	dockerfile	Dockerfiles
-developer-onboarding.yml	dockerfile	SERVICE/Dockerfile
-terraform.yml	script	scripts/verify-completion.sh
-trusted-runner-isolation.yml	dockerfile	/tmp/runner-image/Dockerfile.runner
-trusted-runner-isolation.yml	dockerfile	Dockerfile.runner
