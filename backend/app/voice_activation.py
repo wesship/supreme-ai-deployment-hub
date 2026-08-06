@@ -55,6 +55,58 @@ async def _emit(
         logger.warning("Voice activation event persistence failed: %s", exc)
 
 
+async def _inspect_direct_elevenlabs_key(
+    client: httpx.AsyncClient,
+    api_key: str,
+    voice_id: str,
+    correlation_id: str,
+) -> tuple[str, str | None]:
+    """Inspect optional ElevenLabs BYOK access without blocking Vapi-managed voice."""
+    if not api_key:
+        return "not_configured", None
+
+    try:
+        response = await client.get(
+            f"https://api.elevenlabs.io/v1/voices/{voice_id}",
+            headers={"xi-api-key": api_key},
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if payload.get("voice_id") != voice_id:
+            return "voice_mismatch", None
+        return "valid", payload.get("name")
+    except httpx.HTTPStatusError as exc:
+        status_code = exc.response.status_code
+        direct_status = "invalid_or_expired" if status_code == 401 else f"http_{status_code}"
+        await _emit(
+            "voice.activation.direct_elevenlabs_degraded",
+            "Direct ElevenLabs BYOK access is unavailable; Vapi-managed ElevenLabs remains active.",
+            level="warning",
+            data={
+                "direct_api_status": direct_status,
+                "http_status": status_code,
+                "voice_id": voice_id,
+                "fallback": "vapi-managed-elevenlabs",
+            },
+            correlation_id=correlation_id,
+        )
+        return direct_status, None
+    except Exception as exc:  # noqa: BLE001
+        await _emit(
+            "voice.activation.direct_elevenlabs_degraded",
+            "Direct ElevenLabs BYOK validation could not complete; Vapi-managed ElevenLabs remains active.",
+            level="warning",
+            data={
+                "direct_api_status": "validation_error",
+                "error_type": type(exc).__name__,
+                "voice_id": voice_id,
+                "fallback": "vapi-managed-elevenlabs",
+            },
+            correlation_id=correlation_id,
+        )
+        return "validation_error", None
+
+
 async def activate_voice_runtime() -> None:
     """Configure provider state from Railway env and certify the local webhook path."""
     if not _enabled():
@@ -77,16 +129,23 @@ async def activate_voice_runtime() -> None:
         "vapi_private_key": bool(vapi_key),
         "vapi_assistant_id": bool(assistant_id),
         "vapi_webhook_auth": bool(webhook_secret),
-        "elevenlabs_api_key": bool(elevenlabs_key),
         "elevenlabs_voice_id": bool(voice_id),
+        "elevenlabs_direct_key_present": bool(elevenlabs_key),
+        "voice_delivery_mode": "vapi-managed-elevenlabs",
         "webhook_auth_mode": "explicit" if os.getenv("VAPI_WEBHOOK_SECRET", "").strip() else "derived",
         "deployment_id": deployment_id,
     }
-    missing = [name for name, ready in readiness.items() if name not in {"webhook_auth_mode", "deployment_id"} and not ready]
+    required_names = (
+        "vapi_private_key",
+        "vapi_assistant_id",
+        "vapi_webhook_auth",
+        "elevenlabs_voice_id",
+    )
+    missing = [name for name in required_names if not readiness[name]]
     if missing:
         await _emit(
             "voice.activation.blocked",
-            "Railway voice activation is blocked by missing provider configuration.",
+            "Railway voice activation is blocked by missing core configuration.",
             level="warning",
             data={"missing": missing, "readiness": readiness},
             correlation_id=correlation_id,
@@ -96,7 +155,7 @@ async def activate_voice_runtime() -> None:
 
     await _emit(
         "voice.activation.started",
-        "Railway-native Vapi and ElevenLabs activation started.",
+        "Railway-native Vapi-managed ElevenLabs activation started.",
         data={
             "assistant_id": assistant_id,
             "voice_id": voice_id,
@@ -110,15 +169,6 @@ async def activate_voice_runtime() -> None:
     try:
         timeout = httpx.Timeout(30.0, connect=15.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            voice_response = await client.get(
-                f"https://api.elevenlabs.io/v1/voices/{voice_id}",
-                headers={"xi-api-key": elevenlabs_key},
-            )
-            voice_response.raise_for_status()
-            voice_payload = voice_response.json()
-            if voice_payload.get("voice_id") != voice_id:
-                raise RuntimeError("ElevenLabs returned an unexpected voice identifier")
-
             vapi_headers = {"Authorization": f"Bearer {vapi_key}"}
             assistant_response = await client.get(
                 f"https://api.vapi.ai/assistant/{assistant_id}",
@@ -128,6 +178,13 @@ async def activate_voice_runtime() -> None:
             assistant = assistant_response.json()
             if assistant.get("id") != assistant_id:
                 raise RuntimeError("Vapi returned an unexpected assistant identifier")
+
+            direct_api_status, voice_name = await _inspect_direct_elevenlabs_key(
+                client,
+                elevenlabs_key,
+                voice_id,
+                correlation_id,
+            )
 
             current_voice = assistant.get("voice") if isinstance(assistant.get("voice"), dict) else {}
             allowed_voice_fields = {
@@ -189,13 +246,15 @@ async def activate_voice_runtime() -> None:
 
         await _emit(
             "voice.activation.providers_configured",
-            "Vapi assistant and ElevenLabs voice configuration verified.",
+            "Vapi assistant and Vapi-managed ElevenLabs voice configuration verified.",
             data={
                 "assistant_id": assistant_id,
                 "voice_id": voice_id,
                 "voice_model": voice_model,
                 "webhook_url": webhook_url,
-                "elevenlabs_voice_name": voice_payload.get("name"),
+                "voice_delivery_mode": "vapi-managed-elevenlabs",
+                "direct_elevenlabs_api_status": direct_api_status,
+                "elevenlabs_voice_name": voice_name,
             },
             correlation_id=correlation_id,
         )
@@ -214,7 +273,7 @@ async def activate_voice_runtime() -> None:
                     "message": {
                         "id": certification_event_id,
                         "type": "status-update",
-                        "status": "railway-native-certified",
+                        "status": "vapi-managed-elevenlabs-certified",
                     }
                 },
             )
@@ -227,18 +286,20 @@ async def activate_voice_runtime() -> None:
 
         await _emit(
             "voice.activation.certified",
-            "Vapi, ElevenLabs, Railway routing, and Hermes persistence certified.",
+            "Vapi-managed ElevenLabs, Railway routing, and Hermes persistence certified.",
             data={
                 "assistant_id": assistant_id,
                 "voice_id": voice_id,
                 "voice_model": voice_model,
                 "webhook_url": webhook_url,
+                "voice_delivery_mode": "vapi-managed-elevenlabs",
+                "direct_elevenlabs_api_status": direct_api_status,
                 "certification_event_id": certification_event_id,
                 "deployment_id": deployment_id,
             },
             correlation_id=correlation_id,
         )
-        logger.info("Railway-native voice activation certified successfully.")
+        logger.info("Railway-native Vapi-managed ElevenLabs activation certified successfully.")
     except Exception as exc:  # noqa: BLE001
         safe_error = _safe_error(exc, redaction_values)
         await _emit(
