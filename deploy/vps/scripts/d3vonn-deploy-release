@@ -1,28 +1,113 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
-REPO_DIR="/opt/supreme-ai-deployment-hub"
-ENV_FILE="${REPO_DIR}/deploy/vps/env/.env.production"
-COMPOSE_FILE="${REPO_DIR}/deploy/vps/docker-compose.yml"
+APP_DIR="/opt/supreme-ai-deployment-hub"
+PREVIOUS_DIR="/opt/supreme-ai-deployment-hub.previous"
+ENV_REL="deploy/vps/env/.env.production"
+COMPOSE_REL="deploy/vps/docker-compose.yml"
+ENV_FILE="${APP_DIR}/${ENV_REL}"
+COMPOSE_FILE="${APP_DIR}/${COMPOSE_REL}"
+WORKSPACE_ROOT="/home/github-runner/_work/supreme-ai-deployment-hub"
 
-if [[ "${1:-}" == "--check" ]]; then
-  test "${EUID}" -eq 0
-  test -d "${REPO_DIR}/.git"
+require_root() {
+  if [[ ${EUID} -ne 0 ]]; then
+    echo "This restricted deployment wrapper must run as root through sudo." >&2
+    exit 1
+  fi
+}
+
+require_runtime() {
+  local command_name
+  for command_name in git docker tar cp mv curl realpath; do
+    command -v "${command_name}" >/dev/null || {
+      echo "Missing required command: ${command_name}" >&2
+      exit 1
+    }
+  done
+  docker compose version >/dev/null
+  test -d "${APP_DIR}"
   test -f "${ENV_FILE}"
   test -f "${COMPOSE_FILE}"
-  command -v git >/dev/null
-  command -v docker >/dev/null
-  docker compose version >/dev/null
-  echo "Restricted deployment wrapper is ready."
+}
+
+wait_for_health() {
+  local container="$1"
+  local max_attempts="${2:-24}"
+  local attempt status
+
+  for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+    status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${container}" 2>/dev/null || true)"
+    case "${status}" in
+      healthy|running)
+        echo "HEALTHY ${container} ${status}"
+        return 0
+        ;;
+      unhealthy|exited|dead)
+        echo "Container ${container} entered terminal state: ${status}" >&2
+        docker logs --tail 60 "${container}" 2>&1 || true
+        return 1
+        ;;
+    esac
+    sleep 5
+  done
+
+  echo "Timed out waiting for ${container} health." >&2
+  docker inspect --format '{{json .State}}' "${container}" 2>/dev/null || true
+  docker logs --tail 60 "${container}" 2>&1 || true
+  return 1
+}
+
+preserve_path() {
+  local relative_path="$1"
+  local source_path="${APP_DIR}/${relative_path}"
+  local target_path="${STAGING_DIR}/${relative_path}"
+
+  if [[ ! -e "${source_path}" ]]; then
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${target_path}")"
+  cp -a "${source_path}" "${target_path}"
+}
+
+rollback_release() {
+  local exit_code=$?
+  trap - ERR
+
+  if [[ "${SWAPPED:-false}" == "true" && -d "${PREVIOUS_DIR}" ]]; then
+    echo "Deployment failed; restoring previous release." >&2
+    local failed_dir="/opt/supreme-ai-deployment-hub.failed.$(date -u +%Y%m%dT%H%M%SZ)"
+    mv "${APP_DIR}" "${failed_dir}" || true
+    mv "${PREVIOUS_DIR}" "${APP_DIR}" || true
+    docker compose \
+      --env-file "${APP_DIR}/${ENV_REL}" \
+      -f "${APP_DIR}/${COMPOSE_REL}" \
+      up -d --build --remove-orphans || true
+  fi
+
+  [[ -n "${STAGING_DIR:-}" && -d "${STAGING_DIR}" ]] && rm -rf "${STAGING_DIR}"
+  exit "${exit_code}"
+}
+
+require_root
+
+if [[ "${1:-}" == "--check" ]]; then
+  require_runtime
+  echo "Restricted self-hosted deployment wrapper is ready."
   exit 0
 fi
 
-RELEASE_REF="${1:-}"
-RUN_DIAGNOSTICS="${2:-false}"
+SOURCE_DIR="${1:-}"
+RELEASE_SHA="${2:-}"
+RUN_DIAGNOSTICS="${3:-false}"
 
-if [[ ! "${RELEASE_REF}" =~ ^[0-9a-f]{40}$ ]] && \
-   [[ ! "${RELEASE_REF}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-  echo "Invalid release ref. Use a full lowercase SHA or semver-style vX.Y.Z tag." >&2
+if [[ -z "${SOURCE_DIR}" ]]; then
+  echo "Usage: d3vonn-deploy-release <trusted-workspace> <full-main-sha> <true|false>" >&2
+  exit 2
+fi
+
+if [[ ! "${RELEASE_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "Release SHA must be a full lowercase 40-character commit SHA." >&2
   exit 2
 fi
 
@@ -31,37 +116,86 @@ if [[ "${RUN_DIAGNOSTICS}" != "true" && "${RUN_DIAGNOSTICS}" != "false" ]]; then
   exit 2
 fi
 
-cd "${REPO_DIR}"
+require_runtime
 
-git fetch origin main --tags --prune
-RESOLVED_COMMIT="$(git rev-parse --verify "${RELEASE_REF}^{commit}")"
+SOURCE_DIR="$(realpath -e "${SOURCE_DIR}")"
+case "${SOURCE_DIR}" in
+  "${WORKSPACE_ROOT}"/*/supreme-ai-deployment-hub|"${WORKSPACE_ROOT}"/supreme-ai-deployment-hub)
+    ;;
+  *)
+    echo "Deployment source is outside the trusted GitHub runner workspace: ${SOURCE_DIR}" >&2
+    exit 3
+    ;;
+esac
 
-# Only commits already reachable from protected main may be deployed. Release
-# tags remain supported when they point to a protected-main commit.
-if ! git merge-base --is-ancestor "${RESOLVED_COMMIT}" origin/main; then
-  echo "Ref ${RELEASE_REF} resolves outside protected main; deployment denied." >&2
+if [[ "$(stat -c '%U' "${SOURCE_DIR}")" != "github-runner" ]]; then
+  echo "Deployment source must be owned by github-runner." >&2
   exit 3
 fi
 
-echo "Deploying verified commit ${RESOLVED_COMMIT}"
-git checkout --detach --force "${RESOLVED_COMMIT}"
+if ! git -C "${SOURCE_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "Deployment source is not a Git checkout." >&2
+  exit 3
+fi
+
+ACTUAL_SHA="$(git -C "${SOURCE_DIR}" rev-parse HEAD)"
+if [[ "${ACTUAL_SHA}" != "${RELEASE_SHA}" ]]; then
+  echo "Checked-out commit ${ACTUAL_SHA} does not match requested ${RELEASE_SHA}." >&2
+  exit 3
+fi
+
+STAGING_DIR="/opt/.d3vonn-release-${RELEASE_SHA}-$$"
+SWAPPED=false
+trap rollback_release ERR
+
+rm -rf "${STAGING_DIR}"
+mkdir -p "${STAGING_DIR}"
+
+# Copy reviewed source only. Runtime credentials, certificates, and logs stay on
+# the VPS and are never sourced from GitHub Actions.
+tar \
+  --exclude='.git' \
+  --exclude='./.git' \
+  --exclude="${ENV_REL}" \
+  --exclude='deploy/vps/ssl/certs' \
+  --exclude='deploy/vps/ssl/webroot' \
+  --exclude='deploy/vps/nginx/logs' \
+  -C "${SOURCE_DIR}" -cf - . \
+  | tar -C "${STAGING_DIR}" -xf -
+
+preserve_path "${ENV_REL}"
+preserve_path "deploy/vps/ssl/certs"
+preserve_path "deploy/vps/ssl/webroot"
+preserve_path "deploy/vps/nginx/logs"
+
+chmod 600 "${STAGING_DIR}/${ENV_REL}"
 
 docker compose \
-  --env-file "${ENV_FILE}" \
-  -f "${COMPOSE_FILE}" \
+  --env-file "${STAGING_DIR}/${ENV_REL}" \
+  -f "${STAGING_DIR}/${COMPOSE_REL}" \
   config >/dev/null
 
+rm -rf "${PREVIOUS_DIR}"
+mv "${APP_DIR}" "${PREVIOUS_DIR}"
+mv "${STAGING_DIR}" "${APP_DIR}"
+SWAPPED=true
+
+cd "${APP_DIR}/deploy/vps"
 docker compose \
-  --env-file "${ENV_FILE}" \
-  -f "${COMPOSE_FILE}" \
-  up -d --build
+  --env-file "env/.env.production" \
+  -f "docker-compose.yml" \
+  up -d --build --remove-orphans
 
 docker compose \
-  --env-file "${ENV_FILE}" \
-  -f "${COMPOSE_FILE}" \
+  --env-file "env/.env.production" \
+  -f "docker-compose.yml" \
   ps
 
-curl --fail --show-error --silent --max-time 20 \
+wait_for_health d3vonn-redis 18
+wait_for_health d3vonn-backend 30
+wait_for_health d3vonn-nginx 24
+
+docker exec d3vonn-backend curl --fail --show-error --silent \
   http://127.0.0.1:8000/health/ready
 echo
 
@@ -70,6 +204,12 @@ curl --fail --show-error --silent --max-time 30 \
 echo
 
 if [[ "${RUN_DIAGNOSTICS}" == "true" ]]; then
-  bash "${REPO_DIR}/deploy/vps/scripts/diagnose-502.sh" \
+  bash "${APP_DIR}/deploy/vps/scripts/diagnose-502.sh" \
     | tee /tmp/d3vonn-502-diagnosis.txt
 fi
+
+trap - ERR
+SWAPPED=false
+rm -rf "${STAGING_DIR}" 2>/dev/null || true
+
+echo "DEPLOYMENT_OK ${RELEASE_SHA}"
