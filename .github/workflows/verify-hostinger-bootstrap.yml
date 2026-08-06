@@ -21,38 +21,102 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  hosted-recovery-inventory:
-    name: Inspect repository recovery aliases
+  hosted-recovery-bootstrap:
+    name: Install restricted runner controls over verified SSH
     if: github.head_ref == 'agent/repair-hostinger-deployment' && github.actor == 'wesship'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     env:
       VPS_HOST: ${{ secrets.VPS_HOST }}
-      HOSTINGER_VPS_HOST: ${{ secrets.HOSTINGER_VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
-      ROOT_ALIAS: ${{ secrets.ROOT }}
-      HOSTINGER_VPS_USER: ${{ secrets.HOSTINGER_VPS_USER }}
-      HOSTINGER_VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
-      HOSTINGER_VPS_SSH_KEY_B64: ${{ secrets.HOSTINGER_VPS_SSH_KEY_B64 }}
-      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
       VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
       VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
     steps:
-      - name: Report names-only recovery availability
+      - name: Check out reviewed repair branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate recovery credentials without printing values
         run: |
-          python - <<'PY'
-          import os
-          for name in (
-              'VPS_HOST','HOSTINGER_VPS_HOST','VPS_USER','ROOT_ALIAS','HOSTINGER_VPS_USER',
-              'HOSTINGER_VPS_SSH_KEY','HOSTINGER_VPS_SSH_KEY_B64','VPS_SSH_KEY',
-              'VPS_SSH_PRIVATE_KEY','VPS_KNOWN_HOSTS',
-          ):
-              print(f"{'PRESENT' if os.environ.get(name, '').strip() else 'ABSENT'} {name}")
-          PY
+          set -euo pipefail
+          for name in VPS_HOST VPS_USER VPS_SSH_PRIVATE_KEY VPS_KNOWN_HOSTS; do
+            test -n "${!name}" || { echo "Missing repository recovery secret: $name"; exit 1; }
+          done
+          echo "OK RECOVERY_CREDENTIALS_PRESENT"
+
+      - name: Configure verified SSH transport
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/d3vonn_recovery"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/d3vonn_recovery" "$HOME/.ssh/known_hosts"
+
+      - name: Install wrapper, sudoers rule, and restart runner
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          scp \
+            -i "$HOME/.ssh/d3vonn_recovery" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            deploy/vps/scripts/d3vonn-deploy-release \
+            "$VPS_USER@$VPS_HOST:/tmp/d3vonn-deploy-release"
+
+          ssh \
+            -i "$HOME/.ssh/d3vonn_recovery" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "$VPS_USER@$VPS_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          sudo install -o root -g root -m 0755 \
+            /tmp/d3vonn-deploy-release \
+            /usr/local/sbin/d3vonn-deploy-release
+          rm -f /tmp/d3vonn-deploy-release
+
+          printf '%s\n' \
+            'github-runner ALL=(root) NOPASSWD: /usr/local/sbin/d3vonn-deploy-release *' \
+            | sudo tee /etc/sudoers.d/d3vonn-github-runner-deploy >/dev/null
+          sudo chmod 0440 /etc/sudoers.d/d3vonn-github-runner-deploy
+          sudo visudo -cf /etc/sudoers.d/d3vonn-github-runner-deploy
+
+          if id -nG github-runner | tr ' ' '\n' | grep -qx docker; then
+            sudo gpasswd -d github-runner docker
+          fi
+
+          service_name="$(systemctl list-unit-files --type=service --no-legend \
+            | awk '{print $1}' \
+            | grep '^actions\.runner\.wesship-supreme-ai-deployment-hub\..*\.service$' \
+            | head -n 1)"
+          test -n "$service_name"
+
+          sudo systemctl restart "$service_name"
+          sleep 5
+          sudo systemctl is-active --quiet "$service_name"
+
+          if id -nG github-runner | tr ' ' '\n' | grep -qx docker; then
+            echo 'docker group removal did not persist' >&2
+            exit 1
+          fi
+
+          sudo -u github-runner sudo -n \
+            /usr/local/sbin/d3vonn-deploy-release --check
+          echo "RECOVERY_BOOTSTRAP_OK $service_name"
+          REMOTE
+
+      - name: Remove local recovery key
+        if: always()
+        run: rm -f "$HOME/.ssh/d3vonn_recovery" "$HOME/.ssh/known_hosts"
 
   verify:
     name: Verify runner privilege reduction
-    if: github.event_name == 'push' || (github.head_ref == 'agent/repair-hostinger-deployment' && github.actor == 'wesship')
+    needs: hosted-recovery-bootstrap
+    if: needs.hosted-recovery-bootstrap.result == 'success'
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
