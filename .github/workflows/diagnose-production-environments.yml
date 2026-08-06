@@ -13,6 +13,22 @@ permissions:
   contents: read
 
 jobs:
+  hostinger-runner:
+    name: Validate Hostinger self-hosted deployment path
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 10
+    steps:
+      - name: Verify runner and restricted deploy wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUNNER_OK ${RUNNER_NAME} ${RUNNER_OS} ${RUNNER_ARCH}"
+          echo "HOST $(hostname)"
+          test -d /opt/supreme-ai-deployment-hub
+          test -x /usr/local/sbin/d3vonn-deploy-release
+          sudo -n /usr/local/sbin/d3vonn-deploy-release --check
+          echo "DEPLOY_WRAPPER_OK"
+
   uppercase-production:
     name: Inspect Production placement
     runs-on: ubuntu-latest
