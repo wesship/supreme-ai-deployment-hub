@@ -88,6 +88,21 @@ jobs:
               fi
             fi
 
+            # PR #730 hardens the unapplied AI Film orchestrator migration before
+            # its first staging/production rollout. The exception is bound to the
+            # exact reviewed before/after blobs so no later mutation is permitted.
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260803112500_film_orchestrator_core.sql" ] \
+              && [ "$PR_NUMBER" = "730" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "762b730972cca384fcd47d9cad156e9890ece593" ] \
+                && [ "$head_blob" = "d020e5d0fa90b83ce7a8dc848851e519663dc01f" ]; then
+                echo "Approved pre-rollout film ownership hardening: $path"
+                allowed=1
+              fi
+            fi
+
             # PR #707 repairs two unapplied, policy-only migrations so clean
             # preview databases can replay schemas where optional modules are absent.
             # The exception is limited to the exact reviewed before/after blobs.

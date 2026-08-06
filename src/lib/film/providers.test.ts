@@ -22,4 +22,20 @@ describe('redactProviderPayload', () => {
     expect(redactProviderPayload({ authorization: 'Bearer secret', nested: { apiKey: 'secret', prompt: 'safe' } }))
       .toEqual({ authorization: '[REDACTED]', nested: { apiKey: '[REDACTED]', prompt: 'safe' } });
   });
+
+  it('redacts temporary signed and output URLs while preserving ordinary URLs', () => {
+    expect(redactProviderPayload({
+      referenceAssets: [{ type: 'character', signedUrl: 'https://assets.example/private?token=abc' }],
+      outputUrl: 'https://assets.example/output?signature=secret',
+      signed_url: 'https://assets.example/private-snake?token=abc',
+      output_url: 'https://assets.example/output-snake?signature=secret',
+      publicUrl: 'https://example.com/public-reference',
+    })).toEqual({
+      referenceAssets: [{ type: 'character', signedUrl: '[REDACTED]' }],
+      outputUrl: '[REDACTED]',
+      signed_url: '[REDACTED]',
+      output_url: '[REDACTED]',
+      publicUrl: 'https://example.com/public-reference',
+    });
+  });
 });
