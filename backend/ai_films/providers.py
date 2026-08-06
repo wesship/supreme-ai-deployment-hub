@@ -33,6 +33,12 @@ PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
     ProviderSpec("voice", "openai", ("OPENAI_API_KEY",), ("AI_FILM_VOICE_MODEL",)),
     ProviderSpec("music", "suno", ("SUNO_API_KEY",), ("AI_FILM_SUNO_MODEL",)),
     ProviderSpec("music", "replicate", ("REPLICATE_API_TOKEN",), ("AI_FILM_REPLICATE_MUSIC_MODEL",)),
+    ProviderSpec(
+        "video_intelligence",
+        "twelvelabs",
+        ("TWELVELABS_API_KEY", "TWELVELABS_KNOWLEDGE_STORE_ID"),
+        ("TWELVELABS_API_BASE_URL",),
+    ),
     ProviderSpec("email", "resend", ("RESEND_API_KEY", "AI_FILM_EMAIL_FROM")),
     ProviderSpec("publishing", "youtube", ("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN")),
     ProviderSpec("publishing", "vimeo", ("VIMEO_ACCESS_TOKEN",)),
