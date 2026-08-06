@@ -3,17 +3,26 @@ import { Loader2, Mic, MicOff, PhoneCall, Volume2 } from 'lucide-react';
 import { useConversation } from '@elevenlabs/react';
 import { toast } from 'sonner';
 import { getVapiAssistantId } from '@/config/voice';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ConversationalVoiceControlsProps {
   disabled?: boolean;
 }
 
 type VoiceProvider = 'vapi' | 'elevenlabs';
+type InlineVapiAssistant = Record<string, unknown>;
+type VapiStartTarget = string | InlineVapiAssistant;
 type VapiInstance = {
-  start: (assistantId?: string) => Promise<unknown> | unknown;
+  start: (assistant?: VapiStartTarget) => Promise<unknown> | unknown;
   stop: () => Promise<unknown> | unknown;
   on?: (event: string, handler: (...args: unknown[]) => void) => void;
   removeAllListeners?: () => void;
+};
+
+type VoiceSessionResponse = {
+  mode: 'inline-authenticated';
+  expires_at: number;
+  assistant: InlineVapiAssistant;
 };
 
 declare global {
@@ -31,6 +40,7 @@ declare global {
 const VAPI_SCRIPT_ID = 'd3vonn-vapi-web-sdk';
 const VAPI_SCRIPT_URL =
   'https://cdn.jsdelivr.net/gh/VapiAI/client-sdk-html-script-tag@749efa096d174c61d34e2e7d875b214709a497cc/dist/assets/index.js';
+const PRODUCTION_API_URL = 'https://api.d3vonn.io';
 
 const loadVapiScript = (): Promise<void> =>
   new Promise((resolve, reject) => {
@@ -58,12 +68,47 @@ const loadVapiScript = (): Promise<void> =>
     document.head.appendChild(script);
   });
 
+const getApiBaseUrl = (): string =>
+  (import.meta.env.VITE_API_URL?.trim() || PRODUCTION_API_URL).replace(/\/$/, '');
+
+/**
+ * Request a short-lived assistant configuration tied to the signed-in D3VONN
+ * user. The browser never receives a Vapi private key, provider credential, or
+ * reusable webhook secret.
+ */
+const getInlineVoiceSession = async (): Promise<VoiceSessionResponse | null> => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) return null;
+
+  const response = await fetch(`${getApiBaseUrl()}/api/voice/session`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  });
+
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) {
+    throw new Error(`D3VONN voice session service returned HTTP ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as Partial<VoiceSessionResponse>;
+  if (payload.mode !== 'inline-authenticated' || !payload.assistant) {
+    throw new Error('D3VONN returned an invalid voice session configuration.');
+  }
+  return payload as VoiceSessionResponse;
+};
+
 /**
  * D3VONN.IO real-time voice control.
  *
- * Vapi is preferred for browser/PSTN orchestration when configured. ElevenLabs
- * remains the direct browser fallback. Only publishable IDs/keys are read by
- * the browser; all private provider credentials remain server-side.
+ * Vapi is preferred for browser/PSTN orchestration when configured. Signed-in
+ * users receive a short-lived inline assistant whose tool calls are bound to
+ * their D3VONN identity. The published assistant remains a compatibility path.
  */
 export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsProps> = ({
   disabled = false,
@@ -147,14 +192,32 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
     return instance;
   }, [vapiAssistantId, vapiPublicKey]);
 
+  const startVapi = useCallback(async () => {
+    const vapi = await ensureVapi();
+    const inlineSession = await getInlineVoiceSession();
+
+    if (inlineSession) {
+      await vapi.start(inlineSession.assistant);
+      toast.info('Authenticated Hermes voice session started');
+      return;
+    }
+
+    await vapi.start(vapiAssistantId);
+    toast.info('Published Vapi assistant started', {
+      description: 'Sign in to enable authenticated Hermes tool execution.',
+    });
+  }, [ensureVapi, vapiAssistantId]);
+
   const start = useCallback(async () => {
     setConnecting(true);
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('This browser does not support microphone access.');
+      }
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
       if (provider === 'vapi') {
-        const vapi = await ensureVapi();
-        await vapi.start(vapiAssistantId);
+        await startVapi();
       } else {
         if (!elevenLabsAgentId) {
           throw new Error(
@@ -168,7 +231,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       toast.error('Unable to start D3VONN voice', { description: message });
       setConnecting(false);
     }
-  }, [conversation, elevenLabsAgentId, ensureVapi, provider, vapiAssistantId]);
+  }, [conversation, elevenLabsAgentId, provider, startVapi]);
 
   const stop = useCallback(async () => {
     try {

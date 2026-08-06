@@ -10,9 +10,13 @@ import re
 import time
 from collections import OrderedDict
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+
+from backend.app.middleware.auth import get_current_user_id
+from backend.app.voice_session import issue_voice_session, verify_voice_session
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice-orchestration"])
@@ -22,6 +26,7 @@ _MAX_CACHE_ITEMS = 2_000
 _IDEMPOTENCY_TTL_SECONDS = 86_400
 _PUBLISHED_ASSISTANT_ID = "8491eea7-e385-426b-8cdc-3e2aaf9a4cbf"
 _DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
+_DEFAULT_ELEVENLABS_MODEL = "eleven_turbo_v2_5"
 _WEBHOOK_DERIVATION_LABEL = b"d3vonn:vapi:webhook:v1"
 _ALLOWED_HERMES_TOOLS = {"create_hermes_task", "enqueue_hermes_task", "hermes_task"}
 _event_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
@@ -62,6 +67,93 @@ def effective_assistant_id() -> str:
 
 def effective_elevenlabs_voice_id() -> str:
     return _env_value("ELEVENLABS_DEFAULT_VOICE_ID", "ELEVENLABS_VOICE_ID") or _DEFAULT_ELEVENLABS_VOICE_ID
+
+
+def _public_api_url(request: Request) -> str:
+    configured = _env_value("D3VONN_PUBLIC_API_URL", "PUBLIC_API_URL")
+    if configured:
+        return configured.rstrip("/")
+    forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",", 1)[0].strip()
+    forwarded_host = request.headers.get("x-forwarded-host", request.headers.get("host", "api.d3vonn.io")).split(",", 1)[0].strip()
+    return f"{forwarded_proto}://{forwarded_host}".rstrip("/")
+
+
+def _inline_assistant(server_url: str) -> dict[str, Any]:
+    """Build a browser-safe Vapi assistant that uses Vapi-managed providers."""
+    voice_id = effective_elevenlabs_voice_id()
+    voice_model = _env_value("ELEVENLABS_DEFAULT_MODEL") or _DEFAULT_ELEVENLABS_MODEL
+    return {
+        "name": "D3VONN Inline Voice",
+        "firstMessage": "D3VONN voice is online. How can I help you?",
+        "endCallMessage": "Session complete. D3VONN is standing by.",
+        "model": {
+            "provider": "openai",
+            "model": "gpt-4.1-mini",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are the D3VONN.IO voice interface for the authenticated user. "
+                        "Be concise, accurate, calm, and action-oriented. When the user asks you "
+                        "to create, queue, research, investigate, or follow up on a task, call "
+                        "create_hermes_task with a clear title and description. Never claim a "
+                        "task was completed unless the tool result confirms it."
+                    ),
+                }
+            ],
+            "tools": [
+                {
+                    "type": "function",
+                    "async": False,
+                    "function": {
+                        "name": "create_hermes_task",
+                        "description": "Queue an authenticated task in the D3VONN Hermes orchestration system.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "title": {
+                                    "type": "string",
+                                    "description": "A short, actionable task title.",
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "description": "The details, constraints, and desired outcome.",
+                                },
+                            },
+                            "required": ["title"],
+                        },
+                    },
+                }
+            ],
+        },
+        "voice": {
+            "provider": "11labs",
+            "voiceId": voice_id,
+            "model": voice_model,
+        },
+        "transcriber": {
+            "provider": "deepgram",
+            "model": "nova-2",
+            "language": "en",
+        },
+        "server": {
+            "url": server_url,
+            "timeoutSeconds": 20,
+        },
+        "serverMessages": [
+            "tool-calls",
+            "status-update",
+            "transcript",
+            "end-of-call-report",
+        ],
+        "clientMessages": [
+            "transcript",
+            "speech-update",
+            "status-update",
+            "hang",
+            "tool-calls",
+        ],
+    }
 
 
 def _redact(value: Any) -> Any:
@@ -117,7 +209,11 @@ def _verify_request(
     authorization: str | None,
     signature: str | None,
     vapi_secret: str | None,
+    session_claims: dict[str, Any] | None,
 ) -> None:
+    if session_claims is not None:
+        return
+
     webhook_secret = effective_webhook_secret()
     signing_secret = _env_value("VAPI_SIGNING_SECRET")
     if not webhook_secret and not signing_secret:
@@ -162,14 +258,23 @@ def _tool_calls(message: dict[str, Any]) -> list[dict[str, Any]]:
     return normalized
 
 
-async def _record_internal_event(event_type: str, event_id: str, payload: dict[str, Any]) -> bool:
+async def _record_internal_event(
+    event_type: str,
+    event_id: str,
+    payload: dict[str, Any],
+    user_id: str | None,
+) -> bool:
     try:
         from backend.hermes.task_engine import log_event
 
         await log_event(
             event=f"voice.{event_type}",
             message=f"Vapi voice event received: {event_type}",
-            data={"source": "vapi", "payload": _redact(payload)},
+            data={
+                "source": "vapi-inline" if user_id else "vapi",
+                "authenticated_user_id": user_id,
+                "payload": _redact(payload),
+            },
             correlation_id=event_id,
         )
         return True
@@ -178,7 +283,11 @@ async def _record_internal_event(event_type: str, event_id: str, payload: dict[s
         return False
 
 
-async def _handle_tool_calls(message: dict[str, Any], event_id: str) -> dict[str, Any]:
+async def _handle_tool_calls(
+    message: dict[str, Any],
+    event_id: str,
+    user_id: str | None,
+) -> dict[str, Any]:
     calls = _tool_calls(message)
     results: list[dict[str, Any]] = []
 
@@ -197,6 +306,11 @@ async def _handle_tool_calls(message: dict[str, Any], event_id: str) -> dict[str
                 "status": "rejected",
                 "message": f"Tool '{name or 'unknown'}' is not enabled for D3VONN voice.",
             }
+        elif not user_id:
+            result = {
+                "status": "rejected",
+                "message": "An authenticated D3VONN voice session is required for Hermes tools.",
+            }
         else:
             try:
                 from backend.hermes.task_engine import create_task
@@ -207,8 +321,12 @@ async def _handle_tool_calls(message: dict[str, Any], event_id: str) -> dict[str
                     title=title[:240],
                     task_type="voice.hermes",
                     description=str(description)[:4000] if description else None,
-                    input_data=_redact(parameters),
-                    source="vapi",
+                    input_data={
+                        **_redact(parameters),
+                        "authenticated_user_id": user_id,
+                        "voice_session": "inline",
+                    },
+                    source="vapi-inline",
                     correlation_id=event_id,
                 )
                 result = {"status": "queued", "task_id": task.get("id"), "title": task.get("title", title)}
@@ -261,27 +379,63 @@ async def _relay_external(event_type: str, event_id: str, payload: dict[str, Any
 async def voice_health() -> dict[str, Any]:
     vapi_key_ready = bool(effective_vapi_private_key())
     webhook_ready = bool(effective_webhook_secret()) or _configured("VAPI_SIGNING_SECRET")
+    inline_session_ready = bool(
+        _env_value(
+            "VOICE_SESSION_SIGNING_SECRET",
+            "VAPI_WEBHOOK_SECRET",
+            "VAPI_PRIVATE_KEY",
+            "VAPI_API_KEY",
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "JWT_SECRET",
+        )
+    )
     checks = {
         "vapi_public_configuration": bool(effective_assistant_id()),
         "vapi_private_key": vapi_key_ready,
         "vapi_webhook_auth": webhook_ready,
+        "inline_authenticated_sessions": inline_session_ready,
         "elevenlabs_api": _configured("ELEVENLABS_API_KEY"),
         "elevenlabs_voice": bool(effective_elevenlabs_voice_id()),
         "hermes_internal_adapter": True,
     }
     return {
         "status": "configured" if all(checks.values()) else "partial",
-        "provider": "vapi+elevenlabs",
+        "browser_voice_ready": inline_session_ready and bool(effective_elevenlabs_voice_id()),
+        "provider": "vapi-managed-elevenlabs",
         "checks": checks,
         "webhook_auth_mode": (
             "explicit"
             if _configured("VAPI_WEBHOOK_SECRET") or _configured("VAPI_SIGNING_SECRET")
             else "derived"
             if vapi_key_ready
+            else "authenticated-inline-session"
+            if inline_session_ready
             else "unavailable"
         ),
         "optional_external_relay": _configured("HERMES_VOICE_URL"),
         "secrets_exposed": False,
+    }
+
+
+@router.post("/session")
+async def create_voice_session(
+    request: Request,
+    response: Response,
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    """Return a short-lived inline Vapi assistant for one authenticated user."""
+    try:
+        token, expires_at = issue_voice_session(user_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="Voice session service unavailable") from exc
+
+    webhook_url = f"{_public_api_url(request)}/api/voice/vapi/webhook?{urlencode({'session': token})}"
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Pragma"] = "no-cache"
+    return {
+        "mode": "inline-authenticated",
+        "expires_at": expires_at,
+        "assistant": _inline_assistant(webhook_url),
     }
 
 
@@ -295,7 +449,10 @@ async def vapi_webhook(
     raw_body = await request.body()
     if len(raw_body) > _MAX_BODY_BYTES:
         raise HTTPException(status_code=413, detail="Webhook payload too large")
-    _verify_request(raw_body, authorization, x_vapi_signature, x_vapi_secret)
+
+    session_claims = verify_voice_session(request.query_params.get("session"))
+    _verify_request(raw_body, authorization, x_vapi_signature, x_vapi_secret, session_claims)
+    user_id = str(session_claims["sub"]) if session_claims else None
 
     try:
         payload = await request.json()
@@ -305,7 +462,8 @@ async def vapi_webhook(
         raise HTTPException(status_code=400, detail="Webhook payload must be an object")
 
     event_id = _event_id(payload, raw_body)
-    cached = _cached_response(event_id)
+    cache_key = f"{user_id or 'provider'}:{event_id}"
+    cached = _cached_response(cache_key)
     if cached is not None:
         cached["duplicate"] = True
         return cached
@@ -316,17 +474,18 @@ async def vapi_webhook(
     if event_type == "assistant-request":
         response = {"assistantId": effective_assistant_id()}
     elif event_type == "tool-calls":
-        response = await _handle_tool_calls(message, event_id)
+        response = await _handle_tool_calls(message, event_id, user_id)
     else:
-        internal_recorded = await _record_internal_event(event_type, event_id, payload)
+        internal_recorded = await _record_internal_event(event_type, event_id, payload, user_id)
         external_relay = await _relay_external(event_type, event_id, payload)
         response = {
             "ok": True,
             "event_id": event_id,
             "event_type": event_type,
+            "authenticated_session": bool(user_id),
             "hermes_recorded": internal_recorded,
             "external_relay": external_relay,
         }
 
-    _remember_response(event_id, response)
+    _remember_response(cache_key, response)
     return response
