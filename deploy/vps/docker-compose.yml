@@ -52,7 +52,9 @@ services:
       - d3vonn-public
       - d3vonn-internal
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      # Alpine resolves localhost to ::1 first, while this Nginx config listens
+      # on IPv4. Pinning the loopback address prevents a false unhealthy state.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
