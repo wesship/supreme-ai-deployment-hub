@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       release_ref:
-        description: Protected main commit SHA or release tag to deploy
+        description: Protected main commit SHA, main, or release tag to deploy
         required: true
-        default: v2.0.0
+        default: main
       run_diagnostics:
         description: Run 502 diagnostic after deployment
         required: true
@@ -22,7 +22,8 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, linux, x64, d3vonn-vps]
+    name: Deploy protected release on Hostinger
+    runs-on: [self-hosted, Linux, X64]
     environment: production
     timeout-minutes: 45
     steps:
@@ -32,15 +33,34 @@ jobs:
           RUN_DIAGNOSTICS: ${{ inputs.run_diagnostics }}
         run: |
           set -euo pipefail
-          if [[ ! "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]] && \
+          if [[ "$RELEASE_REF" != "main" ]] && \
+             [[ ! "$RELEASE_REF" =~ ^[0-9a-f]{40}$ ]] && \
              [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-            echo "release_ref must be a full lowercase commit SHA or semver-style vX.Y.Z tag"
+            echo "release_ref must be main, a full lowercase SHA, or a semver-style vX.Y.Z tag"
             exit 1
           fi
-          [[ "$RUN_DIAGNOSTICS" == "true" || "$RUN_DIAGNOSTICS" == "false" ]] || {
-            echo "run_diagnostics must be true or false"
+          [[ "$RUN_DIAGNOSTICS" == "true" || "$RUN_DIAGNOSTICS" == "false" ]]
+
+      - name: Check out requested release
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.release_ref }}
+          fetch-depth: 0
+
+      - name: Verify release is reachable from protected main
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          release_sha="$(git rev-parse HEAD)"
+          git merge-base --is-ancestor "$release_sha" origin/main || {
+            echo "Release $release_sha is outside protected main; deployment denied."
             exit 1
           }
+          echo "sha=$release_sha" >> "$GITHUB_OUTPUT"
+          git config --local --unset-all http.https://github.com/.extraheader || true
+          echo "VERIFIED_MAIN_RELEASE $release_sha"
 
       - name: Validate restricted deployment wrapper
         run: |
@@ -49,9 +69,9 @@ jobs:
 
       - name: Deploy release and validate
         env:
-          RELEASE_REF: ${{ inputs.release_ref }}
+          RELEASE_SHA: ${{ steps.release.outputs.sha }}
           RUN_DIAGNOSTICS: ${{ inputs.run_diagnostics }}
         run: |
           set -euo pipefail
           sudo -n /usr/local/sbin/d3vonn-deploy-release \
-            "$RELEASE_REF" "$RUN_DIAGNOSTICS"
+            "$GITHUB_WORKSPACE" "$RELEASE_SHA" "$RUN_DIAGNOSTICS"
