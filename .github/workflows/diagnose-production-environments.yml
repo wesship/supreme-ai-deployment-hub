@@ -14,49 +14,64 @@ permissions:
 
 jobs:
   hostinger-runner:
-    name: Discover Hostinger self-hosted deployment path
+    name: Inspect Hostinger self-hosted permissions
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
-      - name: Report runner deployment prerequisites
+      - name: Report runner deployment permissions
         shell: bash
         run: |
           set -u
           echo "RUNNER_OK ${RUNNER_NAME} ${RUNNER_OS} ${RUNNER_ARCH}"
           echo "HOST $(hostname)"
-          echo "WORKSPACE ${GITHUB_WORKSPACE}"
-          echo "RUNNER_WORKSPACE ${RUNNER_WORKSPACE:-unset}"
+          id
+          groups
 
-          for path in \
-            /opt/supreme-ai-deployment-hub \
-            /srv/supreme-ai-deployment-hub \
-            /root/supreme-ai-deployment-hub \
-            /home/*/supreme-ai-deployment-hub
-          do
+          for path in /opt/supreme-ai-deployment-hub /opt/d3vonn/supreme-ai-deployment-hub; do
             if [ -d "$path" ]; then
-              echo "REPO_PRESENT $path"
+              stat -c 'PATH %n OWNER %U GROUP %G MODE %A' "$path"
+              if [ -w "$path" ]; then
+                echo "PATH_WRITABLE $path"
+              else
+                echo "PATH_READ_ONLY $path"
+              fi
+              if git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+                echo "GIT_REPO $path HEAD $(git -C "$path" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+              else
+                echo "NOT_GIT_REPO $path"
+              fi
             fi
           done
 
-          echo "REPO_SEARCH_BEGIN"
-          find /opt /srv /root /home -maxdepth 4 -type d -name supreme-ai-deployment-hub 2>/dev/null | head -20 || true
-          echo "REPO_SEARCH_END"
-
-          if [ -x /usr/local/sbin/d3vonn-deploy-release ]; then
-            echo "WRAPPER_PRESENT /usr/local/sbin/d3vonn-deploy-release"
-            if sudo -n /usr/local/sbin/d3vonn-deploy-release --check; then
-              echo "DEPLOY_WRAPPER_OK"
+          if command -v docker >/dev/null 2>&1; then
+            echo "DOCKER_BINARY $(command -v docker)"
+            docker --version || true
+            if docker info >/dev/null 2>&1; then
+              echo "DOCKER_ACCESS_OK"
+              docker ps --format 'CONTAINER {{.Names}} STATUS {{.Status}}' | head -30 || true
             else
-              echo "DEPLOY_WRAPPER_CHECK_FAILED"
+              echo "DOCKER_ACCESS_DENIED"
             fi
           else
-            echo "WRAPPER_ABSENT /usr/local/sbin/d3vonn-deploy-release"
+            echo "DOCKER_BINARY_ABSENT"
           fi
 
-          if sudo -n true 2>/dev/null; then
-            echo "PASSWORDLESS_SUDO_PRESENT"
+          if docker compose version >/dev/null 2>&1; then
+            echo "DOCKER_COMPOSE_OK $(docker compose version --short)"
           else
-            echo "PASSWORDLESS_SUDO_ABSENT"
+            echo "DOCKER_COMPOSE_UNAVAILABLE"
+          fi
+
+          if [ -r /opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production ]; then
+            echo "PRODUCTION_ENV_READABLE"
+          else
+            echo "PRODUCTION_ENV_NOT_READABLE"
+          fi
+
+          if [ -w /opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production ]; then
+            echo "PRODUCTION_ENV_WRITABLE"
+          else
+            echo "PRODUCTION_ENV_NOT_WRITABLE"
           fi
 
   uppercase-production:
