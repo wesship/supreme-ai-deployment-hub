@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+# This suite is also the protected production voice certification trigger.
+
 import hashlib
 import hmac
 import json
