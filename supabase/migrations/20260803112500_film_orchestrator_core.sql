@@ -13,12 +13,13 @@ create table if not exists public.film_projects (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(owner_id, slug)
+  unique(owner_id, slug),
+  unique(id, owner_id)
 );
 
 create table if not exists public.film_characters (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.film_projects(id) on delete cascade,
+  project_id uuid not null,
   owner_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   description text,
@@ -27,12 +28,13 @@ create table if not exists public.film_characters (
   forbidden_changes jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(project_id, name)
+  unique(project_id, name),
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_canon_rules (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.film_projects(id) on delete cascade,
+  project_id uuid not null,
   owner_id uuid not null references auth.users(id) on delete cascade,
   rule_key text not null,
   rule_type text not null default 'required' check (rule_type in ('required','forbidden','reference','event_lock')),
@@ -40,12 +42,13 @@ create table if not exists public.film_canon_rules (
   rule_data jsonb not null default '{}'::jsonb,
   severity text not null default 'blocking' check (severity in ('advisory','warning','blocking')),
   created_at timestamptz not null default now(),
-  unique(project_id, rule_key)
+  unique(project_id, rule_key),
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_scenes (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.film_projects(id) on delete cascade,
+  project_id uuid not null,
   owner_id uuid not null references auth.users(id) on delete cascade,
   scene_number integer not null,
   title text not null,
@@ -55,13 +58,15 @@ create table if not exists public.film_scenes (
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(project_id, scene_number)
+  unique(project_id, scene_number),
+  unique(id, owner_id),
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_shots (
   id uuid primary key default gen_random_uuid(),
-  scene_id uuid not null references public.film_scenes(id) on delete cascade,
-  project_id uuid not null references public.film_projects(id) on delete cascade,
+  scene_id uuid not null,
+  project_id uuid not null,
   owner_id uuid not null references auth.users(id) on delete cascade,
   shot_number integer not null,
   title text not null,
@@ -77,25 +82,30 @@ create table if not exists public.film_shots (
   status text not null default 'draft' check (status in ('draft','queued','generating','review','approved','rejected','failed')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique(scene_id, shot_number)
+  unique(scene_id, shot_number),
+  unique(id, owner_id),
+  foreign key (scene_id, owner_id) references public.film_scenes(id, owner_id) on delete cascade,
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_reference_assets (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.film_projects(id) on delete cascade,
-  shot_id uuid references public.film_shots(id) on delete cascade,
+  project_id uuid not null,
+  shot_id uuid,
   owner_id uuid not null references auth.users(id) on delete cascade,
   asset_type text not null check (asset_type in ('character','wardrobe','location','style','opening_frame','closing_frame','audio','other')),
   storage_path text not null,
   metadata jsonb not null default '{}'::jsonb,
   approved boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade,
+  foreign key (shot_id, owner_id) references public.film_shots(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_generation_jobs (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.film_projects(id) on delete cascade,
-  shot_id uuid references public.film_shots(id) on delete cascade,
+  project_id uuid not null,
+  shot_id uuid,
   owner_id uuid not null references auth.users(id) on delete cascade,
   provider text not null,
   model text,
@@ -109,14 +119,17 @@ create table if not exists public.film_generation_jobs (
   error_message text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  completed_at timestamptz
+  completed_at timestamptz,
+  unique(id, owner_id),
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade,
+  foreign key (shot_id, owner_id) references public.film_shots(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_generation_outputs (
   id uuid primary key default gen_random_uuid(),
-  job_id uuid not null references public.film_generation_jobs(id) on delete cascade,
-  project_id uuid not null references public.film_projects(id) on delete cascade,
-  shot_id uuid references public.film_shots(id) on delete cascade,
+  job_id uuid not null,
+  project_id uuid not null,
+  shot_id uuid,
   owner_id uuid not null references auth.users(id) on delete cascade,
   provider text not null,
   model text,
@@ -128,21 +141,28 @@ create table if not exists public.film_generation_outputs (
   height integer,
   metadata jsonb not null default '{}'::jsonb,
   decision text not null default 'pending' check (decision in ('pending','approved','rejected')),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique(id, owner_id),
+  foreign key (job_id, owner_id) references public.film_generation_jobs(id, owner_id) on delete cascade,
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade,
+  foreign key (shot_id, owner_id) references public.film_shots(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_qa_reviews (
   id uuid primary key default gen_random_uuid(),
-  output_id uuid not null references public.film_generation_outputs(id) on delete cascade,
-  project_id uuid not null references public.film_projects(id) on delete cascade,
-  shot_id uuid references public.film_shots(id) on delete cascade,
+  output_id uuid not null,
+  project_id uuid not null,
+  shot_id uuid,
   owner_id uuid not null references auth.users(id) on delete cascade,
   reviewer_type text not null default 'automated' check (reviewer_type in ('automated','human')),
   scores jsonb not null default '{}'::jsonb,
   violations jsonb not null default '[]'::jsonb,
   decision text not null check (decision in ('approve','approve_with_minor_edit','regenerate','reject')),
   notes text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (output_id, owner_id) references public.film_generation_outputs(id, owner_id) on delete cascade,
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade,
+  foreign key (shot_id, owner_id) references public.film_shots(id, owner_id) on delete cascade
 );
 
 create table if not exists public.film_provider_accounts (
@@ -159,8 +179,8 @@ create table if not exists public.film_provider_accounts (
 
 create table if not exists public.film_timeline_items (
   id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.film_projects(id) on delete cascade,
-  output_id uuid references public.film_generation_outputs(id) on delete set null,
+  project_id uuid not null,
+  output_id uuid,
   owner_id uuid not null references auth.users(id) on delete cascade,
   track text not null default 'video',
   sequence_index integer not null,
@@ -169,7 +189,9 @@ create table if not exists public.film_timeline_items (
   transition jsonb not null default '{}'::jsonb,
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  unique(project_id, track, sequence_index)
+  unique(project_id, track, sequence_index),
+  foreign key (project_id, owner_id) references public.film_projects(id, owner_id) on delete cascade,
+  foreign key (output_id, owner_id) references public.film_generation_outputs(id, owner_id) on delete set null
 );
 
 create index if not exists film_projects_owner_idx on public.film_projects(owner_id);
