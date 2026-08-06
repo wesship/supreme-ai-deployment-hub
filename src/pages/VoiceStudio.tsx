@@ -1,5 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import PublicPageShell from '@/components/shell/PublicPageShell';
+import VoiceInterface from '@/components/voice/VoiceInterface';
 import ChatPage from '@/pages/Chat';
 
 const breadcrumbs = [{ label: 'Voice Studio' }, { label: 'AI Workspace' }];
@@ -15,7 +16,11 @@ export default function VoiceStudio() {
         />
         <link rel="canonical" href="https://d3vonn.io/voice-studio" />
       </Helmet>
-      <section aria-label="D3VONN.IO Voice Studio workspace">
+      <section
+        aria-label="D3VONN.IO Voice Studio workspace"
+        className="space-y-6"
+      >
+        <VoiceInterface />
         <ChatPage />
       </section>
     </PublicPageShell>
