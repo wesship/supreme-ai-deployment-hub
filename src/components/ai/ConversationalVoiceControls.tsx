@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Mic, MicOff, PhoneCall, Volume2 } from 'lucide-react';
 import { useConversation } from '@elevenlabs/react';
 import { toast } from 'sonner';
+import { getVapiAssistantId } from '@/config/voice';
 
 interface ConversationalVoiceControlsProps {
   disabled?: boolean;
@@ -69,7 +70,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
 }) => {
   const configuredProvider = import.meta.env.VITE_VOICE_PROVIDER?.trim();
   const vapiPublicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY?.trim();
-  const vapiAssistantId = import.meta.env.VITE_VAPI_ASSISTANT_ID?.trim();
+  const vapiAssistantId = getVapiAssistantId();
   const elevenLabsAgentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID?.trim();
 
   const provider: VoiceProvider = useMemo(
@@ -103,8 +104,8 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
   );
 
   const ensureVapi = useCallback(async (): Promise<VapiInstance> => {
-    if (!vapiPublicKey || !vapiAssistantId) {
-      throw new Error('Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID in Vercel.');
+    if (!vapiPublicKey) {
+      throw new Error('Set VITE_VAPI_PUBLIC_KEY in the Vercel production environment.');
     }
 
     if (vapiRef.current) return vapiRef.current;
@@ -157,7 +158,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       } else {
         if (!elevenLabsAgentId) {
           throw new Error(
-            'Set VITE_VAPI_PUBLIC_KEY and VITE_VAPI_ASSISTANT_ID, or configure VITE_ELEVENLABS_AGENT_ID.',
+            'Set VITE_VAPI_PUBLIC_KEY, or configure VITE_ELEVENLABS_AGENT_ID.',
           );
         }
         await conversation.startSession({ agentId: elevenLabsAgentId });
