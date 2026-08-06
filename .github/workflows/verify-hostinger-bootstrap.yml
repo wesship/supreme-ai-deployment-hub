@@ -6,43 +6,38 @@ on:
       - agent/repair-hostinger-deployment
     paths:
       - '.github/workflows/verify-hostinger-bootstrap.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/verify-hostinger-bootstrap.yml'
+      - 'deploy/vps/scripts/d3vonn-deploy-release'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: verify-restricted-hostinger-bootstrap
-  cancel-in-progress: false
+  group: verify-restricted-hostinger-bootstrap-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     name: Verify runner privilege reduction
+    if: github.event_name == 'push' || (github.head_ref == 'agent/repair-hostinger-deployment' && github.actor == 'wesship')
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
-      - name: Check out bootstrap branch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
       - name: Verify least-privilege runner state
         shell: bash
         run: |
           set -euo pipefail
 
+          echo "RUNNER ${RUNNER_NAME}"
           if id -nG | tr ' ' '\n' | grep -qx docker; then
             echo "github-runner still has docker group membership." >&2
             exit 1
           fi
+          echo "OK RUNNER_NOT_IN_DOCKER_GROUP"
 
           sudo -n /usr/local/sbin/d3vonn-deploy-release --check
-
-          printf '%s\n' \
-            'HOSTINGER_BOOTSTRAP_OK' \
-            "runner=${RUNNER_NAME}" \
-            "verified_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
-            > .github/hostinger-bootstrap-status.txt
-
-          git config user.name 'd3vonn-bootstrap[bot]'
-          git config user.email '37167955+wesship@users.noreply.github.com'
-          git add .github/hostinger-bootstrap-status.txt
-          git commit -m 'ci(vps): record restricted runner verification'
-          git push origin HEAD:agent/repair-hostinger-deployment
+          echo "OK RESTRICTED_DEPLOY_WRAPPER"
