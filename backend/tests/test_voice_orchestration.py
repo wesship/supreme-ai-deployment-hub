@@ -59,6 +59,21 @@ def test_webhook_rejects_invalid_auth(monkeypatch):
     assert response.status_code == 401
 
 
+def test_webhook_accepts_vapi_server_secret_header(monkeypatch):
+    monkeypatch.setenv("VAPI_WEBHOOK_SECRET", "server-secret")
+    monkeypatch.delenv("VAPI_SIGNING_SECRET", raising=False)
+    monkeypatch.delenv("HERMES_VOICE_URL", raising=False)
+
+    response = make_client().post(
+        "/api/voice/vapi/webhook",
+        json={"message": {"id": "evt-server-secret", "type": "status-update"}},
+        headers={"x-vapi-secret": "server-secret"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["event_type"] == "status-update"
+
+
 def test_webhook_accepts_hmac_and_replays_cached_response(monkeypatch):
     monkeypatch.delenv("VAPI_WEBHOOK_SECRET", raising=False)
     monkeypatch.setenv("VAPI_SIGNING_SECRET", "signing-secret")
