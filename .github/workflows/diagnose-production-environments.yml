@@ -14,20 +14,50 @@ permissions:
 
 jobs:
   hostinger-runner:
-    name: Validate Hostinger self-hosted deployment path
+    name: Discover Hostinger self-hosted deployment path
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
-      - name: Verify runner and restricted deploy wrapper
+      - name: Report runner deployment prerequisites
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
           echo "RUNNER_OK ${RUNNER_NAME} ${RUNNER_OS} ${RUNNER_ARCH}"
           echo "HOST $(hostname)"
-          test -d /opt/supreme-ai-deployment-hub
-          test -x /usr/local/sbin/d3vonn-deploy-release
-          sudo -n /usr/local/sbin/d3vonn-deploy-release --check
-          echo "DEPLOY_WRAPPER_OK"
+          echo "WORKSPACE ${GITHUB_WORKSPACE}"
+          echo "RUNNER_WORKSPACE ${RUNNER_WORKSPACE:-unset}"
+
+          for path in \
+            /opt/supreme-ai-deployment-hub \
+            /srv/supreme-ai-deployment-hub \
+            /root/supreme-ai-deployment-hub \
+            /home/*/supreme-ai-deployment-hub
+          do
+            if [ -d "$path" ]; then
+              echo "REPO_PRESENT $path"
+            fi
+          done
+
+          echo "REPO_SEARCH_BEGIN"
+          find /opt /srv /root /home -maxdepth 4 -type d -name supreme-ai-deployment-hub 2>/dev/null | head -20 || true
+          echo "REPO_SEARCH_END"
+
+          if [ -x /usr/local/sbin/d3vonn-deploy-release ]; then
+            echo "WRAPPER_PRESENT /usr/local/sbin/d3vonn-deploy-release"
+            if sudo -n /usr/local/sbin/d3vonn-deploy-release --check; then
+              echo "DEPLOY_WRAPPER_OK"
+            else
+              echo "DEPLOY_WRAPPER_CHECK_FAILED"
+            fi
+          else
+            echo "WRAPPER_ABSENT /usr/local/sbin/d3vonn-deploy-release"
+          fi
+
+          if sudo -n true 2>/dev/null; then
+            echo "PASSWORDLESS_SUDO_PRESENT"
+          else
+            echo "PASSWORDLESS_SUDO_ABSENT"
+          fi
 
   uppercase-production:
     name: Inspect Production placement
