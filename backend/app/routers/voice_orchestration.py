@@ -79,16 +79,27 @@ def _remember_response(event_id: str, response: dict[str, Any]) -> None:
         _event_cache.popitem(last=False)
 
 
-def _verify_request(raw_body: bytes, authorization: str | None, signature: str | None) -> None:
-    bearer_secret = os.getenv("VAPI_WEBHOOK_SECRET", "").strip()
+def _verify_request(
+    raw_body: bytes,
+    authorization: str | None,
+    signature: str | None,
+    vapi_secret: str | None,
+) -> None:
+    webhook_secret = os.getenv("VAPI_WEBHOOK_SECRET", "").strip()
     signing_secret = os.getenv("VAPI_SIGNING_SECRET", "").strip()
-    if not bearer_secret and not signing_secret:
+    if not webhook_secret and not signing_secret:
         raise HTTPException(status_code=503, detail="Vapi webhook authentication is not configured")
 
     bearer_valid = False
-    if bearer_secret and authorization:
+    if webhook_secret and authorization:
         scheme, _, token = authorization.partition(" ")
-        bearer_valid = scheme.lower() == "bearer" and hmac.compare_digest(token.strip(), bearer_secret)
+        bearer_valid = scheme.lower() == "bearer" and hmac.compare_digest(token.strip(), webhook_secret)
+
+    server_secret_valid = bool(
+        webhook_secret
+        and vapi_secret
+        and hmac.compare_digest(vapi_secret.strip(), webhook_secret)
+    )
 
     signature_valid = False
     if signing_secret and signature:
@@ -96,7 +107,7 @@ def _verify_request(raw_body: bytes, authorization: str | None, signature: str |
         expected = hmac.new(signing_secret.encode(), raw_body, hashlib.sha256).hexdigest()
         signature_valid = hmac.compare_digest(supplied, expected)
 
-    if not bearer_valid and not signature_valid:
+    if not bearer_valid and not server_secret_valid and not signature_valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Vapi webhook authentication")
 
 
@@ -239,11 +250,12 @@ async def vapi_webhook(
     request: Request,
     authorization: str | None = Header(default=None),
     x_vapi_signature: str | None = Header(default=None, alias="x-vapi-signature"),
+    x_vapi_secret: str | None = Header(default=None, alias="x-vapi-secret"),
 ) -> dict[str, Any]:
     raw_body = await request.body()
     if len(raw_body) > _MAX_BODY_BYTES:
         raise HTTPException(status_code=413, detail="Webhook payload too large")
-    _verify_request(raw_body, authorization, x_vapi_signature)
+    _verify_request(raw_body, authorization, x_vapi_signature, x_vapi_secret)
 
     try:
         payload = await request.json()
