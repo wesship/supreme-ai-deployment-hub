@@ -67,7 +67,6 @@ class TwelveLabsClient:
     ) -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(
-                base_url=self.api_base_url,
                 headers={
                     "x-api-key": self.api_key,
                     "Accept": "application/json",
@@ -76,7 +75,8 @@ class TwelveLabsClient:
                 timeout=httpx.Timeout(45.0, connect=10.0),
                 transport=self._transport,
             ) as client:
-                response = await client.request(method, path, json=payload)
+                url = f"{self.api_base_url}/{path.lstrip('/')}"
+                response = await client.request(method, url, json=payload)
         except httpx.HTTPError as exc:
             raise TwelveLabsError("TwelveLabs request could not be completed") from exc
 
