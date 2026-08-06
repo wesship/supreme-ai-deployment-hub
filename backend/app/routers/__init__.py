@@ -10,23 +10,21 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, FastAPI, Request
 
 logger = logging.getLogger(__name__)
 
-proxy_router = APIRouter(prefix="/api")
-_voice_activation_task: asyncio.Task[None] | None = None
 
-
-@proxy_router.on_event("startup")
-async def start_railway_native_voice_activation() -> None:
-    """Activate Vapi and ElevenLabs after the API process begins accepting traffic."""
-    global _voice_activation_task
+@asynccontextmanager
+async def proxy_lifespan(_: FastAPI):
+    """Run Railway-native voice activation alongside the canonical app lifespan."""
+    activation_task: asyncio.Task[None] | None = None
     try:
         from backend.app.voice_activation import activate_voice_runtime
 
-        _voice_activation_task = asyncio.create_task(
+        activation_task = asyncio.create_task(
             activate_voice_runtime(),
             name="d3vonn-voice-activation",
         )
@@ -34,16 +32,15 @@ async def start_railway_native_voice_activation() -> None:
     except ImportError as exc:
         logger.warning("Railway-native voice activation unavailable: %s", exc)
 
+    yield
 
-@proxy_router.on_event("shutdown")
-async def stop_railway_native_voice_activation() -> None:
-    """Cancel a still-running provider activation task during graceful shutdown."""
-    global _voice_activation_task
-    if _voice_activation_task and not _voice_activation_task.done():
-        _voice_activation_task.cancel()
+    if activation_task and not activation_task.done():
+        activation_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
-            await _voice_activation_task
-    _voice_activation_task = None
+            await activation_task
+
+
+proxy_router = APIRouter(prefix="/api", lifespan=proxy_lifespan)
 
 
 @proxy_router.get("/health", tags=["ops"])
