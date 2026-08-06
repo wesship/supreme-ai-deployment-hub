@@ -12,33 +12,42 @@ permissions:
 
 concurrency:
   group: bootstrap-restricted-hostinger-runner
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   bootstrap:
     name: Install restricted deployment privilege
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Check out reviewed bootstrap source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
+      - name: Fetch reviewed wrapper through GitHub API
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_NAME" = "srv1801395"
+          curl --fail --silent --show-error --location --retry 5 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.raw+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/wesship/supreme-ai-deployment-hub/contents/deploy/vps/scripts/d3vonn-deploy-release?ref=$GITHUB_SHA" \
+            --output /tmp/d3vonn-deploy-release
+          chmod 0755 /tmp/d3vonn-deploy-release
+          grep -q 'WORKSPACE_ROOT="/home/github-runner/_work/supreme-ai-deployment-hub"' \
+            /tmp/d3vonn-deploy-release
+          echo "OK REVIEWED_WRAPPER_FETCHED"
 
       - name: Install wrapper and remove Docker-group membership
         shell: bash
         run: |
           set -euo pipefail
 
-          test "$RUNNER_NAME" = "srv1801395"
-          test -f "$GITHUB_WORKSPACE/deploy/vps/scripts/d3vonn-deploy-release"
-
           docker run --rm --privileged \
             -v /:/host \
-            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            -v /tmp/d3vonn-deploy-release:/wrapper:ro \
             nginx:1.27-alpine sh -euc '
-              cp /workspace/deploy/vps/scripts/d3vonn-deploy-release \
-                /host/usr/local/sbin/d3vonn-deploy-release
+              cp /wrapper /host/usr/local/sbin/d3vonn-deploy-release
               chmod 0755 /host/usr/local/sbin/d3vonn-deploy-release
 
               mkdir -p /host/etc/sudoers.d
@@ -87,8 +96,9 @@ jobs:
           docker run -d --rm --privileged --pid=host \
             -v /:/host \
             nginx:1.27-alpine sh -euc "
-              sleep 75
+              sleep 45
               chroot /host /usr/bin/systemctl restart '$service_name'
             " >/dev/null
 
+          rm -f /tmp/d3vonn-deploy-release
           echo "Runner restart scheduled after workflow cleanup."
