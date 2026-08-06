@@ -2,6 +2,14 @@ name: Hostinger VPS Runner Health
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/hostinger-vps-health.yml'
+      - '.github/workflows/vps-deploy.yml'
+      - '.github/workflows/manual-vps-release-deploy.yml'
+      - 'deploy/vps/scripts/d3vonn-deploy-release'
   schedule:
     - cron: "17,47 * * * *"
 
@@ -14,22 +22,35 @@ concurrency:
 
 jobs:
   health:
-    name: Verify Hostinger self-hosted runner
+    name: Verify restricted Hostinger runner
     runs-on: [self-hosted, Linux, X64]
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
-      - name: Confirm runner health
+      - name: Confirm runner hardening and deploy wrapper
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "Hostinger VPS runner accepted this GitHub Actions job."
+          echo "Hostinger VPS runner accepted this trusted workflow."
           echo "Host: $(hostname)"
           echo "UTC time: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
           echo "Kernel: $(uname -srmo)"
           echo "Uptime: $(uptime -p)"
           df -h /
+
+          if id -nG | tr ' ' '\n' | grep -qx docker; then
+            echo "Runner remains in the root-equivalent docker group." >&2
+            exit 1
+          fi
+          echo "OK RUNNER_NOT_IN_DOCKER_GROUP"
+
+          sudo -n /usr/local/sbin/d3vonn-deploy-release --check
+          echo "OK RESTRICTED_DEPLOY_WRAPPER"
+
+          curl --fail --show-error --silent --max-time 20 \
+            https://api.d3vonn.io/health/ready >/dev/null
+          echo "OK PUBLIC_API_READY"
 
           {
             echo "### Hostinger VPS runner healthy"
@@ -38,5 +59,8 @@ jobs:
             echo "- OS: ${RUNNER_OS}"
             echo "- Architecture: ${RUNNER_ARCH}"
             echo "- Host: $(hostname)"
+            echo "- Docker group: removed"
+            echo "- Restricted deploy wrapper: ready"
+            echo "- Public API: ready"
             echo "- Checked at: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
           } >> "${GITHUB_STEP_SUMMARY}"
