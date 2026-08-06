@@ -34,6 +34,8 @@ async def deploy_probe():
         "voice_routes_expected": [
             "/api/tools/voice/tts",
             "/api/tools/voice/stt-token",
+            "/api/voice/health",
+            "/api/voice/vapi/webhook",
         ],
         "compatibility_routes": [
             "/api/api/tools/voice/tts",
@@ -62,10 +64,6 @@ try:
     from backend.app.routers.tools import router as tools_router
 
     proxy_router.include_router(tools_router, tags=["tools"])
-    # Compatibility mount for environments where VITE_API_URL was configured
-    # with a trailing /api and frontend callers also append /api/tools/*.
-    # This prevents /api/api/tools/* from returning 404 while deployments are
-    # migrated to the canonical origin-only API base URL.
     proxy_router.include_router(tools_router, prefix="/api", tags=["tools-compat"])
     logger.info(
         "Tools proxy router registered at /api/tools/* with temporary "
@@ -73,6 +71,14 @@ try:
     )
 except ImportError as exc:
     logger.warning("Tools proxy router not registered: %s", exc)
+
+try:
+    from backend.app.routers.voice_orchestration import router as voice_orchestration_router
+
+    proxy_router.include_router(voice_orchestration_router)
+    logger.info("Vapi + ElevenLabs + Hermes router registered at /api/voice/*.")
+except ImportError as exc:
+    logger.warning("Voice orchestration router not registered: %s", exc)
 
 try:
     from backend.app.routers.admin import router as admin_router
