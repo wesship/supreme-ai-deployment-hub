@@ -1,0 +1,366 @@
+name: Final Voice Production Activation
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/final-voice-activation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: final-voice-production-activation
+  cancel-in-progress: false
+
+jobs:
+  activate:
+    name: Activate Vapi + ElevenLabs on live Railway backend
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      RAILWAY_PROJECT_ID: 65a00bf6-1a68-414e-bbe9-a30052595a83
+      RAILWAY_SERVICE_ID: 475dde82-373b-4c9f-9fd8-0ffb7a5dc2f0
+      RAILWAY_ENVIRONMENT: production
+      VOICE_HEALTH_URL: https://api.d3vonn.io/api/voice/health
+      VAPI_WEBHOOK_URL: https://api.d3vonn.io/api/voice/vapi/webhook
+      VAPI_PRIVATE_KEY_PRIMARY: ${{ secrets.VAPI_PRIVATE_KEY }}
+      VAPI_PRIVATE_KEY_FALLBACK: ${{ secrets.VAPI_API_KEY }}
+      VAPI_WEBHOOK_SECRET_INPUT: ${{ secrets.VAPI_WEBHOOK_SECRET }}
+      VAPI_ASSISTANT_ID_SECRET: ${{ secrets.VAPI_ASSISTANT_ID }}
+      VAPI_ASSISTANT_ID_VAR: ${{ vars.VAPI_ASSISTANT_ID }}
+      ELEVENLABS_API_KEY_INPUT: ${{ secrets.ELEVENLABS_API_KEY }}
+      ELEVENLABS_DEFAULT_VOICE_ID_INPUT: ${{ secrets.ELEVENLABS_DEFAULT_VOICE_ID }}
+      ELEVENLABS_VOICE_ID_INPUT: ${{ secrets.ELEVENLABS_VOICE_ID }}
+      RAILWAY_PROJECT_TOKEN_PRIMARY: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_TOKEN_FALLBACK: ${{ secrets.RAILWAY_PROJECT_TOKEN }}
+      RAILWAY_SERVICE_TOKEN_FALLBACK: ${{ secrets.RAILWAY_SERVICE_TOKEN }}
+      RAILWAY_API_TOKEN_INPUT: ${{ secrets.RAILWAY_API_TOKEN }}
+
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Resolve protected production entries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os
+          import pathlib
+          import secrets
+
+          def first(*names_or_values):
+              for item in names_or_values:
+                  value = os.getenv(item, "") if item.isupper() and " " not in item else item
+                  value = (value or "").strip()
+                  if value:
+                      return value
+              return ""
+
+          def assert_real(name, value, minimum=1):
+              lower = value.lower()
+              invalid = ("paste_", "change_me", "your_", "placeholder", "<")
+              if not value or len(value) < minimum or lower.startswith(invalid) or value.endswith(">"):
+                  raise SystemExit(f"MISSING_OR_PLACEHOLDER: {name}")
+              if "\n" in value or "\r" in value:
+                  raise SystemExit(f"INVALID_NEWLINE: {name}")
+              return value
+
+          vapi_key = first("VAPI_PRIVATE_KEY_PRIMARY", "VAPI_PRIVATE_KEY_FALLBACK")
+          eleven_key = first("ELEVENLABS_API_KEY_INPUT")
+          assistant_id = first(
+              "VAPI_ASSISTANT_ID_SECRET",
+              "VAPI_ASSISTANT_ID_VAR",
+              "8491eea7-e385-426b-8cdc-3e2aaf9a4cbf",
+          )
+          voice_id = first(
+              "ELEVENLABS_DEFAULT_VOICE_ID_INPUT",
+              "ELEVENLABS_VOICE_ID_INPUT",
+              "21m00Tcm4TlvDq8ikWAM",
+          )
+          webhook_secret = first("VAPI_WEBHOOK_SECRET_INPUT") or secrets.token_hex(32)
+          project_token = first(
+              "RAILWAY_PROJECT_TOKEN_PRIMARY",
+              "RAILWAY_PROJECT_TOKEN_FALLBACK",
+              "RAILWAY_SERVICE_TOKEN_FALLBACK",
+          )
+          api_token = first("RAILWAY_API_TOKEN_INPUT")
+
+          values = {
+              "VAPI_PRIVATE_KEY": assert_real("VAPI_PRIVATE_KEY or VAPI_API_KEY", vapi_key, 12),
+              "VAPI_ASSISTANT_ID": assert_real("VAPI_ASSISTANT_ID", assistant_id, 12),
+              "VAPI_WEBHOOK_SECRET": assert_real("VAPI_WEBHOOK_SECRET", webhook_secret, 24),
+              "ELEVENLABS_API_KEY": assert_real("ELEVENLABS_API_KEY", eleven_key, 12),
+              "ELEVENLABS_DEFAULT_VOICE_ID": assert_real("ELEVENLABS voice ID", voice_id, 8),
+              "ELEVENLABS_DEFAULT_MODEL": "eleven_turbo_v2_5",
+          }
+
+          if project_token:
+              values["RAILWAY_AUTH_ENV"] = "RAILWAY_TOKEN"
+              values["RAILWAY_AUTH_VALUE"] = assert_real("RAILWAY_TOKEN", project_token, 12)
+          elif api_token:
+              values["RAILWAY_AUTH_ENV"] = "RAILWAY_API_TOKEN"
+              values["RAILWAY_AUTH_VALUE"] = assert_real("RAILWAY_API_TOKEN", api_token, 12)
+          else:
+              raise SystemExit("MISSING_OR_PLACEHOLDER: RAILWAY_TOKEN or RAILWAY_API_TOKEN")
+
+          for name in (
+              "VAPI_PRIVATE_KEY",
+              "VAPI_WEBHOOK_SECRET",
+              "ELEVENLABS_API_KEY",
+              "RAILWAY_AUTH_VALUE",
+          ):
+              print(f"::add-mask::{values[name]}")
+
+          env_file = pathlib.Path(os.environ["GITHUB_ENV"])
+          with env_file.open("a", encoding="utf-8") as handle:
+              for name, value in values.items():
+                  handle.write(f"{name}={value}\n")
+              handle.write(f"{values['RAILWAY_AUTH_ENV']}={values['RAILWAY_AUTH_VALUE']}\n")
+
+          print("Resolved all required production entries without printing their values.")
+          PY
+
+      - name: Install Railway CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @railway/cli
+          railway --version
+
+      - name: Validate provider credentials before changing production
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          def get_json(url, headers):
+              request = urllib.request.Request(url)
+              for key, value in headers.items():
+                  request.add_header(key, value)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", errors="replace")[:800]
+                  raise SystemExit(f"PROVIDER_HTTP_{exc.code}: {body}") from exc
+
+          status, voice = get_json(
+              f"https://api.elevenlabs.io/v1/voices/{os.environ['ELEVENLABS_DEFAULT_VOICE_ID']}",
+              {"xi-api-key": os.environ["ELEVENLABS_API_KEY"]},
+          )
+          if status != 200 or voice.get("voice_id") != os.environ["ELEVENLABS_DEFAULT_VOICE_ID"]:
+              raise SystemExit("ELEVENLABS_VALIDATION_FAILED")
+
+          status, assistant = get_json(
+              f"https://api.vapi.ai/assistant/{os.environ['VAPI_ASSISTANT_ID']}",
+              {"Authorization": f"Bearer {os.environ['VAPI_PRIVATE_KEY']}"},
+          )
+          if status != 200 or assistant.get("id") != os.environ["VAPI_ASSISTANT_ID"]:
+              raise SystemExit("VAPI_VALIDATION_FAILED")
+
+          print(f"Validated ElevenLabs voice: {voice.get('name', 'configured voice')}")
+          print("Validated the published Vapi assistant.")
+          PY
+
+      - name: Link the actual live Railway service
+        shell: bash
+        run: |
+          set -euo pipefail
+          railway link \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$RAILWAY_SERVICE_ID" \
+            --json
+          railway status --json > /tmp/railway-status.json
+          python3 - /tmp/railway-status.json <<'PY'
+          import json
+          import sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          text = json.dumps(data)
+          expected = ("65a00bf6-1a68-414e-bbe9-a30052595a83", "475dde82-373b-4c9f-9fd8-0ffb7a5dc2f0")
+          missing = [value for value in expected if value not in text]
+          if missing:
+              raise SystemExit(f"RAILWAY_LINK_MISMATCH: {missing}")
+          print("Linked the live D3VONN Railway backend.")
+          PY
+
+      - name: Synchronize voice variables without exposing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in \
+            VAPI_PRIVATE_KEY \
+            VAPI_ASSISTANT_ID \
+            VAPI_WEBHOOK_SECRET \
+            ELEVENLABS_API_KEY \
+            ELEVENLABS_DEFAULT_VOICE_ID \
+            ELEVENLABS_DEFAULT_MODEL
+          do
+            printf '%s' "${!key}" | railway variable set "$key" \
+              --stdin \
+              --skip-deploys \
+              --service "$RAILWAY_SERVICE_ID" \
+              --environment "$RAILWAY_ENVIRONMENT" >/dev/null
+          done
+          echo "Synchronized six protected voice variables to Railway."
+
+      - name: Redeploy the live backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          railway redeploy \
+            --service "$RAILWAY_SERVICE_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --yes >/dev/null
+          echo "Triggered Railway redeployment."
+
+      - name: Wait for complete production voice readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+          for attempt in {1..90}; do
+            if curl --fail --silent --show-error "$VOICE_HEALTH_URL" -o "$response_file"; then
+              if python3 - "$response_file" <<'PY'
+          import json
+          import sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          checks = data.get("checks") or {}
+          required = (
+              "vapi_public_configuration",
+              "vapi_private_key",
+              "vapi_webhook_auth",
+              "elevenlabs_api",
+              "elevenlabs_voice",
+              "hermes_internal_adapter",
+          )
+          ok = data.get("status") == "configured" and all(checks.get(key) is True for key in required)
+          raise SystemExit(0 if ok else 1)
+          PY
+              then
+                cat "$response_file"
+                echo
+                echo "The live Railway voice backend is fully configured."
+                exit 0
+              fi
+            fi
+            sleep 5
+          done
+          echo "VOICE_HEALTH_TIMEOUT"
+          cat "$response_file" 2>/dev/null || true
+          exit 1
+
+      - name: Configure Vapi to use D3VONN webhook and ElevenLabs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          url = f"https://api.vapi.ai/assistant/{os.environ['VAPI_ASSISTANT_ID']}"
+          headers = {"Authorization": f"Bearer {os.environ['VAPI_PRIVATE_KEY']}"}
+
+          def request_json(method="GET", payload=None):
+              body = None if payload is None else json.dumps(payload).encode("utf-8")
+              request = urllib.request.Request(url, data=body, method=method)
+              for key, value in headers.items():
+                  request.add_header(key, value)
+              if payload is not None:
+                  request.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as exc:
+                  body_text = exc.read().decode("utf-8", errors="replace")[:1000]
+                  raise SystemExit(f"VAPI_PATCH_HTTP_{exc.code}: {body_text}") from exc
+
+          _, assistant = request_json()
+          current_voice = assistant.get("voice") if isinstance(assistant.get("voice"), dict) else {}
+          voice = {
+              key: value
+              for key, value in current_voice.items()
+              if key in {
+                  "stability",
+                  "similarityBoost",
+                  "style",
+                  "speed",
+                  "useSpeakerBoost",
+                  "optimizeStreamingLatency",
+                  "pronunciationDictionaryLocators",
+              }
+          }
+          voice.update({
+              "provider": "11labs",
+              "voiceId": os.environ["ELEVENLABS_DEFAULT_VOICE_ID"],
+              "model": os.environ["ELEVENLABS_DEFAULT_MODEL"],
+          })
+
+          server_messages = set(assistant.get("serverMessages") or [])
+          server_messages.update({
+              "assistant-request",
+              "tool-calls",
+              "status-update",
+              "end-of-call-report",
+              "transcript",
+          })
+          patch = {
+              "server": {
+                  "url": os.environ["VAPI_WEBHOOK_URL"],
+                  "secret": os.environ["VAPI_WEBHOOK_SECRET"],
+                  "timeoutSeconds": 20,
+              },
+              "serverMessages": sorted(server_messages),
+              "voice": voice,
+          }
+          status, updated = request_json("PATCH", patch)
+          if status != 200:
+              raise SystemExit("VAPI_PATCH_FAILED")
+
+          server = updated.get("server") or {}
+          updated_voice = updated.get("voice") or {}
+          if server.get("url") != os.environ["VAPI_WEBHOOK_URL"]:
+              raise SystemExit("VAPI_WEBHOOK_NOT_PERSISTED")
+          if updated_voice.get("provider") != "11labs":
+              raise SystemExit("VAPI_ELEVENLABS_PROVIDER_NOT_PERSISTED")
+          if updated_voice.get("voiceId") != os.environ["ELEVENLABS_DEFAULT_VOICE_ID"]:
+              raise SystemExit("VAPI_ELEVENLABS_VOICE_NOT_PERSISTED")
+
+          print("Configured and verified the Vapi production webhook and ElevenLabs voice.")
+          PY
+
+      - name: Certify authenticated Vapi delivery into Hermes
+        shell: bash
+        run: |
+          set -euo pipefail
+          event_id="final-voice-cert-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          curl --fail --silent --show-error \
+            -X POST "$VAPI_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -H "x-vapi-secret: $VAPI_WEBHOOK_SECRET" \
+            --data "{\"message\":{\"id\":\"$event_id\",\"type\":\"status-update\",\"status\":\"final-production-certified\"}}" \
+            -o "$response_file"
+
+          python3 - "$response_file" "$event_id" <<'PY'
+          import json
+          import sys
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          if data.get("ok") is not True or data.get("event_id") != sys.argv[2]:
+              raise SystemExit(f"WEBHOOK_CERTIFICATION_FAILED: {data}")
+          if data.get("hermes_recorded") is not True:
+              raise SystemExit(f"HERMES_PERSISTENCE_FAILED: {data}")
+          print("Certified Vapi authentication, Railway routing, and Hermes persistence end to end.")
+          PY
