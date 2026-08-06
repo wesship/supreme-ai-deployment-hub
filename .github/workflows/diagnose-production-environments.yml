@@ -14,65 +14,48 @@ permissions:
 
 jobs:
   hostinger-runner:
-    name: Inspect Hostinger self-hosted permissions
+    name: Diagnose Hostinger Compose runtime
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 10
     steps:
-      - name: Report runner deployment permissions
+      - name: Report active Compose project and Nginx health
         shell: bash
         run: |
           set -u
           echo "RUNNER_OK ${RUNNER_NAME} ${RUNNER_OS} ${RUNNER_ARCH}"
-          echo "HOST $(hostname)"
           id
-          groups
 
-          for path in /opt/supreme-ai-deployment-hub /opt/d3vonn/supreme-ai-deployment-hub; do
-            if [ -d "$path" ]; then
-              stat -c 'PATH %n OWNER %U GROUP %G MODE %A' "$path"
-              if [ -w "$path" ]; then
-                echo "PATH_WRITABLE $path"
-              else
-                echo "PATH_READ_ONLY $path"
-              fi
-              if git -C "$path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-                echo "GIT_REPO $path HEAD $(git -C "$path" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-              else
-                echo "NOT_GIT_REPO $path"
-              fi
+          echo "COMPOSE_PROJECTS_BEGIN"
+          docker compose ls --format json || true
+          echo "COMPOSE_PROJECTS_END"
+
+          for container in d3vonn-backend d3vonn-nginx d3vonn-redis; do
+            if docker inspect "$container" >/dev/null 2>&1; then
+              echo "CONTAINER_BEGIN $container"
+              docker inspect --format 'IMAGE {{.Config.Image}}' "$container"
+              docker inspect --format 'WORKING_DIR {{index .Config.Labels "com.docker.compose.project.working_dir"}}' "$container"
+              docker inspect --format 'CONFIG_FILES {{index .Config.Labels "com.docker.compose.project.config_files"}}' "$container"
+              docker inspect --format 'PROJECT {{index .Config.Labels "com.docker.compose.project"}} SERVICE {{index .Config.Labels "com.docker.compose.service"}}' "$container"
+              docker inspect --format '{{range .Mounts}}MOUNT {{.Source}} -> {{.Destination}} RW={{.RW}}{{println}}{{end}}' "$container"
+              docker inspect --format 'HEALTH {{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} STATUS {{.State.Status}}' "$container"
+              echo "CONTAINER_END $container"
             fi
           done
 
-          if command -v docker >/dev/null 2>&1; then
-            echo "DOCKER_BINARY $(command -v docker)"
-            docker --version || true
-            if docker info >/dev/null 2>&1; then
-              echo "DOCKER_ACCESS_OK"
-              docker ps --format 'CONTAINER {{.Names}} STATUS {{.Status}}' | head -30 || true
-            else
-              echo "DOCKER_ACCESS_DENIED"
-            fi
-          else
-            echo "DOCKER_BINARY_ABSENT"
-          fi
+          echo "NGINX_HEALTH_LOG_BEGIN"
+          docker inspect --format '{{if .State.Health}}{{range .State.Health.Log}}{{.End}} EXIT={{.ExitCode}} {{printf "%q" .Output}}{{println}}{{end}}{{end}}' d3vonn-nginx 2>/dev/null | tail -10 || true
+          echo "NGINX_HEALTH_LOG_END"
 
-          if docker compose version >/dev/null 2>&1; then
-            echo "DOCKER_COMPOSE_OK $(docker compose version --short)"
-          else
-            echo "DOCKER_COMPOSE_UNAVAILABLE"
-          fi
+          echo "NGINX_LOG_BEGIN"
+          docker logs --tail 40 d3vonn-nginx 2>&1 | sed -E 's/(Authorization:|Bearer )[A-Za-z0-9._-]+/\1[REDACTED]/g' || true
+          echo "NGINX_LOG_END"
 
-          if [ -r /opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production ]; then
-            echo "PRODUCTION_ENV_READABLE"
-          else
-            echo "PRODUCTION_ENV_NOT_READABLE"
-          fi
-
-          if [ -w /opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production ]; then
-            echo "PRODUCTION_ENV_WRITABLE"
-          else
-            echo "PRODUCTION_ENV_NOT_WRITABLE"
-          fi
+          echo "LOCAL_HEALTH_BEGIN"
+          curl -fsS --max-time 5 http://127.0.0.1/health/live || true
+          echo
+          curl -fsS --max-time 5 http://127.0.0.1/health/ready || true
+          echo
+          echo "LOCAL_HEALTH_END"
 
   uppercase-production:
     name: Inspect Production placement
