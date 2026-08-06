@@ -1,0 +1,85 @@
+name: Diagnose Production Environments
+
+on:
+  push:
+    branches:
+      - agent/diagnose-production-environments
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uppercase-production:
+    name: Inspect Production placement
+    runs-on: ubuntu-latest
+    environment: Production
+    env:
+      SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      PROJECT_ID: ${{ vars.PROJECT_ID }}
+      HOSTINGER_VPS_HOST_VAR: ${{ vars.HOSTINGER_VPS_HOST }}
+      HOSTINGER_VPS_USER_VAR: ${{ vars.HOSTINGER_VPS_USER }}
+      VITE_VAPI_ASSISTANT_ID: ${{ vars.VITE_VAPI_ASSISTANT_ID }}
+      HOSTINGER_VPS_HOST_SECRET: ${{ secrets.HOSTINGER_VPS_HOST }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      HOSTINGER_VPS_USER_SECRET: ${{ secrets.HOSTINGER_VPS_USER }}
+      ROOT_SECRET: ${{ secrets.ROOT }}
+      HOSTINGER_VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Report names-only placement
+        run: |
+          python - <<'PY'
+          import os
+          names = (
+              'SUPABASE_PROJECT_ID','SUPABASE_PROJECT_REF','PROJECT_ID',
+              'HOSTINGER_VPS_HOST_VAR','HOSTINGER_VPS_USER_VAR','VITE_VAPI_ASSISTANT_ID',
+              'HOSTINGER_VPS_HOST_SECRET','VPS_HOST','HOSTINGER_VPS_USER_SECRET','ROOT_SECRET',
+              'HOSTINGER_VPS_SSH_KEY','VPS_SSH_KEY','VPS_SSH_PRIVATE_KEY',
+              'OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY',
+          )
+          print('ENVIRONMENT_LABEL Production')
+          for name in names:
+              print(f"{'PRESENT' if os.getenv(name, '').strip() else 'ABSENT'} {name}")
+          PY
+
+  lowercase-production:
+    name: Inspect production placement
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      PROJECT_ID: ${{ vars.PROJECT_ID }}
+      HOSTINGER_VPS_HOST_VAR: ${{ vars.HOSTINGER_VPS_HOST }}
+      HOSTINGER_VPS_USER_VAR: ${{ vars.HOSTINGER_VPS_USER }}
+      VITE_VAPI_ASSISTANT_ID: ${{ vars.VITE_VAPI_ASSISTANT_ID }}
+      HOSTINGER_VPS_HOST_SECRET: ${{ secrets.HOSTINGER_VPS_HOST }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      HOSTINGER_VPS_USER_SECRET: ${{ secrets.HOSTINGER_VPS_USER }}
+      ROOT_SECRET: ${{ secrets.ROOT }}
+      HOSTINGER_VPS_SSH_KEY: ${{ secrets.HOSTINGER_VPS_SSH_KEY }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Report names-only placement
+        run: |
+          python - <<'PY'
+          import os
+          names = (
+              'SUPABASE_PROJECT_ID','SUPABASE_PROJECT_REF','PROJECT_ID',
+              'HOSTINGER_VPS_HOST_VAR','HOSTINGER_VPS_USER_VAR','VITE_VAPI_ASSISTANT_ID',
+              'HOSTINGER_VPS_HOST_SECRET','VPS_HOST','HOSTINGER_VPS_USER_SECRET','ROOT_SECRET',
+              'HOSTINGER_VPS_SSH_KEY','VPS_SSH_KEY','VPS_SSH_PRIVATE_KEY',
+              'OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY',
+          )
+          print('ENVIRONMENT_LABEL production')
+          for name in names:
+              print(f"{'PRESENT' if os.getenv(name, '').strip() else 'ABSENT'} {name}")
+          PY
