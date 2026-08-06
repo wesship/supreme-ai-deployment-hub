@@ -97,7 +97,7 @@ jobs:
               base_blob="$(git rev-parse "$BASE_SHA:$path")"
               head_blob="$(git rev-parse "$HEAD_SHA:$path")"
               if [ "$base_blob" = "762b730972cca384fcd47d9cad156e9890ece593" ] \
-                && [ "$head_blob" = "affcfdff8c238de1d83bfa135b6b2cb6b687c58e" ]; then
+                && [ "$head_blob" = "bbfb302e6d4d75d9b84dc163bf3114fa357326cc" ]; then
                 echo "Approved pre-rollout film ownership hardening: $path"
                 allowed=1
               fi
