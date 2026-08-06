@@ -76,7 +76,8 @@ class TwelveLabsClient:
                 transport=self._transport,
             ) as client:
                 url = f"{self.api_base_url}/{path.lstrip('/')}"
-                response = await client.request(method, url, json=payload)
+                request_kwargs = {"json": payload} if payload is not None else {}
+                response = await client.request(method, url, **request_kwargs)
         except httpx.HTTPError as exc:
             raise TwelveLabsError("TwelveLabs request could not be completed") from exc
 
