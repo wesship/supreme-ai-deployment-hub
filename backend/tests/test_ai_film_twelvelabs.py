@@ -90,6 +90,31 @@ def test_twelvelabs_search_uses_v13_knowledge_store_endpoint():
     assert result["data"][0]["item_id"] == "ksi_clip"
 
 
+def test_twelvelabs_request_forwards_query_parameters():
+    observed = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed["path"] = request.url.path
+        observed["query"] = dict(request.url.params)
+        return httpx.Response(200, json={"data": []})
+
+    client = TwelveLabsClient(
+        environ=ENV,
+        transport=httpx.MockTransport(handler),
+    )
+    result = asyncio.run(
+        client._request(
+            "GET",
+            "/assets",
+            params={"asset_ids": "asset_test", "page_limit": 1},
+        )
+    )
+
+    assert observed["path"] == "/v1.3/assets"
+    assert observed["query"] == {"asset_ids": "asset_test", "page_limit": "1"}
+    assert result == {"data": []}
+
+
 def test_twelvelabs_reason_uses_jockey_responses_endpoint():
     observed = {}
 
