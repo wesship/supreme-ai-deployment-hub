@@ -98,6 +98,7 @@ async def governance_dry_run(
     context = await resolve_agent_governance_context(
         workspace_id=request.workspace_id,
         user_id=user_id,
+        agent_name=request.agent_name,
     )
 
     try:
