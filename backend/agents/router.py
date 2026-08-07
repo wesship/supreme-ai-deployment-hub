@@ -24,8 +24,6 @@ from .governance_context import resolve_agent_governance_context
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-# ── Request / Response Models ─────────────────────────────────────────────────
-
 class DispatchRequest(BaseModel):
     agent_name: str
     action: str
@@ -66,11 +64,8 @@ class AgentInfo(BaseModel):
     status: str
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
-
 @router.get("/", response_model=list[AgentInfo])
 async def list_agents():
-    """List all registered agents and their current status."""
     return [
         AgentInfo(
             name=name,
@@ -84,13 +79,9 @@ async def list_agents():
 
 @router.get("/health")
 async def health_check_all():
-    """Run health checks against all registered agents."""
     results = await default_mesh.health_check_all()
     overall = all(results.values()) if results else False
-    return {
-        "overall": "healthy" if overall else "degraded",
-        "agents": results,
-    }
+    return {"overall": "healthy" if overall else "degraded", "agents": results}
 
 
 @router.post("/governance/dry-run", response_model=GovernanceDryRunApiResponse)
@@ -98,15 +89,11 @@ async def governance_dry_run(
     request: GovernanceDryRunApiRequest,
     user_id: str = Depends(get_current_user_id),
 ):
-    """Evaluate Agent OS policy without dispatching an agent or invoking a tool.
-
-    Workspace membership, role-derived permissions, and future policy overrides
-    are resolved on the server. The caller cannot submit permissions, approvals,
-    disabled-agent state, or kill-switch values.
-    """
+    """Evaluate persisted Agent OS policy without executing anything."""
     context = await resolve_agent_governance_context(
         workspace_id=request.workspace_id,
         user_id=user_id,
+        agent_name=request.agent_name,
     )
 
     try:
@@ -149,13 +136,11 @@ async def governance_dry_run(
 
 @router.post("/dispatch", response_model=AgentResult)
 async def dispatch_task(request: DispatchRequest):
-    """Dispatch a task to a specific named agent."""
     if not default_mesh.get_agent(request.agent_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Agent '{request.agent_name}' is not registered.",
         )
-
     task = AgentTask(
         agent_name=request.agent_name,
         action=request.action,
@@ -164,7 +149,6 @@ async def dispatch_task(request: DispatchRequest):
         max_retries=request.max_retries,
     )
     result = await default_mesh.dispatch(task)
-
     if not result.success:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -175,7 +159,6 @@ async def dispatch_task(request: DispatchRequest):
 
 @router.post("/capability", response_model=AgentResult)
 async def dispatch_by_capability(request: CapabilityDispatchRequest):
-    """Dispatch a task to the best available agent with the given capability."""
     result = await default_mesh.dispatch_to_capable(
         capability=request.capability,
         action=request.action,
