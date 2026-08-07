@@ -30,6 +30,11 @@ def load_manifest(path: str | Path) -> dict[str, Any]:
     return payload
 
 
+def _multipart_fields(data: Mapping[str, str]) -> list[tuple[str, tuple[None, str]]]:
+    """Encode scalar fields as multipart/form-data parts for TwelveLabs /assets."""
+    return [(key, (None, value)) for key, value in data.items()]
+
+
 class TwelveLabsIngestionRunner:
     def __init__(self, client: TwelveLabsClient | None = None) -> None:
         self.client = client or TwelveLabsClient()
@@ -62,17 +67,18 @@ class TwelveLabsIngestionRunner:
             ) as http:
                 if url:
                     data["url"] = normalize_movieflow_media_url(url)
-                    response = await http.post(endpoint, data=data)
+                    # TwelveLabs v1.3 requires multipart/form-data for both direct
+                    # uploads and URL-based asset creation. Passing only data= would
+                    # produce application/x-www-form-urlencoded and a 400 response.
+                    response = await http.post(endpoint, files=_multipart_fields(data))
                 elif file_path:
                     path = Path(file_path)
                     if not path.is_file():
                         raise TwelveLabsError(f"Local media file does not exist: {path}")
                     with path.open("rb") as handle:
-                        response = await http.post(
-                            endpoint,
-                            data=data,
-                            files={"file": (filename or path.name, handle, "video/mp4")},
-                        )
+                        multipart = _multipart_fields(data)
+                        multipart.append(("file", (filename or path.name, handle, "video/mp4")))
+                        response = await http.post(endpoint, files=multipart)
                 else:
                     raise TwelveLabsError("An ingestion source URL or local file is required")
         except httpx.HTTPError as exc:
@@ -82,7 +88,10 @@ class TwelveLabsIngestionRunner:
             raise TwelveLabsError(
                 f"TwelveLabs asset upload failed with HTTP {response.status_code}"
             )
-        result = response.json()
+        try:
+            result = response.json()
+        except ValueError as exc:
+            raise TwelveLabsError("TwelveLabs returned invalid JSON for asset creation") from exc
         if not isinstance(result, dict):
             raise TwelveLabsError("TwelveLabs returned an unexpected asset response")
         return result
