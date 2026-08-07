@@ -32,6 +32,12 @@ class FakeClient:
 
     async def _request(self, method, path, *, payload=None, params=None):
         self.calls.append((method, path, payload, params))
+        if method == "GET" and path == f"/indexes/{repair.DEFAULT_AI_FILMS_INDEX_ID}":
+            return {
+                "id": repair.DEFAULT_AI_FILMS_INDEX_ID,
+                "index_name": "My Index (Default)",
+                "video_count": 2,
+            }
         if method == "GET" and path == "/knowledge-stores":
             return {"data": [], "page_info": {"total_page": 1}}
         if method == "POST" and path == "/knowledge-stores":
@@ -89,7 +95,33 @@ async def test_repair_reuses_persisted_ready_store(monkeypatch):
     store = await repair.ensure_jockey_store_from_index(
         client,
         db,
-        {"jockey_store_id": "persisted-store", "jockey_store_repair_state": "ready"},
+        {
+            "jockey_store_id": "persisted-store",
+            "jockey_store_repair_state": "ready",
+        },
     )
     assert store["id"] == "persisted-store"
     assert client.knowledge_store_id == "persisted-store"
+
+
+@pytest.mark.asyncio
+async def test_source_index_discovery_uses_unique_named_default(monkeypatch):
+    class DiscoveryClient(FakeClient):
+        async def _request(self, method, path, *, payload=None, params=None):
+            if method == "GET" and path.startswith("/indexes/"):
+                raise TwelveLabsError("TwelveLabs request failed with HTTP 404")
+            if method == "GET" and path == "/indexes":
+                return {
+                    "data": [
+                        {"id": "idx-default", "index_name": "My Index (Default)", "video_count": 4},
+                        {"id": "idx-empty", "index_name": "Scratch", "video_count": 0},
+                    ],
+                    "page_info": {"total_page": 1},
+                }
+            return await super()._request(method, path, payload=payload, params=params)
+
+    client = DiscoveryClient()
+    db = FakeDB()
+    chosen = await repair._resolve_source_index(client, db, {})
+    assert chosen == "idx-default"
+    assert any(update.get("jockey_source_index_visibility") == "discovered" for update in db.updates)
