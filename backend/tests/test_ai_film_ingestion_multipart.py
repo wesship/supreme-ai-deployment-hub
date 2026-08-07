@@ -52,7 +52,7 @@ def test_url_asset_creation_uses_multipart_form_data():
     assert json.dumps({"source_type": "movieflow"}, separators=(",", ":")).encode() in body
 
 
-def test_asset_poll_retries_transient_404_until_ready():
+def test_asset_poll_uses_list_fallback_when_direct_retrieve_is_404():
     class FakeClient:
         api_key = "test-key"
         api_base_url = "https://api.twelvelabs.io/v1.3"
@@ -60,13 +60,15 @@ def test_asset_poll_retries_transient_404_until_ready():
         _transport = None
 
         def __init__(self):
-            self.calls = 0
+            self.calls = []
 
-        async def _request(self, method, path, *, payload=None):
-            self.calls += 1
-            if self.calls == 1:
+        async def _request(self, method, path, *, payload=None, params=None):
+            self.calls.append((method, path, params))
+            if path == "/assets/asset_test":
                 raise TwelveLabsError("TwelveLabs request failed with HTTP 404")
-            return {"_id": "asset_test", "status": "ready"}
+            assert path == "/assets"
+            assert params == {"asset_ids": "asset_test", "page_limit": 1}
+            return {"data": [{"_id": "asset_test", "status": "ready"}]}
 
     client = FakeClient()
     runner = TwelveLabsIngestionRunner(client=client)
@@ -79,7 +81,40 @@ def test_asset_poll_retries_transient_404_until_ready():
     )
 
     assert result["status"] == "ready"
-    assert client.calls == 2
+    assert len(client.calls) == 2
+
+
+def test_asset_poll_retries_when_direct_and_list_temporarily_miss():
+    class FakeClient:
+        api_key = "test-key"
+        api_base_url = "https://api.twelvelabs.io/v1.3"
+        knowledge_store_id = "ks_test"
+        _transport = None
+
+        def __init__(self):
+            self.direct_calls = 0
+
+        async def _request(self, method, path, *, payload=None, params=None):
+            if path == "/assets/asset_test":
+                self.direct_calls += 1
+                if self.direct_calls == 1:
+                    raise TwelveLabsError("TwelveLabs request failed with HTTP 404")
+                return {"_id": "asset_test", "status": "ready"}
+            assert path == "/assets"
+            return {"data": []}
+
+    client = FakeClient()
+    runner = TwelveLabsIngestionRunner(client=client)
+    result = asyncio.run(
+        runner._wait_for_asset(
+            "asset_test",
+            timeout_seconds=1.0,
+            poll_interval_seconds=0.001,
+        )
+    )
+
+    assert result["status"] == "ready"
+    assert client.direct_calls == 2
 
 
 def test_item_poll_retries_transient_404_until_ready():
@@ -92,7 +127,7 @@ def test_item_poll_retries_transient_404_until_ready():
         def __init__(self):
             self.calls = 0
 
-        async def _request(self, method, path, *, payload=None):
+        async def _request(self, method, path, *, payload=None, params=None):
             self.calls += 1
             if self.calls == 1:
                 raise TwelveLabsError("TwelveLabs request failed with HTTP 404")
