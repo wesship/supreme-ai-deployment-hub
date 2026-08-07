@@ -35,8 +35,7 @@ def _multipart_fields(data: Mapping[str, str]) -> list[tuple[str, tuple[None, st
     return [(key, (None, value)) for key, value in data.items()]
 
 
-def _is_transient_not_found(exc: TwelveLabsError) -> bool:
-    """Treat an immediate 404 after create as eventual consistency, not failure."""
+def _is_not_found(exc: TwelveLabsError) -> bool:
     return "HTTP 404" in str(exc)
 
 
@@ -98,6 +97,29 @@ class TwelveLabsIngestionRunner:
             raise TwelveLabsError("TwelveLabs returned an unexpected asset response")
         return result
 
+    async def _retrieve_asset(self, asset_id: str) -> dict[str, Any]:
+        """Retrieve an asset, falling back to the documented filtered list on 404."""
+        try:
+            return await self.client._request("GET", f"/assets/{asset_id}")
+        except TwelveLabsError as exc:
+            if not _is_not_found(exc):
+                raise
+
+        listing = await self.client._request(
+            "GET",
+            "/assets",
+            params={"asset_ids": asset_id, "page_limit": 1},
+        )
+        data = listing.get("data")
+        if isinstance(data, list):
+            for candidate in data:
+                if not isinstance(candidate, dict):
+                    continue
+                candidate_id = str(candidate.get("_id") or candidate.get("id") or "")
+                if candidate_id == asset_id:
+                    return candidate
+        raise TwelveLabsError(f"TwelveLabs asset {asset_id} is not retrievable")
+
     async def _wait_for_asset(
         self,
         asset_id: str,
@@ -108,9 +130,9 @@ class TwelveLabsIngestionRunner:
         deadline = time.monotonic() + timeout_seconds
         while True:
             try:
-                asset = await self.client._request("GET", f"/assets/{asset_id}")
+                asset = await self._retrieve_asset(asset_id)
             except TwelveLabsError as exc:
-                if not _is_transient_not_found(exc) or time.monotonic() >= deadline:
+                if "is not retrievable" not in str(exc) or time.monotonic() >= deadline:
                     raise
                 await asyncio.sleep(poll_interval_seconds)
                 continue
@@ -154,7 +176,7 @@ class TwelveLabsIngestionRunner:
                     f"/knowledge-stores/{self.client.knowledge_store_id}/items/{item_id}",
                 )
             except TwelveLabsError as exc:
-                if not _is_transient_not_found(exc) or time.monotonic() >= deadline:
+                if not _is_not_found(exc) or time.monotonic() >= deadline:
                     raise
                 await asyncio.sleep(poll_interval_seconds)
                 continue
