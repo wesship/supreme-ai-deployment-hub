@@ -133,7 +133,7 @@ async def create_approval(
     return rows[0]
 
 
-async def revoke_approval(*, workspace_id: str, approval_id: str, revoked_by: str) -> dict[str, Any] | None:
+async def revoke_approval(*, workspace_id: str, approval_id: str) -> dict[str, Any] | None:
     rows = await _rest_patch(
         "agent_os_approvals",
         {
@@ -141,9 +141,6 @@ async def revoke_approval(*, workspace_id: str, approval_id: str, revoked_by: st
             "workspace_id": f"eq.{workspace_id}",
             "revoked_at": "is.null",
         },
-        {
-            "revoked_at": datetime.now(timezone.utc).isoformat(),
-            "revoked_by": revoked_by,
-        },
+        {"revoked_at": datetime.now(timezone.utc).isoformat()},
     )
     return rows[0] if rows else None
