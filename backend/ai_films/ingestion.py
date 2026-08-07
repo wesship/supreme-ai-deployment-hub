@@ -62,7 +62,12 @@ class TwelveLabsIngestionRunner:
             ) as http:
                 if url:
                     data["url"] = normalize_movieflow_media_url(url)
-                    response = await http.post(endpoint, data=data)
+                    # TwelveLabs requires multipart/form-data for /v1.3/assets even
+                    # when the upload method is URL-based. Supplying fields through
+                    # ``files`` with a None filename forces a standards-compliant
+                    # multipart body without fabricating a file part.
+                    multipart_fields = {key: (None, value) for key, value in data.items()}
+                    response = await http.post(endpoint, files=multipart_fields)
                 elif file_path:
                     path = Path(file_path)
                     if not path.is_file():
