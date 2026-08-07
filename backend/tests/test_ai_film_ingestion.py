@@ -1,6 +1,8 @@
 import asyncio
 from pathlib import Path
 
+import httpx
+
 from backend.ai_films.ingestion import (
     TwelveLabsIngestionRunner,
     load_manifest,
@@ -70,3 +72,46 @@ def test_movieflow_manifest_urls_are_raw_media_urls():
     for asset in movieflow_assets:
         assert asset["media_url"].endswith(".mp4")
         assert "x-oss-process" not in asset["media_url"]
+
+
+def test_url_asset_upload_uses_multipart_form_data():
+    observed = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed["content_type"] = request.headers.get("content-type", "")
+        observed["body"] = request.content.decode("utf-8", errors="replace")
+        return httpx.Response(
+            201,
+            json={
+                "_id": "asset_test",
+                "method": "url",
+                "status": "processing",
+                "filename": "clip.mp4",
+            },
+        )
+
+    class FakeClient:
+        api_key = "test"
+        api_base_url = "https://api.twelvelabs.io/v1.3"
+        knowledge_store_id = "ks_test"
+        _transport = httpx.MockTransport(handler)
+
+    runner = TwelveLabsIngestionRunner(client=FakeClient())
+    result = asyncio.run(
+        runner._create_asset(
+            url=(
+                "https://oss1.movieflow.ai/portrait/clip.mp4"
+                "?x-oss-process=video/snapshot,t_0,f_jpg,w_0,h_0,m_fast"
+            ),
+            filename="clip.mp4",
+            user_metadata={"batch_id": "batch-test"},
+        )
+    )
+
+    assert result["_id"] == "asset_test"
+    assert observed["content_type"].startswith("multipart/form-data; boundary=")
+    assert 'name="method"' in observed["body"]
+    assert "\r\n\r\nurl\r\n" in observed["body"]
+    assert 'name="url"' in observed["body"]
+    assert "https://oss1.movieflow.ai/portrait/clip.mp4" in observed["body"]
+    assert "x-oss-process" not in observed["body"]
