@@ -33,7 +33,7 @@ begin
     updated_by = excluded.updated_by,
     updated_at = excluded.updated_at
   returning * into v_after;
-  insert into public.primetime_audit_events (workspace_id, actor_user_id, event_type, entity_type, entity_id, event_data)
+  insert into public.primetime_audit_events (workspace_id, actor_id, action, entity_type, entity_id, metadata)
   values (p_workspace_id, p_actor_user_id, 'agent_os.workspace_policy.updated', 'agent_os_workspace_policy', p_workspace_id,
     jsonb_build_object('before', case when v_before.workspace_id is null then null else to_jsonb(v_before) end, 'after', to_jsonb(v_after), 'reason', p_reason));
   return v_after;
@@ -61,7 +61,7 @@ begin
   insert into public.agent_os_approvals (workspace_id, action, agent_name, approved_by, approved_at, expires_at, reason, metadata)
   values (p_workspace_id, trim(p_action), case when p_agent_name is null then null else trim(p_agent_name) end,
     p_actor_user_id, now(), p_expires_at, p_reason, coalesce(p_metadata, '{}'::jsonb)) returning * into v_approval;
-  insert into public.primetime_audit_events (workspace_id, actor_user_id, event_type, entity_type, entity_id, event_data)
+  insert into public.primetime_audit_events (workspace_id, actor_id, action, entity_type, entity_id, metadata)
   values (p_workspace_id, p_actor_user_id, 'agent_os.approval.granted', 'agent_os_approval', v_approval.id,
     jsonb_build_object('action', v_approval.action, 'agent_name', v_approval.agent_name, 'expires_at', v_approval.expires_at, 'reason', v_approval.reason, 'metadata', v_approval.metadata));
   return v_approval;
@@ -84,7 +84,7 @@ begin
   where id = p_approval_id and workspace_id = p_workspace_id and revoked_at is null
   returning * into v_approval;
   if v_approval.id is null then raise exception 'active approval not found for workspace'; end if;
-  insert into public.primetime_audit_events (workspace_id, actor_user_id, event_type, entity_type, entity_id, event_data)
+  insert into public.primetime_audit_events (workspace_id, actor_id, action, entity_type, entity_id, metadata)
   values (p_workspace_id, p_actor_user_id, 'agent_os.approval.revoked', 'agent_os_approval', v_approval.id,
     jsonb_build_object('action', v_approval.action, 'agent_name', v_approval.agent_name, 'approved_by', v_approval.approved_by,
       'approved_at', v_approval.approved_at, 'expires_at', v_approval.expires_at, 'revoked_at', v_approval.revoked_at,
