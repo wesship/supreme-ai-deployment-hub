@@ -10,8 +10,23 @@ from datetime import datetime
 from typing import Any
 
 import httpx
+from fastapi import HTTPException
 
 from backend.app.routers.primetime_release1 import _get_supabase_base, _headers
+
+
+def _upstream_detail(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        for key in ("message", "details", "hint", "error"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    text = response.text.strip()
+    return text or "Governance mutation rejected by persistence layer."
 
 
 async def _rpc(function_name: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -22,6 +37,8 @@ async def _rpc(function_name: str, payload: dict[str, Any]) -> dict[str, Any]:
             headers=_headers(),
             json=payload,
         )
+    if 400 <= response.status_code < 500:
+        raise HTTPException(status_code=response.status_code, detail=_upstream_detail(response))
     response.raise_for_status()
     body = response.json()
     if not isinstance(body, dict):
