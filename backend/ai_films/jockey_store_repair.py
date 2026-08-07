@@ -1,4 +1,4 @@
-"""Repair/migrate the canonical Jockey knowledge store from the validated index."""
+"""Repair/migrate the canonical Jockey knowledge store from a visible Models index."""
 from __future__ import annotations
 
 import asyncio
@@ -11,13 +11,12 @@ from backend.ai_films.twelvelabs import TwelveLabsClient, TwelveLabsError
 from backend.ai_films.twelvelabs_index import DEFAULT_AI_FILMS_INDEX_ID
 
 STORE_NAME = "D3VONN.IO AI Films — The Sovereign Signal"
+DEFAULT_INDEX_NAMES = {"my index (default)", "my index", "d3vonn.io ai films"}
 
 
 def _rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
     data = payload.get("data")
-    if not isinstance(data, list):
-        return []
-    return [row for row in data if isinstance(row, dict)]
+    return [row for row in data if isinstance(row, dict)] if isinstance(data, list) else []
 
 
 def _id(payload: dict[str, Any]) -> str:
@@ -30,25 +29,22 @@ async def _list_all(
     *,
     page_limit: int = 50,
 ) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
+    result: list[dict[str, Any]] = []
     page = 1
     while True:
         payload = await client._request(
-            "GET",
-            path,
-            params={"page": page, "page_limit": page_limit},
+            "GET", path, params={"page": page, "page_limit": page_limit}
         )
-        rows.extend(_rows(payload))
+        result.extend(_rows(payload))
         info = payload.get("page_info") if isinstance(payload.get("page_info"), dict) else {}
         total_page = int(info.get("total_page") or 1)
         if page >= total_page:
-            return rows
+            return result
         page += 1
 
 
 async def _find_existing_store(client: TwelveLabsClient) -> dict[str, Any] | None:
-    stores = await _list_all(client, "/knowledge-stores")
-    for store in stores:
+    for store in await _list_all(client, "/knowledge-stores"):
         metadata = store.get("metadata") if isinstance(store.get("metadata"), dict) else {}
         if str(metadata.get("d3vonn_project_id") or "") == PROJECT_ID:
             return store
@@ -57,7 +53,7 @@ async def _find_existing_store(client: TwelveLabsClient) -> dict[str, Any] | Non
     return None
 
 
-async def _create_store(client: TwelveLabsClient) -> dict[str, Any]:
+async def _create_store(client: TwelveLabsClient, source_index_id: str) -> dict[str, Any]:
     return await client._request(
         "POST",
         "/knowledge-stores",
@@ -65,21 +61,94 @@ async def _create_store(client: TwelveLabsClient) -> dict[str, Any]:
             "name": STORE_NAME,
             "description": (
                 "Canonical Jockey knowledge store for D3VONN.IO AI Films — "
-                "The Sovereign Signal. Migrated from the validated Models index."
+                "The Sovereign Signal. Migrated from a validated Models index."
             ),
             "metadata": {
                 "d3vonn_project_id": PROJECT_ID,
-                "source_index_id": DEFAULT_AI_FILMS_INDEX_ID,
+                "source_index_id": source_index_id,
             },
         },
     )
 
 
-async def _indexed_assets(client: TwelveLabsClient) -> list[dict[str, Any]]:
-    rows = await _list_all(
-        client,
-        f"/indexes/{DEFAULT_AI_FILMS_INDEX_ID}/indexed-assets",
+async def _resolve_source_index(
+    client: TwelveLabsClient,
+    db: SupabaseFilmBootstrapClient,
+    project_metadata: dict[str, Any],
+) -> str:
+    """Resolve an index visible to the Railway API key without guessing across projects."""
+    candidates = [
+        str(project_metadata.get("jockey_store_source_index_id") or "").strip(),
+        str(project_metadata.get("twelvelabs_index_id") or "").strip(),
+        os.getenv("TWELVELABS_INDEX_ID", "").strip(),
+        DEFAULT_AI_FILMS_INDEX_ID,
+    ]
+    seen: set[str] = set()
+    for index_id in candidates:
+        if not index_id or index_id in seen:
+            continue
+        seen.add(index_id)
+        try:
+            index = await client._request("GET", f"/indexes/{index_id}")
+            await db.update_project_metadata(
+                {
+                    "jockey_store_source_index_id": index_id,
+                    "jockey_source_index_name": index.get("index_name") or index.get("name"),
+                    "jockey_source_index_visibility": "visible",
+                    "jockey_source_index_checked_at": _now(),
+                }
+            )
+            return index_id
+        except TwelveLabsError as exc:
+            if "HTTP 404" not in str(exc):
+                raise
+
+    indexes = await _list_all(client, "/indexes")
+    summaries = [
+        {
+            "id": _id(index),
+            "name": str(index.get("index_name") or index.get("name") or ""),
+            "video_count": int(index.get("video_count") or 0),
+        }
+        for index in indexes
+        if _id(index)
+    ]
+    await db.update_project_metadata(
+        {
+            "jockey_visible_index_count": len(summaries),
+            "jockey_visible_index_ids": [row["id"] for row in summaries[:20]],
+            "jockey_visible_index_names": [row["name"] for row in summaries[:20]],
+            "jockey_source_index_visibility": "discovery_required",
+            "jockey_source_index_checked_at": _now(),
+        }
     )
+
+    named = [row for row in summaries if row["name"].strip().lower() in DEFAULT_INDEX_NAMES]
+    if len(named) == 1:
+        chosen = named[0]
+    else:
+        # A single non-empty index is safe to select. Never guess among multiple projects.
+        non_empty = [row for row in summaries if row["video_count"] > 0]
+        if len(non_empty) != 1:
+            raise TwelveLabsError(
+                "Validated index is not visible to the production API key and no unique matching index was found"
+            )
+        chosen = non_empty[0]
+
+    await db.update_project_metadata(
+        {
+            "jockey_store_source_index_id": chosen["id"],
+            "jockey_source_index_name": chosen["name"],
+            "jockey_source_index_visibility": "discovered",
+            "jockey_source_index_checked_at": _now(),
+        }
+    )
+    os.environ["TWELVELABS_INDEX_ID"] = chosen["id"]
+    return chosen["id"]
+
+
+async def _indexed_assets(client: TwelveLabsClient, index_id: str) -> list[dict[str, Any]]:
+    rows = await _list_all(client, f"/indexes/{index_id}/indexed-assets")
     return [
         row
         for row in rows
@@ -94,6 +163,7 @@ async def _existing_items(client: TwelveLabsClient, store_id: str) -> list[dict[
 async def _create_missing_items(
     client: TwelveLabsClient,
     store_id: str,
+    source_index_id: str,
     assets: list[dict[str, Any]],
 ) -> list[str]:
     existing = await _existing_items(client, store_id)
@@ -102,7 +172,7 @@ async def _create_missing_items(
         for item in existing
         if item.get("asset_id") and _id(item)
     }
-    item_ids = [item_id for item_id in existing_by_asset.values() if item_id]
+    item_ids = list(existing_by_asset.values())
 
     for asset in assets:
         asset_id = str(asset.get("asset_id") or "")
@@ -117,7 +187,7 @@ async def _create_missing_items(
                 "asset_id": asset_id,
                 "metadata": {
                     "d3vonn_project_id": PROJECT_ID,
-                    "source_index_id": DEFAULT_AI_FILMS_INDEX_ID,
+                    "source_index_id": source_index_id,
                     "source_filename": filename,
                 },
             },
@@ -142,8 +212,7 @@ async def _wait_for_items(
         ready = failed = pending = 0
         for item_id in item_ids:
             item = await client._request(
-                "GET",
-                f"/knowledge-stores/{store_id}/items/{item_id}",
+                "GET", f"/knowledge-stores/{store_id}/items/{item_id}"
             )
             status = str(item.get("status") or "").lower()
             if status == "ready":
@@ -152,10 +221,7 @@ async def _wait_for_items(
                 failed += 1
             else:
                 pending += 1
-
-        if pending == 0:
-            return ready, failed, pending
-        if time.monotonic() >= deadline:
+        if pending == 0 or time.monotonic() >= deadline:
             return ready, failed, pending
         await asyncio.sleep(poll_interval_seconds)
 
@@ -165,35 +231,38 @@ async def ensure_jockey_store_from_index(
     db: SupabaseFilmBootstrapClient,
     project_metadata: dict[str, Any],
 ) -> dict[str, Any]:
-    """Create/reuse a Jockey store and populate it from ready assets in the index."""
+    """Create/reuse a Jockey store and populate it from ready indexed assets."""
+    source_index_id = await _resolve_source_index(client, db, project_metadata)
+
+    store: dict[str, Any] | None = None
     preferred = str(project_metadata.get("jockey_store_id") or "").strip()
     if preferred:
         client.knowledge_store_id = preferred
         os.environ["TWELVELABS_KNOWLEDGE_STORE_ID"] = preferred
         try:
             store = await client.retrieve_knowledge_store()
-            return store
-        except TwelveLabsError:
-            pass
+            if project_metadata.get("jockey_store_repair_state") == "ready":
+                return store
+        except TwelveLabsError as exc:
+            if "HTTP 404" not in str(exc):
+                raise
+            store = None
 
-    try:
-        store = await client.retrieve_knowledge_store()
-        store_id = _id(store) or client.knowledge_store_id
-        await db.update_project_metadata(
-            {
-                "jockey_store_id": store_id,
-                "jockey_store_repair_state": "existing_store_reused",
-                "jockey_store_checked_at": _now(),
-            }
-        )
-        return store
-    except TwelveLabsError as exc:
-        if "HTTP 404" not in str(exc):
-            raise
+    if store is None:
+        try:
+            candidate = await client.retrieve_knowledge_store()
+            if _id(candidate):
+                store = candidate
+        except TwelveLabsError as exc:
+            if "HTTP 404" not in str(exc):
+                raise
 
-    existing = await _find_existing_store(client)
-    store = existing or await _create_store(client)
-    store_id = _id(store)
+    if store is None:
+        store = await _find_existing_store(client)
+    if store is None:
+        store = await _create_store(client, source_index_id)
+
+    store_id = _id(store) or client.knowledge_store_id
     if not store_id:
         raise TwelveLabsError("Knowledge store creation returned no id")
 
@@ -204,13 +273,13 @@ async def ensure_jockey_store_from_index(
             "jockey_store_id": store_id,
             "jockey_store_name": store.get("name") or STORE_NAME,
             "jockey_store_repair_state": "migrating_index_assets",
-            "jockey_store_source_index_id": DEFAULT_AI_FILMS_INDEX_ID,
+            "jockey_store_source_index_id": source_index_id,
             "jockey_store_repair_started_at": _now(),
             "jockey_store_reachable": True,
         }
     )
 
-    assets = await _indexed_assets(client)
+    assets = await _indexed_assets(client, source_index_id)
     asset_ids = {str(asset.get("asset_id")) for asset in assets if asset.get("asset_id")}
     await db.update_project_metadata(
         {
@@ -219,9 +288,9 @@ async def ensure_jockey_store_from_index(
         }
     )
     if not asset_ids:
-        raise TwelveLabsError("Validated index returned no ready assets to migrate")
+        raise TwelveLabsError("Resolved source index returned no ready assets to migrate")
 
-    item_ids = await _create_missing_items(client, store_id, assets)
+    item_ids = await _create_missing_items(client, store_id, source_index_id, assets)
     await db.update_project_metadata(
         {
             "jockey_store_item_target_count": len(item_ids),
@@ -247,5 +316,4 @@ async def ensure_jockey_store_from_index(
         raise TwelveLabsError(
             f"Knowledge store migration incomplete ready={ready} failed={failed} pending={pending}"
         )
-
     return await client.retrieve_knowledge_store()
