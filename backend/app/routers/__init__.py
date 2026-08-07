@@ -133,3 +133,10 @@ try:
     logger.info("AI Film character performance router registered at /api/ai-films/character-performance/*.")
 except ImportError as exc:
     logger.warning("AI Film character performance router not registered: %s", exc)
+
+try:
+    from backend.ai_films.director_router import router as ai_film_director_router
+    proxy_router.include_router(ai_film_director_router, tags=["ai-films-director"])
+    logger.info("AI Director / Movie Assembly router registered at /api/ai-films/director/*.")
+except ImportError as exc:
+    logger.warning("AI Director router not registered: %s", exc)
