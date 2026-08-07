@@ -138,3 +138,11 @@ try:
     logger.info("AI Film provider router registered at /api/ai-films/*.")
 except ImportError as exc:
     logger.warning("AI Film provider router not registered: %s", exc)
+
+try:
+    from backend.ai_films.picker_router import router as ai_film_picker_router
+
+    proxy_router.include_router(ai_film_picker_router, tags=["ai-films-admin"])
+    logger.info("AI Film Drive Picker router registered at /api/ai-films/admin/drive-picker/*.")
+except ImportError as exc:
+    logger.warning("AI Film Drive Picker router not registered: %s", exc)
