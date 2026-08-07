@@ -4,6 +4,7 @@ import json
 import httpx
 
 from backend.ai_films.ingestion import TwelveLabsIngestionRunner
+from backend.ai_films.twelvelabs import TwelveLabsError
 
 
 def test_url_asset_creation_uses_multipart_form_data():
@@ -49,3 +50,63 @@ def test_url_asset_creation_uses_multipart_form_data():
     assert b"https://oss1.movieflow.ai/portrait/clip.mp4" in body
     assert b"x-oss-process" not in body
     assert json.dumps({"source_type": "movieflow"}, separators=(",", ":")).encode() in body
+
+
+def test_asset_poll_retries_transient_404_until_ready():
+    class FakeClient:
+        api_key = "test-key"
+        api_base_url = "https://api.twelvelabs.io/v1.3"
+        knowledge_store_id = "ks_test"
+        _transport = None
+
+        def __init__(self):
+            self.calls = 0
+
+        async def _request(self, method, path, *, payload=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise TwelveLabsError("TwelveLabs request failed with HTTP 404")
+            return {"_id": "asset_test", "status": "ready"}
+
+    client = FakeClient()
+    runner = TwelveLabsIngestionRunner(client=client)
+    result = asyncio.run(
+        runner._wait_for_asset(
+            "asset_test",
+            timeout_seconds=1.0,
+            poll_interval_seconds=0.001,
+        )
+    )
+
+    assert result["status"] == "ready"
+    assert client.calls == 2
+
+
+def test_item_poll_retries_transient_404_until_ready():
+    class FakeClient:
+        api_key = "test-key"
+        api_base_url = "https://api.twelvelabs.io/v1.3"
+        knowledge_store_id = "ks_test"
+        _transport = None
+
+        def __init__(self):
+            self.calls = 0
+
+        async def _request(self, method, path, *, payload=None):
+            self.calls += 1
+            if self.calls == 1:
+                raise TwelveLabsError("TwelveLabs request failed with HTTP 404")
+            return {"_id": "item_test", "status": "ready"}
+
+    client = FakeClient()
+    runner = TwelveLabsIngestionRunner(client=client)
+    result = asyncio.run(
+        runner._wait_for_item(
+            "item_test",
+            timeout_seconds=1.0,
+            poll_interval_seconds=0.001,
+        )
+    )
+
+    assert result["status"] == "ready"
+    assert client.calls == 2
