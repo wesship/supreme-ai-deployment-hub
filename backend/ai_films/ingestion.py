@@ -35,6 +35,11 @@ def _multipart_fields(data: Mapping[str, str]) -> list[tuple[str, tuple[None, st
     return [(key, (None, value)) for key, value in data.items()]
 
 
+def _is_transient_not_found(exc: TwelveLabsError) -> bool:
+    """Treat an immediate 404 after create as eventual consistency, not failure."""
+    return "HTTP 404" in str(exc)
+
+
 class TwelveLabsIngestionRunner:
     def __init__(self, client: TwelveLabsClient | None = None) -> None:
         self.client = client or TwelveLabsClient()
@@ -67,9 +72,6 @@ class TwelveLabsIngestionRunner:
             ) as http:
                 if url:
                     data["url"] = normalize_movieflow_media_url(url)
-                    # TwelveLabs v1.3 requires multipart/form-data for both direct
-                    # uploads and URL-based asset creation. Passing only data= would
-                    # produce application/x-www-form-urlencoded and a 400 response.
                     response = await http.post(endpoint, files=_multipart_fields(data))
                 elif file_path:
                     path = Path(file_path)
@@ -105,7 +107,14 @@ class TwelveLabsIngestionRunner:
     ) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_seconds
         while True:
-            asset = await self.client._request("GET", f"/assets/{asset_id}")
+            try:
+                asset = await self.client._request("GET", f"/assets/{asset_id}")
+            except TwelveLabsError as exc:
+                if not _is_transient_not_found(exc) or time.monotonic() >= deadline:
+                    raise
+                await asyncio.sleep(poll_interval_seconds)
+                continue
+
             status = str(asset.get("status", "")).lower()
             if status == "ready":
                 return asset
@@ -139,10 +148,17 @@ class TwelveLabsIngestionRunner:
     ) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_seconds
         while True:
-            item = await self.client._request(
-                "GET",
-                f"/knowledge-stores/{self.client.knowledge_store_id}/items/{item_id}",
-            )
+            try:
+                item = await self.client._request(
+                    "GET",
+                    f"/knowledge-stores/{self.client.knowledge_store_id}/items/{item_id}",
+                )
+            except TwelveLabsError as exc:
+                if not _is_transient_not_found(exc) or time.monotonic() >= deadline:
+                    raise
+                await asyncio.sleep(poll_interval_seconds)
+                continue
+
             status = str(item.get("status", "")).lower()
             if status == "ready":
                 return item
