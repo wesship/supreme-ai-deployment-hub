@@ -64,6 +64,7 @@ class TwelveLabsClient:
         path: str,
         *,
         payload: dict[str, Any] | None = None,
+        params: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         try:
             async with httpx.AsyncClient(
@@ -76,7 +77,11 @@ class TwelveLabsClient:
                 transport=self._transport,
             ) as client:
                 url = f"{self.api_base_url}/{path.lstrip('/')}"
-                request_kwargs = {"json": payload} if payload is not None else {}
+                request_kwargs: dict[str, Any] = {}
+                if payload is not None:
+                    request_kwargs["json"] = payload
+                if params is not None:
+                    request_kwargs["params"] = dict(params)
                 response = await client.request(method, url, **request_kwargs)
         except httpx.HTTPError as exc:
             raise TwelveLabsError("TwelveLabs request could not be completed") from exc
