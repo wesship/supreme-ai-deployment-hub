@@ -26,6 +26,19 @@ def test_movieflow_snapshot_url_normalizes_to_raw_mp4():
     )
 
 
+def test_movieflow_snapshot_url_preserves_signed_media_parameters():
+    url = (
+        "https://oss1.movieflow.ai/portrait/render.mp4"
+        "?Expires=1770000000&OSSAccessKeyId=test-key"
+        "&Signature=signed%2Bvalue"
+        "&x-oss-process=video/snapshot,t_0,f_jpg"
+    )
+    assert normalize_movieflow_media_url(url) == (
+        "https://oss1.movieflow.ai/portrait/render.mp4"
+        "?Expires=1770000000&OSSAccessKeyId=test-key&Signature=signed%2Bvalue"
+    )
+
+
 def test_sovereign_signal_manifest_is_complete_and_deduplicated():
     manifest = load_manifest(MANIFEST)
     assets = manifest["assets"]
