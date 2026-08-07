@@ -26,19 +26,23 @@ app = import_module("backend.main").app
 logger = logging.getLogger(__name__)
 
 # Extend—rather than replace—the canonical FastAPI lifespan. The background
-# bootstrap runs only on the production Railway environment and becomes a no-op
-# after the project is marked complete in Supabase.
+# bootstraps run only on the production Railway environment and become no-ops
+# after their respective project phases are marked complete in Supabase.
 _base_lifespan = app.router.lifespan_context
 
 
 @asynccontextmanager
 async def railway_lifespan(app_instance):
     bootstrap_task: asyncio.Task | None = None
+    drive_bootstrap_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
         try:
             from backend.ai_films.bootstrap import (
                 bootstrap_sovereign_signal_movieflow_ingestion,
                 should_schedule_sovereign_signal_bootstrap,
+            )
+            from backend.ai_films.drive_connector import (
+                bootstrap_sovereign_signal_drive_ingestion,
             )
 
             if should_schedule_sovereign_signal_bootstrap():
@@ -46,8 +50,14 @@ async def railway_lifespan(app_instance):
                     bootstrap_sovereign_signal_movieflow_ingestion(),
                     name="sovereign-signal-movieflow-ingestion",
                 )
+                drive_bootstrap_task = asyncio.create_task(
+                    bootstrap_sovereign_signal_drive_ingestion(),
+                    name="sovereign-signal-drive-ingestion",
+                )
                 app_instance.state.sovereign_signal_ingestion_task = bootstrap_task
+                app_instance.state.sovereign_signal_drive_ingestion_task = drive_bootstrap_task
                 logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap.")
+                logger.info("Scheduled The Sovereign Signal Google Drive connector bootstrap.")
         except Exception as exc:  # pragma: no cover - production bootstrap guard
             logger.warning(
                 "Could not schedule The Sovereign Signal ingestion bootstrap: %s: %s",
@@ -58,10 +68,11 @@ async def railway_lifespan(app_instance):
         try:
             yield
         finally:
-            if bootstrap_task is not None and not bootstrap_task.done():
-                bootstrap_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await bootstrap_task
+            for task in (bootstrap_task, drive_bootstrap_task):
+                if task is not None and not task.done():
+                    task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await task
 
 
 app.router.lifespan_context = railway_lifespan
