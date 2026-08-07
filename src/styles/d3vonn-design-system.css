@@ -26,6 +26,7 @@
 }
 
 @layer components {
+  .d3-world,
   .d3-homepage-world {
     position: relative;
     isolation: isolate;
@@ -36,6 +37,7 @@
       linear-gradient(180deg, var(--d3-bg-0), #020918 54%, #01050d);
   }
 
+  .d3-world::before,
   .d3-homepage-world::before {
     content: '';
     position: fixed;
@@ -50,7 +52,12 @@
     mask-image: linear-gradient(to bottom, black, transparent 86%);
   }
 
-  .d3-surface {
+  .d3-section {
+    padding-block: clamp(4rem, 7vw, 7.5rem);
+  }
+
+  .d3-surface,
+  .d3-chrome-panel {
     border: 1px solid var(--d3-border);
     border-radius: var(--d3-radius-card);
     background:
@@ -60,6 +67,21 @@
     backdrop-filter: blur(22px);
   }
 
+  .d3-chrome-panel {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .d3-chrome-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(191,219,254,.42), rgba(255,255,255,.16), transparent);
+  }
+
+  .d3-command-surface,
   .d3-surface-interactive {
     transition:
       transform var(--d3-motion-standard) cubic-bezier(.2,.8,.2,1),
@@ -68,6 +90,7 @@
       background-color var(--d3-motion-standard) ease;
   }
 
+  .d3-command-surface:hover,
   .d3-surface-interactive:hover {
     transform: translateY(-2px);
     border-color: var(--d3-border-active);
@@ -103,10 +126,75 @@
     line-height: 1.75;
   }
 
+  .d3-btn-primary,
+  .d3-btn-secondary {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    border-radius: var(--d3-radius-control);
+    padding: .72rem 1rem;
+    font-size: .875rem;
+    font-weight: 700;
+    transition: transform var(--d3-motion-fast) ease, border-color var(--d3-motion-fast) ease, background-color var(--d3-motion-fast) ease, box-shadow var(--d3-motion-fast) ease;
+  }
+
+  .d3-btn-primary {
+    border: 1px solid rgba(139,199,255,.32);
+    color: white;
+    background: linear-gradient(180deg, rgba(52,145,255,.98), rgba(26,95,215,.98));
+    box-shadow: 0 10px 34px rgba(37,135,255,.28), inset 0 1px rgba(255,255,255,.18);
+  }
+
+  .d3-btn-secondary {
+    border: 1px solid rgba(255,255,255,.1);
+    color: rgba(239,246,255,.82);
+    background: rgba(255,255,255,.035);
+  }
+
+  .d3-btn-primary:hover,
+  .d3-btn-secondary:hover {
+    transform: translateY(-1px);
+  }
+
+  .d3-btn-primary:hover {
+    box-shadow: 0 14px 42px rgba(37,135,255,.38), inset 0 1px rgba(255,255,255,.18);
+  }
+
+  .d3-btn-secondary:hover {
+    border-color: var(--d3-border-active);
+    background: rgba(37,135,255,.07);
+  }
+
+  .d3-status,
+  .d3-system-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    width: fit-content;
+    border: 1px solid rgba(147,197,253,.18);
+    border-radius: 999px;
+    background: rgba(3,11,24,.62);
+    padding: .38rem .68rem;
+    color: rgba(219,234,254,.72);
+    font-size: .62rem;
+    font-weight: 800;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+  }
+
+  .d3-status > span,
   .d3-status-dot {
     width: 0.5rem;
     height: 0.5rem;
     border-radius: 999px;
+    background: var(--d3-blue-soft);
+    box-shadow: 0 0 14px rgba(139,199,255,.64);
+  }
+
+  .d3-status--success > span,
+  .d3-status-dot {
     background: var(--d3-success);
     box-shadow: 0 0 16px rgba(110, 231, 183, 0.72);
   }
@@ -129,23 +217,35 @@
 }
 
 @media (max-width: 640px) {
+  .d3-world::before,
   .d3-homepage-world::before {
     background-size: 56px 56px;
     opacity: 0.18;
   }
 
   .d3-surface,
+  .d3-chrome-panel,
   .d3-titanium-panel {
     backdrop-filter: blur(14px);
+  }
+
+  .d3-section {
+    padding-block: 3.25rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .d3-surface-interactive {
+  .d3-command-surface,
+  .d3-surface-interactive,
+  .d3-btn-primary,
+  .d3-btn-secondary {
     transition: none;
   }
 
-  .d3-surface-interactive:hover {
+  .d3-command-surface:hover,
+  .d3-surface-interactive:hover,
+  .d3-btn-primary:hover,
+  .d3-btn-secondary:hover {
     transform: none;
   }
 }
