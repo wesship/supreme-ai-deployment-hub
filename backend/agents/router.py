@@ -10,6 +10,7 @@ Endpoints:
   POST /agents/dispatch                 — Dispatch a task to a named agent
   POST /agents/capability               — Dispatch to the best agent for a capability
   POST /agents/governance/dry-run       — Authenticated, non-executing policy decision
+  *    /agents/governance/control/*     — Admin/compliance governance controls
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,8 +21,10 @@ from ..app.middleware.auth import get_current_user_id
 from ..mesh.agent_mesh import AgentTask, AgentResult, default_mesh
 from .capability_bindings import AgentDryRunRequest, AgentDryRunResult, evaluate_agent_capability_dry_run
 from .governance_context import resolve_agent_governance_context
+from .governance_control import router as governance_control_router
 
 router = APIRouter(prefix="/agents", tags=["agents"])
+router.include_router(governance_control_router)
 
 
 class DispatchRequest(BaseModel):
