@@ -10,6 +10,7 @@ import DesktopNav from './navigation/DesktopNav';
 import MobileMenu from './navigation/MobileMenu';
 import { navigationItems } from './navigation/navigationItems';
 import D3CommandPalette, { openD3CommandPalette } from './navigation/D3CommandPalette';
+import './navigation/d3-command-deck.css';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
 
 interface NavbarProps {
