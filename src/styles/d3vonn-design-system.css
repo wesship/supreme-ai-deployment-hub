@@ -1,0 +1,151 @@
+@layer base {
+  :root {
+    --d3-bg-0: #010611;
+    --d3-bg-1: #030b18;
+    --d3-bg-2: #071426;
+    --d3-surface: rgba(7, 20, 38, 0.72);
+    --d3-surface-strong: rgba(6, 16, 32, 0.92);
+    --d3-border: rgba(147, 197, 253, 0.14);
+    --d3-border-active: rgba(147, 197, 253, 0.34);
+    --d3-blue: #2587ff;
+    --d3-blue-soft: #8bc7ff;
+    --d3-cyan: #67e8f9;
+    --d3-success: #6ee7b7;
+    --d3-warning: #fbbf24;
+    --d3-critical: #fb7185;
+    --d3-premium: #d6b36a;
+    --d3-radius-control: 12px;
+    --d3-radius-card: 18px;
+    --d3-radius-panel: 28px;
+    --d3-shadow-panel: 0 28px 90px rgba(0, 10, 35, 0.38);
+    --d3-shadow-float: 0 36px 120px rgba(0, 18, 64, 0.52);
+    --d3-motion-fast: 150ms;
+    --d3-motion-standard: 240ms;
+    --d3-motion-workspace: 420ms;
+  }
+}
+
+@layer components {
+  .d3-homepage-world {
+    position: relative;
+    isolation: isolate;
+    overflow-x: clip;
+    background:
+      radial-gradient(circle at 78% 8%, rgba(37, 135, 255, 0.12), transparent 28%),
+      radial-gradient(circle at 12% 42%, rgba(103, 232, 249, 0.06), transparent 24%),
+      linear-gradient(180deg, var(--d3-bg-0), #020918 54%, #01050d);
+  }
+
+  .d3-homepage-world::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    opacity: 0.26;
+    background-image:
+      linear-gradient(rgba(139, 199, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 199, 255, 0.035) 1px, transparent 1px);
+    background-size: 88px 88px;
+    mask-image: linear-gradient(to bottom, black, transparent 86%);
+  }
+
+  .d3-surface {
+    border: 1px solid var(--d3-border);
+    border-radius: var(--d3-radius-card);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.035), transparent 34%),
+      var(--d3-surface);
+    box-shadow: var(--d3-shadow-panel);
+    backdrop-filter: blur(22px);
+  }
+
+  .d3-surface-interactive {
+    transition:
+      transform var(--d3-motion-standard) cubic-bezier(.2,.8,.2,1),
+      border-color var(--d3-motion-standard) ease,
+      box-shadow var(--d3-motion-standard) ease,
+      background-color var(--d3-motion-standard) ease;
+  }
+
+  .d3-surface-interactive:hover {
+    transform: translateY(-2px);
+    border-color: var(--d3-border-active);
+    box-shadow: var(--d3-shadow-float);
+  }
+
+  .d3-titanium-panel {
+    border: 1px solid rgba(203, 213, 225, 0.16);
+    border-radius: var(--d3-radius-panel);
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.018) 28%, transparent 56%),
+      linear-gradient(180deg, rgba(15, 32, 56, 0.92), rgba(3, 11, 24, 0.94));
+    box-shadow: inset 0 1px rgba(255,255,255,0.08), var(--d3-shadow-panel);
+  }
+
+  .d3-kicker {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(191, 219, 254, 0.62);
+  }
+
+  .d3-display-title {
+    text-wrap: balance;
+    letter-spacing: -0.045em;
+    line-height: 0.98;
+  }
+
+  .d3-section-copy {
+    max-width: 46rem;
+    color: rgba(219, 234, 254, 0.68);
+    line-height: 1.75;
+  }
+
+  .d3-status-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--d3-success);
+    box-shadow: 0 0 16px rgba(110, 231, 183, 0.72);
+  }
+
+  .d3-glow-1 { box-shadow: 0 0 26px rgba(37, 135, 255, 0.14); }
+  .d3-glow-2 { box-shadow: 0 0 44px rgba(37, 135, 255, 0.22); }
+  .d3-glow-3 { box-shadow: 0 0 68px rgba(37, 135, 255, 0.30); }
+  .d3-glow-4 { box-shadow: 0 0 92px rgba(37, 135, 255, 0.38); }
+
+  .d3-metal-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.38), rgba(255,255,255,0.12), rgba(147,197,253,0.38), transparent);
+  }
+}
+
+@layer utilities {
+  .d3-section-rhythm { padding-block: clamp(4.5rem, 8vw, 8rem); }
+  .d3-content-width { width: min(100% - 2rem, 86rem); margin-inline: auto; }
+  .d3-readable { max-width: 46rem; }
+}
+
+@media (max-width: 640px) {
+  .d3-homepage-world::before {
+    background-size: 56px 56px;
+    opacity: 0.18;
+  }
+
+  .d3-surface,
+  .d3-titanium-panel {
+    backdrop-filter: blur(14px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-surface-interactive {
+    transition: none;
+  }
+
+  .d3-surface-interactive:hover {
+    transform: none;
+  }
+}
