@@ -16,18 +16,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.cors_config import build_allowed_origins
 
-# Railway provides the authoritative environment name to every deployment.
-# Normalize the generic application variable before importing backend.main so
-# readiness payloads, Sentry, and logs cannot mislabel staging as production.
 if railway_environment := os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip():
     os.environ["ENVIRONMENT"] = railway_environment
 
 app = import_module("backend.main").app
 logger = logging.getLogger(__name__)
-
-# Extend—rather than replace—the canonical FastAPI lifespan. The background
-# bootstraps run only on the production Railway environment and become no-ops
-# after their respective project phases are marked complete in Supabase.
 _base_lifespan = app.router.lifespan_context
 
 
@@ -35,6 +28,7 @@ _base_lifespan = app.router.lifespan_context
 async def railway_lifespan(app_instance):
     bootstrap_task: asyncio.Task | None = None
     drive_bootstrap_task: asyncio.Task | None = None
+    drive_direct_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
         try:
             from backend.ai_films.bootstrap import (
@@ -43,6 +37,9 @@ async def railway_lifespan(app_instance):
             )
             from backend.ai_films.drive_connector import (
                 bootstrap_sovereign_signal_drive_ingestion,
+            )
+            from backend.ai_films.drive_direct_fallback import (
+                bootstrap_sovereign_signal_drive_direct_fallback,
             )
 
             if should_schedule_sovereign_signal_bootstrap():
@@ -54,10 +51,16 @@ async def railway_lifespan(app_instance):
                     bootstrap_sovereign_signal_drive_ingestion(),
                     name="sovereign-signal-drive-ingestion",
                 )
+                drive_direct_task = asyncio.create_task(
+                    bootstrap_sovereign_signal_drive_direct_fallback(),
+                    name="sovereign-signal-drive-direct-fallback",
+                )
                 app_instance.state.sovereign_signal_ingestion_task = bootstrap_task
                 app_instance.state.sovereign_signal_drive_ingestion_task = drive_bootstrap_task
+                app_instance.state.sovereign_signal_drive_direct_task = drive_direct_task
                 logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap.")
                 logger.info("Scheduled The Sovereign Signal Google Drive connector bootstrap.")
+                logger.info("Scheduled The Sovereign Signal Google Drive direct fallback.")
         except Exception as exc:  # pragma: no cover - production bootstrap guard
             logger.warning(
                 "Could not schedule The Sovereign Signal ingestion bootstrap: %s: %s",
@@ -68,7 +71,7 @@ async def railway_lifespan(app_instance):
         try:
             yield
         finally:
-            for task in (bootstrap_task, drive_bootstrap_task):
+            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task):
                 if task is not None and not task.done():
                     task.cancel()
                     with suppress(asyncio.CancelledError):
@@ -81,9 +84,6 @@ DEPLOYMENT_REVISION = "railway-environment-metadata-2026-07-29"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
-# Railway may provide ALLOWED_ORIGINS for preview or internal clients. Mount an
-# outer production CORS boundary so those values extend—rather than replace—the
-# three official D3VONN.IO browser origins configured in backend.cors_config.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=RAILWAY_ALLOWED_ORIGINS,
@@ -97,9 +97,6 @@ def _paths() -> set[str]:
     return {getattr(route, "path", "") for route in app.routes}
 
 
-# The canonical app defensively skips optional routers on ImportError. Retry the
-# intelligence router here so Railway either mounts it or exposes a safe,
-# actionable diagnostic instead of silently serving a partial API surface.
 if "/api/intelligence/prompts" not in _paths():
     try:
         from backend.intelligence.api_router import router as intelligence_router
