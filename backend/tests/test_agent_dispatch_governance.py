@@ -111,7 +111,7 @@ def test_audit_failure_blocks_execution(monkeypatch):
     assert calls["dispatch"] == 0
 
 
-def test_explicit_allow_reaches_mesh_after_audit(monkeypatch):
+def test_explicit_allow_audits_before_and_after_mesh(monkeypatch):
     _install_registered_agent(monkeypatch)
     order: list[str] = []
 
@@ -138,7 +138,7 @@ def test_explicit_allow_reaches_mesh_after_audit(monkeypatch):
 
     assert result.success is True
     assert result.data == {"ok": True}
-    assert order == ["audit", "dispatch"]
+    assert order == ["audit", "dispatch", "audit"]
 
 
 def test_kill_switch_blocks_named_dispatch(monkeypatch):
