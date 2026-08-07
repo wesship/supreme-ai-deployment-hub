@@ -17,7 +17,7 @@ const HomepageShell = ({ children, className }: HomepageShellProps) => (
   <PublicPageShell
     breadcrumbs={false}
     transparentHeader
-    className={className}
+    className={`d3-homepage-world ${className ?? ''}`.trim()}
   >
     {children}
   </PublicPageShell>
