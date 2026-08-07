@@ -1,7 +1,11 @@
 import json
 from pathlib import Path
 
-from backend.ai_films.picker_router import _expected_drive_entries, router
+from backend.ai_films.picker_router import (
+    _expected_drive_entries,
+    _selected_ids_for_connection,
+    router,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -16,6 +20,17 @@ def test_picker_manifest_contains_all_23_unique_drive_masters():
     assert len(ids) == 23
     assert len(filenames) == 23
     assert all(entry["filename"].lower().endswith((".mp4", ".mov", ".m4v")) for entry in entries)
+
+
+def test_picker_selections_are_scoped_to_the_active_connection():
+    expected = {"file-a", "file-b"}
+    metadata = {
+        "drive_picker_connection_id": "conn-a",
+        "drive_picker_selected_ids": ["file-a", "file-b"],
+    }
+
+    assert _selected_ids_for_connection(metadata, "conn-a", expected) == expected
+    assert _selected_ids_for_connection(metadata, "conn-b", expected) == set()
 
 
 def test_picker_routes_are_admin_dependency_protected():

@@ -104,59 +104,92 @@ class SupabaseFilmBootstrapClient:
         rows = await self._request(
             "GET",
             "ai_film_projects",
-            params={"id": f"eq.{project_id}", "select": "id,metadata", "limit": "1"},
+            params={"id": f"eq.{project_id}", "select": "id,metadata,updated_at", "limit": "1"},
         )
         return rows[0] if rows else None
 
     async def claim_project(self, project_id: str = PROJECT_ID) -> bool:
-        project = await self.get_project(project_id)
-        if not project:
-            raise RuntimeError("The Sovereign Signal AI Films project is missing")
-        metadata = dict(project.get("metadata") or {})
-        current = str(metadata.get("movieflow_ingestion_state") or "")
-        if current in {"complete", "in_progress"}:
-            return False
-        if current not in {"ready_to_execute", "failed", "installed", ""}:
-            return False
+        for _attempt in range(8):
+            project = await self.get_project(project_id)
+            if not project:
+                raise RuntimeError("The Sovereign Signal AI Films project is missing")
+            metadata = dict(project.get("metadata") or {})
+            current = str(metadata.get("movieflow_ingestion_state") or "")
+            if current in {"complete", "in_progress"}:
+                return False
+            if current not in {
+                "ready_to_execute",
+                "failed",
+                "installed",
+                "blocked_source_url",
+                "",
+            }:
+                return False
 
-        claimed = dict(metadata)
-        claimed.update(
-            {
-                "movieflow_ingestion_state": "in_progress",
-                "movieflow_ingestion_started_at": _now(),
-                "movieflow_ingestion_last_error": None,
-                "twelvelabs_state": "movieflow_ingestion_in_progress",
-            }
-        )
-        rows = await self._request(
-            "PATCH",
-            "ai_film_projects",
-            params={
-                "id": f"eq.{project_id}",
-                "metadata->>movieflow_ingestion_state": f"eq.{current}",
-            },
-            payload={"metadata": claimed, "updated_at": _now()},
-            prefer_representation=True,
-        )
-        return bool(rows)
+            observed_updated_at = str(project.get("updated_at") or "")
+            if not observed_updated_at:
+                raise RuntimeError("AI Films project is missing updated_at for safe claim")
+
+            claimed = dict(metadata)
+            claimed.update(
+                {
+                    "movieflow_ingestion_state": "in_progress",
+                    "movieflow_ingestion_started_at": _now(),
+                    "movieflow_ingestion_last_error": None,
+                    "twelvelabs_state": "movieflow_ingestion_in_progress",
+                }
+            )
+            next_updated_at = _now()
+            rows = await self._request(
+                "PATCH",
+                "ai_film_projects",
+                params={
+                    "id": f"eq.{project_id}",
+                    "metadata->>movieflow_ingestion_state": f"eq.{current}",
+                    "updated_at": f"eq.{observed_updated_at}",
+                },
+                payload={"metadata": claimed, "updated_at": next_updated_at},
+                prefer_representation=True,
+            )
+            if rows:
+                return True
+            await asyncio.sleep(0)
+
+        raise RuntimeError("AI Films project claim conflicted with concurrent metadata updates")
 
     async def update_project_metadata(
         self,
         updates: Mapping[str, Any],
         project_id: str = PROJECT_ID,
     ) -> None:
-        project = await self.get_project(project_id)
-        if not project:
-            raise RuntimeError("The Sovereign Signal AI Films project is missing")
-        metadata = dict(project.get("metadata") or {})
-        metadata.update(dict(updates))
-        await self._request(
-            "PATCH",
-            "ai_film_projects",
-            params={"id": f"eq.{project_id}"},
-            payload={"metadata": metadata, "updated_at": _now()},
-            prefer_representation=True,
-        )
+        """Merge metadata without losing concurrent worker updates."""
+        for _attempt in range(8):
+            project = await self.get_project(project_id)
+            if not project:
+                raise RuntimeError("The Sovereign Signal AI Films project is missing")
+
+            observed_updated_at = str(project.get("updated_at") or "")
+            if not observed_updated_at:
+                raise RuntimeError("AI Films project is missing updated_at for safe metadata merge")
+
+            metadata = dict(project.get("metadata") or {})
+            metadata.update(dict(updates))
+            next_updated_at = _now()
+            rows = await self._request(
+                "PATCH",
+                "ai_film_projects",
+                params={
+                    "id": f"eq.{project_id}",
+                    "updated_at": f"eq.{observed_updated_at}",
+                },
+                payload={"metadata": metadata, "updated_at": next_updated_at},
+                prefer_representation=True,
+            )
+            if rows:
+                return
+            await asyncio.sleep(0)
+
+        raise RuntimeError("AI Films metadata merge conflicted with concurrent updates")
 
     async def get_asset(
         self,

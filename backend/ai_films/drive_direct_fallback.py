@@ -242,6 +242,8 @@ async def _index_direct_drive_entry(
 
 async def bootstrap_sovereign_signal_drive_direct_fallback(
     environ: Mapping[str, str] | None = None,
+    *,
+    preferred_connection_id: str | None = None,
 ) -> dict[str, Any]:
     source = environ or os.environ
     if not should_schedule_sovereign_signal_bootstrap(source):
@@ -273,7 +275,31 @@ async def bootstrap_sovereign_signal_drive_direct_fallback(
         )
         return {"status": "authorization_required"}
 
-    connection_id = _connection_id(connections[0])
+    if preferred_connection_id:
+        connection = next(
+            (
+                candidate
+                for candidate in connections
+                if _connection_id(candidate) == preferred_connection_id
+            ),
+            None,
+        )
+        if connection is None:
+            await db.update_project_metadata(
+                {
+                    "drive_direct_state": "authorization_required",
+                    "drive_direct_updated_at": _now(),
+                    "drive_direct_last_error": "picker_connection_not_active",
+                }
+            )
+            return {
+                "status": "authorization_required",
+                "reason": "picker_connection_not_active",
+            }
+    else:
+        connection = connections[0]
+
+    connection_id = _connection_id(connection)
     manifest = load_manifest(MANIFEST_PATH)
     entries = [
         entry

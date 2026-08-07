@@ -38,6 +38,7 @@ def test_project_claim_is_compare_and_set_on_ingestion_state():
                     {
                         "id": PROJECT_ID,
                         "metadata": {"movieflow_ingestion_state": "ready_to_execute"},
+                        "updated_at": "2026-08-07T19:00:00+00:00",
                     }
                 ],
             )
@@ -58,6 +59,7 @@ def test_project_claim_is_compare_and_set_on_ingestion_state():
 
     assert asyncio.run(client.claim_project()) is True
     assert "metadata-%3E%3Emovieflow_ingestion_state=eq.ready_to_execute" in observed["patch_query"]
+    assert "updated_at=eq.2026-08-07T19%3A00%3A00%2B00%3A00" in observed["patch_query"]
 
 
 def test_completed_project_is_not_claimed():
@@ -71,6 +73,7 @@ def test_completed_project_is_not_claimed():
                     {
                         "id": PROJECT_ID,
                         "metadata": {"movieflow_ingestion_state": "complete"},
+                        "updated_at": "2026-08-07T19:00:00+00:00",
                     }
                 ],
             )
@@ -87,3 +90,49 @@ def test_completed_project_is_not_claimed():
 
     assert asyncio.run(client.claim_project()) is False
     assert calls["patch"] == 0
+
+def test_project_metadata_update_retries_after_concurrent_write():
+    state = {
+        "get_calls": 0,
+        "patch_calls": 0,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            state["get_calls"] += 1
+            version = state["get_calls"]
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": PROJECT_ID,
+                        "metadata": {"existing": version},
+                        "updated_at": f"2026-08-07T19:00:0{version}+00:00",
+                    }
+                ],
+            )
+        if request.method == "PATCH":
+            state["patch_calls"] += 1
+            if state["patch_calls"] == 1:
+                return httpx.Response(200, json=[])
+            payload = __import__("json").loads(request.content.decode())
+            assert payload["metadata"]["existing"] == 2
+            assert payload["metadata"]["new_value"] == "kept"
+            assert "updated_at=eq.2026-08-07T19%3A00%3A02%2B00%3A00" in request.url.query.decode()
+            return httpx.Response(
+                200,
+                json=[{"id": PROJECT_ID, "metadata": payload["metadata"]}],
+            )
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    client = SupabaseFilmBootstrapClient(
+        environ={
+            "SUPABASE_URL": "https://example.supabase.co",
+            "SUPABASE_SERVICE_ROLE_KEY": "service-role-test-key",
+        },
+        transport=httpx.MockTransport(handler),
+    )
+
+    asyncio.run(client.update_project_metadata({"new_value": "kept"}))
+    assert state["patch_calls"] == 2
+

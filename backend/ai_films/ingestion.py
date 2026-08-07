@@ -16,10 +16,17 @@ from backend.ai_films.twelvelabs import TwelveLabsClient, TwelveLabsError
 
 
 def normalize_movieflow_media_url(url: str) -> str:
-    """Return the raw MovieFlow media URL instead of an OSS snapshot transform."""
+    """Remove only MovieFlow's preview transform while preserving signed URL parameters."""
     parts = urlsplit(url)
     if parts.hostname == "oss1.movieflow.ai" and parts.path.lower().endswith(".mp4"):
-        return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
+        query_parts = [
+            part
+            for part in parts.query.split("&")
+            if part and part.split("=", 1)[0].lower() != "x-oss-process"
+        ]
+        return urlunsplit(
+            (parts.scheme, parts.netloc, parts.path, "&".join(query_parts), parts.fragment)
+        )
     return url
 
 

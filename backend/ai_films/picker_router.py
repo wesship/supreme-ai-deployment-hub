@@ -62,6 +62,21 @@ def _expected_drive_entries() -> list[dict[str, str]]:
     return entries
 
 
+def _selected_ids_for_connection(
+    metadata: dict[str, Any],
+    connection_id: str,
+    expected_ids: set[str],
+) -> set[str]:
+    """Return Picker selections only when they belong to the active connection."""
+    if str(metadata.get("drive_picker_connection_id") or "") != connection_id:
+        return set()
+    return {
+        str(value)
+        for value in (metadata.get("drive_picker_selected_ids") or [])
+        if str(value) in expected_ids
+    }
+
+
 async def _clients() -> tuple[TwelveLabsClient, SupabaseFilmBootstrapClient]:
     try:
         client = TwelveLabsClient()
@@ -139,11 +154,11 @@ async def create_drive_picker_session(
     expected_ids = {entry["source_id"] for entry in expected_files}
     project = await db.get_project(PROJECT_ID)
     metadata = dict((project or {}).get("metadata") or {})
-    previously_selected = {
-        str(value)
-        for value in (metadata.get("drive_picker_selected_ids") or [])
-        if str(value) in expected_ids
-    }
+    previously_selected = _selected_ids_for_connection(
+        metadata,
+        connection_id,
+        expected_ids,
+    )
     account = connection.get("account") if isinstance(connection.get("account"), dict) else {}
 
     return {
@@ -185,11 +200,11 @@ async def record_drive_picker_selection(
     if not project:
         raise HTTPException(status_code=404, detail="Sovereign Signal AI Films project is missing")
     metadata = dict(project.get("metadata") or {})
-    previous_ids = {
-        str(value)
-        for value in (metadata.get("drive_picker_selected_ids") or [])
-        if str(value) in expected_ids
-    }
+    previous_ids = _selected_ids_for_connection(
+        metadata,
+        connection_id,
+        expected_ids,
+    )
     selected_ids = previous_ids | supplied_ids
     missing_ids = expected_ids - selected_ids
     filenames_by_id = {entry["source_id"]: entry["filename"] for entry in expected_files}
@@ -225,17 +240,25 @@ async def run_selected_sovereign_signal_ingestion(
     _: str = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Explicitly start paused ingestion only after all expected Drive files were picked."""
-    _client, db = await _clients()
+    client, db = await _clients()
+    connection = await _active_drive_connection(client, db)
+    active_connection_id = _connection_id(connection)
     expected_ids = {entry["source_id"] for entry in _expected_drive_entries()}
     project = await db.get_project(PROJECT_ID)
     if not project:
         raise HTTPException(status_code=404, detail="Sovereign Signal AI Films project is missing")
     metadata = dict(project.get("metadata") or {})
-    selected_ids = {
-        str(value)
-        for value in (metadata.get("drive_picker_selected_ids") or [])
-        if str(value) in expected_ids
-    }
+    picker_connection_id = str(metadata.get("drive_picker_connection_id") or "")
+    if picker_connection_id != active_connection_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Drive Picker connection changed; select the 23 masters again",
+        )
+    selected_ids = _selected_ids_for_connection(
+        metadata,
+        active_connection_id,
+        expected_ids,
+    )
     if selected_ids != expected_ids:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -249,16 +272,30 @@ async def run_selected_sovereign_signal_ingestion(
             "tasks": sorted(name for name, task in existing.items() if _task_running(task)),
         }
 
+    # Persist the manual run marker before workers can update project metadata.
+    await db.update_project_metadata(
+        {
+            "manual_ingestion_state": "started",
+            "manual_ingestion_started_at": _now(),
+            "manual_ingestion_trigger": "admin_drive_picker",
+            "manual_ingestion_connection_id": active_connection_id,
+        }
+    )
+
     movieflow_task = asyncio.create_task(
         bootstrap_sovereign_signal_movieflow_ingestion(),
         name="manual-sovereign-signal-movieflow",
     )
     drive_task = asyncio.create_task(
-        bootstrap_sovereign_signal_drive_ingestion(),
+        bootstrap_sovereign_signal_drive_ingestion(
+            preferred_connection_id=active_connection_id,
+        ),
         name="manual-sovereign-signal-drive",
     )
     drive_direct_task = asyncio.create_task(
-        bootstrap_sovereign_signal_drive_direct_fallback(),
+        bootstrap_sovereign_signal_drive_direct_fallback(
+            preferred_connection_id=active_connection_id,
+        ),
         name="manual-sovereign-signal-drive-direct",
     )
     tasks = {
@@ -267,11 +304,4 @@ async def run_selected_sovereign_signal_ingestion(
         "drive_direct": drive_direct_task,
     }
     request.app.state.sovereign_signal_manual_ingestion_tasks = tasks
-    await db.update_project_metadata(
-        {
-            "manual_ingestion_state": "started",
-            "manual_ingestion_started_at": _now(),
-            "manual_ingestion_trigger": "admin_drive_picker",
-        }
-    )
     return {"status": "started", "tasks": sorted(tasks)}
