@@ -5,7 +5,7 @@ from backend.agents.governance_context import ResolvedAgentGovernanceContext
 
 
 async def _run_with_context(monkeypatch, *, role: str, permissions: set[str], capability: str, agent_name: str):
-    async def fake_resolve(*, workspace_id: str, user_id: str):
+    async def fake_resolve(*, workspace_id: str, user_id: str, agent_name: str | None = None):
         return ResolvedAgentGovernanceContext(
             workspace_id=workspace_id,
             actor_id=user_id,
