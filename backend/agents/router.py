@@ -5,17 +5,21 @@ Exposes the agent mesh as REST endpoints that the React frontend
 (and the Chrome extension) can call.
 
 Endpoints:
-  GET  /agents/             — List all registered agents and their status
-  GET  /agents/health       — Health check all agents
-  POST /agents/dispatch     — Dispatch a task to a named agent
-  POST /agents/capability   — Dispatch to the best agent for a capability
+  GET  /agents/                         — List all registered agents and their status
+  GET  /agents/health                   — Health check all agents
+  POST /agents/dispatch                 — Dispatch a task to a named agent
+  POST /agents/capability               — Dispatch to the best agent for a capability
+  POST /agents/governance/dry-run       — Authenticated, non-executing policy decision
 """
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from typing import Any
 
+from ..app.middleware.auth import get_current_user_id
 from ..mesh.agent_mesh import AgentTask, AgentResult, default_mesh
+from .capability_bindings import AgentDryRunRequest, AgentDryRunResult, evaluate_agent_capability_dry_run
+from .governance_context import resolve_agent_governance_context
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -35,6 +39,24 @@ class CapabilityDispatchRequest(BaseModel):
     capability: str
     action: str
     payload: dict[str, Any] = {}
+
+
+class GovernanceDryRunApiRequest(BaseModel):
+    workspace_id: str = Field(min_length=1)
+    agent_name: str = Field(min_length=1)
+    capability: str = Field(min_length=1)
+
+
+class GovernanceDryRunApiResponse(BaseModel):
+    workspace_id: str
+    actor_id: str
+    role: str
+    capability: str
+    agent_name: str
+    decision: str
+    reason: str
+    missing_permissions: list[str] = Field(default_factory=list)
+    executed: bool = False
 
 
 class AgentInfo(BaseModel):
@@ -69,6 +91,60 @@ async def health_check_all():
         "overall": "healthy" if overall else "degraded",
         "agents": results,
     }
+
+
+@router.post("/governance/dry-run", response_model=GovernanceDryRunApiResponse)
+async def governance_dry_run(
+    request: GovernanceDryRunApiRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Evaluate Agent OS policy without dispatching an agent or invoking a tool.
+
+    Workspace membership, role-derived permissions, and future policy overrides
+    are resolved on the server. The caller cannot submit permissions, approvals,
+    disabled-agent state, or kill-switch values.
+    """
+    context = await resolve_agent_governance_context(
+        workspace_id=request.workspace_id,
+        user_id=user_id,
+    )
+
+    try:
+        result: AgentDryRunResult = evaluate_agent_capability_dry_run(
+            AgentDryRunRequest(
+                workspace_id=context.workspace_id,
+                actor_id=context.actor_id,
+                agent_name=request.agent_name,
+                capability=request.capability,
+                workspace_permissions=context.permissions,
+                approved_actions=context.approved_actions,
+                disabled_agents=context.disabled_agents,
+                kill_switch_enabled=context.kill_switch_enabled,
+            )
+        )
+    except (KeyError, PermissionError) as exc:
+        return GovernanceDryRunApiResponse(
+            workspace_id=context.workspace_id,
+            actor_id=context.actor_id,
+            role=context.role,
+            capability=request.capability,
+            agent_name=request.agent_name,
+            decision="deny",
+            reason=str(exc),
+            executed=False,
+        )
+
+    return GovernanceDryRunApiResponse(
+        workspace_id=context.workspace_id,
+        actor_id=context.actor_id,
+        role=context.role,
+        capability=result.capability,
+        agent_name=result.agent_name,
+        decision=result.governance.decision.value,
+        reason=result.governance.reason,
+        missing_permissions=result.governance.missing_permissions,
+        executed=False,
+    )
 
 
 @router.post("/dispatch", response_model=AgentResult)
