@@ -6,6 +6,7 @@ import os
 from typing import Any, Mapping
 
 from backend.ai_films.bootstrap import PROJECT_ID, SupabaseFilmBootstrapClient, _now
+from backend.ai_films.jockey_store_repair import ensure_jockey_store_from_index
 from backend.ai_films.twelvelabs import (
     TwelveLabsClient,
     TwelveLabsConfigurationError,
@@ -26,7 +27,7 @@ def should_run_jockey_startup_canary(environ: Mapping[str, str] | None = None) -
 async def certify_jockey_on_startup(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Run one real Jockey reasoning request and persist only certification metadata."""
+    """Repair the canonical Jockey store if needed, then run one real reasoning request."""
     source = environ or os.environ
     if not should_run_jockey_startup_canary(source):
         return {"status": "skipped", "reason": "not_production_or_disabled"}
@@ -55,8 +56,8 @@ async def certify_jockey_on_startup(
     try:
         client = TwelveLabsClient(environ=source)
 
-        phase = "knowledge_store_retrieve"
-        store = await client.retrieve_knowledge_store()
+        phase = "knowledge_store_repair"
+        store = await ensure_jockey_store_from_index(client, db, metadata)
         store_id = str(store.get("_id") or store.get("id") or client.knowledge_store_id)
         await db.update_project_metadata(
             {
@@ -106,7 +107,7 @@ async def certify_jockey_on_startup(
         error = f"{phase}:{type(exc).__name__}: configuration_missing"
     except TwelveLabsError as exc:
         error = f"{phase}:{type(exc).__name__}: {str(exc)}"
-        if phase == "knowledge_store_retrieve":
+        if phase == "knowledge_store_repair":
             await db.update_project_metadata(
                 {
                     "jockey_store_reachable": False,
