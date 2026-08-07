@@ -163,6 +163,7 @@ class TwelveLabsIngestionRunner:
 
         metadata = {
             "batch_id": entry.get("batch_id", ""),
+            "project_id": entry.get("project_id", ""),
             "ai_film_asset_id": entry.get("ai_film_asset_id", ""),
             "source_type": entry.get("source_type", ""),
             "source_id": entry.get("source_id", ""),
@@ -182,6 +183,7 @@ class TwelveLabsIngestionRunner:
             asset_id,
             metadata={
                 "batch_id": str(entry.get("batch_id", "")),
+                "project_id": str(entry.get("project_id", "")),
                 "ai_film_asset_id": str(entry.get("ai_film_asset_id", "")),
                 "source_type": str(entry.get("source_type", "")),
                 "source_id": str(entry.get("source_id", "")),
@@ -214,8 +216,13 @@ async def ingest_manifest(
     runner = TwelveLabsIngestionRunner()
     results = []
     seen: set[str] = set()
+    batch_id = str(manifest.get("batch_id", ""))
+    project_id = str(manifest.get("project_id", ""))
 
-    for entry in manifest["assets"]:
+    for raw_entry in manifest["assets"]:
+        entry = dict(raw_entry)
+        entry.setdefault("batch_id", batch_id)
+        entry.setdefault("project_id", project_id)
         if source_type and entry.get("source_type") != source_type:
             continue
         source_key = f"{entry.get('source_type')}:{entry.get('source_id')}"
