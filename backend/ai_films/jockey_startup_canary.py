@@ -89,7 +89,9 @@ async def certify_jockey_on_startup(
     except TwelveLabsConfigurationError as exc:
         error = f"{type(exc).__name__}: configuration_missing"
     except TwelveLabsError as exc:
-        error = f"{type(exc).__name__}: provider_request_failed"
+        # TwelveLabsClient intentionally redacts provider bodies, so the exception
+        # string is safe to persist and gives us the upstream HTTP status code.
+        error = f"{type(exc).__name__}: {str(exc)}"
     except Exception as exc:  # pragma: no cover - defensive production guard
         logger.exception("Jockey startup certification failed")
         error = f"{type(exc).__name__}: unexpected_failure"
