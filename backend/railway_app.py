@@ -35,7 +35,28 @@ async def railway_lifespan(app_instance):
     bootstrap_task: asyncio.Task | None = None
     drive_bootstrap_task: asyncio.Task | None = None
     drive_direct_task: asyncio.Task | None = None
+    jockey_canary_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
+        try:
+            from backend.ai_films.jockey_startup_canary import (
+                certify_jockey_on_startup,
+                should_run_jockey_startup_canary,
+            )
+
+            if should_run_jockey_startup_canary():
+                jockey_canary_task = asyncio.create_task(
+                    certify_jockey_on_startup(),
+                    name="ai-films-jockey-production-canary",
+                )
+                app_instance.state.jockey_production_canary_task = jockey_canary_task
+                logger.info("Scheduled one-time TwelveLabs/Jockey production certification.")
+        except Exception as exc:  # pragma: no cover - production certification guard
+            logger.warning(
+                "Could not schedule Jockey production certification: %s: %s",
+                type(exc).__name__,
+                exc,
+            )
+
         try:
             from backend.ai_films.bootstrap import (
                 bootstrap_sovereign_signal_movieflow_ingestion,
@@ -82,7 +103,12 @@ async def railway_lifespan(app_instance):
         try:
             yield
         finally:
-            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task):
+            for task in (
+                bootstrap_task,
+                drive_bootstrap_task,
+                drive_direct_task,
+                jockey_canary_task,
+            ):
                 if task is not None and not task.done():
                     task.cancel()
                     with suppress(asyncio.CancelledError):
