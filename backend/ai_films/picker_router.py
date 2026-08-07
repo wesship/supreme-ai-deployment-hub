@@ -27,7 +27,6 @@ from backend.ai_films.drive_connector import (
     bootstrap_sovereign_signal_drive_ingestion,
 )
 from backend.ai_films.drive_direct_fallback import (
-    _picker_access_token,
     bootstrap_sovereign_signal_drive_direct_fallback,
 )
 from backend.ai_films.ingestion import load_manifest
