@@ -63,6 +63,7 @@ async def deploy_probe():
             "/api/tools/voice/stt-token",
             "/api/voice/health",
             "/api/voice/vapi/webhook",
+            "/api/voice/jockey/certify",
         ],
         "compatibility_routes": [
             "/api/api/tools/voice/tts",
@@ -106,6 +107,14 @@ try:
     logger.info("Vapi + ElevenLabs + Hermes router registered at /api/voice/*.")
 except ImportError as exc:
     logger.warning("Voice orchestration router not registered: %s", exc)
+
+try:
+    from backend.app.routers.jockey_canary import router as jockey_canary_router
+
+    proxy_router.include_router(jockey_canary_router)
+    logger.info("Protected Jockey production canary registered at /api/voice/jockey/certify.")
+except ImportError as exc:
+    logger.warning("Jockey production canary not registered: %s", exc)
 
 try:
     from backend.app.routers.admin import router as admin_router
