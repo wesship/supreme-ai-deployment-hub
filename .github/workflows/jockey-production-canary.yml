@@ -1,0 +1,126 @@
+name: D3VONN Jockey Production Canary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - backend/app/routers/jockey_canary.py
+      - backend/app/routers/voice_orchestration.py
+      - backend/ai_films/twelvelabs.py
+      - backend/tests/test_jockey_canary.py
+      - .github/workflows/jockey-production-canary.yml
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: d3vonn-jockey-production-canary
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Exercise live TwelveLabs/Jockey reasoning
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      JOCKEY_CANARY_URL: https://api.d3vonn.io/api/voice/jockey/certify
+      VAPI_WEBHOOK_SECRET: ${{ secrets.VAPI_WEBHOOK_SECRET }}
+
+    steps:
+      - name: Validate protected credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${VAPI_WEBHOOK_SECRET:-}" ]]; then
+            echo "::error::VAPI_WEBHOOK_SECRET is required in the production environment."
+            exit 1
+          fi
+          echo "::add-mask::$VAPI_WEBHOOK_SECRET"
+
+      - name: Wait for deployed canary and exercise Jockey
+        shell: bash
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          trap 'rm -f "$response_file"' EXIT
+
+          for attempt in {1..90}; do
+            http_code="$(curl --silent --show-error \
+              --output "$response_file" \
+              --write-out '%{http_code}' \
+              -X POST "$JOCKEY_CANARY_URL" \
+              -H "x-vapi-secret: $VAPI_WEBHOOK_SECRET" || true)"
+
+            if [[ "$http_code" == "200" ]]; then
+              python3 - "$response_file" <<'PY'
+          import json
+          import sys
+
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          expected = {
+              "ok": True,
+              "provider": "twelvelabs-jockey",
+              "mode": "reason",
+              "round_trip": True,
+              "content_returned": False,
+          }
+          for key, value in expected.items():
+              if data.get(key) != value:
+                  raise SystemExit(f"Jockey canary response failed assertion {key}={value!r}: {data}")
+          print("Live TwelveLabs/Jockey reasoning round-trip certified without returning film content.")
+          PY
+              exit 0
+            fi
+
+            # 404/502 during a deploy or provider warm-up is retryable within the window.
+            sleep 5
+          done
+
+          echo "::error::Live Jockey canary did not succeed within the deployment window."
+          cat "$response_file" 2>/dev/null || true
+          exit 1
+
+      - name: Publish certification status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          succeeded = os.environ.get("JOB_STATUS") == "success"
+          payload = json.dumps({
+              "state": "success" if succeeded else "failure",
+              "context": "ai-films/jockey-production-canary",
+              "description": (
+                  "Live TwelveLabs/Jockey reasoning round-trip certified"
+                  if succeeded else
+                  "Jockey production canary failed; open the workflow run"
+              ),
+              "target_url": os.environ["RUN_URL"],
+          }).encode()
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['REPOSITORY']}/statuses/{os.environ['SHA']}",
+              data=payload,
+              method="POST",
+          )
+          request.add_header("Authorization", f"Bearer {os.environ['GH_TOKEN']}")
+          request.add_header("Accept", "application/vnd.github+json")
+          request.add_header("Content-Type", "application/json")
+          request.add_header("User-Agent", "d3vonn-jockey-certification")
+          request.add_header("X-GitHub-Api-Version", "2022-11-28")
+          with urllib.request.urlopen(request, timeout=30) as response:
+              if response.status not in (200, 201):
+                  raise SystemExit(f"Unexpected GitHub status response: {response.status}")
+          PY
