@@ -23,7 +23,7 @@ const AgentDashboard: React.FC = () => {
           name="description"
           content="Deploy and govern specialized AI agents through the D3VONN.IO AI Workforce command layer."
         />
-        <link rel="canonical" href="https://d3vonn.io/agents" />
+        <link rel="canonical" href="https://d3vonn.io/ai-workforce" />
       </Helmet>
 
       <div className="d3-world min-h-screen">
