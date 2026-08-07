@@ -51,8 +51,24 @@ async def certify_jockey_on_startup(
         }
     )
 
+    phase = "configuration"
     try:
         client = TwelveLabsClient(environ=source)
+
+        phase = "knowledge_store_retrieve"
+        store = await client.retrieve_knowledge_store()
+        store_id = str(store.get("_id") or store.get("id") or client.knowledge_store_id)
+        await db.update_project_metadata(
+            {
+                "jockey_store_reachable": True,
+                "jockey_store_id": store_id,
+                "jockey_store_name": store.get("name"),
+                "jockey_store_item_count": store.get("item_count"),
+                "jockey_store_checked_at": _now(),
+            }
+        )
+
+        phase = "reason"
         response = await client.reason(
             (
                 "Inspect the configured AI Films knowledge store and confirm in one "
@@ -87,14 +103,19 @@ async def certify_jockey_on_startup(
             "response_id": response_id,
         }
     except TwelveLabsConfigurationError as exc:
-        error = f"{type(exc).__name__}: configuration_missing"
+        error = f"{phase}:{type(exc).__name__}: configuration_missing"
     except TwelveLabsError as exc:
-        # TwelveLabsClient intentionally redacts provider bodies, so the exception
-        # string is safe to persist and gives us the upstream HTTP status code.
-        error = f"{type(exc).__name__}: {str(exc)}"
+        error = f"{phase}:{type(exc).__name__}: {str(exc)}"
+        if phase == "knowledge_store_retrieve":
+            await db.update_project_metadata(
+                {
+                    "jockey_store_reachable": False,
+                    "jockey_store_checked_at": _now(),
+                }
+            )
     except Exception as exc:  # pragma: no cover - defensive production guard
-        logger.exception("Jockey startup certification failed")
-        error = f"{type(exc).__name__}: unexpected_failure"
+        logger.exception("Jockey startup certification failed phase=%s", phase)
+        error = f"{phase}:{type(exc).__name__}: unexpected_failure"
 
     await db.update_project_metadata(
         {
