@@ -97,6 +97,8 @@ async def _wait_for_import(
 
 async def bootstrap_sovereign_signal_drive_ingestion(
     environ: Mapping[str, str] | None = None,
+    *,
+    preferred_connection_id: str | None = None,
 ) -> dict[str, Any]:
     source = environ or os.environ
     if not should_schedule_sovereign_signal_bootstrap(source):
@@ -130,7 +132,30 @@ async def bootstrap_sovereign_signal_drive_ingestion(
         )
         return {"status": "authorization_required", "active_connections": 0}
 
-    connection = connections[0]
+    if preferred_connection_id:
+        connection = next(
+            (
+                candidate
+                for candidate in connections
+                if _connection_id(candidate) == preferred_connection_id
+            ),
+            None,
+        )
+        if connection is None:
+            await db.update_project_metadata(
+                {
+                    "drive_ingestion_state": "authorization_required",
+                    "drive_ingestion_updated_at": _now(),
+                    "drive_ingestion_last_error": "picker_connection_not_active",
+                }
+            )
+            return {
+                "status": "authorization_required",
+                "reason": "picker_connection_not_active",
+            }
+    else:
+        connection = connections[0]
+
     connection_id = _connection_id(connection)
     account = connection.get("account") if isinstance(connection.get("account"), dict) else {}
     await db.update_project_metadata(
