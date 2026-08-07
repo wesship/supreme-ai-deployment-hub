@@ -140,6 +140,17 @@ except ImportError as exc:
     logger.warning("AI Film provider router not registered: %s", exc)
 
 try:
+    from backend.ai_films.index_router import router as ai_film_index_router
+
+    proxy_router.include_router(ai_film_index_router, tags=["ai-films-index"])
+    logger.info(
+        "AI Film TwelveLabs index router registered at "
+        "/api/ai-films/intelligence/twelvelabs/index/*."
+    )
+except ImportError as exc:
+    logger.warning("AI Film TwelveLabs index router not registered: %s", exc)
+
+try:
     from backend.ai_films.picker_router import router as ai_film_picker_router
 
     proxy_router.include_router(ai_film_picker_router, tags=["ai-films-admin"])
