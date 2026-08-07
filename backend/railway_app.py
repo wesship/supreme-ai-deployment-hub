@@ -36,6 +36,7 @@ async def railway_lifespan(app_instance):
     drive_bootstrap_task: asyncio.Task | None = None
     drive_direct_task: asyncio.Task | None = None
     jockey_canary_task: asyncio.Task | None = None
+    assembly_worker_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
         try:
             from backend.ai_films.jockey_startup_canary import (
@@ -53,6 +54,22 @@ async def railway_lifespan(app_instance):
         except Exception as exc:  # pragma: no cover - production certification guard
             logger.warning(
                 "Could not schedule Jockey production certification: %s: %s",
+                type(exc).__name__,
+                exc,
+            )
+
+        try:
+            from backend.ai_films.assembly_worker import run_assembly_worker
+
+            assembly_worker_task = asyncio.create_task(
+                run_assembly_worker(),
+                name="ai-films-ffmpeg-assembly-worker",
+            )
+            app_instance.state.ai_films_assembly_worker_task = assembly_worker_task
+            logger.info("Scheduled AI Films FFmpeg assembly worker.")
+        except Exception as exc:  # pragma: no cover - production worker guard
+            logger.warning(
+                "Could not schedule AI Films assembly worker: %s: %s",
                 type(exc).__name__,
                 exc,
             )
@@ -108,6 +125,7 @@ async def railway_lifespan(app_instance):
                 drive_bootstrap_task,
                 drive_direct_task,
                 jockey_canary_task,
+                assembly_worker_task,
             ):
                 if task is not None and not task.done():
                     task.cancel()
@@ -117,7 +135,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-environment-metadata-2026-07-29"
+DEPLOYMENT_REVISION = "railway-ai-films-assembly-worker-2026-08-07"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -155,6 +173,9 @@ async def deployment_info() -> dict[str, object]:
         "railway_deployment_id": os.getenv("RAILWAY_DEPLOYMENT_ID"),
         "railway_git_commit_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA"),
         "route_count": len(paths),
+        "workers": {
+            "ai_films_assembly": assembly_worker_task_state(app),
+        },
         "routers": {
             "api_health": "/api/health" in paths,
             "proxy": "/api/deploy/probe" in paths,
@@ -163,9 +184,21 @@ async def deployment_info() -> dict[str, object]:
             "intelligence": "/api/intelligence/prompts" in paths,
             "occ": "/api/occ/stats" in paths,
             "admin": "/api/admin/overview" in paths,
+            "ai_films_director": "/api/ai-films/director/assemble" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
         "official_cors_origins": [
             origin for origin in RAILWAY_ALLOWED_ORIGINS if origin.endswith("d3vonn.io")
         ],
     }
+
+
+def assembly_worker_task_state(app_instance) -> str:
+    task = getattr(app_instance.state, "ai_films_assembly_worker_task", None)
+    if task is None:
+        return "not_scheduled"
+    if task.cancelled():
+        return "cancelled"
+    if task.done():
+        return "stopped"
+    return "running"
