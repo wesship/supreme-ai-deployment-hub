@@ -1,6 +1,7 @@
 """Secure Vapi + ElevenLabs + Hermes voice orchestration endpoints."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -24,11 +25,14 @@ router = APIRouter(prefix="/voice", tags=["voice-orchestration"])
 _MAX_BODY_BYTES = 1_000_000
 _MAX_CACHE_ITEMS = 2_000
 _IDEMPOTENCY_TTL_SECONDS = 86_400
+_JOCKEY_TOOL_TIMEOUT_SECONDS = 15.0
 _PUBLISHED_ASSISTANT_ID = "8491eea7-e385-426b-8cdc-3e2aaf9a4cbf"
 _DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 _DEFAULT_ELEVENLABS_MODEL = "eleven_turbo_v2_5"
 _WEBHOOK_DERIVATION_LABEL = b"d3vonn:vapi:webhook:v1"
 _ALLOWED_HERMES_TOOLS = {"create_hermes_task", "enqueue_hermes_task", "hermes_task"}
+_ALLOWED_FILM_TOOLS = {"query_film_intelligence"}
+_ALLOWED_VOICE_TOOLS = _ALLOWED_HERMES_TOOLS | _ALLOWED_FILM_TOOLS
 _event_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
 _SENSITIVE_KEY = re.compile(r"api[_-]?key|authorization|token|secret|password|credential", re.I)
 
@@ -94,10 +98,12 @@ def _inline_assistant(server_url: str) -> dict[str, Any]:
                     "role": "system",
                     "content": (
                         "You are the D3VONN.IO voice interface for the authenticated user. "
-                        "Be concise, accurate, calm, and action-oriented. When the user asks you "
-                        "to create, queue, research, investigate, or follow up on a task, call "
-                        "create_hermes_task with a clear title and description. Never claim a "
-                        "task was completed unless the tool result confirms it."
+                        "Be concise, accurate, calm, and action-oriented. For questions about AI Films footage, "
+                        "canon, continuity, scene comparison, or locating moments in uploaded media, call "
+                        "query_film_intelligence. Use mode search for literal footage lookup and mode reason for "
+                        "Jockey corpus-level analysis. For longer research or execution work, call "
+                        "create_hermes_task with a clear title and description. Never claim a task was completed "
+                        "unless the tool result confirms it."
                     ),
                 }
             ],
@@ -123,7 +129,37 @@ def _inline_assistant(server_url: str) -> dict[str, Any]:
                             "required": ["title"],
                         },
                     },
-                }
+                },
+                {
+                    "type": "function",
+                    "async": False,
+                    "function": {
+                        "name": "query_film_intelligence",
+                        "description": (
+                            "Query the authenticated D3VONN AI Films TwelveLabs/Jockey knowledge store. "
+                            "Use search for ranked clips and reason for grounded continuity/editorial analysis."
+                        ),
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query": {
+                                    "type": "string",
+                                    "description": "The film question or footage description.",
+                                },
+                                "mode": {
+                                    "type": "string",
+                                    "enum": ["reason", "search"],
+                                    "description": "Use reason for Jockey analysis or search for ranked footage.",
+                                },
+                                "instructions": {
+                                    "type": "string",
+                                    "description": "Optional constraints for Jockey reasoning.",
+                                },
+                            },
+                            "required": ["query"],
+                        },
+                    },
+                },
             ],
         },
         "voice": {
@@ -283,6 +319,68 @@ async def _record_internal_event(
         return False
 
 
+async def _query_film_intelligence(parameters: dict[str, Any]) -> dict[str, Any]:
+    query = str(parameters.get("query") or parameters.get("message") or "").strip()
+    if not query:
+        return {"status": "rejected", "message": "A film intelligence query is required."}
+
+    mode = str(parameters.get("mode") or "reason").lower()
+    if mode not in {"reason", "search"}:
+        return {"status": "rejected", "message": "Mode must be 'reason' or 'search'."}
+
+    try:
+        from backend.ai_films.twelvelabs import (
+            TwelveLabsClient,
+            TwelveLabsConfigurationError,
+            TwelveLabsError,
+        )
+
+        client = TwelveLabsClient()
+        if mode == "search":
+            provider_result = await asyncio.wait_for(
+                client.search(query, page_size=5, include_metadata=False),
+                timeout=_JOCKEY_TOOL_TIMEOUT_SECONDS,
+            )
+        else:
+            instructions = str(parameters.get("instructions") or "").strip() or None
+            provider_result = await asyncio.wait_for(
+                client.reason(
+                    query,
+                    instructions=instructions,
+                    include_intermediate=False,
+                ),
+                timeout=_JOCKEY_TOOL_TIMEOUT_SECONDS,
+            )
+    except asyncio.TimeoutError:
+        return {
+            "status": "unavailable",
+            "message": "Film intelligence exceeded the live voice deadline. Queue the request with Hermes for longer analysis.",
+        }
+    except TwelveLabsConfigurationError:
+        return {
+            "status": "unavailable",
+            "message": "Jockey film intelligence is not configured on the production backend.",
+        }
+    except TwelveLabsError:
+        return {
+            "status": "unavailable",
+            "message": "Jockey film intelligence could not complete the request.",
+        }
+    except Exception:  # pragma: no cover - defensive production guard
+        logger.exception("Jockey voice film intelligence failed")
+        return {
+            "status": "unavailable",
+            "message": "Film intelligence is temporarily unavailable.",
+        }
+
+    return {
+        "status": "ok",
+        "provider": "twelvelabs-jockey",
+        "mode": mode,
+        "data": _redact(provider_result),
+    }
+
+
 async def _handle_tool_calls(
     message: dict[str, Any],
     event_id: str,
@@ -301,7 +399,7 @@ async def _handle_tool_calls(
         if not tool_call_id:
             continue
 
-        if name not in _ALLOWED_HERMES_TOOLS:
+        if name not in _ALLOWED_VOICE_TOOLS:
             result: Any = {
                 "status": "rejected",
                 "message": f"Tool '{name or 'unknown'}' is not enabled for D3VONN voice.",
@@ -309,8 +407,10 @@ async def _handle_tool_calls(
         elif not user_id:
             result = {
                 "status": "rejected",
-                "message": "An authenticated D3VONN voice session is required for Hermes tools.",
+                "message": "An authenticated D3VONN voice session is required for voice tools.",
             }
+        elif name in _ALLOWED_FILM_TOOLS:
+            result = await _query_film_intelligence(parameters)
         else:
             try:
                 from backend.hermes.task_engine import create_task
@@ -389,6 +489,7 @@ async def voice_health() -> dict[str, Any]:
             "JWT_SECRET",
         )
     )
+    jockey_ready = _configured("TWELVELABS_API_KEY") and _configured("TWELVELABS_KNOWLEDGE_STORE_ID")
     checks = {
         "vapi_public_configuration": bool(effective_assistant_id()),
         "vapi_private_key": vapi_key_ready,
@@ -397,10 +498,13 @@ async def voice_health() -> dict[str, Any]:
         "elevenlabs_api": _configured("ELEVENLABS_API_KEY"),
         "elevenlabs_voice": bool(effective_elevenlabs_voice_id()),
         "hermes_internal_adapter": True,
+        "jockey_film_intelligence": jockey_ready,
     }
+    core_checks = {key: value for key, value in checks.items() if key != "jockey_film_intelligence"}
     return {
-        "status": "configured" if all(checks.values()) else "partial",
+        "status": "configured" if all(core_checks.values()) else "partial",
         "browser_voice_ready": inline_session_ready and bool(effective_elevenlabs_voice_id()),
+        "film_intelligence_ready": jockey_ready,
         "provider": "vapi-managed-elevenlabs",
         "checks": checks,
         "webhook_auth_mode": (
