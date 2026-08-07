@@ -36,6 +36,7 @@ PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
         ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_CHARACTER_MODEL"),
     ),
     ProviderSpec("lip_sync", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_LIPSYNC_MODEL")),
+    ProviderSpec("assembly", "ffmpeg", ()),
     ProviderSpec("voice", "elevenlabs", ("ELEVENLABS_API_KEY",), ("ELEVENLABS_VOICE_ID",)),
     ProviderSpec("voice", "openai", ("OPENAI_API_KEY",), ("AI_FILM_VOICE_MODEL",)),
     ProviderSpec("music", "suno", ("SUNO_API_KEY",), ("AI_FILM_SUNO_MODEL",)),
