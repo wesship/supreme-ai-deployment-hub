@@ -37,9 +37,9 @@ async def railway_lifespan(app_instance):
     drive_bootstrap_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
         try:
-            from backend.ai_films.bootstrap import (
-                bootstrap_sovereign_signal_movieflow_ingestion,
-                should_schedule_sovereign_signal_bootstrap,
+            from backend.ai_films.bootstrap import should_schedule_sovereign_signal_bootstrap
+            from backend.ai_films.bootstrap_supervisor import (
+                run_sovereign_signal_bootstrap_supervisor,
             )
             from backend.ai_films.drive_connector import (
                 bootstrap_sovereign_signal_drive_ingestion,
@@ -47,7 +47,7 @@ async def railway_lifespan(app_instance):
 
             if should_schedule_sovereign_signal_bootstrap():
                 bootstrap_task = asyncio.create_task(
-                    bootstrap_sovereign_signal_movieflow_ingestion(),
+                    run_sovereign_signal_bootstrap_supervisor(),
                     name="sovereign-signal-movieflow-ingestion",
                 )
                 drive_bootstrap_task = asyncio.create_task(
@@ -56,7 +56,7 @@ async def railway_lifespan(app_instance):
                 )
                 app_instance.state.sovereign_signal_ingestion_task = bootstrap_task
                 app_instance.state.sovereign_signal_drive_ingestion_task = drive_bootstrap_task
-                logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap.")
+                logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap supervisor.")
                 logger.info("Scheduled The Sovereign Signal Google Drive connector bootstrap.")
         except Exception as exc:  # pragma: no cover - production bootstrap guard
             logger.warning(
