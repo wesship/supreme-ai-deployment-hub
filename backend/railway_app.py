@@ -24,6 +24,12 @@ logger = logging.getLogger(__name__)
 _base_lifespan = app.router.lifespan_context
 
 
+def _sovereign_signal_bootstrap_enabled() -> bool:
+    """Require an explicit opt-in after Drive Picker selection is completed."""
+    value = os.getenv("AI_FILM_ENABLE_SOVEREIGN_SIGNAL_BOOTSTRAP", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 @asynccontextmanager
 async def railway_lifespan(app_instance):
     bootstrap_task: asyncio.Task | None = None
@@ -42,7 +48,7 @@ async def railway_lifespan(app_instance):
                 bootstrap_sovereign_signal_drive_direct_fallback,
             )
 
-            if should_schedule_sovereign_signal_bootstrap():
+            if should_schedule_sovereign_signal_bootstrap() and _sovereign_signal_bootstrap_enabled():
                 bootstrap_task = asyncio.create_task(
                     bootstrap_sovereign_signal_movieflow_ingestion(),
                     name="sovereign-signal-movieflow-ingestion",
@@ -61,6 +67,11 @@ async def railway_lifespan(app_instance):
                 logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap.")
                 logger.info("Scheduled The Sovereign Signal Google Drive connector bootstrap.")
                 logger.info("Scheduled The Sovereign Signal Google Drive direct fallback.")
+            elif should_schedule_sovereign_signal_bootstrap():
+                logger.info(
+                    "The Sovereign Signal ingestion bootstraps are paused until "
+                    "AI_FILM_ENABLE_SOVEREIGN_SIGNAL_BOOTSTRAP=true after Drive Picker selection."
+                )
         except Exception as exc:  # pragma: no cover - production bootstrap guard
             logger.warning(
                 "Could not schedule The Sovereign Signal ingestion bootstrap: %s: %s",
