@@ -29,6 +29,13 @@ PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
     ProviderSpec("image", "replicate", ("REPLICATE_API_TOKEN",), ("AI_FILM_REPLICATE_IMAGE_MODEL",)),
     ProviderSpec("video", "runway", ("RUNWAY_API_KEY",), ("AI_FILM_RUNWAY_MODEL",)),
     ProviderSpec("video", "replicate", ("REPLICATE_API_TOKEN",), ("AI_FILM_REPLICATE_VIDEO_MODEL",)),
+    ProviderSpec("avatar", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_AVATAR_MODEL")),
+    ProviderSpec(
+        "character_replacement",
+        "replicate",
+        ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_CHARACTER_MODEL"),
+    ),
+    ProviderSpec("lip_sync", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_LIPSYNC_MODEL")),
     ProviderSpec("voice", "elevenlabs", ("ELEVENLABS_API_KEY",), ("ELEVENLABS_VOICE_ID",)),
     ProviderSpec("voice", "openai", ("OPENAI_API_KEY",), ("AI_FILM_VOICE_MODEL",)),
     ProviderSpec("music", "suno", ("SUNO_API_KEY",), ("AI_FILM_SUNO_MODEL",)),
