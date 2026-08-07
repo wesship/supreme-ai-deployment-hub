@@ -36,18 +36,18 @@ async def railway_lifespan(app_instance):
     bootstrap_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
         try:
-            from backend.ai_films.bootstrap import (
-                bootstrap_sovereign_signal_movieflow_ingestion,
-                should_schedule_sovereign_signal_bootstrap,
+            from backend.ai_films.bootstrap import should_schedule_sovereign_signal_bootstrap
+            from backend.ai_films.bootstrap_supervisor import (
+                run_sovereign_signal_bootstrap_supervisor,
             )
 
             if should_schedule_sovereign_signal_bootstrap():
                 bootstrap_task = asyncio.create_task(
-                    bootstrap_sovereign_signal_movieflow_ingestion(),
+                    run_sovereign_signal_bootstrap_supervisor(),
                     name="sovereign-signal-movieflow-ingestion",
                 )
                 app_instance.state.sovereign_signal_ingestion_task = bootstrap_task
-                logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap.")
+                logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap supervisor.")
         except Exception as exc:  # pragma: no cover - production bootstrap guard
             logger.warning(
                 "Could not schedule The Sovereign Signal ingestion bootstrap: %s: %s",
