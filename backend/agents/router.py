@@ -17,8 +17,10 @@ from .capability_bindings import (
     evaluate_agent_capability_dry_run,
 )
 from .governance_context import resolve_agent_governance_context
+from .governance_control import router as governance_control_router
 
 router = APIRouter(tags=["agents"])
+router.include_router(governance_control_router)
 
 
 class DispatchRequest(BaseModel):
