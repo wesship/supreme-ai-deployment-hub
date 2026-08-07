@@ -6,7 +6,10 @@ are active behind the Railway service hostname.
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager, suppress
 from importlib import import_module
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +23,48 @@ if railway_environment := os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip():
     os.environ["ENVIRONMENT"] = railway_environment
 
 app = import_module("backend.main").app
+logger = logging.getLogger(__name__)
+
+# Extend—rather than replace—the canonical FastAPI lifespan. The background
+# bootstrap runs only on the production Railway environment and becomes a no-op
+# after the project is marked complete in Supabase.
+_base_lifespan = app.router.lifespan_context
+
+
+@asynccontextmanager
+async def railway_lifespan(app_instance):
+    bootstrap_task: asyncio.Task | None = None
+    async with _base_lifespan(app_instance):
+        try:
+            from backend.ai_films.bootstrap import (
+                bootstrap_sovereign_signal_movieflow_ingestion,
+                should_schedule_sovereign_signal_bootstrap,
+            )
+
+            if should_schedule_sovereign_signal_bootstrap():
+                bootstrap_task = asyncio.create_task(
+                    bootstrap_sovereign_signal_movieflow_ingestion(),
+                    name="sovereign-signal-movieflow-ingestion",
+                )
+                app_instance.state.sovereign_signal_ingestion_task = bootstrap_task
+                logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap.")
+        except Exception as exc:  # pragma: no cover - production bootstrap guard
+            logger.warning(
+                "Could not schedule The Sovereign Signal ingestion bootstrap: %s: %s",
+                type(exc).__name__,
+                exc,
+            )
+
+        try:
+            yield
+        finally:
+            if bootstrap_task is not None and not bootstrap_task.done():
+                bootstrap_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await bootstrap_task
+
+
+app.router.lifespan_context = railway_lifespan
 
 DEPLOYMENT_REVISION = "railway-environment-metadata-2026-07-29"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
