@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { aiFilmImageCategories, aiFilmImageTaxonomy } from '@/features/ai-films/imageTaxonomy';
 import CanonSceneWorkspace from '@/features/ai-films/CanonSceneWorkspace';
+import DrivePickerWorkspace from '@/features/ai-films/DrivePickerWorkspace';
 import StoragePackageWorkspace from '@/features/ai-films/StoragePackageWorkspace';
 import ReleaseControlWorkspace from '@/features/ai-films/ReleaseControlWorkspace';
 import StoryboardWorkspace from '@/features/ai-films/StoryboardWorkspace';
@@ -122,6 +123,7 @@ const AIFilmStudio = () => {
 
           <Card className="border-primary/20 p-4 text-sm text-muted-foreground" role="status" aria-live="polite">{message}</Card>
 
+          <DrivePickerWorkspace />
           <CanonSceneWorkspace project={project} assets={assets} />
           <StoryboardWorkspace project={project} />
           <StoragePackageWorkspace project={project} assets={assets} onAssetUploaded={refreshAssets} />
