@@ -25,7 +25,7 @@ class InMemoryTaskRepository:
     async def list_rows(self, table: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         rows = deepcopy(self.tables.get(table, []))
         for key, value in params.items():
-            if key in {"order", "limit"}:
+            if key in {"order", "limit", "offset"}:
                 continue
             if isinstance(value, str) and value.startswith("eq."):
                 expected = value[3:]
@@ -37,8 +37,11 @@ class InMemoryTaskRepository:
             rows.sort(key=lambda row: str(row.get("created_at", "")), reverse=True)
         elif params.get("order") == "title.desc":
             rows.sort(key=lambda row: str(row.get("title", "")), reverse=True)
+        if params.get("order") == "acquired_at.asc":
+            rows.sort(key=lambda row: str(row.get("acquired_at", "")))
+        offset = int(params.get("offset", 0))
         limit = int(params.get("limit", len(rows)))
-        return rows[:limit]
+        return rows[offset : offset + limit]
 
     async def create_row(self, table: str, payload: dict[str, Any]) -> dict[str, Any]:
         row = {"id": str(uuid4()), **deepcopy(payload)}
@@ -55,6 +58,22 @@ class InMemoryTaskRepository:
             if str(row.get("id")) == row_id:
                 row.update(deepcopy(payload))
                 return deepcopy(row)
+        return {}
+
+    async def update_row_if(
+        self,
+        table: str,
+        row_id: str,
+        payload: dict[str, Any],
+        conditions: dict[str, Any],
+    ) -> dict[str, Any]:
+        for row in self.tables.setdefault(table, []):
+            if str(row.get("id")) != row_id:
+                continue
+            if any(str(row.get(key)) != str(value) for key, value in conditions.items()):
+                return {}
+            row.update(deepcopy(payload))
+            return deepcopy(row)
         return {}
 
 
