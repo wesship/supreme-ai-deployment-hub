@@ -41,6 +41,15 @@ def _task_state(app_instance, name: str) -> str:
     return "running"
 
 
+async def _run_manifest_review_after_conform(conform_task: asyncio.Task | None = None):
+    if conform_task is not None:
+        with suppress(Exception):
+            await conform_task
+    from backend.ai_films.manifest_conform_review import review_active_manifest_on_startup
+
+    return await review_active_manifest_on_startup()
+
+
 @asynccontextmanager
 async def railway_lifespan(app_instance):
     bootstrap_task: asyncio.Task | None = None
@@ -50,6 +59,7 @@ async def railway_lifespan(app_instance):
     assembly_worker_task: asyncio.Task | None = None
     assembly_qa_task: asyncio.Task | None = None
     manifest_conform_task: asyncio.Task | None = None
+    manifest_review_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
         try:
             from backend.ai_films.jockey_startup_canary import (
@@ -79,10 +89,16 @@ async def railway_lifespan(app_instance):
                 name="ai-films-manifest-conform",
             )
             app_instance.state.ai_films_manifest_conform_task = manifest_conform_task
+            manifest_review_task = asyncio.create_task(
+                _run_manifest_review_after_conform(manifest_conform_task),
+                name="ai-films-manifest-jockey-review",
+            )
+            app_instance.state.ai_films_manifest_review_task = manifest_review_task
             logger.info("Scheduled one-time AI Films Shot Manifest conform search.")
+            logger.info("Scheduled Jockey conform review after Shot Manifest search.")
         except Exception as exc:  # pragma: no cover - conform guard
             logger.warning(
-                "Could not schedule AI Films Shot Manifest conform: %s: %s",
+                "Could not schedule AI Films Shot Manifest conform/review: %s: %s",
                 type(exc).__name__,
                 exc,
             )
@@ -162,6 +178,7 @@ async def railway_lifespan(app_instance):
                 drive_direct_task,
                 jockey_canary_task,
                 manifest_conform_task,
+                manifest_review_task,
                 assembly_worker_task,
                 assembly_qa_task,
             ):
@@ -173,7 +190,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-manifest-conform-2026-08-08"
+DEPLOYMENT_REVISION = "railway-ai-films-manifest-conform-review-2026-08-08"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -213,6 +230,7 @@ async def deployment_info() -> dict[str, object]:
         "route_count": len(paths),
         "workers": {
             "ai_films_manifest_conform": _task_state(app, "ai_films_manifest_conform_task"),
+            "ai_films_manifest_review": _task_state(app, "ai_films_manifest_review_task"),
             "ai_films_assembly": _task_state(app, "ai_films_assembly_worker_task"),
             "ai_films_post_render_qa": _task_state(app, "ai_films_assembly_qa_task"),
         },
