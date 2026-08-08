@@ -77,7 +77,11 @@ jobs:
         env:
           REQUIRE_AUTH: "false"
           ALLOW_DEV_ADMIN_BYPASS: "false"
-        run: python -m pytest backend/tests/test_proxy_routes.py -q
+        run: >-
+          python -m pytest
+          backend/tests/test_proxy_routes.py
+          backend/tests/test_ai_film_provider_adapters.py
+          -q
 
       - name: Secret scan
         run: pnpm security:scan

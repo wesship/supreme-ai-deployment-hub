@@ -18,12 +18,22 @@ def test_provider_health_never_exposes_secret_values():
     assert "resend-secret" not in serialized
     assert health["capabilities"]["image"] is True
     assert health["capabilities"]["email"] is True
-    assert health["capabilities"]["video"] is False
+    assert health["capabilities"]["video"] is True
 
 
-def test_all_provider_specs_declare_server_side_environment_contracts():
+def test_all_provider_specs_declare_server_side_runtime_contracts():
     for spec in PROVIDER_SPECS:
         assert spec.provider
         assert spec.capability
-        assert spec.required_env
+        assert spec.required_env or spec.required_binary
         assert all(not name.startswith("VITE_") for name in spec.required_env)
+
+
+def test_ffmpeg_assembly_declares_binary_runtime_requirement():
+    spec = next(
+        spec
+        for spec in PROVIDER_SPECS
+        if spec.capability == "assembly" and spec.provider == "ffmpeg"
+    )
+    assert spec.required_env == ()
+    assert spec.required_binary == ("ffmpeg",)
