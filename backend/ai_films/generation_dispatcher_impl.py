@@ -84,19 +84,22 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
     return sorted(routes, key=lambda route: (-route.score, route.provider))
 
 
-def _missing_required_anchors(packet: Mapping[str, Any], bible: ProductionBible) -> list[str]:
+def _anchor_block(packet: Mapping[str, Any], bible: ProductionBible) -> tuple[str | None, list[str]]:
     if not bool(bible.generation_policy.get("require_anchor_frames")):
-        return []
+        return None, []
     shot_anchors = packet.get("anchor_frame_asset_ids")
     if isinstance(shot_anchors, list) and shot_anchors:
-        return []
+        return None, []
     locks = packet.get("character_locks") if isinstance(packet.get("character_locks"), dict) else {}
+    character_ids = sorted(str(v) for v in locks.keys())
+    if len(character_ids) > 1:
+        return "composite_anchor_required", character_ids
     missing: list[str] = []
     for character_id, lock in locks.items():
         anchors = lock.get("anchor_asset_ids") if isinstance(lock, dict) else None
         if not isinstance(anchors, list) or not anchors:
             missing.append(str(character_id))
-    return sorted(set(missing))
+    return ("anchor_frames_required" if missing else None), sorted(set(missing))
 
 
 def dispatch_plan(shot: ShotManifestItem, bible: ProductionBible, *, conform_decision: str, environ: Mapping[str, str] | None = None) -> dict[str, Any]:
@@ -104,12 +107,12 @@ def dispatch_plan(shot: ShotManifestItem, bible: ProductionBible, *, conform_dec
         return {"shot_id": shot.shot_id, "action": "hold", "reason": f"conform_decision:{conform_decision}", "routes": []}
     packet = build_generation_packet(shot, bible)
     routes = rank_video_routes(packet, environ)
-    missing_anchors = _missing_required_anchors(packet, bible)
-    if missing_anchors:
+    block_reason, missing_anchors = _anchor_block(packet, bible)
+    if block_reason:
         return {
             "shot_id": shot.shot_id,
             "action": "blocked",
-            "reason": "anchor_frames_required",
+            "reason": block_reason,
             "missing_anchor_characters": missing_anchors,
             "selected_provider": None,
             "selected_model": None,
