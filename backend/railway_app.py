@@ -49,6 +49,7 @@ async def railway_lifespan(app_instance):
     jockey_canary_task: asyncio.Task | None = None
     assembly_worker_task: asyncio.Task | None = None
     assembly_qa_task: asyncio.Task | None = None
+    manifest_conform_task: asyncio.Task | None = None
     async with _base_lifespan(app_instance):
         try:
             from backend.ai_films.jockey_startup_canary import (
@@ -66,6 +67,22 @@ async def railway_lifespan(app_instance):
         except Exception as exc:  # pragma: no cover - production certification guard
             logger.warning(
                 "Could not schedule Jockey production certification: %s: %s",
+                type(exc).__name__,
+                exc,
+            )
+
+        try:
+            from backend.ai_films.manifest_conform import conform_active_manifest_on_startup
+
+            manifest_conform_task = asyncio.create_task(
+                conform_active_manifest_on_startup(),
+                name="ai-films-manifest-conform",
+            )
+            app_instance.state.ai_films_manifest_conform_task = manifest_conform_task
+            logger.info("Scheduled one-time AI Films Shot Manifest conform search.")
+        except Exception as exc:  # pragma: no cover - conform guard
+            logger.warning(
+                "Could not schedule AI Films Shot Manifest conform: %s: %s",
                 type(exc).__name__,
                 exc,
             )
@@ -144,6 +161,7 @@ async def railway_lifespan(app_instance):
                 drive_bootstrap_task,
                 drive_direct_task,
                 jockey_canary_task,
+                manifest_conform_task,
                 assembly_worker_task,
                 assembly_qa_task,
             ):
@@ -155,7 +173,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-assembly-and-qa-worker-2026-08-07"
+DEPLOYMENT_REVISION = "railway-ai-films-manifest-conform-2026-08-08"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -194,6 +212,7 @@ async def deployment_info() -> dict[str, object]:
         "railway_git_commit_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA"),
         "route_count": len(paths),
         "workers": {
+            "ai_films_manifest_conform": _task_state(app, "ai_films_manifest_conform_task"),
             "ai_films_assembly": _task_state(app, "ai_films_assembly_worker_task"),
             "ai_films_post_render_qa": _task_state(app, "ai_films_assembly_qa_task"),
         },
@@ -206,6 +225,7 @@ async def deployment_info() -> dict[str, object]:
             "occ": "/api/occ/stats" in paths,
             "admin": "/api/admin/overview" in paths,
             "ai_films_director": "/api/ai-films/director/assemble" in paths,
+            "ai_films_production_bible": "/api/ai-films/production/bible/{project_id}" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
         "official_cors_origins": [
