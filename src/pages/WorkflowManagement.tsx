@@ -1,10 +1,11 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
+import { Activity, GitBranch, ShieldCheck, Workflow } from 'lucide-react';
 import Container from '@/components/Container';
 import PublicPageShell from '@/components/shell/PublicPageShell';
 import WorkflowManager from '@/components/workflow/WorkflowManager';
-import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
+import { D3Surface, D3SectionHeader } from '@/components/d3/D3Surface';
 
 const breadcrumbs = [{ label: 'Automation Studio' }, { label: 'Workflows' }];
 
@@ -20,27 +21,57 @@ const WorkflowManagement: React.FC = () => {
         <link rel="canonical" href="https://d3vonn.io/workflows" />
       </Helmet>
 
-      <section className="d3-os-shell" aria-labelledby="automation-heading">
-        <D3vonnPageBanner title="Automation Studio" />
+      <section className="d3-os-shell d3-workspace-shell" aria-labelledby="automation-heading">
         <Container maxWidth="2xl" className="py-8 sm:py-12 lg:py-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="mb-6 d3-chrome-panel rounded-2xl p-5 sm:p-6">
-              <div className="d3-system-status">Workflow engine ready</div>
-              <h1 id="automation-heading" className="mt-4 text-2xl font-bold sm:text-3xl">
-                Automation Orchestration
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm text-white/60">
-                Design, execute, and monitor governed workflows with clear progression, live state, and human approval points.
-              </p>
+            <D3Surface material="titanium" className="relative overflow-hidden p-6 sm:p-8">
+              <div className="pointer-events-none absolute left-[58%] top-[-55%] h-80 w-80 rounded-full bg-blue-500/12 blur-3xl" aria-hidden="true" />
+              <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+                <D3SectionHeader
+                  eyebrow="Automation Studio"
+                  title="Automation Orchestration"
+                  description="Design, execute, and monitor governed workflows with visible state, branching logic, verification, and human approval points."
+                />
+                <div className="flex flex-wrap gap-2 lg:justify-end">
+                  <span className="d3-system-status"><Activity className="h-3.5 w-3.5" /> engine ready</span>
+                  <span className="d3-system-status"><ShieldCheck className="h-3.5 w-3.5" /> approval aware</span>
+                </div>
+              </div>
+            </D3Surface>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-3" aria-label="Automation operating model">
+              {[
+                ['Trigger', 'Start from events, schedules, users, or agent decisions.', Workflow],
+                ['Orchestrate', 'Branch across agents, tools, data, and governed actions.', GitBranch],
+                ['Verify', 'Capture execution state, approvals, outcomes, and retries.', ShieldCheck],
+              ].map(([title, copy, Icon]) => {
+                const LucideIcon = Icon as React.ElementType;
+                return (
+                  <D3Surface key={String(title)} interactive className="p-4 sm:p-5">
+                    <LucideIcon className="h-5 w-5 text-blue-200" aria-hidden="true" />
+                    <h2 className="mt-4 text-sm font-semibold text-white">{String(title)}</h2>
+                    <p className="mt-1 text-xs leading-5 text-white/45">{String(copy)}</p>
+                  </D3Surface>
+                );
+              })}
             </div>
 
-            <div className="d3-chrome-panel rounded-2xl p-3 sm:p-5" aria-label="Workflow management workspace">
+            <D3Surface className="mt-5 p-3 sm:p-5" aria-label="Workflow management workspace">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
+                <div>
+                  <div className="d3-kicker">Execution workspace</div>
+                  <h2 className="mt-2 text-lg font-semibold text-white">Workflow Engine</h2>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-100/45">
+                  Trigger → Decide → Execute → Verify → Remember
+                </span>
+              </div>
               <WorkflowManager />
-            </div>
+            </D3Surface>
           </motion.div>
         </Container>
       </section>
