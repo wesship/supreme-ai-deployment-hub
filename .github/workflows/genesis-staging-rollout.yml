@@ -1,0 +1,126 @@
+name: Genesis Staging Rollout
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/*genesis*.sql"
+      - ".github/workflows/genesis-staging-rollout.yml"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preview or apply the isolated Genesis migration set
+        required: true
+        default: preview
+        type: choice
+        options: [preview, apply]
+      confirmation:
+        description: Type APPLY_GENESIS_STAGING for apply mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: genesis-staging-rollout
+  cancel-in-progress: false
+
+env:
+  EXPECTED_STAGING_PROJECT_ID: ypomzwhtaamxdmcwtpyf
+
+jobs:
+  rollout:
+    name: Genesis migrations on staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate staging boundary
+        id: guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_ID SUPABASE_DB_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              missing+=("$name")
+            fi
+          done
+          if (( ${#missing[@]} )); then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Staging rollout not automated::Missing staging environment secrets: ${missing[*]}. The migration check is skipped without changing any database."
+            exit 0
+          fi
+          if [[ "$SUPABASE_PROJECT_ID" != "$EXPECTED_STAGING_PROJECT_ID" ]]; then
+            echo "::error title=Staging boundary violation::Expected project $EXPECTED_STAGING_PROJECT_ID but received $SUPABASE_PROJECT_ID."
+            exit 1
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.mode }}" == "apply" && "${{ inputs.confirmation }}" != "APPLY_GENESIS_STAGING" ]]; then
+            echo "::error title=Invalid confirmation::Apply mode requires APPLY_GENESIS_STAGING."
+            exit 1
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install Supabase CLI
+        if: steps.guard.outputs.available == 'true'
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.109.1
+
+      - name: Prepare isolated migration workspace
+        if: steps.guard.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          workdir="$RUNNER_TEMP/genesis-rollout"
+          mkdir -p "$workdir/supabase/migrations"
+          cp supabase/migrations/*genesis*.sql "$workdir/supabase/migrations/"
+          cd "$workdir"
+          supabase init --force
+          echo "GENESIS_WORKDIR=$workdir" >> "$GITHUB_ENV"
+
+      - name: Link staging project
+        if: steps.guard.outputs.available == 'true'
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Preview Genesis migrations
+        if: steps.guard.outputs.available == 'true'
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase db push --linked --dry-run --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply Genesis migrations
+        if: steps.guard.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' && inputs.confirmation == 'APPLY_GENESIS_STAGING'
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Lint resulting staging schema
+        if: steps.guard.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' && inputs.confirmation == 'APPLY_GENESIS_STAGING'
+        working-directory: ${{ env.GENESIS_WORKDIR }}
+        run: supabase db lint --linked --level warning
+
+      - name: Write rollout summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Genesis Staging Rollout"
+            echo ""
+            echo "- Staging project: \`$EXPECTED_STAGING_PROJECT_ID\`"
+            echo "- Event: \`${{ github.event_name }}\`"
+            echo "- Mode: \`${{ inputs.mode || 'preview' }}\`"
+            echo "- Automated credentials available: \`${{ steps.guard.outputs.available || 'false' }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+            echo "- Pull requests are preview-only; apply requires explicit workflow dispatch confirmation."
+          } >> "$GITHUB_STEP_SUMMARY"
