@@ -10,15 +10,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Preview or apply the isolated Genesis migration set
+        description: Preview the Genesis migration set against staging history
         required: true
         default: preview
         type: choice
-        options: [preview, apply]
-      confirmation:
-        description: Type APPLY_GENESIS_STAGING for apply mode
-        required: false
-        type: string
+        options: [preview]
 
 permissions:
   contents: read
@@ -59,15 +55,11 @@ jobs:
           done
           if (( ${#missing[@]} )); then
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning title=Staging rollout not automated::Missing staging environment secrets: ${missing[*]}. The migration check is skipped without changing any database."
+            echo "::warning title=Staging rollout not automated::Missing staging environment secrets: ${missing[*]}. The migration preview is skipped without changing any database."
             exit 0
           fi
           if [[ "$SUPABASE_PROJECT_ID" != "$EXPECTED_STAGING_PROJECT_ID" ]]; then
             echo "::error title=Staging boundary violation::Expected project $EXPECTED_STAGING_PROJECT_ID but received $SUPABASE_PROJECT_ID."
-            exit 1
-          fi
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.mode }}" == "apply" && "${{ inputs.confirmation }}" != "APPLY_GENESIS_STAGING" ]]; then
-            echo "::error title=Invalid confirmation::Apply mode requires APPLY_GENESIS_STAGING."
             exit 1
           fi
           echo "available=true" >> "$GITHUB_OUTPUT"
@@ -78,14 +70,14 @@ jobs:
         with:
           version: 2.109.1
 
-      - name: Prepare isolated migration workspace
+      - name: Prepare migration-ledger workspace
         if: steps.guard.outputs.available == 'true'
         shell: bash
         run: |
           set -euo pipefail
           workdir="$RUNNER_TEMP/genesis-rollout"
           mkdir -p "$workdir/supabase/migrations"
-          cp supabase/migrations/*genesis*.sql "$workdir/supabase/migrations/"
+          cp supabase/migrations/*.sql "$workdir/supabase/migrations/"
           cd "$workdir"
           supabase init --force
           echo "GENESIS_WORKDIR=$workdir" >> "$GITHUB_ENV"
@@ -95,20 +87,10 @@ jobs:
         working-directory: ${{ env.GENESIS_WORKDIR }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
 
-      - name: Preview Genesis migrations
+      - name: Preview migration ledger against staging
         if: steps.guard.outputs.available == 'true'
         working-directory: ${{ env.GENESIS_WORKDIR }}
         run: supabase db push --linked --dry-run --password "$SUPABASE_DB_PASSWORD"
-
-      - name: Apply Genesis migrations
-        if: steps.guard.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' && inputs.confirmation == 'APPLY_GENESIS_STAGING'
-        working-directory: ${{ env.GENESIS_WORKDIR }}
-        run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
-
-      - name: Lint resulting staging schema
-        if: steps.guard.outputs.available == 'true' && github.event_name == 'workflow_dispatch' && inputs.mode == 'apply' && inputs.confirmation == 'APPLY_GENESIS_STAGING'
-        working-directory: ${{ env.GENESIS_WORKDIR }}
-        run: supabase db lint --linked --level warning
 
       - name: Write rollout summary
         if: always()
@@ -119,8 +101,10 @@ jobs:
             echo ""
             echo "- Staging project: \`$EXPECTED_STAGING_PROJECT_ID\`"
             echo "- Event: \`${{ github.event_name }}\`"
-            echo "- Mode: \`${{ inputs.mode || 'preview' }}\`"
+            echo "- Mode: \`preview-only\`"
             echo "- Automated credentials available: \`${{ steps.guard.outputs.available || 'false' }}\`"
             echo "- Commit: \`${{ github.sha }}\`"
-            echo "- Pull requests are preview-only; apply requires explicit workflow dispatch confirmation."
+            echo "- Full repository migration history is loaded so staging history can be reconciled safely."
+            echo "- No database apply step exists in this certification workflow."
+            echo "- Genesis staging application remains a separate explicit release action."
           } >> "$GITHUB_STEP_SUMMARY"
