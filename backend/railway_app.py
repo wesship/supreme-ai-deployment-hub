@@ -56,7 +56,7 @@ async def railway_lifespan(app_instance):
     bootstrap_task = drive_bootstrap_task = drive_direct_task = None
     jockey_canary_task = assembly_worker_task = assembly_qa_task = None
     manifest_conform_task = manifest_review_task = generation_dispatch_task = None
-    openai_video_worker_task = generated_shot_qa_task = None
+    openai_video_worker_task = generated_shot_qa_task = anchor_candidate_task = None
     async with _base_lifespan(app_instance):
         try:
             from backend.ai_films.jockey_startup_canary import certify_jockey_on_startup, should_run_jockey_startup_canary
@@ -78,6 +78,14 @@ async def railway_lifespan(app_instance):
             logger.info("Scheduled AI Films conform → Jockey review → generation dispatch chain.")
         except Exception as exc:
             logger.warning("Could not schedule AI Films manifest intelligence chain: %s: %s", type(exc).__name__, exc)
+
+        try:
+            from backend.ai_films.anchor_frames import extract_anchor_candidates_on_startup
+            anchor_candidate_task = asyncio.create_task(extract_anchor_candidates_on_startup(), name="ai-films-anchor-candidates")
+            app_instance.state.ai_films_anchor_candidate_task = anchor_candidate_task
+            logger.info("Scheduled one-time AI Films anchor-frame candidate extraction.")
+        except Exception as exc:
+            logger.warning("Could not schedule AI Films anchor candidate extraction: %s: %s", type(exc).__name__, exc)
 
         try:
             from backend.ai_films.openai_video_worker import run_openai_video_worker
@@ -120,7 +128,7 @@ async def railway_lifespan(app_instance):
         try:
             yield
         finally:
-            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task, jockey_canary_task, manifest_conform_task, manifest_review_task, generation_dispatch_task, openai_video_worker_task, generated_shot_qa_task, assembly_worker_task, assembly_qa_task):
+            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task, jockey_canary_task, manifest_conform_task, manifest_review_task, generation_dispatch_task, anchor_candidate_task, openai_video_worker_task, generated_shot_qa_task, assembly_worker_task, assembly_qa_task):
                 if task is not None and not task.done():
                     task.cancel()
                     with suppress(asyncio.CancelledError):
@@ -129,7 +137,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-generation-execution-loop-2026-08-08"
+DEPLOYMENT_REVISION = "railway-ai-films-anchor-frame-pipeline-2026-08-08"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -170,6 +178,7 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_manifest_conform": _task_state(app, "ai_films_manifest_conform_task"),
             "ai_films_manifest_review": _task_state(app, "ai_films_manifest_review_task"),
             "ai_films_generation_dispatch": _task_state(app, "ai_films_generation_dispatch_task"),
+            "ai_films_anchor_candidates": _task_state(app, "ai_films_anchor_candidate_task"),
             "ai_films_openai_video": _task_state(app, "ai_films_openai_video_worker_task"),
             "ai_films_generated_shot_qa": _task_state(app, "ai_films_generated_shot_qa_task"),
             "ai_films_assembly": _task_state(app, "ai_films_assembly_worker_task"),
@@ -178,13 +187,9 @@ async def deployment_info() -> dict[str, object]:
         "routers": {
             "api_health": "/api/health" in paths,
             "proxy": "/api/deploy/probe" in paths,
-            "api_v1": "/api/v1/health" in paths,
-            "operations": "/api/v1/ops/health" in paths,
-            "intelligence": "/api/intelligence/prompts" in paths,
-            "occ": "/api/occ/stats" in paths,
-            "admin": "/api/admin/overview" in paths,
             "ai_films_director": "/api/ai-films/director/assemble" in paths,
             "ai_films_production_bible": "/api/ai-films/production/bible/{project_id}" in paths,
+            "ai_films_anchor_frames": "/api/ai-films/production/anchors/candidates" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
         "official_cors_origins": [origin for origin in RAILWAY_ALLOWED_ORIGINS if origin.endswith("d3vonn.io")],
