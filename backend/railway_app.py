@@ -1,9 +1,4 @@
-"""Railway entry point for the canonical D3VONN.IO FastAPI application.
-
-This wrapper keeps the production app defined in ``backend.main`` while adding
-non-sensitive deployment diagnostics that prove which image and router surface
-are active behind the Railway service hostname.
-"""
+"""Railway entry point for the canonical D3VONN.IO FastAPI application."""
 from __future__ import annotations
 
 import asyncio
@@ -25,7 +20,6 @@ _base_lifespan = app.router.lifespan_context
 
 
 def _sovereign_signal_bootstrap_enabled() -> bool:
-    """Require an explicit opt-in after Drive Picker selection is completed."""
     value = os.getenv("AI_FILM_ENABLE_SOVEREIGN_SIGNAL_BOOTSTRAP", "").strip().lower()
     return value in {"1", "true", "yes", "on"}
 
@@ -46,142 +40,75 @@ async def _run_manifest_review_after_conform(conform_task: asyncio.Task | None =
         with suppress(Exception):
             await conform_task
     from backend.ai_films.manifest_conform_review import review_active_manifest_on_startup
-
     return await review_active_manifest_on_startup()
+
+
+async def _run_generation_dispatch_after_review(review_task: asyncio.Task | None = None):
+    if review_task is not None:
+        with suppress(Exception):
+            await review_task
+    from backend.ai_films.generation_dispatch_startup import plan_generation_on_startup
+    return await plan_generation_on_startup()
 
 
 @asynccontextmanager
 async def railway_lifespan(app_instance):
-    bootstrap_task: asyncio.Task | None = None
-    drive_bootstrap_task: asyncio.Task | None = None
-    drive_direct_task: asyncio.Task | None = None
-    jockey_canary_task: asyncio.Task | None = None
-    assembly_worker_task: asyncio.Task | None = None
-    assembly_qa_task: asyncio.Task | None = None
-    manifest_conform_task: asyncio.Task | None = None
-    manifest_review_task: asyncio.Task | None = None
+    bootstrap_task = drive_bootstrap_task = drive_direct_task = None
+    jockey_canary_task = assembly_worker_task = assembly_qa_task = None
+    manifest_conform_task = manifest_review_task = generation_dispatch_task = None
     async with _base_lifespan(app_instance):
         try:
-            from backend.ai_films.jockey_startup_canary import (
-                certify_jockey_on_startup,
-                should_run_jockey_startup_canary,
-            )
-
+            from backend.ai_films.jockey_startup_canary import certify_jockey_on_startup, should_run_jockey_startup_canary
             if should_run_jockey_startup_canary():
-                jockey_canary_task = asyncio.create_task(
-                    certify_jockey_on_startup(),
-                    name="ai-films-jockey-production-canary",
-                )
+                jockey_canary_task = asyncio.create_task(certify_jockey_on_startup(), name="ai-films-jockey-production-canary")
                 app_instance.state.jockey_production_canary_task = jockey_canary_task
                 logger.info("Scheduled one-time TwelveLabs/Jockey production certification.")
-        except Exception as exc:  # pragma: no cover - production certification guard
-            logger.warning(
-                "Could not schedule Jockey production certification: %s: %s",
-                type(exc).__name__,
-                exc,
-            )
+        except Exception as exc:
+            logger.warning("Could not schedule Jockey production certification: %s: %s", type(exc).__name__, exc)
 
         try:
             from backend.ai_films.manifest_conform import conform_active_manifest_on_startup
-
-            manifest_conform_task = asyncio.create_task(
-                conform_active_manifest_on_startup(),
-                name="ai-films-manifest-conform",
-            )
+            manifest_conform_task = asyncio.create_task(conform_active_manifest_on_startup(), name="ai-films-manifest-conform")
             app_instance.state.ai_films_manifest_conform_task = manifest_conform_task
-            manifest_review_task = asyncio.create_task(
-                _run_manifest_review_after_conform(manifest_conform_task),
-                name="ai-films-manifest-jockey-review",
-            )
+            manifest_review_task = asyncio.create_task(_run_manifest_review_after_conform(manifest_conform_task), name="ai-films-manifest-jockey-review")
             app_instance.state.ai_films_manifest_review_task = manifest_review_task
-            logger.info("Scheduled one-time AI Films Shot Manifest conform search.")
-            logger.info("Scheduled Jockey conform review after Shot Manifest search.")
-        except Exception as exc:  # pragma: no cover - conform guard
-            logger.warning(
-                "Could not schedule AI Films Shot Manifest conform/review: %s: %s",
-                type(exc).__name__,
-                exc,
-            )
+            generation_dispatch_task = asyncio.create_task(_run_generation_dispatch_after_review(manifest_review_task), name="ai-films-generation-dispatch")
+            app_instance.state.ai_films_generation_dispatch_task = generation_dispatch_task
+            logger.info("Scheduled AI Films conform → Jockey review → generation dispatch chain.")
+        except Exception as exc:
+            logger.warning("Could not schedule AI Films manifest intelligence chain: %s: %s", type(exc).__name__, exc)
 
         try:
             from backend.ai_films.assembly_worker import run_assembly_worker
             from backend.ai_films.assembly_qa_worker import run_assembly_qa_worker
-
-            assembly_worker_task = asyncio.create_task(
-                run_assembly_worker(),
-                name="ai-films-ffmpeg-assembly-worker",
-            )
-            assembly_qa_task = asyncio.create_task(
-                run_assembly_qa_worker(),
-                name="ai-films-post-render-qa-worker",
-            )
+            assembly_worker_task = asyncio.create_task(run_assembly_worker(), name="ai-films-ffmpeg-assembly-worker")
+            assembly_qa_task = asyncio.create_task(run_assembly_qa_worker(), name="ai-films-post-render-qa-worker")
             app_instance.state.ai_films_assembly_worker_task = assembly_worker_task
             app_instance.state.ai_films_assembly_qa_task = assembly_qa_task
-            logger.info("Scheduled AI Films FFmpeg assembly worker.")
-            logger.info("Scheduled AI Films TwelveLabs post-render QA worker.")
-        except Exception as exc:  # pragma: no cover - production worker guard
-            logger.warning(
-                "Could not schedule AI Films assembly workers: %s: %s",
-                type(exc).__name__,
-                exc,
-            )
+            logger.info("Scheduled AI Films assembly and post-render QA workers.")
+        except Exception as exc:
+            logger.warning("Could not schedule AI Films assembly workers: %s: %s", type(exc).__name__, exc)
 
         try:
-            from backend.ai_films.bootstrap import (
-                bootstrap_sovereign_signal_movieflow_ingestion,
-                should_schedule_sovereign_signal_bootstrap,
-            )
-            from backend.ai_films.drive_connector import (
-                bootstrap_sovereign_signal_drive_ingestion,
-            )
-            from backend.ai_films.drive_direct_fallback import (
-                bootstrap_sovereign_signal_drive_direct_fallback,
-            )
-
+            from backend.ai_films.bootstrap import bootstrap_sovereign_signal_movieflow_ingestion, should_schedule_sovereign_signal_bootstrap
+            from backend.ai_films.drive_connector import bootstrap_sovereign_signal_drive_ingestion
+            from backend.ai_films.drive_direct_fallback import bootstrap_sovereign_signal_drive_direct_fallback
             if should_schedule_sovereign_signal_bootstrap() and _sovereign_signal_bootstrap_enabled():
-                bootstrap_task = asyncio.create_task(
-                    bootstrap_sovereign_signal_movieflow_ingestion(),
-                    name="sovereign-signal-movieflow-ingestion",
-                )
-                drive_bootstrap_task = asyncio.create_task(
-                    bootstrap_sovereign_signal_drive_ingestion(),
-                    name="sovereign-signal-drive-ingestion",
-                )
-                drive_direct_task = asyncio.create_task(
-                    bootstrap_sovereign_signal_drive_direct_fallback(),
-                    name="sovereign-signal-drive-direct-fallback",
-                )
+                bootstrap_task = asyncio.create_task(bootstrap_sovereign_signal_movieflow_ingestion(), name="sovereign-signal-movieflow-ingestion")
+                drive_bootstrap_task = asyncio.create_task(bootstrap_sovereign_signal_drive_ingestion(), name="sovereign-signal-drive-ingestion")
+                drive_direct_task = asyncio.create_task(bootstrap_sovereign_signal_drive_direct_fallback(), name="sovereign-signal-drive-direct-fallback")
                 app_instance.state.sovereign_signal_ingestion_task = bootstrap_task
                 app_instance.state.sovereign_signal_drive_ingestion_task = drive_bootstrap_task
                 app_instance.state.sovereign_signal_drive_direct_task = drive_direct_task
-                logger.info("Scheduled The Sovereign Signal MovieFlow ingestion bootstrap.")
-                logger.info("Scheduled The Sovereign Signal Google Drive connector bootstrap.")
-                logger.info("Scheduled The Sovereign Signal Google Drive direct fallback.")
             elif should_schedule_sovereign_signal_bootstrap():
-                logger.info(
-                    "The Sovereign Signal ingestion bootstraps are paused until "
-                    "AI_FILM_ENABLE_SOVEREIGN_SIGNAL_BOOTSTRAP=true after Drive Picker selection."
-                )
-        except Exception as exc:  # pragma: no cover - production bootstrap guard
-            logger.warning(
-                "Could not schedule The Sovereign Signal ingestion bootstrap: %s: %s",
-                type(exc).__name__,
-                exc,
-            )
+                logger.info("The Sovereign Signal ingestion bootstraps remain paused pending explicit enablement.")
+        except Exception as exc:
+            logger.warning("Could not schedule Sovereign Signal ingestion bootstrap: %s: %s", type(exc).__name__, exc)
 
         try:
             yield
         finally:
-            for task in (
-                bootstrap_task,
-                drive_bootstrap_task,
-                drive_direct_task,
-                jockey_canary_task,
-                manifest_conform_task,
-                manifest_review_task,
-                assembly_worker_task,
-                assembly_qa_task,
-            ):
+            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task, jockey_canary_task, manifest_conform_task, manifest_review_task, generation_dispatch_task, assembly_worker_task, assembly_qa_task):
                 if task is not None and not task.done():
                     task.cancel()
                     with suppress(asyncio.CancelledError):
@@ -190,7 +117,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-manifest-conform-review-2026-08-08"
+DEPLOYMENT_REVISION = "railway-ai-films-multimodel-dispatch-2026-08-08"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -210,9 +137,8 @@ def _paths() -> set[str]:
 if "/api/intelligence/prompts" not in _paths():
     try:
         from backend.intelligence.api_router import router as intelligence_router
-
         app.include_router(intelligence_router, prefix="/api", tags=["intelligence"])
-    except Exception as exc:  # pragma: no cover - production diagnostic guard
+    except Exception as exc:
         INTELLIGENCE_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
 
@@ -231,6 +157,7 @@ async def deployment_info() -> dict[str, object]:
         "workers": {
             "ai_films_manifest_conform": _task_state(app, "ai_films_manifest_conform_task"),
             "ai_films_manifest_review": _task_state(app, "ai_films_manifest_review_task"),
+            "ai_films_generation_dispatch": _task_state(app, "ai_films_generation_dispatch_task"),
             "ai_films_assembly": _task_state(app, "ai_films_assembly_worker_task"),
             "ai_films_post_render_qa": _task_state(app, "ai_films_assembly_qa_task"),
         },
@@ -246,7 +173,5 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_production_bible": "/api/ai-films/production/bible/{project_id}" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
-        "official_cors_origins": [
-            origin for origin in RAILWAY_ALLOWED_ORIGINS if origin.endswith("d3vonn.io")
-        ],
+        "official_cors_origins": [origin for origin in RAILWAY_ALLOWED_ORIGINS if origin.endswith("d3vonn.io")],
     }
