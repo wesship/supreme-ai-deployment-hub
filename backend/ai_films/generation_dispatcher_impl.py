@@ -27,6 +27,7 @@ _VIDEO_MODEL_ENV = {
     "runway": "AI_FILM_RUNWAY_MODEL",
     "replicate": "AI_FILM_REPLICATE_VIDEO_MODEL",
 }
+_PROVIDER_ALIASES = {"sora": "openai", "grok": "xai", "xai": "xai", "openai": "openai"}
 _BASE_SCORE = {"openai": 100, "higgsfield": 95, "runway": 88, "xai": 84, "movieflow": 82, "replicate": 72}
 
 
@@ -34,11 +35,16 @@ def _video_specs() -> dict[str, Any]:
     return {spec.provider: spec for spec in PROVIDER_SPECS if spec.capability == "video"}
 
 
+def _normalize_provider(value: str) -> str:
+    cleaned = str(value).strip().lower()
+    return _PROVIDER_ALIASES.get(cleaned, cleaned)
+
+
 def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> list[VideoRoute]:
     source = environ or os.environ
     specs = _video_specs()
     raw_pref = packet.get("provider_route")
-    preferred = [str(v).strip().lower() for v in raw_pref] if isinstance(raw_pref, list) else []
+    preferred = [_normalize_provider(v) for v in raw_pref] if isinstance(raw_pref, list) else []
     anchors = packet.get("anchor_frame_asset_ids") or []
     audio = packet.get("audio") if isinstance(packet.get("audio"), dict) else {}
     dialogue = bool(audio.get("dialogue"))
