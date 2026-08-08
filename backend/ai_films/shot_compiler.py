@@ -14,6 +14,38 @@ def _character_map(bible: ProductionBible) -> dict[str, Any]:
     return {row.character_id: row for row in bible.characters}
 
 
+def _instance_event_contradiction(action: str) -> bool:
+    text = " ".join(action.lower().split())
+    forbidden_positive = (
+        "physically defeats",
+        "physically defeat",
+        "kills instance",
+        "kills the instance",
+    )
+    if any(term in text for term in forbidden_positive):
+        return True
+    if "second rescue" in text and not any(
+        phrase in text
+        for phrase in (
+            "no second rescue",
+            "without a second rescue",
+            "there is no second rescue",
+            "not a second rescue",
+        )
+    ):
+        return True
+    if "physical defeat" in text and not any(
+        phrase in text
+        for phrase in (
+            "no physical defeat",
+            "without physical defeat",
+            "not a physical defeat",
+        )
+    ):
+        return True
+    return False
+
+
 def validate_shot(shot: ShotManifestItem, bible: ProductionBible) -> list[str]:
     """Return deterministic canon warnings; raise only for immutable contradictions."""
     warnings: list[str] = []
@@ -34,9 +66,8 @@ def validate_shot(shot: ShotManifestItem, bible: ProductionBible) -> list[str]:
         if camera and not any(term in camera for term in ("center", "clean", "symmetr")):
             warnings.append("legend_camera_should_remain_centered_clean")
 
-    for ref in shot.canon_refs:
-        if ref == "SS-IE-J/L-001" and any(term in shot.action.lower() for term in ("second rescue", "physically defeats", "kills instance")):
-            raise CanonViolation("Shot contradicts immutable Instance Event SS-IE-J/L-001")
+    if "SS-IE-J/L-001" in shot.canon_refs and _instance_event_contradiction(shot.action):
+        raise CanonViolation("Shot contradicts immutable Instance Event SS-IE-J/L-001")
     return warnings
 
 
