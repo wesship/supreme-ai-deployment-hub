@@ -22,16 +22,20 @@ def _now() -> str:
 
 
 async def _download(url: str, target: Path) -> None:
-    async with httpx.AsyncClient(timeout=httpx.Timeout(180, connect=15), follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=15), follow_redirects=True) as client:
         async with client.stream("GET", url) as response:
             if response.status_code >= 400:
                 raise RuntimeError(f"Anchor source download failed with HTTP {response.status_code}")
             with target.open("wb") as handle:
                 async for chunk in response.aiter_bytes():
                     handle.write(chunk)
+    if not target.exists() or target.stat().st_size == 0:
+        raise RuntimeError("Anchor source download returned an empty file")
 
 
 async def _extract_frame(video: Path, target: Path, timestamp: float) -> None:
+    if target.exists():
+        target.unlink()
     proc = await asyncio.create_subprocess_exec(
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
         "-ss", f"{max(0, timestamp):.3f}", "-i", str(video),
@@ -40,7 +44,23 @@ async def _extract_frame(video: Path, target: Path, timestamp: float) -> None:
     )
     _, stderr = await proc.communicate()
     if proc.returncode != 0 or not target.exists() or target.stat().st_size == 0:
-        raise RuntimeError(f"Anchor frame extraction failed: {stderr.decode(errors='replace')[-800:]}")
+        raise RuntimeError(f"Anchor frame extraction failed at {timestamp:.3f}s: {stderr.decode(errors='replace')[-800:]}")
+
+
+async def _extract_with_fallback(video: Path, target: Path, candidate: Mapping[str, Any]) -> float:
+    attempts = []
+    for raw in (candidate.get("timestamp"), candidate.get("source_start"), 0.5):
+        timestamp = max(0.0, float(raw or 0))
+        if timestamp not in attempts:
+            attempts.append(timestamp)
+    last_error: Exception | None = None
+    for timestamp in attempts:
+        try:
+            await _extract_frame(video, target, timestamp)
+            return timestamp
+        except Exception as exc:
+            last_error = exc
+    raise RuntimeError(str(last_error or "No valid anchor extraction timestamp"))
 
 
 async def _upload_jpeg(db: SupabaseAssemblyClient, local_path: Path, object_path: str) -> dict[str, Any]:
@@ -92,6 +112,14 @@ def _candidate_rows(manifest: Mapping[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+async def _persist_manifest(db: SupabaseAssemblyClient, row_id: str, manifest: dict[str, Any]) -> None:
+    await db._request(
+        "PATCH", "ai_film_shot_manifests",
+        params={"id": f"eq.{row_id}"},
+        payload={"manifest": manifest, "updated_at": _now()},
+    )
+
+
 async def extract_anchor_candidates_on_startup(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     source = environ or os.environ
     if str(source.get("RAILWAY_ENVIRONMENT_NAME", "")).lower() != "production":
@@ -110,53 +138,95 @@ async def extract_anchor_candidates_on_startup(environ: Mapping[str, str] | None
     if metadata.get("anchor_candidate_state") == "completed":
         return {"status": "completed", "reason": "already_extracted"}
 
-    created: list[dict[str, Any]] = []
-    for candidate in _candidate_rows(manifest):
-        asset = await db.get_asset(candidate["source_asset_id"])
-        if not asset:
-            continue
-        try:
-            media = resolve_asset_source(asset)
-        except Exception:
-            continue
-        with tempfile.TemporaryDirectory(prefix="d3vonn-anchor-") as tmp:
-            root = Path(tmp)
-            video = root / (media.source_filename or "source.mp4")
-            frame = root / "anchor.jpg"
-            await _download(media.media_url, video)
-            await _extract_frame(video, frame, candidate["timestamp"])
-            object_path = f"{PROJECT_ID}/anchors/candidates/{candidate['shot_id']}.jpg"
-            stored = await _upload_jpeg(db, frame, object_path)
-        payload = {
-            "project_id": PROJECT_ID,
-            "owner_id": row.get("owner_id"),
-            "asset_type": "image",
-            "title": f"{candidate['shot_id']} — anchor candidate",
-            "description": "Extracted from existing footage for explicit canon identity approval.",
-            "storage_path": f"supabase://{db.bucket}/{object_path}",
-            "source_filename": f"{candidate['shot_id']}-anchor.jpg",
-            "category": "anchor-frame",
-            "subcategory": "candidate",
-            "status": "selected",
-            "version": 1,
-            "tags": ["ai-films", "anchor-candidate", candidate["shot_id"]],
-            "metadata": {
-                "source_type": "extracted_frame",
-                "storage_bucket": db.bucket,
-                "storage_object_path": object_path,
-                **candidate,
-                "approval_state": "pending",
-            },
-            "checksum": stored["sha256"],
-        }
-        assets = await db._request("POST", "ai_film_assets", payload=payload, representation=True)
-        if assets:
-            created.append({"asset_id": assets[0]["id"], **candidate})
-
-    metadata.update({"anchor_candidate_state": "completed", "anchor_candidate_completed_at": _now(), "anchor_candidates": created})
+    rows = _candidate_rows(manifest)
+    metadata.update({
+        "anchor_candidate_state": "in_progress",
+        "anchor_candidate_started_at": _now(),
+        "anchor_candidate_total": len(rows),
+        "anchor_candidate_processed": 0,
+        "anchor_candidate_error": None,
+    })
     manifest["metadata"] = metadata
-    await db._request("PATCH", "ai_film_shot_manifests", params={"id": f"eq.{row['id']}"}, payload={"manifest": manifest, "updated_at": _now()})
-    return {"status": "completed", "created": len(created), "candidates": created}
+    await _persist_manifest(db, str(row["id"]), manifest)
+
+    existing = await db._request(
+        "GET", "ai_film_assets",
+        params={"project_id": f"eq.{PROJECT_ID}", "asset_type": "eq.image", "category": "eq.anchor-frame", "select": "id,metadata"},
+    )
+    existing_by_shot = {
+        str((asset.get("metadata") or {}).get("shot_id")): str(asset.get("id"))
+        for asset in existing if isinstance(asset.get("metadata"), dict) and (asset.get("metadata") or {}).get("shot_id")
+    }
+
+    created: list[dict[str, Any]] = []
+    errors: list[dict[str, str]] = []
+    for index, candidate in enumerate(rows, start=1):
+        shot_id = candidate["shot_id"]
+        if shot_id in existing_by_shot:
+            created.append({"asset_id": existing_by_shot[shot_id], **candidate, "reused": True})
+        else:
+            try:
+                asset = await db.get_asset(candidate["source_asset_id"])
+                if not asset:
+                    raise RuntimeError("Registered source asset was not found")
+                media = resolve_asset_source(asset)
+                with tempfile.TemporaryDirectory(prefix="d3vonn-anchor-") as tmp:
+                    root = Path(tmp)
+                    video = root / (media.source_filename or "source.mp4")
+                    frame = root / "anchor.jpg"
+                    await _download(media.media_url, video)
+                    extracted_at = await _extract_with_fallback(video, frame, candidate)
+                    object_path = f"{PROJECT_ID}/anchors/candidates/{shot_id}.jpg"
+                    stored = await _upload_jpeg(db, frame, object_path)
+                payload = {
+                    "project_id": PROJECT_ID,
+                    "owner_id": row.get("owner_id"),
+                    "asset_type": "image",
+                    "title": f"{shot_id} — anchor candidate",
+                    "description": "Extracted from existing footage for explicit canon identity approval.",
+                    "storage_path": f"supabase://{db.bucket}/{object_path}",
+                    "source_filename": f"{shot_id}-anchor.jpg",
+                    "category": "anchor-frame",
+                    "subcategory": "candidate",
+                    "status": "selected",
+                    "version": 1,
+                    "tags": ["ai-films", "anchor-candidate", shot_id],
+                    "metadata": {
+                        "source_type": "extracted_frame",
+                        "storage_bucket": db.bucket,
+                        "storage_object_path": object_path,
+                        **candidate,
+                        "extracted_at_seconds": extracted_at,
+                        "approval_state": "pending",
+                    },
+                    "checksum": stored["sha256"],
+                }
+                assets = await db._request("POST", "ai_film_assets", payload=payload, representation=True)
+                if not assets:
+                    raise RuntimeError("Anchor asset insert returned no record")
+                created.append({"asset_id": assets[0]["id"], **candidate, "extracted_at_seconds": extracted_at})
+            except Exception as exc:
+                errors.append({"shot_id": shot_id, "error": f"{type(exc).__name__}: {exc}"[:1200]})
+
+        metadata.update({
+            "anchor_candidate_processed": index,
+            "anchor_candidates": created,
+            "anchor_candidate_errors": errors,
+        })
+        manifest["metadata"] = metadata
+        await _persist_manifest(db, str(row["id"]), manifest)
+
+    state = "completed" if created else "failed"
+    metadata.update({
+        "anchor_candidate_state": state,
+        "anchor_candidate_completed_at": _now(),
+        "anchor_candidates": created,
+        "anchor_candidate_errors": errors,
+        "anchor_candidate_error": None if created else (errors[0]["error"] if errors else "No candidates could be extracted"),
+    })
+    manifest["metadata"] = metadata
+    await _persist_manifest(db, str(row["id"]), manifest)
+    return {"status": state, "created": len(created), "errors": errors, "candidates": created}
 
 
 async def approve_anchor(db: SupabaseAssemblyClient, *, asset_id: str, character_id: str) -> dict[str, Any]:
