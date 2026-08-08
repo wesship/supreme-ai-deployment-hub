@@ -39,6 +39,34 @@ class DirectorClip(BaseModel):
         return self
 
 
+class DirectorAudioTrack(BaseModel):
+    asset_id: str = Field(..., min_length=1, max_length=200)
+    kind: Literal["dialogue", "music", "sfx"]
+    timeline_start: float = Field(default=0, ge=0, le=21600)
+    source_in: float = Field(default=0, ge=0, le=21600)
+    source_out: float | None = Field(default=None, gt=0, le=21600)
+    gain_db: float = Field(default=0, ge=-60, le=12)
+    label: str | None = Field(default=None, max_length=240)
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.source_out is not None and self.source_out <= self.source_in:
+            raise ValueError("audio source_out must be greater than source_in")
+        return self
+
+
+class DirectorSubtitleCue(BaseModel):
+    start: float = Field(..., ge=0, le=21600)
+    end: float = Field(..., gt=0, le=21600)
+    text: str = Field(..., min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def validate_range(self):
+        if self.end <= self.start:
+            raise ValueError("subtitle end must be greater than start")
+        return self
+
+
 class DirectorAssemblyRequest(BaseModel):
     project_id: str = Field(..., min_length=1, max_length=100)
     title: str = Field(..., min_length=2, max_length=200)
@@ -53,6 +81,8 @@ class DirectorAssemblyRequest(BaseModel):
     include_music: bool = True
     include_sfx: bool = True
     include_subtitles: bool = True
+    audio_tracks: list[DirectorAudioTrack] = Field(default_factory=list, max_length=200)
+    subtitle_cues: list[DirectorSubtitleCue] = Field(default_factory=list, max_length=2000)
     run_continuity_qa: bool = True
     run_final_analyze_qa: bool = True
 
@@ -106,14 +136,28 @@ async def assemble_movie(
     edl = generate_cmx_edl(timeline, request.title, fps=request.fps)
     runtime = round(sum(float(item["duration"]) for item in timeline), 3)
 
+    enabled_kinds = {
+        "dialogue": request.include_dialogue,
+        "music": request.include_music,
+        "sfx": request.include_sfx,
+    }
+    audio_tracks = [
+        track.model_dump()
+        for track in request.audio_tracks
+        if enabled_kinds.get(track.kind, False)
+    ]
+    subtitle_cues = [cue.model_dump() for cue in request.subtitle_cues] if request.include_subtitles else []
+
     job_input = {
-        "director_version": "v1",
+        "director_version": "v1.1",
         "title": request.title,
         "structure": request.structure,
         "tone": request.tone,
         "timeline": timeline,
         "edl": edl,
         "audio_cues": plan.get("audio_cues", []),
+        "audio_tracks": audio_tracks,
+        "subtitle_cues": subtitle_cues,
         "continuity_flags": plan.get("continuity_flags", []),
         "missing_shots": plan.get("missing_shots", []),
         "editorial_intent": plan.get("editorial_intent"),
@@ -166,6 +210,8 @@ async def assemble_movie(
                     "reasoning_status": reasoning.get("status"),
                     "continuity_flag_count": len(plan.get("continuity_flags", [])),
                     "missing_shot_count": len(plan.get("missing_shots", [])),
+                    "audio_track_count": len(audio_tracks),
+                    "subtitle_cue_count": len(subtitle_cues),
                 },
             },
         )
@@ -185,4 +231,6 @@ async def assemble_movie(
         "continuity_flags": plan.get("continuity_flags", []),
         "missing_shots": plan.get("missing_shots", []),
         "audio_cues": plan.get("audio_cues", []),
+        "audio_track_count": len(audio_tracks),
+        "subtitle_cue_count": len(subtitle_cues),
     }
