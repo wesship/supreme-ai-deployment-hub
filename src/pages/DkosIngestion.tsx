@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 import { BrainCircuit, Database, FileSearch, Network, ShieldCheck, Sparkles } from "lucide-react";
 import PublicPageShell from "@/components/shell/PublicPageShell";
 import { DkosIngestionUploader } from "@/components/dkos/DkosIngestionUploader";
-import D3Surface, { D3SectionHeader } from "@/components/d3/D3Surface";
+import { D3Surface, D3SectionHeader } from '@/components/d3/D3Surface';
 
 const breadcrumbs = [{ label: "Knowledge Graph" }, { label: "DKOS Ingestion" }];
 
@@ -27,7 +27,7 @@ export default function DkosIngestion() {
 
       <section className="d3-os-shell d3-workspace-shell px-4 py-12 text-white sm:px-6 sm:py-16 lg:px-8" aria-labelledby="dkos-heading">
         <div className="mx-auto max-w-6xl">
-          <D3Surface tone="titanium" className="relative overflow-hidden p-6 sm:p-10">
+          <D3Surface material="titanium" className="relative overflow-hidden p-6 sm:p-10">
             <div className="pointer-events-none absolute right-[-8%] top-[-40%] h-72 w-72 rounded-full bg-blue-500/15 blur-3xl" aria-hidden="true" />
             <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
               <D3SectionHeader
@@ -52,7 +52,7 @@ export default function DkosIngestion() {
             ))}
           </div>
 
-          <D3Surface tone="strong" className="mt-6 p-3 sm:p-6" aria-label="Knowledge ingestion workspace">
+          <D3Surface className="mt-6 p-3 sm:p-6" aria-label="Knowledge ingestion workspace">
             <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
               <div>
                 <div className="d3-kicker">Source intake</div>
