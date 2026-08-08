@@ -76,7 +76,9 @@ class SupabaseRestClient:
         if response.status_code == 204 or not response.content:
             return {}
         data = response.json()
-        return data[0] if isinstance(data, list) and data else data
+        if isinstance(data, list):
+            return data[0] if data else {}
+        return data
 
     async def count(self, table: str, filters: dict[str, str] | None = None) -> int:
         if not self.configured:
