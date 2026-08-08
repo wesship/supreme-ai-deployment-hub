@@ -56,6 +56,7 @@ async def railway_lifespan(app_instance):
     bootstrap_task = drive_bootstrap_task = drive_direct_task = None
     jockey_canary_task = assembly_worker_task = assembly_qa_task = None
     manifest_conform_task = manifest_review_task = generation_dispatch_task = None
+    openai_video_worker_task = generated_shot_qa_task = None
     async with _base_lifespan(app_instance):
         try:
             from backend.ai_films.jockey_startup_canary import certify_jockey_on_startup, should_run_jockey_startup_canary
@@ -77,6 +78,17 @@ async def railway_lifespan(app_instance):
             logger.info("Scheduled AI Films conform → Jockey review → generation dispatch chain.")
         except Exception as exc:
             logger.warning("Could not schedule AI Films manifest intelligence chain: %s: %s", type(exc).__name__, exc)
+
+        try:
+            from backend.ai_films.openai_video_worker import run_openai_video_worker
+            from backend.ai_films.generated_shot_qa_worker import run_generated_shot_qa_worker
+            openai_video_worker_task = asyncio.create_task(run_openai_video_worker(), name="ai-films-openai-video-worker")
+            generated_shot_qa_task = asyncio.create_task(run_generated_shot_qa_worker(), name="ai-films-generated-shot-qa-worker")
+            app_instance.state.ai_films_openai_video_worker_task = openai_video_worker_task
+            app_instance.state.ai_films_generated_shot_qa_task = generated_shot_qa_task
+            logger.info("Scheduled gated AI Films OpenAI video and generated-shot QA workers.")
+        except Exception as exc:
+            logger.warning("Could not schedule AI Films generation workers: %s: %s", type(exc).__name__, exc)
 
         try:
             from backend.ai_films.assembly_worker import run_assembly_worker
@@ -108,7 +120,7 @@ async def railway_lifespan(app_instance):
         try:
             yield
         finally:
-            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task, jockey_canary_task, manifest_conform_task, manifest_review_task, generation_dispatch_task, assembly_worker_task, assembly_qa_task):
+            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task, jockey_canary_task, manifest_conform_task, manifest_review_task, generation_dispatch_task, openai_video_worker_task, generated_shot_qa_task, assembly_worker_task, assembly_qa_task):
                 if task is not None and not task.done():
                     task.cancel()
                     with suppress(asyncio.CancelledError):
@@ -117,7 +129,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-multimodel-dispatch-2026-08-08"
+DEPLOYMENT_REVISION = "railway-ai-films-generation-execution-loop-2026-08-08"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -158,6 +170,8 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_manifest_conform": _task_state(app, "ai_films_manifest_conform_task"),
             "ai_films_manifest_review": _task_state(app, "ai_films_manifest_review_task"),
             "ai_films_generation_dispatch": _task_state(app, "ai_films_generation_dispatch_task"),
+            "ai_films_openai_video": _task_state(app, "ai_films_openai_video_worker_task"),
+            "ai_films_generated_shot_qa": _task_state(app, "ai_films_generated_shot_qa_task"),
             "ai_films_assembly": _task_state(app, "ai_films_assembly_worker_task"),
             "ai_films_post_render_qa": _task_state(app, "ai_films_assembly_qa_task"),
         },
