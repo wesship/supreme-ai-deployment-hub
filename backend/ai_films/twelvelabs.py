@@ -15,6 +15,8 @@ import httpx
 
 
 DEFAULT_API_BASE_URL = "https://api.twelvelabs.io/v1.3"
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 45.0
+DEFAULT_JOCKEY_TIMEOUT_SECONDS = 180.0
 DEFAULT_JOCKEY_INSTRUCTIONS = (
     "You are the D3VONN.IO AI Film continuity and editorial intelligence agent. "
     "Ground conclusions in the configured knowledge store, preserve film canon, "
@@ -43,6 +45,14 @@ class TwelveLabsClient:
             source.get("TWELVELABS_API_BASE_URL", DEFAULT_API_BASE_URL).strip()
             or DEFAULT_API_BASE_URL
         ).rstrip("/")
+        self.request_timeout_seconds = float(
+            source.get("TWELVELABS_REQUEST_TIMEOUT_SECONDS", str(DEFAULT_REQUEST_TIMEOUT_SECONDS))
+            or DEFAULT_REQUEST_TIMEOUT_SECONDS
+        )
+        self.jockey_timeout_seconds = float(
+            source.get("TWELVELABS_JOCKEY_TIMEOUT_SECONDS", str(DEFAULT_JOCKEY_TIMEOUT_SECONDS))
+            or DEFAULT_JOCKEY_TIMEOUT_SECONDS
+        )
         self._transport = transport
 
         missing = [
@@ -65,7 +75,9 @@ class TwelveLabsClient:
         *,
         payload: dict[str, Any] | None = None,
         params: Mapping[str, Any] | None = None,
+        timeout_seconds: float | None = None,
     ) -> dict[str, Any]:
+        timeout_value = max(1.0, float(timeout_seconds or self.request_timeout_seconds))
         try:
             async with httpx.AsyncClient(
                 headers={
@@ -73,7 +85,7 @@ class TwelveLabsClient:
                     "Accept": "application/json",
                     "Content-Type": "application/json",
                 },
-                timeout=httpx.Timeout(45.0, connect=10.0),
+                timeout=httpx.Timeout(timeout_value, connect=min(10.0, timeout_value)),
                 transport=self._transport,
             ) as client:
                 url = f"{self.api_base_url}/{path.lstrip('/')}"
@@ -132,6 +144,7 @@ class TwelveLabsClient:
         session_id: str | None = None,
         instructions: str | None = None,
         include_intermediate: bool = False,
+        timeout_seconds: float | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "knowledge_store_id": self.knowledge_store_id,
@@ -150,4 +163,9 @@ class TwelveLabsClient:
         if include_intermediate:
             payload["include"] = ["intermediate_outputs"]
 
-        return await self._request("POST", "/responses", payload=payload)
+        return await self._request(
+            "POST",
+            "/responses",
+            payload=payload,
+            timeout_seconds=timeout_seconds or self.jockey_timeout_seconds,
+        )
