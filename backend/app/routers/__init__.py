@@ -140,3 +140,10 @@ try:
     logger.info("AI Director / Movie Assembly router registered at /api/ai-films/director/*.")
 except ImportError as exc:
     logger.warning("AI Director router not registered: %s", exc)
+
+try:
+    from backend.ai_films.bible_router import router as ai_film_bible_router
+    proxy_router.include_router(ai_film_bible_router, tags=["ai-films-production-bible"])
+    logger.info("AI Films Production Bible / Shot Manifest router registered at /api/ai-films/production/*.")
+except ImportError as exc:
+    logger.warning("AI Films Production Bible router not registered: %s", exc)
