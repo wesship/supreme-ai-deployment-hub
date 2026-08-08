@@ -26,7 +26,7 @@ PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
     ProviderSpec("video", "xai", ("XAI_API_KEY",), ("AI_FILM_XAI_VIDEO_MODEL", "XAI_API_BASE_URL")),
     ProviderSpec("video", "movieflow", ("MOVIEFLOW_API_KEY",), ("AI_FILM_MOVIEFLOW_VIDEO_MODEL", "MOVIEFLOW_API_BASE_URL")),
     ProviderSpec("video", "runway", ("RUNWAY_API_KEY",), ("AI_FILM_RUNWAY_MODEL",)),
-    ProviderSpec("video", "replicate", ("REPLICATE_API_TOKEN",), ("AI_FILM_REPLICATE_VIDEO_MODEL",)),
+    ProviderSpec("video", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_VIDEO_MODEL")),
     ProviderSpec("avatar", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_AVATAR_MODEL")),
     ProviderSpec("character_replacement", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_CHARACTER_MODEL")),
     ProviderSpec("lip_sync", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_LIPSYNC_MODEL")),
