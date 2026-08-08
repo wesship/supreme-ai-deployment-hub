@@ -130,6 +130,93 @@ async def test_restore_expires_stale_worker_lease_and_persists_recovery():
     assert persisted[0]["status"] == LeaseStatus.EXPIRED.value
 
 
+@pytest.mark.asyncio
+async def test_restore_rebuilds_capacity_when_crash_happens_after_lease_persist():
+    persistent, _, _, _ = service()
+    worker = persistent.registry.register(
+        worker_id="worker-a",
+        hostname="worker-a.internal",
+        region="us-central",
+        runtime="docker",
+        version="1.0.0",
+        capabilities=WorkerCapabilities.from_names(["llm"]),
+        max_leases=1,
+    )
+    await persistent.persist_worker(worker)
+    lease = persistent.registry.acquire_lease(
+        task_id="00000000-0000-0000-0000-000000000001"
+    )
+    await persistent.persist_lease(lease)
+
+    restored = await persistent.restore()
+
+    assert restored.workers["worker-a"].active_leases == 1
+    assert restored.workers["worker-a"].status == WorkerStatus.BUSY
+    assert restored.workers["worker-a"].available_capacity == 0
+
+
+@pytest.mark.asyncio
+async def test_lease_listing_paginates_past_first_thousand_rows():
+    _, store, repository, _ = service()
+    repository.tables["hermes_worker_leases"] = [
+        {
+            "id": str(index),
+            "lease_id": f"lease-{index}",
+            "acquired_at": f"2026-08-08T00:{index // 60:02d}:{index % 60:02d}+00:00",
+            "status": LeaseStatus.RELEASED.value,
+        }
+        for index in range(1001)
+    ]
+
+    rows = await store.list_leases(active_only=False)
+
+    assert len(rows) == 1001
+    assert {row["lease_id"] for row in rows} == {
+        f"lease-{index}" for index in range(1001)
+    }
+
+
+@pytest.mark.asyncio
+async def test_atomic_worker_version_predicate_rejects_interleaved_update():
+    persistent, store, repository, _ = service()
+    worker = persistent.registry.register(
+        worker_id="worker-a",
+        hostname="worker-a.internal",
+        region="us-central",
+        runtime="docker",
+        version="1.0.0",
+        capabilities=WorkerCapabilities.from_names(["llm"]),
+        max_leases=1,
+    )
+    row = await persistent.persist_worker(worker)
+    row_id = str(row["id"])
+
+    original_update = repository.update_row_if
+
+    async def interleaved_update(table, current_row_id, payload, conditions):
+        await repository.update_row(
+            table,
+            current_row_id,
+            {"status": WorkerStatus.DRAINING.value, "version_counter": 2},
+        )
+        return await original_update(table, current_row_id, payload, conditions)
+
+    repository.update_row_if = interleaved_update
+
+    with pytest.raises(WorkerVersionConflict):
+        await store.update_worker(
+            "worker-a",
+            {"status": WorkerStatus.OFFLINE.value},
+            expected_version=1,
+        )
+
+    rows = await repository.list_rows(
+        "hermes_workers", {"id": f"eq.{row_id}", "limit": "1"}
+    )
+    assert rows[0]["version_counter"] == 2
+    assert rows[0]["status"] == WorkerStatus.DRAINING.value
+
+
 def test_store_satisfies_worker_registry_port_shape():
     repository = InMemoryTaskRepository()
     store = SupabaseWorkerRegistryStore(repository)
