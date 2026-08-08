@@ -26,7 +26,7 @@ def _enabled(source: Mapping[str, str], key: str, default: str = "false") -> boo
 
 
 def _review_decisions(metadata: Mapping[str, Any]) -> dict[str, str]:
-    review = metadata.get("conform_jockey_review")
+    review = metadata.get("conform_review")
     if not isinstance(review, dict):
         return {}
     shots = review.get("shots")
