@@ -1,4 +1,4 @@
-"""One-time Railway production certification for TwelveLabs/Jockey reasoning."""
+"""Railway production certification and runtime hydration for TwelveLabs/Jockey."""
 from __future__ import annotations
 
 import logging
@@ -24,10 +24,21 @@ def should_run_jockey_startup_canary(environ: Mapping[str, str] | None = None) -
     return disabled not in {"1", "true", "yes", "on"}
 
 
+def _hydrate_persisted_store(metadata: Mapping[str, Any]) -> str:
+    """Restore the canonical repaired store into process state after every deploy."""
+    store_id = str(metadata.get("jockey_store_id") or "").strip()
+    if store_id:
+        os.environ["TWELVELABS_KNOWLEDGE_STORE_ID"] = store_id
+    source_index_id = str(metadata.get("jockey_store_source_index_id") or "").strip()
+    if source_index_id:
+        os.environ["TWELVELABS_INDEX_ID"] = source_index_id
+    return store_id
+
+
 async def certify_jockey_on_startup(
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Repair the canonical Jockey store if needed, then run one real reasoning request."""
+    """Hydrate/repair the canonical Jockey store, then certify reasoning when needed."""
     source = environ or os.environ
     if not should_run_jockey_startup_canary(source):
         return {"status": "skipped", "reason": "not_production_or_disabled"}
@@ -41,8 +52,34 @@ async def certify_jockey_on_startup(
     if not project:
         return {"status": "skipped", "reason": "project_missing"}
     metadata = dict(project.get("metadata") or {})
-    if metadata.get("jockey_canary_state") == "passed":
-        return {"status": "passed", "reason": "already_certified"}
+
+    # A repaired store ID is durable in Supabase but Railway process environment
+    # is ephemeral. Rehydrate it before constructing any TwelveLabs client.
+    persisted_store_id = _hydrate_persisted_store(metadata)
+
+    if metadata.get("jockey_canary_state") == "passed" and persisted_store_id:
+        try:
+            client = TwelveLabsClient()
+            store = await client.retrieve_knowledge_store()
+            store_id = str(store.get("_id") or store.get("id") or client.knowledge_store_id)
+            await db.update_project_metadata(
+                {
+                    "jockey_store_reachable": True,
+                    "jockey_store_id": store_id,
+                    "jockey_store_checked_at": _now(),
+                    "jockey_runtime_hydrated_at": _now(),
+                }
+            )
+            logger.info("Rehydrated certified TwelveLabs/Jockey store %s on startup.", store_id)
+            return {
+                "status": "passed",
+                "reason": "already_certified_runtime_rehydrated",
+                "knowledge_store_id": store_id,
+            }
+        except (TwelveLabsConfigurationError, TwelveLabsError):
+            # Persisted certification is not sufficient if the stored resource is
+            # no longer reachable; fall through to repair/re-certification.
+            logger.warning("Persisted Jockey store was not reachable; repairing before startup certification.")
 
     await db.update_project_metadata(
         {
@@ -54,11 +91,14 @@ async def certify_jockey_on_startup(
 
     phase = "configuration"
     try:
-        client = TwelveLabsClient(environ=source)
+        # Use os.environ so the hydrated canonical store takes precedence over
+        # a stale process/deployment value supplied in the original mapping.
+        client = TwelveLabsClient()
 
         phase = "knowledge_store_repair"
         store = await ensure_jockey_store_from_index(client, db, metadata)
         store_id = str(store.get("_id") or store.get("id") or client.knowledge_store_id)
+        os.environ["TWELVELABS_KNOWLEDGE_STORE_ID"] = store_id
         await db.update_project_metadata(
             {
                 "jockey_store_reachable": True,
@@ -66,6 +106,7 @@ async def certify_jockey_on_startup(
                 "jockey_store_name": store.get("name"),
                 "jockey_store_item_count": store.get("item_count"),
                 "jockey_store_checked_at": _now(),
+                "jockey_runtime_hydrated_at": _now(),
             }
         )
 
