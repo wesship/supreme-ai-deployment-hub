@@ -96,7 +96,10 @@ async def _query(table: str, params: dict | None = None) -> list:
 
 
 # Set ALLOW_DEV_ADMIN_BYPASS=true ONLY in local dev; never in production.
-_DEV_BYPASS = os.getenv("ALLOW_DEV_ADMIN_BYPASS", "false").lower() == "true"
+_ENVIRONMENT = os.getenv("ENVIRONMENT", os.getenv("APP_ENV", "")).strip().lower()
+_PRODUCTION_ENVIRONMENTS = frozenset({"production", "prod"})
+_DEV_BYPASS_REQUESTED = os.getenv("ALLOW_DEV_ADMIN_BYPASS", "false").lower() == "true"
+_DEV_BYPASS = _DEV_BYPASS_REQUESTED and _ENVIRONMENT not in _PRODUCTION_ENVIRONMENTS
 
 # UUID pattern used to validate path parameters before they enter URLs.
 _UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
