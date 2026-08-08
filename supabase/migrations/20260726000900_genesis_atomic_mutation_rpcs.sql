@@ -122,3 +122,35 @@ comment on function public.genesis_transition_task(uuid, text, text, jsonb, time
   'Conditionally transitions one task and emits its domain/outbox event atomically.';
 comment on function public.genesis_decide_approval(uuid, text, uuid, text, jsonb) is
   'Conditionally decides one pending approval, updates its render target, and emits its event atomically.';
+
+-- PostgREST no longer guarantees default table grants for newly created public tables.
+-- Genesis persistence is backend-only and uses the service-role key, so grant only
+-- the table privileges required by that trusted repository adapter.
+grant select, insert, update, delete on table
+  public.genesis_agents,
+  public.genesis_approvals,
+  public.genesis_asset_versions,
+  public.genesis_assets,
+  public.genesis_canon_entries,
+  public.genesis_domain_events,
+  public.genesis_entities,
+  public.genesis_evaluation_runs,
+  public.genesis_event_outbox,
+  public.genesis_execution_checkpoints,
+  public.genesis_executions,
+  public.genesis_findings,
+  public.genesis_goals,
+  public.genesis_idempotency_records,
+  public.genesis_project_members,
+  public.genesis_projects,
+  public.genesis_provider_jobs,
+  public.genesis_provider_outputs,
+  public.genesis_relationships,
+  public.genesis_release_gates,
+  public.genesis_render_requests,
+  public.genesis_reviews,
+  public.genesis_tasks,
+  public.genesis_workflow_definitions,
+  public.genesis_workflow_runs,
+  public.genesis_workflow_steps
+to service_role;
