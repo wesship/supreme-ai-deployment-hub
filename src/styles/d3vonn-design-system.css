@@ -24,10 +24,15 @@
 }
 
 .d3-world,
-.d3-homepage-world {
+.d3-homepage-world,
+.d3-os-shell {
   position: relative;
   isolation: isolate;
   overflow-x: clip;
+}
+
+.d3-world,
+.d3-homepage-world {
   background:
     radial-gradient(circle at 78% 8%, rgba(37, 135, 255, 0.12), transparent 28%),
     radial-gradient(circle at 12% 42%, rgba(103, 232, 249, 0.06), transparent 24%),
@@ -94,6 +99,14 @@
   box-shadow: var(--d3-shadow-float);
 }
 
+.d3-command-surface:focus-visible,
+.d3-surface-interactive:focus-visible,
+.d3-btn-primary:focus-visible,
+.d3-btn-secondary:focus-visible {
+  outline: 2px solid var(--d3-blue-soft);
+  outline-offset: 3px;
+}
+
 .d3-titanium-panel {
   border: 1px solid rgba(203, 213, 225, 0.16);
   border-radius: var(--d3-radius-panel);
@@ -113,12 +126,14 @@
 
 .d3-display-title {
   text-wrap: balance;
+  overflow-wrap: anywhere;
   letter-spacing: -0.045em;
   line-height: 0.98;
 }
 
 .d3-section-copy {
   max-width: 46rem;
+  overflow-wrap: anywhere;
   color: rgba(219, 234, 254, 0.68);
   line-height: 1.75;
 }
@@ -170,6 +185,7 @@
   align-items: center;
   gap: .5rem;
   width: fit-content;
+  max-width: 100%;
   border: 1px solid rgba(147,197,253,.18);
   border-radius: 999px;
   background: rgba(3,11,24,.62);
@@ -179,6 +195,7 @@
   font-weight: 800;
   letter-spacing: .17em;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .d3-status > span,
@@ -225,6 +242,10 @@
 
   .d3-section {
     padding-block: 3.25rem;
+  }
+
+  .d3-display-title {
+    line-height: 1.04;
   }
 }
 
