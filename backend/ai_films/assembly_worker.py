@@ -2,9 +2,10 @@
 
 Consumes queued AI Director assembly jobs, resolves durable media sources from
 ``ai_film_assets``, renders a normalized master with cut/dissolve/fade support,
-uploads the result to private Supabase Storage, and persists deterministic job
-state. Google Drive share links are deliberately treated as materialization
-requirements rather than passed to FFmpeg.
+mixes registered dialogue/music/SFX, muxes subtitle cues, uploads the result to
+private Supabase Storage, and persists deterministic job state. Google Drive
+share links are deliberately treated as materialization requirements rather
+than passed to FFmpeg.
 """
 from __future__ import annotations
 
@@ -22,6 +23,8 @@ from typing import Any, Mapping
 from urllib.parse import quote
 
 import httpx
+
+from backend.ai_films.assembly_tracks import finalize_master, prepare_audio_tracks
 
 logger = logging.getLogger(__name__)
 
@@ -352,7 +355,7 @@ async def _run_ffmpeg(
         raise AssemblyWorkerError(f"FFmpeg assembly failed: {detail}")
     if not output_path.exists() or output_path.stat().st_size == 0:
         raise AssemblyWorkerError("FFmpeg completed without creating a master")
-    return {"runtime_seconds": round(runtime, 3), "warnings": warnings, "command_version": "ffmpeg-v1"}
+    return {"runtime_seconds": round(runtime, 3), "warnings": warnings, "command_version": "ffmpeg-v1.1"}
 
 
 async def process_assembly_job(job: Mapping[str, Any], db: SupabaseAssemblyClient) -> dict[str, Any]:
@@ -360,6 +363,8 @@ async def process_assembly_job(job: Mapping[str, Any], db: SupabaseAssemblyClien
     project_id = str(job.get("project_id") or "")
     payload = job.get("input") if isinstance(job.get("input"), dict) else {}
     timeline = payload.get("timeline") if isinstance(payload.get("timeline"), list) else []
+    audio_specs = payload.get("audio_tracks") if isinstance(payload.get("audio_tracks"), list) else []
+    subtitle_cues = payload.get("subtitle_cues") if isinstance(payload.get("subtitle_cues"), list) else []
     if not job_id or not project_id or not timeline:
         raise AssemblyWorkerError("Assembly job is missing id/project/timeline")
 
@@ -377,7 +382,10 @@ async def process_assembly_job(job: Mapping[str, Any], db: SupabaseAssemblyClien
             blocked.append({"asset_id": asset_id, "reason": exc.reason})
     if blocked:
         raise AssemblyBlocked(
-            json.dumps({"message": "One or more timeline assets require materialization", "assets": blocked}, separators=(",", ":"))
+            json.dumps(
+                {"message": "One or more timeline assets require materialization", "assets": blocked},
+                separators=(",", ":"),
+            )
         )
     if len(assets) != len(timeline):
         raise AssemblyWorkerError("Resolved asset count does not match timeline")
@@ -391,26 +399,50 @@ async def process_assembly_job(job: Mapping[str, Any], db: SupabaseAssemblyClien
             target = root / f"source-{index:03d}{suffix}"
             await _download(source.media_url, target)
             local_sources.append(target)
-            await db.update_job(job_id, {"progress": min(45, 12 + int((index + 1) / len(assets) * 33))})
+            await db.update_job(job_id, {"progress": min(40, 12 + int((index + 1) / len(assets) * 28))})
 
+        prepared_audio = await prepare_audio_tracks(
+            db,
+            [spec for spec in audio_specs if isinstance(spec, dict)],
+            root,
+            resolve_asset=resolve_asset_source,
+            download=_download,
+        )
+        await db.update_job(job_id, {"progress": 48 if prepared_audio else 42})
+
+        picture_master = root / "picture-master.mp4"
         master = root / "master.mp4"
         render_meta = await _run_ffmpeg(
             local_sources,
             timeline,
-            master,
+            picture_master,
             resolution=str(payload.get("resolution") or "1920x1080"),
             fps=int(payload.get("fps") or 24),
         )
-        await db.update_job(job_id, {"progress": 85})
-        safe_title = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in str(payload.get("title") or "master"))[:80].strip("-") or "master"
+        await db.update_job(job_id, {"progress": 78})
+
+        track_meta = await finalize_master(
+            picture_master,
+            master,
+            audio_tracks=prepared_audio,
+            subtitle_cues=[cue for cue in subtitle_cues if isinstance(cue, dict)],
+        )
+        await db.update_job(job_id, {"progress": 88})
+
+        safe_title = "".join(
+            ch if ch.isalnum() or ch in "-_" else "-"
+            for ch in str(payload.get("title") or "master")
+        )[:80].strip("-") or "master"
         object_path = f"{project_id}/assembly/{job_id}/{safe_title}.mp4"
         stored = await db.upload_master(master, object_path)
         output = {
             **stored,
             **render_meta,
+            **track_meta,
             "title": payload.get("title"),
             "timeline_clip_count": len(timeline),
             "source_asset_ids": [a.id for a in assets],
+            "audio_asset_ids": [str(spec.get("asset_id")) for spec in audio_specs if isinstance(spec, dict)],
             "qa": {
                 "continuity_requested": bool((payload.get("qa") or {}).get("continuity")),
                 "final_twelvelabs_analyze_requested": bool((payload.get("qa") or {}).get("final_twelvelabs_analyze")),
