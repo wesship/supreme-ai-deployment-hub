@@ -61,11 +61,24 @@ class SupabaseWorkerRegistryStore:
             raise WorkerVersionConflict(
                 f"worker {worker_id} version {current_version} != expected {expected_version}"
             )
-        return await self._repository.update_row(
+        next_payload = {**payload, "version_counter": current_version + 1}
+        if expected_version is None:
+            return await self._repository.update_row(
+                "hermes_workers",
+                str(row["id"]),
+                next_payload,
+            )
+        updated = await self._repository.update_row_if(
             "hermes_workers",
             str(row["id"]),
-            {**payload, "version_counter": current_version + 1},
+            next_payload,
+            {"version_counter": expected_version},
         )
+        if not updated:
+            raise WorkerVersionConflict(
+                f"worker {worker_id} changed while version {expected_version} was being updated"
+            )
+        return updated
 
     async def list_workers(self) -> list[dict[str, Any]]:
         return await self._repository.list_rows(
@@ -95,11 +108,29 @@ class SupabaseWorkerRegistryStore:
             "hermes_worker_leases", str(rows[0]["id"]), payload
         )
 
+    async def get_lease(self, lease_id: str) -> dict[str, Any] | None:
+        rows = await self._repository.list_rows(
+            "hermes_worker_leases", {"lease_id": f"eq.{lease_id}", "limit": "1"}
+        )
+        return rows[0] if rows else None
+
     async def list_leases(self, *, active_only: bool = False) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {"order": "acquired_at.asc", "limit": "5000"}
-        if active_only:
-            params["status"] = f"eq.{LeaseStatus.ACTIVE.value}"
-        return await self._repository.list_rows("hermes_worker_leases", params)
+        page_size = 1000
+        offset = 0
+        rows: list[dict[str, Any]] = []
+        while True:
+            params: dict[str, Any] = {
+                "order": "acquired_at.asc",
+                "limit": str(page_size),
+                "offset": str(offset),
+            }
+            if active_only:
+                params["status"] = f"eq.{LeaseStatus.ACTIVE.value}"
+            page = await self._repository.list_rows("hermes_worker_leases", params)
+            rows.extend(page)
+            if len(page) < page_size:
+                return rows
+            offset += len(page)
 
 
 class PersistentWorkerRegistry:
@@ -122,11 +153,27 @@ class PersistentWorkerRegistry:
         for row in await self.store.list_workers():
             worker = self._decode_worker(row)
             restored.workers[worker.worker_id] = worker
+        for worker in restored.workers.values():
+            worker.active_leases = 0
         for row in await self.store.list_leases(active_only=False):
             lease = self._decode_lease(row)
             restored.leases[lease.lease_id] = lease
             if lease.status == LeaseStatus.ACTIVE:
                 restored.task_leases[lease.task_id] = lease.lease_id
+                worker = restored.workers.get(lease.worker_id)
+                if worker is not None:
+                    worker.active_leases += 1
+        for worker in restored.workers.values():
+            if worker.status not in {
+                WorkerStatus.DRAINING,
+                WorkerStatus.OFFLINE,
+                WorkerStatus.LOST,
+            }:
+                worker.status = (
+                    WorkerStatus.BUSY
+                    if worker.active_leases >= worker.max_leases
+                    else WorkerStatus.HEALTHY
+                )
         self.registry = restored
         expired = self.registry.sweep()
         for lease in expired:
@@ -145,8 +192,8 @@ class PersistentWorkerRegistry:
 
     async def persist_lease(self, lease: WorkerLease) -> dict[str, Any]:
         payload = self._lease_payload(lease)
-        rows = await self.store.list_leases(active_only=False)
-        if any(str(row.get("lease_id")) == lease.lease_id for row in rows):
+        existing = await self.store.get_lease(lease.lease_id)
+        if existing is not None:
             return await self.store.update_lease(lease.lease_id, payload)
         return await self.store.create_lease(payload)
 

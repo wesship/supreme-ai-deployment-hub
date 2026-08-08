@@ -32,6 +32,16 @@ class SupabaseTaskRepository:
     ) -> dict[str, Any]:
         return await self._client.patch(table, row_id, payload)
 
+    async def update_row_if(
+        self,
+        table: str,
+        row_id: str,
+        payload: dict[str, Any],
+        conditions: dict[str, Any],
+    ) -> dict[str, Any]:
+        filters = {key: f"eq.{value}" for key, value in conditions.items()}
+        return await self._client.patch(table, row_id, payload, filters=filters)
+
 
 class SupabaseCheckpointStore:
     """CheckpointStore implementation using the existing hermes_checkpoints table."""

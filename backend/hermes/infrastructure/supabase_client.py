@@ -52,21 +52,33 @@ class SupabaseRestClient:
         data = response.json()
         return data[0] if isinstance(data, list) and data else data
 
-    async def patch(self, table: str, row_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    async def patch(
+        self,
+        table: str,
+        row_id: str,
+        payload: dict[str, Any],
+        *,
+        filters: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         if not self.configured:
             return {}
+        params: dict[str, str] = {"id": f"eq.{row_id}"}
+        if filters:
+            params.update(filters)
         async with httpx.AsyncClient(timeout=self.config.rest_timeout_seconds) as client:
             response = await client.patch(
                 self.config.rest_url(table),
                 headers=self.headers(return_representation=True),
-                params={"id": f"eq.{row_id}"},
+                params=params,
                 json=payload,
             )
         response.raise_for_status()
         if response.status_code == 204 or not response.content:
             return {}
         data = response.json()
-        return data[0] if isinstance(data, list) and data else data
+        if isinstance(data, list):
+            return data[0] if data else {}
+        return data
 
     async def count(self, table: str, filters: dict[str, str] | None = None) -> int:
         if not self.configured:
