@@ -30,7 +30,7 @@ import {
 import { toast } from "sonner";
 import { agentApi } from "@/api/agentApi";
 import { Agent, DAGWorkflow, DAGStep } from "@/types/agent";
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 interface WorkflowTabProps {
   yamlDAG: string;
@@ -474,8 +474,7 @@ const WorkflowTab: React.FC<WorkflowTabProps> = ({
                                   
                                   {step.tools && step.tools.length > 0 && (
                                     <div className="mt-1 text-xs">
-                                      <span className="font-medium">Tools:</span> {step.tools.join(', ')}
-                                    </div>
+                                      <span className="font-medium">Tools:</span> {step.tools.join(', ')}</div>
                                   )}
                                 </div>
                                 
