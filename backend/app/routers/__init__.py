@@ -147,3 +147,10 @@ try:
     logger.info("AI Films Production Bible / Shot Manifest router registered at /api/ai-films/production/*.")
 except ImportError as exc:
     logger.warning("AI Films Production Bible router not registered: %s", exc)
+
+try:
+    from backend.ai_films.anchor_router import router as ai_film_anchor_router
+    proxy_router.include_router(ai_film_anchor_router, tags=["ai-films-anchor-frames"])
+    logger.info("AI Films Anchor Frame review router registered at /api/ai-films/production/anchors/*.")
+except ImportError as exc:
+    logger.warning("AI Films Anchor Frame router not registered: %s", exc)
