@@ -30,7 +30,7 @@ import {
 import { toast } from "sonner";
 import { agentApi } from "@/api/agentApi";
 import { Agent, DAGWorkflow, DAGStep } from "@/types/agent";
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 interface WorkflowTabProps {
   yamlDAG: string;
