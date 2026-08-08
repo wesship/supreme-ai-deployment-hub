@@ -5,7 +5,7 @@ import { Activity, GitBranch, ShieldCheck, Workflow } from 'lucide-react';
 import Container from '@/components/Container';
 import PublicPageShell from '@/components/shell/PublicPageShell';
 import WorkflowManager from '@/components/workflow/WorkflowManager';
-import D3Surface, { D3SectionHeader } from '@/components/d3/D3Surface';
+import { D3Surface, D3SectionHeader } from '@/components/d3/D3Surface';
 
 const breadcrumbs = [{ label: 'Automation Studio' }, { label: 'Workflows' }];
 
@@ -28,7 +28,7 @@ const WorkflowManagement: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <D3Surface tone="titanium" className="relative overflow-hidden p-6 sm:p-8">
+            <D3Surface material="titanium" className="relative overflow-hidden p-6 sm:p-8">
               <div className="pointer-events-none absolute left-[58%] top-[-55%] h-80 w-80 rounded-full bg-blue-500/12 blur-3xl" aria-hidden="true" />
               <div className="relative grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
                 <D3SectionHeader
@@ -60,7 +60,7 @@ const WorkflowManagement: React.FC = () => {
               })}
             </div>
 
-            <D3Surface tone="strong" className="mt-5 p-3 sm:p-5" aria-label="Workflow management workspace">
+            <D3Surface className="mt-5 p-3 sm:p-5" aria-label="Workflow management workspace">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
                 <div>
                   <div className="d3-kicker">Execution workspace</div>
