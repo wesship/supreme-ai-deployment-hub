@@ -19,6 +19,7 @@ from backend.app.routers.voice_orchestration import (
 logger = logging.getLogger(__name__)
 _DEFAULT_MODEL = "eleven_turbo_v2_5"
 _FALSE_VALUES = {"0", "false", "no", "off", "disabled"}
+_TRUE_VALUES = {"1", "true", "yes", "on", "enabled"}
 _SUPPORTED_VAPI_SERVER_MESSAGES = {
     "assistant.started",
     "assistant.speechStarted",
@@ -58,6 +59,14 @@ _REQUIRED_VAPI_SERVER_MESSAGES = {
 
 def _enabled() -> bool:
     return os.getenv("D3VONN_VOICE_AUTO_ACTIVATE", "true").strip().lower() not in _FALSE_VALUES
+
+
+def _direct_elevenlabs_validation_enabled() -> bool:
+    """Only probe ElevenLabs directly when direct BYOK delivery is being tested."""
+    return (
+        os.getenv("D3VONN_VALIDATE_DIRECT_ELEVENLABS", "false").strip().lower()
+        in _TRUE_VALUES
+    )
 
 
 def _safe_error(exc: Exception, secrets: tuple[str, ...]) -> str:
@@ -123,6 +132,8 @@ async def _inspect_direct_elevenlabs_key(
     """Inspect optional ElevenLabs BYOK access without blocking Vapi-managed voice."""
     if not api_key:
         return "not_configured", None
+    if not _direct_elevenlabs_validation_enabled():
+        return "validation_disabled", None
 
     try:
         response = await client.get(
@@ -137,6 +148,16 @@ async def _inspect_direct_elevenlabs_key(
     except httpx.HTTPStatusError as exc:
         status_code = exc.response.status_code
         direct_status = "invalid_or_expired" if status_code == 401 else f"http_{status_code}"
+        try:
+            detail = exc.response.json().get("detail")
+        except (AttributeError, ValueError):
+            detail = None
+        if (
+            status_code == 401
+            and isinstance(detail, dict)
+            and detail.get("status") == "missing_permissions"
+        ):
+            direct_status = f"missing_permission:{detail.get('message', 'restricted_key')}"
         await _emit(
             "voice.activation.direct_elevenlabs_degraded",
             "Direct ElevenLabs BYOK access is unavailable; Vapi-managed ElevenLabs remains active.",
@@ -190,6 +211,7 @@ async def activate_voice_runtime() -> None:
         "vapi_webhook_auth": bool(webhook_secret),
         "elevenlabs_voice_id": bool(voice_id),
         "elevenlabs_direct_key_present": bool(elevenlabs_key),
+        "elevenlabs_direct_validation": _direct_elevenlabs_validation_enabled(),
         "voice_delivery_mode": "vapi-managed-elevenlabs",
         "webhook_auth_mode": "explicit" if os.getenv("VAPI_WEBHOOK_SECRET", "").strip() else "derived",
         "deployment_id": deployment_id,
