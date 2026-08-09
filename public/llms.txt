@@ -1,6 +1,13 @@
 # D3VONN.IO
 
-D3VONN.IO is an AI Business Operating System for supervised agent execution, workflow automation, persistent knowledge, and command-center visibility.
+D3VONN.IO is an AI Business Operating System for supervised agent execution, workflow automation, persistent knowledge, governed operations, and command-center visibility.
+
+## Canonical AI context
+
+- Repository-aware agents should load `MASTER_CONTEXT.md` first.
+- The canonical context separates implemented `main` behavior from runtime state and draft/unmerged work.
+- Operational claims require runtime evidence; repository implementation alone does not prove deployment health.
+- Never expose secret values or service-role credentials in AI context.
 
 ## Core pages
 
@@ -13,10 +20,14 @@ D3VONN.IO is an AI Business Operating System for supervised agent execution, wor
 - Marketplace: https://d3vonn.io/marketplace
 - Command Center: https://d3vonn.io/command-center
 - Status: https://d3vonn.io/status
+- AI Films: https://d3vonn.io/ai-films
+- DKOS ingestion: https://d3vonn.io/dkos-ingestion
 
 ## Product summary
 
-D3VONN.IO helps users turn business goals into AI-assisted execution. Hermes acts as the orchestration layer, specialized agents perform work, workflows provide repeatable execution, the knowledge vault stores context, and the Command Center gives visibility into task state, approvals, and operational telemetry.
+D3VONN.IO turns business goals into AI-assisted execution. Hermes is the orchestration layer, specialized agents perform governed work, workflows provide repeatable execution, DKOS supplies structured knowledge/memory, and command-center surfaces provide visibility into task state, approvals, and operational telemetry.
+
+The repository also contains the AI Films subsystem for The Sovereign Signal, including TwelveLabs/Jockey intelligence, governed ingestion from MovieFlow and Google Drive, creative canon, production-bible, generation, QA, and assembly tracks. Runtime readiness must be verified independently from code presence.
 
 ## Target users
 
@@ -24,6 +35,7 @@ D3VONN.IO helps users turn business goals into AI-assisted execution. Hermes act
 - Teams automating repeatable workflows
 - Enterprise buyers evaluating governed AI workforce systems
 - Developers and partners packaging specialized agents
+- Film/creative teams using the governed AI Films production workflow
 
 ## Key concepts
 
@@ -32,6 +44,9 @@ D3VONN.IO helps users turn business goals into AI-assisted execution. Hermes act
 - Multi-agent workforce
 - Supervised autonomy
 - Workflow automation
-- RAG knowledge vault
+- DKOS / RAG knowledge and memory
+- Knowledge graph and semantic ingestion
 - Command-center observability
-- Security-first enterprise roadmap
+- Security-first governance
+- AI Films / The Sovereign Signal
+- TwelveLabs / Jockey intelligence
