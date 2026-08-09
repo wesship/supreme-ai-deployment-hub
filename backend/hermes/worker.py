@@ -17,6 +17,7 @@ import signal
 from typing import Any
 
 from hermes.task_engine import (
+    TaskTransitionConflict,
     dispatch_to_agent,
     list_tasks,
     log_event,
@@ -53,7 +54,12 @@ async def _process_task(task: dict[str, Any]) -> None:
     logger.info("claiming task id=%s agent=%s", task_id, agent_name)
 
     try:
-        await transition_task(task_id, "LOCKED", agent_name=agent_name)
+        await transition_task(
+            task_id,
+            "LOCKED",
+            agent_name=agent_name,
+            expected_status="PENDING",
+        )
         await transition_task(task_id, "RUNNING", agent_name=agent_name)
 
         result = await dispatch_to_agent(
@@ -70,6 +76,9 @@ async def _process_task(task: dict[str, Any]) -> None:
         )
         logger.info("completed task id=%s agent=%s", task_id, agent_name)
 
+    except TaskTransitionConflict:
+        logger.info("task claim lost id=%s; another worker already claimed it", task_id)
+        return
     except Exception as exc:  # noqa: BLE001
         logger.exception("task failed id=%s", task_id)
         try:

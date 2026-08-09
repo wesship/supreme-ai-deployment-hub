@@ -29,6 +29,10 @@ VALID_TRANSITIONS: dict[str, set[str]] = {
 AGENT_HIERARCHY = BUILTIN_AGENT_REGISTRY.hierarchy()
 
 
+class TaskTransitionConflict(RuntimeError):
+    """Raised when a task changed before an expected-state transition could claim it."""
+
+
 def configure_runtime(dependencies: HermesDependencies) -> None:
     """Configure Hermes runtime dependencies for tests or alternate deployments."""
     configure_dependencies(dependencies)
@@ -79,6 +83,17 @@ async def _sb_post(table: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 async def _sb_patch(table: str, row_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     return await _dependencies().repository.update_row(table, row_id, payload)
+
+
+async def _sb_patch_if(
+    table: str,
+    row_id: str,
+    payload: dict[str, Any],
+    conditions: dict[str, Any],
+) -> dict[str, Any]:
+    return await _dependencies().repository.update_row_if(
+        table, row_id, payload, conditions
+    )
 
 
 async def create_task(
@@ -166,8 +181,9 @@ async def transition_task(
     output_data: dict | None = None,
     error_message: str | None = None,
     agent_name: str | None = None,
+    expected_status: str | TaskStatus | None = None,
 ) -> dict:
-    """Apply a canonical state transition while preserving legacy string inputs."""
+    """Apply a canonical state transition, optionally as an atomic expected-state claim."""
     task = await get_task(task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -177,6 +193,12 @@ async def transition_task(
         target_status = TaskStatus(new_status)
     except ValueError as exc:
         raise ValueError(f"Unknown Hermes task status: {exc}") from exc
+
+    expected = TaskStatus(expected_status) if expected_status is not None else None
+    if expected is not None and current_status is not expected:
+        raise TaskTransitionConflict(
+            f"Task {task_id} changed from expected {expected.value} to {current_status.value}"
+        )
 
     if not can_transition(current_status, target_status):
         allowed = sorted(status.value for status in TASK_TRANSITIONS[current_status])
@@ -204,7 +226,16 @@ async def transition_task(
         persisted_status = TaskStatus.PENDING
         patch["status"] = persisted_status.value
 
-    updated = await _sb_patch("hermes_tasks", task_id, patch)
+    if expected is None:
+        updated = await _sb_patch("hermes_tasks", task_id, patch)
+    else:
+        updated = await _sb_patch_if(
+            "hermes_tasks", task_id, patch, {"status": expected.value}
+        )
+        if not updated:
+            raise TaskTransitionConflict(
+                f"Task {task_id} changed while claiming expected state {expected.value}"
+            )
     await log_event(
         task_id=task_id,
         event=f"task.{target_status.value.lower()}",
