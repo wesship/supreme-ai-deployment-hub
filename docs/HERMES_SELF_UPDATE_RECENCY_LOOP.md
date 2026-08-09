@@ -80,6 +80,7 @@ Every Hermes recency update should write a structured result:
   "source": "github_main",
   "commit_sha": "<latest-main-sha>",
   "canonical_context_version": "<MASTER_CONTEXT version>",
+  "canonical_context_sha256": "<MASTER_CONTEXT SHA-256>",
   "changed_files": [],
   "detected_risks": [],
   "required_actions": [],
@@ -101,7 +102,7 @@ After a new deployment, verify:
 6. Worker can claim a pending task.
 7. Callback marks task completed.
 8. Knowledge Graph or memory write-back records the result.
-9. DKOS reports ready and its index contains the new canonical-context revision.
+9. DKOS reports ready and /api/knowledge/status exposes the expected canonical-context version and SHA-256.
 10. Agent-to-agent orchestration can retrieve the updated context.
 11. If AI Films changed, verify worker state, asset metadata, and TwelveLabs item readiness before declaring the media pipeline healthy.
 
@@ -113,9 +114,17 @@ After a new deployment, verify:
 - Daily scheduled recency refresh.
 - Manual `workflow_dispatch` for emergency resync.
 
+## Implemented Runtime Behavior
+
+- The Knowledge API loads the deployed `MASTER_CONTEXT.md` as the canonical first document.
+- When generated DKOS artifacts exist, the deployed canonical document replaces any stale indexed copy.
+- When the generated index is unavailable, the API remains ready in `canonical_fallback` mode.
+- `/api/knowledge/status` exposes the mode, deployed commit SHA, canonical version, and canonical SHA-256.
+- Search includes canonical document content, and context assembly always prioritizes it.
+- The recency workflow runs for canonical-context and `llms.txt` changes and emits the exact version and SHA-256 in its artifact.
+
 ## Next Implementation Targets
 
-1. Add a Hermes recency sync endpoint.
-2. Add a safe CLI script that calls the endpoint after deployment.
-3. Add a GitHub Actions workflow that verifies Hermes can ingest the latest commit and `MASTER_CONTEXT.md`.
-4. Add dashboard status for last successful Hermes recency sync and indexed commit SHA.
+1. Add a post-deploy verifier that compares the workflow payload with live `/api/knowledge/status`.
+2. Add a Hermes acknowledgement/write-back endpoint with auditable task state.
+3. Add dashboard status for the last successful sync, canonical SHA-256, and indexed commit SHA.

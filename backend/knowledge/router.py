@@ -16,6 +16,7 @@ Optional files:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -43,12 +44,39 @@ class KnowledgeStore:
         self.observability_path = artifact_dir / "dkos_observability_report.md"
         self.embedding_manifest_path = artifact_dir / "dkos_embedding_manifest.json"
 
-        if not self.index_path.exists():
-            raise FileNotFoundError(f"Missing required DKOS index artifact: {self.index_path}")
+        canonical_path = Path(
+            os.getenv(
+                "DKOS_CANONICAL_CONTEXT_PATH",
+                str(Path(__file__).resolve().parents[2] / "MASTER_CONTEXT.md"),
+            )
+        ).resolve()
+        canonical_document = self._load_canonical_context(canonical_path)
 
-        self.index_payload = self._load_json(self.index_path)
+        self.index_available = self.index_path.exists()
+        if not self.index_available and canonical_document is None:
+            raise FileNotFoundError(
+                f"Missing DKOS index artifact ({self.index_path}) and canonical context ({canonical_path})"
+            )
+
+        self.index_payload = self._load_json(self.index_path) if self.index_available else {"documents": []}
         self.graph_payload = self._load_json(self.graph_path) if self.graph_path.exists() else {"nodes": [], "edges": [], "stats": {}}
-        self.documents: list[dict[str, Any]] = self.index_payload.get("documents", [])
+        indexed_documents: list[dict[str, Any]] = self.index_payload.get("documents", [])
+
+        if canonical_document is not None:
+            indexed_documents = [
+                doc
+                for doc in indexed_documents
+                if doc.get("id") != "MASTER_CONTEXT" and doc.get("path") != "MASTER_CONTEXT.md"
+            ]
+            self.documents = [canonical_document, *indexed_documents]
+        else:
+            self.documents = indexed_documents
+
+        self.mode = "full_artifacts" if self.index_available else "canonical_fallback"
+        self.canonical_document = next(
+            (doc for doc in self.documents if doc.get("path") == "MASTER_CONTEXT.md"),
+            None,
+        )
         self.by_id = {doc.get("id"): doc for doc in self.documents if doc.get("id")}
         self.by_path = {doc.get("path"): doc for doc in self.documents if doc.get("path")}
 
@@ -57,13 +85,43 @@ class KnowledgeStore:
         return json.loads(path.read_text(encoding="utf-8"))
 
     @staticmethod
+    def _load_canonical_context(path: Path) -> dict[str, Any] | None:
+        if not path.exists():
+            return None
+
+        content = path.read_text(encoding="utf-8")
+        version_match = re.search(r"\*\*Context version:\*\*\s*([^\n]+)", content)
+        version = version_match.group(1).strip() if version_match else "unversioned"
+        return {
+            "id": "MASTER_CONTEXT",
+            "path": "MASTER_CONTEXT.md",
+            "title": "D3VONN.IO Canonical AI Context",
+            "category": "root",
+            "tags": ["bootstrap", "canonical", "d3vonn", "hermes", "dkos"],
+            "related": [],
+            "summary": f"Canonical repository context ({version})",
+            "content": content,
+            "context_version": version,
+            "content_sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "source": "deployed_repository",
+        }
+
+    @staticmethod
     def _tokens(text: str) -> set[str]:
         return {token.lower() for token in re.findall(r"[a-zA-Z0-9_]+", text)}
 
     def status(self) -> dict[str, Any]:
         return {
             "status": "ready",
+            "mode": self.mode,
             "artifact_dir": str(self.artifact_dir),
+            "deployed_commit_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA") or os.getenv("GITHUB_SHA"),
+            "canonical_context": {
+                "present": self.canonical_document is not None,
+                "version": self.canonical_document.get("context_version") if self.canonical_document else None,
+                "content_sha256": self.canonical_document.get("content_sha256") if self.canonical_document else None,
+                "source": self.canonical_document.get("source") if self.canonical_document else None,
+            },
             "documents": len(self.documents),
             "graph_nodes": len(self.graph_payload.get("nodes", [])),
             "graph_edges": len(self.graph_payload.get("edges", [])),
@@ -90,6 +148,7 @@ class KnowledgeStore:
                     " ".join(doc.get("tags") or []),
                     " ".join(doc.get("related") or []),
                     doc.get("summary"),
+                    doc.get("content"),
                 ]
             )
             overlap = query_terms & self._tokens(searchable)
@@ -187,7 +246,7 @@ def store_or_503() -> KnowledgeStore:
             detail={
                 "status": "not_configured",
                 "message": str(exc),
-                "hint": "Generate DKOS artifacts and set DKOS_ARTIFACT_DIR to their directory.",
+                "hint": "Deploy MASTER_CONTEXT.md or generate DKOS artifacts and set DKOS_ARTIFACT_DIR.",
             },
         ) from exc
 
