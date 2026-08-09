@@ -72,7 +72,8 @@ def test_custom_provider_registry_adds_server_side_provider_without_code_change(
     health = provider_health(env)
     row = next(item for item in health["providers"] if item["provider"] == "studio_x")
     assert row["status"] == "configured"
-    assert "configured" not in repr(row)
+    assert "CUSTOM_VIDEO_TOKEN" in row["required_env"]
+    assert "studio-v1" not in repr(row)
 
 
 def test_custom_provider_registry_rejects_client_exposed_credentials():
