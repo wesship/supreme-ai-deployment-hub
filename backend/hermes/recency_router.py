@@ -6,15 +6,18 @@ import hmac
 import os
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.auth.supabase_jwt import require_occ_access
 from backend.hermes.contracts import TaskStatus
 from backend.hermes.task_engine import (
     create_task,
     get_task_by_correlation_id,
+    list_tasks_by_type,
     transition_task,
 )
+from backend.knowledge.router import get_store
 
 router = APIRouter(prefix="/api/hermes/recency", tags=["hermes-recency"])
 
@@ -120,3 +123,73 @@ async def acknowledge_recency(
         "correlation_id": correlation_id,
         "task": task,
     }
+
+def _task_summary(task: dict[str, Any] | None) -> dict[str, Any] | None:
+    if task is None:
+        return None
+    output = task.get("output_data") if isinstance(task.get("output_data"), dict) else {}
+    return {
+        "id": task.get("id"),
+        "status": task.get("status"),
+        "commit_sha": (
+            task.get("input_data", {}).get("commit_sha")
+            if isinstance(task.get("input_data"), dict)
+            else None
+        ),
+        "canonical_context_version": output.get("canonical_context_version"),
+        "canonical_context_sha256": output.get("canonical_context_sha256"),
+        "verification_status": output.get("verification_status"),
+        "created_at": task.get("created_at"),
+        "completed_at": task.get("completed_at"),
+        "correlation_id": task.get("correlation_id"),
+    }
+
+
+@router.get("/status")
+async def recency_status(
+    _: Any = Depends(require_occ_access),
+) -> dict[str, Any]:
+    """Reconcile live canonical context with persisted Hermes acknowledgements."""
+    tasks = await list_tasks_by_type("repo_recency", limit=25)
+    latest = tasks[0] if tasks else None
+    last_verified = next(
+        (
+            task
+            for task in tasks
+            if task.get("status") == TaskStatus.COMPLETED.value
+            and isinstance(task.get("output_data"), dict)
+            and task["output_data"].get("verification_status") == "VERIFIED"
+        ),
+        None,
+    )
+    pending_review = sum(
+        1 for task in tasks if task.get("status") == TaskStatus.MANUAL_REVIEW.value
+    )
+    runtime = get_store().status()
+    canonical = runtime.get("canonical_context") or {}
+    verified_summary = _task_summary(last_verified)
+    synchronized = bool(
+        verified_summary
+        and canonical.get("content_sha256")
+        == verified_summary.get("canonical_context_sha256")
+    )
+    if pending_review:
+        overall = "attention_required"
+    elif synchronized:
+        overall = "synchronized"
+    else:
+        overall = "never_synchronized"
+
+    return {
+        "status": overall,
+        "synchronized": synchronized,
+        "pending_manual_review": pending_review,
+        "runtime": {
+            "mode": runtime.get("mode"),
+            "deployed_commit_sha": runtime.get("deployed_commit_sha"),
+            "canonical_context": canonical,
+        },
+        "latest_acknowledgement": _task_summary(latest),
+        "last_verified": verified_summary,
+    }
+
