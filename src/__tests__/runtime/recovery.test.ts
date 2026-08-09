@@ -41,6 +41,7 @@ describe("Agent recovery from tool failures", () => {
       goal: "use flaky_tool",
       mcpGatewayUrl: "http://mock",
       maxSteps: 4,
+      allowAllMcpTools: true,
     });
 
     // Must not throw.
@@ -72,6 +73,7 @@ describe("Agent recovery from tool failures", () => {
       goal: "use erroring_tool",
       mcpGatewayUrl: "http://mock",
       maxSteps: 4,
+      allowAllMcpTools: true,
     });
     const run = await exec.execute();
 
