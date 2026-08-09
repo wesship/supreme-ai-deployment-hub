@@ -19,13 +19,41 @@ from backend.app.routers.voice_orchestration import (
 logger = logging.getLogger(__name__)
 _DEFAULT_MODEL = "eleven_turbo_v2_5"
 _FALSE_VALUES = {"0", "false", "no", "off", "disabled"}
+_SUPPORTED_VAPI_SERVER_MESSAGES = {
+    "assistant.started",
+    "assistant.speechStarted",
+    "conversation-update",
+    "end-of-call-report",
+    "function-call",
+    "hang",
+    "language-changed",
+    "language-change-detected",
+    "model-output",
+    "phone-call-control",
+    "speech-update",
+    "status-update",
+    "transcript",
+    'transcript[transcriptType="final"]',
+    "tool-calls",
+    "transfer-destination-request",
+    "handoff-destination-request",
+    "transfer-update",
+    "user-interrupted",
+    "voice-input",
+    "chat.created",
+    "chat.deleted",
+    "session.created",
+    "session.updated",
+    "session.deleted",
+    "call.deleted",
+    "call.delete.failed",
+}
 _REQUIRED_VAPI_SERVER_MESSAGES = {
     "tool-calls",
     "status-update",
     "end-of-call-report",
     "transcript",
 }
-_DEPRECATED_VAPI_SERVER_MESSAGES = {"assistant-request"}
 
 
 def _enabled() -> bool:
@@ -50,12 +78,16 @@ def _safe_error(exc: Exception, secrets: tuple[str, ...]) -> str:
 
 
 def _normalized_server_messages(value: Any) -> list[str]:
-    """Preserve configured events while removing Vapi events retired from assistant schemas."""
-    messages = {
-        item
-        for item in value
-        if isinstance(item, str) and item not in _DEPRECATED_VAPI_SERVER_MESSAGES
-    } if isinstance(value, list) else set()
+    """Return a Vapi-schema-safe event list plus D3VONN's required events."""
+    messages = (
+        {
+            item
+            for item in value
+            if isinstance(item, str) and item in _SUPPORTED_VAPI_SERVER_MESSAGES
+        }
+        if isinstance(value, list)
+        else set()
+    )
     messages.update(_REQUIRED_VAPI_SERVER_MESSAGES)
     return sorted(messages)
 
