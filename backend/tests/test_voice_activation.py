@@ -18,7 +18,7 @@ def test_server_messages_remove_retired_assistant_request() -> None:
     )
 
     assert "assistant-request" not in messages
-    assert "custom-observability-event" in messages
+    assert "custom-observability-event" not in messages
     assert {
         "tool-calls",
         "status-update",
