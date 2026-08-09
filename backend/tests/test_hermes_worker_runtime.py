@@ -10,6 +10,7 @@ from backend.hermes.testing import FrozenClock, InMemoryTaskRepository
 from backend.hermes.worker_persistence import (
     PersistentWorkerRegistry,
     SupabaseWorkerRegistryStore,
+    WorkerVersionConflict,
 )
 from backend.hermes.worker_runtime import (
     PersistentWorkerRuntime,
@@ -130,3 +131,17 @@ async def test_restart_expires_stale_lease_before_worker_rejoins():
     assert restarted.recoverable_leases() == ()
     lease_rows = repository.tables["hermes_worker_leases"]
     assert lease_rows[0]["status"] == LeaseStatus.EXPIRED.value
+
+
+@pytest.mark.asyncio
+async def test_duplicate_worker_identity_rejects_stale_heartbeat():
+    repository = InMemoryTaskRepository()
+    clock = FrozenClock(datetime(2026, 8, 9, tzinfo=timezone.utc))
+    first = runtime_service(repository, clock)
+    second = runtime_service(repository, clock)
+    await first.start()
+    await second.start()
+
+    clock.current += timedelta(seconds=1)
+    with pytest.raises(WorkerVersionConflict):
+        await first.heartbeat()
