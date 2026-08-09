@@ -19,6 +19,8 @@ on:
     paths:
       - ".github/workflows/**"
       - "docs/HERMES_SELF_UPDATE_RECENCY_LOOP.md"
+      - "MASTER_CONTEXT.md"
+      - "public/llms.txt"
       - "backend/**"
       - "server/**"
       - "api/**"
@@ -66,6 +68,7 @@ jobs:
           set -euo pipefail
 
           test -f docs/HERMES_SELF_UPDATE_RECENCY_LOOP.md
+          test -f MASTER_CONTEXT.md
           test -f .github/workflows/validate-secrets.yml
 
           echo "✓ Hermes recency contract present"
@@ -79,7 +82,7 @@ jobs:
 
           sensitive=0
 
-          if grep -E '^(backend|server|api|supabase/functions|supabase/migrations|agents|packages|\.github/workflows)/' hermes-recency-changed-files.txt >/dev/null 2>&1; then
+          if grep -E '^(MASTER_CONTEXT\.md|public/llms\.txt|(backend|server|api|supabase/functions|supabase/migrations|agents|packages|\.github/workflows)/)' hermes-recency-changed-files.txt >/dev/null 2>&1; then
             sensitive=1
           fi
 
@@ -97,26 +100,35 @@ jobs:
           set -euo pipefail
 
           python - <<'PY'
+          import hashlib
           import json
           import os
+          import re
           from pathlib import Path
 
           changed = Path('hermes-recency-changed-files.txt').read_text().splitlines() if Path('hermes-recency-changed-files.txt').exists() else []
+          canonical_content = Path('MASTER_CONTEXT.md').read_text(encoding='utf-8')
+          version_match = re.search(r'\*\*Context version:\*\*\s*([^\n]+)', canonical_content)
+          canonical_version = version_match.group(1).strip() if version_match else 'unversioned'
+          canonical_sha256 = hashlib.sha256(canonical_content.encode('utf-8')).hexdigest()
           payload = {
               "sync_type": "repo_recency",
               "source": "github_main",
               "commit_sha": os.environ.get("GITHUB_SHA"),
+              "canonical_context_version": canonical_version,
+              "canonical_context_sha256": canonical_sha256,
               "changed_files": changed,
               "detected_risks": [],
               "required_actions": [
                   "Verify backend /api/health after deployment",
+                  "Verify /api/knowledge/status reports the deployed canonical context version and SHA-256",
                   "Verify Hermes job intake, worker claim, callback completion, and memory write-back"
               ],
               "memory_updates": [
-                  "Refresh Hermes context with latest main commit and changed operational files"
+                  f"Refresh Hermes context from MASTER_CONTEXT.md version {canonical_version} ({canonical_sha256})"
               ],
               "kg_updates": [
-                  "Link latest deployment/secrets/workflow changes to Hermes operational graph"
+                  f"Link canonical context {canonical_sha256} and latest operational changes to Hermes graph"
               ],
               "status": "MANUAL_REVIEW" if changed else "COMPLETED"
           }
