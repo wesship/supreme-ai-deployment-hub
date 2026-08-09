@@ -59,7 +59,7 @@ export function McpToolExplorer() {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${authSession.access_token}`,
       ...(publishableKey ? { apikey: publishableKey } : {}),
-      ...(server.type === "stdio" ? { "X-MCP-Server-Id": server.id } : {}),
+      "X-MCP-Server-Id": server.id,
       ...(apiToken ? { "X-MCP-Api-Token": apiToken } : {}),
     };
 
