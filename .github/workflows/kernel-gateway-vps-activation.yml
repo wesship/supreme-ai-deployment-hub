@@ -1,0 +1,179 @@
+name: Kernel Gateway VPS Activation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'validate builds the gateway only; deploy also starts it and runs smoke tests'
+        required: true
+        default: validate
+        type: choice
+        options:
+          - validate
+          - deploy
+
+concurrency:
+  group: kernel-gateway-vps-activation
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  activate:
+    name: Validate or activate persistent kernel gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate VPS connection secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -z "${{ secrets.VPS_HOST }}" ] && missing+=(VPS_HOST)
+          [ -z "${{ secrets.VPS_USER }}" ] && missing+=(VPS_USER)
+          [ -z "${{ secrets.VPS_SSH_PRIVATE_KEY }}" ] && missing+=(VPS_SSH_PRIVATE_KEY)
+          [ -z "${{ secrets.VPS_KNOWN_HOSTS }}" ] && missing+=(VPS_KNOWN_HOSTS)
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing required repository secret: %s\n' "${missing[@]}"
+            exit 1
+          fi
+
+      - name: Configure verified SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/vps_key ~/.ssh/known_hosts
+
+      - name: Sync current main to VPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             cd /opt/supreme-ai-deployment-hub
+             sudo git fetch origin main
+             sudo git checkout main
+             sudo git reset --hard origin/main
+             echo "VPS HEAD: $(git rev-parse --short HEAD)"'
+
+      - name: Provision kernel runtime secret idempotently
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             APP_DIR=/opt/supreme-ai-deployment-hub
+             ENV_FILE="$APP_DIR/kernel-gateway/.env.production"
+             EXAMPLE="$APP_DIR/kernel-gateway/.env.example"
+             if [ ! -f "$ENV_FILE" ]; then
+               sudo cp "$EXAMPLE" "$ENV_FILE"
+               sudo chmod 600 "$ENV_FILE"
+             fi
+             current="$(sudo sed -n "s/^KERNEL_GATEWAY_API_TOKEN=//p" "$ENV_FILE" | tail -n 1)"
+             if [ -z "$current" ] || printf "%s" "$current" | grep -Eqi "^(replace-with|placeholder|CHANGE_ME|PASTE_)"; then
+               token="$(openssl rand -base64 48 | tr -d "\n")"
+               sudo sed -i "s|^KERNEL_GATEWAY_API_TOKEN=.*|KERNEL_GATEWAY_API_TOKEN=${token}|" "$ENV_FILE"
+               echo "Generated KERNEL_GATEWAY_API_TOKEN on VPS"
+             else
+               echo "Preserved existing KERNEL_GATEWAY_API_TOKEN on VPS"
+             fi'
+
+      - name: Validate compose and build gateway image
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             APP_DIR=/opt/supreme-ai-deployment-hub
+             cd "$APP_DIR"
+             export N8N_IMAGE=unused
+             sudo -E docker compose \
+               --env-file kernel-gateway/.env.production \
+               -f docker-compose.kernel-gateway.yml \
+               config >/tmp/kernel-gateway-compose.rendered.yml
+             sudo -E docker compose \
+               --env-file kernel-gateway/.env.production \
+               -f docker-compose.kernel-gateway.yml \
+               build --pull python-kernel-gateway
+             echo "Kernel gateway compose validation/build: PASS"'
+
+      - name: Start gateway only
+        if: ${{ inputs.mode == 'deploy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             APP_DIR=/opt/supreme-ai-deployment-hub
+             cd "$APP_DIR"
+             export N8N_IMAGE=unused
+             sudo -E docker compose \
+               --env-file kernel-gateway/.env.production \
+               -f docker-compose.kernel-gateway.yml \
+               up -d --force-recreate python-kernel-gateway
+             for i in $(seq 1 24); do
+               if sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml exec -T python-kernel-gateway curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
+                 echo "Kernel gateway healthy"
+                 exit 0
+               fi
+               sleep 5
+             done
+             sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml logs --tail=100 python-kernel-gateway || true
+             echo "Kernel gateway failed health check" >&2
+             exit 1'
+
+      - name: Run authorization and persistence smoke test
+        if: ${{ inputs.mode == 'deploy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             cd /opt/supreme-ai-deployment-hub
+             export N8N_IMAGE=unused
+             sudo -E bash deploy/vps/scripts/smoke-kernel-gateway.sh'
+
+      - name: Verify gateway is not host-published
+        if: ${{ inputs.mode == 'deploy' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             APP_DIR=/opt/supreme-ai-deployment-hub
+             cd "$APP_DIR"
+             export N8N_IMAGE=unused
+             published="$(sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml port python-kernel-gateway 8000 2>/dev/null || true)"
+             if [ -n "$published" ]; then
+               echo "ERROR: gateway port unexpectedly published: $published" >&2
+               exit 1
+             fi
+             echo "Gateway port exposure check: PASS (internal only)"'
