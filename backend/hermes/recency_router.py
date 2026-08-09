@@ -124,6 +124,7 @@ async def acknowledge_recency(
         "task": task,
     }
 
+
 def _task_summary(task: dict[str, Any] | None) -> dict[str, Any] | None:
     if task is None:
         return None
