@@ -125,9 +125,11 @@ After a new deployment, verify:
 - A post-deploy verifier retries the live Knowledge API, compares version, SHA-256, and deployed commit, and uploads an auditable report.
 - `POST /api/hermes/recency/acknowledge` writes an idempotent task and lifecycle events using the existing Hermes Supabase adapter.
 - Verified syncs become `COMPLETED`; mismatches become `MANUAL_REVIEW`. The endpoint requires a dedicated machine token.
+- `GET /api/hermes/recency/status` reconciles the live runtime fingerprint with persisted acknowledgements for authorized OCC operators.
+- The protected Operator Command Center includes a Knowledge Recency panel with version, SHA-256, commit, task state, and review count.
 
 ## Next Implementation Targets
 
-1. Configure the same `HERMES_RECENCY_WRITE_TOKEN` secret in Railway and GitHub Actions to activate automated write-back.
-2. Add dashboard status for the last successful sync, canonical SHA-256, and indexed commit SHA.
-3. Add operator replay and resolution controls for `MANUAL_REVIEW` recency tasks.
+1. Add operator replay and resolution controls for `MANUAL_REVIEW` recency tasks.
+2. Add alert delivery when live context and the last verified fingerprint diverge.
+3. Add retention and archival policy for historical recency tasks and reports.
