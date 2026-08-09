@@ -134,6 +134,19 @@ async def get_task(task_id: str) -> dict | None:
     return rows[0] if rows else None
 
 
+async def get_task_by_correlation_id(correlation_id: str) -> dict | None:
+    """Return the newest task for a stable external correlation identifier."""
+    rows = await _sb_get(
+        "hermes_tasks",
+        {
+            "correlation_id": f"eq.{correlation_id}",
+            "order": "created_at.desc",
+            "limit": "1",
+        },
+    )
+    return rows[0] if rows else None
+
+
 async def list_tasks(
     status: str | TaskStatus | None = None,
     agent_name: str | None = None,

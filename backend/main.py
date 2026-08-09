@@ -258,6 +258,14 @@ except ImportError as _hermes_tasks_err:
     logger.warning("backend.hermes.router not found — skipping Hermes task engine. (%s)", _hermes_tasks_err)
 
 try:
+    from backend.hermes.recency_router import router as hermes_recency_router  # type: ignore
+
+    app.include_router(hermes_recency_router)
+    logger.info("Hermes recency acknowledgement router registered at /api/hermes/recency/*")
+except ImportError as _hermes_recency_err:
+    logger.warning("backend.hermes.recency_router not found — skipping recency write-back. (%s)", _hermes_recency_err)
+
+try:
     from backend.knowledge.router import router as knowledge_router  # type: ignore
 
     app.include_router(knowledge_router)
