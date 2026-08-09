@@ -123,9 +123,11 @@ After a new deployment, verify:
 - Search includes canonical document content, and context assembly always prioritizes it.
 - The recency workflow runs for canonical-context and `llms.txt` changes and emits the exact version and SHA-256 in its artifact.
 - A post-deploy verifier retries the live Knowledge API, compares version, SHA-256, and deployed commit, and uploads an auditable report.
+- `POST /api/hermes/recency/acknowledge` writes an idempotent task and lifecycle events using the existing Hermes Supabase adapter.
+- Verified syncs become `COMPLETED`; mismatches become `MANUAL_REVIEW`. The endpoint requires a dedicated machine token.
 
 ## Next Implementation Targets
 
-1. Add a Hermes acknowledgement/write-back endpoint with auditable task state.
+1. Configure the same `HERMES_RECENCY_WRITE_TOKEN` secret in Railway and GitHub Actions to activate automated write-back.
 2. Add dashboard status for the last successful sync, canonical SHA-256, and indexed commit SHA.
-3. Persist verified recency results so Hermes and operators share the same last-known-good state.
+3. Add operator replay and resolution controls for `MANUAL_REVIEW` recency tasks.
