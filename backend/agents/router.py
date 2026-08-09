@@ -39,9 +39,12 @@ class DispatchRequest(BaseModel):
 
 
 class CapabilityDispatchRequest(BaseModel):
-    capability: str
-    action: str
+    workspace_id: str = Field(min_length=1)
+    capability: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
+    priority: TaskPriority = TaskPriority.NORMAL
+    timeout_seconds: int = Field(default=30, ge=1, le=300)
+    max_retries: int = Field(default=3, ge=0, le=10)
 
 
 class GovernanceDryRunApiRequest(BaseModel):
@@ -272,16 +275,28 @@ async def dispatch_task(
 
 @router.post("/capability", response_model=AgentResult)
 @router.post("/agents/capability", response_model=AgentResult, include_in_schema=False)
-async def dispatch_by_capability(request: CapabilityDispatchRequest):
-    """Dispatch a task to the best available agent with the given capability."""
-    result = await default_mesh.dispatch_to_capable(
-        capability=request.capability,
-        action=request.action,
-        payload=request.payload,
+async def dispatch_by_capability(
+    request: CapabilityDispatchRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Select a healthy capability candidate, then use the governed named-dispatch path."""
+    candidates = default_mesh.find_by_capability(request.capability)
+    for client in candidates:
+        if await client.health_check():
+            return await dispatch_task(
+                DispatchRequest(
+                    workspace_id=request.workspace_id,
+                    agent_name=client.reg.name,
+                    action=request.capability,
+                    payload=request.payload,
+                    priority=request.priority,
+                    timeout_seconds=request.timeout_seconds,
+                    max_retries=request.max_retries,
+                ),
+                user_id=user_id,
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=f"No healthy agent with capability '{request.capability}'.",
     )
-    if not result.success:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=result.error or f"No healthy agent with capability '{request.capability}'.",
-        )
-    return result
