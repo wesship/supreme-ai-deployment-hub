@@ -17,7 +17,7 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=128m,mode=1777
-      - /home/kernel:size=64m,uid=999,gid=999,mode=0700
+      - /home/kernel:size=64m,uid=10001,gid=10001,mode=0700
     cap_drop:
       - ALL
     security_opt:
@@ -33,7 +33,7 @@ services:
       start_period: 10s
 
   n8n-main:
-    image: docker.n8n.io/n8nio/n8n:latest
+    image: ${N8N_IMAGE:?set N8N_IMAGE to a pinned n8n image tag or digest}
     restart: unless-stopped
     command: n8n
     env_file: .env
@@ -45,9 +45,10 @@ services:
         condition: service_healthy
     networks:
       - agent-kernel-internal
+      - n8n-egress
 
   n8n-worker-1:
-    image: docker.n8n.io/n8nio/n8n:latest
+    image: ${N8N_IMAGE:?set N8N_IMAGE to a pinned n8n image tag or digest}
     restart: unless-stopped
     command: n8n worker
     env_file: .env
@@ -59,7 +60,10 @@ services:
         condition: service_healthy
     networks:
       - agent-kernel-internal
+      - n8n-egress
 
 networks:
   agent-kernel-internal:
     internal: true
+  n8n-egress:
+    driver: bridge
