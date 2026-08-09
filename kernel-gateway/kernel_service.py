@@ -20,9 +20,10 @@ SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 
 
 class KernelInstance:
-    def __init__(self, manager: AsyncKernelManager, client):
+    def __init__(self, manager: AsyncKernelManager, client, session_token: str):
         self.manager = manager
         self.client = client
+        self.session_token = session_token
         self.last_accessed = time.monotonic()
         self.lock = asyncio.Lock()
 
@@ -56,6 +57,11 @@ def validate_session_id(session_id: str) -> str:
     if not SESSION_ID_RE.fullmatch(session_id):
         raise HTTPException(status_code=400, detail="Invalid session_id format")
     return session_id
+
+
+def require_session_token(instance: KernelInstance, presented: str | None) -> None:
+    if presented is None or not secrets.compare_digest(presented, instance.session_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid session capability token")
 
 
 def bounded_append(parts: list[str], text: str, current_size: int) -> int:
@@ -116,10 +122,8 @@ async def health():
 async def create_session(session_id: str):
     session_id = validate_session_id(session_id)
     async with sessions.lock:
-        existing = sessions.sessions.get(session_id)
-        if existing:
-            existing.last_accessed = time.monotonic()
-            return {"status": "exists", "session_id": session_id}
+        if session_id in sessions.sessions:
+            raise HTTPException(status_code=409, detail="Session already exists")
         if len(sessions.sessions) >= MAX_SESSIONS:
             raise HTTPException(status_code=429, detail="Maximum kernel sessions reached")
 
@@ -134,12 +138,20 @@ async def create_session(session_id: str):
             await km.shutdown_kernel(now=True)
             raise HTTPException(status_code=503, detail="Kernel failed readiness check")
 
-        sessions.sessions[session_id] = KernelInstance(manager=km, client=client)
-    return {"status": "created", "session_id": session_id}
+        session_token = secrets.token_urlsafe(32)
+        sessions.sessions[session_id] = KernelInstance(
+            manager=km,
+            client=client,
+            session_token=session_token,
+        )
+    return {"status": "created", "session_id": session_id, "session_token": session_token}
 
 
 @app.post("/execute", dependencies=[Depends(require_auth)])
-async def execute_code(req: ExecuteRequest):
+async def execute_code(
+    req: ExecuteRequest,
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
     validate_session_id(req.session_id)
     if len(req.code.encode("utf-8")) > MAX_CODE_BYTES:
         raise HTTPException(status_code=413, detail="Code payload exceeds configured limit")
@@ -148,6 +160,7 @@ async def execute_code(req: ExecuteRequest):
         instance = sessions.sessions.get(req.session_id)
     if instance is None:
         raise HTTPException(status_code=404, detail="Session context not found")
+    require_session_token(instance, x_session_token)
 
     async with instance.lock:
         instance.last_accessed = time.monotonic()
@@ -201,8 +214,17 @@ async def execute_code(req: ExecuteRequest):
 
 
 @app.delete("/sessions/{session_id}", dependencies=[Depends(require_auth)])
-async def destroy_session(session_id: str):
+async def destroy_session(
+    session_id: str,
+    x_session_token: str | None = Header(default=None, alias="X-Session-Token"),
+):
     session_id = validate_session_id(session_id)
+    async with sessions.lock:
+        instance = sessions.sessions.get(session_id)
+    if instance is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    require_session_token(instance, x_session_token)
+
     async with sessions.lock:
         instance = sessions.sessions.pop(session_id, None)
     if instance is None:
