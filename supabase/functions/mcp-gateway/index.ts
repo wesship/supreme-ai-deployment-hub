@@ -4,7 +4,7 @@ import { rateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rateLimit
 const RL_CFG = { capacity: 60, refillPerSec: 1 };
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://d3vonn.io",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-mcp-server-id",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -57,6 +57,7 @@ serve(async (req) => {
       headers: {
         "Content-Type": "application/json",
         "Authorization": req.headers.get("Authorization") ?? "",
+        "X-MCP-Server-Id": req.headers.get("x-mcp-server-id") ?? "devonn-gateway",
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30_000),
