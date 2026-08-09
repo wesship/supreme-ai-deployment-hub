@@ -26,6 +26,7 @@ export default defineConfig(({ mode }) => {
       mode === "development" && componentTagger(),
       viteStaticCopy({
         targets: [
+          { src: "MASTER_CONTEXT.md", dest: "." },
           { src: "manifest.json", dest: "." },
           { src: "background.js", dest: "." },
           { src: "popup.html", dest: "." },

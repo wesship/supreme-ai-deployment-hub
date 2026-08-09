@@ -48,3 +48,26 @@ def test_knowledge_router_missing_artifacts_returns_503(monkeypatch, tmp_path: P
     response = make_client().get("/api/knowledge/status")
     assert response.status_code == 503
     assert response.json()["detail"]["status"] == "not_configured"
+
+def test_context_always_prioritizes_master_context(monkeypatch, tmp_path: Path):
+    index = {
+        "documents": [
+            {"id": "SYSTEM_PROMPT", "path": "SYSTEM_PROMPT.md", "title": "System Prompt", "category": "constitution", "tags": [], "related": [], "summary": "system rules"},
+            {"id": "MASTER_CONTEXT", "path": "MASTER_CONTEXT.md", "title": "Master Context", "category": "root", "tags": ["bootstrap"], "related": [], "summary": "canonical context"},
+            {"id": "AGENT_HERMES", "path": "agents/Hermes/README.md", "title": "Hermes", "category": "agent", "tags": ["hermes"], "related": [], "summary": "agent context"},
+        ]
+    }
+    (tmp_path / "dkos_index.json").write_text(json.dumps(index), encoding="utf-8")
+    monkeypatch.setenv("DKOS_ARTIFACT_DIR", str(tmp_path))
+    get_store.cache_clear()
+
+    response = make_client().post(
+        "/api/knowledge/context",
+        json={"query": "system rules", "agent": "Hermes", "limit": 1},
+    )
+
+    assert response.status_code == 200
+    documents = response.json()["documents"]
+    assert len(documents) == 1
+    assert documents[0]["path"] == "MASTER_CONTEXT.md"
+
