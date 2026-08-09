@@ -38,6 +38,10 @@ jobs:
 
       - name: Validate VPS connection secrets
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
           missing=()
@@ -46,6 +50,12 @@ jobs:
           [ -z "${{ secrets.VPS_SSH_PRIVATE_KEY }}" ] && missing+=(VPS_SSH_PRIVATE_KEY)
           [ -z "${{ secrets.VPS_KNOWN_HOSTS }}" ] && missing+=(VPS_KNOWN_HOSTS)
           if [ ${#missing[@]} -gt 0 ]; then
+            joined="$(IFS=', '; echo "${missing[*]}")"
+            gh api \
+              --method POST \
+              -H 'Accept: application/vnd.github+json' \
+              "/repos/${REPO}/issues/${ISSUE_NUMBER}/comments" \
+              -f body="Kernel gateway preflight FAILED: missing GitHub Actions secret name(s): ${joined}. No secret values were read or exposed." >/dev/null
             printf 'Missing required repository secret: %s\n' "${missing[@]}"
             exit 1
           fi
@@ -58,6 +68,29 @@ jobs:
           printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
           printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/vps_key ~/.ssh/known_hosts
+
+      - name: Verify SSH connectivity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          if ! ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=10 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'true'; then
+            gh api \
+              --method POST \
+              -H 'Accept: application/vnd.github+json' \
+              "/repos/${REPO}/issues/${ISSUE_NUMBER}/comments" \
+              -f body='Kernel gateway preflight FAILED: verified SSH connectivity to the configured VPS failed. Check VPS_HOST, VPS_USER, VPS_SSH_PRIVATE_KEY, VPS_KNOWN_HOSTS, firewall/SSH service, and key authorization.' >/dev/null
+            exit 1
+          fi
 
       - name: Sync current main and provision gateway secret
         shell: bash
@@ -157,7 +190,7 @@ jobs:
           if [ "$JOB_STATUS" = "success" ]; then
             body='Kernel gateway deployment: SUCCESS. Image rebuilt from current main, health passed, persistent-state/auth smoke tests passed, and port 8000 remains internal-only.'
           else
-            body='Kernel gateway deployment: FAILED. The guarded activation stopped before declaring success. Review the workflow logs; no security gate was bypassed.'
+            body='Kernel gateway deployment: FAILED. The guarded activation stopped before declaring success. Review the preflight diagnostic comment above or the workflow logs; no security gate was bypassed.'
           fi
           gh api \
             --method POST \
