@@ -32,6 +32,9 @@ const baseConfig = (overrides: Partial<AgentRunConfig> = {}): AgentRunConfig => 
   goal: "search for d3vonn.io status",
   mcpGatewayUrl: "http://mock",
   maxSteps: 8,
+  // These lifecycle fixtures intentionally exercise tool execution. Production
+  // remains deny-by-default; unrestricted access is explicit in the fixture.
+  allowAllMcpTools: true,
   ...overrides,
 });
 
@@ -59,9 +62,6 @@ describe("AutonomousAgentExecutor — execution lifecycle", () => {
   });
 
   it("enforces maxSteps ceiling — never exceeds configured budget", async () => {
-    // Force the agent into a loop where it never produces a final_answer:
-    // a tool that always errors. The current executor will mark failed via
-    // observation step but eventually run out of steps.
     mockHandle = createMockClient({
       tools: [fakeTool("loop_tool")],
       toolBehavior: {
@@ -72,8 +72,6 @@ describe("AutonomousAgentExecutor — execution lifecycle", () => {
     const exec = new AutonomousAgentExecutor(baseConfig({ goal: "do nothing", maxSteps: 3 }));
     const run = await exec.execute();
 
-    // Initial thought + (tool_call + tool_result + observation) per iteration,
-    // capped to maxSteps iterations. Hard upper bound: 1 + 3 * 3 = 10 steps.
     expect(run.steps.length).toBeLessThanOrEqual(10);
     expect(["completed", "failed"]).toContain(run.status);
   });
@@ -91,12 +89,9 @@ describe("AutonomousAgentExecutor — execution lifecycle", () => {
 
     const exec = new AutonomousAgentExecutor(baseConfig({ goal: "slow goal", maxSteps: 50 }));
     const runPromise = exec.execute();
-    // Stop immediately after kickoff.
     setTimeout(() => exec.stop(), 1);
     const run = await runPromise;
 
-    // Either stopped (caught between iterations) OR completed/failed naturally
-    // before stop fired — both are valid; what we MUST NOT see is silent hang.
     expect(["stopped", "completed", "failed"]).toContain(run.status);
     expect(run.completedAt).toBeTruthy();
   });
