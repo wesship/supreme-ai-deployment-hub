@@ -44,9 +44,11 @@ describe("Agent recovery from tool failures", () => {
       allowAllMcpTools: true,
     });
 
+    // Must not throw.
     const run = await exec.execute();
 
     expect(["completed", "failed"]).toContain(run.status);
+    // The error must have been recorded as a step, not silently dropped.
     const errorSteps = run.steps.filter((s) =>
       s.type === "tool_result" && s.content.includes("Error")
     );
