@@ -41,13 +41,12 @@ describe("Agent recovery from tool failures", () => {
       goal: "use flaky_tool",
       mcpGatewayUrl: "http://mock",
       maxSteps: 4,
+      allowAllMcpTools: true,
     });
 
-    // Must not throw.
     const run = await exec.execute();
 
     expect(["completed", "failed"]).toContain(run.status);
-    // The error must have been recorded as a step, not silently dropped.
     const errorSteps = run.steps.filter((s) =>
       s.type === "tool_result" && s.content.includes("Error")
     );
@@ -72,6 +71,7 @@ describe("Agent recovery from tool failures", () => {
       goal: "use erroring_tool",
       mcpGatewayUrl: "http://mock",
       maxSteps: 4,
+      allowAllMcpTools: true,
     });
     const run = await exec.execute();
 
