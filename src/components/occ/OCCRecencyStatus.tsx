@@ -80,9 +80,19 @@ export default function OCCRecencyStatus() {
           Authorization: `Bearer ${accessToken}`,
         },
       });
-      const body = await response.json();
+      const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(body?.detail || `Recency status request failed (${response.status})`);
+        const detail =
+          body && typeof body === "object" && "detail" in body
+            ? (body as { detail: unknown }).detail
+            : null;
+        const message =
+          typeof detail === "string"
+            ? detail
+            : detail
+              ? JSON.stringify(detail)
+              : `Recency status request failed (${response.status})`;
+        throw new Error(message);
       }
       setData(body as RecencyStatus);
     } catch (err) {
