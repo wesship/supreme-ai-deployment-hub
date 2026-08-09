@@ -1,0 +1,65 @@
+services:
+  python-kernel-gateway:
+    build:
+      context: ./kernel-gateway
+    restart: unless-stopped
+    environment:
+      KERNEL_GATEWAY_API_TOKEN: ${KERNEL_GATEWAY_API_TOKEN:?set KERNEL_GATEWAY_API_TOKEN}
+      KERNEL_MAX_SESSIONS: ${KERNEL_MAX_SESSIONS:-8}
+      KERNEL_SESSION_TTL_SECONDS: ${KERNEL_SESSION_TTL_SECONDS:-1800}
+      KERNEL_EXECUTION_TIMEOUT_SECONDS: ${KERNEL_EXECUTION_TIMEOUT_SECONDS:-15}
+      KERNEL_MAX_CODE_BYTES: ${KERNEL_MAX_CODE_BYTES:-65536}
+      KERNEL_MAX_OUTPUT_BYTES: ${KERNEL_MAX_OUTPUT_BYTES:-1048576}
+    expose:
+      - "8000"
+    networks:
+      - agent-kernel-internal
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+      - /home/kernel:size=64m,uid=999,gid=999,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  n8n-main:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    command: n8n
+    env_file: .env
+    environment:
+      KERNEL_GATEWAY_URL: http://python-kernel-gateway:8000
+      KERNEL_GATEWAY_API_TOKEN: ${KERNEL_GATEWAY_API_TOKEN:?set KERNEL_GATEWAY_API_TOKEN}
+    depends_on:
+      python-kernel-gateway:
+        condition: service_healthy
+    networks:
+      - agent-kernel-internal
+
+  n8n-worker-1:
+    image: docker.n8n.io/n8nio/n8n:latest
+    restart: unless-stopped
+    command: n8n worker
+    env_file: .env
+    environment:
+      KERNEL_GATEWAY_URL: http://python-kernel-gateway:8000
+      KERNEL_GATEWAY_API_TOKEN: ${KERNEL_GATEWAY_API_TOKEN:?set KERNEL_GATEWAY_API_TOKEN}
+    depends_on:
+      python-kernel-gateway:
+        condition: service_healthy
+    networks:
+      - agent-kernel-internal
+
+networks:
+  agent-kernel-internal:
+    internal: true
