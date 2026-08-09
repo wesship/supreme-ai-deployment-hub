@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy only runtime backend source; keep frontend/docs/dev tooling out of Railway image
 COPY backend/ ./backend/
+COPY MASTER_CONTEXT.md ./MASTER_CONTEXT.md
 
 # Set Python path
 ENV PYTHONPATH=/app:/app/backend
