@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+import httpx
+
 from backend.hermes.ports import Clock, TaskRepository
 from backend.hermes.workflows.workers import (
     InMemoryWorkerRegistry,
@@ -95,7 +97,22 @@ class SupabaseWorkerRegistryStore:
         )
         if active:
             return active[0]
-        return await self._repository.create_row("hermes_worker_leases", payload)
+        try:
+            return await self._repository.create_row("hermes_worker_leases", payload)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code != 409:
+                raise
+            active = await self._repository.list_rows(
+                "hermes_worker_leases",
+                {
+                    "task_id": f"eq.{payload['task_id']}",
+                    "status": f"eq.{LeaseStatus.ACTIVE.value}",
+                    "limit": "1",
+                },
+            )
+            if active:
+                return active[0]
+            raise
 
     async def update_lease(self, lease_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         rows = await self._repository.list_rows(
