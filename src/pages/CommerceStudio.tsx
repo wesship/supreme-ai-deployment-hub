@@ -1,0 +1,179 @@
+import { useMemo, useState } from 'react';
+import { Boxes, Check, Film, Megaphone, Package, Sparkles } from 'lucide-react';
+import PublicPageShell from '@/components/shell/PublicPageShell';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  planCommerceCampaign,
+  type CampaignPlan,
+  type CommerceFormat,
+  type CommercePlatform,
+} from '@/features/ai-films/commerceStudioService';
+
+const formatOptions: Array<{ id: CommerceFormat; label: string }> = [
+  { id: 'ugc', label: 'UGC Creator' },
+  { id: 'money_shot', label: 'Money Shot' },
+  { id: 'virtual_try_on', label: 'Virtual Try-On' },
+  { id: 'tvc', label: 'Brand Commercial' },
+  { id: 'problem_solution', label: 'Problem / Solution' },
+  { id: 'before_after', label: 'Before / After' },
+  { id: 'unboxing', label: 'Unboxing' },
+  { id: 'tutorial', label: 'Tutorial' },
+  { id: 'feature_highlight', label: 'Feature Highlights' },
+];
+
+const platformOptions: Array<{ id: CommercePlatform; label: string }> = [
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'instagram_reels', label: 'Instagram Reels' },
+  { id: 'meta_feed', label: 'Meta Feed' },
+  { id: 'youtube_shorts', label: 'YouTube Shorts' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'connected_tv', label: 'Connected TV' },
+];
+
+function toggle<T extends string>(items: T[], item: T): T[] {
+  return items.includes(item) ? items.filter((value) => value !== item) : [...items, item];
+}
+
+const CommerceStudio = () => {
+  const [productName, setProductName] = useState('');
+  const [description, setDescription] = useState('');
+  const [audience, setAudience] = useState('');
+  const [sellingPoints, setSellingPoints] = useState('');
+  const [offer, setOffer] = useState('');
+  const [brandName, setBrandName] = useState('D3VONN');
+  const [brandVoice, setBrandVoice] = useState('confident, cinematic, clear, human');
+  const [formats, setFormats] = useState<CommerceFormat[]>(['ugc', 'money_shot']);
+  const [platforms, setPlatforms] = useState<CommercePlatform[]>(['tiktok', 'instagram_reels']);
+  const [variants, setVariants] = useState(2);
+  const [plan, setPlan] = useState<CampaignPlan | null>(null);
+  const [message, setMessage] = useState('Planning mode creates the full campaign without spending provider credits.');
+  const [busy, setBusy] = useState(false);
+
+  const estimatedOutputs = useMemo(
+    () => formats.length * platforms.length * variants,
+    [formats.length, platforms.length, variants],
+  );
+
+  const createPlan = async () => {
+    const points = sellingPoints.split('\n').map((item) => item.trim()).filter(Boolean);
+    if (!productName.trim() || description.trim().length < 10 || !audience.trim() || points.length === 0) {
+      setMessage('Add a product name, description, audience, and at least one selling point.');
+      return;
+    }
+    if (formats.length === 0 || platforms.length === 0) {
+      setMessage('Select at least one ad format and one destination platform.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await planCommerceCampaign({
+        product: {
+          name: productName.trim(),
+          description: description.trim(),
+          audience: audience.trim(),
+          selling_points: points,
+          offer: offer.trim() || undefined,
+        },
+        brand: {
+          name: brandName.trim() || productName.trim(),
+          voice: brandVoice.trim(),
+          colors: [],
+          required_phrases: [],
+          prohibited_phrases: [],
+        },
+        formats,
+        platforms,
+        variants_per_platform: variants,
+        index_with_jockey: true,
+      });
+      setPlan(result);
+      setMessage(`${result.variant_count} campaign variants planned. No provider credits were spent.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Campaign planning failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <PublicPageShell breadcrumbs={[{ label: 'AI Films', href: '/ai-films' }, { label: 'Commerce Studio' }]}>
+      <section className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:px-8" aria-labelledby="commerce-title">
+        <div className="mx-auto max-w-7xl space-y-8">
+          <div className="overflow-hidden rounded-3xl border border-border/70 bg-[radial-gradient(circle_at_80%_20%,rgba(168,85,247,.22),transparent_30%),linear-gradient(135deg,rgba(20,12,48,.98),rgba(2,6,15,.98))] p-7 text-white shadow-2xl sm:p-10">
+            <Badge variant="secondary">AI Films · Commerce Studio</Badge>
+            <div className="mt-5 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div className="max-w-3xl">
+                <h1 id="commerce-title" className="text-4xl font-black tracking-tight sm:text-6xl">Turn products into complete campaigns.</h1>
+                <p className="mt-4 max-w-2xl leading-7 text-purple-100">Plan UGC ads, product showcases, try-ons, commercials, tutorials, and platform-ready variants. Pollo is the primary route, OpenAI is the fallback, and completed footage can flow into Jockey for indexing and reuse.</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4"><Package className="mx-auto h-5 w-5" /><p className="mt-2 text-xs">Product</p></div>
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4"><Sparkles className="mx-auto h-5 w-5" /><p className="mt-2 text-xs">Generate</p></div>
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4"><Megaphone className="mx-auto h-5 w-5" /><p className="mt-2 text-xs">Campaign</p></div>
+              </div>
+            </div>
+          </div>
+
+          <Card className="border-primary/20 p-4 text-sm text-muted-foreground" role="status" aria-live="polite">{message}</Card>
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <Card className="space-y-7 p-6">
+              <div><p className="text-sm font-semibold uppercase tracking-[.22em] text-primary">Campaign brief</p><h2 className="mt-2 text-2xl font-bold">Product and brand intelligence</h2></div>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="space-y-2 text-sm font-medium">Product name<Input value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="Product name" /></label>
+                <label className="space-y-2 text-sm font-medium">Brand name<Input value={brandName} onChange={(event) => setBrandName(event.target.value)} placeholder="Brand name" /></label>
+              </div>
+              <label className="block space-y-2 text-sm font-medium">Product description<textarea className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What it is, what it does, and why it matters" /></label>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="space-y-2 text-sm font-medium">Target audience<Input value={audience} onChange={(event) => setAudience(event.target.value)} placeholder="Who should buy it?" /></label>
+                <label className="space-y-2 text-sm font-medium">Offer / call to action<Input value={offer} onChange={(event) => setOffer(event.target.value)} placeholder="Shop now, book a demo…" /></label>
+              </div>
+              <label className="block space-y-2 text-sm font-medium">Selling points — one per line<textarea className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={sellingPoints} onChange={(event) => setSellingPoints(event.target.value)} placeholder={'Fast setup\nPremium materials\n30-day guarantee'} /></label>
+              <label className="block space-y-2 text-sm font-medium">Brand voice<Input value={brandVoice} onChange={(event) => setBrandVoice(event.target.value)} /></label>
+
+              <div>
+                <h3 className="font-bold">Ad formats</h3>
+                <div className="mt-3 flex flex-wrap gap-2">{formatOptions.map((option) => <Button key={option.id} type="button" size="sm" variant={formats.includes(option.id) ? 'default' : 'outline'} aria-pressed={formats.includes(option.id)} onClick={() => setFormats(toggle(formats, option.id))}>{formats.includes(option.id) && <Check className="mr-1 h-3 w-3" />}{option.label}</Button>)}</div>
+              </div>
+              <div>
+                <h3 className="font-bold">Destinations</h3>
+                <div className="mt-3 flex flex-wrap gap-2">{platformOptions.map((option) => <Button key={option.id} type="button" size="sm" variant={platforms.includes(option.id) ? 'default' : 'outline'} aria-pressed={platforms.includes(option.id)} onClick={() => setPlatforms(toggle(platforms, option.id))}>{option.label}</Button>)}</div>
+              </div>
+            </Card>
+
+            <div className="space-y-6">
+              <Card className="space-y-5 p-6">
+                <Boxes className="h-8 w-8 text-primary" />
+                <div><p className="text-sm text-muted-foreground">Planned outputs</p><p className="mt-1 text-5xl font-black">{estimatedOutputs}</p></div>
+                <label className="block space-y-2 text-sm font-medium">Variants per platform<Input type="number" min={1} max={5} value={variants} onChange={(event) => setVariants(Math.max(1, Math.min(5, Number(event.target.value) || 1)))} /></label>
+                <div className="rounded-xl bg-muted p-4 text-sm leading-6 text-muted-foreground">
+                  <p>Primary route: Pollo 2.5</p>
+                  <p>Fallback: OpenAI video</p>
+                  <p>Post-render: Jockey indexing</p>
+                  <p>Planning cost: $0</p>
+                </div>
+                <Button className="w-full" size="lg" onClick={() => void createPlan()} disabled={busy}>{busy ? 'Planning…' : 'Build Campaign Plan'}</Button>
+              </Card>
+            </div>
+          </div>
+
+          {plan && <section aria-labelledby="variant-heading">
+            <div className="flex items-end justify-between gap-4"><div><p className="text-sm font-semibold uppercase tracking-[.22em] text-primary">Production queue</p><h2 id="variant-heading" className="mt-2 text-3xl font-bold">{plan.variant_count} planned variants</h2></div><Badge variant="outline">Credit-safe plan</Badge></div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{plan.variants.map((variant) => <Card key={variant.id} className="p-5">
+              <div className="flex items-start justify-between gap-3"><Badge>{variant.platform.replaceAll('_', ' ')}</Badge><Badge variant="outline">{variant.aspect_ratio}</Badge></div>
+              <h3 className="mt-4 font-bold">{formatOptions.find((item) => item.id === variant.format)?.label} · V{variant.variant}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{variant.duration_seconds}s · {variant.selling_point}</p>
+              <p className="mt-4 line-clamp-5 text-sm leading-6 text-muted-foreground">{variant.prompt}</p>
+              <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground"><Film className="h-4 w-4" />Pollo 2.5 → Jockey</div>
+            </Card>)}</div>
+          </section>}
+        </div>
+      </section>
+    </PublicPageShell>
+  );
+};
+
+export default CommerceStudio;

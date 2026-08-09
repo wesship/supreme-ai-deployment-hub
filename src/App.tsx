@@ -26,6 +26,7 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const FilmPage = lazy(() => import("./pages/AIFilms"));
 const AIFilmStudio = lazy(() => import("./pages/AIFilmStudio"));
+const CommerceStudio = lazy(() => import("./pages/CommerceStudio"));
 const WorkflowManagement = lazy(() => import("./pages/WorkflowManagement"));
 const DeploymentDashboard = lazy(() => import("./pages/DeploymentDashboard"));
 const APIManagement = lazy(() => import("./pages/APIManagement"));
@@ -147,6 +148,7 @@ function App() {
                 <Route path="/film" element={<FilmPage />} />
                 <Route path="/ai-films" element={<FilmPage />} />
                 <Route path="/ai-films/studio" element={<AuthenticatedRoute><AIFilmStudio /></AuthenticatedRoute>} />
+                <Route path="/ai-films/commerce" element={<AuthenticatedRoute><CommerceStudio /></AuthenticatedRoute>} />
                 <Route path="/deployment" element={<DeploymentDashboard />} />
                 <Route path="/api" element={<APIManagement />} />
                 <Route path="/documentation" element={<Documentation />} />
