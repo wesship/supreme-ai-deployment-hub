@@ -19,6 +19,13 @@ from backend.app.routers.voice_orchestration import (
 logger = logging.getLogger(__name__)
 _DEFAULT_MODEL = "eleven_turbo_v2_5"
 _FALSE_VALUES = {"0", "false", "no", "off", "disabled"}
+_REQUIRED_VAPI_SERVER_MESSAGES = {
+    "tool-calls",
+    "status-update",
+    "end-of-call-report",
+    "transcript",
+}
+_DEPRECATED_VAPI_SERVER_MESSAGES = {"assistant-request"}
 
 
 def _enabled() -> bool:
@@ -27,10 +34,30 @@ def _enabled() -> bool:
 
 def _safe_error(exc: Exception, secrets: tuple[str, ...]) -> str:
     message = f"{type(exc).__name__}: {exc}"
+    if isinstance(exc, httpx.HTTPStatusError):
+        try:
+            payload = exc.response.json()
+        except ValueError:
+            payload = None
+        if isinstance(payload, dict):
+            detail = payload.get("message") or payload.get("error")
+            if detail:
+                message = f"{message}; provider_detail={detail}"
     for secret in secrets:
         if secret:
             message = message.replace(secret, "[REDACTED]")
     return message[:1000]
+
+
+def _normalized_server_messages(value: Any) -> list[str]:
+    """Preserve configured events while removing Vapi events retired from assistant schemas."""
+    messages = {
+        item
+        for item in value
+        if isinstance(item, str) and item not in _DEPRECATED_VAPI_SERVER_MESSAGES
+    } if isinstance(value, list) else set()
+    messages.update(_REQUIRED_VAPI_SERVER_MESSAGES)
+    return sorted(messages)
 
 
 async def _emit(
@@ -207,15 +234,8 @@ async def activate_voice_runtime() -> None:
                 }
             )
 
-            server_messages = set(assistant.get("serverMessages") or [])
-            server_messages.update(
-                {
-                    "assistant-request",
-                    "tool-calls",
-                    "status-update",
-                    "end-of-call-report",
-                    "transcript",
-                }
+            server_messages = _normalized_server_messages(
+                assistant.get("serverMessages")
             )
             webhook_url = os.getenv(
                 "D3VONN_VAPI_WEBHOOK_URL",
@@ -227,7 +247,7 @@ async def activate_voice_runtime() -> None:
                     "secret": webhook_secret,
                     "timeoutSeconds": 20,
                 },
-                "serverMessages": sorted(server_messages),
+                "serverMessages": server_messages,
                 "voice": voice_config,
             }
             patch_response = await client.patch(
