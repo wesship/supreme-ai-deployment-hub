@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-
-from backend.auth.supabase_jwt import require_occ_access
 from fastapi.testclient import TestClient
 
 import backend.hermes.recency_router as recency
+from backend.auth.supabase_jwt import require_occ_access
 
 
 def make_client(monkeypatch, token: str = "test-recency-token") -> TestClient:
