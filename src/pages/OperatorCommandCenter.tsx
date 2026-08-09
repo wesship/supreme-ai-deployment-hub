@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Bot,
   Brain,
+  DatabaseZap,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
@@ -29,6 +30,7 @@ const OCCApprovalQueue = lazy(() => import('@/components/occ/OCCApprovalQueue'))
 const OCCUserPlans = lazy(() => import('@/components/occ/OCCUserPlans'));
 const OCCRAGDocuments = lazy(() => import('@/components/occ/OCCRAGDocuments'));
 const OCCHermes = lazy(() => import('@/components/occ/OCCHermes').then(m => ({ default: m.OCCHermes })));
+const OCCRecencyStatus = lazy(() => import('@/components/occ/OCCRecencyStatus'));
 
 type View =
   | 'overview'
@@ -39,7 +41,8 @@ type View =
   | 'approvals'
   | 'user-plans'
   | 'rag-docs'
-  | 'hermes';
+  | 'hermes'
+  | 'recency';
 
 interface NavItem {
   id: View;
@@ -99,6 +102,11 @@ const NAV_ITEMS: NavItem[] = [
     id: 'hermes',
     label: 'Hermes Fabric',
     icon: <Brain className="h-4 w-4" />,
+  },
+  {
+    id: 'recency',
+    label: 'Knowledge Recency',
+    icon: <DatabaseZap className="h-4 w-4" />,
   },
 ];
 
@@ -177,6 +185,12 @@ export default function OperatorCommandCenter() {
         return (
           <Suspense fallback={<PanelLoader />}>
             <OCCHermes />
+          </Suspense>
+        );
+      case 'recency':
+        return (
+          <Suspense fallback={<PanelLoader />}>
+            <OCCRecencyStatus />
           </Suspense>
         );
       default:
