@@ -55,6 +55,18 @@ export class AutonomousAgentExecutor {
     return fullStep;
   }
 
+  private isToolAllowed(name: string): boolean {
+    const configuredTools = this.run.config.mcpTools;
+
+    // An explicit allow-list is always authoritative, including an empty list.
+    if (Array.isArray(configuredTools)) {
+      return configuredTools.includes(name);
+    }
+
+    // Full gateway access requires a separate, explicit opt-in.
+    return this.run.config.allowAllMcpTools === true;
+  }
+
   /**
    * Connect to MCP Gateway and initialize tools
    */
@@ -67,14 +79,8 @@ export class AutonomousAgentExecutor {
     });
 
     await this.mcpClient.initialize();
-    this.availableTools = await this.mcpClient.listTools();
-
-    // Filter to specific tools if configured
-    if (this.run.config.mcpTools?.length) {
-      this.availableTools = this.availableTools.filter(
-        (t) => this.run.config.mcpTools!.includes(t.name)
-      );
-    }
+    const gatewayTools = await this.mcpClient.listTools();
+    this.availableTools = gatewayTools.filter((tool) => this.isToolAllowed(tool.name));
 
     console.log("[Agent] Available tools:", this.availableTools.map((t) => t.name));
   }
@@ -260,6 +266,9 @@ export class AutonomousAgentExecutor {
   private async callTool(name: string, args: Record<string, unknown>): Promise<McpToolResult> {
     if (!this.mcpClient) {
       throw new Error("MCP client not initialized");
+    }
+    if (!this.isToolAllowed(name)) {
+      throw new Error(`MCP tool not permitted: ${name}`);
     }
     return this.mcpClient.callTool(name, args);
   }
