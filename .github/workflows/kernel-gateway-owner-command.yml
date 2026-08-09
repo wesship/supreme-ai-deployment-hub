@@ -135,27 +135,27 @@ jobs:
             'set -euo pipefail
              APP_DIR=/opt/supreme-ai-deployment-hub
              cd "$APP_DIR"
-             export N8N_IMAGE=unused
-             sudo -E docker compose \
+             COMPOSE_FILE=docker-compose.kernel-gateway-runtime.yml
+             sudo docker compose \
                --env-file kernel-gateway/.env.production \
-               -f docker-compose.kernel-gateway.yml \
+               -f "$COMPOSE_FILE" \
                config >/tmp/kernel-gateway-compose.rendered.yml
-             sudo -E docker compose \
+             sudo docker compose \
                --env-file kernel-gateway/.env.production \
-               -f docker-compose.kernel-gateway.yml \
+               -f "$COMPOSE_FILE" \
                build --pull python-kernel-gateway
-             sudo -E docker compose \
+             sudo docker compose \
                --env-file kernel-gateway/.env.production \
-               -f docker-compose.kernel-gateway.yml \
+               -f "$COMPOSE_FILE" \
                up -d --force-recreate python-kernel-gateway
              for i in $(seq 1 24); do
-               if sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml exec -T python-kernel-gateway curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
+               if sudo docker compose --env-file kernel-gateway/.env.production -f "$COMPOSE_FILE" exec -T python-kernel-gateway curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
                  echo "Kernel gateway healthy"
                  exit 0
                fi
                sleep 5
              done
-             sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml logs --tail=100 python-kernel-gateway || true
+             sudo docker compose --env-file kernel-gateway/.env.production -f "$COMPOSE_FILE" logs --tail=100 python-kernel-gateway || true
              exit 1'
 
       - name: Run authorization and persistence smoke tests
@@ -169,9 +169,8 @@ jobs:
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             'set -euo pipefail
              cd /opt/supreme-ai-deployment-hub
-             export N8N_IMAGE=unused
-             sudo -E bash deploy/vps/scripts/smoke-kernel-gateway.sh
-             published="$(sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml port python-kernel-gateway 8000 2>/dev/null || true)"
+             sudo bash deploy/vps/scripts/smoke-kernel-gateway.sh
+             published="$(sudo docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway-runtime.yml port python-kernel-gateway 8000 2>/dev/null || true)"
              if [ -n "$published" ]; then
                echo "ERROR: gateway port unexpectedly published: $published" >&2
                exit 1
