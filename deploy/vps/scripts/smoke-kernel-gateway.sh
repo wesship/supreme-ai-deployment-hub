@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/supreme-ai-deployment-hub}"
 ENV_FILE="${KERNEL_ENV_FILE:-${APP_DIR}/kernel-gateway/.env.production}"
-COMPOSE_FILE="${APP_DIR}/docker-compose.kernel-gateway.yml"
+COMPOSE_FILE="${APP_DIR}/docker-compose.kernel-gateway-runtime.yml"
 SESSION_ID="smoke-$(date +%s)-$$"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -18,7 +18,6 @@ if [ -z "$API_TOKEN" ] || printf '%s' "$API_TOKEN" | grep -Eqi '^(replace-with|p
 fi
 
 cd "$APP_DIR"
-export N8N_IMAGE="${N8N_IMAGE:-unused}"
 COMPOSE=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 
 inside() {
