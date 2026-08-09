@@ -5,31 +5,37 @@ Legacy `/api/agents/agents/*` aliases are retained temporarily for compatibility
 The governance dry-run endpoint is canonical-only and never executes providers.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+import logging
 from typing import Any
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+
 from ..app.middleware.auth import get_current_user_id
-from ..mesh.agent_mesh import AgentTask, AgentResult, default_mesh
+from ..mesh.agent_mesh import AgentTask, AgentResult, TaskPriority, default_mesh
 from .capability_bindings import (
     AgentDryRunRequest,
     AgentDryRunResult,
     evaluate_agent_capability_dry_run,
 )
+from .dispatch_audit import write_dispatch_audit
 from .governance_context import resolve_agent_governance_context
 from .governance_control import router as governance_control_router
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["agents"])
 router.include_router(governance_control_router)
 
 
 class DispatchRequest(BaseModel):
-    agent_name: str
-    action: str
+    workspace_id: str = Field(min_length=1)
+    agent_name: str = Field(min_length=1)
+    action: str = Field(min_length=1)
     payload: dict[str, Any] = Field(default_factory=dict)
-    priority: str = "normal"
-    timeout_seconds: int = 30
-    max_retries: int = 3
+    priority: TaskPriority = TaskPriority.NORMAL
+    timeout_seconds: int = Field(default=30, ge=1, le=300)
+    max_retries: int = Field(default=3, ge=0, le=10)
 
 
 class CapabilityDispatchRequest(BaseModel):
@@ -143,22 +149,118 @@ async def governance_dry_run(
 
 @router.post("/dispatch", response_model=AgentResult)
 @router.post("/agents/dispatch", response_model=AgentResult, include_in_schema=False)
-async def dispatch_task(request: DispatchRequest):
-    """Dispatch a task to a specific named agent."""
+async def dispatch_task(
+    request: DispatchRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    """Dispatch to a named agent only after server-resolved Agent OS governance allows it."""
     if not default_mesh.get_agent(request.agent_name):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Agent '{request.agent_name}' is not registered.",
         )
 
+    context = await resolve_agent_governance_context(
+        workspace_id=request.workspace_id,
+        user_id=user_id,
+        agent_name=request.agent_name,
+    )
     task = AgentTask(
         agent_name=request.agent_name,
         action=request.action,
         payload=request.payload,
+        priority=request.priority,
         timeout_seconds=request.timeout_seconds,
         max_retries=request.max_retries,
     )
-    result = await default_mesh.dispatch(task)
+
+    try:
+        dry_run = evaluate_agent_capability_dry_run(
+            AgentDryRunRequest(
+                workspace_id=context.workspace_id,
+                actor_id=context.actor_id,
+                agent_name=request.agent_name,
+                capability=request.action,
+                workspace_permissions=context.permissions,
+                approved_actions=context.approved_actions,
+                disabled_agents=context.disabled_agents,
+                kill_switch_enabled=context.kill_switch_enabled,
+            )
+        )
+        decision = dry_run.governance.decision.value
+        reason = dry_run.governance.reason
+        missing_permissions = dry_run.governance.missing_permissions
+    except (KeyError, PermissionError) as exc:
+        decision = "deny"
+        reason = str(exc)
+        missing_permissions = []
+
+    try:
+        await write_dispatch_audit(
+            workspace_id=context.workspace_id,
+            actor_user_id=context.actor_id,
+            event_type="agent_os.dispatch.decision",
+            agent_name=request.agent_name,
+            action=request.action,
+            task_id=task.task_id,
+            event_data={
+                "decision": decision,
+                "reason": reason,
+                "missing_permissions": missing_permissions,
+                "priority": request.priority.value,
+            },
+        )
+    except Exception as exc:
+        logger.exception("Mandatory pre-dispatch Agent OS audit failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Dispatch blocked because governance audit evidence could not be recorded.",
+        ) from exc
+
+    if decision == "deny":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=reason)
+    if decision == "require_approval":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=reason)
+    if decision != "allow":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Dispatch blocked by an unknown governance decision.",
+        )
+
+    try:
+        result = await default_mesh.dispatch(task)
+    except Exception as exc:
+        try:
+            await write_dispatch_audit(
+                workspace_id=context.workspace_id,
+                actor_user_id=context.actor_id,
+                event_type="agent_os.dispatch.outcome",
+                agent_name=request.agent_name,
+                action=request.action,
+                task_id=task.task_id,
+                event_data={"success": False, "exception": type(exc).__name__},
+            )
+        except Exception:
+            logger.exception("Post-dispatch exception audit failed for task %s", task.task_id)
+        raise
+
+    try:
+        await write_dispatch_audit(
+            workspace_id=context.workspace_id,
+            actor_user_id=context.actor_id,
+            event_type="agent_os.dispatch.outcome",
+            agent_name=request.agent_name,
+            action=request.action,
+            task_id=task.task_id,
+            event_data={
+                "success": result.success,
+                "error": result.error,
+                "duration_ms": result.duration_ms,
+                "retries_used": result.retries_used,
+            },
+        )
+    except Exception:
+        logger.exception("Post-dispatch outcome audit failed for task %s", task.task_id)
 
     if not result.success:
         raise HTTPException(
