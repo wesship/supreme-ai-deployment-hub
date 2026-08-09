@@ -19,7 +19,7 @@ Worker updates increment `version_counter`. Callers may provide `expected_versio
 
 ## Deployment
 
-Apply `supabase/migrations/20260718_hermes_workers.sql` before enabling persistent worker mode. The in-memory registry remains available for tests and local development.
+Confirm the forward migration `supabase/migrations/20260808145000_hermes_worker_persistence_forward.sql` is present in the target migration ledger before enabling persistent worker mode. The in-memory registry remains available for tests and local development.
 
 ## Rollback
 
