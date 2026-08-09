@@ -227,6 +227,10 @@ async def dispatch_pollo(request: PolloDispatchRequest, authorization: str | Non
     if not internal_webhook_url:
         raise HTTPException(status_code=503, detail="Pollo internal webhook is not configured; set POLLO_WEBHOOK_URL server-side")
 
+    webhook_secret = os.getenv("POLLO_WEBHOOK_SECRET", "").strip()
+    if not webhook_secret:
+        raise HTTPException(status_code=503, detail="Pollo webhook verification is not configured; set POLLO_WEBHOOK_SECRET server-side")
+
     db = SupabaseRLSClient(token)
     reservation = await db.insert(
         "ai_film_commerce_jobs",
