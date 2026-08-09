@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from backend.hermes.dependencies import HermesDependencies
 from backend.hermes.ports import AgentDispatcher, Clock, EventSink, TaskRepository
 from backend.hermes.task_engine import (
+    TaskTransitionConflict,
     configure_runtime,
     create_task,
     dispatch_to_agent,
@@ -97,5 +98,39 @@ def test_unconfigured_dispatcher_preserves_graceful_skip():
             "status": "skipped",
             "reason": "not_configured",
         }
+    finally:
+        reset_runtime()
+
+
+def test_expected_status_transition_allows_only_one_claim():
+    dependencies, _, _, event_sink, _ = build_runtime()
+    configure_runtime(dependencies)
+    try:
+        task = run(create_task("Contended task"))
+        claimed = run(
+            transition_task(
+                task["id"],
+                "LOCKED",
+                agent_name="TARS",
+                expected_status="PENDING",
+            )
+        )
+
+        assert claimed["status"] == "LOCKED"
+        try:
+            run(
+                transition_task(
+                    task["id"],
+                    "LOCKED",
+                    agent_name="ION",
+                    expected_status="PENDING",
+                )
+            )
+        except TaskTransitionConflict:
+            pass
+        else:
+            raise AssertionError("a second worker claimed an already locked task")
+
+        assert [event["event"] for event in event_sink.events].count("task.locked") == 1
     finally:
         reset_runtime()
