@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import pytest
 
 from backend.hermes.adapters import SupabaseTaskRepository
@@ -221,3 +222,41 @@ def test_store_satisfies_worker_registry_port_shape():
     repository = InMemoryTaskRepository()
     store = SupabaseWorkerRegistryStore(repository)
     assert store.configured is True
+
+
+@pytest.mark.asyncio
+async def test_concurrent_lease_insert_conflict_reuses_database_winner():
+    class ConflictingLeaseRepository(InMemoryTaskRepository):
+        async def create_row(self, table, payload):
+            if table != "hermes_worker_leases":
+                return await super().create_row(table, payload)
+            winner = await super().create_row(
+                table,
+                {**payload, "lease_id": "database-winner"},
+            )
+            request = httpx.Request("POST", "https://example.test/rest/v1/hermes_worker_leases")
+            response = httpx.Response(409, request=request)
+            self.winner = winner
+            raise httpx.HTTPStatusError(
+                "duplicate active task lease",
+                request=request,
+                response=response,
+            )
+
+    repository = ConflictingLeaseRepository()
+    store = SupabaseWorkerRegistryStore(repository)
+    row = await store.create_lease(
+        {
+            "lease_id": "local-candidate",
+            "task_id": "00000000-0000-0000-0000-000000000003",
+            "worker_id": "worker-a",
+            "capabilities": [],
+            "acquired_at": "2026-08-09T00:00:00+00:00",
+            "renewed_at": "2026-08-09T00:00:00+00:00",
+            "expires_at": "2026-08-09T00:05:00+00:00",
+            "status": LeaseStatus.ACTIVE.value,
+        }
+    )
+
+    assert row["id"] == repository.winner["id"]
+    assert row["lease_id"] == "database-winner"
