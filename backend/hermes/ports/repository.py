@@ -26,3 +26,12 @@ class TaskRepository(Protocol):
         payload: dict[str, Any],
     ) -> dict[str, Any]:
         ...
+
+    async def update_row_if(
+        self,
+        table: str,
+        row_id: str,
+        payload: dict[str, Any],
+        conditions: dict[str, Any],
+    ) -> dict[str, Any]:
+        ...
