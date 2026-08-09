@@ -7,93 +7,73 @@ export interface UseMcpGatewayOptions {
 }
 
 export interface UseMcpGatewayReturn {
-  // State
   isConnected: boolean;
   isConnecting: boolean;
   session: McpSession | null;
   tools: McpTool[];
   error: string | null;
-  
-  // Actions
-  connect: (url?: string) => Promise<void>;
+  connect: (url?: string, headers?: Record<string, string>) => Promise<boolean>;
   disconnect: () => Promise<void>;
   refreshTools: () => Promise<void>;
   callTool: (name: string, args?: Record<string, unknown>) => Promise<McpToolResult>;
 }
 
-/**
- * React hook for MCP Gateway integration
- * 
- * @example
- * ```tsx
- * const { connect, tools, callTool, isConnected } = useMcpGateway();
- * 
- * // Connect to gateway
- * await connect("http://localhost:8080/mcp");
- * 
- * // List available tools
- * console.log(tools);
- * 
- * // Call a tool
- * const result = await callTool("duckduckgo_search", { query: "MCP protocol" });
- * ```
- */
 export function useMcpGateway(options: UseMcpGatewayOptions = {}): UseMcpGatewayReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [session, setSession] = useState<McpSession | null>(null);
   const [tools, setTools] = useState<McpTool[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
-  const clientRef = useRef<McpClient | null>(null);
-  const gatewayUrlRef = useRef(options.gatewayUrl ?? "http://localhost:8080/mcp");
 
-  const connect = useCallback(async (url?: string) => {
-    if (url) {
-      gatewayUrlRef.current = url;
+  const clientRef = useRef<McpClient | null>(null);
+  const gatewayUrlRef = useRef(options.gatewayUrl ?? "");
+  const headersRef = useRef<Record<string, string>>({});
+
+  const connect = useCallback(async (url?: string, headers: Record<string, string> = {}) => {
+    if (url) gatewayUrlRef.current = url;
+    headersRef.current = headers;
+
+    if (!gatewayUrlRef.current) {
+      setError("MCP Gateway URL is not configured");
+      return false;
     }
 
     setIsConnecting(true);
     setError(null);
 
     try {
-      // Close existing connection
-      if (clientRef.current) {
-        await clientRef.current.close();
-      }
+      if (clientRef.current) await clientRef.current.close();
 
-      // Create new client
       const client = new McpClient({
         gatewayUrl: gatewayUrlRef.current,
         timeout: 30000,
+        headers: headersRef.current,
       });
 
-      // Initialize session
       const newSession = await client.initialize();
+      const availableTools = await client.listTools();
+
       clientRef.current = client;
       setSession(newSession);
-      setIsConnected(true);
-
-      // Fetch available tools
-      const availableTools = await client.listTools();
       setTools(availableTools);
-
-      console.log("[useMcpGateway] Connected with", availableTools.length, "tools");
+      setIsConnected(true);
+      return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to connect to MCP Gateway";
+      clientRef.current = null;
+      setSession(null);
+      setTools([]);
       setError(message);
       setIsConnected(false);
-      console.error("[useMcpGateway] Connection error:", err);
+      return false;
     } finally {
       setIsConnecting(false);
     }
   }, []);
 
   const disconnect = useCallback(async () => {
-    if (clientRef.current) {
-      await clientRef.current.close();
-      clientRef.current = null;
-    }
+    if (clientRef.current) await clientRef.current.close();
+    clientRef.current = null;
     setIsConnected(false);
     setSession(null);
     setTools([]);
@@ -101,13 +81,9 @@ export function useMcpGateway(options: UseMcpGatewayOptions = {}): UseMcpGateway
   }, []);
 
   const refreshTools = useCallback(async () => {
-    if (!clientRef.current || !isConnected) {
-      throw new Error("Not connected to MCP Gateway");
-    }
-
+    if (!clientRef.current || !isConnected) throw new Error("Not connected to MCP Gateway");
     try {
-      const availableTools = await clientRef.current.listTools();
-      setTools(availableTools);
+      setTools(await clientRef.current.listTools());
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to refresh tools";
       setError(message);
@@ -117,16 +93,12 @@ export function useMcpGateway(options: UseMcpGatewayOptions = {}): UseMcpGateway
 
   const callTool = useCallback(async (
     name: string,
-    args: Record<string, unknown> = {}
+    args: Record<string, unknown> = {},
   ): Promise<McpToolResult> => {
-    if (!clientRef.current || !isConnected) {
-      throw new Error("Not connected to MCP Gateway");
-    }
-
+    if (!clientRef.current || !isConnected) throw new Error("Not connected to MCP Gateway");
     try {
       setError(null);
-      const result = await clientRef.current.callTool(name, args);
-      return result;
+      return await clientRef.current.callTool(name, args);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Tool call failed";
       setError(message);
