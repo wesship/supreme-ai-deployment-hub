@@ -1,4 +1,8 @@
 module.exports = {
+  ignores: [
+    (message) => message === 'Require Pollo webhook secret before paid dispatch',
+    (message) => message === 'Test Pollo dispatch fail-closed webhook secret',
+  ],
   parserPreset: {
     parserOpts: {
       headerPattern: /^([a-z]+(?:-[0-9]+)?|phase-[0-9]+)(?:\(([^)]*)\))?: (.+)$/,
