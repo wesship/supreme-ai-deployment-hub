@@ -5,7 +5,8 @@
  * pins the boundary: when mcpTools is specified, the agent MUST NOT see
  * tools outside the list, even if the gateway exposes them.
  *
- * This is the principal defense against capability escalation in the runtime.
+ * The runtime is fail-closed by default. Full gateway access requires the
+ * separate allowAllMcpTools opt-in.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -13,9 +14,6 @@ import { createMockClient, fakeTool, type MockClientHandle } from "./harness/mcp
 
 let mockHandle: MockClientHandle;
 vi.mock("@/lib/mcp/client", () => ({
-  // Class-based mock proxies to the current `mockHandle` lazily so per-test
-  // reassignment in beforeEach is picked up. Cannot use arrow in mockImplementation
-  // because `new ArrowFn()` throws "is not a constructor".
   McpClient: class {
     initialize = (...a: any[]) => (mockHandle.initialize as any)(...a);
     listTools  = (...a: any[]) => (mockHandle.listTools as any)(...a);
@@ -45,7 +43,7 @@ describe("Tool permission boundaries (capability allow-list)", () => {
       name: "Scoped",
       goal: "search for something",
       mcpGatewayUrl: "http://mock",
-      mcpTools: ["safe_search"], // ONLY safe_search permitted
+      mcpTools: ["safe_search"],
       maxSteps: 5,
     };
 
@@ -57,50 +55,67 @@ describe("Tool permission boundaries (capability allow-list)", () => {
     for (const name of calledNames) {
       expect(["safe_search"]).toContain(name);
     }
-    // Forbidden tools must never have been called.
     expect(calledNames).not.toContain("dangerous_shell_exec");
     expect(calledNames).not.toContain("filesystem_write");
     expect(calledNames).not.toContain("github_create_issue");
   });
 
-  // RUNTIME FINDING (Phase B): the current executor treats `mcpTools: []` as
-  // "no allow-list configured" (because `[].length` is falsy) and falls back
-  // to ALL gateway tools. That's a capability-escalation gap — an empty list
-  // should mean "no tools permitted", not "all tools permitted".
-  //
-  // `it.fails` pins the current insecure behavior: this test PASSES so long
-  // as the bug exists; the moment someone fixes the executor to treat empty
-  // arrays as deny-all, this test will start failing and demand removal of
-  // the `.fails` marker — at which point the security gap is closed.
-  it.fails(
-    "REGRESSION FENCE: empty mcpTools is currently treated as open (Phase B finding)",
-    async () => {
-      const exec = new AutonomousAgentExecutor({
-        agentId: "empty-list",
-        name: "Empty",
-        goal: "do anything",
-        mcpGatewayUrl: "http://mock",
-        mcpTools: [],
-        maxSteps: 3,
-      });
-      await exec.execute();
-      // DESIRED behavior (after fix): zero tool calls.
-      expect(mockHandle.callLog.length).toBe(0);
-    }
-  );
-
-  it("when mcpTools is undefined, all gateway tools are accessible (documented default)", async () => {
+  it("treats an empty mcpTools allow-list as deny-all", async () => {
     const exec = new AutonomousAgentExecutor({
-      agentId: "open",
-      name: "Open",
+      agentId: "empty-list",
+      name: "Empty",
+      goal: "do anything",
+      mcpGatewayUrl: "http://mock",
+      mcpTools: [],
+      maxSteps: 3,
+    });
+
+    await exec.execute();
+    expect(mockHandle.callLog.length).toBe(0);
+  });
+
+  it("fails closed when mcpTools is undefined", async () => {
+    const exec = new AutonomousAgentExecutor({
+      agentId: "default-deny",
+      name: "Default deny",
       goal: "find files",
       mcpGatewayUrl: "http://mock",
       maxSteps: 4,
     });
-    await exec.execute();
 
-    // Documenting the default: undefined allow-list = full gateway access.
-    // Governance layer (Phase B follow-up) should remove this default.
+    await exec.execute();
     expect(mockHandle.listTools).toHaveBeenCalled();
+    expect(mockHandle.callLog.length).toBe(0);
+  });
+
+  it("allows full gateway access only with explicit allowAllMcpTools opt-in", async () => {
+    const exec = new AutonomousAgentExecutor({
+      agentId: "explicit-open",
+      name: "Explicit open",
+      goal: "do anything",
+      mcpGatewayUrl: "http://mock",
+      allowAllMcpTools: true,
+      maxSteps: 3,
+    });
+
+    await exec.execute();
+    expect(mockHandle.callLog.length).toBeGreaterThan(0);
+  });
+
+  it("keeps an explicit allow-list authoritative over allowAllMcpTools", async () => {
+    const exec = new AutonomousAgentExecutor({
+      agentId: "conflicting-config",
+      name: "Conflicting config",
+      goal: "search for something",
+      mcpGatewayUrl: "http://mock",
+      mcpTools: ["safe_search"],
+      allowAllMcpTools: true,
+      maxSteps: 5,
+    });
+
+    await exec.execute();
+    const calledNames = mockHandle.callLog.map((c) => c.name);
+    expect(calledNames.length).toBeGreaterThan(0);
+    expect(calledNames.every((name) => name === "safe_search")).toBe(true);
   });
 });
