@@ -160,6 +160,18 @@ async def list_tasks(
     return await _sb_get("hermes_tasks", params)
 
 
+async def list_tasks_by_type(task_type: str, limit: int = 25) -> list[dict]:
+    """List recent tasks for an operational task type."""
+    return await _sb_get(
+        "hermes_tasks",
+        {
+            "task_type": f"eq.{task_type}",
+            "order": "created_at.desc",
+            "limit": str(limit),
+        },
+    )
+
+
 async def transition_task(
     task_id: str,
     new_status: str | TaskStatus,
