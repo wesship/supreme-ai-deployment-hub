@@ -152,6 +152,8 @@ jobs:
     timeout-minutes: 8
     env:
       KNOWLEDGE_STATUS_URL: ${{ vars.HERMES_KNOWLEDGE_STATUS_URL || 'https://api.d3vonn.io/api/knowledge/status' }}
+      RECENCY_ACK_URL: ${{ vars.HERMES_RECENCY_ACK_URL || 'https://api.d3vonn.io/api/hermes/recency/acknowledge' }}
+      RECENCY_WRITE_TOKEN: ${{ secrets.HERMES_RECENCY_WRITE_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -242,10 +244,52 @@ jobs:
               )
           PY
 
+      - name: Persist verified acknowledgement in Hermes
+        if: env.RECENCY_WRITE_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("hermes-live-context-verification.json").read_text())
+          expected = report["expected"]
+          acknowledgement = {
+              "commit_sha": expected["commit_sha"],
+              "canonical_context_version": expected["version"],
+              "canonical_context_sha256": expected["content_sha256"],
+              "verification_status": "VERIFIED" if report.get("verified") else "MISMATCH",
+              "source": "github_actions",
+              "verification_report": report,
+          }
+          Path("hermes-recency-acknowledgement.json").write_text(
+              json.dumps(acknowledgement),
+              encoding="utf-8",
+          )
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 5 \
+            -X POST "$RECENCY_ACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Hermes-Recency-Token: $RECENCY_WRITE_TOKEN" \
+            --data-binary @hermes-recency-acknowledgement.json \
+            > hermes-recency-acknowledgement-response.json
+
+          python -m json.tool hermes-recency-acknowledgement-response.json
+
+      - name: Report disabled acknowledgement
+        if: env.RECENCY_WRITE_TOKEN == ''
+        run: echo "::notice::Set HERMES_RECENCY_WRITE_TOKEN in GitHub and Railway to enable persisted write-back."
+
       - name: Upload live verification report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: hermes-live-context-verification
-          path: hermes-live-context-verification.json
+          path: |
+            hermes-live-context-verification.json
+            hermes-recency-acknowledgement-response.json
           if-no-files-found: error
