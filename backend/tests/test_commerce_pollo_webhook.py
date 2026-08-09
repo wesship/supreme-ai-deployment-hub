@@ -71,6 +71,7 @@ async def test_dispatch_keeps_internal_webhook_authoritative(monkeypatch):
     monkeypatch.setattr(commerce_router.httpx, "AsyncClient", FakeClient)
     monkeypatch.setenv("POLLO_API_KEY", "test-key")
     monkeypatch.setenv("POLLO_WEBHOOK_URL", "https://api.d3vonn.io/api/ai-films/commerce/providers/pollo/webhook")
+    monkeypatch.setenv("POLLO_WEBHOOK_SECRET", "dGVzdC1zZWNyZXQ=")
 
     request = commerce_router.PolloDispatchRequest(
         prompt="Create a polished product hero video for testing.",
@@ -107,6 +108,7 @@ async def test_dispatch_fails_before_reservation_without_internal_webhook(monkey
     monkeypatch.setattr(commerce_router, "_check_pollo_rate_limit", no_op)
     monkeypatch.setattr(commerce_router, "SupabaseRLSClient", FakeDb)
     monkeypatch.setenv("POLLO_API_KEY", "test-key")
+    monkeypatch.setenv("POLLO_WEBHOOK_SECRET", "dGVzdC1zZWNyZXQ=")
     monkeypatch.delenv("POLLO_WEBHOOK_URL", raising=False)
 
     request = commerce_router.PolloDispatchRequest(prompt="Create a polished product hero video for testing.")
@@ -115,3 +117,56 @@ async def test_dispatch_fails_before_reservation_without_internal_webhook(monkey
 
     assert exc_info.value.status_code == 503
     assert inserted is False
+
+
+@pytest.mark.asyncio
+async def test_dispatch_fails_before_reservation_without_webhook_secret(monkeypatch):
+    inserted = False
+    provider_called = False
+
+    async def require_user(_authorization):
+        return "user-1"
+
+    def no_op(_user_id):
+        return None
+
+    class FakeDb:
+        def __init__(self, _token):
+            pass
+
+        async def insert(self, _table, _payload):
+            nonlocal inserted
+            inserted = True
+            return {"id": "job-1"}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, *args, **kwargs):
+            nonlocal provider_called
+            provider_called = True
+            raise AssertionError("provider must not be called without webhook secret")
+
+    monkeypatch.setattr(commerce_router, "_require_user", require_user)
+    monkeypatch.setattr(commerce_router, "_require_pollo_entitlement", no_op)
+    monkeypatch.setattr(commerce_router, "_check_pollo_rate_limit", no_op)
+    monkeypatch.setattr(commerce_router, "SupabaseRLSClient", FakeDb)
+    monkeypatch.setattr(commerce_router.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setenv("POLLO_API_KEY", "test-key")
+    monkeypatch.setenv("POLLO_WEBHOOK_URL", "https://api.d3vonn.io/api/ai-films/commerce/providers/pollo/webhook")
+    monkeypatch.delenv("POLLO_WEBHOOK_SECRET", raising=False)
+
+    request = commerce_router.PolloDispatchRequest(prompt="Create a polished product hero video for testing.")
+    with pytest.raises(commerce_router.HTTPException) as exc_info:
+        await commerce_router.dispatch_pollo(request, authorization="Bearer test-token")
+
+    assert exc_info.value.status_code == 503
+    assert inserted is False
+    assert provider_called is False
