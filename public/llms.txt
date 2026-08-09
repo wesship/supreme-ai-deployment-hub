@@ -4,7 +4,8 @@ D3VONN.IO is an AI Business Operating System for supervised agent execution, wor
 
 ## Canonical AI context
 
-- Repository-aware agents should load `MASTER_CONTEXT.md` first.
+- Canonical context: https://d3vonn.io/MASTER_CONTEXT.md
+- Repository-aware agents should load the canonical context first.
 - The canonical context separates implemented `main` behavior from runtime state and draft/unmerged work.
 - Operational claims require runtime evidence; repository implementation alone does not prove deployment health.
 - Never expose secret values or service-role credentials in AI context.
