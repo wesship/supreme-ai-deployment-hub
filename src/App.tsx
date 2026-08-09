@@ -187,7 +187,7 @@ function App() {
                 <Route path="/admin/demo-control" element={<AdminRoute><DemoControlCenter /></AdminRoute>} />
                 <Route path="/occ" element={<AdminRouteWrapper />} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
-                <Route path="/moneyhub" element={<MoneyHub />} />
+                <Route path="/moneyhub" element={<AuthenticatedRoute><MoneyHub /></AuthenticatedRoute>} />
                 <Route path="/ai-therapy" element={<AITherapy />} />
                 <Route path="/therapy" element={<AITherapy />} />
                 <Route path="/sovereignty" element={<SovereigntyMatrix />} />
