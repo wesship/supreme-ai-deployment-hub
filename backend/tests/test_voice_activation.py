@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
-import httpx
+from unittest.mock import AsyncMock
 
-from backend.app.voice_activation import _normalized_server_messages, _safe_error
+import httpx
+import pytest
+
+from backend.app.voice_activation import (
+    _inspect_direct_elevenlabs_key,
+    _normalized_server_messages,
+    _safe_error,
+)
 
 
 def test_server_messages_remove_retired_assistant_request() -> None:
@@ -48,3 +55,20 @@ def test_provider_validation_detail_is_safe_and_actionable() -> None:
 
     assert "assistant-request is not supported" in rendered
     assert "production-secret" not in rendered
+
+
+@pytest.mark.asyncio
+async def test_direct_elevenlabs_probe_is_disabled_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("D3VONN_VALIDATE_DIRECT_ELEVENLABS", raising=False)
+    client = AsyncMock()
+
+    status, voice_name = await _inspect_direct_elevenlabs_key(
+        client,
+        "sk_restricted-production-key",
+        "21m00Tcm4TlvDq8ikWAM",
+        "voice-test",
+    )
+
+    assert status == "validation_disabled"
+    assert voice_name is None
+    client.get.assert_not_awaited()
