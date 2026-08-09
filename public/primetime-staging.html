@@ -5,42 +5,26 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>PRIMETIME / DEVONN — Phase 28 Staging</title>
   <style>
-    :root{color-scheme:dark;--bg:#070b14;--panel:#0f172a;--line:#243247;--text:#e5edf8;--muted:#8fa1b8;--ok:#34d399;--warn:#f59e0b;--accent:#60a5fa}
-    *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 20% 0%,#102443 0,#070b14 38%);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
-    main{max-width:1120px;margin:auto;padding:48px 20px 80px}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;flex-wrap:wrap;margin-bottom:28px}
-    .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#93c5fd;font-weight:800}h1{font-size:clamp(30px,5vw,58px);line-height:1;margin:10px 0 12px}p{color:var(--muted);line-height:1.6;margin:0}
-    .badge{border:1px solid #1d4ed8;background:#0b2a52;padding:10px 14px;border-radius:999px;font-size:13px;color:#bfdbfe}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:18px}
-    .card{background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(9,15,28,.96));border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 16px 50px rgba(0,0,0,.24)}
-    .label{font-size:12px;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);font-weight:700}.value{font-size:30px;font-weight:800;margin-top:8px}.ok{color:var(--ok)}.warn{color:var(--warn)}
-    .wide{grid-column:1/-1}.row{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}.row:last-child{border-bottom:0}.row span:last-child{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#cbd5e1;text-align:right}
-    button{appearance:none;border:0;border-radius:12px;background:#2563eb;color:white;padding:12px 16px;font-weight:800;cursor:pointer}button:hover{background:#3b82f6}button:disabled{opacity:.6;cursor:wait}
-    .statusline{display:flex;align-items:center;gap:10px}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn);box-shadow:0 0 20px currentColor}.dot.ok{background:var(--ok)}
-    pre{white-space:pre-wrap;word-break:break-word;background:#050914;border:1px solid #1e293b;padding:14px;border-radius:12px;color:#a7f3d0;overflow:auto}
-    @media(max-width:760px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+    :root{color-scheme:dark;--bg:#070b14;--panel:#0f172a;--line:#243247;--text:#e5edf8;--muted:#8fa1b8;--ok:#34d399;--warn:#f59e0b}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#102443 0,#070b14 38%);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text)}
+    main{max-width:1120px;margin:auto;padding:48px 20px 80px}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;flex-wrap:wrap;margin-bottom:28px}.eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#93c5fd;font-weight:800}h1{font-size:clamp(30px,5vw,58px);line-height:1;margin:10px 0 12px}p{color:var(--muted);line-height:1.6;margin:0}.badge{border:1px solid #1d4ed8;background:#0b2a52;padding:10px 14px;border-radius:999px;font-size:13px;color:#bfdbfe}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:18px}.card{background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(9,15,28,.96));border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 16px 50px rgba(0,0,0,.24)}.label{font-size:12px;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);font-weight:700}.value{font-size:30px;font-weight:800;margin-top:8px}.ok{color:var(--ok)}.warn{color:var(--warn)}.wide{grid-column:1/-1}.row{display:flex;justify-content:space-between;gap:20px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}.row:last-child{border-bottom:0}.row span:last-child{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#cbd5e1;text-align:right}
+    button{appearance:none;border:0;border-radius:12px;background:#2563eb;color:white;padding:12px 16px;font-weight:800;cursor:pointer}button:hover{background:#3b82f6}button:disabled{opacity:.6;cursor:wait}.statusline{display:flex;align-items:center;gap:10px}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn);box-shadow:0 0 20px currentColor}.dot.ok{background:var(--ok)}pre{white-space:pre-wrap;word-break:break-word;background:#050914;border:1px solid #1e293b;padding:14px;border-radius:12px;color:#a7f3d0;overflow:auto}@media(max-width:760px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
   </style>
 </head>
 <body>
 <main>
   <section class="hero">
-    <div>
-      <div class="eyebrow">PRIMETIME / DEVONN</div>
-      <h1>Phase 28 Staging Console</h1>
-      <p>Isolated validation surface for the staging-validated database, security boundaries, runtime health and release gates.</p>
-    </div>
+    <div><div class="eyebrow">PRIMETIME / DEVONN</div><h1>Phase 28 Staging Console</h1><p>Live validation path: browser → Vercel serverless → Supabase Edge Function → staging database.</p></div>
     <div class="badge">Project: hyeqzvkmwayohmuukups</div>
   </section>
-
   <section class="grid">
     <article class="card"><div class="label">Environment</div><div class="value">STAGING</div></article>
     <article class="card"><div class="label">Release</div><div class="value">Phase 28</div></article>
     <article class="card"><div class="label">Production Ready</div><div class="value warn">NO</div></article>
-
     <article class="card wide">
       <div style="display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap">
-        <div>
-          <div class="label">Live Supabase Runtime</div>
-          <div class="statusline" style="margin-top:10px"><span id="dot" class="dot"></span><strong id="headline">Checking staging health…</strong></div>
-        </div>
+        <div><div class="label">End-to-end Runtime</div><div class="statusline" style="margin-top:10px"><span id="dot" class="dot"></span><strong id="headline">Checking staging health…</strong></div></div>
         <button id="refresh" type="button">Run health check</button>
       </div>
       <div style="margin-top:18px">
@@ -48,39 +32,27 @@
         <div class="row"><span>RLS validation</span><span>6 / 6 passed</span></div>
         <div class="row"><span>Connector approval gate</span><span>passed</span></div>
         <div class="row"><span>Recorded migrations</span><span>27</span></div>
+        <div class="row"><span>Serverless API</span><span>/api/primetime-staging-health</span></div>
         <div class="row"><span>Edge health function</span><span>primetime-staging-health</span></div>
       </div>
     </article>
-
     <article class="card"><div class="label">Organizations</div><div class="value" id="organizations">—</div></article>
     <article class="card"><div class="label">Registered Services</div><div class="value" id="services">—</div></article>
     <article class="card"><div class="label">SLOs</div><div class="value" id="slos">—</div></article>
     <article class="card"><div class="label">GRC Controls</div><div class="value" id="grc_controls">—</div></article>
     <article class="card"><div class="label">Security Principals</div><div class="value" id="security_principals">—</div></article>
     <article class="card"><div class="label">Digital Twin Entities</div><div class="value" id="digital_twin_entities">—</div></article>
-
-    <article class="card wide">
-      <div class="label">Safe runtime response</div>
-      <pre id="raw">Waiting for health check…</pre>
-    </article>
+    <article class="card wide"><div class="label">Safe runtime response</div><pre id="raw">Waiting for health check…</pre></article>
   </section>
 </main>
 <script>
-const projectUrl='https://hyeqzvkmwayohmuukups.supabase.co';
-// Supabase legacy anon JWT is a public browser credential; no service-role secret is exposed here.
-const anon='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5ZXF6dmttd2F5b2htdXVrdXBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYxMzk3NTcsImV4cCI6MjEwMTcxNTc1N30.qMFBPRZkl3OkDpQJJ5pyJKvhXidK20UGGs0_ykuH1xw';
 const ids=['organizations','services','slos','grc_controls','security_principals','digital_twin_entities'];
 async function check(){
-  const btn=document.getElementById('refresh'); btn.disabled=true;
-  document.getElementById('headline').textContent='Checking staging health…'; document.getElementById('dot').className='dot';
+  const btn=document.getElementById('refresh');btn.disabled=true;document.getElementById('headline').textContent='Checking staging health…';document.getElementById('dot').className='dot';
   try{
-    const r=await fetch(projectUrl+'/functions/v1/primetime-staging-health',{headers:{Authorization:'Bearer '+anon,apikey:anon}});
-    const data=await r.json();
-    document.getElementById('raw').textContent=JSON.stringify(data,null,2);
-    ids.forEach(id=>document.getElementById(id).textContent=data.counts?.[id] ?? '—');
-    const healthy=r.ok && data.ok;
-    document.getElementById('headline').textContent=healthy?'Staging runtime healthy':'Staging runtime needs attention';
-    document.getElementById('dot').className=healthy?'dot ok':'dot';
+    const r=await fetch('/api/primetime-staging-health',{cache:'no-store'});const data=await r.json();const staging=data.staging||{};
+    document.getElementById('raw').textContent=JSON.stringify(data,null,2);ids.forEach(id=>document.getElementById(id).textContent=staging.counts?.[id]??'—');
+    const healthy=r.ok&&data.ok&&staging.ok;document.getElementById('headline').textContent=healthy?'Staging runtime healthy':'Staging runtime needs attention';document.getElementById('dot').className=healthy?'dot ok':'dot';
   }catch(e){document.getElementById('headline').textContent='Health request failed';document.getElementById('raw').textContent=String(e)}finally{btn.disabled=false}
 }
 document.getElementById('refresh').addEventListener('click',check);check();
