@@ -8,7 +8,7 @@ import socket
 from dataclasses import dataclass
 from datetime import timedelta
 
-from backend.hermes.ports.clock import Clock
+from backend.hermes.ports import Clock, TaskRepository
 from backend.hermes.worker_persistence import PersistentWorkerRegistry
 from backend.hermes.workflows.workers import (
     LeaseStatus,
@@ -188,7 +188,7 @@ class PersistentWorkerRuntime:
 
 def build_persistent_worker_runtime(
     *,
-    repository,
+    repository: TaskRepository,
     clock: Clock,
     config: PersistentWorkerRuntimeConfig | None = None,
 ) -> PersistentWorkerRuntime:
