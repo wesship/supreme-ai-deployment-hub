@@ -25,7 +25,10 @@ export interface AgentRunConfig {
   goal: string;
   maxSteps?: number;
   mcpGatewayUrl: string;
-  mcpTools?: string[]; // Specific tools to use, empty = all
+  /** Explicit MCP tool allow-list. An empty or omitted list denies all tools. */
+  mcpTools?: string[];
+  /** Explicitly opt into full gateway tool access when no mcpTools allow-list is provided. */
+  allowAllMcpTools?: boolean;
   systemPrompt?: string;
 }
 
