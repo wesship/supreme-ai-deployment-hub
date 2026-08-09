@@ -142,9 +142,13 @@ class KnowledgeStore:
 
     def context(self, query: str, agent: str, limit: int) -> dict[str, Any]:
         ranked = self.search(f"{query} {agent}", limit=limit)
+        master_context = [
+            doc for doc in self.documents
+            if doc.get("path") == "MASTER_CONTEXT.md"
+        ]
         required = [
             doc for doc in self.documents
-            if doc.get("path") in {"MASTER_CONTEXT.md", "SYSTEM_PROMPT.md"}
+            if doc.get("path") == "SYSTEM_PROMPT.md"
             or doc.get("category") == "constitution"
             or agent.lower() in str(doc.get("path", "")).lower()
             or agent.lower() in str(doc.get("id", "")).lower()
@@ -152,7 +156,7 @@ class KnowledgeStore:
 
         selected: list[dict[str, Any]] = []
         seen: set[str] = set()
-        for doc in required + ranked:
+        for doc in master_context + required + ranked:
             doc_id = str(doc.get("id") or doc.get("path"))
             if doc_id not in seen:
                 selected.append(doc)
