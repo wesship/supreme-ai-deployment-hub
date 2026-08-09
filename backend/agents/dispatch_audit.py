@@ -22,11 +22,11 @@ async def write_dispatch_audit(
     base = _get_supabase_base()
     payload = {
         "workspace_id": workspace_id,
-        "actor_user_id": actor_user_id,
-        "event_type": event_type,
+        "actor_id": actor_user_id,
+        "action": event_type,
         "entity_type": "agent_task",
         "entity_id": None,
-        "event_data": {
+        "metadata": {
             "agent_name": agent_name,
             "action": action,
             "task_id": task_id,
