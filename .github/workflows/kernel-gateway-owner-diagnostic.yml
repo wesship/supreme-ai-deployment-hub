@@ -1,0 +1,80 @@
+name: Kernel Gateway Owner Diagnostic
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: kernel-gateway-owner-diagnostic
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  diagnose:
+    if: >-
+      github.event.comment.body == '/diagnose-kernel-gateway' &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.author_association == 'OWNER'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Configure verified SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/vps_key ~/.ssh/known_hosts
+
+      - name: Run non-destructive VPS diagnostics
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          result="$(ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=10 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'bash -s' <<'REMOTE'
+          set +e
+          APP_DIR=/opt/supreme-ai-deployment-hub
+          fail() { printf 'FAIL:%s\n' "$1"; exit 0; }
+          [ -d "$APP_DIR" ] || fail APP_DIR_MISSING
+          [ -d "$APP_DIR/.git" ] || fail GIT_REPO_MISSING
+          sudo -n true >/dev/null 2>&1 || fail SUDO_NONINTERACTIVE
+          git -C "$APP_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail GIT_REPO_INVALID
+          git -C "$APP_DIR" remote get-url origin >/dev/null 2>&1 || fail GIT_ORIGIN_MISSING
+          sudo -n git -C "$APP_DIR" fetch origin main --dry-run >/dev/null 2>&1 || fail GIT_FETCH_FAILED
+          command -v docker >/dev/null 2>&1 || fail DOCKER_MISSING
+          sudo -n docker compose version >/dev/null 2>&1 || fail DOCKER_COMPOSE_UNAVAILABLE
+          [ -f "$APP_DIR/kernel-gateway/.env.example" ] || fail ENV_EXAMPLE_MISSING
+          [ -f "$APP_DIR/docker-compose.kernel-gateway-runtime.yml" ] || fail RUNTIME_COMPOSE_MISSING
+          ENV_FILE="$APP_DIR/kernel-gateway/.env.production"
+          if [ ! -f "$ENV_FILE" ]; then
+            printf 'PASS:PRE_DEPLOY_ENV_NOT_CREATED\n'
+            exit 0
+          fi
+          token="$(sudo -n sed -n 's/^KERNEL_GATEWAY_API_TOKEN=//p' "$ENV_FILE" | tail -n 1)"
+          [ -n "$token" ] || fail GATEWAY_TOKEN_EMPTY
+          printf '%s' "$token" | grep -Eqi '^(replace-with|placeholder|CHANGE_ME|PASTE_)' && fail GATEWAY_TOKEN_PLACEHOLDER
+          cd "$APP_DIR" || fail APP_DIR_CD_FAILED
+          sudo -n docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway-runtime.yml config >/dev/null 2>&1 || fail RUNTIME_COMPOSE_CONFIG_FAILED
+          printf 'PASS:VPS_RUNTIME_PREFLIGHT\n'
+          REMOTE
+          )"
+          case "$result" in
+            PASS:*) body="Kernel gateway diagnostic: ${result#PASS:}. SSH, repo, sudo, Docker/Compose, runtime files, and safe preflight checks reached this state." ;;
+            FAIL:*) body="Kernel gateway diagnostic FAILED at: ${result#FAIL:}. No secret values were read into the issue or exposed." ;;
+            *) body='Kernel gateway diagnostic returned an unexpected result. Review the diagnostic workflow logs; no secret values are intentionally printed.' ;;
+          esac
+          gh api --method POST -H 'Accept: application/vnd.github+json' \
+            "/repos/${REPO}/issues/${ISSUE_NUMBER}/comments" -f body="$body" >/dev/null
