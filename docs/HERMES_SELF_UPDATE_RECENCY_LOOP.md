@@ -122,9 +122,10 @@ After a new deployment, verify:
 - `/api/knowledge/status` exposes the mode, deployed commit SHA, canonical version, and canonical SHA-256.
 - Search includes canonical document content, and context assembly always prioritizes it.
 - The recency workflow runs for canonical-context and `llms.txt` changes and emits the exact version and SHA-256 in its artifact.
+- A post-deploy verifier retries the live Knowledge API, compares version, SHA-256, and deployed commit, and uploads an auditable report.
 
 ## Next Implementation Targets
 
-1. Add a post-deploy verifier that compares the workflow payload with live `/api/knowledge/status`.
-2. Add a Hermes acknowledgement/write-back endpoint with auditable task state.
-3. Add dashboard status for the last successful sync, canonical SHA-256, and indexed commit SHA.
+1. Add a Hermes acknowledgement/write-back endpoint with auditable task state.
+2. Add dashboard status for the last successful sync, canonical SHA-256, and indexed commit SHA.
+3. Persist verified recency results so Hermes and operators share the same last-known-good state.
