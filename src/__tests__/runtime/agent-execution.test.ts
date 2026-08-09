@@ -32,6 +32,9 @@ const baseConfig = (overrides: Partial<AgentRunConfig> = {}): AgentRunConfig => 
   goal: "search for d3vonn.io status",
   mcpGatewayUrl: "http://mock",
   maxSteps: 8,
+  // These lifecycle fixtures intentionally exercise tool execution. Production
+  // remains deny-by-default; unrestricted access is explicit in the fixture.
+  allowAllMcpTools: true,
   ...overrides,
 });
 
