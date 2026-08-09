@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+
+from backend.auth.supabase_jwt import require_occ_access
 from fastapi.testclient import TestClient
 
 import backend.hermes.recency_router as recency
@@ -118,3 +120,79 @@ def test_repeated_acknowledgement_is_idempotent(monkeypatch):
     assert response.status_code == 200
     assert response.json()["idempotent"] is True
     assert response.json()["task"]["status"] == "COMPLETED"
+
+
+def test_recency_status_reconciles_runtime_and_persisted_task(monkeypatch):
+    context_hash = "b" * 64
+    completed = {
+        "id": "task-status-1",
+        "status": "COMPLETED",
+        "input_data": {"commit_sha": "5cfea216b26ac39783ce73266b8627dafc087e52"},
+        "output_data": {
+            "verification_status": "VERIFIED",
+            "canonical_context_version": "2026-08-09",
+            "canonical_context_sha256": context_hash,
+        },
+        "created_at": "2026-08-09T04:50:44+00:00",
+        "completed_at": "2026-08-09T04:50:45+00:00",
+        "correlation_id": "repo-recency:test",
+    }
+
+    async def fake_list(_: str, limit: int = 25):
+        assert limit == 25
+        return [completed]
+
+    class FakeStore:
+        def status(self):
+            return {
+                "mode": "canonical_fallback",
+                "deployed_commit_sha": "5cfea216b26ac39783ce73266b8627dafc087e52",
+                "canonical_context": {
+                    "present": True,
+                    "version": "2026-08-09",
+                    "content_sha256": context_hash,
+                    "source": "deployed_repository",
+                },
+            }
+
+    monkeypatch.setattr(recency, "list_tasks_by_type", fake_list)
+    monkeypatch.setattr(recency, "get_store", lambda: FakeStore())
+
+    app = FastAPI()
+    app.include_router(recency.router)
+    app.dependency_overrides[require_occ_access] = lambda: object()
+    response = TestClient(app).get("/api/hermes/recency/status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "synchronized"
+    assert body["synchronized"] is True
+    assert body["last_verified"]["commit_sha"].startswith("5cfea216")
+    assert body["runtime"]["canonical_context"]["content_sha256"] == context_hash
+
+
+def test_recency_status_flags_manual_review(monkeypatch):
+    async def fake_list(_: str, limit: int = 25):
+        return [
+            {
+                "id": "task-review",
+                "status": "MANUAL_REVIEW",
+                "input_data": {},
+                "output_data": {"verification_status": "MISMATCH"},
+            }
+        ]
+
+    class FakeStore:
+        def status(self):
+            return {"mode": "canonical_fallback", "canonical_context": {}}
+
+    monkeypatch.setattr(recency, "list_tasks_by_type", fake_list)
+    monkeypatch.setattr(recency, "get_store", lambda: FakeStore())
+
+    app = FastAPI()
+    app.include_router(recency.router)
+    app.dependency_overrides[require_occ_access] = lambda: object()
+    body = TestClient(app).get("/api/hermes/recency/status").json()
+
+    assert body["status"] == "attention_required"
+    assert body["pending_manual_review"] == 1
