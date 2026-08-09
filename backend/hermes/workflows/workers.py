@@ -203,12 +203,41 @@ class InMemoryWorkerRegistry:
         worker = self.select_worker(required_capabilities)
         if not worker:
             raise WorkerRegistryError("no eligible worker capacity")
+        return self.acquire_lease_for_worker(
+            worker_id=worker.worker_id,
+            task_id=task_id,
+            required_capabilities=required_capabilities,
+            ttl=ttl,
+        )
+
+    def acquire_lease_for_worker(
+        self,
+        *,
+        worker_id: str,
+        task_id: str,
+        required_capabilities: Iterable[str] = (),
+        ttl: timedelta | None = None,
+    ) -> WorkerLease:
+        """Acquire a task lease for the worker executing in this process."""
+        existing_id = self.task_leases.get(task_id)
+        if existing_id:
+            existing = self.leases[existing_id]
+            if existing.status == LeaseStatus.ACTIVE:
+                return existing
+        worker = self._worker(worker_id)
+        required = tuple(sorted({item.strip().lower() for item in required_capabilities}))
+        if worker.available_capacity < 1:
+            raise WorkerRegistryError(f"worker {worker_id} has no available capacity")
+        if not worker.capabilities.supports(required):
+            raise WorkerRegistryError(
+                f"worker {worker_id} does not support required capabilities {list(required)}"
+            )
         now = self.clock.now()
         lease = WorkerLease(
             lease_id=str(uuid4()),
             task_id=task_id,
             worker_id=worker.worker_id,
-            capabilities=tuple(sorted({item.strip().lower() for item in required_capabilities})),
+            capabilities=required,
             acquired_at=now,
             renewed_at=now,
             expires_at=now + (ttl or self.policy.lease_ttl),
@@ -216,7 +245,11 @@ class InMemoryWorkerRegistry:
         self.leases[lease.lease_id] = lease
         self.task_leases[task_id] = lease.lease_id
         worker.active_leases += 1
-        worker.status = WorkerStatus.BUSY if worker.active_leases >= worker.max_leases else WorkerStatus.HEALTHY
+        worker.status = (
+            WorkerStatus.BUSY
+            if worker.active_leases >= worker.max_leases
+            else WorkerStatus.HEALTHY
+        )
         return lease
 
     def renew_lease(self, lease_id: str, *, ttl: timedelta | None = None) -> WorkerLease:
