@@ -19,6 +19,7 @@ import {
   Server
 } from "lucide-react";
 import { useMcpGateway } from "@/hooks/useMcpGateway";
+import { supabase } from "@/integrations/supabase/client";
 import type { McpTool, McpToolResult } from "@/lib/mcp";
 import type { McpServerConfig } from "@/lib/mcp/serverRegistry";
 import { McpServerSelector } from "./McpServerSelector";
@@ -43,28 +44,27 @@ export function McpToolExplorer() {
   const [isExecuting, setIsExecuting] = useState(false);
 
   const handleServerConnect = async (server: McpServerConfig, apiToken?: string) => {
-    // Determine the gateway URL based on server type
-    let gatewayUrl = server.gatewayUrl;
-    
-    if (server.type === "stdio") {
-      // For stdio servers, we need to proxy through our edge function
-      // The edge function will spawn the process
-      gatewayUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mcp-gateway`;
-    }
-
-    if (!gatewayUrl) {
-      console.error("No gateway URL configured for server:", server.id);
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    if (!authSession?.access_token) {
+      console.error("Sign in is required to connect to MCP");
       return;
     }
 
-    // Store API token if provided (would be passed to edge function)
-    if (apiToken) {
-      // In a real implementation, this would be stored securely
-      console.log(`[MCP] Connecting to ${server.name} with API token`);
-    }
+    const functionName = server.type === "stdio" ? "mcp-stdio-proxy" : "mcp-gateway";
+    const gatewayUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`;
+    const publishableKey =
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+      import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    await connect(gatewayUrl);
-    setConnectedServerId(server.id);
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${authSession.access_token}`,
+      ...(publishableKey ? { apikey: publishableKey } : {}),
+      ...(server.type === "stdio" ? { "X-MCP-Server-Id": server.id } : {}),
+      ...(apiToken ? { "X-MCP-Api-Token": apiToken } : {}),
+    };
+
+    const connected = await connect(gatewayUrl, headers);
+    if (connected) setConnectedServerId(server.id);
   };
 
   const handleDisconnect = async () => {
