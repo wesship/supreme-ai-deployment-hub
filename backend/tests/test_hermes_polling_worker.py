@@ -1,0 +1,98 @@
+"""Polling-worker integration tests for durable lease and restart semantics."""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
+
+import pytest
+
+from backend.hermes import worker
+from backend.hermes.workflows.workers import WorkerLease
+
+
+class RuntimeStub:
+    worker_id = "worker-a"
+
+    def __init__(self, lease: WorkerLease) -> None:
+        self.lease = lease
+        self.releases: list[tuple[str, bool]] = []
+
+    async def acquire(self, task_id: str) -> WorkerLease:
+        assert task_id == self.lease.task_id
+        return self.lease
+
+    async def release(self, lease_id: str, *, cancelled: bool = False) -> WorkerLease:
+        self.releases.append((lease_id, cancelled))
+        return self.lease
+
+
+def active_lease() -> WorkerLease:
+    now = datetime(2026, 8, 9, tzinfo=timezone.utc)
+    return WorkerLease(
+        lease_id="lease-a",
+        task_id="00000000-0000-0000-0000-000000000001",
+        worker_id="worker-a",
+        capabilities=("task-dispatch",),
+        acquired_at=now,
+        renewed_at=now,
+        expires_at=now + timedelta(minutes=5),
+    )
+
+
+@pytest.mark.asyncio
+async def test_persistent_worker_leases_claims_dispatches_and_releases(monkeypatch):
+    lease = active_lease()
+    runtime = RuntimeStub(lease)
+    transition = AsyncMock(return_value={})
+    dispatch = AsyncMock(return_value={"status": "queued"})
+    monkeypatch.setattr(worker, "transition_task", transition)
+    monkeypatch.setattr(worker, "dispatch_to_agent", dispatch)
+
+    await worker._process_task(
+        {
+            "id": lease.task_id,
+            "status": "PENDING",
+            "agent_name": "TARS",
+            "input_data": {"goal": "test"},
+        },
+        runtime=runtime,
+    )
+
+    assert [call.args[1] for call in transition.await_args_list] == [
+        "LOCKED",
+        "RUNNING",
+        "COMPLETED",
+    ]
+    assert transition.await_args_list[0].kwargs["expected_status"] == "PENDING"
+    assert dispatch.await_args.kwargs["idempotency_key"] == (
+        f"hermes-task:{lease.task_id}"
+    )
+    assert runtime.releases == [("lease-a", False)]
+
+
+@pytest.mark.asyncio
+async def test_restart_resumes_running_lease_with_same_dispatch_identity(monkeypatch):
+    lease = active_lease()
+    runtime = RuntimeStub(lease)
+    transition = AsyncMock(return_value={})
+    dispatch = AsyncMock(return_value={"status": "queued"})
+    monkeypatch.setattr(worker, "transition_task", transition)
+    monkeypatch.setattr(worker, "dispatch_to_agent", dispatch)
+
+    await worker._process_task(
+        {
+            "id": lease.task_id,
+            "status": "RUNNING",
+            "agent_name": "ION",
+            "input_data": {},
+        },
+        runtime=runtime,
+        recovered_lease=lease,
+    )
+
+    assert [call.args[1] for call in transition.await_args_list] == ["COMPLETED"]
+    assert dispatch.await_args.kwargs["idempotency_key"] == (
+        f"hermes-task:{lease.task_id}"
+    )
+    assert runtime.releases == [("lease-a", False)]

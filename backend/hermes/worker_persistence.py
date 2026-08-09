@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from backend.hermes.adapters import SupabaseTaskRepository
-from backend.hermes.ports.clock import Clock
+import httpx
+
+from backend.hermes.ports import Clock, TaskRepository
 from backend.hermes.workflows.workers import (
     InMemoryWorkerRegistry,
     LeaseStatus,
@@ -25,7 +26,7 @@ class WorkerVersionConflict(RuntimeError):
 class SupabaseWorkerRegistryStore:
     """Durable worker/lease storage using the shared Supabase repository adapter."""
 
-    def __init__(self, repository: SupabaseTaskRepository) -> None:
+    def __init__(self, repository: TaskRepository) -> None:
         self._repository = repository
 
     @property
@@ -96,7 +97,22 @@ class SupabaseWorkerRegistryStore:
         )
         if active:
             return active[0]
-        return await self._repository.create_row("hermes_worker_leases", payload)
+        try:
+            return await self._repository.create_row("hermes_worker_leases", payload)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code != 409:
+                raise
+            active = await self._repository.list_rows(
+                "hermes_worker_leases",
+                {
+                    "task_id": f"eq.{payload['task_id']}",
+                    "status": f"eq.{LeaseStatus.ACTIVE.value}",
+                    "limit": "1",
+                },
+            )
+            if active:
+                return active[0]
+            raise
 
     async def update_lease(self, lease_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         rows = await self._repository.list_rows(
@@ -147,12 +163,22 @@ class PersistentWorkerRegistry:
         self.clock = clock
         self.policy = policy or WorkerRegistryPolicy()
         self.registry = InMemoryWorkerRegistry(clock=clock, policy=self.policy)
+        self.worker_versions: dict[str, int] = {}
 
     async def restore(self) -> InMemoryWorkerRegistry:
         restored = InMemoryWorkerRegistry(clock=self.clock, policy=self.policy)
+        persisted_projection: dict[str, tuple[WorkerStatus, int]] = {}
+        self.worker_versions = {}
         for row in await self.store.list_workers():
             worker = self._decode_worker(row)
             restored.workers[worker.worker_id] = worker
+            persisted_projection[worker.worker_id] = (
+                worker.status,
+                worker.active_leases,
+            )
+            self.worker_versions[worker.worker_id] = int(
+                row.get("version_counter", 1)
+            )
         for worker in restored.workers.values():
             worker.active_leases = 0
         for row in await self.store.list_leases(active_only=False):
@@ -177,18 +203,30 @@ class PersistentWorkerRegistry:
         self.registry = restored
         expired = self.registry.sweep()
         for lease in expired:
-            await self.store.update_lease(
-                lease.lease_id, {"status": lease.status.value}
-            )
+            await self.persist_lease(lease)
         for worker in self.registry.workers.values():
-            await self.store.update_worker(
-                worker.worker_id,
-                self._worker_payload(worker),
-            )
+            if persisted_projection.get(worker.worker_id) != (
+                worker.status,
+                worker.active_leases,
+            ):
+                await self.persist_worker(worker)
         return self.registry
 
     async def persist_worker(self, worker: WorkerRecord) -> dict[str, Any]:
-        return await self.store.upsert_worker(self._worker_payload(worker))
+        payload = self._worker_payload(worker)
+        expected_version = self.worker_versions.get(worker.worker_id)
+        if expected_version is None:
+            row = await self.store.upsert_worker(payload)
+        else:
+            row = await self.store.update_worker(
+                worker.worker_id,
+                payload,
+                expected_version=expected_version,
+            )
+        self.worker_versions[worker.worker_id] = int(
+            row.get("version_counter", expected_version or 1)
+        )
+        return row
 
     async def persist_lease(self, lease: WorkerLease) -> dict[str, Any]:
         payload = self._lease_payload(lease)
@@ -196,6 +234,62 @@ class PersistentWorkerRegistry:
         if existing is not None:
             return await self.store.update_lease(lease.lease_id, payload)
         return await self.store.create_lease(payload)
+
+    async def acquire_for_worker(
+        self,
+        *,
+        worker_id: str,
+        task_id: str,
+        required_capabilities: tuple[str, ...] = (),
+    ) -> WorkerLease:
+        """Acquire and durably persist a lease owned by the executing worker."""
+        lease = self.registry.acquire_lease_for_worker(
+            worker_id=worker_id,
+            task_id=task_id,
+            required_capabilities=required_capabilities,
+        )
+        row = await self.persist_lease(lease)
+        durable = self._decode_lease(row)
+        if durable.lease_id != lease.lease_id:
+            self.registry.release_lease(lease.lease_id, cancelled=True)
+            await self.persist_worker(self.registry.workers[worker_id])
+            return durable
+        await self.persist_worker(self.registry.workers[worker_id])
+        return lease
+
+    async def heartbeat_worker(self, worker_id: str) -> WorkerRecord:
+        worker = self.registry.heartbeat(worker_id)
+        await self.persist_worker(worker)
+        return worker
+
+    async def renew_lease(self, lease_id: str) -> WorkerLease:
+        lease = self.registry.renew_lease(lease_id)
+        await self.persist_lease(lease)
+        return lease
+
+    async def release_lease(
+        self,
+        lease_id: str,
+        *,
+        cancelled: bool = False,
+    ) -> WorkerLease:
+        lease = self.registry.release_lease(lease_id, cancelled=cancelled)
+        await self.persist_lease(lease)
+        await self.persist_worker(self.registry.workers[lease.worker_id])
+        return lease
+
+    async def sweep(self) -> list[WorkerLease]:
+        before = {
+            worker_id: (worker.status, worker.active_leases)
+            for worker_id, worker in self.registry.workers.items()
+        }
+        expired = self.registry.sweep()
+        for lease in expired:
+            await self.persist_lease(lease)
+        for worker_id, worker in self.registry.workers.items():
+            if before[worker_id] != (worker.status, worker.active_leases):
+                await self.persist_worker(worker)
+        return expired
 
     @staticmethod
     def _worker_payload(worker: WorkerRecord) -> dict[str, Any]:

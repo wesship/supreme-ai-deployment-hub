@@ -354,6 +354,7 @@ async def dispatch_to_agent(
     agent_name: str,
     task_id: str,
     input_data: dict | None = None,
+    idempotency_key: str | None = None,
 ) -> dict:
     """Dispatch to a manifest-registered agent through the configured port."""
     agent_id = agent_name.strip().lower()
@@ -372,4 +373,5 @@ async def dispatch_to_agent(
         task_id=task_id,
         agent_name=manifest.name,
         input_data=input_data or {},
+        idempotency_key=idempotency_key,
     )
