@@ -53,6 +53,7 @@ lerna-debug.log*
 docs/
 *.md
 !README.md
+!MASTER_CONTEXT.md
 
 # Scripts — exclude by default but preserve production build scripts
 scripts/*
