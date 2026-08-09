@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -21,7 +21,7 @@ def test_normalize_pollo_status_matches_database_constraint():
 
 @pytest.mark.asyncio
 async def test_dispatch_keeps_internal_webhook_authoritative(monkeypatch):
-    captured: dict[str, object] = {}
+    captured: dict[str, Any] = {}
 
     async def require_user(_authorization):
         return "user-1"
