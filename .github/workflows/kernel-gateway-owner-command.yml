@@ -1,0 +1,166 @@
+name: Kernel Gateway Owner Deploy Command
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: kernel-gateway-owner-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    name: Owner-authorized kernel gateway deployment
+    if: >-
+      github.event.comment.body == '/deploy-kernel-gateway' &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.author_association == 'OWNER'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Acknowledge authorized deployment request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          gh api \
+            --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/${REPO}/issues/${ISSUE_NUMBER}/comments" \
+            -f body='Kernel gateway deployment accepted. Running guarded VPS activation and smoke tests.' >/dev/null
+
+      - name: Validate VPS connection secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -z "${{ secrets.VPS_HOST }}" ] && missing+=(VPS_HOST)
+          [ -z "${{ secrets.VPS_USER }}" ] && missing+=(VPS_USER)
+          [ -z "${{ secrets.VPS_SSH_PRIVATE_KEY }}" ] && missing+=(VPS_SSH_PRIVATE_KEY)
+          [ -z "${{ secrets.VPS_KNOWN_HOSTS }}" ] && missing+=(VPS_KNOWN_HOSTS)
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing required repository secret: %s\n' "${missing[@]}"
+            exit 1
+          fi
+
+      - name: Configure verified SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/vps_key ~/.ssh/known_hosts
+
+      - name: Sync current main and provision gateway secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             APP_DIR=/opt/supreme-ai-deployment-hub
+             cd "$APP_DIR"
+             sudo git fetch origin main
+             sudo git checkout main
+             sudo git reset --hard origin/main
+             ENV_FILE="$APP_DIR/kernel-gateway/.env.production"
+             EXAMPLE="$APP_DIR/kernel-gateway/.env.example"
+             if [ ! -f "$ENV_FILE" ]; then
+               sudo cp "$EXAMPLE" "$ENV_FILE"
+               sudo chmod 600 "$ENV_FILE"
+             fi
+             current="$(sudo sed -n "s/^KERNEL_GATEWAY_API_TOKEN=//p" "$ENV_FILE" | tail -n 1)"
+             if [ -z "$current" ] || printf "%s" "$current" | grep -Eqi "^(replace-with|placeholder|CHANGE_ME|PASTE_)"; then
+               token="$(openssl rand -base64 48 | tr -d "\n")"
+               sudo sed -i "s|^KERNEL_GATEWAY_API_TOKEN=.*|KERNEL_GATEWAY_API_TOKEN=${token}|" "$ENV_FILE"
+               echo "Generated gateway API token on VPS"
+             else
+               echo "Preserved existing gateway API token on VPS"
+             fi
+             echo "TARGET_SHA=$(git rev-parse HEAD)"'
+
+      - name: Build and start hardened gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             APP_DIR=/opt/supreme-ai-deployment-hub
+             cd "$APP_DIR"
+             export N8N_IMAGE=unused
+             sudo -E docker compose \
+               --env-file kernel-gateway/.env.production \
+               -f docker-compose.kernel-gateway.yml \
+               config >/tmp/kernel-gateway-compose.rendered.yml
+             sudo -E docker compose \
+               --env-file kernel-gateway/.env.production \
+               -f docker-compose.kernel-gateway.yml \
+               build --pull python-kernel-gateway
+             sudo -E docker compose \
+               --env-file kernel-gateway/.env.production \
+               -f docker-compose.kernel-gateway.yml \
+               up -d --force-recreate python-kernel-gateway
+             for i in $(seq 1 24); do
+               if sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml exec -T python-kernel-gateway curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
+                 echo "Kernel gateway healthy"
+                 exit 0
+               fi
+               sleep 5
+             done
+             sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml logs --tail=100 python-kernel-gateway || true
+             exit 1'
+
+      - name: Run authorization and persistence smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -euo pipefail
+             cd /opt/supreme-ai-deployment-hub
+             export N8N_IMAGE=unused
+             sudo -E bash deploy/vps/scripts/smoke-kernel-gateway.sh
+             published="$(sudo -E docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway.yml port python-kernel-gateway 8000 2>/dev/null || true)"
+             if [ -n "$published" ]; then
+               echo "ERROR: gateway port unexpectedly published: $published" >&2
+               exit 1
+             fi
+             echo "Gateway port exposure check: PASS (internal only)"'
+
+      - name: Report deployment result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          if [ "$JOB_STATUS" = "success" ]; then
+            body='Kernel gateway deployment: SUCCESS. Image rebuilt from current main, health passed, persistent-state/auth smoke tests passed, and port 8000 remains internal-only.'
+          else
+            body='Kernel gateway deployment: FAILED. The guarded activation stopped before declaring success. Review the workflow logs; no security gate was bypassed.'
+          fi
+          gh api \
+            --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/${REPO}/issues/${ISSUE_NUMBER}/comments" \
+            -f body="$body" >/dev/null
