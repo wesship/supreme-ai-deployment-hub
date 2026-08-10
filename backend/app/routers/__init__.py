@@ -136,6 +136,13 @@ except ImportError as exc:
     logger.warning("AI Film Drive Picker router not registered: %s", exc)
 
 try:
+    from backend.ai_films.movieflow_retry_router import router as ai_film_movieflow_retry_router
+    proxy_router.include_router(ai_film_movieflow_retry_router, tags=["ai-films-admin"])
+    logger.info("AI Film MovieFlow retry router registered at /api/ai-films/admin/movieflow/*.")
+except ImportError as exc:
+    logger.warning("AI Film MovieFlow retry router not registered: %s", exc)
+
+try:
     from backend.ai_films.performance_router import router as ai_film_performance_router
     proxy_router.include_router(ai_film_performance_router, tags=["ai-films-performance"])
     logger.info("AI Film character performance router registered at /api/ai-films/character-performance/*.")
