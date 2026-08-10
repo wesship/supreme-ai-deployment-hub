@@ -48,7 +48,6 @@ async def test_release_drill_kill_switch_blocks_provider(monkeypatch):
         raise AssertionError("provider must not execute while kill switch is enabled")
 
     monkeypatch.setattr(agent_router, "resolve_agent_governance_context", fake_context)
-    monkeypatch.setattr(agent_router, "evaluate_agent_capability_dry_run", lambda request: _decision("deny", "kill switch"))
     monkeypatch.setattr(agent_router, "write_dispatch_audit", fake_audit)
     monkeypatch.setattr(agent_router.default_mesh, "get_agent", lambda name: object())
     monkeypatch.setattr(agent_router.default_mesh, "dispatch", fake_dispatch)
@@ -83,7 +82,6 @@ async def test_release_drill_approval_required_blocks_provider(monkeypatch):
         raise AssertionError("provider must not execute before approval")
 
     monkeypatch.setattr(agent_router, "resolve_agent_governance_context", fake_context)
-    monkeypatch.setattr(agent_router, "evaluate_agent_capability_dry_run", lambda request: _decision("require_approval", "approval required"))
     monkeypatch.setattr(agent_router, "write_dispatch_audit", fake_audit)
     monkeypatch.setattr(agent_router.default_mesh, "get_agent", lambda name: object())
     monkeypatch.setattr(agent_router.default_mesh, "dispatch", fake_dispatch)
