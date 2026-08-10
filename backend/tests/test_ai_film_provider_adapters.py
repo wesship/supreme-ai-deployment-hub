@@ -3,7 +3,7 @@ from backend.ai_films.providers import PROVIDER_SPECS, provider_health
 
 def test_provider_registry_covers_required_capabilities():
     capabilities = {spec.capability for spec in PROVIDER_SPECS}
-    assert {"image", "video", "voice", "music", "email", "publishing"} <= capabilities
+    assert {"image", "video", "voice", "music", "email", "publishing", "commerce_generation", "video_intelligence"} <= capabilities
 
 
 def test_provider_health_never_exposes_secret_values():
@@ -37,3 +37,27 @@ def test_ffmpeg_assembly_declares_binary_runtime_requirement():
     )
     assert spec.required_env == ()
     assert spec.required_binary == ("ffmpeg",)
+
+
+def test_commerce_generation_requires_signed_webhook_runtime():
+    incomplete = provider_health({"POLLO_API_KEY": "test-key"})
+    assert incomplete["capabilities"]["commerce_generation"] is False
+
+    complete = provider_health(
+        {
+            "POLLO_API_KEY": "test-key",
+            "POLLO_WEBHOOK_URL": "https://api.d3vonn.io/api/ai-films/commerce/providers/pollo/webhook",
+            "POLLO_WEBHOOK_SECRET": "base64-secret",
+        }
+    )
+    assert complete["capabilities"]["commerce_generation"] is True
+    spec = next(
+        spec
+        for spec in PROVIDER_SPECS
+        if spec.capability == "commerce_generation" and spec.provider == "pollo"
+    )
+    assert spec.required_env == (
+        "POLLO_API_KEY",
+        "POLLO_WEBHOOK_URL",
+        "POLLO_WEBHOOK_SECRET",
+    )
