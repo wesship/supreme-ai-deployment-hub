@@ -23,8 +23,8 @@ create index if not exists ai_film_commerce_jobs_handoff_idx on public.ai_film_c
 alter table public.ai_film_commerce_jobs enable row level security;
 create policy "owners manage ai film commerce jobs" on public.ai_film_commerce_jobs
   for all to authenticated
-  using (owner_id = auth.uid())
-  with check (owner_id = auth.uid());
+  using (owner_id = (select auth.uid()))
+  with check (owner_id = (select auth.uid()));
 
 grant select, insert, update on public.ai_film_commerce_jobs to authenticated;
 grant all on public.ai_film_commerce_jobs to service_role;
