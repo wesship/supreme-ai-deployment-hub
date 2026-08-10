@@ -1,0 +1,117 @@
+name: Pollo Live Smoke Once
+
+on:
+  push:
+    branches:
+      - agent/pollo-live-smoke-20260810
+    paths:
+      - '.github/workflows/pollo-live-smoke-once.yml'
+
+permissions:
+  contents: read
+
+env:
+  PLAYWRIGHT_BASE_URL: https://d3vonn.io
+
+jobs:
+  pollo-live-smoke:
+    name: Authorized 4s 720p Pollo Smoke
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Validate protected audit inputs
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$E2E_TEST_EMAIL"
+          test -n "$E2E_TEST_PASSWORD"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d5d3a5f6cf7105ed1318
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Dispatch exactly one authorized Pollo render
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: |
+          node <<'NODE'
+          const { chromium } = require('@playwright/test');
+
+          (async () => {
+            const baseUrl = 'https://d3vonn.io';
+            const apiUrl = 'https://api.d3vonn.io/api/ai-films/commerce/providers/pollo/dispatch';
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage();
+
+            await page.goto(`${baseUrl}/login?redirect=%2Fapp`, { waitUntil: 'networkidle' });
+            const email = page.locator('input[type="email"]');
+            const password = page.locator('input[type="password"]');
+            await email.fill(process.env.E2E_TEST_EMAIL);
+            await password.fill(process.env.E2E_TEST_PASSWORD);
+            const submit = page.locator('button[type="submit"]').filter({ hasText: /sign in|log in/i }).first();
+            await submit.click();
+            await page.waitForURL(url => !url.pathname.startsWith('/login'), { timeout: 20000 });
+
+            const token = await page.evaluate(() => {
+              for (let i = 0; i < localStorage.length; i += 1) {
+                const key = localStorage.key(i);
+                if (!key || !key.includes('auth-token')) continue;
+                const raw = localStorage.getItem(key);
+                if (!raw) continue;
+                try {
+                  const parsed = JSON.parse(raw);
+                  const direct = parsed?.access_token;
+                  const nested = parsed?.currentSession?.access_token || parsed?.session?.access_token;
+                  if (direct || nested) return direct || nested;
+                } catch (_) {}
+              }
+              return null;
+            });
+
+            if (!token) throw new Error('Authenticated session token not found');
+
+            const response = await page.request.post(apiUrl, {
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              data: {
+                prompt: 'D3VONN.IO Commerce Studio production smoke test: a clean cinematic product pedestal in a neutral studio, subtle camera push-in, no people, no logos, no text, no publication.',
+                length: 4,
+                resolution: '720p',
+                mode: 'basic',
+                generate_audio: false
+              }
+            });
+
+            const body = await response.text();
+            console.log(`DISPATCH_HTTP=${response.status()}`);
+            console.log(`DISPATCH_BODY=${body}`);
+            if (response.status() !== 202) throw new Error(`Pollo smoke dispatch rejected with HTTP ${response.status()}`);
+
+            const payload = JSON.parse(body);
+            if (!payload.task_id || !payload.job_id) throw new Error('Pollo dispatch response missing task_id/job_id');
+            console.log(`POLLO_TASK_ID=${payload.task_id}`);
+            console.log(`COMMERCE_JOB_ID=${payload.job_id}`);
+            console.log('PUBLICATION=disabled');
+            console.log('AUTHORIZED_RENDER_COUNT=1');
+            await browser.close();
+          })().catch(err => {
+            console.error(err?.stack || String(err));
+            process.exit(1);
+          });
+          NODE
