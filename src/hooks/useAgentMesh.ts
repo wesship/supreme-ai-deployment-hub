@@ -23,8 +23,10 @@ export interface DispatchRequest {
 
 export interface CapabilityDispatchRequest {
   capability: string;
-  action: string;
   payload?: Record<string, unknown>;
+  priority?: 'low' | 'normal' | 'high' | 'critical';
+  timeout_seconds?: number;
+  max_retries?: number;
 }
 
 export interface AgentResult {
