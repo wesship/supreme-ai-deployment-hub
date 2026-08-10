@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@11labs/react": "^0.2.0",
-    "@anthropic-ai/sdk": "^0.91.1",
+    "@anthropic-ai/sdk": "^0.115.0",
     "@aws-sdk/client-eks": "^3.974.0",
     "@aws-sdk/client-sts": "^3.1024.0",
     "@commitlint/cli": "^19.8.0",
