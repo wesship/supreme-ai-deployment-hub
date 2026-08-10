@@ -53,6 +53,17 @@ def test_task_generations_rejects_non_https_media():
         )
 
 
+def test_task_generations_rejects_unknown_terminal_status():
+    with pytest.raises(worker.CommerceHandoffError):
+        worker._task_generations(
+            {
+                "generations": [
+                    {"status": "mystery", "url": "https://example.test/render.mp4"}
+                ]
+            }
+        )
+
+
 @pytest.mark.asyncio
 async def test_process_handoff_is_restart_safe_and_completes(monkeypatch):
     calls = []
@@ -136,4 +147,3 @@ async def test_process_handoff_is_restart_safe_and_completes(monkeypatch):
     final = calls[-1]["payload"]
     assert final["handoff_status"] == "completed"
     assert len(final["handoff_payload"]["results"]) == 2
-
