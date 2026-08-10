@@ -32,15 +32,30 @@ def _decision(value: str, reason: str):
     )
 
 
+def _assert_denied_decision_audit(audits, *, expected_decision: str, action: str):
+    assert len(audits) == 1
+    audit = audits[0]
+    assert audit["event_type"] == "agent_os.dispatch.decision"
+    assert audit["workspace_id"] == "staging-workspace"
+    assert audit["actor_user_id"] == "staging-actor"
+    assert audit["agent_name"] == "devonn-coordinator"
+    assert audit["action"] == action
+    assert audit["task_id"]
+    assert audit["event_data"]["decision"] == expected_decision
+    assert audit["event_data"]["reason"]
+    return audit["task_id"]
+
+
 @pytest.mark.asyncio
 async def test_release_drill_kill_switch_blocks_provider(monkeypatch):
     executed = False
+    audits = []
 
     async def fake_context(**kwargs):
         return _context(kill_switch=True)
 
     async def fake_audit(**kwargs):
-        return None
+        audits.append(kwargs)
 
     async def fake_dispatch(task):
         nonlocal executed
@@ -64,17 +79,19 @@ async def test_release_drill_kill_switch_blocks_provider(monkeypatch):
 
     assert exc.value.status_code == 403
     assert executed is False
+    _assert_denied_decision_audit(audits, expected_decision="deny", action="plan")
 
 
 @pytest.mark.asyncio
 async def test_release_drill_approval_required_blocks_provider(monkeypatch):
     executed = False
+    audits = []
 
     async def fake_context(**kwargs):
         return _context()
 
     async def fake_audit(**kwargs):
-        return None
+        audits.append(kwargs)
 
     async def fake_dispatch(task):
         nonlocal executed
@@ -98,6 +115,7 @@ async def test_release_drill_approval_required_blocks_provider(monkeypatch):
 
     assert exc.value.status_code == 409
     assert executed is False
+    _assert_denied_decision_audit(audits, expected_decision="require_approval", action="orchestrate")
 
 
 @pytest.mark.asyncio
