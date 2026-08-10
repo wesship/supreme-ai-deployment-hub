@@ -1,0 +1,55 @@
+name: Pollo Production Certification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 10 * * 1'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/pollo-production-certification.yml'
+      - 'backend/ai_films/providers.py'
+      - 'backend/ai_films/commerce_router.py'
+      - 'backend/ai_films/commerce_handoff_worker.py'
+      - 'backend/railway_app.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pollo-production-certification-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Certify Pollo production readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe deployment and provider health
+        env:
+          API_BASE_URL: https://api.d3vonn.io
+        run: |
+          set -euo pipefail
+
+          deployment="$(curl --fail --silent --show-error --location --connect-timeout 5 --max-time 20 "${API_BASE_URL}/health/deployment")"
+          provider_health="$(curl --fail --silent --show-error --location --connect-timeout 5 --max-time 20 "${API_BASE_URL}/api/ai-films/providers/health")"
+
+          jq -e '.status == "ok"' <<<"$deployment" >/dev/null
+          jq -e '.entrypoint == "backend.railway_app:app"' <<<"$deployment" >/dev/null
+          jq -e '.routers.ai_films_commerce_dispatch == true' <<<"$deployment" >/dev/null
+          jq -e '.routers.ai_films_commerce_webhook == true' <<<"$deployment" >/dev/null
+          jq -e '.workers.ai_films_commerce_handoff == "running"' <<<"$deployment" >/dev/null
+
+          for capability in video commerce_generation virtual_try_on product_image; do
+            jq -e --arg capability "$capability" '
+              any(.providers[];
+                .provider == "pollo" and
+                .capability == $capability and
+                .status == "configured"
+              )
+            ' <<<"$provider_health" >/dev/null
+          done
+
+          printf '%s\n' 'Pollo production configuration is certified without dispatching a paid generation.'
