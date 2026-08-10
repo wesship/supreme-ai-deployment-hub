@@ -1,0 +1,198 @@
+name: Pollo Production E2E Once 2026-08-10
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/pollo-production-e2e-once-20260810'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: pollo-production-e2e-once-20260810
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: One-shot Pollo production E2E
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Create one-shot guard issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --search 'Pollo Production E2E 2026-08-10 in:title' --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            echo "POLLO_E2E_SKIP=1" >> "$GITHUB_ENV"
+            echo "POLLO_E2E_ISSUE=$existing" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          issue_url="$(gh issue create --repo "$GITHUB_REPOSITORY" --title 'Pollo Production E2E 2026-08-10' --body 'Status: ARMED. This issue is the one-shot duplicate-spend guard. No paid dispatch has been recorded yet.')"
+          issue_number="${issue_url##*/}"
+          echo "POLLO_E2E_SKIP=0" >> "$GITHUB_ENV"
+          echo "POLLO_E2E_ISSUE=$issue_number" >> "$GITHUB_ENV"
+
+      - name: Setup pnpm
+        if: env.POLLO_E2E_SKIP != '1'
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+
+      - name: Setup Node
+        if: env.POLLO_E2E_SKIP != '1'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install dependencies and Chromium
+        if: env.POLLO_E2E_SKIP != '1'
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Certify and dispatch exactly one minimal Pollo render
+        id: dispatch
+        if: env.POLLO_E2E_SKIP != '1'
+        continue-on-error: true
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          FRONTEND_BASE_URL: https://d3vonn.io
+          API_BASE_URL: https://api.d3vonn.io
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { chromium } from '@playwright/test';
+
+          const resultPath = '/tmp/pollo-e2e-result.json';
+          const writeResult = (value) => fs.writeFileSync(resultPath, JSON.stringify(value, null, 2));
+          const fail = (message, extra = {}) => {
+            writeResult({ status: 'FAILED', message, ...extra });
+            throw new Error(message);
+          };
+
+          const email = (process.env.E2E_TEST_EMAIL ?? '').trim();
+          const password = (process.env.E2E_TEST_PASSWORD ?? '').trim();
+          const frontend = (process.env.FRONTEND_BASE_URL ?? 'https://d3vonn.io').replace(/\/$/, '');
+          const api = (process.env.API_BASE_URL ?? 'https://api.d3vonn.io').replace(/\/$/, '');
+          if (!email || !password) fail('Production E2E credentials are not configured');
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext();
+          const page = await context.newPage();
+          try {
+            const deploymentResponse = await context.request.get(`${api}/health/deployment`);
+            if (!deploymentResponse.ok()) fail(`Deployment health returned HTTP ${deploymentResponse.status()}`);
+            const deployment = await deploymentResponse.json();
+            if (deployment?.entrypoint !== 'backend.railway_app:app') fail('Unexpected Railway entrypoint');
+            if (deployment?.routers?.ai_films_commerce_dispatch !== true) fail('Pollo dispatch route is not mounted');
+            if (deployment?.routers?.ai_films_commerce_webhook !== true) fail('Pollo webhook route is not mounted');
+            if (deployment?.workers?.ai_films_commerce_handoff !== 'running') fail(`Pollo handoff worker is ${deployment?.workers?.ai_films_commerce_handoff ?? 'unknown'}`);
+
+            const providerResponse = await context.request.get(`${api}/api/ai-films/providers/health`);
+            if (!providerResponse.ok()) fail(`Provider health returned HTTP ${providerResponse.status()}`);
+            const providerHealth = await providerResponse.json();
+            for (const capability of ['video', 'commerce_generation', 'virtual_try_on', 'product_image']) {
+              const ready = providerHealth?.providers?.some((item) => item?.provider === 'pollo' && item?.capability === capability && item?.status === 'configured');
+              if (!ready) fail(`Pollo capability not configured: ${capability}`);
+            }
+
+            await page.goto(`${frontend}/login?redirect=%2Fai-films%2Fcommerce`, { waitUntil: 'domcontentloaded' });
+            await page.waitForLoadState('networkidle');
+            await page.locator('input[type="email"]').fill(email);
+            await page.locator('input[type="password"]').fill(password);
+            const submit = page.locator('button[type="submit"]').filter({ hasText: /sign in|log in/i }).first();
+            await submit.click();
+
+            let accessToken = null;
+            for (let attempt = 0; attempt < 30 && !accessToken; attempt += 1) {
+              accessToken = await page.evaluate(() => {
+                for (let index = 0; index < window.localStorage.length; index += 1) {
+                  const key = window.localStorage.key(index);
+                  if (!key?.endsWith('-auth-token')) continue;
+                  const raw = window.localStorage.getItem(key);
+                  if (!raw) continue;
+                  try {
+                    const parsed = JSON.parse(raw);
+                    return parsed.access_token ?? parsed.currentSession?.access_token ?? parsed.session?.access_token ?? null;
+                  } catch {}
+                }
+                return null;
+              });
+              if (!accessToken) await page.waitForTimeout(1000);
+            }
+            if (!accessToken) fail('Authenticated production session did not expose a Supabase access token');
+
+            const dispatchResponse = await context.request.post(`${api}/api/ai-films/commerce/providers/pollo/dispatch`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+              data: {
+                prompt: 'D3VONN AI Films production acceptance test: create a clean neutral cinematic product-style motion shot with abstract geometric light, no people, no logos, no text, no audio.',
+                length: 4,
+                resolution: '720p',
+                mode: 'basic',
+                generate_audio: false,
+              },
+            });
+            const responseText = await dispatchResponse.text();
+            let dispatchBody = {};
+            try { dispatchBody = JSON.parse(responseText); } catch {}
+            if (dispatchResponse.status() !== 202) {
+              const detail = dispatchBody?.detail ?? responseText.slice(0, 300);
+              fail(`Pollo dispatch returned HTTP ${dispatchResponse.status()}: ${detail}`);
+            }
+            if (!dispatchBody?.job_id || !dispatchBody?.task_id) fail('Pollo dispatch did not return job_id and task_id');
+
+            writeResult({
+              status: 'DISPATCHED',
+              job_id: String(dispatchBody.job_id),
+              task_id: String(dispatchBody.task_id),
+              provider: dispatchBody.provider ?? 'pollo',
+              model: dispatchBody.model ?? 'pollo-v2-5',
+              submitted_status: dispatchBody.status ?? null,
+            });
+            console.log(`POLLO_E2E_JOB_ID=${dispatchBody.job_id}`);
+            console.log(`POLLO_E2E_TASK_ID=${dispatchBody.task_id}`);
+          } catch (error) {
+            if (!fs.existsSync(resultPath)) writeResult({ status: 'FAILED', message: String(error?.message ?? error) });
+            process.exitCode = 1;
+          } finally {
+            await context.close();
+            await browser.close();
+          }
+          NODE
+
+      - name: Publish one-shot result
+        if: always() && env.POLLO_E2E_SKIP != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/pollo-e2e-result.json ]; then
+            result="$(cat /tmp/pollo-e2e-result.json)"
+          else
+            result='{"status":"FAILED","message":"workflow ended before result creation"}'
+          fi
+          body=$(cat <<EOF
+          One-shot Pollo production E2E result:
+
+          \`\`\`json
+          ${result}
+          \`\`\`
+
+          This run is guarded against duplicate paid dispatches by this issue. No credentials or bearer tokens are published.
+          EOF
+          )
+          gh issue edit "$POLLO_E2E_ISSUE" --repo "$GITHUB_REPOSITORY" --body "$body"
+
+      - name: Enforce dispatch result
+        if: env.POLLO_E2E_SKIP != '1' && steps.dispatch.outcome != 'success'
+        run: exit 1
