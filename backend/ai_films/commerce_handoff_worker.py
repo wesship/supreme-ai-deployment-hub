@@ -100,6 +100,9 @@ def _task_generations(payload: Mapping[str, Any]) -> tuple[list[dict[str, Any]],
         raise CommerceHandoffPending("Pollo task result is not downloadable yet")
     if statuses & {"failed", "failure", "error", "cancel", "canceled", "cancelled"}:
         raise CommerceHandoffError("Pollo task contains a failed generation")
+    success_statuses = {"succeed", "succeeded", "success", "complete", "completed"}
+    if not statuses or statuses - success_statuses:
+        raise CommerceHandoffError("Pollo task returned an unsupported generation status")
 
     urls: list[str] = []
     for item in generations:
@@ -326,6 +329,10 @@ async def run_commerce_handoff_worker(
         300.0,
         float(source.get("AI_FILM_COMMERCE_HANDOFF_STALE_SECONDS", "1800") or 1800),
     )
+    max_attempts = max(
+        1,
+        int(source.get("AI_FILM_COMMERCE_HANDOFF_MAX_ATTEMPTS", "5") or 5),
+    )
     await _requeue_stale_claims(db, stale_after_seconds=stale_seconds)
 
     while True:
@@ -363,11 +370,15 @@ async def run_commerce_handoff_worker(
         except Exception as exc:
             logger.exception("AI Films Pollo handoff failed for job %s", job_id)
             handoff = dict(job.get("handoff_payload") or {})
+            attempts = int(handoff.get("attempts") or 0) + 1
+            exhausted = attempts >= max_attempts
             handoff.update(
                 {
-                    "state": "failed",
+                    "state": "failed" if exhausted else "queued",
                     "failed_at": _now(),
-                    "retryable": True,
+                    "attempts": attempts,
+                    "max_attempts": max_attempts,
+                    "retryable": not exhausted,
                     "error": f"{type(exc).__name__}: {exc}"[:2000],
                 }
             )
@@ -375,11 +386,12 @@ async def run_commerce_handoff_worker(
                 db,
                 job_id,
                 {
-                    "handoff_status": "failed",
+                    "handoff_status": "failed" if exhausted else "queued",
                     "handoff_payload": handoff,
                     "error_message": f"{type(exc).__name__}: {exc}"[:2000],
                 },
             )
+            if not once and not exhausted:
+                await asyncio.sleep(poll_seconds)
         if once:
             return
-
