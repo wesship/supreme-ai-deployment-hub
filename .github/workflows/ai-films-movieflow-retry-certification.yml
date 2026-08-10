@@ -3,7 +3,7 @@ name: AI Films MovieFlow Retry Certification
 on:
   push:
     branches:
-      - fix/ai-films-auto-resume-movieflow
+      - main
     paths:
       - .github/workflows/ai-films-movieflow-retry-certification.yml
   workflow_dispatch:
