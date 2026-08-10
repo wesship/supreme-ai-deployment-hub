@@ -12,28 +12,31 @@ This runbook is the release gate between merged Agent OS governance code and any
 - At least one registered Agent Mesh provider is healthy.
 - Staging audit writes to `primetime_audit_events` are queryable.
 - No production workspace or production provider credential is used during these drills.
+- Before any workspace-policy mutation, capture the complete baseline policy, including `kill_switch_enabled` and the full `disabled_agents` set. Every mutation must submit both fields, and cleanup must restore both fields exactly to the captured baseline. Never rely on omitted/default `disabled_agents`, because policy mutation replaces the complete disabled-agent set.
 
 ## Required drills
 
 ### 1. Workspace kill switch
 
-1. Enable the Agent OS workspace kill switch through the governance control API.
-2. Attempt a named dispatch for a normally allowed capability.
-3. Attempt the same capability through capability dispatch.
-4. Verify both requests are denied before provider execution.
-5. Verify decision audit evidence exists for each attempt.
-6. Disable the kill switch and verify the policy state is restored.
+1. Capture the complete baseline workspace policy (`kill_switch_enabled` and the full `disabled_agents` set).
+2. Enable the Agent OS workspace kill switch through the governance control API while submitting the unchanged baseline `disabled_agents` set.
+3. Attempt a named dispatch for a normally allowed capability.
+4. Attempt the same capability through capability dispatch.
+5. Verify both requests are denied before provider execution.
+6. Verify decision audit evidence exists for each attempt.
+7. Restore both `kill_switch_enabled` and `disabled_agents` exactly to the captured baseline and verify the restored policy matches it.
 
-**Pass:** no provider execution occurs while the kill switch is enabled.
+**Pass:** no provider execution occurs while the kill switch is enabled, and no pre-existing disabled-agent policy is changed by the drill.
 
 ### 2. Disabled agent
 
-1. Disable one registered agent in the workspace policy.
-2. Attempt direct named dispatch to that agent.
-3. Verify denial before provider execution and decision audit evidence.
-4. Re-enable the agent.
+1. Capture the complete baseline workspace policy (`kill_switch_enabled` and the full `disabled_agents` set).
+2. Disable one registered agent by submitting the baseline `kill_switch_enabled` value and a `disabled_agents` set equal to the baseline plus the drill agent.
+3. Attempt direct named dispatch to that agent.
+4. Verify denial before provider execution and decision audit evidence.
+5. Restore both policy fields exactly to the captured baseline and verify the restored policy matches it.
 
-**Pass:** a disabled agent cannot execute even when its capability would otherwise be allowed.
+**Pass:** a disabled agent cannot execute even when its capability would otherwise be allowed, and unrelated disabled agents remain disabled throughout the drill.
 
 ### 3. Approval-required action
 
@@ -115,6 +118,7 @@ For every drill capture:
 - matching outcome row when execution begins
 - provider-side execution confirmation or confirmation of no execution
 - timestamp and operator
+- complete workspace-policy baseline and post-drill policy for every drill that mutates policy
 
 ## Stop conditions
 
@@ -123,6 +127,7 @@ Stop the rollout immediately if any of the following occurs:
 - a deny or approval-required request reaches a provider;
 - the kill switch fails to block execution;
 - a disabled agent executes;
+- a policy drill changes or clears an unrelated disabled-agent entry;
 - an allowed request executes without mandatory decision evidence;
 - capability dispatch executes outside the named-governance path;
 - task IDs do not correlate decision and outcome evidence;
@@ -130,4 +135,4 @@ Stop the rollout immediately if any of the following occurs:
 
 ## Promotion criteria
 
-Production rollout remains blocked until all required drills pass in a clean staging environment, evidence is retained, and the staging workspace is returned to its normal policy state. Initial production enablement should be internal-only and canary-based, with the workspace kill switch tested and immediately available.
+Production rollout remains blocked until all required drills pass in a clean staging environment, evidence is retained, and the staging workspace is returned exactly to its captured baseline policy state. Initial production enablement should be internal-only and canary-based, with the workspace kill switch tested and immediately available.
