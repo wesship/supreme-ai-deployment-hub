@@ -4,6 +4,8 @@ from pathlib import Path
 from backend.ai_films.ingestion import (
     TwelveLabsIngestionRunner,
     load_manifest,
+    media_content_type,
+    normalize_asset_type,
     normalize_movieflow_media_url,
 )
 
@@ -83,3 +85,11 @@ def test_movieflow_manifest_urls_are_raw_media_urls():
     for asset in movieflow_assets:
         assert asset["media_url"].endswith(".mp4")
         assert "x-oss-process" not in asset["media_url"]
+
+
+def test_provider_outputs_infer_image_or_video_for_jockey():
+    assert normalize_asset_type(None, "legend-anchor.webp") == "image"
+    assert normalize_asset_type(None, "scene-07.mp4") == "video"
+    assert normalize_asset_type("image", "unknown.bin") == "image"
+    assert media_content_type("image", "frame.png") == "image/png"
+    assert media_content_type("video", "shot.mov") == "video/quicktime"
