@@ -160,7 +160,7 @@ function App() {
                 <Route path="/agent-demo" element={<AgentDemo />} />
                 <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
                 <Route path="/marketplace" element={<AgentMarketplace />} />
-                <Route path="/mcp" element={<McpPage />} />
+                <Route path="/mcp" element={<AuthenticatedRoute><McpPage /></AuthenticatedRoute>} />
                 <Route path="/status" element={<StatusDashboard />} />
                 <Route path="/manifest" element={<ManifestPage />} />
                 <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
