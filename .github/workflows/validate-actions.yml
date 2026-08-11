@@ -26,9 +26,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
-      - name: Detect invalid or dangerous action references
+      - name: Detect mutable or invalid action references
         shell: bash
         run: |
           set -euo pipefail
@@ -39,6 +39,7 @@ jobs:
 
           errors = []
           uses_pattern = re.compile(r'^\s*uses:\s*([^\s#]+)', re.MULTILINE)
+          full_sha = re.compile(r'^[0-9a-fA-F]{40}$')
 
           for workflow in sorted(glob.glob('.github/workflows/*.{yml,yaml}')):
               with open(workflow, encoding='utf-8') as handle:
@@ -51,12 +52,14 @@ jobs:
                   if '@' not in reference:
                       errors.append(f'{workflow}: action reference has no ref: {reference}')
                       continue
+
                   _, ref = reference.rsplit('@', 1)
-                  if ref in {'main', 'master', 'HEAD'}:
-                      errors.append(f'{workflow}: mutable branch reference is forbidden: {reference}')
-                  elif re.fullmatch(r'[0-9a-fA-F]{7,39}', ref):
-                      errors.append(f'{workflow}: abbreviated SHA is forbidden: {reference}')
-                  elif re.fullmatch(r'[0-9a-fA-F]{40}', ref) and len(set(ref.lower())) <= 2:
+                  if not full_sha.fullmatch(ref):
+                      errors.append(
+                          f'{workflow}: third-party action must use a full immutable 40-character commit SHA: {reference}'
+                      )
+                      continue
+                  if len(set(ref.lower())) <= 2:
                       errors.append(f'{workflow}: suspicious/fake SHA: {reference}')
 
           if errors:
@@ -64,7 +67,7 @@ jobs:
                   print(f'::error::{error}')
               sys.exit(1)
 
-          print('Action references contain no mutable branches, abbreviated SHAs, or obvious fake SHAs.')
+          print('All third-party action references use full immutable commit SHAs.')
           PYEOF
 
       - name: Validate workflow YAML structure
