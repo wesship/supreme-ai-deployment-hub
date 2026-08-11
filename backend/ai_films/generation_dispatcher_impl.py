@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from backend.ai_films.providers import PROVIDER_SPECS
+from backend.ai_films.providers import provider_specs
 from backend.ai_films.production_bible import ProductionBible, ShotManifestItem
 from backend.ai_films.shot_compiler import build_generation_packet
 
@@ -14,6 +14,7 @@ from backend.ai_films.shot_compiler import build_generation_packet
 class VideoRoute:
     provider: str
     configured: bool
+    dispatchable: bool
     score: int
     reasons: tuple[str, ...]
     model: str | None = None
@@ -26,13 +27,15 @@ _VIDEO_MODEL_ENV = {
     "movieflow": "AI_FILM_MOVIEFLOW_VIDEO_MODEL",
     "runway": "AI_FILM_RUNWAY_MODEL",
     "replicate": "AI_FILM_REPLICATE_VIDEO_MODEL",
+    "kling": "AI_FILM_KLING_VIDEO_MODEL",
+    "invideo": "AI_FILM_INVIDEO_VIDEO_MODEL",
 }
-_PROVIDER_ALIASES = {"sora": "openai", "grok": "xai", "xai": "xai", "openai": "openai"}
-_BASE_SCORE = {"openai": 100, "higgsfield": 95, "runway": 88, "xai": 84, "movieflow": 82, "replicate": 72}
+_PROVIDER_ALIASES = {"sora": "openai", "grok": "xai", "xai": "xai", "openai": "openai", "kling.ai": "kling", "invideo.ai": "invideo"}
+_BASE_SCORE = {"openai": 100, "higgsfield": 95, "kling": 92, "runway": 88, "xai": 84, "movieflow": 82, "invideo": 78, "replicate": 72}
 
 
-def _video_specs() -> dict[str, Any]:
-    return {spec.provider: spec for spec in PROVIDER_SPECS if spec.capability == "video"}
+def _video_specs(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
+    return {spec.provider: spec for spec in provider_specs(environ) if spec.capability == "video"}
 
 
 def _normalize_provider(value: str) -> str:
@@ -40,9 +43,22 @@ def _normalize_provider(value: str) -> str:
     return _PROVIDER_ALIASES.get(cleaned, cleaned)
 
 
+def _executor_providers(environ: Mapping[str, str]) -> set[str]:
+    """Return providers with an installed video execution worker/bridge.
+
+    OpenAI is the only built-in executor currently present in the repository.
+    Additional providers must be explicitly registered after their worker or
+    governed bridge is deployed, preventing configured-but-unexecutable jobs
+    from being queued indefinitely.
+    """
+    raw = str(environ.get("AI_FILM_VIDEO_EXECUTOR_PROVIDERS", "openai"))
+    return {_normalize_provider(item) for item in raw.split(",") if item.strip()}
+
+
 def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> list[VideoRoute]:
     source = environ or os.environ
-    specs = _video_specs()
+    specs = _video_specs(source)
+    executors = _executor_providers(source)
     raw_pref = packet.get("provider_route")
     preferred = [_normalize_provider(v) for v in raw_pref] if isinstance(raw_pref, list) else []
     anchors = packet.get("anchor_frame_asset_ids") or []
@@ -52,6 +68,7 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
     routes: list[VideoRoute] = []
     for provider, spec in specs.items():
         configured = spec.configured(source)
+        dispatchable = provider in executors
         score = _BASE_SCORE.get(provider, 50)
         reasons: list[str] = []
         if preferred:
@@ -60,10 +77,10 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
                 reasons.append("preferred_by_manifest")
             else:
                 score -= 10
-        if anchors and provider in {"openai", "higgsfield", "runway", "replicate"}:
+        if anchors and provider in {"openai", "higgsfield", "kling", "runway", "replicate"}:
             score += 8
             reasons.append("anchor_frame_fit")
-        if character_locks and provider in {"openai", "higgsfield", "runway"}:
+        if character_locks and provider in {"openai", "higgsfield", "kling", "runway"}:
             score += 7
             reasons.append("character_continuity_fit")
         if dialogue:
@@ -78,9 +95,10 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
             reasons.append("not_configured:" + ",".join(missing))
         else:
             reasons.append("configured")
-        model_env = _VIDEO_MODEL_ENV.get(provider)
+        reasons.append("executor_registered" if dispatchable else "executor_not_registered")
+        model_env = spec.model_env or _VIDEO_MODEL_ENV.get(provider)
         model = str(source.get(model_env, "")).strip() if model_env else ""
-        routes.append(VideoRoute(provider, configured, score, tuple(reasons), model or None))
+        routes.append(VideoRoute(provider, configured, dispatchable, score, tuple(reasons), model or None))
     return sorted(routes, key=lambda route: (-route.score, route.provider))
 
 
@@ -102,6 +120,17 @@ def _anchor_block(packet: Mapping[str, Any], bible: ProductionBible) -> tuple[st
     return ("anchor_frames_required" if missing else None), sorted(set(missing))
 
 
+def _route_payload(route: VideoRoute) -> dict[str, Any]:
+    return {
+        "provider": route.provider,
+        "configured": route.configured,
+        "dispatchable": route.dispatchable,
+        "score": route.score,
+        "model": route.model,
+        "reasons": list(route.reasons),
+    }
+
+
 def dispatch_plan(shot: ShotManifestItem, bible: ProductionBible, *, conform_decision: str, environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     if conform_decision != "generate":
         return {"shot_id": shot.shot_id, "action": "hold", "reason": f"conform_decision:{conform_decision}", "routes": []}
@@ -117,16 +146,20 @@ def dispatch_plan(shot: ShotManifestItem, bible: ProductionBible, *, conform_dec
             "selected_provider": None,
             "selected_model": None,
             "generation_packet": packet,
-            "routes": [{"provider": r.provider, "configured": r.configured, "score": r.score, "model": r.model, "reasons": list(r.reasons)} for r in routes],
+            "routes": [_route_payload(route) for route in routes],
         }
+    executable = [route for route in routes if route.configured and route.dispatchable]
+    selected = executable[0] if executable else None
     configured = [route for route in routes if route.configured]
-    selected = configured[0] if configured else None
+    reason = "provider_selected" if selected else (
+        "configured_provider_has_no_executor" if configured else "no_configured_video_provider"
+    )
     return {
         "shot_id": shot.shot_id,
         "action": "queue" if selected else "blocked",
-        "reason": "provider_selected" if selected else "no_configured_video_provider",
+        "reason": reason,
         "selected_provider": selected.provider if selected else None,
         "selected_model": selected.model if selected else None,
         "generation_packet": packet,
-        "routes": [{"provider": r.provider, "configured": r.configured, "score": r.score, "model": r.model, "reasons": list(r.reasons)} for r in routes],
+        "routes": [_route_payload(route) for route in routes],
     }
