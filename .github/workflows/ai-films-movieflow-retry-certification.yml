@@ -1,7 +1,7 @@
 name: AI Films MovieFlow Retry Certification
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
     paths:
@@ -31,7 +31,7 @@ concurrency:
 jobs:
   retry:
     name: Retry Sovereign Signal MovieFlow ingestion
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 45
@@ -47,6 +47,8 @@ jobs:
     steps:
       - name: Check out exact revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Resolve protected Railway authentication
         shell: bash
