@@ -1,7 +1,7 @@
 name: AI Films MovieFlow Retry Certification
 
 on:
-  pull_request_target:
+  pull_request:
     branches:
       - main
     paths:
@@ -25,13 +25,51 @@ permissions:
   contents: read
 
 concurrency:
-  group: ai-films-movieflow-retry-production
+  group: ai-films-movieflow-retry-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  validate-pr:
+    name: Validate MovieFlow certification runner
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out PR revision without production secrets
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate certification runner syntax and import path
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/certify_ai_films_movieflow_retry.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          path = Path('scripts/certify_ai_films_movieflow_retry.py')
+          tree = ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
+          imports = {
+              alias.name
+              for node in ast.walk(tree)
+              if isinstance(node, ast.Import)
+              for alias in node.names
+          }
+          from_imports = {
+              node.module
+              for node in ast.walk(tree)
+              if isinstance(node, ast.ImportFrom) and node.module
+          }
+          required = 'backend.ai_films.bootstrap'
+          if required not in from_imports:
+              raise SystemExit(f'Missing required certification import: {required}')
+          print('MovieFlow certification runner is syntactically valid and references the governed bootstrap module.')
+          PY
+
   retry:
     name: Retry Sovereign Signal MovieFlow ingestion
-    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 45
@@ -45,10 +83,8 @@ jobs:
       RAILWAY_API_TOKEN_INPUT: ${{ secrets.RAILWAY_API_TOKEN }}
 
     steps:
-      - name: Check out exact revision
+      - name: Check out trusted revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Resolve protected Railway authentication
         shell: bash
@@ -93,4 +129,4 @@ jobs:
           railway run \
             --service "$RAILWAY_SERVICE_ID" \
             --environment "$RAILWAY_ENVIRONMENT" \
-            python scripts/certify_ai_films_movieflow_retry.py
+            python -m scripts.certify_ai_films_movieflow_retry
