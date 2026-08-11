@@ -15,6 +15,20 @@ describe('routeFilmProviders', () => {
     expect(routeFilmProviders({ capability: 'text-to-video', parallel: true }, ['grok', 'runway', 'luma']))
       .toEqual(['grok', 'runway', 'luma']);
   });
+
+  it('routes Kling and InVideo for image-driven scene generation', () => {
+    expect(routeFilmProviders(
+      { capability: 'image-to-video', preferredProvider: 'kling', fallbackProviders: ['invideo'] },
+      ['kling', 'invideo', 'mock'],
+    )).toEqual(['kling']);
+  });
+
+  it('can parallelize Kling, InVideo, and MovieFlow scene renders', () => {
+    expect(routeFilmProviders(
+      { capability: 'text-to-video', parallel: true },
+      ['kling', 'invideo', 'movieflow'],
+    )).toEqual(['kling', 'invideo', 'movieflow']);
+  });
 });
 
 describe('redactProviderPayload', () => {
