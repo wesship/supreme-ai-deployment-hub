@@ -1,4 +1,8 @@
-from backend.ai_films.providers import PROVIDER_SPECS, provider_health
+import json
+
+import pytest
+
+from backend.ai_films.providers import PROVIDER_SPECS, provider_health, provider_specs
 
 
 def test_provider_registry_covers_required_capabilities():
@@ -61,3 +65,51 @@ def test_commerce_generation_requires_signed_webhook_runtime():
         "POLLO_WEBHOOK_URL",
         "POLLO_WEBHOOK_SECRET",
     )
+
+
+def test_kling_and_invideo_are_first_class_image_video_providers():
+    pairs = {(spec.capability, spec.provider) for spec in PROVIDER_SPECS}
+    assert ("image", "kling") in pairs
+    assert ("video", "kling") in pairs
+    assert ("video", "invideo") in pairs
+
+
+def test_custom_provider_registry_adds_server_side_provider_without_code_change():
+    env = {
+        "CUSTOM_VIDEO_TOKEN": "configured",
+        "CUSTOM_VIDEO_MODEL": "studio-v1",
+        "AI_FILM_CUSTOM_PROVIDERS_JSON": json.dumps(
+            [
+                {
+                    "capability": "video",
+                    "provider": "studio_x",
+                    "required_env": ["CUSTOM_VIDEO_TOKEN"],
+                    "model_env": "CUSTOM_VIDEO_MODEL",
+                }
+            ]
+        ),
+    }
+    custom = next(spec for spec in provider_specs(env) if spec.provider == "studio_x")
+    assert custom.source == "custom"
+    assert custom.configured(env) is True
+    health = provider_health(env)
+    row = next(item for item in health["providers"] if item["provider"] == "studio_x")
+    assert row["status"] == "configured"
+    assert "CUSTOM_VIDEO_TOKEN" in row["required_env"]
+    assert "studio-v1" not in repr(row)
+
+
+def test_custom_provider_registry_rejects_client_exposed_credentials():
+    env = {
+        "AI_FILM_CUSTOM_PROVIDERS_JSON": json.dumps(
+            [
+                {
+                    "capability": "video",
+                    "provider": "unsafe",
+                    "required_env": ["VITE_UNSAFE_API_KEY"],
+                }
+            ]
+        )
+    }
+    with pytest.raises(ValueError, match="VITE"):
+        provider_specs(env)
