@@ -18,32 +18,40 @@ async def main() -> None:
     print(
         json.dumps(
             {
+                "project_id": PROJECT_ID,
                 "before_state": before_meta.get("movieflow_ingestion_state"),
                 "before_ready": before_meta.get("movieflow_ingestion_ready_count"),
+                "before_skipped": before_meta.get("movieflow_ingestion_skipped_count"),
                 "before_failed": before_meta.get("movieflow_ingestion_failed_count"),
             }
         )
     )
 
-    await bootstrap_sovereign_signal_movieflow_ingestion()
+    result = await bootstrap_sovereign_signal_movieflow_ingestion()
 
     after = await client.get_project(PROJECT_ID)
     after_meta = dict((after or {}).get("metadata") or {})
     evidence = {
+        "bootstrap_result": result,
         "after_state": after_meta.get("movieflow_ingestion_state"),
         "after_ready": after_meta.get("movieflow_ingestion_ready_count"),
+        "after_skipped": after_meta.get("movieflow_ingestion_skipped_count"),
         "after_failed": after_meta.get("movieflow_ingestion_failed_count"),
         "jockey_items": after_meta.get("jockey_store_item_count"),
         "last_error": after_meta.get("movieflow_ingestion_last_error"),
     }
     print(json.dumps(evidence))
 
+    state = str(after_meta.get("movieflow_ingestion_state") or "")
     ready = int(after_meta.get("movieflow_ingestion_ready_count") or 0)
+    skipped = int(after_meta.get("movieflow_ingestion_skipped_count") or 0)
     failed = int(after_meta.get("movieflow_ingestion_failed_count") or 0)
-    if ready < 1:
+    indexed = ready + skipped
+
+    if state != "complete" or failed != 0 or indexed < 1:
         raise SystemExit(
-            f"MOVIEFLOW_RETRY_NOT_CERTIFIED: ready={ready} failed={failed} "
-            f"state={after_meta.get('movieflow_ingestion_state')}"
+            "MOVIEFLOW_RETRY_NOT_CERTIFIED: "
+            f"state={state} ready={ready} skipped={skipped} failed={failed} indexed={indexed}"
         )
 
 
