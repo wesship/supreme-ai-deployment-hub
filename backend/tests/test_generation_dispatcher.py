@@ -76,7 +76,7 @@ def test_sora_alias_ranks_as_openai_when_configured():
     routes = rank_video_routes(packet, {"OPENAI_API_KEY": "configured"})
     assert routes[0].provider == "openai"
     assert routes[0].configured is True
-
+    assert routes[0].dispatchable is True
 
 
 def test_kling_alias_routes_with_anchor_and_character_continuity_fit():
@@ -92,8 +92,10 @@ def test_kling_alias_routes_with_anchor_and_character_continuity_fit():
     )
     assert routes[0].provider == "kling"
     assert routes[0].configured is True
+    assert routes[0].dispatchable is False
     assert "anchor_frame_fit" in routes[0].reasons
     assert "character_continuity_fit" in routes[0].reasons
+    assert "executor_not_registered" in routes[0].reasons
 
 
 def test_custom_video_provider_participates_in_dispatch_ranking():
@@ -112,4 +114,36 @@ def test_custom_video_provider_participates_in_dispatch_ranking():
     )
     selected = next(route for route in routes if route.provider == "studio_x")
     assert selected.configured is True
+    assert selected.dispatchable is False
     assert "preferred_by_manifest" in selected.reasons
+
+
+def test_configured_provider_without_executor_is_never_queued():
+    shot = _shot("SS-EXEC-001", [])
+    shot.preferred_providers = ["kling"]
+    plan = dispatch_plan(
+        shot,
+        SOVEREIGN_SIGNAL_SEED,
+        conform_decision="generate",
+        environ={"KLING_ACCESS_KEY": "access", "KLING_SECRET_KEY": "secret"},
+    )
+    assert plan["action"] == "blocked"
+    assert plan["reason"] == "configured_provider_has_no_executor"
+    assert plan["selected_provider"] is None
+
+
+def test_provider_can_queue_after_executor_is_explicitly_registered():
+    shot = _shot("SS-EXEC-002", [])
+    shot.preferred_providers = ["kling"]
+    plan = dispatch_plan(
+        shot,
+        SOVEREIGN_SIGNAL_SEED,
+        conform_decision="generate",
+        environ={
+            "KLING_ACCESS_KEY": "access",
+            "KLING_SECRET_KEY": "secret",
+            "AI_FILM_VIDEO_EXECUTOR_PROVIDERS": "openai,kling",
+        },
+    )
+    assert plan["action"] == "queue"
+    assert plan["selected_provider"] == "kling"
