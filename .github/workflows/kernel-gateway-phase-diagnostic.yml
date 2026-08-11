@@ -1,0 +1,94 @@
+name: Kernel Gateway Phase Diagnostic
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: kernel-gateway-owner-diagnostic
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  diagnose:
+    name: Owner-authorized kernel gateway diagnostics
+    if: >-
+      github.event.comment.body == '/diagnose-kernel-gateway' &&
+      github.event.comment.user.login == github.repository_owner &&
+      github.event.comment.author_association == 'OWNER'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate connection secret names
+        id: secrets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -z "${{ secrets.VPS_HOST }}" ] && missing+=(VPS_HOST)
+          [ -z "${{ secrets.VPS_USER }}" ] && missing+=(VPS_USER)
+          [ -z "${{ secrets.VPS_SSH_PRIVATE_KEY }}" ] && missing+=(VPS_SSH_PRIVATE_KEY)
+          [ -z "${{ secrets.VPS_KNOWN_HOSTS }}" ] && missing+=(VPS_KNOWN_HOSTS)
+          if [ ${#missing[@]} -gt 0 ]; then
+            joined="$(IFS=', '; echo "${missing[*]}")"
+            gh api --method POST -H 'Accept: application/vnd.github+json' \
+              "/repos/${REPO}/issues/${ISSUE_NUMBER}/comments" \
+              -f body="Kernel gateway diagnostic FAILED at secret-name preflight: missing ${joined}. Values were not read or exposed." >/dev/null
+            exit 1
+          fi
+
+      - name: Configure verified SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/vps_key
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/vps_key ~/.ssh/known_hosts
+
+      - name: Diagnose VPS phases
+        id: diagnose
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          OUT="$(mktemp)"
+          if ssh -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ConnectTimeout=10 \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'set -u
+             phase=ssh; echo "ssh=ok"
+             phase=app_dir; test -d /opt/supreme-ai-deployment-hub && echo "app_dir=ok" || { echo "app_dir=failed"; exit 21; }
+             cd /opt/supreme-ai-deployment-hub
+             phase=sudo; sudo -n true >/dev/null 2>&1 && echo "sudo=ok" || { echo "sudo=failed"; exit 22; }
+             phase=git; sudo git fetch origin main >/dev/null 2>&1 && echo "git_fetch=ok" || { echo "git_fetch=failed"; exit 23; }
+             phase=docker; sudo docker compose version >/dev/null 2>&1 && echo "docker_compose=ok" || { echo "docker_compose=failed"; exit 24; }
+             phase=files; test -f docker-compose.kernel-gateway-runtime.yml && test -f kernel-gateway/.env.example && echo "runtime_files=ok" || { echo "runtime_files=failed"; exit 25; }
+             phase=env; test -f kernel-gateway/.env.production && echo "runtime_env=present" || echo "runtime_env=absent_will_be_created_on_deploy"
+             phase=config; if test -f kernel-gateway/.env.production; then sudo docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway-runtime.yml config >/dev/null 2>&1 && echo "compose_config=ok" || { echo "compose_config=failed"; exit 26; }; else echo "compose_config=skipped_no_runtime_env"; fi
+             phase=container; sudo docker compose --env-file kernel-gateway/.env.production -f docker-compose.kernel-gateway-runtime.yml ps 2>/dev/null || true
+             echo "diagnostic=complete"' >"$OUT" 2>&1; then
+            status=PASS
+          else
+            rc=$?
+            status="FAIL(rc=${rc})"
+          fi
+          safe="$(sed -E 's/(TOKEN|KEY|SECRET|PASSWORD|PASS|AUTH|BEARER|PRIVATE)[^= ]*=.*/\1=[REDACTED]/Ig' "$OUT" | tail -n 30)"
+          body=$(printf 'Kernel gateway phase diagnostic: **%s**\n\n```text\n%s\n```\n\nNo secret values are intentionally printed.' "$status" "$safe")
+          gh api --method POST -H 'Accept: application/vnd.github+json' \
+            "/repos/${REPO}/issues/${ISSUE_NUMBER}/comments" \
+            -f body="$body" >/dev/null
+          [ "$status" = PASS ]
