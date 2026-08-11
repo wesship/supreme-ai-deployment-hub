@@ -8,7 +8,16 @@ export type FilmCapability =
   | 'sound-effects'
   | 'music';
 
-export type FilmProviderId = 'mock' | 'grok' | 'higgsfield' | 'runway' | 'luma' | 'elevenlabs';
+export type FilmProviderId =
+  | 'mock'
+  | 'grok'
+  | 'higgsfield'
+  | 'runway'
+  | 'luma'
+  | 'kling'
+  | 'invideo'
+  | 'movieflow'
+  | 'elevenlabs';
 
 export interface FilmGenerationRequest {
   projectId: string;
@@ -57,6 +66,9 @@ export const PROVIDER_CAPABILITIES: Record<FilmProviderId, FilmCapability[]> = {
   higgsfield: ['image-to-video', 'text-to-video'],
   runway: ['image-to-video', 'text-to-video', 'video-to-video'],
   luma: ['image-to-video', 'text-to-video', 'video-extension'],
+  kling: ['text-to-image', 'image-to-video', 'text-to-video', 'video-to-video', 'video-extension'],
+  invideo: ['text-to-video', 'image-to-video'],
+  movieflow: ['text-to-video', 'image-to-video', 'video-extension'],
   elevenlabs: ['voice-generation', 'sound-effects', 'music'],
 };
 
