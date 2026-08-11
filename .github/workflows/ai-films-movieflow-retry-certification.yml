@@ -1,11 +1,24 @@
 name: AI Films MovieFlow Retry Certification
 
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/ai-films-movieflow-retry-certification.yml
+      - scripts/certify_ai_films_movieflow_retry.py
+      - backend/ai_films/bootstrap.py
+      - backend/ai_films/ingestion.py
+      - backend/ai_films/twelvelabs.py
   push:
     branches:
       - main
     paths:
       - .github/workflows/ai-films-movieflow-retry-certification.yml
+      - scripts/certify_ai_films_movieflow_retry.py
+      - backend/ai_films/bootstrap.py
+      - backend/ai_films/ingestion.py
+      - backend/ai_films/twelvelabs.py
   workflow_dispatch:
 
 permissions:
@@ -18,6 +31,7 @@ concurrency:
 jobs:
   retry:
     name: Retry Sovereign Signal MovieFlow ingestion
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 45
@@ -31,7 +45,7 @@ jobs:
       RAILWAY_API_TOKEN_INPUT: ${{ secrets.RAILWAY_API_TOKEN }}
 
     steps:
-      - name: Check out exact branch
+      - name: Check out exact revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Resolve protected Railway authentication
@@ -77,41 +91,4 @@ jobs:
           railway run \
             --service "$RAILWAY_SERVICE_ID" \
             --environment "$RAILWAY_ENVIRONMENT" \
-            python - <<'PY'
-          import asyncio
-          import json
-          from backend.ai_films.bootstrap import (
-              PROJECT_ID,
-              SupabaseFilmBootstrapClient,
-              bootstrap_sovereign_signal_movieflow_ingestion,
-          )
-
-          async def main():
-              before_client = SupabaseFilmBootstrapClient()
-              before = await before_client.get_project(PROJECT_ID)
-              before_meta = dict((before or {}).get("metadata") or {})
-              print(json.dumps({
-                  "before_state": before_meta.get("movieflow_ingestion_state"),
-                  "before_ready": before_meta.get("movieflow_ingestion_ready_count"),
-                  "before_failed": before_meta.get("movieflow_ingestion_failed_count"),
-              }))
-
-              await bootstrap_sovereign_signal_movieflow_ingestion()
-
-              after_client = SupabaseFilmBootstrapClient()
-              after = await after_client.get_project(PROJECT_ID)
-              after_meta = dict((after or {}).get("metadata") or {})
-              print(json.dumps({
-                  "after_state": after_meta.get("movieflow_ingestion_state"),
-                  "after_ready": after_meta.get("movieflow_ingestion_ready_count"),
-                  "after_failed": after_meta.get("movieflow_ingestion_failed_count"),
-                  "jockey_items": after_meta.get("jockey_store_item_count"),
-              }))
-
-              ready = int(after_meta.get("movieflow_ingestion_ready_count") or 0)
-              failed = int(after_meta.get("movieflow_ingestion_failed_count") or 0)
-              if ready < 1:
-                  raise SystemExit(f"MOVIEFLOW_RETRY_NOT_CERTIFIED: ready={ready} failed={failed}")
-
-          asyncio.run(main())
-          PY
+            python scripts/certify_ai_films_movieflow_retry.py
