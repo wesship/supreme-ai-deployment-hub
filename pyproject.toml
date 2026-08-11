@@ -1,3 +1,10 @@
+[project]
+name = "d3vonn-supreme-ai-deployment-hub"
+version = "0.1.0"
+description = "D3VONN.IO application and backend tooling"
+requires-python = ">=3.11"
+dependencies = []
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra --strict-markers"
