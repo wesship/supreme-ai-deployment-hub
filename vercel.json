@@ -6,6 +6,7 @@
   "cleanUrls": true,
   "installCommand": "corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile",
   "rewrites": [
+    { "source": "/health", "destination": "/health.json" },
     { "source": "/d3vonn-logo.webp", "destination": "/d3vonn-main-logo.svg" },
     { "source": "/solutions", "destination": "/solutions.html" },
     { "source": "/pricing", "destination": "/pricing.html" },
@@ -34,6 +35,14 @@
       "source": "/",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/health",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
       ]
     },
     {
