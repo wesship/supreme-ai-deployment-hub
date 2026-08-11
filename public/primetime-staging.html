@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>D3VONN.IO — PRIMETIME Staging</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070b14;--panel:#0f172a;--line:#243247;--text:#e5edf8;--muted:#8fa1b8;--ok:#34d399;--warn:#f59e0b}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#102443 0,#070b14 38%);font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:var(--text)}
+    main{max-width:1000px;margin:auto;padding:48px 20px 80px}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;flex-wrap:wrap;margin-bottom:28px}.eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#93c5fd;font-weight:800}h1{font-size:clamp(30px,5vw,56px);line-height:1;margin:10px 0 12px}p{color:var(--muted);line-height:1.6;margin:0}.badge{border:1px solid #1d4ed8;background:#0b2a52;padding:10px 14px;border-radius:999px;font-size:13px;color:#bfdbfe}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{background:linear-gradient(180deg,rgba(15,23,42,.96),rgba(9,15,28,.96));border:1px solid var(--line);border-radius:18px;padding:20px}.wide{grid-column:1/-1}.label{font-size:12px;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);font-weight:700}.value{font-size:30px;font-weight:800;margin-top:8px}.ok{color:var(--ok)}.warn{color:var(--warn)}button{border:0;border-radius:12px;background:#2563eb;color:white;padding:12px 16px;font-weight:800;cursor:pointer}button:disabled{opacity:.6}.status{display:flex;align-items:center;gap:10px;margin-top:12px}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn)}.dot.ok{background:var(--ok)}pre{white-space:pre-wrap;word-break:break-word;background:#050914;border:1px solid #1e293b;padding:14px;border-radius:12px;color:#a7f3d0;overflow:auto}@media(max-width:700px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+  </style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div><div class="eyebrow">D3VONN.IO / PRIMETIME</div><h1>Staging Console</h1><p>Read-only runtime certification for the isolated PRIMETIME staging environment.</p></div>
+    <div class="badge">Environment: STAGING</div>
+  </section>
+  <section class="grid">
+    <article class="card"><div class="label">Production promotion</div><div class="value warn">BLOCKED</div></article>
+    <article class="card"><div class="label">Mutation mode</div><div class="value">READ ONLY</div></article>
+    <article class="card wide">
+      <div style="display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap">
+        <div><div class="label">End-to-end staging health</div><div class="status"><span id="dot" class="dot"></span><strong id="headline">Not checked</strong></div></div>
+        <button id="refresh" type="button">Run health check</button>
+      </div>
+    </article>
+    <article class="card wide"><div class="label">Safe aggregate response</div><pre id="raw">Waiting for health check…</pre></article>
+  </section>
+</main>
+<script>
+async function check(){
+  const button=document.getElementById('refresh');const headline=document.getElementById('headline');const dot=document.getElementById('dot');const raw=document.getElementById('raw');
+  button.disabled=true;headline.textContent='Checking staging…';dot.className='dot';
+  try{const response=await fetch('/api/primetime-staging-health',{cache:'no-store',credentials:'same-origin'});const data=await response.json();raw.textContent=JSON.stringify(data,null,2);const healthy=response.ok&&data.ok===true;headline.textContent=healthy?'Staging runtime healthy':'Staging runtime needs attention';dot.className=healthy?'dot ok':'dot';}
+  catch(error){headline.textContent='Health request failed';raw.textContent=String(error)}finally{button.disabled=false}
+}
+document.getElementById('refresh').addEventListener('click',check);
+</script>
+</body>
+</html>
