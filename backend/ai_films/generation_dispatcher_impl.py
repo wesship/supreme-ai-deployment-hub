@@ -95,11 +95,7 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
             reasons.append("not_configured:" + ",".join(missing))
         else:
             reasons.append("configured")
-        if not dispatchable:
-            score -= 2000
-            reasons.append("executor_not_registered")
-        else:
-            reasons.append("executor_registered")
+        reasons.append("executor_registered" if dispatchable else "executor_not_registered")
         model_env = spec.model_env or _VIDEO_MODEL_ENV.get(provider)
         model = str(source.get(model_env, "")).strip() if model_env else ""
         routes.append(VideoRoute(provider, configured, dispatchable, score, tuple(reasons), model or None))
