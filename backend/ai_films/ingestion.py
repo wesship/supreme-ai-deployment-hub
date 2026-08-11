@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import mimetypes
 import time
 from pathlib import Path
 from typing import Any, Mapping
@@ -37,6 +38,22 @@ def load_manifest(path: str | Path) -> dict[str, Any]:
     return payload
 
 
+def normalize_asset_type(value: object, filename: str | None = None) -> str:
+    """Return a TwelveLabs knowledge-store asset type for video or image media."""
+    requested = str(value or "").strip().lower()
+    if requested in {"video", "image"}:
+        return requested
+    mime, _ = mimetypes.guess_type(filename or "")
+    return "image" if mime and mime.startswith("image/") else "video"
+
+
+def media_content_type(asset_type: str, filename: str | None = None) -> str:
+    guessed, _ = mimetypes.guess_type(filename or "")
+    if guessed and guessed.startswith(f"{asset_type}/"):
+        return guessed
+    return "image/jpeg" if asset_type == "image" else "video/mp4"
+
+
 def _multipart_fields(data: Mapping[str, str]) -> list[tuple[str, tuple[None, str]]]:
     """Encode scalar fields as multipart/form-data parts for TwelveLabs /assets."""
     return [(key, (None, value)) for key, value in data.items()]
@@ -56,6 +73,7 @@ class TwelveLabsIngestionRunner:
         url: str | None = None,
         file_path: str | Path | None = None,
         filename: str | None = None,
+        asset_type: str = "video",
         user_metadata: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         data: dict[str, str] = {
@@ -85,7 +103,16 @@ class TwelveLabsIngestionRunner:
                         raise TwelveLabsError(f"Local media file does not exist: {path}")
                     with path.open("rb") as handle:
                         multipart = _multipart_fields(data)
-                        multipart.append(("file", (filename or path.name, handle, "video/mp4")))
+                        multipart.append(
+                            (
+                                "file",
+                                (
+                                    filename or path.name,
+                                    handle,
+                                    media_content_type(asset_type, filename or path.name),
+                                ),
+                            )
+                        )
                         response = await http.post(endpoint, files=multipart)
                 else:
                     raise TwelveLabsError("An ingestion source URL or local file is required")
@@ -158,8 +185,9 @@ class TwelveLabsIngestionRunner:
         asset_id: str,
         *,
         metadata: Mapping[str, str] | None = None,
+        asset_type: str = "video",
     ) -> dict[str, Any]:
-        payload: dict[str, Any] = {"asset_id": asset_id}
+        payload: dict[str, Any] = {"asset_id": asset_id, "asset_type": asset_type}
         if metadata:
             payload["metadata"] = {str(k): str(v) for k, v in metadata.items()}
         return await self.client._request(
@@ -215,17 +243,24 @@ class TwelveLabsIngestionRunner:
                 "status": "materialization_required",
             }
 
+        asset_type = normalize_asset_type(
+            entry.get("asset_type"),
+            str(entry.get("source_filename") or entry.get("local_path") or ""),
+        )
         metadata = {
             "batch_id": entry.get("batch_id", ""),
             "project_id": entry.get("project_id", ""),
             "ai_film_asset_id": entry.get("ai_film_asset_id", ""),
             "source_type": entry.get("source_type", ""),
             "source_id": entry.get("source_id", ""),
+            "provider": entry.get("provider", entry.get("source_type", "")),
+            "asset_type": asset_type,
         }
         created = await self._create_asset(
             url=entry.get("media_url") if method == "url" else None,
             file_path=entry.get("local_path") if method == "file_upload" else None,
             filename=entry.get("source_filename"),
+            asset_type=asset_type,
             user_metadata=metadata,
         )
         asset_id = str(created.get("_id") or created.get("id") or "")
@@ -241,7 +276,10 @@ class TwelveLabsIngestionRunner:
                 "ai_film_asset_id": str(entry.get("ai_film_asset_id", "")),
                 "source_type": str(entry.get("source_type", "")),
                 "source_id": str(entry.get("source_id", "")),
+                "provider": str(entry.get("provider", entry.get("source_type", ""))),
+                "asset_type": asset_type,
             },
+            asset_type=asset_type,
         )
         item_id = str(item.get("_id") or item.get("id") or "")
         if not item_id:
@@ -255,6 +293,7 @@ class TwelveLabsIngestionRunner:
             "status": str(item.get("status") or "queued"),
             "twelvelabs_asset_id": asset_id,
             "twelvelabs_item_id": item_id,
+            "asset_type": asset_type,
             "asset": ready_asset,
             "item": item,
         }
@@ -296,7 +335,7 @@ async def ingest_manifest(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest an AI Films manifest into TwelveLabs")
     parser.add_argument("manifest")
-    parser.add_argument("--source-type", choices=("movieflow", "google_drive"))
+    parser.add_argument("--source-type", help="Filter any manifest source_type, for example movieflow, kling, or invideo")
     parser.add_argument("--wait-items", action="store_true")
     args = parser.parse_args()
 
