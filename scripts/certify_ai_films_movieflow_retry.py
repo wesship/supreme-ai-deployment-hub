@@ -3,8 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
+from pathlib import Path
 
-from backend.ai_films.bootstrap import (
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from backend.ai_films.bootstrap import (  # noqa: E402
     PROJECT_ID,
     SupabaseFilmBootstrapClient,
     bootstrap_sovereign_signal_movieflow_ingestion,
