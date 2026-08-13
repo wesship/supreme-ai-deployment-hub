@@ -1,0 +1,14 @@
+{
+  "schema": "d3vonn.ai-films.hermes-dag/v1",
+  "shot_id": "SEQ01-SC01-SH001",
+  "nodes": [
+    {"node_id":"SEQ01-SC01-SH001:generate","kind":"generation","task_type":"generate_shot","depends_on":[]},
+    {"node_id":"SEQ01-SC01-SH001:continuity-qc","kind":"qc","task_type":"continuity_qc","depends_on":["SEQ01-SC01-SH001:generate"]},
+    {"node_id":"SEQ01-SC01-SH001:color","kind":"color_conform","task_type":"ocio_aces_conform","depends_on":["SEQ01-SC01-SH001:continuity-qc"]},
+    {"node_id":"SEQ01-SC01-SH001:composite","kind":"composite","task_type":"composite_passes","depends_on":["SEQ01-SC01-SH001:color"]},
+    {"node_id":"SEQ01-SC01-SH001:upscale","kind":"upscale","task_type":"neural_upscale","depends_on":["SEQ01-SC01-SH001:composite"]},
+    {"node_id":"SEQ01-SC01-SH001:edit","kind":"editorial","task_type":"otio_conform","depends_on":["SEQ01-SC01-SH001:upscale"]},
+    {"node_id":"SEQ01-SC01-SH001:master","kind":"mastering","task_type":"master_delivery","depends_on":["SEQ01-SC01-SH001:edit"]},
+    {"node_id":"SEQ01-SC01-SH001:final-qc","kind":"qc","task_type":"master_qc","depends_on":["SEQ01-SC01-SH001:master"]}
+  ]
+}
