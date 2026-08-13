@@ -7,7 +7,8 @@ from backend.hermes.ports import Clock
 from backend.hermes.workflows.checkpoints import WorkflowRecoveryService
 from backend.hermes.workflows.coordinator import WorkflowExecutionCoordinator
 from backend.hermes.workflows.engine import WorkflowEngine
-from backend.hermes.workflows.models import WorkflowExecutionSnapshot
+from backend.hermes.workflows.models import WorkflowExecutionSnapshot, WorkflowStatus
+from backend.hermes.workflows.reconciliation import WorkflowTaskReconciler
 
 
 class HermesFilmRuntime:
@@ -16,10 +17,12 @@ class HermesFilmRuntime:
         *,
         coordinator: WorkflowExecutionCoordinator,
         recovery: WorkflowRecoveryService,
+        reconciler: WorkflowTaskReconciler,
         clock: Clock,
     ) -> None:
         self._coordinator = coordinator
         self._recovery = recovery
+        self._reconciler = reconciler
         self._engine = WorkflowEngine(clock)
 
     async def start(
@@ -47,6 +50,42 @@ class HermesFilmRuntime:
             user_id=user_id,
             goal_id=goal_id,
         )
+        return await self._coordinator.dispatch_ready(
+            definition,
+            snapshot,
+            user_id=user_id,
+            goal_id=goal_id,
+        )
+
+    async def advance(
+        self,
+        dag: HermesFilmDAG,
+        *,
+        user_id: str,
+        goal_id: str,
+        execution_id: str,
+    ) -> WorkflowExecutionSnapshot:
+        """Reconcile worker task results, checkpoint them, and dispatch newly-ready film nodes."""
+        definition = film_dag_to_workflow(dag)
+        snapshot = await self._recovery.recover_latest(
+            definition,
+            goal_id=goal_id,
+            execution_id=execution_id,
+        )
+        snapshot = await self._reconciler.reconcile(definition, snapshot)
+        snapshot = self._engine.refresh_ready_steps(definition, snapshot)
+        snapshot = await self._recovery.save(
+            definition,
+            snapshot,
+            user_id=user_id,
+            goal_id=goal_id,
+        )
+        if snapshot.status in {
+            WorkflowStatus.COMPLETED,
+            WorkflowStatus.FAILED,
+            WorkflowStatus.CANCELLED,
+        }:
+            return snapshot
         return await self._coordinator.dispatch_ready(
             definition,
             snapshot,
