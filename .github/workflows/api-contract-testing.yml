@@ -6,12 +6,18 @@ on:
     paths:
       - 'api/**'
       - 'backend/**'
+      - 'tests/api/**'
+      - 'tests/contract/test_moneyhub_*.py'
+      - 'supabase/migrations/*moneyhub*.sql'
       - '.github/workflows/api-contract-testing.yml'
   pull_request:
     branches: [main]
     paths:
       - 'api/**'
       - 'backend/**'
+      - 'tests/api/**'
+      - 'tests/contract/test_moneyhub_*.py'
+      - 'supabase/migrations/*moneyhub*.sql'
       - '.github/workflows/api-contract-testing.yml'
   schedule:
     - cron: '0 */6 * * *'
@@ -146,6 +152,30 @@ jobs:
               sys.exit(1)
           print('No structural breaking changes detected')
           PY
+
+  moneyhub-contracts:
+    name: MoneyHub safety contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest
+        run: python -m pip install --disable-pip-version-check 'pytest==8.3.5'
+
+      - name: Run MoneyHub static safety contracts
+        run: |
+          python -m pytest -q \
+            tests/api/test_moneyhub_router_contract.py \
+            tests/contract/test_moneyhub_*.py
 
   contract-test-live:
     name: Schemathesis contract tests

@@ -122,7 +122,6 @@ try:
 except ImportError as exc:
     logger.warning("AI Films Commerce Studio router not registered: %s", exc)
 
-
 try:
     from backend.ai_films.index_router import router as ai_film_index_router
     proxy_router.include_router(ai_film_index_router, tags=["ai-films-index"])
@@ -172,8 +171,14 @@ except ImportError as exc:
 
 try:
     from backend.app.routers.d3vonn_events import router as d3vonn_events_router
-
     proxy_router.include_router(d3vonn_events_router, tags=["platform-events"])
     logger.info("D3VONN governed event read router registered at /api/events.")
 except ImportError as exc:
     logger.warning("D3VONN event read router not registered: %s", exc)
+
+try:
+    from backend.moneyhub.router import router as moneyhub_router
+    proxy_router.include_router(moneyhub_router)
+    logger.info("MoneyHub governed financial API registered at /api/moneyhub/*.")
+except ImportError as exc:
+    logger.warning("MoneyHub router not registered: %s", exc)

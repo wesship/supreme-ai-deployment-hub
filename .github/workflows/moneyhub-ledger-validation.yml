@@ -1,0 +1,92 @@
+name: MoneyHub Ledger Validation
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20260811191500_moneyhub_foundation.sql'
+      - 'supabase/migrations/20260811192000_moneyhub_foundation_hardening.sql'
+      - 'tests/contract/moneyhub_ledger_invariants.sql'
+      - '.github/workflows/moneyhub-ledger-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Bootstrap Supabase-compatible auth roles
+        shell: bash
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin bypassrls;
+            end if;
+          end
+          $$;
+
+          create schema if not exists auth;
+          create table if not exists auth.users (
+            id uuid primary key,
+            created_at timestamptz not null default now()
+          );
+
+          create or replace function auth.uid()
+          returns uuid
+          language sql
+          stable
+          as $$
+            select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+
+          grant usage on schema auth to anon, authenticated, service_role;
+          grant select on auth.users to authenticated, service_role;
+          grant execute on function auth.uid() to anon, authenticated, service_role;
+          SQL
+
+      - name: Replay MoneyHub migrations
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260811191500_moneyhub_foundation.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20260811192000_moneyhub_foundation_hardening.sql
+
+      - name: Verify MoneyHub ledger invariants
+        run: psql -v ON_ERROR_STOP=1 -f tests/contract/moneyhub_ledger_invariants.sql
