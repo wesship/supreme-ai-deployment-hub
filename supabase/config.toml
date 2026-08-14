@@ -22,7 +22,6 @@ max_client_conn = 100
 
 [realtime]
 enabled = true
-port = 54323
 max_header_length = 4096
 
 [studio]
@@ -36,7 +35,6 @@ port = 54325
 
 [edge_runtime]
 enabled = true
-port = 54326
 policy = "per_worker"
 inspector_port = 8083
 
