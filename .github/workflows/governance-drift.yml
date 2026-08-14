@@ -339,6 +339,74 @@ jobs:
               fi
             fi
 
+            # PR #900 reconciles two duplicate short-version AI Films migrations
+            # with content-preserving timestamped renames and makes one unapplied
+            # hardening migration clean-preview safe. Every exception is bound to
+            # the exact PR, path and reviewed blob identity.
+            if [[ "$status" =~ ^R ]] \
+              && [ "$path" = "supabase/migrations/20260807_ai_film_render_bucket.sql" ] \
+              && [ "$path2" = "supabase/migrations/20260807235350_create_ai_film_render_bucket.sql" ] \
+              && [ "$PR_NUMBER" = "900" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path2")"
+              if [ "$base_blob" = "434760d575b490110007aaac1e7e3cf40c99ab89" ] \
+                && [ "$head_blob" = "434760d575b490110007aaac1e7e3cf40c99ab89" ]; then
+                echo "Approved PR #900 AI Films migration rename: $path -> $path2"
+                allowed=1
+              fi
+            fi
+
+            if [ "$status" = "D" ] \
+              && [ "$path" = "supabase/migrations/20260807_ai_film_render_bucket.sql" ] \
+              && [ "$PR_NUMBER" = "900" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:supabase/migrations/20260807235350_create_ai_film_render_bucket.sql")"
+              if [ "$base_blob" = "434760d575b490110007aaac1e7e3cf40c99ab89" ] \
+                && [ "$head_blob" = "434760d575b490110007aaac1e7e3cf40c99ab89" ] \
+                && ! git cat-file -e "$HEAD_SHA:$path" 2>/dev/null; then
+                echo "Approved PR #900 AI Films migration move: $path"
+                allowed=1
+              fi
+            fi
+
+            if [[ "$status" =~ ^R ]] \
+              && [ "$path" = "supabase/migrations/20260807_extend_ai_film_render_job_contract.sql" ] \
+              && [ "$path2" = "supabase/migrations/20260808000023_extend_ai_film_render_job_contract.sql" ] \
+              && [ "$PR_NUMBER" = "900" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path2")"
+              if [ "$base_blob" = "5f2907ee503ad6fefdb0fe951d4711c60eb11253" ] \
+                && [ "$head_blob" = "5f2907ee503ad6fefdb0fe951d4711c60eb11253" ]; then
+                echo "Approved PR #900 AI Films contract migration rename: $path -> $path2"
+                allowed=1
+              fi
+            fi
+
+            if [ "$status" = "D" ] \
+              && [ "$path" = "supabase/migrations/20260807_extend_ai_film_render_job_contract.sql" ] \
+              && [ "$PR_NUMBER" = "900" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:supabase/migrations/20260808000023_extend_ai_film_render_job_contract.sql")"
+              if [ "$base_blob" = "5f2907ee503ad6fefdb0fe951d4711c60eb11253" ] \
+                && [ "$head_blob" = "5f2907ee503ad6fefdb0fe951d4711c60eb11253" ] \
+                && ! git cat-file -e "$HEAD_SHA:$path" 2>/dev/null; then
+                echo "Approved PR #900 AI Films contract migration move: $path"
+                allowed=1
+              fi
+            fi
+
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260808235100_restrict_anon_workspace_membership_function.sql" ] \
+              && [ "$PR_NUMBER" = "900" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "36018bb97c9bcdf1576b00294fecef4167b58dc8" ] \
+                && [ "$head_blob" = "0184e92f20209a81b1362e0b73c2a788e8f2a027" ]; then
+                echo "Approved PR #900 clean-preview membership hardening correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$allowed" -ne 1 ]; then
               echo "::error file=$path::Existing migration modified, deleted, or renamed without an exact approved exception ($status)."
               fail=1
