@@ -36,11 +36,15 @@ def test_promotion_path_stops_before_live_capital():
 
 
 def test_authenticated_clients_only_read_paper_tables_directly():
+    # The migration applies the grants through a single guarded loop so the
+    # privilege rule cannot drift between the four paper-trading tables.
     for table in (
         "moneyhub_paper_strategies",
         "moneyhub_paper_runs",
         "moneyhub_paper_orders",
         "moneyhub_paper_fills",
     ):
-        assert f"grant select on public.{table} to authenticated" in MIGRATION
-        assert f"grant all on public.{table} to service_role" in MIGRATION
+        assert table in MIGRATION
+    assert "grant select on public.%I to authenticated" in MIGRATION
+    assert "grant all on public.%I to service_role" in MIGRATION
+    assert "foreach t in array" in MIGRATION
