@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 
@@ -13,10 +14,22 @@ def test_provider_location_and_credentials_are_server_configuration_only():
     assert 'os.getenv("moneyhub_market_data_api_key"' in lowered
     assert "https" in lowered
     assert "follow_redirects=false" in lowered
-    # Caller supplies symbols only; no provider URL/key/trust-tier request model exists.
-    assert "market_data_url:" not in lowered
-    assert "market_data_api_key:" not in lowered
-    assert "trust_tier:" not in lowered
+
+    # Validate the actual FastAPI provider-sync boundary rather than rejecting
+    # internal server variable names. The caller may provide symbols only; the
+    # provider URL/key/trust tier remain process configuration.
+    tree = ast.parse(ROUTER)
+    endpoint = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "sync_provider_market_data"
+    )
+    argument_names = {arg.arg for arg in endpoint.args.args}
+    assert argument_names == {"principal", "symbols"}
+    assert "market_data_url" not in argument_names
+    assert "market_data_api_key" not in argument_names
+    assert "trust_tier" not in argument_names
 
 
 def test_provider_sync_cannot_become_live_execution():
