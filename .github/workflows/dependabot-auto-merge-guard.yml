@@ -38,6 +38,7 @@ jobs:
           echo "type=$UPDATE_TYPE deps=$DEP_NAMES"
           BLOCKLIST="tailwindcss vite react-day-picker react react-dom react-router react-router-dom @tanstack/react-query zod next typescript eslint"
           BLOCK=0
+          REASON=""
           if [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
             BLOCK=1
             REASON="major version bump"
@@ -58,16 +59,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          gh pr edit "$PR" --remove-label "auto-merge" || true
-          gh pr edit "$PR" --add-label "needs-manual-review" || true
-          gh pr comment "$PR" --body "🛑 Auto-merge blocked by **dependabot-auto-merge-guard**: ${{ steps.decide.outputs.reason }}. A maintainer must review and merge manually."
+          gh pr edit "$PR" --repo "$REPOSITORY" --remove-label "auto-merge" || true
+          gh pr edit "$PR" --repo "$REPOSITORY" --add-label "needs-manual-review" || true
+          gh pr comment "$PR" --repo "$REPOSITORY" --body "🛑 Auto-merge blocked by **dependabot-auto-merge-guard**: ${{ steps.decide.outputs.reason }}. A maintainer must review and merge manually."
 
       - name: Approve safe patches
         if: steps.decide.outputs.block == '0' && steps.meta.outputs.update-type == 'version-update:semver-patch'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          gh pr edit "$PR" --add-label "auto-merge" || true
-          gh pr comment "$PR" --body "✅ Safe patch bump - auto-merge eligible."
+          gh pr edit "$PR" --repo "$REPOSITORY" --add-label "auto-merge" || true
+          gh pr comment "$PR" --repo "$REPOSITORY" --body "✅ Safe patch bump - auto-merge eligible."
