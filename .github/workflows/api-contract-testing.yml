@@ -168,8 +168,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install pytest
-        run: python -m pip install --disable-pip-version-check 'pytest==8.3.5'
+      - name: Install MoneyHub test dependencies
+        run: |
+          python -m pip install --disable-pip-version-check \
+            'pytest==8.3.5' \
+            'fastapi==0.115.5' \
+            'httpx==0.28.1' \
+            'pydantic==2.13.4'
 
       - name: Run MoneyHub static safety contracts
         run: |
