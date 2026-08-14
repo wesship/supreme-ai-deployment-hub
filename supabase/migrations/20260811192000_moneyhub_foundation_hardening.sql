@@ -5,13 +5,12 @@ begin;
 
 -- Reversals are represented as separate posted journals with opposite entries.
 -- The original immutable journal is never transitioned to a different status.
+-- Keep the reserved reversed_journal_id column in place for zero-downtime
+-- compatibility; the governed reversal path does not write or depend on it.
 alter table public.moneyhub_journals
   drop constraint if exists moneyhub_journals_status_check;
 alter table public.moneyhub_journals
   add constraint moneyhub_journals_status_check check (status = 'posted');
-
-alter table public.moneyhub_journals
-  drop column if exists reversed_journal_id;
 
 -- Only include entries whose journal successfully joins as a posted journal.
 -- This remains defensive even though this release permits only posted journals.
