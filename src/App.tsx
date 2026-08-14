@@ -71,6 +71,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
 const PrimetimeRelease1 = lazy(() => import("./pages/PrimetimeRelease1"));
+const PrimetimeCustomLists = lazy(() => import("./pages/PrimetimeCustomLists"));
 const PrimetimeScheduling = lazy(() => import("./pages/PrimetimeScheduling"));
 const PrimetimeCommunications = lazy(() => import("./pages/PrimetimeCommunications"));
 const PrimetimeAiAssistance = lazy(() => import("./pages/PrimetimeAiAssistance"));
@@ -170,6 +171,8 @@ function App() {
                 <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
                 <Route path="/primetime" element={<PrimetimeRelease1 />} />
                 <Route path="/primetime/release-1" element={<PrimetimeRelease1 />} />
+                <Route path="/primetime/custom-lists" element={<AuthenticatedRoute><PrimetimeCustomLists /></AuthenticatedRoute>} />
+                <Route path="/primetime/lists" element={<AuthenticatedRoute><PrimetimeCustomLists /></AuthenticatedRoute>} />
                 <Route path="/primetime/scheduling" element={<PrimetimeScheduling />} />
                 <Route path="/primetime/release-2" element={<PrimetimeScheduling />} />
                 <Route path="/primetime/communications" element={<PrimetimeCommunications />} />
