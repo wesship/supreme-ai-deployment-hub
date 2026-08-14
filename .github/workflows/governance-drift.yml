@@ -76,6 +76,22 @@ jobs:
             [ -z "$status" ] && continue
 
             allowed=0
+
+            # PR #903 repairs an unapplied historical agent-mesh migration that
+            # cannot replay against the newer workspace-scoped agents table.
+            # Allow only this exact reviewed before/after blob pair.
+            if [ "$status" = "M" ] \
+              && [ "$path" = "supabase/migrations/20260516000001_agent_mesh_schema.sql" ] \
+              && [ "$PR_NUMBER" = "903" ]; then
+              base_blob="$(git rev-parse "$BASE_SHA:$path")"
+              head_blob="$(git rev-parse "$HEAD_SHA:$path")"
+              if [ "$base_blob" = "e4681d7efc8b05352f6e65d3294be3c9ae4eefd6" ] \
+                && [ "$head_blob" = "f94724037ec5fcb10ae9dd3d74cc6acdafed4696" ]; then
+                echo "Approved PR #903 pre-application agent-mesh compatibility correction: $path"
+                allowed=1
+              fi
+            fi
+
             if [ "$status" = "M" ] \
               && [ "$path" = "supabase/migrations/20260721190500_supabase_rls_hardening_phase1.sql" ] \
               && [ "$PR_NUMBER" = "501" ]; then
