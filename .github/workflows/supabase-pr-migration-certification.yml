@@ -1,0 +1,98 @@
+name: Supabase PR Migration Certification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/supabase-pr-migration-certification.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-pr-migration-certification-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  local-clean-replay:
+    name: Local clean Supabase migration replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.109.1
+
+      - name: Verify CLI version
+        run: test "$(supabase --version)" = "2.109.1"
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Replay repository migrations from a clean database
+        run: supabase db reset
+
+      - name: Lint local schema
+        run: supabase db lint --local --level warning
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  staging-linked-dry-run:
+    name: Staging linked migration dry-run
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor == 'wesship'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate staging credentials are configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for secret_name in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_ID SUPABASE_DB_PASSWORD; do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error title=Missing Supabase staging secret::${secret_name} is not configured."
+              missing=1
+            fi
+          done
+          (( missing == 0 ))
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.109.1
+
+      - name: Verify CLI version
+        run: test "$(supabase --version)" = "2.109.1"
+
+      - name: Link staging target
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Inspect linked migration history
+        run: supabase migration list --linked
+
+      - name: Lint linked staging schema
+        run: supabase db lint --linked --level warning
+
+      - name: Preview exact pending migration order without applying
+        run: supabase db push --linked --dry-run --password "$SUPABASE_DB_PASSWORD"
