@@ -146,6 +146,14 @@ except ImportError as _primetime_release1_err:
     logger.warning("PRIMETIME Release 1 router not found — skipping. (%s)", _primetime_release1_err)
 
 try:
+    from backend.app.routers.primetime_custom_lists import router as primetime_custom_lists_router  # type: ignore
+
+    app.include_router(primetime_custom_lists_router)
+    logger.info("PRIMETIME Custom Lists router registered at /primetime/v1/custom-lists")
+except ImportError as _primetime_custom_lists_err:
+    logger.warning("PRIMETIME Custom Lists router not found — skipping. (%s)", _primetime_custom_lists_err)
+
+try:
     from backend.app.routers.primetime_release2_scheduling import router as primetime_release2_scheduling_router  # type: ignore
 
     app.include_router(primetime_release2_scheduling_router)
