@@ -47,11 +47,39 @@ function storeRefreshTokenWithGitHubCli(refreshToken) {
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
-  if (result.error || result.status !== 0) {
-    return false;
+  return !result.error && result.status === 0;
+}
+
+function validateOAuthCallback(req, expectedState) {
+  if (req.method !== 'GET') {
+    throw new Error('Invalid OAuth callback method.');
   }
 
-  return true;
+  const requestUrl = new URL(req.url, `http://${HOST}`);
+  if (requestUrl.pathname !== '/oauth2/callback') {
+    const error = new Error('OAuth callback path not found.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const codes = requestUrl.searchParams.getAll('code');
+  const states = requestUrl.searchParams.getAll('state');
+  if (codes.length !== 1 || states.length !== 1 || !codes[0] || !states[0]) {
+    throw new Error('Invalid OAuth callback parameters.');
+  }
+
+  const returnedState = states[0];
+  if (!/^[a-f0-9]{64}$/.test(returnedState)) {
+    throw new Error('Invalid OAuth state format.');
+  }
+
+  const expected = Buffer.from(expectedState, 'hex');
+  const actual = Buffer.from(returnedState, 'hex');
+  if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) {
+    throw new Error('OAuth state mismatch.');
+  }
+
+  return codes[0];
 }
 
 async function getRefreshToken() {
@@ -68,28 +96,16 @@ async function getRefreshToken() {
 
     server = http.createServer(async (req, res) => {
       try {
-        const requestUrl = new URL(req.url, `http://${HOST}`);
-        if (requestUrl.pathname !== '/oauth2/callback') {
-          res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-          res.end('Not Found');
-          return;
+        const code = validateOAuthCallback(req, oauthState);
+        const address = server.address();
+        if (!address || typeof address === 'string') {
+          throw new Error('OAuth callback server address is unavailable.');
         }
 
-        const code = requestUrl.searchParams.get('code');
-        const returnedState = requestUrl.searchParams.get('state');
-
-        if (!code || returnedState !== oauthState) {
-          res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end('<html><body><h1>Authorization Failed</h1><p>The OAuth response was invalid.</p></body></html>');
-          finish(reject, new Error('Invalid OAuth callback: missing code or state mismatch.'));
-          return;
-        }
-
-        const port = server.address().port;
-        const redirectUri = `http://${HOST}:${port}/oauth2/callback`;
+        const redirectUri = `http://${HOST}:${address.port}/oauth2/callback`;
         const tokenResponse = await exchangeAuthorizationCode({ code, redirectUri });
 
-        if (!tokenResponse.refresh_token) {
+        if (!tokenResponse.refresh_token || typeof tokenResponse.refresh_token !== 'string') {
           throw new Error('No refresh token received from Google. Revoke the prior grant and retry with consent if needed.');
         }
 
@@ -105,18 +121,26 @@ async function getRefreshToken() {
 
         finish(resolve, tokenResponse.refresh_token);
       } catch (error) {
+        const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 400;
         if (!res.headersSent) {
-          res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-          res.end('Internal Server Error');
+          res.writeHead(statusCode, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end('<html><body><h1>Authorization Failed</h1><p>The OAuth response was invalid.</p></body></html>');
         }
-        console.error('❌ OAuth token exchange failed:', error instanceof Error ? error.message : 'Unknown error');
-        finish(reject, error);
+        console.error('❌ OAuth callback rejected:', error instanceof Error ? error.message : 'Unknown error');
+        if (statusCode !== 404) {
+          finish(reject, error);
+        }
       }
     });
 
     server.listen(PORT, HOST, () => {
-      const port = server.address().port;
-      const redirectUri = `http://${HOST}:${port}/oauth2/callback`;
+      const address = server.address();
+      if (!address || typeof address === 'string') {
+        finish(reject, new Error('OAuth callback server address is unavailable.'));
+        return;
+      }
+
+      const redirectUri = `http://${HOST}:${address.port}/oauth2/callback`;
       const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       authUrl.searchParams.set('client_id', CLIENT_ID);
       authUrl.searchParams.set('response_type', 'code');
