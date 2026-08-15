@@ -9,3 +9,4 @@ python-dotenv>=1.0.0
 sse-starlette>=2.1.0
 numpy>=1.26,<3
 OpenEXR>=3.3,<4
+opencolorio>=2.5.2,<3
