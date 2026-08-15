@@ -214,6 +214,11 @@ async def deployment_info() -> dict[str, object]:
         "routers": {
             "api_health": "/api/health" in paths,
             "proxy": "/api/deploy/probe" in paths,
+            "api_v1": "/api/v1/health" in paths,
+            "operations": "/api/v1/ops/health" in paths,
+            "intelligence": "/api/intelligence/prompts" in paths,
+            "occ": "/api/occ/stats" in paths,
+            "admin": "/api/admin/overview" in paths,
             "ai_films_director": "/api/ai-films/director/assemble" in paths,
             "ai_films_production_bible": "/api/ai-films/production/bible/{project_id}" in paths,
             "ai_films_anchor_frames": "/api/ai-films/production/anchors/candidates" in paths,
