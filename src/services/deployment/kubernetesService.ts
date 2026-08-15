@@ -1,8 +1,6 @@
-
 import { CloudProvider, ServiceStatus, CloudProviderCredentials } from '../../types/deployment';
 import { classifyCloudError } from './cloud/errorHandling';
 
-// Define missing types
 interface ClusterConnectionOptions {
   kubeConfig?: string;
   provider?: CloudProvider;
@@ -29,7 +27,6 @@ interface ConnectionResult {
   providerCredentials?: CloudProviderCredentials;
 }
 
-// Mock data for development in browser environments
 const mockClusterInfo: ClusterInfo = {
   nodes: 3,
   pods: 12,
@@ -44,86 +41,67 @@ const mockClusterInfo: ClusterInfo = {
 
 const mockServiceStatuses: ServiceStatus[] = [
   {
-    name: 'frontend',
-    status: 'Running',
-    pods: '3/3',
-    cpu: '45%',
-    memory: '128Mi',
-    namespace: 'default',
-    type: 'ClusterIP',
-    endpoints: ['10.0.0.1:8080'],
-    age: '5d'
+    name: 'frontend', status: 'Running', pods: '3/3', cpu: '45%', memory: '128Mi',
+    namespace: 'default', type: 'ClusterIP', endpoints: ['10.0.0.1:8080'], age: '5d'
   },
   {
-    name: 'backend',
-    status: 'Running',
-    pods: '2/2',
-    cpu: '35%',
-    memory: '256Mi',
-    namespace: 'default',
-    type: 'ClusterIP',
-    endpoints: ['10.0.0.2:8000'],
-    age: '5d'
+    name: 'backend', status: 'Running', pods: '2/2', cpu: '35%', memory: '256Mi',
+    namespace: 'default', type: 'ClusterIP', endpoints: ['10.0.0.2:8000'], age: '5d'
   },
   {
-    name: 'database',
-    status: 'Running',
-    pods: '1/1',
-    cpu: '25%',
-    memory: '512Mi',
-    namespace: 'default',
-    type: 'ClusterIP',
-    endpoints: ['10.0.0.3:5432'],
-    age: '5d'
+    name: 'database', status: 'Running', pods: '1/1', cpu: '25%', memory: '512Mi',
+    namespace: 'default', type: 'ClusterIP', endpoints: ['10.0.0.3:5432'], age: '5d'
   },
   {
-    name: 'redis',
-    status: 'Running',
-    pods: '1/1',
-    cpu: '10%',
-    memory: '64Mi',
-    namespace: 'default',
-    type: 'ClusterIP',
-    endpoints: ['10.0.0.4:6379'],
-    age: '5d'
+    name: 'redis', status: 'Running', pods: '1/1', cpu: '10%', memory: '64Mi',
+    namespace: 'default', type: 'ClusterIP', endpoints: ['10.0.0.4:6379'], age: '5d'
   }
 ];
 
-// Browser-compatible implementation without direct K8s client usage
+function extractKubernetesServer(kubeConfig: string): URL | null {
+  const serverLine = kubeConfig.split(/\r?\n/).find((line) => line.trimStart().startsWith('server:'));
+  if (!serverLine) return null;
+
+  const rawServer = serverLine.slice(serverLine.indexOf(':') + 1).trim().replace(/^['"]|['"]$/g, '');
+  try {
+    const parsed = new URL(rawServer);
+    return parsed.protocol === 'https:' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function hostnameEndsWith(hostname: string, suffix: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return normalized === suffix || normalized.endsWith(`.${suffix}`);
+}
+
+function regionBeforeMarker(hostname: string, marker: string, fallback: string): string {
+  const labels = hostname.toLowerCase().split('.');
+  const markerIndex = labels.indexOf(marker);
+  return markerIndex > 0 ? labels[markerIndex - 1] : fallback;
+}
+
 export const connectToKubernetesCluster = async (options: ClusterConnectionOptions): Promise<ConnectionResult> => {
-  const { kubeConfig, provider = 'aws', attempt = 1 } = options;
-  
+  const { kubeConfig, provider = 'aws' } = options;
+
   try {
     console.log('Connecting to Kubernetes cluster:', { provider, kubeConfigProvided: !!kubeConfig });
-    
-    // In browser environment, we'll simulate the connection 
-    // with a delay to mimic real-world behavior
     await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Parse kubeconfig to extract cluster information if provided
+
     let region = 'unknown';
-    let clusterName = 'default-cluster';
-    
+
     if (kubeConfig) {
       try {
-        // Simple parsing to extract some info from kubeconfig
-        // This is a simplified version just to extract some display info
-        if (kubeConfig.includes('cluster:')) {
-          const clusterMatch = kubeConfig.match(/name:\s*([a-zA-Z0-9-_.]+)/);
-          if (clusterMatch && clusterMatch[1]) {
-            clusterName = clusterMatch[1];
-          }
-          
-          // Extract region from common patterns in server URLs
-          if (kubeConfig.includes('eks.amazonaws.com')) {
-            const regionMatch = kubeConfig.match(/\.([a-z0-9-]+)\.eks\.amazonaws\.com/);
-            region = regionMatch?.[1] || 'us-west-2';
-          } else if (kubeConfig.includes('azmk8s.io')) {
-            const regionMatch = kubeConfig.match(/\.([a-z0-9]+)\.azmk8s\.io/);
-            region = regionMatch?.[1] || 'westus2';
-          } else if (kubeConfig.includes('gke.')) {
-            const regionMatch = kubeConfig.match(/gke\.([a-z0-9-]+)\./);
-            region = regionMatch?.[1] || 'us-central1';
+        const serverUrl = extractKubernetesServer(kubeConfig);
+        if (serverUrl) {
+          const hostname = serverUrl.hostname.toLowerCase();
+          if (hostnameEndsWith(hostname, 'eks.amazonaws.com')) {
+            region = regionBeforeMarker(hostname, 'eks', 'us-west-2');
+          } else if (hostnameEndsWith(hostname, 'azmk8s.io')) {
+            region = regionBeforeMarker(hostname, 'azmk8s', 'westus2');
+          } else if (hostnameEndsWith(hostname, 'gke.io') || hostnameEndsWith(hostname, 'googleapis.com')) {
+            region = 'us-central1';
           }
         }
       } catch (error) {
@@ -131,28 +109,15 @@ export const connectToKubernetesCluster = async (options: ClusterConnectionOptio
         return {
           connected: false,
           error: 'Invalid kubeconfig format. Please check your YAML syntax.',
-          clusterInfo: {
-            nodes: 0,
-            pods: 0,
-            services: 0,
-            deployments: 0,
-            status: 'Disconnected'
-          },
+          clusterInfo: { nodes: 0, pods: 0, services: 0, deployments: 0, status: 'Disconnected' },
           serviceStatuses: []
         };
       }
     }
-    
-    // Create an expiration date one hour from now
+
     const expirationDate = new Date(Date.now() + 3600000);
-    
-    // Enhance mock data with provided details
-    const enhancedClusterInfo = {
-      ...mockClusterInfo,
-      provider,
-      region
-    };
-    
+    const enhancedClusterInfo = { ...mockClusterInfo, provider, region };
+
     return {
       connected: true,
       clusterInfo: enhancedClusterInfo,
@@ -167,43 +132,16 @@ export const connectToKubernetesCluster = async (options: ClusterConnectionOptio
     };
   } catch (error) {
     console.error('Error connecting to Kubernetes cluster:', error);
-    
-    // Classify the error for more useful error messages
-    const { errorCode, errorMessage } = classifyCloudError(error, provider);
-    
+    const { errorMessage } = classifyCloudError(error, provider);
+
     return {
       connected: false,
       error: errorMessage || (error instanceof Error ? error.message : 'Unknown error occurred'),
-      clusterInfo: {
-        nodes: 0,
-        pods: 0,
-        services: 0,
-        deployments: 0,
-        status: 'Disconnected'
-      },
+      clusterInfo: { nodes: 0, pods: 0, services: 0, deployments: 0, status: 'Disconnected' },
       serviceStatuses: []
     };
   }
 };
-
-/**
- * Calculate age from creation timestamp
- */
-function getAge(timestamp: string): string {
-  if (!timestamp) return 'unknown';
-  
-  const created = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - created.getTime();
-  
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  
-  if (days > 0) {
-    return `${days}d${hours}h`;
-  }
-  return `${hours}h`;
-}
 
 export const getClusterDetails = async (kubeConfig?: string) => {
   const connection = await connectToKubernetesCluster({ kubeConfig });
@@ -220,21 +158,15 @@ export const getServiceStatuses = async (kubeConfig?: string, namespace?: string
 
 export const deployToCluster = async (kubeConfig?: string, manifests?: string[]) => {
   if (!kubeConfig || !manifests || manifests.length === 0) {
-    return {
-      success: false,
-      message: 'Missing kubeconfig or manifests'
-    };
+    return { success: false, message: 'Missing kubeconfig or manifests' };
   }
-  
+
   try {
-    // Simulate deployment with delay
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
+
     const results = manifests.map((manifestStr, index) => {
       try {
-        // Parse manifest
         const manifest = JSON.parse(manifestStr);
-        
         return {
           success: true,
           resource: `${manifest.kind}/${manifest.metadata?.name || `resource-${index}`}`,
@@ -248,12 +180,12 @@ export const deployToCluster = async (kubeConfig?: string, manifests?: string[])
         };
       }
     });
-    
+
     return {
       success: results.every(r => r.success),
       results,
-      message: results.every(r => r.success) 
-        ? 'All resources deployed successfully' 
+      message: results.every(r => r.success)
+        ? 'All resources deployed successfully'
         : 'Some resources failed to deploy'
     };
   } catch (error) {
