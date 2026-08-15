@@ -6,6 +6,7 @@ import logging
 import os
 from contextlib import asynccontextmanager, suppress
 from importlib import import_module
+from urllib.parse import urlparse
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,6 +18,15 @@ if railway_environment := os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip():
 app = import_module("backend.main").app
 logger = logging.getLogger(__name__)
 _base_lifespan = app.router.lifespan_context
+_OFFICIAL_D3VONN_HOSTS = {"d3vonn.io", "www.d3vonn.io", "app.d3vonn.io", "api.d3vonn.io"}
+
+
+def _is_official_d3vonn_origin(origin: str) -> bool:
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and (parsed.hostname or "").lower() in _OFFICIAL_D3VONN_HOSTS
 
 
 def _sovereign_signal_bootstrap_enabled() -> bool:
@@ -211,5 +221,5 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_commerce_webhook": "/api/ai-films/commerce/providers/pollo/webhook" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
-        "official_cors_origins": [origin for origin in RAILWAY_ALLOWED_ORIGINS if origin.endswith("d3vonn.io")],
+        "official_cors_origins": [origin for origin in RAILWAY_ALLOWED_ORIGINS if _is_official_d3vonn_origin(origin)],
     }

@@ -6,6 +6,7 @@ import os
 import json
 import uuid
 from datetime import datetime
+from urllib.parse import quote
 from secret_manager.manager import get_api_key, list_available_keys, set_api_key, delete_api_key
 from auth.token_utils import verify_token, get_current_user
 from fastapi.middleware.cors import CORSMiddleware
@@ -401,7 +402,7 @@ async def get_n8n_execution(execution_id: str):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(
-                f"{n8n_base_url}/api/v1/executions/{execution_id}",
+                f"{n8n_base_url}/api/v1/executions/{quote(execution_id, safe='')}",
                 headers={"X-N8N-API-KEY": n8n_api_key},
                 timeout=10.0
             )
@@ -530,7 +531,11 @@ async def proxy_huggingface_generate(data: ChatRequest, token: Dict = Depends(ve
     model_id = data.model if data.model != "gpt-4o-mini" else "mistralai/Mistral-7B-Instruct-v0.2"
     
     # HF Inference API endpoint
-    api_url = f"https://api-inference.huggingface.co/models/{model_id}"
+    model_parts = model_id.split("/", 1)
+    if len(model_parts) != 2 or not all(model_parts):
+        raise HTTPException(status_code=400, detail="Hugging Face model must be owner/model")
+    encoded_model = "/".join(quote(part, safe="") for part in model_parts)
+    api_url = f"https://api-inference.huggingface.co/models/{encoded_model}"
     
     payload = {
         "inputs": data.prompt,
@@ -588,7 +593,7 @@ async def proxy_elevenlabs_tts(data: TextToSpeechRequest, token: Dict = Depends(
         }
     }
 
-    api_url = f"https://api.elevenlabs.io/v1/text-to-speech/{data.voice_id}"
+    api_url = f"https://api.elevenlabs.io/v1/text-to-speech/{quote(data.voice_id, safe='')}"
 
     async with httpx.AsyncClient() as client:
         try:

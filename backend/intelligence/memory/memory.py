@@ -113,7 +113,7 @@ class LongTermMemory:
         if self._client is None:
             # Fallback to local store
             self._local_store[key] = entry
-            logger.debug("Long-term memory stored locally: %s", key)
+            logger.debug("Long-term memory stored locally")
             return True
 
         try:

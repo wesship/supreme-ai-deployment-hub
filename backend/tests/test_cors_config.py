@@ -7,8 +7,7 @@ def test_official_production_origins_are_always_present() -> None:
     for origin in PRODUCTION_ORIGINS:
         assert origin in origins
 
-    assert "https://internal.example" in origins
-    assert "http://localhost:5173" in origins
+    assert {"https://internal.example", "http://localhost:5173"}.issubset(set(origins))
 
 
 def test_configured_origins_extend_instead_of_replace() -> None:

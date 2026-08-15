@@ -315,7 +315,7 @@ async def _record_internal_event(
         )
         return True
     except Exception:  # pragma: no cover - defensive production guard
-        logger.exception("Internal Hermes voice event recording failed event=%s id=%s", event_type, event_id)
+        logger.error("Internal Hermes voice event recording failed")
         return False
 
 
@@ -431,7 +431,7 @@ async def _handle_tool_calls(
                 )
                 result = {"status": "queued", "task_id": task.get("id"), "title": task.get("title", title)}
             except Exception:  # pragma: no cover - external database failures
-                logger.exception("Hermes task creation failed tool_call_id=%s", tool_call_id)
+                logger.error("Hermes task creation failed")
                 result = {
                     "status": "unavailable",
                     "message": "Hermes could not queue the task. Please try again later.",
@@ -471,7 +471,7 @@ async def _relay_external(event_type: str, event_id: str, payload: dict[str, Any
         response.raise_for_status()
         return True
     except httpx.HTTPError:
-        logger.exception("Optional external Hermes voice relay failed event=%s id=%s", event_type, event_id)
+        logger.error("Optional external Hermes voice relay failed")
         return False
 
 

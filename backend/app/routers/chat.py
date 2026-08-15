@@ -109,7 +109,7 @@ async def chat_proxy(
         payload["tools"] = [t.model_dump() for t in request.tools]
         payload["tool_choice"] = request.tool_choice or "auto"
 
-    logger.info("chat_proxy user=%s model=%s stream=%s", user_id, request.model, request.stream)
+    logger.info("chat_proxy request accepted stream=%s", request.stream)
 
     # Non-streaming (tool-calling round) — return JSON directly
     if not request.stream:

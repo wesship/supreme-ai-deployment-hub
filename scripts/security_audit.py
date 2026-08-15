@@ -35,9 +35,17 @@ class Results:
     failed: list[str] = field(default_factory=list)
     warned: list[str] = field(default_factory=list)
 
-    def ok(self, msg: str)   -> None: self.passed.append(msg); print(f"  \033[32m✓\033[0m {msg}")
-    def fail(self, msg: str) -> None: self.failed.append(msg); print(f"  \033[31m✗\033[0m {msg}")
-    def warn(self, msg: str) -> None: self.warned.append(msg); print(f"  \033[33m!\033[0m {msg}")
+    def ok(self, msg: str) -> None:
+        self.passed.append(msg)
+        print("  \033[32m✓\033[0m check passed")
+
+    def fail(self, msg: str) -> None:
+        self.failed.append(msg)
+        print("  \033[31m✗\033[0m check failed; details retained in memory only")
+
+    def warn(self, msg: str) -> None:
+        self.warned.append(msg)
+        print("  \033[33m!\033[0m check warning; details retained in memory only")
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -302,8 +310,6 @@ def main() -> None:
 
     if r.failed:
         print(f"\033[31mSECURITY AUDIT FAILED — {len(r.failed)} check(s) did not pass.\033[0m")
-        for f in r.failed:
-            print(f"  ✗ {f}")
         sys.exit(1)
     else:
         print("\033[32mSECURITY AUDIT PASSED\033[0m")
