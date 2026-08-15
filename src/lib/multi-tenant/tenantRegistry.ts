@@ -17,8 +17,6 @@ import {
   ApiKeyStatus,
 } from "./types.js";
 
-// ── Tier Defaults ─────────────────────────────────────────────────────────────
-
 const TIER_DEFAULTS: Record<TenantTier, Tenant["quotas"] & Tenant["settings"]> = {
   free: {
     requestsPerDay: 100,
@@ -52,48 +50,41 @@ const TIER_DEFAULTS: Record<TenantTier, Tenant["quotas"] & Tenant["settings"]> =
   },
 };
 
-// ── Crypto Utilities ──────────────────────────────────────────────────────────
+function secureRandomHex(byteLength: number): string {
+  const webCrypto = globalThis.crypto;
+  if (!webCrypto?.getRandomValues) {
+    throw new Error("Secure random number generation is unavailable");
+  }
+  const bytes = new Uint8Array(byteLength);
+  webCrypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
 
 function generateId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  return Array.from({ length: 24 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return secureRandomHex(12);
 }
 
 function generateRawApiKey(tier: TenantTier): string {
   const prefix = tier === "enterprise" ? "dvn_ent_" : tier === "pro" ? "dvn_pro_" : "dvn_free_";
-  const secret = Array.from({ length: 40 }, () =>
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[
-      Math.floor(Math.random() * 62)
-    ]
-  ).join("");
-  return `${prefix}${secret}`;
+  return `${prefix}${secureRandomHex(20)}`;
 }
 
 async function hashApiKey(rawKey: string): Promise<string> {
-  // In Node.js environments, use crypto.subtle; in tests, use a simple hash
-  if (typeof crypto !== "undefined" && crypto.subtle) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(rawKey);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const webCrypto = globalThis.crypto;
+  if (!webCrypto?.subtle) {
+    throw new Error("Web Crypto hashing is unavailable");
   }
-  // Fallback for test environments
-  let hash = 0;
-  for (let i = 0; i < rawKey.length; i++) {
-    const char = rawKey.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(16).padStart(64, "0");
+  const encoder = new TextEncoder();
+  const data = encoder.encode(rawKey);
+  const hashBuffer = await webCrypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
-
-// ── Tenant Registry ───────────────────────────────────────────────────────────
 
 export class TenantRegistry {
   private tenants: Map<string, Tenant> = new Map();
   private apiKeys: Map<string, ApiKey> = new Map();
-  private keyHashIndex: Map<string, string> = new Map(); // hash -> keyId
+  private keyHashIndex: Map<string, string> = new Map();
 
   createTenant(name: string, tier: TenantTier = "free"): Tenant {
     const defaults = TIER_DEFAULTS[tier];
@@ -196,10 +187,8 @@ export class TenantRegistry {
       return null;
     }
 
-    // Update usage tracking
     apiKey.lastUsedAt = new Date();
     apiKey.usageCount++;
-
     return apiKey;
   }
 

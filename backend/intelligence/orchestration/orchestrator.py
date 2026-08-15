@@ -109,7 +109,7 @@ class AgentOrchestrator:
         except Exception as exc:
             run.status = "failed"
             run.error = str(exc)
-            logger.exception("Orchestration failed for goal: %s", goal)
+            logger.error("Orchestration execution failed")
         finally:
             run.completed_at = time.time()
 

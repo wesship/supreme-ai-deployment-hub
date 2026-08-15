@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import PushChangesDialog from '../PushChangesDialog';
 import { GitRepository } from '@/services/git';
@@ -11,28 +10,35 @@ interface PushChangesDialogContainerProps {
   isOpen: boolean;
 }
 
-const PushChangesDialogContainer: React.FC<PushChangesDialogContainerProps> = ({ 
-  selectedRepo, 
-  loading, 
-  onPushChanges, 
-  onClose, 
-  isOpen 
+function isGitHubRepositoryUrl(repositoryUrl: string): boolean {
+  try {
+    const parsed = new URL(repositoryUrl);
+    return parsed.hostname.toLowerCase() === 'github.com';
+  } catch {
+    const separator = repositoryUrl.indexOf(':');
+    return separator > 0 && repositoryUrl.slice(0, separator).toLowerCase() === 'git@github.com';
+  }
+}
+
+const PushChangesDialogContainer: React.FC<PushChangesDialogContainerProps> = ({
+  selectedRepo,
+  loading,
+  onPushChanges,
+  onClose,
+  isOpen
 }) => {
   const [commitMessage, setCommitMessage] = useState('');
 
   const handlePushChanges = async () => {
     if (!selectedRepo) return;
-    
-    // Check if it's a GitHub repository
-    const isGitHub = selectedRepo.url.includes('github.com');
+
+    const isGitHub = isGitHubRepositoryUrl(selectedRepo.url);
     console.log(`Preparing to push to ${isGitHub ? 'GitHub' : 'Git'} repository: ${selectedRepo.name}`);
-    
+
     const success = await onPushChanges(selectedRepo, commitMessage);
     if (success) {
       setCommitMessage('');
       onClose();
-      
-      // Log success information
       console.log(`Successfully pushed changes to ${isGitHub ? 'GitHub' : 'Git'} repository: ${selectedRepo.name}`);
     }
   };

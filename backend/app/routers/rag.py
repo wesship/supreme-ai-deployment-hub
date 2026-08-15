@@ -338,19 +338,13 @@ async def rag_ingest(
             settings.pinecone_index_name,
         )
 
-        logger.info(
-            "rag_ingest user=%s filename=%s chunks=%d dimension=%d",
-            user_id,
-            request.filename,
-            len(request.chunks),
-            pinecone_dimension,
-        )
+        logger.info("rag_ingest chunks=%d dimension=%d", len(request.chunks), pinecone_dimension)
         return RAGIngestResponse(success=True, chunksIngested=len(request.chunks), filename=request.filename)
 
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("rag_ingest error: %s", exc)
+        logger.error("rag_ingest failed")
         return RAGIngestResponse(success=False, chunksIngested=0, filename=request.filename, error=str(exc))
 
 
@@ -398,13 +392,13 @@ async def rag_retrieve(
             if m.get("score", 0.0) >= request.minScore
         ]
 
-        logger.info("rag_retrieve user=%s results=%d", user_id, len(results))
+        logger.info("rag_retrieve results=%d", len(results))
         return RAGRetrieveResponse(results=results, query=request.query)
 
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("rag_retrieve error: %s", exc)
+        logger.error("rag_retrieve failed")
         return RAGRetrieveResponse(results=[], query=request.query)
 
 
@@ -435,5 +429,5 @@ async def rag_delete(
         settings.pinecone_index_name,
     )
 
-    logger.info("rag_delete user=%s filename=%s", user_id, request.filename)
+    logger.info("rag_delete completed")
     return {"success": True, "filename": request.filename}

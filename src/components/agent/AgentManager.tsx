@@ -25,7 +25,7 @@ const AgentManager: React.FC = () => {
   const [taskDescription, setTaskDescription] = useState("");
   const [context, setContext] = useState("");
   const [includeContext, setIncludeContext] = useState(false);
-  const [userId, setUserId] = useState("user_" + Math.random().toString(36).substring(2, 8));
+  const [userId, setUserId] = useState(() => `user_${crypto.randomUUID()}`);
   const [file, setFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("create");
   const [yamlDAG, setYamlDAG] = useState(`workflow_name: research_pipeline

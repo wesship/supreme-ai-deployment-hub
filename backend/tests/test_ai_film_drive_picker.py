@@ -71,8 +71,14 @@ def test_vercel_csp_allows_only_required_google_picker_origins():
         for header in block["headers"]
         if header["key"] == "Content-Security-Policy"
     )
-    assert "script-src" in csp and "https://apis.google.com" in csp
-    assert "connect-src" in csp and "https://www.googleapis.com" in csp
-    assert "frame-src" in csp and "https://docs.google.com" in csp
-    assert "https://drive.google.com" in csp
-    assert "https://accounts.google.com" in csp
+    directives = {}
+    for raw_directive in csp.split(";"):
+        tokens = raw_directive.strip().split()
+        if tokens:
+            directives[tokens[0]] = set(tokens[1:])
+
+    assert "https://apis.google.com" in directives.get("script-src", set())
+    assert "https://www.googleapis.com" in directives.get("connect-src", set())
+    assert "https://docs.google.com" in directives.get("frame-src", set())
+    assert "https://drive.google.com" in directives.get("frame-src", set())
+    assert "https://accounts.google.com" in directives.get("frame-src", set())

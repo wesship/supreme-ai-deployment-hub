@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
@@ -15,6 +14,16 @@ interface RepositoryListItemProps {
   onDeleteRepository: (repoId: string) => void;
 }
 
+function isGitHubRepositoryUrl(repositoryUrl: string): boolean {
+  try {
+    const parsed = new URL(repositoryUrl);
+    return parsed.hostname.toLowerCase() === 'github.com';
+  } catch {
+    const separator = repositoryUrl.indexOf(':');
+    return separator > 0 && repositoryUrl.slice(0, separator).toLowerCase() === 'git@github.com';
+  }
+}
+
 const RepositoryListItem = ({
   repo,
   activeRepositoryId,
@@ -24,9 +33,8 @@ const RepositoryListItem = ({
   onSelectForPush,
   onDeleteRepository
 }: RepositoryListItemProps) => {
-  // Check if this is a GitHub repository
-  const isGitHub = repo.url.includes('github.com');
-  
+  const isGitHub = isGitHubRepositoryUrl(repo.url);
+
   return (
     <Card key={repo.id} className={`border-border ${activeRepositoryId === repo.id ? 'border-primary' : ''}`}>
       <CardHeader className="py-3">
@@ -63,8 +71,8 @@ const RepositoryListItem = ({
               className={`h-8 px-3 ${isGitHub ? "text-[#2da44e]" : ""}`}
               onClick={() => onSelectForPush(repo)}
             >
-              {isGitHub ? 
-                <Github className="h-3 w-3 mr-2" /> : 
+              {isGitHub ?
+                <Github className="h-3 w-3 mr-2" /> :
                 <GitCommit className="h-3 w-3 mr-2" />
               }
               Push

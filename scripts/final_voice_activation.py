@@ -297,7 +297,6 @@ def main() -> int:
                 {
                     "status": "certified",
                     "assistant_id": config["VAPI_ASSISTANT_ID"],
-                    "voice_id": config["ELEVENLABS_DEFAULT_VOICE_ID"],
                     "webhook_url": WEBHOOK_URL,
                     "railway_project_id": PROJECT_ID,
                     "railway_service_id": SERVICE_ID,

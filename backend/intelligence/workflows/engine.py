@@ -116,11 +116,11 @@ class WorkflowEngine:
         except asyncio.TimeoutError:
             run.status = StepStatus.FAILED
             run.error = f"Workflow timed out after {definition.timeout_seconds}s"
-            logger.error("Workflow %s timed out", workflow_name)
+            logger.error("Workflow execution timed out")
         except Exception as exc:
             run.status = StepStatus.FAILED
             run.error = str(exc)
-            logger.exception("Workflow %s failed: %s", workflow_name, exc)
+            logger.error("Workflow execution failed")
         finally:
             run.completed_at = time.time()
 

@@ -317,7 +317,7 @@ async def log_event(
 ) -> None:
     """Emit a structured lifecycle event through the configured event sink."""
     if not _is_configured():
-        logger.debug("[hermes_log] %s %s", event, message)
+        logger.debug("Hermes event skipped because persistence is not configured")
         return
     payload: dict[str, Any] = {"event": event, "level": level}
     if message:

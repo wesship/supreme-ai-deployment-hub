@@ -180,9 +180,8 @@ async def store_vault_key(
         encrypted = True
     else:
         logger.warning(
-            "API_KEY_VAULT_SECRET not set — storing key %s in plaintext. "
-            "Set API_KEY_VAULT_SECRET in Railway to enable encryption.",
-            body.name,
+            "API_KEY_VAULT_SECRET not set — storing requested key in plaintext. "
+            "Set API_KEY_VAULT_SECRET in Railway to enable encryption."
         )
         vault[body.name] = body.value
         encrypted = False

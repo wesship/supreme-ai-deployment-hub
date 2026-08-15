@@ -4,6 +4,7 @@ All provider credentials remain server-side.
 """
 import logging
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -51,7 +52,7 @@ async def voice_tts(
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                f"https://api.elevenlabs.io/v1/text-to-speech/{quote(voice_id, safe='')}",
                 json=payload,
                 headers={
                     "xi-api-key": settings.elevenlabs_api_key,
@@ -64,7 +65,7 @@ async def voice_tts(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"ElevenLabs TTS error {resp.status_code}: {resp.text[:300]}",
             )
-        logger.info("voice_tts provider=elevenlabs user=%s chars=%d", user_id, len(request.text))
+        logger.info("voice_tts provider=elevenlabs chars=%d", len(request.text))
         return Response(content=resp.content, media_type="audio/mpeg")
 
     if settings.openai_api_key:
@@ -99,8 +100,7 @@ async def voice_tts(
                 detail=f"OpenAI TTS error {resp.status_code}: {resp.text[:300]}",
             )
         logger.info(
-            "voice_tts provider=openai user=%s chars=%d voice=%s",
-            user_id,
+            "voice_tts provider=openai chars=%d voice=%s",
             len(request.text),
             openai_voice,
         )
@@ -153,7 +153,7 @@ async def voice_stt_token(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="AssemblyAI returned no temporary streaming token",
         )
-    logger.info("voice_stt_token provider=assemblyai_v3 user=%s expires_in=%d", user_id, expires_in_seconds)
+    logger.info("voice_stt_token provider=assemblyai_v3 expires_in=%d", expires_in_seconds)
     return STTTokenResponse(token=token)
 
 
@@ -174,7 +174,9 @@ async def github_trigger_workflow(
             detail="GitHub CI/CD not configured (GITHUB_TOKEN missing on server)",
         )
 
-    url = f"https://api.github.com/repos/{settings.github_repo}/actions/workflows/{request.workflow}/dispatches"
+    repo_path = "/".join(quote(part, safe="") for part in settings.github_repo.split("/", 1))
+    workflow_path = quote(request.workflow, safe="")
+    url = f"https://api.github.com/repos/{repo_path}/actions/workflows/{workflow_path}/dispatches"
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(
             url,
@@ -192,7 +194,7 @@ async def github_trigger_workflow(
         )
 
     ts = datetime.now(timezone.utc).isoformat()
-    logger.info("github_trigger user=%s workflow=%s branch=%s", user_id, request.workflow, request.branch)
+    logger.info("github_trigger dispatched")
     return GitHubWorkflowTriggerResponse(
         success=True,
         message=f"Workflow '{request.workflow}' triggered on branch '{request.branch}'",
@@ -218,10 +220,11 @@ async def github_runs_status(
             detail="GitHub CI/CD not configured (GITHUB_TOKEN missing on server)",
         )
 
+    repo_path = "/".join(quote(part, safe="") for part in settings.github_repo.split("/", 1))
     url = (
-        f"https://api.github.com/repos/{settings.github_repo}/actions/workflows/{workflow}/runs"
+        f"https://api.github.com/repos/{repo_path}/actions/workflows/{quote(workflow, safe='')}/runs"
         if workflow
-        else f"https://api.github.com/repos/{settings.github_repo}/actions/runs"
+        else f"https://api.github.com/repos/{repo_path}/actions/runs"
     )
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.get(
@@ -298,7 +301,7 @@ async def n8n_execute(
         workflow_id = matched[0]["id"]
         async with httpx.AsyncClient(timeout=30.0) as client:
             exec_resp = await client.post(
-                f"{settings.n8n_base_url}/api/v1/workflows/{workflow_id}/execute",
+                f"{settings.n8n_base_url}/api/v1/workflows/{quote(str(workflow_id), safe='')}/execute",
                 json={"data": request.payload},
                 headers={
                     "X-N8N-API-KEY": settings.n8n_api_key,
@@ -312,12 +315,12 @@ async def n8n_execute(
             )
 
         result = exec_resp.json()
-        logger.info("n8n_execute user=%s workflow=%s id=%s", user_id, request.workflow_name, workflow_id)
+        logger.info("n8n_execute completed")
         return N8NExecuteResponse(success=True, workflow=request.workflow_name, result=result, timestamp=ts)
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception("n8n_execute error: %s", exc)
+        logger.error("n8n_execute failed")
         return N8NExecuteResponse(
             success=False,
             workflow=request.workflow_name,

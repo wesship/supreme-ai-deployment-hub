@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -198,11 +198,14 @@ def resolve_asset_source(row: Mapping[str, Any]) -> AssetSource:
     source_type = str(metadata.get("source_type") or "unknown")
     if not media_url:
         raise AssemblyBlocked(f"Asset {row.get('id')} has no renderable media location")
-    if "drive.google.com" in media_url or source_type == "google_drive":
+    parsed_media = urlparse(media_url)
+    media_host = (parsed_media.hostname or "").lower()
+    is_drive_host = media_host == "drive.google.com" or media_host.endswith(".drive.google.com")
+    if is_drive_host or source_type == "google_drive":
         raise AssemblyBlocked(
             f"Asset {row.get('id')} is a private Google Drive source and must be materialized first"
         )
-    if not media_url.startswith(("https://", "http://")):
+    if parsed_media.scheme not in {"https", "http"} or not parsed_media.netloc:
         raise AssemblyBlocked(f"Asset {row.get('id')} does not expose a server-readable media URL")
     return AssetSource(
         id=str(row.get("id") or ""),
