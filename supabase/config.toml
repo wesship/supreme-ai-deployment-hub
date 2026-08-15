@@ -47,3 +47,18 @@ vector_port = 54328
 
 [functions.ai-router]
 verify_jwt = true
+
+[functions.tars-plan]
+verify_jwt = true
+
+[functions.tars-summarize]
+verify_jwt = true
+
+[functions.tars-followup]
+verify_jwt = true
+
+# enqueue-task intentionally bypasses platform JWT verification because it is
+# an external integration webhook that authenticates every request with
+# HERMES_WEBHOOK_SECRET using HMAC-SHA256 before any privileged write.
+[functions.enqueue-task]
+verify_jwt = false
