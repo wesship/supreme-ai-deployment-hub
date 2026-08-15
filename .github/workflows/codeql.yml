@@ -3,8 +3,8 @@ name: CodeQL SAST
 # Run static application security testing before merge, weekly, or on demand.
 # Ordinary main-branch pushes are intentionally excluded to prevent duplicate
 # post-merge security fan-out while preserving required security coverage.
-# SARIF is enforced locally so High/Critical findings cannot pass merely because
-# repository-native code scanning is unavailable or disabled.
+# Results are uploaded to GitHub code scanning and also enforced locally so
+# High/Critical findings cannot pass if native alert ingestion is unavailable.
 
 on:
   pull_request:
@@ -20,6 +20,7 @@ concurrency:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   analyze:
@@ -29,6 +30,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      security-events: write
 
     strategy:
       fail-fast: false
@@ -96,7 +98,7 @@ jobs:
         uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
           category: /language:${{ matrix.language }}
-          upload: false
+          upload: true
           output: sarif-results
           add-snippet: true
 
