@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +23,16 @@ interface PushChangesDialogProps {
   onPushChanges: () => void;
 }
 
+function isGitHubRepositoryUrl(repositoryUrl: string): boolean {
+  try {
+    const parsed = new URL(repositoryUrl);
+    return parsed.hostname.toLowerCase() === 'github.com';
+  } catch {
+    const separator = repositoryUrl.indexOf(':');
+    return separator > 0 && repositoryUrl.slice(0, separator).toLowerCase() === 'git@github.com';
+  }
+}
+
 const PushChangesDialog = ({
   isOpen,
   onOpenChange,
@@ -35,8 +44,7 @@ const PushChangesDialog = ({
 }: PushChangesDialogProps) => {
   if (!selectedRepo) return null;
 
-  // Check if this is a GitHub repository
-  const isGitHub = selectedRepo.url.includes('github.com');
+  const isGitHub = isGitHubRepositoryUrl(selectedRepo.url);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -60,13 +68,13 @@ const PushChangesDialog = ({
               onChange={(e) => setCommitMessage(e.target.value)}
             />
           </div>
-          
+
           {isGitHub && selectedRepo.accessToken && (
             <div className="rounded-md bg-green-50 p-2 text-green-800 text-sm">
               Using authenticated GitHub access for this repository.
             </div>
           )}
-          
+
           {isGitHub && !selectedRepo.accessToken && (
             <div className="rounded-md bg-amber-50 p-2 text-amber-800 text-sm">
               No GitHub token provided. Using public access.
@@ -75,8 +83,8 @@ const PushChangesDialog = ({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button 
-            onClick={onPushChanges} 
+          <Button
+            onClick={onPushChanges}
             disabled={loading || !commitMessage}
             className={isGitHub ? "bg-[#2da44e] hover:bg-[#2c974b]" : ""}
           >
