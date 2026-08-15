@@ -12,12 +12,18 @@ const requireUser = async () => {
 
 const sanitizeFilename = (name: string) => name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-');
 
+export const resolveFilmAssetContentType = (file: Pick<File, 'name' | 'type'>): string | undefined => {
+  if (file.name.toLowerCase().endsWith('.exr')) return 'image/x-exr';
+  return file.type || undefined;
+};
+
 export const uploadFilmAsset = async (projectId: string, file: File, category = 'REFERENCE'): Promise<AIFilmAsset> => {
   const user = await requireUser();
   const storagePath = `${user.id}/${projectId}/${crypto.randomUUID()}-${sanitizeFilename(file.name)}`;
+  const contentType = resolveFilmAssetContentType(file);
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
     cacheControl: '3600',
-    contentType: file.type || undefined,
+    contentType,
     upsert: false,
   });
   if (uploadError) throw uploadError;
@@ -34,7 +40,7 @@ export const uploadFilmAsset = async (projectId: string, file: File, category = 
     status: 'draft',
     version: 1,
     tags: ['uploaded'],
-    metadata: { mime_type: file.type, size_bytes: file.size },
+    metadata: { mime_type: contentType || file.type, size_bytes: file.size },
   }).select('id,project_id,title,description,source_filename,storage_path,category,subcategory,status,version,tags,metadata').single();
   if (error) {
     await supabase.storage.from(BUCKET).remove([storagePath]);
