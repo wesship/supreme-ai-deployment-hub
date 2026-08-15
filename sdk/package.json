@@ -19,7 +19,7 @@
   },
   "devDependencies": {
     "typescript": "^5.4.0",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=18.0.0"
