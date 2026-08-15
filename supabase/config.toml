@@ -47,3 +47,17 @@ vector_port = 54328
 
 [functions.ai-router]
 verify_jwt = true
+
+[functions.tars-plan]
+verify_jwt = true
+
+[functions.tars-summarize]
+verify_jwt = true
+
+[functions.tars-followup]
+verify_jwt = true
+
+# enqueue-task intentionally uses verify_jwt=false because it is a public
+# integration webhook that performs its own HMAC-SHA256 authentication.
+[functions.enqueue-task]
+verify_jwt = false
