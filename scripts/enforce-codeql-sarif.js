@@ -1,5 +1,6 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const HIGH_SECURITY_SEVERITY = 7.0;
 
@@ -21,7 +22,7 @@ function collectSarifFiles(targetPath) {
 
 function ruleIndex(run) {
   const rules = run.tool?.driver?.rules ?? [];
-  return new Map(rules.map(rule => [rule.id, rule]));
+  return new Map(rules.map((rule) => [rule.id, rule]));
 }
 
 function getSecuritySeverity(rule) {
@@ -106,11 +107,12 @@ function main(argv = process.argv.slice(2)) {
   process.exitCode = 1;
 }
 
-if (require.main === module) {
+const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : null;
+if (invokedPath === import.meta.url) {
   main();
 }
 
-module.exports = {
+export {
   HIGH_SECURITY_SEVERITY,
   collectSarifFiles,
   getSecuritySeverity,
