@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,7 @@ const ManageAgentsTab: React.FC<ManageAgentsTabProps> = ({
     }
 
     const task: Task = {
-      user_id: "user_" + Math.random().toString(36).substring(2, 8),
+      user_id: `user_${crypto.randomUUID()}`,
       task_description: taskDescription,
       context: includeContext ? context : undefined,
     };
@@ -78,15 +77,11 @@ const ManageAgentsTab: React.FC<ManageAgentsTabProps> = ({
                 {agents.map((agent) => (
                   <div
                     key={agent.id}
-                    className={`p-3 rounded-lg cursor-pointer hover:bg-accent ${
-                      selectedAgent?.id === agent.id ? "bg-accent" : ""
-                    }`}
+                    className={`p-3 rounded-lg cursor-pointer hover:bg-accent ${selectedAgent?.id === agent.id ? "bg-accent" : ""}`}
                     onClick={() => setSelectedAgent(agent)}
                   >
                     <div className="font-medium">{agent.name}</div>
-                    <div className="text-sm text-muted-foreground truncate">
-                      {agent.desc}
-                    </div>
+                    <div className="text-sm text-muted-foreground truncate">{agent.desc}</div>
                   </div>
                 ))}
               </div>
@@ -97,12 +92,8 @@ const ManageAgentsTab: React.FC<ManageAgentsTabProps> = ({
 
       <Card className="md:col-span-2">
         <CardHeader>
-          <CardTitle>
-            {selectedAgent ? `Run Agent: ${selectedAgent.name}` : "Select an Agent"}
-          </CardTitle>
-          {selectedAgent && (
-            <CardDescription>{selectedAgent.desc}</CardDescription>
-          )}
+          <CardTitle>{selectedAgent ? `Run Agent: ${selectedAgent.name}` : "Select an Agent"}</CardTitle>
+          {selectedAgent && <CardDescription>{selectedAgent.desc}</CardDescription>}
         </CardHeader>
         <CardContent className="space-y-4">
           {selectedAgent ? (
@@ -129,16 +120,8 @@ const ManageAgentsTab: React.FC<ManageAgentsTabProps> = ({
                   />
                 </div>
               )}
-              <Button
-                onClick={handleRunAgent}
-                disabled={!taskDescription || loading}
-                className="w-full"
-              >
-                {loading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="mr-2 h-4 w-4" />
-                )}
+              <Button onClick={handleRunAgent} disabled={!taskDescription || loading} className="w-full">
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                 {loading ? "Running..." : "Run Agent"}
               </Button>
               {lastResponse && (
@@ -155,9 +138,7 @@ const ManageAgentsTab: React.FC<ManageAgentsTabProps> = ({
             <div className="flex flex-col items-center justify-center h-[300px] text-center">
               <List className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium">No Agent Selected</h3>
-              <p className="text-muted-foreground">
-                Select an agent from the list to run it
-              </p>
+              <p className="text-muted-foreground">Select an agent from the list to run it</p>
             </div>
           )}
         </CardContent>
