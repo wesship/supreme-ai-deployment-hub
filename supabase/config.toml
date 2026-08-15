@@ -1,6 +1,6 @@
-# A string used to distinguish different Supabase projects on the same host. Defaults to the
-# working directory name when running `supabase init`.
-project_id = "devonn-ai"
+# Supabase configuration for local development
+# For complete reference, see https://supabase.com/docs/guides/cli/config
+project_id = "supreme-ai-deployment-hub"
 
 [api]
 enabled = true
@@ -11,6 +11,7 @@ max_rows = 1000
 
 [db]
 port = 54322
+shadow_port = 54320
 major_version = 15
 
 [db.pooler]
@@ -22,26 +23,36 @@ max_client_conn = 100
 
 [realtime]
 enabled = true
-port = 54323
-max_header_length = 4096
 
 [studio]
 enabled = true
-port = 54324
-api_url = "http://127.0.0.1:54321"
+port = 54323
+api_url = "http://127.0.0.1"
 
 [inbucket]
 enabled = true
-port = 54325
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
 
-[edge_runtime]
+[storage]
 enabled = true
-port = 54326
-policy = "per_worker"
-inspector_port = 8083
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
 
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 vector_port = 54328
 
@@ -57,7 +68,8 @@ verify_jwt = true
 [functions.tars-followup]
 verify_jwt = true
 
-# enqueue-task intentionally uses verify_jwt=false because it is a public
-# integration webhook that performs its own HMAC-SHA256 authentication.
+# enqueue-task intentionally bypasses platform JWT verification because it is
+# an external integration webhook that authenticates every request with
+# HERMES_WEBHOOK_SECRET using HMAC-SHA256 before any privileged write.
 [functions.enqueue-task]
 verify_jwt = false
