@@ -3,6 +3,8 @@ name: CodeQL SAST
 # Run static application security testing before merge, weekly, or on demand.
 # Ordinary main-branch pushes are intentionally excluded to prevent duplicate
 # post-merge security fan-out while preserving required security coverage.
+# SARIF is enforced locally so High/Critical findings cannot pass merely because
+# repository-native code scanning is unavailable or disabled.
 
 on:
   pull_request:
@@ -105,3 +107,6 @@ jobs:
           name: codeql-sarif-${{ matrix.language }}
           path: sarif-results/
           retention-days: 14
+
+      - name: Enforce High and Critical CodeQL findings
+        run: node scripts/enforce-codeql-sarif.js sarif-results
