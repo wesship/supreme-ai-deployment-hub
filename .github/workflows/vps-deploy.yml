@@ -66,21 +66,27 @@ jobs:
 
       # ── 3. Pull latest code on VPS ─────────────────────────────────────────
       - name: Pull latest code on VPS
+        env:
+          REPO_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -euo pipefail
+          # Use the workflow's short-lived, read-only repository token for this
+          # fetch only. The credential is not written to the VPS git config.
+          AUTH_HEADER="$(printf 'x-access-token:%s' "$REPO_READ_TOKEN" | base64 | tr -d '\n')"
           ssh \
             -i ~/.ssh/vps_key \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile=~/.ssh/known_hosts \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
-            'set -euo pipefail
+            "set -euo pipefail
              cd /opt/supreme-ai-deployment-hub
-             sudo git fetch origin
+             sudo git -c http.https://github.com/.extraheader='AUTHORIZATION: basic ${AUTH_HEADER}' fetch origin
              sudo git reset --hard origin/main
-             echo "HEAD: $(git rev-parse --short HEAD)"
+             echo \"HEAD: \$(git rev-parse --short HEAD)\"
              test -f .github/workflows/vps-deploy.yml \
-               && echo "Workflow file: present" \
-               || echo "WARNING: vps-deploy.yml not found on this commit"'
+               && echo \"Workflow file: present\" \
+               || echo \"WARNING: vps-deploy.yml not found on this commit\""
 
       # ── 4. Generate missing internal secrets (idempotent) ─────────────────
       - name: Generate internal secrets and patch .env.production
