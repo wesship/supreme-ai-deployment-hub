@@ -1,0 +1,63 @@
+name: SDK NanoID Repair
+
+on:
+  push:
+    branches:
+      - security/sdk-nanoid-repair
+    paths:
+      - sdk/package.json
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: security/sdk-nanoid-repair
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: sdk/package-lock.json
+
+      - name: Regenerate dependency graph
+        run: npm install
+
+      - name: Verify NanoID is patched
+        run: |
+          node -e "const p=require('./node_modules/nanoid/package.json'); const v=p.version.split('.').map(Number); if (v[0] < 3 || (v[0] === 3 && (v[1] < 3 || (v[1] === 3 && v[2] < 18)))) { console.error('nanoid remains vulnerable:', p.version); process.exit(1) } console.log('nanoid', p.version)"
+          npm ls nanoid
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit dependency tree
+        run: npm audit --audit-level=high
+
+      - name: Commit regenerated lockfile
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sdk/package.json sdk/package-lock.json
+          if git diff --cached --quiet; then
+            echo 'No dependency changes to commit.'
+          else
+            git commit -m 'fix(sdk): repair nanoid dependency chain'
+            git push origin HEAD:security/sdk-nanoid-repair
+          fi
+        working-directory: .
