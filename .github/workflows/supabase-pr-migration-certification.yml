@@ -35,14 +35,14 @@ jobs:
               mv "$source" "$target"
             fi
           done <<'EOF'
-          supabase/migrations/20260525_create_conversations.sql supabase/migrations/20260525000000_create_conversations.sql
-          supabase/migrations/20260528_occ_tables.sql supabase/migrations/20260528000000_occ_tables.sql
-          supabase/migrations/20260529_hermes_brain.sql supabase/migrations/20260529000000_hermes_brain.sql
-          supabase/migrations/20260530_hermes_brain_additive.sql supabase/migrations/20260530000000_hermes_brain_additive.sql
-          supabase/migrations/20260626_research_os.sql supabase/migrations/20260626000000_research_os.sql
-          supabase/migrations/20260718_hermes_workers.sql supabase/migrations/20260718000000_hermes_workers.sql
-          supabase/migrations/20260808_allow_ai_film_anchor_jpegs.sql supabase/migrations/20260808000000_allow_ai_film_anchor_jpegs.sql
-          supabase/migrations/20260809_pollo_commerce_jobs.sql supabase/migrations/20260809000000_pollo_commerce_jobs.sql
+          supabase/migrations/20260525_create_conversations.sql supabase/migrations/20260525000002_create_conversations.sql
+          supabase/migrations/20260528_occ_tables.sql supabase/migrations/20260528000002_occ_tables.sql
+          supabase/migrations/20260529_hermes_brain.sql supabase/migrations/20260529000002_hermes_brain.sql
+          supabase/migrations/20260530_hermes_brain_additive.sql supabase/migrations/20260530000002_hermes_brain_additive.sql
+          supabase/migrations/20260626_research_os.sql supabase/migrations/20260626000002_research_os.sql
+          supabase/migrations/20260718_hermes_workers.sql supabase/migrations/20260718000002_hermes_workers.sql
+          supabase/migrations/20260808_allow_ai_film_anchor_jpegs.sql supabase/migrations/20260808000002_allow_ai_film_anchor_jpegs.sql
+          supabase/migrations/20260809_pollo_commerce_jobs.sql supabase/migrations/20260809000002_pollo_commerce_jobs.sql
           EOF
 
       - name: Install Supabase CLI
@@ -94,14 +94,14 @@ jobs:
               mv "$source" "$target"
             fi
           done <<'EOF'
-          supabase/migrations/20260525_create_conversations.sql supabase/migrations/20260525000000_create_conversations.sql
-          supabase/migrations/20260528_occ_tables.sql supabase/migrations/20260528000000_occ_tables.sql
-          supabase/migrations/20260529_hermes_brain.sql supabase/migrations/20260529000000_hermes_brain.sql
-          supabase/migrations/20260530_hermes_brain_additive.sql supabase/migrations/20260530000000_hermes_brain_additive.sql
-          supabase/migrations/20260626_research_os.sql supabase/migrations/20260626000000_research_os.sql
-          supabase/migrations/20260718_hermes_workers.sql supabase/migrations/20260718000000_hermes_workers.sql
-          supabase/migrations/20260808_allow_ai_film_anchor_jpegs.sql supabase/migrations/20260808000000_allow_ai_film_anchor_jpegs.sql
-          supabase/migrations/20260809_pollo_commerce_jobs.sql supabase/migrations/20260809000000_pollo_commerce_jobs.sql
+          supabase/migrations/20260525_create_conversations.sql supabase/migrations/20260525000002_create_conversations.sql
+          supabase/migrations/20260528_occ_tables.sql supabase/migrations/20260528000002_occ_tables.sql
+          supabase/migrations/20260529_hermes_brain.sql supabase/migrations/20260529000002_hermes_brain.sql
+          supabase/migrations/20260530_hermes_brain_additive.sql supabase/migrations/20260530000002_hermes_brain_additive.sql
+          supabase/migrations/20260626_research_os.sql supabase/migrations/20260626000002_research_os.sql
+          supabase/migrations/20260718_hermes_workers.sql supabase/migrations/20260718000002_hermes_workers.sql
+          supabase/migrations/20260808_allow_ai_film_anchor_jpegs.sql supabase/migrations/20260808000002_allow_ai_film_anchor_jpegs.sql
+          supabase/migrations/20260809_pollo_commerce_jobs.sql supabase/migrations/20260809000002_pollo_commerce_jobs.sql
           EOF
 
       - name: Validate staging credentials are configured
