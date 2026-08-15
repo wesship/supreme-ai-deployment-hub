@@ -25,6 +25,26 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Normalize legacy migration versions for CLI compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          while read -r source target; do
+            if [[ -f "$source" ]]; then
+              test ! -e "$target"
+              mv "$source" "$target"
+            fi
+          done <<'EOF'
+          supabase/migrations/20260525_create_conversations.sql supabase/migrations/20260525000000_create_conversations.sql
+          supabase/migrations/20260528_occ_tables.sql supabase/migrations/20260528000000_occ_tables.sql
+          supabase/migrations/20260529_hermes_brain.sql supabase/migrations/20260529000000_hermes_brain.sql
+          supabase/migrations/20260530_hermes_brain_additive.sql supabase/migrations/20260530000000_hermes_brain_additive.sql
+          supabase/migrations/20260626_research_os.sql supabase/migrations/20260626000000_research_os.sql
+          supabase/migrations/20260718_hermes_workers.sql supabase/migrations/20260718000000_hermes_workers.sql
+          supabase/migrations/20260808_allow_ai_film_anchor_jpegs.sql supabase/migrations/20260808000000_allow_ai_film_anchor_jpegs.sql
+          supabase/migrations/20260809_pollo_commerce_jobs.sql supabase/migrations/20260809000000_pollo_commerce_jobs.sql
+          EOF
+
       - name: Install Supabase CLI
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
         with:
@@ -63,6 +83,26 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+
+      - name: Normalize legacy migration versions for CLI compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          while read -r source target; do
+            if [[ -f "$source" ]]; then
+              test ! -e "$target"
+              mv "$source" "$target"
+            fi
+          done <<'EOF'
+          supabase/migrations/20260525_create_conversations.sql supabase/migrations/20260525000000_create_conversations.sql
+          supabase/migrations/20260528_occ_tables.sql supabase/migrations/20260528000000_occ_tables.sql
+          supabase/migrations/20260529_hermes_brain.sql supabase/migrations/20260529000000_hermes_brain.sql
+          supabase/migrations/20260530_hermes_brain_additive.sql supabase/migrations/20260530000000_hermes_brain_additive.sql
+          supabase/migrations/20260626_research_os.sql supabase/migrations/20260626000000_research_os.sql
+          supabase/migrations/20260718_hermes_workers.sql supabase/migrations/20260718000000_hermes_workers.sql
+          supabase/migrations/20260808_allow_ai_film_anchor_jpegs.sql supabase/migrations/20260808000000_allow_ai_film_anchor_jpegs.sql
+          supabase/migrations/20260809_pollo_commerce_jobs.sql supabase/migrations/20260809000000_pollo_commerce_jobs.sql
+          EOF
 
       - name: Validate staging credentials are configured
         shell: bash
