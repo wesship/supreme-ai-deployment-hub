@@ -25,6 +25,7 @@ jobs:
     env:
       PYTHONPATH: .
       SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF || secrets.SUPABASE_PROJECT_REF || vars.SUPABASE_PROJECT_ID || secrets.SUPABASE_PROJECT_ID }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       AI_FILMS_CANARY_TIMEOUT_SECONDS: '900'
       AI_FILMS_CANARY_POLL_SECONDS: '5'
@@ -38,6 +39,14 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
+      - name: Resolve production Supabase URL
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            test -n "$SUPABASE_PROJECT_REF"
+            SUPABASE_URL="https://${SUPABASE_PROJECT_REF}.supabase.co"
+            echo "SUPABASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
+          fi
       - name: Require production control-plane credentials
         run: |
           test -n "$SUPABASE_URL"
