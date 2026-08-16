@@ -152,14 +152,21 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f backend/requirements-dev.txt ]; then pip install -r backend/requirements-dev.txt; fi
 
+      - name: Run OpenEXR runtime tests
+        run: python -m pytest tests/test_openexr_asset.py -v
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
       - name: Run Python tests
         run: |
-          pytest tests/ \
+          python -m pytest tests/ \
             --cov=src \
             --cov-report=xml:python-coverage.xml \
             --cov-report=term-missing \
-            -v || echo "No Python tests found - skipping"
+            -v
         env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Upload Python coverage to Codecov
