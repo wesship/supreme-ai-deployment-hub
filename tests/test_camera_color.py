@@ -25,6 +25,7 @@ from backend.ai_films.color_management import ACESCG, inspect_transform, list_co
         (("Sony Venice 2", "S-Log3 S-Gamut3.Cine"), "S-Log3 Venice S-Gamut3.Cine"),
         (("Apple iPhone", "Apple Log"), "Apple Log"),
         (("Camera", "Rec.709"), "Camera Rec.709"),
+        (("ffprobe", "color_space bt709 color_transfer bt709 color_primaries bt709"), "Camera Rec.709"),
         (("web image", "sRGB"), "sRGB Encoded Rec.709 (sRGB)"),
         (("render", "ACEScg"), ACESCG),
     ],
@@ -84,3 +85,17 @@ def test_metadata_flattening_resolves_camera_and_profile():
         filename="A001_C001.mov",
     )
     assert match.source_space == "S-Log3 S-Gamut3.Cine"
+
+
+def test_ffprobe_bt709_metadata_resolves_rec709():
+    match = infer_camera_color_from_metadata(
+        {
+            "color_space": "bt709",
+            "color_transfer": "bt709",
+            "color_primaries": "bt709",
+            "color_range": "tv",
+        },
+        filename="canary.mp4",
+    )
+    assert match.source_space == "Camera Rec.709"
+    assert match.rule == "camera-bt709"
