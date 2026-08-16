@@ -13,17 +13,42 @@ logger = logging.getLogger(__name__)
 
 
 def _cutoff(seconds: float) -> str:
-    age = max(60.0, float(seconds))
+    age = max(900.0, float(seconds))
     return (datetime.now(timezone.utc) - timedelta(seconds=age)).isoformat()
+
+
+async def _cas_update(
+    db: SupabaseAssemblyClient,
+    *,
+    job_id: str,
+    filters: Mapping[str, str],
+    payload: Mapping[str, Any],
+) -> bool:
+    params = {"id": f"eq.{job_id}", **dict(filters)}
+    updates = dict(payload)
+    updates["updated_at"] = _now()
+    rows = await db._request(
+        "PATCH",
+        "ai_film_render_jobs",
+        params=params,
+        payload=updates,
+        representation=True,
+    )
+    return bool(rows)
 
 
 async def recover_stale_states(
     db: SupabaseAssemblyClient,
     *,
-    stale_seconds: float = 1800.0,
+    stale_seconds: float = 7200.0,
     max_mastering_attempts: int = 3,
 ) -> dict[str, int]:
-    """Recover only nonterminal states that were abandoned by a process restart."""
+    """Recover only nonterminal states abandoned by a process restart.
+
+    Every write is compare-and-set against the stale state and cutoff observed by
+    the sweep. A live worker that updates the row after the scan therefore wins,
+    and recovery leaves it untouched.
+    """
     cutoff = _cutoff(stale_seconds)
     counts = {
         "mastering_requeued": 0,
@@ -60,10 +85,16 @@ async def recover_stale_states(
             }
         )
         output["recovery"] = recovery
+        filters = {
+            "status": "eq.processing",
+            "updated_at": f"lt.{cutoff}",
+        }
         if attempts >= max(1, int(max_mastering_attempts)):
-            await db.update_job(
-                job_id,
-                {
+            changed = await _cas_update(
+                db,
+                job_id=job_id,
+                filters=filters,
+                payload={
                     "status": "failed",
                     "progress": 0,
                     "completed_at": _now(),
@@ -71,11 +102,13 @@ async def recover_stale_states(
                     "output": output,
                 },
             )
-            counts["mastering_failed"] += 1
+            counts["mastering_failed"] += int(changed)
         else:
-            await db.update_job(
-                job_id,
-                {
+            changed = await _cas_update(
+                db,
+                job_id=job_id,
+                filters=filters,
+                payload={
                     "status": "queued",
                     "progress": 0,
                     "started_at": None,
@@ -84,7 +117,7 @@ async def recover_stale_states(
                     "output": output,
                 },
             )
-            counts["mastering_requeued"] += 1
+            counts["mastering_requeued"] += int(changed)
 
     stale_completed = await db._request(
         "GET",
@@ -113,8 +146,17 @@ async def recover_stale_states(
             qa["recovered_at"] = _now()
             qa["recovery_reason"] = "stale_master_qa_claim"
             output["qa"] = qa
-            await db.update_job(job_id, {"output": output})
-            counts["qc_requeued"] += 1
+            changed = await _cas_update(
+                db,
+                job_id=job_id,
+                filters={
+                    "status": "eq.completed",
+                    "updated_at": f"lt.{cutoff}",
+                    "output->qa->>state": "eq.master_qa_in_progress",
+                },
+                payload={"output": output},
+            )
+            counts["qc_requeued"] += int(changed)
             continue
 
         if (
@@ -125,8 +167,17 @@ async def recover_stale_states(
             qa["hermes_handoff_updated_at"] = _now()
             qa["hermes_handoff_error"] = "Recovered stale Hermes handoff claim"
             output["qa"] = qa
-            await db.update_job(job_id, {"output": output})
-            counts["handoff_retried"] += 1
+            changed = await _cas_update(
+                db,
+                job_id=job_id,
+                filters={
+                    "status": "eq.completed",
+                    "updated_at": f"lt.{cutoff}",
+                    "output->qa->>hermes_handoff_state": "eq.in_progress",
+                },
+                payload={"output": output},
+            )
+            counts["handoff_retried"] += int(changed)
 
     return counts
 
@@ -150,8 +201,8 @@ async def run_mastering_recovery_worker(
         return
 
     stale_seconds = max(
-        300.0,
-        float(source.get("AI_FILM_MASTERING_STALE_SECONDS", "1800") or 1800),
+        900.0,
+        float(source.get("AI_FILM_MASTERING_STALE_SECONDS", "7200") or 7200),
     )
     max_attempts = max(
         1,
