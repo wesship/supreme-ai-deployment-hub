@@ -122,6 +122,12 @@ try:
 except ImportError as exc:
     logger.warning("AI Films Commerce Studio router not registered: %s", exc)
 
+try:
+    from backend.ai_films.mastering_router import router as ai_film_mastering_router
+    proxy_router.include_router(ai_film_mastering_router, tags=["ai-films-mastering"])
+    logger.info("AI Films mastering queue registered at /api/ai-films/mastering/*.")
+except ImportError as exc:
+    logger.warning("AI Films mastering router not registered: %s", exc)
 
 try:
     from backend.ai_films.index_router import router as ai_film_index_router
