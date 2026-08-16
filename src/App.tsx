@@ -75,6 +75,7 @@ const PrimetimeScheduling = lazy(() => import("./pages/PrimetimeScheduling"));
 const PrimetimeCommunications = lazy(() => import("./pages/PrimetimeCommunications"));
 const PrimetimeAiAssistance = lazy(() => import("./pages/PrimetimeAiAssistance"));
 const PrimetimeExecutiveCommandCenter = lazy(() => import("./pages/PrimetimeExecutiveCommandCenter"));
+const PrimetimeAgentOsCanary = lazy(() => import("./pages/PrimetimeAgentOsCanary"));
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -178,6 +179,7 @@ function App() {
                 <Route path="/primetime/release-4" element={<PrimetimeAiAssistance />} />
                 <Route path="/primetime/executive-command-center" element={<PrimetimeExecutiveCommandCenter />} />
                 <Route path="/primetime/release-5" element={<PrimetimeExecutiveCommandCenter />} />
+                <Route path="/primetime/agent-os-canary" element={<AuthenticatedRoute><PrimetimeAgentOsCanary /></AuthenticatedRoute>} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/terms" element={<Terms />} />
