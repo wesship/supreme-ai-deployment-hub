@@ -1,0 +1,71 @@
+name: Voice Live Browser Certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type CERTIFY_VOICE to run two brief production browser calls
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voice-live-browser-certification
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Certify signed-out and authenticated voice calls
+    if: ${{ inputs.confirmation == 'CERTIFY_VOICE' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Validate protected test identity
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$E2E_TEST_EMAIL"
+          test -n "$E2E_TEST_PASSWORD"
+
+      - name: Run two brief production browser calls
+        env:
+          CI: 'true'
+          PLAYWRIGHT_BASE_URL: https://d3vonn.io
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: pnpm exec playwright test tests/e2e/voice-live-production.spec.ts --project=chromium
+
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: voice-live-browser-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
