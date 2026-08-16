@@ -198,7 +198,7 @@ jobs:
              APP_DIR=/opt/supreme-ai-deployment-hub
              cd "$APP_DIR"
              echo "=== Starting deployment from pre-synced checkout ==="
-             sudo env APP_DIR="$APP_DIR" SKIP_GIT_SYNC=true bash deploy/vps/scripts/deploy.sh'
+             sudo bash -c '\''APP_DIR=/opt/supreme-ai-deployment-hub SKIP_GIT_SYNC=true exec bash /opt/supreme-ai-deployment-hub/deploy/vps/scripts/deploy.sh'\'''
 
       - name: Verify container health
         if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
