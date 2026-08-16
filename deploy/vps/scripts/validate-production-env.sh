@@ -9,14 +9,46 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# Load values without printing secrets.
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+# Parse dotenv assignments as data instead of executing the file as shell code.
+# This prevents malformed/stale lines from becoming commands while preserving
+# standard KEY=VALUE and export KEY=VALUE syntax. Values are never printed.
+dotenv_warnings=0
+line_number=0
+while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+  line_number=$((line_number + 1))
+  raw_line="${raw_line%$'\r'}"
+
+  # Trim leading/trailing horizontal whitespace for classification only.
+  line="${raw_line#"${raw_line%%[![:space:]]*}"}"
+  line="${line%"${line##*[![:space:]]}"}"
+
+  [[ -z "$line" || "$line" == \#* ]] && continue
+  [[ "$line" == export[[:space:]]* ]] && line="${line#export }"
+
+  if [[ ! "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+    echo "WARNING: Ignoring malformed dotenv line $line_number (not a KEY=VALUE assignment)."
+    dotenv_warnings=$((dotenv_warnings + 1))
+    continue
+  fi
+
+  key="${line%%=*}"
+  value="${line#*=}"
+
+  # Support conventional single- or double-quoted dotenv values without eval.
+  if [[ ${#value} -ge 2 ]]; then
+    first="${value:0:1}"
+    last="${value: -1}"
+    if [[ ( "$first" == '"' && "$last" == '"' ) || ( "$first" == "'" && "$last" == "'" ) ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+  fi
+
+  printf -v "$key" '%s' "$value"
+  export "$key"
+done < "$ENV_FILE"
 
 errors=0
-warnings=0
+warnings=$dotenv_warnings
 
 required() {
   local name="$1"
@@ -110,9 +142,9 @@ fi
 
 if [[ "$errors" -gt 0 ]]; then
   echo
-  echo "FAILED: $errors required configuration problem(s), $warnings optional warning(s)."
+  echo "FAILED: $errors required configuration problem(s), $warnings warning(s)."
   exit 1
 fi
 
 echo
-echo "PASSED: Production environment is structurally ready ($warnings optional warning(s))."
+echo "PASSED: Production environment is structurally ready ($warnings warning(s))."
