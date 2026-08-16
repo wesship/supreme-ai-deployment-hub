@@ -18,19 +18,28 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def proxy_lifespan(_: FastAPI):
+async def proxy_lifespan(app: FastAPI):
     activation_task: asyncio.Task[None] | None = None
+    mastering_task: asyncio.Task[None] | None = None
     try:
         from backend.app.voice_activation import activate_voice_runtime
         activation_task = asyncio.create_task(activate_voice_runtime(), name="d3vonn-voice-activation")
         logger.info("Railway-native voice activation scheduled.")
     except ImportError as exc:
         logger.warning("Railway-native voice activation unavailable: %s", exc)
+    try:
+        from backend.ai_films.mastering_worker import run_mastering_worker
+        mastering_task = asyncio.create_task(run_mastering_worker(), name="ai-films-mastering-worker")
+        app.state.ai_films_mastering_worker_task = mastering_task
+        logger.info("AI FILMS ACEScg/OpenEXR mastering worker scheduled.")
+    except ImportError as exc:
+        logger.warning("AI FILMS mastering worker unavailable: %s", exc)
     yield
-    if activation_task and not activation_task.done():
-        activation_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await activation_task
+    for task in (activation_task, mastering_task):
+        if task and not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
 
 
 proxy_router = APIRouter(prefix="/api", lifespan=proxy_lifespan)
@@ -122,6 +131,12 @@ try:
 except ImportError as exc:
     logger.warning("AI Films Commerce Studio router not registered: %s", exc)
 
+try:
+    from backend.ai_films.mastering_router import router as ai_film_mastering_router
+    proxy_router.include_router(ai_film_mastering_router, tags=["ai-films-mastering"])
+    logger.info("AI Films mastering queue registered at /api/ai-films/mastering/*.")
+except ImportError as exc:
+    logger.warning("AI Films mastering router not registered: %s", exc)
 
 try:
     from backend.ai_films.index_router import router as ai_film_index_router
