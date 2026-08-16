@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 25
     env:
       PYTHONPATH: .
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_URL: ${{ vars.SUPABASE_URL || secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       AI_FILMS_CANARY_TIMEOUT_SECONDS: '900'
       AI_FILMS_CANARY_POLL_SECONDS: '5'
