@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from backend.ai_films.openexr_asset import write_rgb_exr
 
@@ -46,7 +46,7 @@ def load_aces_config(config_name: str = ACES_2_CG_CONFIG):
     ocio = _load_ocio()
     try:
         config = ocio.Config.CreateFromBuiltinConfig(config_name)
-    except Exception as exc:  # OCIO raises its own binding exception type.
+    except Exception as exc:
         raise ColorManagementError(
             f"Unable to load built-in OpenColorIO config: {config_name}"
         ) from exc
@@ -97,11 +97,7 @@ def inspect_transform(
     *,
     config_name: str = ACES_2_CG_CONFIG,
 ) -> ColorTransformInfo:
-    cpu = get_cpu_processor(
-        source_space,
-        destination_space,
-        config_name=config_name,
-    )
+    cpu = get_cpu_processor(source_space, destination_space, config_name=config_name)
     return ColorTransformInfo(
         config_name=config_name,
         source_space=source_space,
@@ -124,31 +120,21 @@ def transform_rgb(
         raise ColorManagementError("RGB channel lengths must match")
     if not red:
         return [], [], []
-
     try:
         import numpy as np
     except ImportError as exc:
-        raise ColorManagementDependencyError(
-            "NumPy is required for OpenColorIO image processing"
-        ) from exc
-
+        raise ColorManagementDependencyError("NumPy is required for OpenColorIO image processing") from exc
     packed = np.empty((len(red), 3), dtype=np.float32)
     packed[:, 0] = np.asarray(red, dtype=np.float32)
     packed[:, 1] = np.asarray(green, dtype=np.float32)
     packed[:, 2] = np.asarray(blue, dtype=np.float32)
-
-    cpu = get_cpu_processor(
-        source_space,
-        destination_space,
-        config_name=config_name,
-    )
+    cpu = get_cpu_processor(source_space, destination_space, config_name=config_name)
     try:
         cpu.applyRGB(packed)
     except Exception as exc:
         raise ColorManagementError(
             f"OCIO RGB transform failed: {source_space} -> {destination_space}"
         ) from exc
-
     return (
         packed[:, 0].astype(float).tolist(),
         packed[:, 1].astype(float).tolist(),
@@ -186,13 +172,9 @@ def write_color_managed_exr(
     alpha: Sequence[float] | None = None,
     depth: Sequence[float] | None = None,
     config_name: str = ACES_2_CG_CONFIG,
+    metadata: Mapping[str, str | int | float] | None = None,
 ) -> Path:
-    """Transform source RGB into ACEScg, then write the canonical AI FILMS EXR master.
-
-    Alpha and depth are intentionally not color-transformed. The OpenEXR writer stores
-    RGB/A as HALF, depth as FLOAT, and stamps ACEScg/master-container metadata.
-    """
-
+    """Transform source RGB into ACEScg and preserve caller provenance in the EXR."""
     red_aces, green_aces, blue_aces = transform_to_acescg(
         red,
         green,
@@ -200,6 +182,12 @@ def write_color_managed_exr(
         source_space=source_space,
         config_name=config_name,
     )
+    exr_metadata: dict[str, str | int | float] = {
+        "aiFilmsSourceColorSpace": source_space,
+        "aiFilmsOCIOConfig": config_name,
+        "aiFilmsColorTransform": f"{source_space}->{ACESCG}",
+    }
+    exr_metadata.update(metadata or {})
     return write_rgb_exr(
         path,
         width=width,
@@ -209,9 +197,5 @@ def write_color_managed_exr(
         blue=blue_aces,
         alpha=alpha,
         depth=depth,
-        metadata={
-            "aiFilmsSourceColorSpace": source_space,
-            "aiFilmsOCIOConfig": config_name,
-            "aiFilmsColorTransform": f"{source_space}->{ACESCG}",
-        },
+        metadata=exr_metadata,
     )
