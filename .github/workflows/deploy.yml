@@ -78,8 +78,6 @@ jobs:
       startsWith(github.ref, 'refs/heads/release/')
     environment:
       name: ${{ github.event.inputs.environment || 'production' }}
-    # Release publication is reachable only from trusted deploy events above.
-    # Keep PR validation at the workflow default (contents: read).
     permissions:
       contents: write
 
@@ -222,41 +220,56 @@ jobs:
           workdir="$(mktemp -d)"
           trap 'rm -rf "$workdir"' EXIT
 
-          # d3vonn.io canonically redirects to www.d3vonn.io. Follow that
-          # redirect so the smoke test inspects the deployed application HTML,
-          # not the redirect response body.
           curl --fail --silent --show-error --location \
             --retry 6 --retry-delay 10 --retry-all-errors \
             --connect-timeout 10 --max-time 30 \
             https://d3vonn.io/ -o "$workdir/index.html"
 
           : > "$workdir/bundle.js"
-          asset_count=0
-          while read -r asset; do
-            [ -n "$asset" ] || continue
-            asset_count=$((asset_count + 1))
-            case "$asset" in
-              http*) url="$asset" ;;
-              /*)    url="https://www.d3vonn.io$asset" ;;
-              *)     url="https://www.d3vonn.io/$asset" ;;
-            esac
-            curl --fail --silent --show-error --location "$url" >> "$workdir/bundle.js"
-          done < <(
-            grep -oE 'src="[^"]+\.js[^"]*"' "$workdir/index.html" \
-              | sed -E 's/^src="//; s/"$//' \
-              || true
-          )
+          : > "$workdir/seen-assets.txt"
+          printf '%s\n' index.html > "$workdir/crawl-source.txt"
 
+          for round in 1 2 3 4; do
+            : > "$workdir/candidates.txt"
+            while read -r source; do
+              [ -n "$source" ] || continue
+              grep -oE '(assets/)?[A-Za-z0-9._-]+\.js' "$workdir/$source" 2>/dev/null || true
+            done < "$workdir/crawl-source.txt" \
+              | sed -E 's#^assets/##' \
+              | sort -u > "$workdir/candidates.txt"
+
+            : > "$workdir/next-source.txt"
+            added=0
+            while read -r asset; do
+              [ -n "$asset" ] || continue
+              if grep -Fxq "$asset" "$workdir/seen-assets.txt"; then
+                continue
+              fi
+              if curl --fail --silent --show-error --location \
+                --connect-timeout 10 --max-time 30 \
+                "https://www.d3vonn.io/assets/$asset" -o "$workdir/$asset"; then
+                printf '%s\n' "$asset" >> "$workdir/seen-assets.txt"
+                printf '%s\n' "$asset" >> "$workdir/next-source.txt"
+                cat "$workdir/$asset" >> "$workdir/bundle.js"
+                added=$((added + 1))
+              fi
+            done < "$workdir/candidates.txt"
+
+            [ "$added" -gt 0 ] || break
+            mv "$workdir/next-source.txt" "$workdir/crawl-source.txt"
+          done
+
+          asset_count=$(wc -l < "$workdir/seen-assets.txt" | tr -d ' ')
           if [ "$asset_count" -eq 0 ]; then
-            echo "ERROR: Live frontend HTML exposed no JavaScript bundle URLs after redirects."
+            echo "ERROR: Live frontend HTML exposed no reachable JavaScript bundle graph after redirects."
             exit 1
           fi
           if grep -q "devonn-ai-api-production\.up\.railway\.app" "$workdir/bundle.js"; then
-            echo "ERROR: Live frontend bundle still contains the direct Railway hostname."
+            echo "ERROR: Live frontend bundle graph still contains the direct Railway hostname."
             exit 1
           fi
           if ! grep -q "https://api\.d3vonn\.io" "$workdir/bundle.js"; then
-            echo "ERROR: Live frontend bundle does not contain api.d3vonn.io."
+            echo "ERROR: Reachable live frontend bundle graph does not contain api.d3vonn.io."
             exit 1
           fi
-          echo "Live frontend bundle certified for api.d3vonn.io."
+          echo "Live frontend bundle graph certified for api.d3vonn.io across ${asset_count} JavaScript assets."
