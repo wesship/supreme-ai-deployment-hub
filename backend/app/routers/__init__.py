@@ -17,12 +17,28 @@ from fastapi import APIRouter, FastAPI, Request
 logger = logging.getLogger(__name__)
 
 
+def _task_state(app: FastAPI, attribute: str) -> str:
+    task = getattr(app.state, attribute, None)
+    if not isinstance(task, asyncio.Task):
+        return "unavailable"
+    if task.cancelled():
+        return "cancelled"
+    if not task.done():
+        return "running"
+    try:
+        error = task.exception()
+    except asyncio.CancelledError:
+        return "cancelled"
+    return "failed" if error is not None else "stopped"
+
+
 @asynccontextmanager
 async def proxy_lifespan(app: FastAPI):
     activation_task: asyncio.Task[None] | None = None
     mastering_task: asyncio.Task[None] | None = None
     master_qc_task: asyncio.Task[None] | None = None
     hermes_handoff_task: asyncio.Task[None] | None = None
+    mastering_recovery_task: asyncio.Task[None] | None = None
     try:
         from backend.app.voice_activation import activate_voice_runtime
         activation_task = asyncio.create_task(activate_voice_runtime(), name="d3vonn-voice-activation")
@@ -53,8 +69,24 @@ async def proxy_lifespan(app: FastAPI):
         logger.info("AI FILMS Hermes mastering handoff worker scheduled.")
     except ImportError as exc:
         logger.warning("AI FILMS Hermes mastering handoff worker unavailable: %s", exc)
+    try:
+        from backend.ai_films.mastering_recovery_worker import run_mastering_recovery_worker
+        mastering_recovery_task = asyncio.create_task(
+            run_mastering_recovery_worker(),
+            name="ai-films-mastering-recovery-worker",
+        )
+        app.state.ai_films_mastering_recovery_worker_task = mastering_recovery_task
+        logger.info("AI FILMS mastering restart-recovery worker scheduled.")
+    except ImportError as exc:
+        logger.warning("AI FILMS mastering recovery worker unavailable: %s", exc)
     yield
-    for task in (activation_task, mastering_task, master_qc_task, hermes_handoff_task):
+    for task in (
+        activation_task,
+        mastering_task,
+        master_qc_task,
+        hermes_handoff_task,
+        mastering_recovery_task,
+    ):
         if task and not task.done():
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -70,11 +102,11 @@ async def api_health_compatibility(request: Request) -> dict[str, str]:
 
 
 @proxy_router.get("/deploy/probe", tags=["ops"])
-async def deploy_probe():
+async def deploy_probe(request: Request):
     return {
         "status": "ok",
         "router_registry": "backend.app.routers",
-        "deployment_marker": "backend-api-certification-2026-07-24",
+        "deployment_marker": "backend-api-certification-2026-08-16-ai-films-mastering-ops",
         "proxy_vault_expected": "/api/proxy/config",
         "contact_route_expected": "/api/contact",
         "voice_routes_expected": [
@@ -85,6 +117,15 @@ async def deploy_probe():
             "/api/voice/jockey/certify",
         ],
         "compatibility_routes": ["/api/api/tools/voice/tts", "/api/api/tools/voice/stt-token"],
+        "ai_films_workers": {
+            "mastering": _task_state(request.app, "ai_films_mastering_worker_task"),
+            "master_qc": _task_state(request.app, "ai_films_master_qc_worker_task"),
+            "hermes_handoff": _task_state(
+                request.app,
+                "ai_films_hermes_mastering_handoff_worker_task",
+            ),
+            "recovery": _task_state(request.app, "ai_films_mastering_recovery_worker_task"),
+        },
     }
 
 
