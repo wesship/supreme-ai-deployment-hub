@@ -7,6 +7,8 @@
 
 The trusted production voice backend is already operational. Its public readiness endpoint reports a configured **Vapi-managed ElevenLabs** runtime, including Vapi private-key and webhook readiness, signed inline browser sessions, ElevenLabs API and voice readiness, the Hermes adapter, and film intelligence. The remaining browser-side implementation was not reliably callable because it used Vapi’s legacy HTML-widget wrapper as though it exposed the official Web SDK `start()` lifecycle. The project has been repaired to use the official Vapi Web SDK directly, preserving the secure signed-session design and Vapi-managed ElevenLabs voice path.
 
+The GitHub production activation workflow now mirrors the Railway activation event policy: existing events are filtered through the supported Vapi server-message allowlist and only the required D3VONN events are added. The retired `assistant-request` event is no longer reintroduced.
+
 A separate, pre-existing application-wide client-rendering issue remains: both the live and rebuilt local site leave the React root empty in the audit browser without a captured browser-console exception. This prevents a final human microphone smoke test until the frontend mount issue is resolved or independently reproduced in a standard browser. It does not change the validated backend readiness or the successful static, type, build, secret-scan, and backend-contract test results.
 
 | Area | Audit result | Evidence |
@@ -15,7 +17,7 @@ A separate, pre-existing application-wide client-rendering issue remains: both t
 | Browser Vapi control | **Repaired** | Replaced HTML-widget-wrapper control with `@vapi-ai/web`, whose documented `new Vapi(publicKey)` and `start(assistant)` lifecycle matches the implementation. [1] |
 | ElevenLabs delivery | **Configured through Vapi** | The production assistant uses Vapi provider value `11labs` and the designated voice ID; Vapi documents this as its supported ElevenLabs TTS configuration. [2] |
 | Authenticated Hermes tools | **Preserved** | Signed-in users receive a short-lived inline Vapi assistant; unauthenticated published-assistant calls cannot execute Hermes tools. |
-| Deployment activation | **Repaired** | The GitHub workflow no longer reintroduces retired `assistant-request` into `serverMessages`; it now applies the same supported-event policy as Railway startup activation. |
+| Deployment activation | **Repaired** | The GitHub workflow filters the current event set through the same supported-event policy as Railway startup activation and no longer reintroduces retired `assistant-request`. |
 | Browser visual smoke test | **Blocked** | The production and local React roots remain empty after assets load; no testable voice control is rendered in the audit browser. |
 
 ## Findings and corrective actions
@@ -28,7 +30,7 @@ This preserves two intended modes. A signed-in D3VONN user receives a short-live
 
 ### Vapi and ElevenLabs configuration drift
 
-The Railway startup activator correctly removed retired Vapi server-message values, but the protected GitHub activation workflow later added `assistant-request` back into the published assistant configuration. Vapi documents `assistant-request` as a dynamic-assistant lookup event for inbound phone-call setup; browser calls begin directly through the Web SDK and do not require that event. [3] The workflow now filters its current event set through the same supported list as the backend activation routine, then adds only the required D3VONN telemetry and tool-call events.
+The Railway startup activator correctly removes retired Vapi server-message values. The protected GitHub activation workflow now follows the same policy: it preserves only events in the supported Vapi server-message allowlist, then adds the required D3VONN events `tool-calls`, `status-update`, `end-of-call-report`, and `transcript`. The retired `assistant-request` value is therefore removed instead of being carried forward. Vapi documents `assistant-request` as a dynamic-assistant lookup event for inbound phone-call setup; browser calls begin directly through the Web SDK and do not require that event. [3]
 
 The assistant continues to use Vapi-managed ElevenLabs TTS. Vapi specifies `voice.provider: "11labs"` and a `voiceId` for this path. [2] The public browser receives only a Vapi public key and assistant identifier; the Vapi private key, ElevenLabs key, webhook secret, and optional session-signing secret remain server-side.
 
