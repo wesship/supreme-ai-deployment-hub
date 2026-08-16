@@ -4,12 +4,10 @@ Covers all proxy routes: /api/chat, /api/rag/*, /api/tools/*.
 Uses httpx.AsyncClient with FastAPI's ASGI transport (no real network calls).
 External API calls are mocked with unittest.mock.patch.
 """
-import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
-from fastapi.params import Depends as DependsParam
 from fastapi.testclient import TestClient
 
 # ── App import ────────────────────────────────────────────────────────────────
@@ -295,23 +293,31 @@ class TestToolsProxy:
 
 
 class TestAuthEnforcement:
-    def test_auth_dependency_is_present_on_tools_routes(self):
-        route_paths = {
-            route.path: route
-            for route in test_app.routes
-            if hasattr(route, "path") and hasattr(route, "endpoint")
-        }
-        for path in [
-            "/api/tools/voice/tts",
-            "/api/tools/voice/stt-token",
-            "/api/tools/github/workflows/trigger",
-            "/api/tools/github/runs/status",
-            "/api/tools/n8n/execute",
-        ]:
-            route = route_paths[path]
-            dependency_calls = [
-                parameter.default.dependency
-                for parameter in inspect.signature(route.endpoint).parameters.values()
-                if isinstance(parameter.default, DependsParam)
-            ]
-            assert get_current_user_id in dependency_calls
+    @pytest.mark.parametrize(
+        ("method", "path", "payload"),
+        [
+            ("post", "/api/tools/voice/tts", {"text": "blocked"}),
+            ("post", "/api/tools/voice/stt-token", {"expires_in": 480}),
+            ("post", "/api/tools/github/workflows/trigger", {"workflow": "deploy.yml", "branch": "main"}),
+            ("get", "/api/tools/github/runs/status", None),
+            ("post", "/api/tools/n8n/execute", {"workflow_name": "Blocked", "payload": {}}),
+        ],
+    )
+    def test_tools_routes_reject_missing_auth(self, client, method, path, payload):
+        auth_settings = _test_settings()
+        auth_settings.require_auth = True
+        test_app.dependency_overrides.pop(get_current_user_id, None)
+
+        try:
+            with patch("backend.app.middleware.auth.get_settings", return_value=auth_settings), \
+                 patch("backend.app.routers.tools.httpx.AsyncClient") as upstream_client:
+                if method == "get":
+                    response = client.get(path)
+                else:
+                    response = client.post(path, json=payload)
+
+            assert response.status_code == 401
+            assert response.json()["detail"] == "Authorization header required"
+            upstream_client.assert_not_called()
+        finally:
+            test_app.dependency_overrides[get_current_user_id] = _mock_user_id
