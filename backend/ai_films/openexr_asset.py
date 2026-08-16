@@ -43,13 +43,12 @@ class OpenEXRAssetInfo:
 def _load_bindings():
     try:
         import OpenEXR  # type: ignore
-        import Imath  # type: ignore
     except ImportError as exc:
         raise OpenEXRDependencyError(
             "OpenEXR runtime support is unavailable. Install requirements.txt "
             "so the OpenEXR Python bindings are present."
         ) from exc
-    return OpenEXR, Imath
+    return OpenEXR
 
 
 def has_exr_extension(path: str | Path) -> bool:
@@ -73,7 +72,11 @@ def validate_exr_identity(path: str | Path) -> Path:
 
 
 def _box_tuple(box: Any) -> tuple[int, int, int, int]:
-    return (int(box.min.x), int(box.min.y), int(box.max.x), int(box.max.y))
+    """Normalize legacy Imath boxes and OpenEXR.File tuple boxes."""
+    if hasattr(box, "min") and hasattr(box, "max"):
+        return (int(box.min.x), int(box.min.y), int(box.max.x), int(box.max.y))
+    minimum, maximum = box
+    return (int(minimum[0]), int(minimum[1]), int(maximum[0]), int(maximum[1]))
 
 
 def _safe_text(value: Any) -> str | None:
@@ -85,17 +88,17 @@ def _safe_text(value: Any) -> str | None:
 
 def inspect_exr(path: str | Path, *, require_rgb: bool = True) -> OpenEXRAssetInfo:
     candidate = validate_exr_identity(path)
-    OpenEXR, _ = _load_bindings()
+    OpenEXR = _load_bindings()
 
-    input_file = OpenEXR.InputFile(str(candidate))
-    try:
+    with OpenEXR.File(str(candidate), separate_channels=True) as input_file:
         header = input_file.header()
-        channels_map = header.get("channels", {})
+        channels_map = input_file.channels()
         channels = tuple(sorted(str(name) for name in channels_map.keys()))
         data_window = header["dataWindow"]
         display_window = header.get("displayWindow", data_window)
-        width = int(data_window.max.x - data_window.min.x + 1)
-        height = int(data_window.max.y - data_window.min.y + 1)
+        min_x, min_y, max_x, max_y = _box_tuple(data_window)
+        width = max_x - min_x + 1
+        height = max_y - min_y + 1
         channel_set = set(channels)
         has_rgb = all(channel in channel_set for channel in REQUIRED_RGB_CHANNELS)
         has_alpha = "A" in channel_set
@@ -106,8 +109,9 @@ def inspect_exr(path: str | Path, *, require_rgb: bool = True) -> OpenEXRAssetIn
                 f"AI FILMS master EXR requires R/G/B channels; found {channels or 'none'}"
             )
 
-        multipart = bool(header.get("multiView")) or bool(header.get("name"))
-        deep = any("deep" in str(value).lower() for value in header.values())
+        multipart = len(input_file.parts) > 1
+        storage = header.get("type")
+        deep = storage in {OpenEXR.deepscanline, OpenEXR.deeptile}
 
         metadata = {
             key: value
@@ -132,8 +136,6 @@ def inspect_exr(path: str | Path, *, require_rgb: bool = True) -> OpenEXRAssetIn
             deep=deep,
             metadata=metadata,
         )
-    finally:
-        input_file.close()
 
 
 def validate_master_exr(
@@ -188,42 +190,33 @@ def write_rgb_exr(
     except ImportError as exc:
         raise OpenEXRDependencyError("NumPy is required to write OpenEXR assets") from exc
 
-    OpenEXR, Imath = _load_bindings()
+    OpenEXR = _load_bindings()
     target = Path(path)
     if not has_exr_extension(target):
         raise OpenEXRValidationError("OpenEXR output path must use the .exr extension")
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    half = Imath.PixelType(Imath.PixelType.HALF)
-    float32 = Imath.PixelType(Imath.PixelType.FLOAT)
-    header = OpenEXR.Header(width, height)
-    header["channels"] = {
-        "R": Imath.Channel(half),
-        "G": Imath.Channel(half),
-        "B": Imath.Channel(half),
-        **({"A": Imath.Channel(half)} if alpha is not None else {}),
-        **({"Z": Imath.Channel(float32)} if depth is not None else {}),
+    header: dict[str, Any] = {
+        "type": OpenEXR.scanlineimage,
+        "compression": OpenEXR.ZIP_COMPRESSION,
+        "aiFilmsWorkingSpace": "ACEScg",
+        "aiFilmsMasterContainer": "OpenEXR",
     }
-    header["aiFilmsWorkingSpace"] = "ACEScg"
-    header["aiFilmsMasterContainer"] = "OpenEXR"
     for key, value in (metadata or {}).items():
         header[str(key)] = str(value)
 
-    pixels = {
-        "R": np.asarray(red, dtype=np.float16).tobytes(),
-        "G": np.asarray(green, dtype=np.float16).tobytes(),
-        "B": np.asarray(blue, dtype=np.float16).tobytes(),
+    pixels: dict[str, Any] = {
+        "R": np.asarray(red, dtype=np.float16).reshape(height, width),
+        "G": np.asarray(green, dtype=np.float16).reshape(height, width),
+        "B": np.asarray(blue, dtype=np.float16).reshape(height, width),
     }
     if alpha is not None:
-        pixels["A"] = np.asarray(alpha, dtype=np.float16).tobytes()
+        pixels["A"] = np.asarray(alpha, dtype=np.float16).reshape(height, width)
     if depth is not None:
-        pixels["Z"] = np.asarray(depth, dtype=np.float32).tobytes()
+        pixels["Z"] = np.asarray(depth, dtype=np.float32).reshape(height, width)
 
-    output = OpenEXR.OutputFile(str(target), header)
-    try:
-        output.writePixels(pixels)
-    finally:
-        output.close()
+    with OpenEXR.File(header, pixels) as output:
+        output.write(str(target))
 
     validate_master_exr(
         target,
