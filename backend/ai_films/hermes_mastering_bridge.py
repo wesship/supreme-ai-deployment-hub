@@ -5,9 +5,7 @@ import logging
 from typing import Any
 
 from backend.hermes.contracts import TaskStatus
-from backend.hermes.dependencies import get_dependencies
 from backend.hermes.ports import AgentDispatcher, TaskRepository
-from backend.hermes.task_engine import get_task, transition_task
 
 logger = logging.getLogger(__name__)
 MASTERING_AGENT = "ai-films-mastering"
@@ -136,8 +134,16 @@ class HermesMasteringDispatcher:
         }
 
 
-async def finalize_hermes_mastering_task(job: dict[str, Any], *, passed: bool, certification: dict[str, Any]) -> bool:
+async def finalize_hermes_mastering_task(
+    job: dict[str, Any],
+    *,
+    passed: bool,
+    certification: dict[str, Any],
+) -> bool:
     """Finish the bound Hermes task after master QC reaches a terminal state."""
+    from backend.hermes.dependencies import get_dependencies
+    from backend.hermes.task_engine import get_task, transition_task
+
     payload = job.get("input") if isinstance(job.get("input"), dict) else {}
     task_id = str(payload.get("hermes_task_id") or "").strip()
     if not task_id:
@@ -161,17 +167,18 @@ async def finalize_hermes_mastering_task(job: dict[str, Any], *, passed: bool, c
         raise RuntimeError(f"Hermes mastering task is not terminalizable from {status.value}")
 
     output = job.get("output") if isinstance(job.get("output"), dict) else {}
+    handoff_output = {
+        "render_job_id": str(job.get("id") or ""),
+        "master_package_asset_id": output.get("master_package_asset_id"),
+        "checksum": output.get("checksum"),
+        "qa": certification,
+        "state": "master_qa_passed" if passed else "master_qa_failed",
+    }
     if passed:
         await transition_task(
             task_id,
             TaskStatus.COMPLETED,
-            output_data={
-                "render_job_id": str(job.get("id") or ""),
-                "master_package_asset_id": output.get("master_package_asset_id"),
-                "checksum": output.get("checksum"),
-                "qa": certification,
-                "state": "master_qa_passed",
-            },
+            output_data=handoff_output,
             agent_name=MASTERING_AGENT,
         )
     else:
@@ -179,20 +186,11 @@ async def finalize_hermes_mastering_task(job: dict[str, Any], *, passed: bool, c
             task_id,
             TaskStatus.FAILED,
             error_message="AI FILMS master QC failed",
-            output_data={
-                "render_job_id": str(job.get("id") or ""),
-                "master_package_asset_id": output.get("master_package_asset_id"),
-                "qa": certification,
-                "state": "master_qa_failed",
-            },
+            output_data=handoff_output,
             agent_name=MASTERING_AGENT,
         )
 
-    try:
-        from backend.ai_films.hermes_task_event_bridge import advance_ai_film_for_task
+    from backend.ai_films.hermes_task_event_bridge import advance_ai_film_for_task
 
-        await advance_ai_film_for_task(task_id, get_dependencies())
-    except Exception:
-        logger.exception("Hermes AI FILMS workflow auto-advance failed for mastering task %s", task_id)
-        raise
+    await advance_ai_film_for_task(task_id, get_dependencies())
     return True
