@@ -162,7 +162,7 @@ class WorkflowExecutionCoordinator:
             },
         }
         try:
-            await self._dispatcher.dispatch(
+            dispatch_result = await self._dispatcher.dispatch(
                 task_id=str(task["id"]),
                 agent_name=agent_name,
                 input_data=payload,
@@ -204,6 +204,7 @@ class WorkflowExecutionCoordinator:
             {
                 "status": TaskStatus.LOCKED.value,
                 "assigned_at": now,
+                "output_data": {"dispatch_result": dispatch_result},
             },
         )
         state = updated.steps[step_id]
