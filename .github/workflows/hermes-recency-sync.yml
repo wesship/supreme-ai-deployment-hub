@@ -158,6 +158,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
 
       - name: Compare repository context with live runtime
         shell: bash
@@ -169,6 +171,7 @@ jobs:
           import json
           import os
           import re
+          import subprocess
           import time
           import urllib.error
           import urllib.request
@@ -180,6 +183,39 @@ jobs:
           expected_version = version_match.group(1).strip() if version_match else "unversioned"
           expected_sha256 = hashlib.sha256(expected_content.encode("utf-8")).hexdigest()
           expected_commit = os.environ.get("GITHUB_SHA")
+
+          runtime_sensitive_roots = ("backend/", "server/", "api/")
+          runtime_sensitive_files = {
+              "MASTER_CONTEXT.md",
+              "Dockerfile",
+              "railway.toml",
+              "Procfile",
+              "requirements.txt",
+          }
+
+          def commit_compatible(actual_commit: str | None) -> tuple[bool, list[str]]:
+              if not actual_commit or actual_commit == expected_commit:
+                  return True, []
+              if not expected_commit:
+                  return False, []
+              ancestor = subprocess.run(
+                  ["git", "merge-base", "--is-ancestor", actual_commit, expected_commit],
+                  check=False,
+              )
+              if ancestor.returncode != 0:
+                  return False, []
+              changed = subprocess.check_output(
+                  ["git", "diff", "--name-only", f"{actual_commit}..{expected_commit}"],
+                  text=True,
+              ).splitlines()
+              blocking = [
+                  path
+                  for path in changed
+                  if path in runtime_sensitive_files
+                  or path.startswith(runtime_sensitive_roots)
+                  or path.startswith("backend/requirements")
+              ]
+              return not blocking, blocking
 
           report = {
               "endpoint": endpoint,
@@ -203,6 +239,7 @@ jobs:
                       payload = json.loads(response.read().decode("utf-8"))
                   canonical = payload.get("canonical_context") or {}
                   actual_commit = payload.get("deployed_commit_sha")
+                  commit_matches, blocking_changes = commit_compatible(actual_commit)
                   observation.update(
                       {
                           "http_status": response.status,
@@ -210,11 +247,11 @@ jobs:
                           "version": canonical.get("version"),
                           "content_sha256": canonical.get("content_sha256"),
                           "commit_sha": actual_commit,
+                          "runtime_sensitive_changes_since_deploy": blocking_changes,
                       }
                   )
                   version_matches = canonical.get("version") == expected_version
                   hash_matches = canonical.get("content_sha256") == expected_sha256
-                  commit_matches = actual_commit in (None, "", expected_commit)
                   observation["matches"] = {
                       "version": version_matches,
                       "content_sha256": hash_matches,
@@ -225,7 +262,7 @@ jobs:
                       report["runtime"] = payload
                       report["attempts"].append(observation)
                       break
-              except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+              except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
                   observation["error"] = str(exc)
 
               report["attempts"].append(observation)
@@ -240,7 +277,7 @@ jobs:
 
           if not report["verified"]:
               raise SystemExit(
-                  "Live Knowledge API did not match MASTER_CONTEXT.md after 30 attempts"
+                  "Live Knowledge API did not match MASTER_CONTEXT.md or is behind runtime-sensitive repository changes"
               )
           PY
 
