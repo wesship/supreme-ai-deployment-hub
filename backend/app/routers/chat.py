@@ -21,6 +21,52 @@ router = APIRouter()
 
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 
+_QUOTA_ERROR_CODES = {"insufficient_quota", "billing_hard_limit_reached"}
+_QUOTA_MESSAGE = (
+    "D3VONN AI is temporarily unavailable because its provider credits are "
+    "exhausted. Service will resume after billing is restored."
+)
+_RATE_LIMIT_MESSAGE = (
+    "D3VONN AI is receiving too many requests right now. Please wait a moment "
+    "and try again."
+)
+
+
+def _provider_error_message(status_code: int, response_body: str) -> str:
+    """Return a user-safe provider error without leaking upstream response data."""
+    error_code = ""
+    error_type = ""
+    provider_message = ""
+    try:
+        parsed = json.loads(response_body)
+        error = parsed.get("error", {}) if isinstance(parsed, dict) else {}
+        if isinstance(error, dict):
+            error_code = str(error.get("code") or "").lower()
+            error_type = str(error.get("type") or "").lower()
+            provider_message = str(error.get("message") or "").lower()
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+
+    quota_markers = (
+        "no credits",
+        "credits remaining",
+        "insufficient quota",
+        "quota exceeded",
+        "billing hard limit",
+    )
+    if (
+        error_code in _QUOTA_ERROR_CODES
+        or error_type in _QUOTA_ERROR_CODES
+        or any(marker in provider_message for marker in quota_markers)
+    ):
+        return _QUOTA_MESSAGE
+    if status_code == 429:
+        return _RATE_LIMIT_MESSAGE
+    return (
+        f"D3VONN AI provider request failed (HTTP {status_code}). "
+        "Please try again."
+    )
+
 
 async def _stream_openai(payload: dict, api_key: str) -> AsyncGenerator[bytes, None]:
     """
@@ -42,7 +88,7 @@ async def _stream_openai(payload: dict, api_key: str) -> AsyncGenerator[bytes, N
                 error_chunk = json.dumps({
                     "delta": "",
                     "done": True,
-                    "error": f"OpenAI error {resp.status_code}: {err_text[:200]}",
+                    "error": _provider_error_message(resp.status_code, err_text),
                 })
                 yield f"data: {error_chunk}\n\n".encode()
                 return
@@ -123,9 +169,10 @@ async def chat_proxy(
                 },
             )
         if resp.status_code != 200:
+            logger.error("OpenAI error %d: %s", resp.status_code, resp.text[:500])
             raise HTTPException(
                 status_code=resp.status_code,
-                detail=f"OpenAI error: {resp.text[:500]}",
+                detail=_provider_error_message(resp.status_code, resp.text),
             )
         return resp.json()  # type: ignore[return-value]
 
