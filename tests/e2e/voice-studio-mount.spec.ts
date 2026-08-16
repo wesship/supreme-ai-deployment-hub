@@ -22,6 +22,8 @@ test('Voice Studio remains mounted after deferred providers initialize', async (
   await expect(root, 'React root became empty after deferred initialization').not.toBeEmpty();
   await expect(page.locator('#main-content')).toBeVisible();
   await expect(page.locator('[data-d3vonn-boot="failed"]')).toHaveCount(0);
+  await expect(page, 'Signed-out Voice Studio must not be hijacked by ChatPage auth').toHaveURL(/\/voice-studio\/?$/);
   await expect(page.getByRole('heading', { name: /Conversation/i })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Authenticated text workspace' })).toBeVisible();
   expect(pageErrors, `Unhandled browser errors: ${pageErrors.join(' | ')}`).toEqual([]);
 });
