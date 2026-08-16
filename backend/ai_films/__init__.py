@@ -10,6 +10,13 @@ from backend.ai_films.camera_color import (
     resolve_camera_color_space,
     write_camera_managed_exr,
 )
+from backend.ai_films.frame_sequence import (
+    FrameDecodeError,
+    FrameDecoderUnavailableError,
+    FrameSequenceError,
+    FrameSequenceManifest,
+    decode_to_acescg_exr_sequence,
+)
 from backend.ai_films.media_metadata import (
     MediaMetadata,
     MediaMetadataError,
@@ -29,6 +36,11 @@ __all__ = [
     "infer_camera_color_from_metadata",
     "resolve_camera_color_space",
     "write_camera_managed_exr",
+    "FrameDecodeError",
+    "FrameDecoderUnavailableError",
+    "FrameSequenceError",
+    "FrameSequenceManifest",
+    "decode_to_acescg_exr_sequence",
     "MediaMetadata",
     "MediaMetadataError",
     "MediaProbeFailedError",
