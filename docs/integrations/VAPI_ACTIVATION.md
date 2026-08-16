@@ -1,46 +1,44 @@
-# D3VONN.IO Vapi activation
+# D3VONN.IO Vapi and ElevenLabs activation
 
-The frontend now prefers Vapi when both publishable values are present and automatically falls back to the existing ElevenLabs agent when they are not.
+D3VONN.IO uses the official Vapi Web SDK for browser conversations. **Vapi owns browser-call orchestration** and its configured ElevenLabs integration supplies production text-to-speech. For signed-in users, the frontend obtains a short-lived inline assistant from the trusted D3VONN API; the session binds permitted Hermes tool calls to that user without exposing provider secrets.
 
-## Vercel production variables
+## Deployment variables
 
-```env
-VITE_VOICE_PROVIDER=vapi
-VITE_VAPI_PUBLIC_KEY=<Vapi public key>
-VITE_VAPI_ASSISTANT_ID=<D3VONN Vapi assistant ID>
-VITE_ELEVENLABS_AGENT_ID=<optional direct ElevenLabs fallback agent ID>
-```
+| Location | Variable | Scope | Purpose |
+|---|---|---|---|
+| Vercel | `VITE_VAPI_PUBLIC_KEY` | Public build-time configuration | Starts browser calls through the official Vapi Web SDK. |
+| Vercel | `VITE_VAPI_ASSISTANT_ID` | Public build-time configuration | Optional override for the published D3VONN Vapi assistant; the production default is embedded in the application. |
+| Vercel | `VITE_API_URL` | Public build-time configuration | Optional override for the D3VONN API base URL; production defaults to `https://api.d3vonn.io`. |
+| Railway | `VAPI_PRIVATE_KEY` | Secret | Patches and validates the published Vapi assistant. |
+| Railway | `VAPI_ASSISTANT_ID` | Non-secret service configuration | Identifies the published production assistant. |
+| Railway | `VAPI_WEBHOOK_SECRET` | Secret | Authenticates Vapi webhooks to the D3VONN backend. |
+| Railway | `ELEVENLABS_API_KEY` | Secret | Validates the configured ElevenLabs voice when direct validation is explicitly enabled. |
+| Railway | `ELEVENLABS_DEFAULT_VOICE_ID` | Non-secret service configuration | Identifies the voice Vapi uses through its ElevenLabs integration. |
+| Railway | `ELEVENLABS_DEFAULT_MODEL` | Non-secret service configuration | Defaults to `eleven_turbo_v2_5`. |
+| Railway | `VOICE_SESSION_SIGNING_SECRET` | Secret | Recommended dedicated signer for short-lived authenticated browser voice sessions. |
 
-Only the Vapi **public** key and assistant identifier belong in Vercel frontend variables.
+> Only the Vapi **public** key and assistant identifier belong in Vercel `VITE_` variables. Never place Vapi private keys, ElevenLabs API keys, webhook secrets, or session-signing secrets in a browser build.
 
-## Railway or other trusted backend variables
+## Vapi assistant configuration
 
-```env
-VAPI_PRIVATE_KEY=<Vapi private key>
-VAPI_WEBHOOK_SECRET=<random production secret>
-ELEVENLABS_API_KEY=<private ElevenLabs API key when ElevenLabs is used by Vapi>
-```
+The protected voice-activation workflow and Railway startup activation patch the published assistant with the D3VONN webhook, the approved ElevenLabs voice, and the accepted Vapi server-message set. The webhook receives `tool-calls`, `status-update`, `transcript`, and `end-of-call-report` events. It only authorizes Hermes tool execution when the browser used a signed-in, short-lived inline session.
 
-Never add private provider keys to a `VITE_` variable.
-
-## Vapi dashboard
-
-1. Create or select the `D3VONN Voice Agent` assistant.
-2. Select ElevenLabs as its voice provider and choose the approved D3VONN voice.
-3. Configure the production server URL for Hermes events and tool calls.
-4. Attach a Vapi Custom Credential to the server URL. Bearer-token or HMAC authentication is preferred.
-5. Keep outbound calling disabled until the consent, DNC, permitted-hours, disclosure, opt-out, and audit controls in `VAPI_HERMES_INTEGRATION_BLUEPRINT.md` are verified.
+The deployment workflow deliberately excludes the retired `assistant-request` server event. Telephone assistant lookup uses a distinct flow from browser Vapi calls and must not be reintroduced into the published assistant server-message configuration.
 
 ## Browser smoke test
 
-1. Deploy the branch to a Vercel preview.
-2. Open the D3VONN voice surface.
-3. Confirm the status badge says `Vapi + ElevenLabs configured`.
-4. Tap the phone control and approve microphone access.
-5. Confirm a Vapi call begins and can be ended from the same control.
-6. Confirm no private Vapi or ElevenLabs key appears in page source, JavaScript bundles, or browser network request payloads.
-7. Remove the Vapi variables temporarily and verify the existing ElevenLabs fallback still starts.
+| Step | Expected result |
+|---|---|
+| Deploy the branch to a Vercel preview. | The Voice Studio route renders the D3VONN Voice Assistant panel. |
+| Open `/voice-studio`. | The status badge reads `Vapi + ElevenLabs configured`. |
+| Tap the phone control and approve microphone access. | A Vapi browser call starts and the control changes to the connected state. |
+| Speak a general question. | The response is synthesized by the ElevenLabs voice configured within Vapi. |
+| Sign in and ask for a supported Hermes action. | The API issues an inline assistant session and the authenticated tool-call path executes or queues the permitted request. |
+| End the call. | The same control disconnects the Vapi session. |
+| Inspect page source and network requests. | No Vapi private key, ElevenLabs API key, webhook secret, or session-signing secret is present. |
 
-## Rollout scope
+## Operational checks
 
-This activation enables the browser-initiated inbound voice surface. PSTN provisioning, server-side Hermes tools, transcript persistence, and outbound campaigns remain separately gated workstreams.
+The public endpoint `GET https://api.d3vonn.io/api/voice/health` reports readiness without exposing credentials. Production is ready only when it reports `status: "configured"`, `browser_voice_ready: true`, and the Vapi, webhook, inline-session, ElevenLabs, and Hermes checks as true.
+
+PSTN provisioning, outbound campaigns, and any consent, DNC, disclosure, opt-out, and audit controls remain separately gated workstreams.

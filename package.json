@@ -90,6 +90,7 @@
     "@types/jest": "^29.5.14",
     "@types/js-yaml": "^4.0.9",
     "@types/uuid": "^10.0.0",
+    "@vapi-ai/web": "^2.6.2",
     "@vercel/analytics": "1.6.1",
     "@xyflow/react": "^12.6.0",
     "axios": "^1.18.0",
