@@ -21,7 +21,6 @@ ENV_FILE="${ENV_FILE:-${COMPOSE_DIR}/env/.env.production}"
 EXAMPLE_ENV="${COMPOSE_DIR}/env/.env.example"
 VALIDATE_SCRIPT="${COMPOSE_DIR}/scripts/validate-production-env.sh"
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -36,6 +35,7 @@ ACTION="deploy"
 SERVICE=""
 WITH_MONITORING=false
 SKIP_VALIDATE=false
+SKIP_GIT_SYNC="${SKIP_GIT_SYNC:-false}"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -66,6 +66,7 @@ show_help() {
     echo "  APP_DIR              Repo path. Default: /opt/supreme-ai-deployment-hub"
     echo "  ENV_FILE             Env path. Default: deploy/vps/env/.env.production"
     echo "  BRANCH               Git branch. Default: main"
+    echo "  SKIP_GIT_SYNC        Set true only when a trusted caller already synced the checkout"
     echo ""
     echo "Services: backend, hermes, celery-worker, celery-beat, nginx, redis"
 }
@@ -113,7 +114,6 @@ validate_env() {
 }
 
 ensure_dirs() {
-    # Ensure volume-mounted directories exist so Docker does not create them as root.
     mkdir -p "${COMPOSE_DIR}/nginx/logs"
     mkdir -p "${COMPOSE_DIR}/ssl/certs"
     mkdir -p "${COMPOSE_DIR}/ssl/webroot"
@@ -129,7 +129,7 @@ compose_cmd() {
 }
 
 wait_for_backend() {
-    local max_attempts=24   # 24 × 5s = 120 s
+    local max_attempts=24
     local attempt=0
     log "Waiting for backend health (up to 120 s)..."
     while [ $attempt -lt $max_attempts ]; do
@@ -196,14 +196,19 @@ deploy() {
     echo ""
 
     cd "$PROJECT_DIR"
-
-    log "Pulling latest code from ${BRANCH}..."
-    git fetch origin "$BRANCH"
     PREVIOUS_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "none")
-    git checkout "$BRANCH"
-    git reset --hard "origin/${BRANCH}"
+
+    if [ "$SKIP_GIT_SYNC" = true ]; then
+        log "Using trusted pre-synced checkout at $(git rev-parse --short HEAD)"
+    else
+        log "Pulling latest code from ${BRANCH}..."
+        git fetch origin "$BRANCH"
+        git checkout "$BRANCH"
+        git reset --hard "origin/${BRANCH}"
+        success "Code updated to $(git log --oneline -1)"
+    fi
+
     echo "$PREVIOUS_COMMIT" > "${COMPOSE_DIR}/.rollback_commit"
-    success "Code updated to $(git log --oneline -1)"
 
     ensure_dirs
 
