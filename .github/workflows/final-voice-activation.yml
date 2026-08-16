@@ -306,14 +306,48 @@ jobs:
               "model": os.environ["ELEVENLABS_DEFAULT_MODEL"],
           })
 
-          server_messages = set(assistant.get("serverMessages") or [])
-          server_messages.update({
-              "assistant-request",
+          supported_server_messages = {
+              "assistant.started",
+              "assistant.speechStarted",
+              "conversation-update",
+              "end-of-call-report",
+              "function-call",
+              "hang",
+              "language-changed",
+              "language-change-detected",
+              "model-output",
+              "phone-call-control",
+              "speech-update",
+              "status-update",
+              "transcript",
+              'transcript[transcriptType="final"]',
+              "tool-calls",
+              "transfer-destination-request",
+              "handoff-destination-request",
+              "transfer-update",
+              "user-interrupted",
+              "voice-input",
+              "chat.created",
+              "chat.deleted",
+              "session.created",
+              "session.updated",
+              "session.deleted",
+              "call.deleted",
+              "call.delete.failed",
+          }
+          required_server_messages = {
               "tool-calls",
               "status-update",
               "end-of-call-report",
               "transcript",
-          })
+          }
+          current_server_messages = assistant.get("serverMessages") or []
+          server_messages = {
+              item
+              for item in current_server_messages
+              if isinstance(item, str) and item in supported_server_messages
+          }
+          server_messages.update(required_server_messages)
           patch = {
               "server": {
                   "url": os.environ["VAPI_WEBHOOK_URL"],
