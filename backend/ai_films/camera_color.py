@@ -70,6 +70,7 @@ def resolve_camera_color_space(*hints: object) -> CameraColorMatch:
         ("S-Log3 S-Gamut3", "sony-slog3-sgamut3", ("s log3", "s gamut3")),
         ("Apple Log", "apple-log", ("apple", "log")),
         ("Camera Rec.709", "camera-rec709", ("rec 709",)),
+        ("Camera Rec.709", "camera-bt709", ("bt709",)),
         ("sRGB Encoded Rec.709 (sRGB)", "srgb", ("srgb",)),
         (ACESCG, "acescg", ("acescg",)),
     )
