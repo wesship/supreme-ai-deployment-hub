@@ -28,7 +28,10 @@ class HermesDependencies:
 def build_default_dependencies() -> HermesDependencies:
     config = HermesInfrastructureConfig.from_env()
     repository = SupabaseTaskRepository(SupabaseRestClient(config))
-    dispatcher = EdgeFunctionAgentDispatcher(HermesDispatchClient(config))
+    fallback_dispatcher = EdgeFunctionAgentDispatcher(HermesDispatchClient(config))
+    from backend.ai_films.hermes_mastering_bridge import HermesMasteringDispatcher
+
+    dispatcher = HermesMasteringDispatcher(repository, fallback_dispatcher)
     return HermesDependencies(
         repository=repository,
         dispatcher=dispatcher,
