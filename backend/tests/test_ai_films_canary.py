@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -38,6 +40,29 @@ def test_make_synthetic_clip(tmp_path: Path) -> None:
     assert result == target
     assert target.exists()
     assert target.stat().st_size > 0
+
+    probe = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=color_space,color_transfer,color_primaries",
+            "-of",
+            "json",
+            str(target),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    stream = json.loads(probe.stdout)["streams"][0]
+    assert stream["color_space"] == "bt709"
+    assert stream["color_transfer"] == "bt709"
+    assert stream["color_primaries"] == "bt709"
 
 
 @pytest.mark.asyncio
