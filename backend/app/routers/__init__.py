@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 async def proxy_lifespan(app: FastAPI):
     activation_task: asyncio.Task[None] | None = None
     mastering_task: asyncio.Task[None] | None = None
+    master_qc_task: asyncio.Task[None] | None = None
     try:
         from backend.app.voice_activation import activate_voice_runtime
         activation_task = asyncio.create_task(activate_voice_runtime(), name="d3vonn-voice-activation")
@@ -34,8 +35,15 @@ async def proxy_lifespan(app: FastAPI):
         logger.info("AI FILMS ACEScg/OpenEXR mastering worker scheduled.")
     except ImportError as exc:
         logger.warning("AI FILMS mastering worker unavailable: %s", exc)
+    try:
+        from backend.ai_films.master_qc_worker import run_master_qc_worker
+        master_qc_task = asyncio.create_task(run_master_qc_worker(), name="ai-films-master-qc-worker")
+        app.state.ai_films_master_qc_worker_task = master_qc_task
+        logger.info("AI FILMS master-package QC worker scheduled.")
+    except ImportError as exc:
+        logger.warning("AI FILMS master-package QC worker unavailable: %s", exc)
     yield
-    for task in (activation_task, mastering_task):
+    for task in (activation_task, mastering_task, master_qc_task):
         if task and not task.done():
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
