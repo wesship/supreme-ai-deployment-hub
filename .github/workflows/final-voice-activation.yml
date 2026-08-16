@@ -14,8 +14,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate Vapi activation event policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Verify supported-event normalization
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          text = Path('.github/workflows/final-voice-activation.yml').read_text(encoding='utf-8')
+          retired = 'assistant' + '-request'
+          if retired in text:
+              raise SystemExit('RETIRED_VAPI_EVENT_PRESENT')
+
+          required = (
+              'tool-calls',
+              'status-update',
+              'end-of-call-report',
+              'transcript',
+          )
+          missing = [event for event in required if event not in text]
+          if missing:
+              raise SystemExit(f'MISSING_REQUIRED_VAPI_EVENTS: {missing}')
+
+          if 'supported_server_messages' not in text or 'required_server_messages' not in text:
+              raise SystemExit('VAPI_EVENT_NORMALIZATION_POLICY_MISSING')
+
+          print('Validated Vapi server-message normalization without touching production.')
+          PY
+
   activate:
     name: Activate Vapi + ElevenLabs on live Railway backend
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 30
@@ -306,14 +343,48 @@ jobs:
               "model": os.environ["ELEVENLABS_DEFAULT_MODEL"],
           })
 
-          server_messages = set(assistant.get("serverMessages") or [])
-          server_messages.update({
-              "assistant-request",
+          supported_server_messages = {
+              "assistant.started",
+              "assistant.speechStarted",
+              "conversation-update",
+              "end-of-call-report",
+              "function-call",
+              "hang",
+              "language-changed",
+              "language-change-detected",
+              "model-output",
+              "phone-call-control",
+              "speech-update",
+              "status-update",
+              "transcript",
+              'transcript[transcriptType="final"]',
+              "tool-calls",
+              "transfer-destination-request",
+              "handoff-destination-request",
+              "transfer-update",
+              "user-interrupted",
+              "voice-input",
+              "chat.created",
+              "chat.deleted",
+              "session.created",
+              "session.updated",
+              "session.deleted",
+              "call.deleted",
+              "call.delete.failed",
+          }
+          required_server_messages = {
               "tool-calls",
               "status-update",
               "end-of-call-report",
               "transcript",
-          })
+          }
+          current_server_messages = assistant.get("serverMessages") or []
+          server_messages = {
+              item
+              for item in current_server_messages
+              if isinstance(item, str) and item in supported_server_messages
+          }
+          server_messages.update(required_server_messages)
           patch = {
               "server": {
                   "url": os.environ["VAPI_WEBHOOK_URL"],
