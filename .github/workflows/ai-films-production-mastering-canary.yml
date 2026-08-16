@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'backend/ai_films/canary.py'
+      - 'backend/ai_films/camera_color.py'
       - 'scripts/ai_films/production_mastering_canary.py'
       - '.github/workflows/ai-films-production-mastering-canary.yml'
 
