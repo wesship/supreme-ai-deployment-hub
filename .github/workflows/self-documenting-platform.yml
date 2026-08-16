@@ -10,13 +10,13 @@ on:
       - 'policy/**'
       - 'api/**'
   schedule:
-    - cron: '0 2 * * 1'  # Weekly Monday at 2am UTC
+    - cron: '0 2 * * 1'
   workflow_dispatch:
 
 permissions:
   contents: write
   actions: read
-  pull-requests: write
+  pull-requests: read
 
 jobs:
   generate-architecture-docs:
@@ -25,188 +25,89 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip3 install pyyaml requests
+        run: pip3 install pyyaml
 
       - name: Generate ARCHITECTURE.md
         run: |
           python3 - << 'PYEOF'
-          import yaml, glob, json, os
-          from datetime import datetime
+          import glob
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import yaml
 
-          workflows = sorted(glob.glob(".github/workflows/*.yml"))
-
-          categories = {
-              "CI/CD Core": [],
-              "Security & Compliance": [],
-              "AI & ML": [],
-              "Infrastructure": [],
-              "Observability": [],
-              "Developer Experience": [],
-              "Governance": [],
-          }
-
-          category_keywords = {
-              "CI/CD Core": ["build", "test", "coverage", "deploy", "release", "promote", "hermes"],
-              "Security & Compliance": ["security", "sbom", "cosign", "gitleaks", "secret", "compliance", "soc2", "falco", "kyverno", "container-hard"],
-              "AI & ML": ["ai-", "llm", "model", "ab-test", "anomaly", "safety"],
-              "Infrastructure": ["terraform", "eks", "iac", "infrastructure", "azure", "oidc-deploy", "gitops"],
-              "Observability": ["observ", "monitor", "health", "smoke", "e2e", "analytics", "metrics", "baseline"],
-              "Developer Experience": ["onboard", "golden", "template", "auto-fix", "lockfile", "dependab"],
-              "Governance": ["policy", "validate", "governance", "conftest", "opa", "chaos", "trusted-build"],
-          }
-
-          wf_data = []
+          workflows = sorted(glob.glob('.github/workflows/*.yml'))
+          rows = []
           for wf_path in workflows:
               try:
-                  with open(wf_path) as f:
-                      wf = yaml.safe_load(f.read())
-                  name = wf.get("name", wf_path.split("/")[-1])
-                  triggers = list(wf.get("on", {}).keys()) if isinstance(wf.get("on"), dict) else [str(wf.get("on", ""))]
-                  jobs = list(wf.get("jobs", {}).keys())
-                  filename = wf_path.split("/")[-1]
+                  data = yaml.safe_load(Path(wf_path).read_text()) or {}
+                  name = data.get('name', Path(wf_path).name)
+                  jobs = data.get('jobs', {}) if isinstance(data.get('jobs', {}), dict) else {}
+                  triggers = data.get('on', {})
+                  if isinstance(triggers, dict):
+                      trigger_text = ', '.join(str(k) for k in triggers.keys())
+                  else:
+                      trigger_text = str(triggers or '')
+                  rows.append((name, Path(wf_path).name, trigger_text, len(jobs)))
+              except Exception as exc:
+                  print(f'WARN: unable to catalogue {wf_path}: {type(exc).__name__}')
 
-                  assigned = False
-                  for cat, keywords in category_keywords.items():
-                      if any(kw in filename.lower() or kw in name.lower() for kw in keywords):
-                          categories[cat].append({"name": name, "file": filename, "triggers": triggers, "jobs": len(jobs)})
-                          assigned = True
-                          break
-                  if not assigned:
-                      categories["CI/CD Core"].append({"name": name, "file": filename, "triggers": triggers, "jobs": len(jobs)})
-
-                  wf_data.append({"name": name, "file": filename, "triggers": triggers, "jobs": jobs})
-              except Exception:
-                  pass
-
-          now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+          now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
           lines = [
-              "# Devonn.AI Platform Architecture",
-              "",
-              f"> Auto-generated on {now} by the Self-Documenting Platform workflow.",
-              "",
-              "## Overview",
-              "",
-              "The Devonn.AI Deployment Hub is a zero-trust, GitOps-driven, AI-native orchestration platform built on GitHub Actions. It comprises a layered security architecture spanning supply-chain integrity, runtime behavioral detection, autonomous remediation, and continuous compliance export.",
-              "",
-              f"**Total Workflows:** {len(workflows)}  ",
-              f"**Platform Version:** v19.0  ",
-              f"**Last Updated:** {now}",
-              "",
-              "## Workflow Capability Catalog",
-              "",
+              '# D3VONN.IO Platform Architecture',
+              '',
+              f'> Auto-generated on {now} by the Self-Documenting Platform workflow.',
+              '',
+              '## Overview',
+              '',
+              'This document inventories the repository workflow surface used to build, secure, verify, and operate D3VONN.IO.',
+              '',
+              f'**Total Workflows:** {len(workflows)}  ',
+              f'**Catalogued Workflows:** {len(rows)}  ',
+              f'**Last Updated:** {now}',
+              '',
+              '## Workflow Catalog',
+              '',
+              '| Workflow | File | Triggers | Jobs |',
+              '|---|---|---|---:|',
           ]
-
-          for cat, wfs in categories.items():
-              if not wfs:
-                  continue
-              lines.append(f"### {cat}")
-              lines.append("")
-              lines.append("| Workflow | File | Triggers | Jobs |")
-              lines.append("|----------|------|----------|------|")
-              for wf in sorted(wfs, key=lambda x: x["name"]):
-                  triggers_str = ", ".join(wf["triggers"][:3])
-                  lines.append(f"| {wf['name']} | `{wf['file']}` | {triggers_str} | {wf['jobs']} |")
-              lines.append("")
+          for name, filename, triggers, jobs in sorted(rows, key=lambda row: row[0].lower()):
+              lines.append(f'| {name} | `{filename}` | {triggers} | {jobs} |')
 
           lines += [
-              "## Platform Maturity Matrix",
-              "",
-              "| Dimension | Status | Wave Introduced |",
-              "|-----------|--------|-----------------|",
-              "| YAML Validity | ✅ 77/77 workflows valid | Wave 7 |",
-              "| Dependency Integrity | ✅ 0 CVEs, clean lockfile | Wave 8 |",
-              "| Supply Chain | ✅ SLSA L3, Sigstore/Cosign | Wave 9-12 |",
-              "| Action SHA Pinning | ✅ 228 pins, no fake SHAs | Wave 10, 17 |",
-              "| Runtime Security | ✅ Falco eBPF, distroless | Wave 11-13 |",
-              "| Policy-as-Code | ✅ OPA/Kyverno/Conftest | Wave 11-13 |",
-              "| Autonomous Remediation | ✅ Auto-quarantine, rollback | Wave 13 |",
-              "| GitOps Reconciliation | ✅ ArgoCD drift detection | Wave 14 |",
-              "| AI Model Governance | ✅ Registry, A/B, guardrails | Wave 16 |",
-              "| CI Analytics | ✅ Failure patterns, trends | Wave 19 |",
-              "| Predictive Failure | ✅ Risk scoring, trend analysis | Wave 19 |",
-              "| Self-Documentation | ✅ Auto-generated docs | Wave 19 |",
-              "",
-              "## Architecture Layers",
-              "",
-              "```",
-              "┌─────────────────────────────────────────────────────┐",
-              "│              Developer Experience Layer              │",
-              "│     Golden Paths · Onboarding · Auto-Fix · Docs     │",
-              "├─────────────────────────────────────────────────────┤",
-              "│              AI Intelligence Layer                   │",
-              "│   LLM Cost · Model Registry · A/B · Safety Guards   │",
-              "├─────────────────────────────────────────────────────┤",
-              "│              Observability Layer                     │",
-              "│   OpenTelemetry · Canary Metrics · Health Dashboard  │",
-              "├─────────────────────────────────────────────────────┤",
-              "│              Deployment Layer                        │",
-              "│   GitOps · ArgoCD · Multi-Env Promotion · Chaos Eng │",
-              "├─────────────────────────────────────────────────────┤",
-              "│              Security Layer                          │",
-              "│   Cosign · Falco · Kyverno · OPA · Vault · OIDC     │",
-              "├─────────────────────────────────────────────────────┤",
-              "│              Supply Chain Layer                      │",
-              "│   SLSA L3 · SBOM · SHA Pins · Reproducible Builds   │",
-              "├─────────────────────────────────────────────────────┤",
-              "│              CI/CD Foundation Layer                  │",
-              "│   Build · Test · Coverage · Lint · Type Check       │",
-              "└─────────────────────────────────────────────────────┘",
-              "```",
-              "",
+              '',
+              '## Governance',
+              '',
+              '- Generated documentation is published to `automation/self-documenting-platform`.',
+              '- Changes to `main` still require the repository normal pull-request and required-check path.',
+              '- Repository policy may prohibit GitHub Actions from creating pull requests; that policy does not make documentation generation itself fail.',
+              '',
           ]
-
-          with open("ARCHITECTURE.md", "w") as f:
-              f.write("\n".join(lines))
-
-          print(f"Generated ARCHITECTURE.md with {len(lines)} lines")
-          print(f"Catalogued {len(wf_data)} workflows across {len([c for c in categories.values() if c])} categories")
+          Path('ARCHITECTURE.md').write_text('\n'.join(lines))
+          print(f'Generated ARCHITECTURE.md with {len(rows)} workflow entries')
           PYEOF
 
-      - name: Generate workflow dependency graph
-        run: |
-          python3 - << 'PYEOF'
-          import yaml, glob
-
-          print("=== Workflow Dependency Graph ===")
-          print("(Workflows that trigger other workflows)")
-          print("")
-
-          for wf_path in sorted(glob.glob(".github/workflows/*.yml")):
-              try:
-                  with open(wf_path) as f:
-                      content = f.read()
-                  wf = yaml.safe_load(content)
-                  name = wf.get("name", wf_path.split("/")[-1])
-                  triggers = wf.get("on", {})
-
-                  if isinstance(triggers, dict) and "workflow_run" in triggers:
-                      parent_wfs = triggers["workflow_run"].get("workflows", [])
-                      for parent in parent_wfs:
-                          print(f"  [{parent}] --> [{name}]")
-              except Exception:
-                  pass
-          PYEOF
-
-      - name: Publish architecture update as draft PR
+      - name: Publish architecture update branch
+        id: publish
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATE_BRANCH: automation/self-documenting-platform
         run: |
+          set -euo pipefail
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
           git add ARCHITECTURE.md
 
           if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No changes to ARCHITECTURE.md"
             exit 0
           fi
@@ -215,14 +116,23 @@ jobs:
           git commit -m "docs: auto-update ARCHITECTURE.md [skip ci]"
           git fetch origin "$UPDATE_BRANCH":refs/remotes/origin/"$UPDATE_BRANCH" || true
           git push --force-with-lease origin HEAD:"$UPDATE_BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "Published documentation update to $UPDATE_BRANCH"
 
-          if gh pr list --head "$UPDATE_BRANCH" --base main --state open --json number --jq 'length' | grep -q '^0$'; then
-            gh pr create \
-              --base main \
-              --head "$UPDATE_BRANCH" \
-              --title "docs: refresh generated architecture documentation" \
-              --body "Automated refresh from the Self-Documenting Platform workflow. This PR replaces direct bot pushes to main and must pass normal review and required checks before merge." \
-              --draft
-          else
-            echo "Existing automation PR updated"
+      - name: Report review path
+        if: steps.publish.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_BRANCH: automation/self-documenting-platform
+        run: |
+          set -euo pipefail
+          count="$(gh pr list --head "$UPDATE_BRANCH" --base main --state open --json number --jq 'length' 2>/dev/null || echo 0)"
+          if [ "$count" != "0" ]; then
+            echo "Existing documentation PR is open and the branch was refreshed."
+            exit 0
           fi
+
+          echo "No open documentation PR exists for $UPDATE_BRANCH."
+          echo "Repository policy currently prevents GitHub Actions from creating pull requests."
+          echo "The generated branch is published successfully and remains behind normal PR review before main."
+          echo "::notice title=Self-documenting review required::Open a PR from automation/self-documenting-platform to main when review is desired."
