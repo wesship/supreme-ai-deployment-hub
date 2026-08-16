@@ -45,6 +45,14 @@ CAPABILITY_TO_PROVIDER: Dict[str, str] = {
     "portfolio_research": "fincept",
     "market_data_connectors": "fincept",
     "investment_agents": "fincept",
+    "quant_research": "autohedge",
+    "risk_review": "autohedge",
+    "execution_research": "autohedge",
+    "trading_research_dag": "vibe_trading",
+    "agent_debate": "vibe_trading",
+    "market_research": "vibe_trading",
+    "authorized_browser_automation": "camofox",
+    "accessibility_tree_extraction": "camofox",
 }
 
 
