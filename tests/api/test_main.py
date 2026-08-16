@@ -27,7 +27,7 @@ def test_health_check():
 
 
 def test_runs_start_route_is_registered():
-    route_paths = {route.path for route in app.routes}
+    route_paths = {route.path for route in app.routes if hasattr(route, "path")}
     assert "/runs/start" in route_paths
 
 

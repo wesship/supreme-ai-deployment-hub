@@ -7,12 +7,13 @@ External API calls are mocked with unittest.mock.patch.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 # ── App import ────────────────────────────────────────────────────────────────
 # Import the FastAPI app. We patch settings to disable auth and inject test keys.
-import sys
 import os
+import sys
 
 # Ensure the backend package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -20,7 +21,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from backend.app.config import Settings, get_settings
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.routers import proxy_router
-from fastapi import FastAPI
 
 # Build a minimal test app with only the proxy router
 test_app = FastAPI()
@@ -28,7 +28,6 @@ test_app.include_router(proxy_router)
 
 
 # ── Test settings fixture ─────────────────────────────────────────────────────
-
 def _test_settings() -> Settings:
     return Settings(
         openai_api_key="sk-test-openai",
@@ -294,19 +293,31 @@ class TestToolsProxy:
 
 
 class TestAuthEnforcement:
-    def test_auth_dependency_is_present_on_tools_routes(self):
-        route_paths = {
-            route.path: route
-            for route in test_app.routes
-            if hasattr(route, "dependant")
-        }
-        for path in [
-            "/api/tools/voice/tts",
-            "/api/tools/voice/stt-token",
-            "/api/tools/github/workflows/trigger",
-            "/api/tools/github/runs/status",
-            "/api/tools/n8n/execute",
-        ]:
-            route = route_paths[path]
-            dependency_calls = [dependency.call for dependency in route.dependant.dependencies]
-            assert get_current_user_id in dependency_calls
+    @pytest.mark.parametrize(
+        ("method", "path", "payload"),
+        [
+            ("post", "/api/tools/voice/tts", {"text": "blocked"}),
+            ("post", "/api/tools/voice/stt-token", {"expires_in": 480}),
+            ("post", "/api/tools/github/workflows/trigger", {"workflow": "deploy.yml", "branch": "main"}),
+            ("get", "/api/tools/github/runs/status", None),
+            ("post", "/api/tools/n8n/execute", {"workflow_name": "Blocked", "payload": {}}),
+        ],
+    )
+    def test_tools_routes_reject_missing_auth(self, client, method, path, payload):
+        auth_settings = _test_settings()
+        auth_settings.require_auth = True
+        test_app.dependency_overrides.pop(get_current_user_id, None)
+
+        try:
+            with patch("backend.app.middleware.auth.get_settings", return_value=auth_settings), \
+                 patch("backend.app.routers.tools.httpx.AsyncClient") as upstream_client:
+                if method == "get":
+                    response = client.get(path)
+                else:
+                    response = client.post(path, json=payload)
+
+            assert response.status_code == 401
+            assert response.json()["detail"] == "Authorization header required"
+            upstream_client.assert_not_called()
+        finally:
+            test_app.dependency_overrides[get_current_user_id] = _mock_user_id

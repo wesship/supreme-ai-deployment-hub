@@ -93,22 +93,25 @@ jobs:
         run: docker load < /tmp/devonn-api.tar
 
       - name: Scan with Grype (vulnerability scanner)
-        continue-on-error: true  # Report vulnerabilities but don't block pipeline
         run: |
+          set -euo pipefail
+
           # Install Grype
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | \
             sh -s -- -b /usr/local/bin
 
-          # Scan the built image — only fail on FIXABLE critical CVEs
-          # (won't-fix and not-fixed are excluded via .grype.yaml)
+          # Fail closed on fixable Critical vulnerabilities. The .grype.yaml
+          # configuration excludes findings that have no upstream fix.
           grype devonn-api:hardened-${{ github.sha }} \
             --fail-on critical \
             --output table \
             --config .grype.yaml
-          echo "Container vulnerability scan passed (0 fixable critical CVEs)"
+          echo "Grype scan passed (0 fixable CRITICAL CVEs)"
 
       - name: Scan with Trivy
         run: |
+          set -euo pipefail
+
           # Install Trivy
           sudo apt-get install -y wget apt-transport-https gnupg lsb-release
           wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
@@ -116,7 +119,7 @@ jobs:
           echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | \
             sudo tee -a /etc/apt/sources.list.d/trivy.list
           sudo apt-get update -qq && sudo apt-get install -y trivy
-          
+
           trivy image \
             --exit-code 1 \
             --severity CRITICAL \
@@ -124,7 +127,7 @@ jobs:
             --ignore-unfixed \
             --scanners vuln \
             devonn-api:hardened-${{ github.sha }}
-          echo "Trivy scan passed (no fixable CRITICAL CVEs)"
+          echo "Trivy scan passed (0 fixable CRITICAL CVEs)"
 
       - name: Check image runs as non-root
         run: |
