@@ -54,7 +54,7 @@ def _restore_provider_env(previous: dict[str, str | None]) -> None:
 
 
 def make_synthetic_clip(output_path: Path, *, duration_seconds: float = 0.5) -> Path:
-    """Create a tiny deterministic local clip with FFmpeg and no network calls."""
+    """Create a tiny deterministic Rec.709 clip with FFmpeg and no network calls."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "ffmpeg",
@@ -70,6 +70,14 @@ def make_synthetic_clip(output_path: Path, *, duration_seconds: float = 0.5) -> 
         f"{duration_seconds:.3f}",
         "-pix_fmt",
         "yuv420p",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-colorspace",
+        "bt709",
+        "-color_range",
+        "tv",
         "-c:v",
         "libx264",
         str(output_path),
