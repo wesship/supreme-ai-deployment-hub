@@ -132,12 +132,23 @@ jobs:
           def normalize_non_destructive_sql(content: str) -> str:
               # ALTER PUBLICATION ... DROP TABLE removes a table from logical
               # replication; it does not delete the table or its data.
-              return re.sub(
+              content = re.sub(
                   r'\bALTER\s+PUBLICATION\s+\S+\s+DROP\s+TABLE\b',
                   'ALTER PUBLICATION __PUBLICATION__ REMOVE TABLE',
                   content,
                   flags=re.IGNORECASE,
               )
+              # TRUNCATE is also a PostgreSQL table privilege. GRANT/REVOKE of
+              # that privilege changes authorization only; it does not truncate
+              # data. Normalize the privilege token before destructive scanning
+              # while leaving executable TRUNCATE statements detectable.
+              content = re.sub(
+                  r'\b(REVOKE|GRANT)\s+TRUNCATE\b',
+                  r'\1 __TRUNCATE_PRIVILEGE__',
+                  content,
+                  flags=re.IGNORECASE,
+              )
+              return content
 
           file_list = Path('/tmp/migration-files.txt')
           files = [
@@ -316,7 +327,6 @@ jobs:
           PYEOF
 
       - name: Upload migration artifacts
-        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: migration-plan-${{ github.run_id }}
@@ -326,7 +336,6 @@ jobs:
           retention-days: 90
 
       - name: Enforce migration safety gate
-        if: always()
         run: |
           python3 - << 'PYEOF'
           import json
