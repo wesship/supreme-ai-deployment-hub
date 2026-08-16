@@ -32,7 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # ── 1. Validate required secrets ──────────────────────────────────────
       - name: Validate required secrets are present
         run: |
           missing=()
@@ -53,7 +52,6 @@ jobs:
           fi
           echo "All required secrets are present."
 
-      # ── 2. Configure SSH with verified host key ────────────────────────────
       - name: Configure SSH
         shell: bash
         run: |
@@ -64,14 +62,11 @@ jobs:
           chmod 600 ~/.ssh/vps_key
           chmod 600 ~/.ssh/known_hosts
 
-      # ── 3. Pull latest code on VPS ─────────────────────────────────────────
       - name: Pull latest code on VPS
         env:
           REPO_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          # Use the workflow's short-lived, read-only repository token for this
-          # fetch only. The credential is not written to the VPS git config.
           AUTH_HEADER="$(printf 'x-access-token:%s' "$REPO_READ_TOKEN" | base64 | tr -d '\n')"
           ssh \
             -i ~/.ssh/vps_key \
@@ -88,7 +83,6 @@ jobs:
                && echo \"Workflow file: present\" \
                || echo \"WARNING: vps-deploy.yml not found on this commit\""
 
-      # ── 4. Generate missing internal secrets (idempotent) ─────────────────
       - name: Generate internal secrets and patch .env.production
         run: |
           ssh \
@@ -99,14 +93,10 @@ jobs:
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             'set -euo pipefail
              ENV_FILE=/opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production
-
-             # Create from example if absent
              if [ ! -f "$ENV_FILE" ]; then
                sudo cp /opt/supreme-ai-deployment-hub/deploy/vps/env/.env.example "$ENV_FILE"
                echo "Created .env.production from .env.example"
              fi
-
-             # Only generate when the value is absent, empty, or a placeholder
              set_if_missing() {
                local key="$1"
                local value="$2"
@@ -124,14 +114,12 @@ jobs:
                fi
                echo "  GENERATED: $key"
              }
-
              echo "=== Internal secrets ==="
              set_if_missing JWT_SECRET           "$(openssl rand -hex 64)"
              set_if_missing ENCRYPTION_KEY       "$(openssl rand -base64 32 | tr -d "\n")"
              set_if_missing API_KEY_VAULT_SECRET "$(openssl rand -hex 64)"
              set_if_missing WS_AUTH_TOKEN        "$(openssl rand -hex 64)"
              set_if_missing REDIS_PASSWORD       "$(openssl rand -hex 32)"
-
              echo "=== Static config ==="
              set_if_missing PINECONE_INDEX_NAME       "devonn-rag"
              set_if_missing ALLOWED_ORIGINS_RAW       "https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io"
@@ -148,7 +136,6 @@ jobs:
              set_if_missing RAG_MAX_FILE_SIZE_BYTES   "10485760"
              echo "=== Done ==="'
 
-      # ── 5. Inject provider API keys (guarded — never overwrites with empty) ─
       - name: Inject provider API keys from GitHub Secrets
         run: |
           ssh \
@@ -159,8 +146,6 @@ jobs:
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             "set -euo pipefail
              ENV_FILE=/opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production
-
-             # Only write if the GitHub secret is non-empty
              inject_if_present() {
                local key=\"\$1\"
                local value=\"\$2\"
@@ -175,11 +160,9 @@ jobs:
                fi
                echo \"  UPDATED: \$key\"
              }
-
              echo '=== Provider API keys ==='
              inject_if_present OPENAI_API_KEY            '${{ secrets.OPENAI_API_KEY }}'
              inject_if_present PINECONE_API_KEY          '${{ secrets.PINECONE_API_KEY }}'
-
              echo '=== Supabase (guarded) ==='
              inject_if_present SUPABASE_URL              '${{ secrets.SUPABASE_URL }}'
              inject_if_present SUPABASE_SERVICE_ROLE_KEY '${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}'
@@ -189,7 +172,6 @@ jobs:
              inject_if_present VITE_SUPABASE_PUBLISHABLE_KEY '${{ secrets.SUPABASE_ANON_KEY }}'
              echo '=== Injection complete ==='"
 
-      # ── 6. Validate environment ────────────────────────────────────────────
       - name: Validate environment
         run: |
           ssh \
@@ -203,7 +185,6 @@ jobs:
              echo "=== Running environment validator ==="
              sudo bash scripts/validate-production-env.sh env/.env.production'
 
-      # ── 7. Deploy (only when skip_deploy=false) ────────────────────────────
       - name: Deploy (docker compose up)
         if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
         run: |
@@ -214,12 +195,11 @@ jobs:
             -o UserKnownHostsFile=~/.ssh/known_hosts \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             'set -euo pipefail
-             export APP_DIR=/opt/supreme-ai-deployment-hub
+             APP_DIR=/opt/supreme-ai-deployment-hub
              cd "$APP_DIR"
-             echo "=== Starting deployment ==="
-             sudo bash deploy/vps/scripts/deploy.sh'
+             echo "=== Starting deployment from pre-synced checkout ==="
+             sudo env APP_DIR="$APP_DIR" SKIP_GIT_SYNC=true bash deploy/vps/scripts/deploy.sh'
 
-      # ── 8. Verify container health ─────────────────────────────────────────
       - name: Verify container health
         if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
         run: |
@@ -231,25 +211,20 @@ jobs:
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             'set -euo pipefail
              cd /opt/supreme-ai-deployment-hub/deploy/vps
-
              echo "=== Container status ==="
              sudo docker compose --env-file env/.env.production -f docker-compose.yml ps
-
              echo ""
              echo "=== Backend liveness ==="
              sudo docker exec d3vonn-backend curl -fsS http://localhost:8000/health/live \
                && echo " → LIVE"
-
              echo ""
              echo "=== Backend readiness ==="
              sudo docker exec d3vonn-backend curl -fsS http://localhost:8000/health/ready
-
              echo ""
              echo "=== Redis ping ==="
              REDIS_PASSWORD="$(sudo sed -n "s/^REDIS_PASSWORD=//p" env/.env.production | tail -n 1)"
              sudo docker exec d3vonn-redis redis-cli -a "$REDIS_PASSWORD" ping'
 
-      # ── 9. Public endpoint smoke test ──────────────────────────────────────
       - name: Public endpoint smoke test
         if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
         run: |
