@@ -4,15 +4,18 @@ Covers all proxy routes: /api/chat, /api/rag/*, /api/tools/*.
 Uses httpx.AsyncClient with FastAPI's ASGI transport (no real network calls).
 External API calls are mocked with unittest.mock.patch.
 """
+import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
+from fastapi.params import Depends as DependsParam
 from fastapi.testclient import TestClient
 
 # ── App import ────────────────────────────────────────────────────────────────
 # Import the FastAPI app. We patch settings to disable auth and inject test keys.
-import sys
 import os
+import sys
 
 # Ensure the backend package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -20,7 +23,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from backend.app.config import Settings, get_settings
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.routers import proxy_router
-from fastapi import FastAPI
 
 # Build a minimal test app with only the proxy router
 test_app = FastAPI()
@@ -28,7 +30,6 @@ test_app.include_router(proxy_router)
 
 
 # ── Test settings fixture ─────────────────────────────────────────────────────
-
 def _test_settings() -> Settings:
     return Settings(
         openai_api_key="sk-test-openai",
@@ -298,7 +299,7 @@ class TestAuthEnforcement:
         route_paths = {
             route.path: route
             for route in test_app.routes
-            if hasattr(route, "dependant")
+            if hasattr(route, "path") and hasattr(route, "endpoint")
         }
         for path in [
             "/api/tools/voice/tts",
@@ -308,5 +309,9 @@ class TestAuthEnforcement:
             "/api/tools/n8n/execute",
         ]:
             route = route_paths[path]
-            dependency_calls = [dependency.call for dependency in route.dependant.dependencies]
+            dependency_calls = [
+                parameter.default.dependency
+                for parameter in inspect.signature(route.endpoint).parameters.values()
+                if isinstance(parameter.default, DependsParam)
+            ]
             assert get_current_user_id in dependency_calls
