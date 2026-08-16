@@ -22,6 +22,7 @@ async def proxy_lifespan(app: FastAPI):
     activation_task: asyncio.Task[None] | None = None
     mastering_task: asyncio.Task[None] | None = None
     master_qc_task: asyncio.Task[None] | None = None
+    hermes_handoff_task: asyncio.Task[None] | None = None
     try:
         from backend.app.voice_activation import activate_voice_runtime
         activation_task = asyncio.create_task(activate_voice_runtime(), name="d3vonn-voice-activation")
@@ -42,8 +43,18 @@ async def proxy_lifespan(app: FastAPI):
         logger.info("AI FILMS master-package QC worker scheduled.")
     except ImportError as exc:
         logger.warning("AI FILMS master-package QC worker unavailable: %s", exc)
+    try:
+        from backend.ai_films.hermes_mastering_handoff_worker import run_hermes_mastering_handoff_worker
+        hermes_handoff_task = asyncio.create_task(
+            run_hermes_mastering_handoff_worker(),
+            name="ai-films-hermes-mastering-handoff-worker",
+        )
+        app.state.ai_films_hermes_mastering_handoff_worker_task = hermes_handoff_task
+        logger.info("AI FILMS Hermes mastering handoff worker scheduled.")
+    except ImportError as exc:
+        logger.warning("AI FILMS Hermes mastering handoff worker unavailable: %s", exc)
     yield
-    for task in (activation_task, mastering_task, master_qc_task):
+    for task in (activation_task, mastering_task, master_qc_task, hermes_handoff_task):
         if task and not task.done():
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):

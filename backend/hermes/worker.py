@@ -36,6 +36,7 @@ logger = logging.getLogger("hermes.worker")
 DEFAULT_AGENT = os.getenv("HERMES_DEFAULT_AGENT", "TARS")
 POLL_INTERVAL_SECONDS = float(os.getenv("HERMES_POLL_INTERVAL_SECONDS", "10"))
 MAX_TASKS_PER_TICK = int(os.getenv("HERMES_MAX_TASKS_PER_TICK", "5"))
+EXTERNAL_COORDINATOR_AGENTS = frozenset({"ai-films-mastering"})
 
 _stop_event = asyncio.Event()
 
@@ -75,6 +76,12 @@ async def _process_task(
         logger.warning("skipping task without id: %s", task)
         return
 
+    agent_name = task.get("agent_name") or DEFAULT_AGENT
+    status = str(task.get("status") or "PENDING")
+    if status == "PENDING" and str(agent_name).strip().lower() in EXTERNAL_COORDINATOR_AGENTS:
+        logger.debug("leaving external coordinator task pending id=%s agent=%s", task_id, agent_name)
+        return
+
     lease = recovered_lease
     if runtime is not None and lease is None:
         lease = await runtime.acquire(str(task_id))
@@ -82,14 +89,12 @@ async def _process_task(
             logger.info("task lease unavailable id=%s; another worker owns it", task_id)
             return
 
-    agent_name = task.get("agent_name") or DEFAULT_AGENT
     input_data = task.get("input_data") or {}
     completed = False
 
     logger.info("processing task id=%s agent=%s", task_id, agent_name)
 
     try:
-        status = str(task.get("status") or "PENDING")
         if status == "PENDING":
             await transition_task(
                 task_id,
