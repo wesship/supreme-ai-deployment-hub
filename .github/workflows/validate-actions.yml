@@ -33,15 +33,24 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PYEOF'
-          import glob
+          from pathlib import Path
           import re
           import sys
 
           errors = []
           uses_pattern = re.compile(r'^\s*uses:\s*([^\s#]+)', re.MULTILINE)
+          core_actions = {
+              'actions/checkout',
+              'actions/setup-node',
+              'actions/setup-python',
+          }
+          workflow_files = sorted(
+              list(Path('.github/workflows').glob('*.yml'))
+              + list(Path('.github/workflows').glob('*.yaml'))
+          )
 
-          for workflow in sorted(glob.glob('.github/workflows/*.{yml,yaml}')):
-              with open(workflow, encoding='utf-8') as handle:
+          for workflow in workflow_files:
+              with workflow.open(encoding='utf-8') as handle:
                   content = handle.read()
 
               for match in uses_pattern.finditer(content):
@@ -51,26 +60,33 @@ jobs:
                   if '@' not in reference:
                       errors.append(f'{workflow}: action reference has no ref: {reference}')
                       continue
-                  _, ref = reference.rsplit('@', 1)
+                  action, ref = reference.rsplit('@', 1)
                   if ref in {'main', 'master', 'HEAD'}:
                       errors.append(f'{workflow}: mutable branch reference is forbidden: {reference}')
                   elif re.fullmatch(r'[0-9a-fA-F]{7,39}', ref):
                       errors.append(f'{workflow}: abbreviated SHA is forbidden: {reference}')
                   elif re.fullmatch(r'[0-9a-fA-F]{40}', ref) and len(set(ref.lower())) <= 2:
                       errors.append(f'{workflow}: suspicious/fake SHA: {reference}')
+                  elif action in core_actions and not re.fullmatch(r'[0-9a-fA-F]{40}', ref):
+                      errors.append(
+                          f'{workflow}: core action must use a full 40-character immutable SHA: {reference}'
+                      )
 
           if errors:
               for error in errors:
                   print(f'::error::{error}')
               sys.exit(1)
 
-          print('Action references contain no mutable branches, abbreviated SHAs, or obvious fake SHAs.')
+          print(
+              f'Validated {len(workflow_files)} workflow files: no mutable branches, abbreviated SHAs, '
+              'obvious fake SHAs, or unpinned core actions.'
+          )
           PYEOF
 
       - name: Validate workflow YAML structure
         run: |
           python3 - <<'PYEOF'
-          import glob
+          from pathlib import Path
           import re
           import sys
           import yaml
@@ -91,10 +107,13 @@ jobs:
               return if_pattern.sub(replace_if, content)
 
           errors = []
-          workflow_files = sorted(glob.glob('.github/workflows/*.{yml,yaml}'))
+          workflow_files = sorted(
+              list(Path('.github/workflows').glob('*.yml'))
+              + list(Path('.github/workflows').glob('*.yaml'))
+          )
           for workflow in workflow_files:
               try:
-                  with open(workflow, encoding='utf-8') as handle:
+                  with workflow.open(encoding='utf-8') as handle:
                       yaml.safe_load(normalize_github_syntax(handle.read()))
               except yaml.YAMLError as error:
                   errors.append(f'{workflow}: {error}')
