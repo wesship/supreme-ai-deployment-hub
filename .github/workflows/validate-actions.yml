@@ -100,7 +100,12 @@ jobs:
               def replace_if(match):
                   prefix, value, suffix = match.groups()
                   stripped = value.strip()
-                  if not stripped or stripped[0] in {'"', "'"}:
+                  block_scalar_headers = {'|', '|-', '|+', '>', '>-', '>+'}
+                  if (
+                      not stripped
+                      or stripped[0] in {'"', "'"}
+                      or stripped in block_scalar_headers
+                  ):
                       return match.group(0)
                   return f'{prefix}"GITHUB_CONDITION"{suffix}'
 
