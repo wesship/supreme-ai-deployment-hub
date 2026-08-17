@@ -46,6 +46,8 @@ type Movie = {
   badge?: string;
   progress?: number;
   accent: string;
+  videoSrc: string;
+  posterSrc: string;
 };
 
 const movies: Movie[] = [
@@ -56,6 +58,8 @@ const movies: Movie[] = [
     duration: 'Feature Film',
     badge: 'Featured Original',
     accent: 'from-cyan-500/40 via-blue-700/20 to-black',
+    videoSrc: '/films/sovereign-signal.mp4',
+    posterSrc: '/films/sovereign-signal-keyframe.png',
   },
   {
     title: 'Building D3VONN.IO',
@@ -64,6 +68,8 @@ const movies: Movie[] = [
     duration: '42 min',
     progress: 36,
     accent: 'from-blue-500/35 via-slate-800/30 to-black',
+    videoSrc: '/films/building-d3vonn.mp4',
+    posterSrc: '/films/building-d3vonn-keyframe.png',
   },
   {
     title: 'Inside HERMES',
@@ -72,6 +78,8 @@ const movies: Movie[] = [
     duration: '28 min',
     badge: 'Engineering Series',
     accent: 'from-indigo-500/35 via-blue-950/40 to-black',
+    videoSrc: '/films/inside-hermes.mp4',
+    posterSrc: '/films/inside-hermes-keyframe.png',
   },
   {
     title: 'GUARDIAN',
@@ -79,6 +87,8 @@ const movies: Movie[] = [
     description: 'How governance, security controls, and approval gates protect autonomous AI workflows.',
     duration: '24 min',
     accent: 'from-sky-500/30 via-slate-950/40 to-black',
+    videoSrc: '/films/guardian.mp4',
+    posterSrc: '/films/guardian-keyframe.png',
   },
   {
     title: 'The AI Workforce',
@@ -87,6 +97,8 @@ const movies: Movie[] = [
     duration: '34 min',
     badge: 'New Release',
     accent: 'from-cyan-400/30 via-blue-900/35 to-black',
+    videoSrc: '/films/ai-workforce.mp4',
+    posterSrc: '/films/ai-workforce-keyframe.png',
   },
   {
     title: 'Agent Zero',
@@ -94,6 +106,8 @@ const movies: Movie[] = [
     description: 'An autonomous intelligence wakes inside a system designed never to let it leave.',
     duration: 'Feature Film',
     accent: 'from-violet-500/35 via-indigo-950/30 to-black',
+    videoSrc: '/films/agent-zero.mp4',
+    posterSrc: '/films/agent-zero-keyframe.png',
   },
   {
     title: 'Knowledge Graph Universe',
@@ -101,6 +115,8 @@ const movies: Movie[] = [
     description: 'Explore the connected intelligence layer linking films, agents, documents, APIs, and memory.',
     duration: '31 min',
     accent: 'from-teal-400/30 via-cyan-950/30 to-black',
+    videoSrc: '/films/knowledge-graph-universe.mp4',
+    posterSrc: '/films/knowledge-graph-universe-keyframe.png',
   },
   {
     title: 'AI Around the World',
@@ -108,6 +124,8 @@ const movies: Movie[] = [
     description: 'A global documentary series on AI infrastructure, smart cities, and emerging innovation hubs.',
     duration: 'Series',
     accent: 'from-blue-400/30 via-slate-900/40 to-black',
+    videoSrc: '/films/ai-around-the-world.mp4',
+    posterSrc: '/films/ai-around-the-world-keyframe.png',
   },
 ];
 
@@ -133,7 +151,18 @@ const MovieCard = ({ movie, onPlay }: { movie: Movie; onPlay: (movie: Movie) => 
     aria-label={`Open ${movie.title}`}
   >
     <div className={`relative aspect-video bg-gradient-to-br ${movie.accent}`}>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.2),transparent_30%),linear-gradient(120deg,transparent,rgba(34,211,238,0.1),transparent)]" />
+      <video
+        src={movie.videoSrc}
+        poster={movie.posterSrc}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105 group-hover:opacity-100"
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,5,10,0.05),rgba(2,5,10,0.5)),radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.16),transparent_30%),linear-gradient(120deg,transparent,rgba(34,211,238,0.1),transparent)]" />
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="rounded-full border border-white/20 bg-black/50 p-3 opacity-0 backdrop-blur-md transition group-hover:opacity-100">
           <Play className="h-6 w-6 fill-white text-white" />
@@ -438,6 +467,17 @@ const FilmPage = () => {
 
       <main>
         <section className="relative min-h-[72vh] overflow-hidden border-b border-white/10">
+          <video
+            src={movies[0].videoSrc}
+            poster={movies[0].posterSrc}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover opacity-45"
+          />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_35%,rgba(37,99,235,0.38),transparent_25%),radial-gradient(circle_at_20%_15%,rgba(34,211,238,0.16),transparent_25%),linear-gradient(90deg,#02050a_0%,rgba(2,5,10,0.9)_42%,rgba(2,5,10,0.35)_100%)]" />
           <div className="absolute right-[-8%] top-[8%] h-[520px] w-[520px] rounded-full border border-cyan-300/10 bg-blue-500/10 blur-2xl" />
           <div className="container relative mx-auto flex min-h-[72vh] items-center px-4 py-20 sm:px-6">
@@ -586,7 +626,17 @@ const FilmPage = () => {
             <motion.div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-white/15 bg-[#07101d] shadow-2xl" initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.98 }} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${selectedMovie.title} details`}>
               <button type="button" onClick={() => setSelectedMovie(null)} className="absolute right-4 top-4 z-10 rounded-full border border-white/15 bg-black/50 p-2 text-white" aria-label="Close movie details"><X className="h-5 w-5" /></button>
               <div className={`relative aspect-video bg-gradient-to-br ${selectedMovie.accent}`}>
-                <div className="absolute inset-0 flex items-center justify-center"><div className="rounded-full border border-white/20 bg-black/50 p-5"><Play className="h-10 w-10 fill-white text-white" /></div></div>
+                <video
+                  src={selectedMovie.videoSrc}
+                  poster={selectedMovie.posterSrc}
+                  controls
+                  autoPlay
+                  playsInline
+                  preload="metadata"
+                  className="h-full w-full object-cover"
+                >
+                  Your browser does not support HTML video playback.
+                </video>
               </div>
               <div className="space-y-4 p-6 sm:p-8">
                 <div className="flex flex-wrap items-center gap-2"><Badge className="bg-cyan-300 text-slate-950">{selectedMovie.category}</Badge><Badge variant="outline" className="border-white/15 text-slate-300">{selectedMovie.duration}</Badge></div>
