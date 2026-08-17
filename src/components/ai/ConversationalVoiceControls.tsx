@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, MicOff, PhoneCall, Volume2 } from 'lucide-react';
 import Vapi from '@vapi-ai/web';
 import { toast } from 'sonner';
-import { getVapiAssistantId } from '@/config/voice';
+import { getVapiAssistantId, getVapiPublicKey } from '@/config/voice';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ConversationalVoiceControlsProps {
@@ -68,7 +68,7 @@ const getInlineVoiceSession = async (): Promise<VoiceSessionResponse | null> => 
 export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsProps> = ({
   disabled = false,
 }) => {
-  const vapiPublicKey = import.meta.env.VITE_VAPI_PUBLIC_KEY?.trim();
+  const vapiPublicKey = getVapiPublicKey();
   const vapiAssistantId = getVapiAssistantId();
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);

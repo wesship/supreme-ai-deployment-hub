@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mic, PhoneCall, ShieldCheck, Volume2 } from 'lucide-react';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
-import { getVapiAssistantId } from '@/config/voice';
+import { getVapiAssistantId, getVapiPublicKey } from '@/config/voice';
 
 interface VoiceInterfaceProps {
   apiKey?: string;
@@ -19,9 +19,7 @@ interface VoiceInterfaceProps {
  */
 const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
   const vapiAssistantId = getVapiAssistantId();
-  const vapiConfigured = Boolean(
-    import.meta.env.VITE_VAPI_PUBLIC_KEY?.trim() && vapiAssistantId,
-  );
+  const vapiConfigured = Boolean(getVapiPublicKey() && vapiAssistantId);
   const elevenLabsConfigured = Boolean(import.meta.env.VITE_ELEVENLABS_AGENT_ID?.trim());
   const provider = vapiConfigured ? 'Vapi + ElevenLabs' : elevenLabsConfigured ? 'ElevenLabs' : null;
 
@@ -58,7 +56,7 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = () => {
                     ? 'Tap to start the published D3VONN Vapi assistant'
                     : elevenLabsConfigured
                       ? 'Vapi public access is not configured; ElevenLabs fallback is active'
-                      : 'Add the Vapi public key in Vercel to activate voice'}
+                      : 'Voice configuration is unavailable'}
                 </span>
               </div>
             </div>
