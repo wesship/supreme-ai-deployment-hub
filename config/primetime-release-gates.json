@@ -1,0 +1,76 @@
+{
+  "project": "PRIMETIME",
+  "release_gates_version": "6.0.0",
+  "deployment_readiness": {
+    "requires_staging_validation": true,
+    "requires_compliance_signoff": true,
+    "requires_rollback_plan": true
+  },
+  "stack": [
+    {
+      "release": "release-1",
+      "status": "certified",
+      "required_prs": [
+        434
+      ]
+    },
+    {
+      "release": "release-2",
+      "status": "certified",
+      "required_prs": [
+        435
+      ]
+    },
+    {
+      "release": "release-3",
+      "status": "certified",
+      "required_prs": [
+        436
+      ]
+    },
+    {
+      "release": "release-4",
+      "status": "certified",
+      "required_prs": [
+        437
+      ]
+    },
+    {
+      "release": "release-5",
+      "status": "certified",
+      "required_prs": [
+        440
+      ]
+    },
+    {
+      "release": "release-6",
+      "status": "in_progress",
+      "required_prs": [
+        441,
+        442
+      ]
+    }
+  ],
+  "blocked_endpoint_fragments": [
+    "/send",
+    "/quote",
+    "/recommend-policy",
+    "/submit-application"
+  ],
+  "blocked_http_methods_for_primetime": [
+    "DELETE"
+  ],
+  "no_hard_delete": true,
+  "no_quote_endpoint": true,
+  "no_communication_send_endpoint": true,
+  "known_blockers": {
+    "snyk_duplicate": "Non-blocking \u2014 documented duplicate vulnerability in transitive dependency"
+  },
+  "known_external_checks": [
+    {
+      "name": "security/snyk (wesship8)",
+      "status": "non-blocking",
+      "reason": "Duplicate transitive dependency vulnerability"
+    }
+  ]
+}

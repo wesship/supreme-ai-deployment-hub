@@ -126,7 +126,7 @@ export function useAgentOsCanary() {
     (workspaceId: string) =>
       guarded(() =>
         requestJson<CanaryStatus>(
-          `/agents/governance/control/canary/status?workspace_id=${encodeURIComponent(workspaceId)}`
+          `/api/agents/governance/control/canary/status?workspace_id=${encodeURIComponent(workspaceId)}`
         )
       ),
     [guarded]
@@ -135,7 +135,7 @@ export function useAgentOsCanary() {
   const dryRun = useCallback(
     (workspaceId: string, capability: string, agentName = 'devonn-coordinator') =>
       guarded(() =>
-        requestJson<GovernanceDryRunResult>('/agents/governance/dry-run', {
+        requestJson<GovernanceDryRunResult>('/api/agents/governance/dry-run', {
           method: 'POST',
           body: JSON.stringify({
             workspace_id: workspaceId,
@@ -150,7 +150,7 @@ export function useAgentOsCanary() {
   const setPolicy = useCallback(
     (workspaceId: string, killSwitchEnabled: boolean, disabledAgents: string[], reason: string) =>
       guarded(() =>
-        requestJson<Record<string, unknown>>('/agents/governance/control/policy', {
+        requestJson<Record<string, unknown>>('/api/agents/governance/control/policy', {
           method: 'PUT',
           body: JSON.stringify({
             workspace_id: workspaceId,
@@ -166,7 +166,7 @@ export function useAgentOsCanary() {
   const dispatchNamed = useCallback(
     (workspaceId: string, action: string, payload: Record<string, unknown>) =>
       guarded(() =>
-        requestResult('/agents/dispatch', {
+        requestResult('/api/agents/dispatch', {
           method: 'POST',
           body: JSON.stringify({
             workspace_id: workspaceId,
@@ -185,7 +185,7 @@ export function useAgentOsCanary() {
   const dispatchCapability = useCallback(
     (workspaceId: string, capability: string, payload: Record<string, unknown>) =>
       guarded(() =>
-        requestResult('/agents/capability', {
+        requestResult('/api/agents/capability', {
           method: 'POST',
           body: JSON.stringify({
             workspace_id: workspaceId,

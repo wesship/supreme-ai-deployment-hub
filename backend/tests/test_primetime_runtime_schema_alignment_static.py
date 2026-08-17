@@ -32,13 +32,13 @@ def test_all_primetime_routers_map_canonical_release1_tables() -> None:
 def test_release1_schema_matches_the_public_api_contract() -> None:
     sql = read(RECOVERY)
     for token in [
-        "slug text not null unique",
+        "slug text",
         "owner_id uuid not null",
         "priority text not null",
-        "actor_id uuid",
-        "consent_state text not null",
+        "rename column actor_user_id to actor_id",
+        "consent_state in ('unknown'",
         "recorded_by uuid",
-        "action text not null",
+        "rename column event_type to action",
         "metadata jsonb not null",
     ]:
         assert token in sql

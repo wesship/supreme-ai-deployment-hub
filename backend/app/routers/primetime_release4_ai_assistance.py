@@ -2,6 +2,7 @@
 
 Draft-first AI assistance API. No autonomous send, quote, policy
 recommendation, application submission, execution, or delete endpoints.
+The AI layer does not execute actions autonomously — all regulated actions require human approval.
 """
 from __future__ import annotations
 

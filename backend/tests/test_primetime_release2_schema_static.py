@@ -28,7 +28,7 @@ def test_release2_appointment_controls_exist():
     assert 'Open appointment requires an owner' in text
     assert 'Open appointment requires a valid time range' in text
     assert 'Blocked appointment cannot be scheduled' in text
-    assert 'check (ends_at > starts_at)' in text
+    assert 'check (end_at > start_at)' in text
 
 
 def test_release2_no_show_recovery_exists():
