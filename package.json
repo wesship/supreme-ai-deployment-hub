@@ -6,10 +6,12 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && pnpm run security:bundle-scan",
+    "build": "pnpm run generate:public-assets && vite build && pnpm run security:bundle-scan",
     "build:dev": "vite build --mode development",
     "generate:brand": "node scripts/generate-brand-assets.mjs",
     "generate:routes": "node scripts/generate-route-html.mjs",
+    "generate:public-assets": "node scripts/generate-public-assets.mjs",
+    "audit:accessibility": "playwright test tests/accessibility --project=chromium",
     "verify:build-scripts": "node scripts/verify-build-scripts.mjs",
     "vercel-build": "pnpm run verify:build-scripts && pnpm run generate:brand && pnpm run build && pnpm run generate:routes",
     "lint": "eslint .",
@@ -92,6 +94,7 @@
     "@types/uuid": "^10.0.0",
     "@vapi-ai/web": "^2.6.2",
     "@vercel/analytics": "1.6.1",
+    "@vercel/functions": "^3.9.3",
     "@xyflow/react": "^12.6.0",
     "axios": "^1.18.0",
     "class-variance-authority": "^0.7.1",
@@ -130,6 +133,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.9.0",
     "@kubernetes/client-node": "^1.0.0",
     "@stryker-mutator/core": "^9.6.1",

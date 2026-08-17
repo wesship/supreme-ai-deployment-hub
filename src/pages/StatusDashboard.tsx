@@ -5,6 +5,7 @@
  */
 import { motion, AnimatePresence } from "framer-motion";
 import { Helmet } from "react-helmet-async";
+import { useEffect, useState } from "react";
 import {
   Activity,
   RefreshCw,
@@ -66,6 +67,14 @@ const categoryLabel = (cat: ServiceEndpoint["category"]) => {
   }
 };
 
+type PublicStatusData = {
+  components: Array<{ id: string; name: string; description: string; status: string; uptime_30d: number; updated_at: string }>;
+  incidents: Array<{ id: string; title: string; impact: string; status: string; started_at: string; resolved_at?: string | null; updated_at: string }>;
+  maintenance: Array<{ id: string; title: string; description?: string | null; status: string; starts_at: string; ends_at: string }>;
+};
+
+const ASSURANCE_API = import.meta.env.VITE_API_URL || "https://api.d3vonn.io";
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function StatusDashboard() {
@@ -76,6 +85,36 @@ export default function StatusDashboard() {
     checkAll,
     lastSuccessfulExecution,
   } = useServiceHealth();
+  const [history, setHistory] = useState<PublicStatusData>({ components: [], incidents: [], maintenance: [] });
+  const [subscription, setSubscription] = useState({ email: "", webhook_url: "" });
+  const [subscriptionMessage, setSubscriptionMessage] = useState("");
+
+  const loadHistory = async () => {
+    try {
+      const response = await fetch(`${ASSURANCE_API}/api/assurance/public/status`);
+      if (response.ok) setHistory(await response.json());
+    } catch {
+      // Core health information remains available if the assurance API is briefly unavailable.
+    }
+  };
+
+  useEffect(() => { void loadHistory(); }, []);
+
+  const subscribe = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubscriptionMessage("Submitting subscription request…");
+    try {
+      const response = await fetch(`${ASSURANCE_API}/api/assurance/public/status-subscriptions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: subscription.email || undefined, webhook_url: subscription.webhook_url || undefined }),
+      });
+      const body = await response.json();
+      setSubscriptionMessage(response.ok ? body.message : body.detail || "Subscription could not be completed.");
+    } catch {
+      setSubscriptionMessage("Subscription service is temporarily unavailable.");
+    }
+  };
 
   const onlineCount = Object.values(statuses).filter((s) => s.status === "online").length;
   const offlineCount = Object.values(statuses).filter((s) => s.status === "offline").length;
@@ -143,7 +182,7 @@ export default function StatusDashboard() {
               </div>
             </div>
             <button
-              onClick={checkAll}
+              onClick={() => { void checkAll(); void loadHistory(); }}
               disabled={isChecking}
               className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium hover:bg-white/10 transition disabled:opacity-50"
             >
@@ -238,6 +277,24 @@ export default function StatusDashboard() {
           </AnimatePresence>
         </div>
 
+        <section className="mt-10 grid gap-6 lg:grid-cols-2" aria-label="Operational history and planned maintenance">
+          <div className="d3-chrome-panel rounded-2xl border border-white/10 p-5">
+            <h2 className="text-lg font-semibold">Incident history</h2>
+            <p className="mt-1 text-sm text-white/55">Resolved and active service notices published by the reliability team.</p>
+            <div className="mt-4 space-y-3">{history.incidents.length ? history.incidents.map((incident) => <div key={incident.id} className="rounded-xl border border-white/10 bg-white/[0.025] p-3"><div className="flex items-center justify-between gap-2"><span className="font-medium">{incident.title}</span><span className="text-xs uppercase tracking-wide text-white/55">{incident.status.replace('_', ' ')}</span></div><p className="mt-1 text-xs text-white/45">{new Date(incident.started_at).toLocaleString()} · {incident.impact} impact</p></div>) : <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-white/50">No incidents have been published.</p>}</div>
+          </div>
+          <div className="d3-chrome-panel rounded-2xl border border-white/10 p-5">
+            <h2 className="text-lg font-semibold">Planned maintenance</h2>
+            <p className="mt-1 text-sm text-white/55">Maintenance windows are published here before work begins.</p>
+            <div className="mt-4 space-y-3">{history.maintenance.length ? history.maintenance.map((window) => <div key={window.id} className="rounded-xl border border-white/10 bg-white/[0.025] p-3"><div className="flex items-center justify-between gap-2"><span className="font-medium">{window.title}</span><span className="text-xs uppercase tracking-wide text-white/55">{window.status}</span></div><p className="mt-1 text-xs text-white/45">{new Date(window.starts_at).toLocaleString()} – {new Date(window.ends_at).toLocaleString()}</p>{window.description && <p className="mt-2 text-sm text-white/65">{window.description}</p>}</div>) : <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-white/50">No planned maintenance is currently scheduled.</p>}</div>
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-6 lg:grid-cols-2" aria-label="Component uptime and status subscriptions">
+          <div className="d3-chrome-panel rounded-2xl border border-white/10 p-5"><h2 className="text-lg font-semibold">30-day component uptime</h2><div className="mt-4 space-y-3">{history.components.length ? history.components.map((component) => <div key={component.id} className="flex items-center justify-between border-b border-white/10 pb-3 text-sm"><span>{component.name}</span><span className="font-mono text-emerald-300">{Number(component.uptime_30d).toFixed(2)}%</span></div>) : <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-white/50">Uptime history will appear after the first scheduled health aggregation.</p>}</div></div>
+          <form onSubmit={subscribe} className="d3-chrome-panel rounded-2xl border border-white/10 p-5"><h2 className="text-lg font-semibold">Subscribe to status updates</h2><p className="mt-1 text-sm text-white/55">Use an email address or an HTTPS webhook endpoint. Webhooks are challenge-verified and signed.</p><div className="mt-4 space-y-3"><label className="block text-sm"><span className="mb-1 block text-white/65">Email</span><input value={subscription.email} onChange={(event) => setSubscription({ email: event.target.value, webhook_url: "" })} className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2" type="email" placeholder="ops@example.com" /></label><label className="block text-sm"><span className="mb-1 block text-white/65">or HTTPS webhook</span><input value={subscription.webhook_url} onChange={(event) => setSubscription({ email: "", webhook_url: event.target.value })} className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2" type="url" placeholder="https://example.com/status" /></label><button className="rounded-lg border border-cyan-300/40 bg-cyan-300/10 px-4 py-2 text-sm font-medium text-cyan-100 hover:bg-cyan-300/20">Subscribe</button>{subscriptionMessage && <p role="status" className="text-xs text-white/60">{subscriptionMessage}</p>}</div></form>
+        </section>
+
         {/* Last Successful Execution */}
         <div className="mt-8 rounded-xl border border-white/10 bg-white/[0.02] p-4">
           <div className="flex items-center gap-3">
@@ -255,7 +312,7 @@ export default function StatusDashboard() {
 
         {/* Footer info */}
         <div className="mt-8 text-center text-xs text-white/30 space-y-1">
-          <p>Status checks run automatically every 30 seconds.</p>
+          <p>Use Refresh for a new on-demand health snapshot.</p>
           <p>For incident reports, contact <a href="mailto:support@d3vonn.io" className="text-blue-400/60 hover:text-blue-400">support@d3vonn.io</a></p>
         </div>
       </div>

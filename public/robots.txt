@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-# Private and authenticated surfaces — keep out of the index
+# Private and authenticated surfaces — crawler exclusion is not an access control.
 Disallow: /app
 Disallow: /admin
 Disallow: /occ
@@ -10,7 +10,6 @@ Disallow: /login
 Disallow: /signin
 Disallow: /signup
 Disallow: /unauthorized
-Disallow: /github-diagnostic
 Disallow: /command-center
 Disallow: /agents
 Disallow: /workflows
@@ -30,4 +29,4 @@ Disallow: /jetson
 Disallow: /jetson-control
 Disallow: /backtesting
 
-Sitemap: https://d3vonn.io/sitemap.xml
+Sitemap: https://www.d3vonn.io/sitemap.xml

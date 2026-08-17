@@ -245,11 +245,6 @@ export function useServiceHealth() {
 
   useEffect(() => {
     void checkAll();
-    const interval = window.setInterval(() => {
-      void checkAll();
-    }, 30_000);
-
-    return () => window.clearInterval(interval);
   }, [checkAll]);
 
   return {

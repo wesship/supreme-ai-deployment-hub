@@ -305,6 +305,14 @@ try:
 except ImportError as _security_v2_err:
     logger.warning("backend.app.security.router_v2 not found — skipping Security Ops v2. (%s)", _security_v2_err)
 
+try:
+    from backend.app.assurance.router import router as assurance_router  # type: ignore
+
+    app.include_router(assurance_router)
+    logger.info("Assurance platform router registered at /api/assurance/*")
+except ImportError as _assurance_err:
+    logger.warning("Assurance platform router not found — skipping. (%s)", _assurance_err)
+
 
 def _env_configured(*names: str) -> bool:
     return all(bool(os.getenv(name)) for name in names)

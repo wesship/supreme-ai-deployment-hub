@@ -109,6 +109,19 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 60
     rate_limit_chat_per_minute: int = 20
 
+    # ── Assurance platform ─────────────────────────────────────────────────────
+    canonical_site_origin: str = "https://www.d3vonn.io"
+    assurance_admin_ids_raw: str = ""
+    mcp_audit_retention_days: int = 365
+    mcp_gateway_timeout_seconds: float = 15.0
+    status_email_delivery_url: str = ""
+    status_email_delivery_token: str = ""
+    status_webhook_signing_secret: str = ""
+
+    @property
+    def assurance_admin_ids(self) -> set[str]:
+        return {value.strip() for value in self.assurance_admin_ids_raw.split(",") if value.strip()}
+
     # ── App ────────────────────────────────────────────────────────────────────
     app_env: str = "production"
     debug: bool = False
