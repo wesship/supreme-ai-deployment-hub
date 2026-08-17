@@ -76,6 +76,8 @@
   ],
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
+    { "source": "/film%60", "destination": "/film", "permanent": false },
+    { "source": "/film`", "destination": "/film", "permanent": false },
     {
       "source": "/:path*",
       "has": [
