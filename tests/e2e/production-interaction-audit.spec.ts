@@ -53,6 +53,13 @@ async function waitForApplication(page: Page) {
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
+  test('the malformed encoded film path redirects to the canonical film page', async ({ page }) => {
+    await page.goto('/film%60', { waitUntil: 'domcontentloaded' });
+    await waitForApplication(page);
+    await expect(page).toHaveURL(/\/film$/);
+    await expect(page.locator('#main-content')).toBeVisible();
+  });
+
   for (const route of PUBLIC_ROUTES) {
     test(`${route} loads and exposes valid interactive controls`, async ({ page, request }) => {
       const runtimeErrors = await collectRuntimeErrors(page);

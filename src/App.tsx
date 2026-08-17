@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
 import ScrollToTop from "./components/ScrollToTop";
 import SkipToContent from "./components/SkipToContent";
@@ -98,6 +98,29 @@ const PageLoader = () => (
   </div>
 );
 
+function CanonicalPathFallback() {
+  const location = useLocation();
+  const rawPathname = window.location.pathname;
+
+  if (/^\/film(?:%60|`|\s)+$/i.test(rawPathname)) {
+    return <Navigate to={{ pathname: "/film", search: location.search, hash: location.hash }} replace />;
+  }
+
+  return <NotFound />;
+}
+
+function LegacyFilmPathRepair() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (/^\/film(?:%60|`|\s)+$/i.test(window.location.pathname)) {
+      window.location.replace(`/film${location.search}${location.hash}`);
+    }
+  }, [location.hash, location.pathname, location.search]);
+
+  return null;
+}
+
 function DeferredProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
@@ -134,6 +157,7 @@ function App() {
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <Router>
         <ScrollToTop />
+        <LegacyFilmPathRepair />
         <SkipToContent />
         <Suspense fallback={null}><Navbar /></Suspense>
         <DeferredProviders>
@@ -221,7 +245,7 @@ function App() {
                 <Route path="/log-in" element={<Navigate to="/login" replace />} />
                 <Route path="/signup" element={<Navigate to="/login" replace />} />
                 <Route path="/sign-up" element={<Navigate to="/login" replace />} />
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<CanonicalPathFallback />} />
               </Routes>
             </Suspense>
           </main>
