@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  personalive:
+    image: neosun/personalive:allinone
+    container_name: devonn-personalive
+    ports:
+      - "7870:7870"
+    environment:
+      - PORT=7870
+      - HOST=0.0.0.0
+      - GPU_IDLE_TIMEOUT=600
+      - ACCELERATION=xformers
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - personalive-data:/app/output
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7870/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  avatar-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: devonn-avatar-gateway
+    ports:
+      - "8100:8100"
+    environment:
+      - PERSONALIVE_URL=http://personalive:7870
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEVONN_API_KEY=${DEVONN_API_KEY}
+      - ORCHESTRATOR_URL=${ORCHESTRATOR_URL:-http://host.docker.internal:8000}
+    depends_on:
+      personalive:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  personalive-data:

@@ -1,0 +1,58 @@
+# Devonn.AI Avatar Layer — PersonaLive Configuration
+# ===================================================
+
+server:
+  host: "0.0.0.0"
+  port: 8100
+  workers: 4
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    - "https://devonn-dashboard.vercel.app"
+
+# PersonaLive Service Connection
+personalive:
+  url: "http://localhost:7870"
+  health_endpoint: "/health"
+  process_endpoint: "/api/process/offline"
+  gpu_status_endpoint: "/api/gpu/status"
+  timeout: 60
+  acceleration: "xformers"  # none | xformers | tensorrt
+  max_concurrent_sessions: 4
+
+# Voice Engine (TTS)
+voice_engine:
+  provider: "openai"  # elevenlabs | openai | edge-tts | coqui
+  elevenlabs:
+    api_key: "${ELEVENLABS_API_KEY}"
+    model: "eleven_turbo_v2_5"
+    default_voice_id: "pNInz6obpgDQGcFmaJgB"
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    model: "tts-1"
+    default_voice: "alloy"
+  edge_tts:
+    default_voice: "en-US-AriaNeural"
+  coqui:
+    url: "http://localhost:5002"
+    model: "tts_models/en/ljspeech/tacotron2-DDC"
+
+# Agent Orchestrator Connection
+orchestrator:
+  url: "http://localhost:8000"
+  api_key: "${DEVONN_API_KEY}"
+  timeout: 30
+  model: "gpt-4o"
+
+# Streaming Output
+streaming:
+  protocol: "webrtc"  # webrtc | hls | direct
+  buffer_ms: 200
+  max_fps: 25
+  resolution: "512x512"
+
+# Session Management
+sessions:
+  max_active: 20
+  idle_timeout: 300
+  max_duration: 3600
