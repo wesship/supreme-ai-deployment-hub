@@ -173,10 +173,10 @@ async def create_test_production(access_token: str, title: str) -> dict[str, Any
 
         render_plan = (
             ("storyboard", _provider("AI_FILM_IMAGE_PROVIDER", "openai")),
-            ("video", _provider("AI_FILM_VIDEO_PROVIDER", "replicate")),
+            ("video", _provider("AI_FILM_VIDEO_PROVIDER", "openai")),
             ("voice", _provider("AI_FILM_VOICE_PROVIDER", "openai")),
             ("music", _provider("AI_FILM_MUSIC_PROVIDER", "replicate")),
-            ("trailer", _provider("AI_FILM_VIDEO_PROVIDER", "replicate")),
+            ("trailer", _provider("AI_FILM_VIDEO_PROVIDER", "openai")),
         )
         render_jobs = []
         for priority, (job_type, provider) in enumerate(render_plan, start=1):

@@ -129,6 +129,27 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # API Routers
 # ---------------------------------------------------------------------------
+# AI Films is a first-class API surface. Each router is registered independently
+# so an optional studio integration cannot make the core API unavailable.
+_AI_FILMS_ROUTERS = (
+    ("core", "backend.ai_films.router", "router"),
+    ("commerce", "backend.ai_films.commerce_router", "router"),
+    ("openmontage", "backend.ai_films.openmontage_router", "router"),
+    ("director", "backend.ai_films.director_router", "router"),
+    ("production_bible", "backend.ai_films.bible_router", "router"),
+    ("anchor_frames", "backend.ai_films.anchor_router", "router"),
+    ("index", "backend.ai_films.index_router", "router"),
+    ("performance", "backend.ai_films.performance_router", "router"),
+    ("mastering", "backend.ai_films.mastering_router", "router"),
+)
+for _ai_films_name, _ai_films_module, _ai_films_attr in _AI_FILMS_ROUTERS:
+    try:
+        _module = __import__(_ai_films_module, fromlist=[_ai_films_attr])
+        app.include_router(getattr(_module, _ai_films_attr), prefix="/api")
+        logger.info("AI Films %s router registered.", _ai_films_name)
+    except (ImportError, AttributeError) as _ai_films_err:
+        logger.warning("AI Films %s router unavailable — skipping. (%s)", _ai_films_name, _ai_films_err)
+
 try:
     from backend.app.routers import proxy_router  # type: ignore
 

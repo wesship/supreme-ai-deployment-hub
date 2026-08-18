@@ -31,6 +31,18 @@ _PROVIDER_ALIASES = {"sora": "openai", "grok": "xai", "xai": "xai", "openai": "o
 _BASE_SCORE = {"openai": 100, "higgsfield": 95, "runway": 88, "xai": 84, "movieflow": 82, "replicate": 72}
 
 
+def _executable_video_providers(source: Mapping[str, str]) -> set[str]:
+    """Return provider routes backed by a running worker in this deployment.
+
+    The default is deliberately OpenAI-only: the Railway lifespan starts the
+    OpenAI/Sora worker and no worker is started for the other declared adapters.
+    Operators may add a provider only after shipping its worker and setting this
+    explicit allowlist, preventing stranded queued render jobs.
+    """
+    configured = str(source.get("AI_FILM_EXECUTABLE_VIDEO_PROVIDERS", "openai"))
+    return {_normalize_provider(value) for value in configured.split(",") if value.strip()}
+
+
 def _video_specs() -> dict[str, Any]:
     return {spec.provider: spec for spec in PROVIDER_SPECS if spec.capability == "video"}
 
@@ -43,6 +55,7 @@ def _normalize_provider(value: str) -> str:
 def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> list[VideoRoute]:
     source = environ or os.environ
     specs = _video_specs()
+    executable = _executable_video_providers(source)
     raw_pref = packet.get("provider_route")
     preferred = [_normalize_provider(v) for v in raw_pref] if isinstance(raw_pref, list) else []
     anchors = packet.get("anchor_frame_asset_ids") or []
@@ -54,6 +67,10 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
         configured = spec.configured(source)
         score = _BASE_SCORE.get(provider, 50)
         reasons: list[str] = []
+        if provider not in executable:
+            configured = False
+            score -= 1000
+            reasons.append("no_running_worker")
         if preferred:
             if provider in preferred:
                 score += max(4, 24 - preferred.index(provider) * 4)
@@ -73,9 +90,11 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
             else:
                 reasons.append("dialogue_requires_post_lipsync")
         if not configured:
-            score -= 1000
+            if "no_running_worker" not in reasons:
+                score -= 1000
             missing = [name for name in spec.required_env if not str(source.get(name, "")).strip()]
-            reasons.append("not_configured:" + ",".join(missing))
+            if missing:
+                reasons.append("not_configured:" + ",".join(missing))
         else:
             reasons.append("configured")
         model_env = _VIDEO_MODEL_ENV.get(provider)

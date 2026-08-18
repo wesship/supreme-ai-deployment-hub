@@ -135,6 +135,12 @@ Deno.serve(async (request) => {
       metadata: { source: 'd3vonn-film-studio', version: '1.0.0' },
     });
     jobId = job?.id ?? null;
+    if (!jobId) {
+      return json({
+        error: 'PERSISTENCE_FAILED',
+        message: 'OpenMontage could not create a durable render job.',
+      }, 502);
+    }
 
     const lovableKey = Deno.env.get('LOVABLE_API_KEY');
     const openAIKey = Deno.env.get('OPENAI_API_KEY');
@@ -213,103 +219,54 @@ Deno.serve(async (request) => {
       stages: makeStages('render'),
     });
 
-    const webhookUrl = Deno.env.get('OPENMONTAGE_WEBHOOK_URL') || Deno.env.get('VIDEO_GENERATION_WEBHOOK_URL');
-    const webhookToken = Deno.env.get('OPENMONTAGE_WEBHOOK_TOKEN') || Deno.env.get('VIDEO_GENERATION_WEBHOOK_TOKEN');
-
-    if (webhookUrl) {
-      const videoResponse = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(webhookToken ? { Authorization: `Bearer ${webhookToken}` } : {}),
-        },
-        body: JSON.stringify({
-          jobId,
-          agentSlug,
-          screenplay: screenplay.trim(),
-          prompt: videoPrompt,
-          stages: OPENMONTAGE_STAGES,
-          callbackUrl: Deno.env.get('OPENMONTAGE_CALLBACK_URL') || null,
-        }),
-      });
-
-      const videoPayload = await videoResponse.json().catch(() => ({}));
-      if (!videoResponse.ok) {
-        await updateJob(authorization, jobId, {
-          status: 'failed',
-          error: { code: 'VIDEO_PROVIDER_ERROR', upstreamStatus: videoResponse.status },
-        });
-        return json({
-          error: 'VIDEO_PROVIDER_ERROR',
-          message: videoPayload?.message || `Video provider returned HTTP ${videoResponse.status}.`,
-          jobId,
-        }, 502);
-      }
-
-      const videoUrl = videoPayload?.videoUrl || videoPayload?.url;
-      const providerJobId = videoPayload?.jobId || videoPayload?.id || null;
-      if (!videoUrl) {
-        await updateJob(authorization, jobId, {
-          status: 'render',
-          provider: 'openmontage-webhook',
-          provider_job_id: providerJobId,
-          metadata: { pending: true, providerResponse: videoPayload },
-        });
-        return json({
-          jobId,
-          providerJobId,
-          prompt: videoPrompt,
-          provider: 'openmontage-webhook',
-          status: 'render',
-          stages: makeStages('render'),
-          message: 'OpenMontage accepted the render job. Polling/callback completion is required.',
-        }, 202);
-      }
-
-      const completedStages = OPENMONTAGE_STAGES.map((name) => ({
-        name,
-        status: 'completed',
-        updatedAt: new Date().toISOString(),
-      }));
+    const apiBase = (Deno.env.get('AI_FILMS_API_BASE_URL') || 'https://api.d3vonn.io').replace(/\/$/, '');
+    const dispatchResponse = await fetch(`${apiBase}/api/ai-films/openmontage/dispatch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authorization ? { Authorization: authorization } : {}),
+      },
+      body: JSON.stringify({
+        job_id: jobId,
+        idea,
+        screenplay: screenplay.trim(),
+        video_prompt: videoPrompt,
+        duration_seconds: 8,
+      }),
+    });
+    const dispatchPayload = await dispatchResponse.json().catch(() => ({}));
+    if (!dispatchResponse.ok || !dispatchPayload?.render_job_id) {
+      const message = dispatchPayload?.detail || dispatchPayload?.message || `Production dispatcher returned HTTP ${dispatchResponse.status}.`;
       await updateJob(authorization, jobId, {
-        provider: 'openmontage-webhook',
-        provider_job_id: providerJobId,
-        video_url: videoUrl,
-        status: 'completed',
-        stages: completedStages,
-        completed_at: new Date().toISOString(),
+        status: 'failed',
+        error: { code: 'RENDER_DISPATCH_FAILED', message, upstreamStatus: dispatchResponse.status },
       });
-
-      return json({
-        jobId,
-        providerJobId,
-        videoUrl,
-        prompt: videoPrompt,
-        provider: 'openmontage-webhook',
-        status: 'completed',
-        stages: completedStages,
-      });
+      return json({ error: 'RENDER_DISPATCH_FAILED', message, jobId }, 502);
     }
 
-    const sampleVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-    const reviewStages = makeStages('review');
     await updateJob(authorization, jobId, {
-      provider: 'sample',
-      video_url: sampleVideoUrl,
-      status: 'review',
-      stages: reviewStages,
-      metadata: { sample: true, configurationRequired: 'OPENMONTAGE_WEBHOOK_URL' },
+      status: 'render',
+      provider: dispatchPayload.provider || 'openai',
+      provider_job_id: dispatchPayload.render_job_id,
+      stages: dispatchPayload.stages || makeStages('render'),
+      metadata: {
+        source: 'd3vonn-film-studio',
+        version: '2.0.0',
+        projectId: dispatchPayload.project_id,
+        renderJobId: dispatchPayload.render_job_id,
+      },
     });
 
     return json({
       jobId,
-      videoUrl: sampleVideoUrl,
+      renderJobId: dispatchPayload.render_job_id,
+      projectId: dispatchPayload.project_id,
       prompt: videoPrompt,
-      provider: 'sample',
-      status: 'review',
-      stages: reviewStages,
-      message: 'OpenMontage workflow is active in sample mode. Configure OPENMONTAGE_WEBHOOK_URL for real rendering.',
-    });
+      provider: dispatchPayload.provider || 'openai',
+      status: 'render',
+      stages: dispatchPayload.stages || makeStages('render'),
+      message: 'OpenMontage queued a real provider render and will continue through review and publish.',
+    }, 202);
   } catch (error) {
     console.error('generate-film error', error);
     await updateJob(authorization, jobId, {

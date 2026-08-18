@@ -13,8 +13,6 @@ from backend.ai_films.manifest_conform_review import _extract_json, _response_te
 from backend.ai_films.twelvelabs import TwelveLabsClient
 from backend.ai_films.twelvelabs_analyze import TwelveLabsAnalyzeClient
 
-PROJECT_ID = "b2979e7c-1d28-4024-bf4f-8db90c174d5a"
-
 ANALYZE_PROMPT = (
     "Evaluate this generated shot against its intended cinematic prompt. Describe visible characters, wardrobe, "
     "location, camera framing/movement, lighting, props, VFX, action, dialogue/audio cues, and continuity-relevant details. "
@@ -61,16 +59,19 @@ async def _claim(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
     return claimed[0] if claimed else None
 
 
-async def _load_bible_manifest(db: SupabaseAssemblyClient) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+async def _load_bible_manifest(
+    db: SupabaseAssemblyClient,
+    project_id: str,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     bibles = await db._request(
         "GET", "ai_film_production_bibles",
-        params={"project_id": f"eq.{PROJECT_ID}", "status": "eq.active", "select": "*", "order": "version.desc", "limit": "1"},
+        params={"project_id": f"eq.{project_id}", "status": "eq.active", "select": "*", "order": "version.desc", "limit": "1"},
     )
     manifests = await db._request(
         "GET", "ai_film_shot_manifests",
-        params={"project_id": f"eq.{PROJECT_ID}", "status": "eq.active", "select": "*", "order": "manifest_version.desc", "limit": "1"},
+        params={"project_id": f"eq.{project_id}", "status": "eq.active", "select": "*", "order": "manifest_version.desc", "limit": "1"},
     )
-    projects = await db._request("GET", "ai_film_projects", params={"id": f"eq.{PROJECT_ID}", "select": "metadata", "limit": "1"})
+    projects = await db._request("GET", "ai_film_projects", params={"id": f"eq.{project_id}", "select": "metadata", "limit": "1"})
     if not bibles or not manifests:
         raise RuntimeError("Active Production Bible or Shot Manifest is missing")
     return dict(bibles[0].get("bible") or {}), manifests[0], dict((projects[0].get("metadata") if projects else {}) or {})
@@ -107,7 +108,10 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
     if not shot_id or not asset_id or not object_path:
         raise RuntimeError("Generated shot QA is missing shot/asset/storage identifiers")
 
-    bible, manifest_row, project_meta = await _load_bible_manifest(db)
+    project_id = str(job.get("project_id") or "")
+    if not project_id:
+        raise RuntimeError("Generated shot QA is missing project_id")
+    bible, manifest_row, project_meta = await _load_bible_manifest(db, project_id)
     store_id = str(project_meta.get("jockey_store_id") or "").strip()
     if store_id:
         os.environ["TWELVELABS_KNOWLEDGE_STORE_ID"] = store_id
@@ -118,7 +122,7 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
     created = await runner._create_asset(
         url=signed_url,
         filename=f"generated-{shot_id}.mp4",
-        user_metadata={"d3vonn_project_id": PROJECT_ID, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+        user_metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
     )
     tl_asset_id = str(created.get("_id") or created.get("id") or "")
     if not tl_asset_id:
@@ -132,7 +136,7 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
 
     item = await runner._create_item(
         tl_asset_id,
-        metadata={"d3vonn_project_id": PROJECT_ID, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+        metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
     )
     tl_item_id = str(item.get("_id") or item.get("id") or "")
     if not tl_item_id:

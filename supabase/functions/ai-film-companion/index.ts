@@ -11,10 +11,6 @@ Deno.serve(async (request) => {
   }
 
   try {
-    if (Deno.env.get('AI_FILM_COMPANION_ENABLED') !== 'true') {
-      return json({ error: 'FEATURE_DISABLED', message: 'The AI Film Companion is not enabled.' }, 503);
-    }
-
     const authorization = request.headers.get('Authorization');
     if (!authorization) {
       return json({ error: 'UNAUTHORIZED', message: 'Authorization is required.' }, 401);
@@ -42,6 +38,15 @@ Deno.serve(async (request) => {
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) {
       return json({ error: 'UNAUTHORIZED', message: 'A valid user session is required.' }, 401);
+    }
+
+    const { data: flag, error: flagError } = await supabase
+      .from('feature_flags')
+      .select('enabled, active')
+      .eq('key', 'ai_film_companion')
+      .maybeSingle();
+    if (flagError || !flag?.active || !flag.enabled) {
+      return json({ error: 'FEATURE_DISABLED', message: 'The AI Film Companion is not enabled.' }, 503);
     }
 
     const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {

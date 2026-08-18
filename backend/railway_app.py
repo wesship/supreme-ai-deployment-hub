@@ -163,7 +163,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-pollo-commerce-handoff-2026-08-10"
+DEPLOYMENT_REVISION = "railway-ai-films-openmontage-production-2026-08-18"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -177,7 +177,8 @@ app.add_middleware(
 
 
 def _paths() -> set[str]:
-    return {getattr(route, "path", "") for route in app.routes}
+    """Resolve application paths, including FastAPI's lazy included routers."""
+    return set(app.openapi().get("paths", {}))
 
 
 if "/api/intelligence/prompts" not in _paths():
@@ -224,6 +225,8 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_anchor_frames": "/api/ai-films/production/anchors/candidates" in paths,
             "ai_films_commerce_dispatch": "/api/ai-films/commerce/providers/pollo/dispatch" in paths,
             "ai_films_commerce_webhook": "/api/ai-films/commerce/providers/pollo/webhook" in paths,
+            "ai_films_commerce_render": "/api/ai-films/commerce/campaigns/render" in paths,
+            "ai_films_openmontage": "/api/ai-films/openmontage/dispatch" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
         "official_cors_origins": [origin for origin in RAILWAY_ALLOWED_ORIGINS if _is_official_d3vonn_origin(origin)],

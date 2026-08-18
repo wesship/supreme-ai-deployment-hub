@@ -24,6 +24,8 @@ import { Progress } from '@/components/ui/progress';
 import FilmPage from './Film';
 import { aiFilmCatalog, aiFilmCategories, type AIFilm } from '@/features/ai-films/catalog';
 import { useFilmLibrary } from '@/features/ai-films/useFilmLibrary';
+import { supabase } from '@/integrations/supabase/client';
+import { useFeatureFlag } from '@/lib/featureFlags';
 
 const breadcrumbs = [{ label: 'AI Films' }, { label: 'D3VONN Studios' }];
 const INTRO_STORAGE_KEY = 'd3vonn-ai-films-intro-seen';
@@ -78,7 +80,9 @@ const AIFilms = () => {
   const [selectedFilm, setSelectedFilm] = useState<AIFilm | null>(null);
   const [companionOpen, setCompanionOpen] = useState(false);
   const [companionQuery, setCompanionQuery] = useState('');
-  const [companionAnswer, setCompanionAnswer] = useState('Select a film and ask about its themes, technology, or related D3VONN systems.');
+  const [companionAnswer, setCompanionAnswer] = useState('Select a film and ask a question grounded in its approved transcript.');
+  const [companionBusy, setCompanionBusy] = useState(false);
+  const companionEnabled = useFeatureFlag('ai_film_companion');
   const { state: library, toggleSaved, setProgress } = useFilmLibrary();
 
   useEffect(() => {
@@ -132,19 +136,28 @@ const AIFilms = () => {
     setProgress(film.id, Math.max(library.progress[film.id] || 0, 5));
   };
 
-  const askCompanion = () => {
+  const askCompanion = async () => {
     const film = selectedFilm || aiFilmCatalog.find((item) => item.featured) || aiFilmCatalog[0];
-    const prompt = companionQuery.trim().toLowerCase();
-    if (!prompt) return;
-
-    const answer = prompt.includes('related') || prompt.includes('system')
-      ? `${film.title} connects to ${film.topics.join(', ')}. Inside D3VONN.IO, those ideas map to HERMES orchestration, GUARDIAN governance, ION memory, and the broader knowledge graph.`
-      : prompt.includes('summary') || prompt.includes('about')
-        ? `${film.title} is ${film.description.toLowerCase()} Its central topics are ${film.topics.join(', ')}.`
-        : `For ${film.title}, focus on ${film.topics.join(', ')}. The Phase 2 companion is running in catalog-aware mode; transcript-grounded answers will activate when final media and transcripts are connected.`;
-
-    setCompanionAnswer(answer);
-    setCompanionQuery('');
+    const question = companionQuery.trim();
+    if (!question || companionBusy) return;
+    setCompanionBusy(true);
+    setCompanionAnswer('Searching the approved transcript…');
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-film-companion', {
+        body: { filmId: film.id, question },
+      });
+      if (error) {
+        const payload = error.context && typeof error.context.json === 'function' ? await error.context.json().catch(() => ({})) : {};
+        throw new Error(payload.message || error.message || 'The AI Film Companion is unavailable.');
+      }
+      if (!data?.answer) throw new Error(data?.message || 'The AI Film Companion returned no answer.');
+      setCompanionAnswer(data.answer);
+      setCompanionQuery('');
+    } catch (error) {
+      setCompanionAnswer(error instanceof Error ? error.message : 'The AI Film Companion is unavailable.');
+    } finally {
+      setCompanionBusy(false);
+    }
   };
 
   const scrollToStudio = () => {
@@ -220,7 +233,7 @@ const AIFilms = () => {
                 <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
                 <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(featuredFilm)}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
                 <Button type="button" size="lg" variant="outline" onClick={scrollToStudio}><Sparkles aria-hidden="true" className="mr-2 h-5 w-5" /> Create a Film</Button>
-                <Button type="button" size="lg" variant="outline" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
+                {companionEnabled && <Button type="button" size="lg" variant="outline" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>}
               </div>
             </div>
           </div>
@@ -272,7 +285,7 @@ const AIFilms = () => {
               ) : (
                 <div className="mt-6 rounded-xl border border-dashed border-white/15 bg-white/5 p-4 text-sm text-slate-300"><strong>{selectedFilm.title}</strong> is in development. A title-specific preview will appear here when it is published.</div>
               )}
-              <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setProgress(selectedFilm.id, Math.min(100, (library.progress[selectedFilm.id] || 0) + 20))}>{selectedFilm.trailerUrl ? <Play className="mr-2 h-4 w-4" /> : <Info className="mr-2 h-4 w-4" />}{selectedFilm.trailerUrl ? 'Track Preview Progress' : 'Track Interest'}</Button><Button variant="outline" onClick={() => toggleSaved(selectedFilm.id)}>{library.saved.includes(selectedFilm.id) ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />} My Library</Button><Button variant="outline" onClick={() => setCompanionOpen(true)}><Bot className="mr-2 h-4 w-4" /> Ask AI</Button></div>
+              <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setProgress(selectedFilm.id, Math.min(100, (library.progress[selectedFilm.id] || 0) + 20))}>{selectedFilm.trailerUrl ? <Play className="mr-2 h-4 w-4" /> : <Info className="mr-2 h-4 w-4" />}{selectedFilm.trailerUrl ? 'Track Preview Progress' : 'Track Interest'}</Button><Button variant="outline" onClick={() => toggleSaved(selectedFilm.id)}>{library.saved.includes(selectedFilm.id) ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />} My Library</Button>{companionEnabled && <Button variant="outline" onClick={() => setCompanionOpen(true)}><Bot className="mr-2 h-4 w-4" /> Ask AI</Button>}</div>
               {(library.progress[selectedFilm.id] || 0) > 0 && <Progress value={library.progress[selectedFilm.id]} className="mt-6" />}
             </Card>
           </motion.div>
@@ -284,8 +297,8 @@ const AIFilms = () => {
           <motion.aside className="fixed bottom-0 right-0 z-[60] h-[min(620px,90vh)] w-full max-w-md border-l border-t border-white/10 bg-slate-950 p-5 text-white shadow-2xl" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} aria-labelledby="companion-title">
             <div className="flex items-center justify-between"><div className="flex items-center gap-2"><Bot className="h-5 w-5 text-cyan-300" /><h2 id="companion-title" className="text-xl font-bold">AI Film Companion</h2></div><Button type="button" variant="ghost" size="icon" onClick={() => setCompanionOpen(false)} aria-label="Close AI Companion"><X className="h-5 w-5" /></Button></div>
             <Card className="mt-6 border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300" aria-live="polite">{companionAnswer}</Card>
-            <div className="mt-5 flex gap-2"><label htmlFor="companion-query" className="sr-only">Ask the AI Film Companion</label><Input id="companion-query" value={companionQuery} onChange={(event) => setCompanionQuery(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && askCompanion()} placeholder="Ask about this film..." className="border-white/10 bg-white/5" /><Button type="button" size="icon" onClick={askCompanion} aria-label="Send question"><Send className="h-4 w-4" /></Button></div>
-            <p className="mt-4 text-xs text-slate-500">Catalog-aware preview. Transcript-grounded retrieval activates when final media assets are connected.</p>
+            <div className="mt-5 flex gap-2"><label htmlFor="companion-query" className="sr-only">Ask the AI Film Companion</label><Input id="companion-query" value={companionQuery} onChange={(event) => setCompanionQuery(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void askCompanion()} placeholder="Ask about this film..." className="border-white/10 bg-white/5" disabled={companionBusy} /><Button type="button" size="icon" onClick={() => void askCompanion()} aria-label="Send question" disabled={companionBusy}><Send className="h-4 w-4" /></Button></div>
+            <p className="mt-4 text-xs text-slate-500">Answers are limited to approved transcript context and include retrieval-backed citations when available.</p>
           </motion.aside>
         )}
       </AnimatePresence>

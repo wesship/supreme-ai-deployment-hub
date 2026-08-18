@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
+import { getOpenMontageJob } from '@/features/ai-films/openMontageService';
 
 const FILM_PAGE_URL = 'https://d3vonn.io/film';
 const FILM_PAGE_TITLE = 'D3VONN Studios | AI Films & OpenMontage';
@@ -191,6 +192,7 @@ const FilmPage = () => {
   const [screenplay, setScreenplay] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [jobId, setJobId] = useState('');
+  const [renderJobId, setRenderJobId] = useState('');
   const [provider, setProvider] = useState('');
   const [status, setStatus] = useState('idle');
   const [stages, setStages] = useState<Stage[]>([]);
@@ -241,6 +243,36 @@ const FilmPage = () => {
     setShowIntro(true);
   };
 
+  useEffect(() => {
+    if (!renderJobId || status === 'completed' || status === 'failed') return;
+    let cancelled = false;
+    let timer: number | undefined;
+
+    const syncRender = async () => {
+      try {
+        const update = await getOpenMontageJob(renderJobId);
+        if (cancelled) return;
+        setProvider(update.provider);
+        setStatus(update.status);
+        setStages(update.stages);
+        if (update.video_url) setVideoUrl(update.video_url);
+        if (update.error) toast.error(update.error);
+        const reviewTerminal = ['revise', 'block', 'failed'].includes(update.review_state || '');
+        if (!['completed', 'failed'].includes(update.status) && !reviewTerminal) {
+          timer = window.setTimeout(() => { void syncRender(); }, 10000);
+        }
+      } catch (error) {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : 'Unable to refresh render status.');
+      }
+    };
+
+    void syncRender();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [renderJobId, status]);
+
   const handleFnError = async (err: any, fallback: string) => {
     let payload: any = null;
     try {
@@ -277,6 +309,7 @@ const FilmPage = () => {
     setLoading(true);
     setVideoUrl('');
     setJobId('');
+    setRenderJobId('');
     setProvider('');
     setStatus('script');
     setStages([
@@ -327,19 +360,20 @@ const FilmPage = () => {
       }
 
       if (videoData?.jobId) setJobId(videoData.jobId);
+      if (videoData?.renderJobId) setRenderJobId(videoData.renderJobId);
       if (videoData?.provider) setProvider(videoData.provider);
       if (videoData?.status) setStatus(videoData.status);
       if (Array.isArray(videoData?.stages)) setStages(videoData.stages);
 
       if (videoData?.videoUrl) {
         setVideoUrl(videoData.videoUrl);
-        toast.success(videoData.provider === 'sample' ? 'OpenMontage workflow completed in sample mode.' : 'Film created successfully!');
-      } else if (videoData?.status === 'render') {
-        toast.success('OpenMontage accepted the render job.', {
-          description: videoData.message || 'The provider will complete the render asynchronously.',
+        toast.success('Film created successfully!');
+      } else if (videoData?.renderJobId || videoData?.status === 'render') {
+        toast.success('OpenMontage queued the real render job.', {
+          description: videoData.message || 'The provider will complete the render, review, and publication workflow asynchronously.',
         });
       } else {
-        toast.error('The film service returned no playable video or render status');
+        toast.error('The film service returned no render job.');
       }
     } catch (error: any) {
       console.error('Film generation error:', error);

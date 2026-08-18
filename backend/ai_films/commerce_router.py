@@ -8,6 +8,7 @@ import hmac
 import json
 import os
 import time
+import uuid
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -17,6 +18,7 @@ from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field, HttpUrl
 
 from backend.ai_films.orchestration import OrchestrationError, SupabaseRLSClient
+from backend.ai_films.openmontage_router import OpenMontageDispatchRequest, dispatch_openmontage
 
 router = APIRouter(prefix="/ai-films/commerce", tags=["ai-films-commerce"])
 AdFormat = Literal["ugc", "money_shot", "virtual_try_on", "tvc", "problem_solution", "before_after", "unboxing", "tutorial", "feature_highlight"]
@@ -64,6 +66,20 @@ class CampaignPlanRequest(BaseModel):
     platforms: list[Platform] = Field(default_factory=lambda: ["tiktok", "instagram_reels"], min_length=1, max_length=6)
     variants_per_platform: int = Field(default=2, ge=1, le=5)
     index_with_jockey: bool = True
+
+
+class CampaignRenderVariant(BaseModel):
+    id: str = Field(..., min_length=1, max_length=160)
+    platform: Platform
+    format: AdFormat
+    prompt: str = Field(..., min_length=10, max_length=5000)
+    duration_seconds: int = Field(default=8, ge=4, le=30)
+
+
+class CampaignRenderRequest(BaseModel):
+    product_name: str = Field(..., min_length=1, max_length=160)
+    brand_name: str = Field(..., min_length=1, max_length=120)
+    variants: list[CampaignRenderVariant] = Field(..., min_length=1, max_length=12)
 
 
 class PolloDispatchRequest(BaseModel):
@@ -199,6 +215,44 @@ def build_campaign_plan(request: CampaignPlanRequest) -> dict[str, object]:
                     "jockey_index_after_render": request.index_with_jockey,
                 })
     return {"product": request.product.name, "brand": request.brand.name, "status": "planned", "variant_count": len(variants), "credit_spend": False, "variants": variants}
+
+
+@router.post("/campaigns/render", status_code=status.HTTP_202_ACCEPTED)
+async def render_commerce_campaign(
+    request: CampaignRenderRequest,
+    authorization: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Queue approved commerce variants on the deployed OpenAI/Sora worker.
+
+    This is intentionally limited to twelve variants per request: AI video
+    renders consume external provider capacity, so a bounded batch preserves a
+    clear approval point while still supporting practical campaign production.
+    Pollo dispatch remains available on its dedicated route when its server-side
+    entitlement and callback configuration are provisioned.
+    """
+    await _require_user(authorization)
+    queued: list[dict[str, object]] = []
+    for variant in request.variants:
+        dispatch = await dispatch_openmontage(
+            OpenMontageDispatchRequest(
+                job_id=f"commerce-{variant.id}-{uuid.uuid4().hex[:12]}",
+                idea=f"{request.brand_name} commercial for {request.product_name} — {variant.format} on {variant.platform}",
+                screenplay=variant.prompt,
+                video_prompt=variant.prompt,
+                duration_seconds=min(20, variant.duration_seconds),
+            ),
+            authorization=authorization,
+        )
+        queued.append(
+            {
+                "variant_id": variant.id,
+                "project_id": dispatch["project_id"],
+                "render_job_id": dispatch["render_job_id"],
+                "provider": dispatch["provider"],
+                "status": dispatch["status"],
+            }
+        )
+    return {"status": "queued", "provider": "openai", "job_count": len(queued), "jobs": queued}
 
 
 @router.get("/templates")
