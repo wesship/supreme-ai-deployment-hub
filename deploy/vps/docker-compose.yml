@@ -110,6 +110,11 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      - POLLO_API_KEY=${POLLO_API_KEY:-}
+      - POLLO_API_BASE_URL=${POLLO_API_BASE_URL:-https://pollo.ai/api/platform}
+      - POLLO_WEBHOOK_URL=${POLLO_WEBHOOK_URL:-https://api.d3vonn.io/api/ai-films/commerce/providers/pollo/webhook}
+      - POLLO_WEBHOOK_SECRET=${POLLO_WEBHOOK_SECRET:-}
+      - POLLO_ENTITLED_USER_IDS=${POLLO_ENTITLED_USER_IDS:-47b92f04-15b6-4525-924d-4fbbcc469af6}
       # ── AI Films production execution ────────────────────────────────────
       # Explicitly enable the production render executor; an older .env value
       # must not silently leave OpenMontage in queue-only mode.
