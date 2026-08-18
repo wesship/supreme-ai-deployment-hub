@@ -93,8 +93,14 @@ services:
       - "8000"
     environment:
       - ENVIRONMENT=production
+      # The application also runs on the production VPS, where the historical
+      # Railway-specific worker guard is not injected automatically.
+      - RAILWAY_ENVIRONMENT_NAME=production
       # ── Supabase ──────────────────────────────────────────────────────────
       - SUPABASE_URL=${SUPABASE_URL}
+      # The VPS deployment provisioner stores the publishable key under the
+      # VITE-prefixed name; this backend alias is required for RLS-scoped jobs.
+      - SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       # ── Redis / Celery ────────────────────────────────────────────────────
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -104,6 +110,15 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      # ── AI Films production execution ────────────────────────────────────
+      - AI_FILM_GENERATION_EXECUTION_ENABLED=${AI_FILM_GENERATION_EXECUTION_ENABLED:-true}
+      - AI_FILM_GENERATED_SHOT_QA_ENABLED=${AI_FILM_GENERATED_SHOT_QA_ENABLED:-true}
+      - AI_FILM_ASSEMBLY_WORKER_ENABLED=${AI_FILM_ASSEMBLY_WORKER_ENABLED:-true}
+      - AI_FILM_EXECUTABLE_VIDEO_PROVIDERS=${AI_FILM_EXECUTABLE_VIDEO_PROVIDERS:-openai}
+      - AI_FILM_OPENAI_VIDEO_MODEL=${AI_FILM_OPENAI_VIDEO_MODEL:-sora-2}
+      - AI_FILM_RENDER_BUCKET=${AI_FILM_RENDER_BUCKET:-ai-film-renders}
+      - TWELVELABS_API_KEY=${TWELVELABS_API_KEY:-}
+      - TWELVELABS_KNOWLEDGE_STORE_ID=${TWELVELABS_KNOWLEDGE_STORE_ID:-}
       # ── Pinecone / RAG ────────────────────────────────────────────────────
       - PINECONE_API_KEY=${PINECONE_API_KEY}
       - PINECONE_HOST=${PINECONE_HOST}
