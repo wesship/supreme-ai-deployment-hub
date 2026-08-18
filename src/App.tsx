@@ -6,6 +6,7 @@ import SkipToContent from "./components/SkipToContent";
 import AuthenticatedRoute from "./components/auth/AuthenticatedRoute";
 import AdminRoute from "./components/auth/AdminRoute";
 import { ThemeProvider } from 'next-themes';
+import { startRumCollection } from './lib/assurance/rum';
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -76,6 +77,9 @@ const PrimetimeCommunications = lazy(() => import("./pages/PrimetimeCommunicatio
 const PrimetimeAiAssistance = lazy(() => import("./pages/PrimetimeAiAssistance"));
 const PrimetimeExecutiveCommandCenter = lazy(() => import("./pages/PrimetimeExecutiveCommandCenter"));
 const PrimetimeAgentOsCanary = lazy(() => import("./pages/PrimetimeAgentOsCanary"));
+const AssuranceConsole = lazy(() => import("./pages/AssuranceConsole"));
+const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
+const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -153,6 +157,7 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  useEffect(() => { startRumCollection(); }, []);
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <Router>
@@ -185,7 +190,7 @@ function App() {
                 <Route path="/agent-demo" element={<AgentDemo />} />
                 <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
                 <Route path="/marketplace" element={<AgentMarketplace />} />
-                <Route path="/mcp" element={<McpPage />} />
+                <Route path="/mcp" element={<AuthenticatedRoute><McpPage /></AuthenticatedRoute>} />
                 <Route path="/status" element={<StatusDashboard />} />
                 <Route path="/manifest" element={<ManifestPage />} />
                 <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
@@ -230,7 +235,10 @@ function App() {
                 <Route path="/solutions" element={<Solutions />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/security" element={<Security />} />
+                <Route path="/security/disclosure" element={<SecurityDisclosure />} />
                 <Route path="/enterprise" element={<Security />} />
+                <Route path="/enterprise-readiness" element={<EnterpriseReadiness />} />
+                <Route path="/assurance" element={<AdminRoute><AssuranceConsole /></AdminRoute>} />
                 <Route path="/security/ops" element={<SecurityOps />} />
                 <Route path="/security/dashboard" element={<SecurityDashboard />} />
                 <Route path="/security/command-center" element={<SecurityCommandCenter />} />

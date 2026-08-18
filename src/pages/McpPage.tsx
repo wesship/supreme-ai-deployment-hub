@@ -14,7 +14,7 @@ export default function McpPage() {
           name="description"
           content="Explore and operate Model Context Protocol tools available to D3VONN.IO agents and governed workflows."
         />
-        <link rel="canonical" href="https://d3vonn.io/mcp" />
+        <link rel="canonical" href="https://www.d3vonn.io/mcp" />
       </Helmet>
 
       <section className="d3-os-shell min-h-screen" aria-labelledby="mcp-explorer-heading">
