@@ -36,7 +36,7 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
   const shouldShowFeaturedPoster = featured && Boolean(film.posterUrl);
 
   return (
-    <div className={`relative overflow-hidden bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.45),transparent_25%),linear-gradient(135deg,#06142b,#02040a_70%)] ${featured ? 'absolute inset-0' : 'aspect-video'}`}>
+    <div className={`overflow-hidden bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.45),transparent_25%),linear-gradient(135deg,#06142b,#02040a_70%)] ${featured ? 'absolute inset-0' : 'relative aspect-video'}`}>
       {shouldShowFeaturedPoster ? (
         <img
           src={film.posterUrl}
