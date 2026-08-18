@@ -55,7 +55,7 @@ docs/
 !README.md
 !MASTER_CONTEXT.md
 
-# Scripts — exclude by default but preserve production build scripts
+# Scripts — exclude by default but preserve production build scripts and their dependencies
 scripts/*
 !scripts/vercel-ignore-build.sh
 !scripts/verify-build-scripts.mjs
@@ -63,12 +63,12 @@ scripts/*
 !scripts/generate-route-html.mjs
 !scripts/generate-brand-assets.mjs
 !scripts/assert-no-client-secrets.mjs
+!scripts/site-config.mjs
 
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 env/
 venv/
