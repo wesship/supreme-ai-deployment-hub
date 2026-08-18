@@ -58,6 +58,10 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await waitForApplication(page);
     await expect(page.locator('h1').filter({ hasText: 'Sovereign Signal' })).toBeVisible();
 
+    const mobileCompanionTrigger = page.getByRole('button', { name: 'Open AI Film Companion' });
+    await expect(mobileCompanionTrigger).toBeVisible();
+    expect(await mobileCompanionTrigger.evaluate((element) => getComputedStyle(element).position)).not.toBe('fixed');
+
     const sovereignSignalCard = page.locator('article').filter({ hasText: 'Sovereign Signal' }).first();
     await expect(sovereignSignalCard.locator('video')).toHaveAttribute('src', '/films/sovereign-signal.mp4');
     await expect(sovereignSignalCard.locator('video')).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');

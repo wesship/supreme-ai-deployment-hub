@@ -210,6 +210,7 @@ const AIFilms = () => {
                 <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
                 <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(featuredFilm)}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
                 <Button type="button" size="lg" variant="outline" onClick={scrollToStudio}><Sparkles aria-hidden="true" className="mr-2 h-5 w-5" /> Create a Film</Button>
+                <Button type="button" size="lg" variant="outline" className="sm:hidden" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
               </div>
             </div>
           </div>
@@ -245,7 +246,7 @@ const AIFilms = () => {
         <div id="openmontage-studio-anchor" className="scroll-mt-24 border-t border-border/70"><FilmPage /></div>
       </section>
 
-      <Button type="button" size="lg" className="fixed bottom-6 right-6 z-40 rounded-full shadow-2xl" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
+      <Button type="button" size="lg" className="fixed bottom-6 right-6 z-40 hidden rounded-full shadow-2xl sm:inline-flex" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
 
       <AnimatePresence>
         {selectedFilm && (
