@@ -27,6 +27,7 @@ import { useFilmLibrary } from '@/features/ai-films/useFilmLibrary';
 
 const breadcrumbs = [{ label: 'AI Films' }, { label: 'D3VONN Studios' }];
 const INTRO_STORAGE_KEY = 'd3vonn-ai-films-intro-seen';
+const featuredFilm = aiFilmCatalog.find((film) => film.featured) ?? aiFilmCatalog[0]!;
 
 function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?: boolean }) {
   const previewLabel = film.trailerUrl
@@ -198,16 +199,16 @@ const AIFilms = () => {
 
       <section aria-label="D3VONN AI Films" className="overflow-hidden bg-background">
         <div className="relative min-h-[72vh] border-b border-border/60">
-          <FilmPreviewMedia film={aiFilmCatalog[0]} featured />
+          <FilmPreviewMedia film={featuredFilm} featured />
           <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_78%_30%,rgba(20,105,255,0.35),transparent_30%),radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.12),transparent_24%),linear-gradient(120deg,#030711_10%,#07162f_58%,#020409)]" />
           <div className="container relative z-10 mx-auto flex min-h-[72vh] items-end px-4 pb-16 pt-28 sm:px-6 lg:pb-24">
             <div className="max-w-3xl">
-              <Badge className="mb-5" variant="secondary">D3VONN Original · Featured</Badge>
-              <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl">Sovereign Signal</h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-blue-100">Enter a cinematic universe where intelligence, sovereignty, and human destiny collide.</p>
+              <Badge className="mb-5" variant="secondary">{featuredFilm.category} · Featured</Badge>
+              <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl">{featuredFilm.title}</h1>
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-blue-100">{featuredFilm.description}</p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Button type="button" size="lg" onClick={() => openFilm(aiFilmCatalog[0])}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
-                <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(aiFilmCatalog[0])}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
+                <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
+                <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(featuredFilm)}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
                 <Button type="button" size="lg" variant="outline" onClick={scrollToStudio}><Sparkles aria-hidden="true" className="mr-2 h-5 w-5" /> Create a Film</Button>
               </div>
             </div>
@@ -256,8 +257,8 @@ const AIFilms = () => {
               <div className="mt-5 flex flex-wrap gap-2">{selectedFilm.topics.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
               {selectedFilm.trailerUrl ? (
                 <figure className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-black">
-                  <video controls playsInline poster={selectedFilm.posterUrl} preload="metadata" className="aspect-video w-full" aria-label={`${selectedFilm.title} preview`} src={selectedFilm.trailerUrl}>Your browser does not support video playback.</video>
-                  <figcaption className="px-4 py-3 text-sm text-slate-300">Preview clip for <strong>{selectedFilm.title}</strong>. {selectedFilm.description}</figcaption>
+                  <video controls playsInline poster={selectedFilm.posterUrl} preload="metadata" className="aspect-video w-full" aria-describedby="selected-film-preview-caption" aria-label={`${selectedFilm.title} preview`} src={selectedFilm.trailerUrl}>Your browser does not support video playback.</video>
+                  <figcaption id="selected-film-preview-caption" className="px-4 py-3 text-sm text-slate-300">Preview clip for <strong>{selectedFilm.title}</strong>. {selectedFilm.description} Spoken-word captions will be added when a verified transcript is available.</figcaption>
                 </figure>
               ) : (
                 <div className="mt-6 rounded-xl border border-dashed border-white/15 bg-white/5 p-4 text-sm text-slate-300"><strong>{selectedFilm.title}</strong> is in development. A title-specific preview will appear here when it is published.</div>

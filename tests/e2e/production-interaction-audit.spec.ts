@@ -56,6 +56,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
   test('AI Film cards use title-linked preview media and preserve an honest upcoming-title state', async ({ page }) => {
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
+    await expect(page.locator('h1').filter({ hasText: 'Sovereign Signal' })).toBeVisible();
 
     const sovereignSignalCard = page.locator('article').filter({ hasText: 'Sovereign Signal' }).first();
     await expect(sovereignSignalCard.locator('video')).toHaveAttribute('src', '/films/sovereign-signal.mp4');
@@ -65,6 +66,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     const sovereignSignalDialog = page.getByRole('dialog', { name: 'Sovereign Signal' });
     await expect(sovereignSignalDialog.getByLabel('Sovereign Signal preview')).toHaveAttribute('src', '/films/sovereign-signal.mp4');
     await expect(sovereignSignalDialog.getByText('Preview clip for')).toBeVisible();
+    await expect(sovereignSignalDialog.getByText('Spoken-word captions will be added when a verified transcript is available.')).toBeVisible();
     await sovereignSignalDialog.getByRole('button', { name: 'Close film details' }).click();
 
     const genesisProtocolCard = page.locator('article').filter({ hasText: 'Genesis Protocol' }).first();
