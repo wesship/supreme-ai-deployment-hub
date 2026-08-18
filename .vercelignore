@@ -59,6 +59,7 @@ docs/
 scripts/*
 !scripts/vercel-ignore-build.sh
 !scripts/verify-build-scripts.mjs
+!scripts/generate-public-assets.mjs
 !scripts/generate-route-html.mjs
 !scripts/generate-brand-assets.mjs
 !scripts/assert-no-client-secrets.mjs
