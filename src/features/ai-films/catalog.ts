@@ -23,6 +23,8 @@ export const aiFilmCatalog: AIFilm[] = [
     maturity: 'PG-13',
     topics: ['AI sovereignty', 'autonomous systems', 'future society'],
     featured: true,
+    posterUrl: '/films/sovereign-signal-keyframe.png',
+    trailerUrl: '/films/sovereign-signal.mp4',
   },
   {
     id: 'building-d3vonn',
@@ -33,6 +35,8 @@ export const aiFilmCatalog: AIFilm[] = [
     year: 2026,
     maturity: 'All audiences',
     topics: ['platform architecture', 'agents', 'infrastructure'],
+    posterUrl: '/films/building-d3vonn-keyframe.png',
+    trailerUrl: '/films/building-d3vonn.mp4',
   },
   {
     id: 'inside-hermes',
@@ -43,6 +47,8 @@ export const aiFilmCatalog: AIFilm[] = [
     year: 2026,
     maturity: 'All audiences',
     topics: ['orchestration', 'multi-agent systems', 'governance'],
+    posterUrl: '/films/inside-hermes-keyframe.png',
+    trailerUrl: '/films/inside-hermes.mp4',
   },
   {
     id: 'guardian',
@@ -53,6 +59,8 @@ export const aiFilmCatalog: AIFilm[] = [
     year: 2026,
     maturity: 'All audiences',
     topics: ['security', 'policy', 'human-in-the-loop'],
+    posterUrl: '/films/guardian-keyframe.png',
+    trailerUrl: '/films/guardian.mp4',
   },
   {
     id: 'ai-workforce',
@@ -63,6 +71,8 @@ export const aiFilmCatalog: AIFilm[] = [
     year: 2026,
     maturity: 'All audiences',
     topics: ['enterprise AI', 'automation', 'future of work'],
+    posterUrl: '/films/ai-workforce-keyframe.png',
+    trailerUrl: '/films/ai-workforce.mp4',
   },
   {
     id: 'genesis-protocol',
