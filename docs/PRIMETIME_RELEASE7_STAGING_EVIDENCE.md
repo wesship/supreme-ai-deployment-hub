@@ -52,7 +52,25 @@ The controlled staging apply completed successfully as `primetime_release7_advan
 | 2 | Resolve the Release 1–6 RLS advisor finding through a reviewed migration that enables RLS on `primetime_roles` and `primetime_compliance_rules` and defines appropriate policies. | **Completed** with `20260818014000_primetime_reference_table_rls_hardening.sql`. Both tables now have RLS enabled, deny all direct anon/authenticated privileges, and retain service-role access. |
 | 3 | Run the protected Release 7 preview after the RLS hardening decision. | **Completed**; the reviewed candidate contains four new tables, five indexes, and six lifecycle triggers, with no destructive table or data operation. |
 | 4 | After compliance review and change authorization, run the protected Release 7 apply. | **Completed** as staging migration `primetime_release7_advanced_telemetry` (`20260818015205`); Release 7 tables, RLS settings, indexes, and immutable-history triggers are present. |
-| 5 | Dispatch the read-only Release 6 staging gate with sanctioned frontend and API URLs, then validate authorized Release 7 signal, SLO, evaluation, and alert flows. | **Outstanding.** Evidence supports a staging-ready decision only after the read-only gate and authorized operational flows pass; no production promotion occurs in this sequence. |
+| 5 | Run the read-only Release 6 staging gate with sanctioned frontend and API URLs, then validate authorized Release 7 signal, SLO, evaluation, and alert flows. | **Partially completed.** The gate runner and its contract coverage are published in `89bdb418`; database-level operational validation passed. The live frontend/API gate remains withheld until a distinct sanctioned staging API URL is available. |
+
+## Release 6 Gate and Release 7 Operational Validation
+
+The executable Release 6 gate runner was restored to the staging candidate in `89bdb418`. Its syntax validation and **8 focused contract tests** passed. The repository rule forbids the current GitHub App from updating `.github/workflows/staging-release-gate.yml`, so the runner is published for manual read-only execution while the workflow remains under its protected boundary.
+
+A dedicated staging API target could not be confirmed from the available integrations. The documented `https://staging-api.d3vonn.io/health` hostname does not resolve. Vercel deployment details and the advertised PR preview require Vercel authentication, the enabled Vercel connector did not expose an MCP server in this session, and GitHub’s variable API returned an integration-permission denial. The latest PR workflow log shows `VITE_API_URL=https://api.d3vonn.io`, which is production and was intentionally not used for a staging gate.
+
+The authorized Supabase integration therefore performed an isolated database-level validation using an archived, non-PII staging workspace. The controlled transaction recorded a telemetry signal, created an SLO definition, recorded a warning evaluation, created and acknowledged an alert, and verified three negative safeguards: telemetry-history updates are rejected, alert deletion is rejected, and a sensitive `token` telemetry dimension is rejected. The persisted records use only `component=validation`, `environment=staging`, and `source=staging_validation` metadata.
+
+| Validation area | Result |
+|---|---|
+| Signal intake and safe dimensions | Passed |
+| SLO creation and warning evaluation | Passed |
+| Alert create and acknowledge lifecycle | Passed |
+| Immutable signal history | Update rejected as required |
+| No-delete alert lifecycle | Deletion rejected as required |
+| Sensitive telemetry dimension rejection | `token` dimension rejected as required |
+| Frontend/API Release 6 read-only gate | Withheld; no distinct resolving staging API target |
 
 ## Workflow Status
 
@@ -66,4 +84,4 @@ The direct-access RLS finding has been resolved by the reviewed `20260818014000_
 
 Informational RLS-without-policy findings remain for other PRIMETIME tables that are intentionally backend-only; RLS prevents direct browser access and trusted service-role API paths retain governed access. Separate mutable-search-path warnings for legacy PRIMETIME helper functions remain tracked as hardening work, but they do not reopen the direct table-access issue.
 
-> **Release 1–6 baseline, its critical RLS prerequisite, and the Release 7 staging migration are complete. Release 7 is ready for the read-only staging gate and authorized operator-flow validation; no production promotion has occurred.**
+> **Release 1–6 baseline, its critical RLS prerequisite, and the Release 7 staging migration are complete. Database-level Release 7 operational validation passed. The frontend/API read-only gate remains intentionally withheld until a distinct sanctioned staging API target is provisioned; no production endpoint or production promotion was used.**
