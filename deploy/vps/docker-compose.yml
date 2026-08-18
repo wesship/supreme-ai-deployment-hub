@@ -111,7 +111,9 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
       # ── AI Films production execution ────────────────────────────────────
-      - AI_FILM_GENERATION_EXECUTION_ENABLED=${AI_FILM_GENERATION_EXECUTION_ENABLED:-true}
+      # Explicitly enable the production render executor; an older .env value
+      # must not silently leave OpenMontage in queue-only mode.
+      - AI_FILM_GENERATION_EXECUTION_ENABLED=true
       - AI_FILM_GENERATED_SHOT_QA_ENABLED=${AI_FILM_GENERATED_SHOT_QA_ENABLED:-true}
       - AI_FILM_ASSEMBLY_WORKER_ENABLED=${AI_FILM_ASSEMBLY_WORKER_ENABLED:-true}
       - AI_FILM_EXECUTABLE_VIDEO_PROVIDERS=${AI_FILM_EXECUTABLE_VIDEO_PROVIDERS:-openai}
