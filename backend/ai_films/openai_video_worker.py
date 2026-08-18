@@ -212,7 +212,13 @@ async def process_openai_video_job(job: Mapping[str, Any], db: SupabaseAssemblyC
 
 async def run_openai_video_worker(*, environ: Mapping[str, str] | None = None, once: bool = False) -> None:
     source = environ or os.environ
-    if str(source.get("RAILWAY_ENVIRONMENT_NAME", "")).strip().lower() != "production" or not _enabled(source):
+    # This worker runs on both Railway and the production VPS. Treat the
+    # normalized application environment as authoritative instead of requiring
+    # a Railway-only variable that is absent on non-Railway deployments.
+    runtime_environment = str(
+        source.get("RAILWAY_ENVIRONMENT_NAME") or source.get("ENVIRONMENT") or ""
+    ).strip().lower()
+    if runtime_environment != "production" or not _enabled(source):
         return
     db = SupabaseAssemblyClient(source)
     poll = max(5.0, float(source.get("AI_FILM_VIDEO_WORKER_POLL_SECONDS", "15") or 15))
