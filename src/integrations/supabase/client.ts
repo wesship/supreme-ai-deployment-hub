@@ -23,11 +23,16 @@ const normalizeSupabaseUrl = (value: string | undefined) => {
 const SUPABASE_URL = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL);
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_CLIENT_KEY = SUPABASE_PUBLISHABLE_KEY || 'd3vonn-public-client-unconfigured';
+
+if (!SUPABASE_PUBLISHABLE_KEY) {
+  console.warn('[D3VONN] Supabase browser key is unavailable; authenticated Supabase features will remain unavailable.');
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY!, {
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_CLIENT_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
