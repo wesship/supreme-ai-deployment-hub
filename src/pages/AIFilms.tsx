@@ -27,6 +27,46 @@ import { useFilmLibrary } from '@/features/ai-films/useFilmLibrary';
 
 const breadcrumbs = [{ label: 'AI Films' }, { label: 'D3VONN Studios' }];
 const INTRO_STORAGE_KEY = 'd3vonn-ai-films-intro-seen';
+const featuredFilm = aiFilmCatalog.find((film) => film.featured) ?? aiFilmCatalog[0]!;
+
+function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?: boolean }) {
+  const previewLabel = film.trailerUrl
+    ? `${film.title} preview clip`
+    : `${film.title} is in development; no preview video has been published`;
+  const shouldShowFeaturedPoster = featured && Boolean(film.posterUrl);
+
+  return (
+    <div className={`overflow-hidden bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.45),transparent_25%),linear-gradient(135deg,#06142b,#02040a_70%)] ${featured ? 'absolute inset-0' : 'relative aspect-video'}`}>
+      {shouldShowFeaturedPoster ? (
+        <img
+          src={film.posterUrl}
+          alt=""
+          className="h-full w-full object-cover object-[68%_center]"
+          loading="eager"
+        />
+      ) : film.trailerUrl ? (
+        <video
+          aria-hidden="true"
+          className="h-full w-full object-cover object-[68%_center] transition duration-700 group-hover:scale-105"
+          muted
+          playsInline
+          poster={film.posterUrl}
+          preload={featured ? 'metadata' : 'none'}
+          src={film.trailerUrl}
+          tabIndex={-1}
+        />
+      ) : film.posterUrl ? (
+        <img src={film.posterUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+      ) : (
+        <div aria-hidden="true" className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_72%_20%,rgba(34,211,238,.28),transparent_26%),linear-gradient(135deg,#071a36,#02040a_78%)]">
+          <Film className="h-11 w-11 text-cyan-200/90" />
+        </div>
+      )}
+      <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/5 to-slate-950/10" />
+      {!featured && <span className="absolute bottom-3 left-4 right-4 truncate text-xs font-medium tracking-wide text-white/90">{previewLabel}</span>}
+    </div>
+  );
+}
 
 const AIFilms = () => {
   const [showIntro, setShowIntro] = useState(false);
@@ -119,15 +159,14 @@ const AIFilms = () => {
         viewport={{ once: true, amount: 0.2 }}
         className="group overflow-hidden rounded-2xl border border-border/70 bg-card/70 shadow-2xl shadow-black/10 backdrop-blur"
       >
-        <div className="relative aspect-video overflow-hidden bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.45),transparent_25%),linear-gradient(135deg,#06142b,#02040a_70%)]">
-          <div aria-hidden="true" className="absolute inset-0 transition duration-500 group-hover:scale-110 group-hover:bg-primary/10" />
-          <Film aria-hidden="true" className="absolute left-6 top-6 h-9 w-9 text-cyan-200" />
+        <div className="relative">
+          <FilmPreviewMedia film={film} />
           <div className="absolute bottom-5 right-5 flex gap-2">
             <Button type="button" size="icon" variant="secondary" aria-label={saved ? `Remove ${film.title} from My Library` : `Add ${film.title} to My Library`} onClick={() => toggleSaved(film.id)}>
               {saved ? <BookmarkCheck aria-hidden="true" className="h-5 w-5" /> : <Bookmark aria-hidden="true" className="h-5 w-5" />}
             </Button>
-            <Button type="button" size="icon" className="rounded-full" aria-label={`Open ${film.title}`} onClick={() => openFilm(film)}>
-              <Play aria-hidden="true" className="h-5 w-5" />
+            <Button type="button" size="icon" className="rounded-full" aria-label={film.trailerUrl ? `Watch ${film.title} preview` : `View ${film.title} details`} onClick={() => openFilm(film)}>
+              {film.trailerUrl ? <Play aria-hidden="true" className="h-5 w-5" /> : <Info aria-hidden="true" className="h-5 w-5" />}
             </Button>
           </div>
         </div>
@@ -168,16 +207,18 @@ const AIFilms = () => {
 
       <section aria-label="D3VONN AI Films" className="overflow-hidden bg-background">
         <div className="relative min-h-[72vh] border-b border-border/60">
-          <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_78%_30%,rgba(20,105,255,0.35),transparent_30%),radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.12),transparent_24%),linear-gradient(120deg,#030711_10%,#07162f_58%,#020409)]" />
+          <FilmPreviewMedia film={featuredFilm} featured />
+          <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_78%_30%,rgba(20,105,255,0.2),transparent_34%),linear-gradient(90deg,rgba(2,7,20,0.94)_0%,rgba(2,7,20,0.82)_33%,rgba(2,7,20,0.32)_64%,rgba(2,7,20,0.08)_100%)]" />
           <div className="container relative z-10 mx-auto flex min-h-[72vh] items-end px-4 pb-16 pt-28 sm:px-6 lg:pb-24">
             <div className="max-w-3xl">
-              <Badge className="mb-5" variant="secondary">D3VONN Original · Featured</Badge>
-              <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl">Sovereign Signal</h1>
-              <p className="mt-5 max-w-2xl text-lg leading-8 text-blue-100">Enter a cinematic universe where intelligence, sovereignty, and human destiny collide.</p>
+              <Badge className="mb-5" variant="secondary">{featuredFilm.category} · Featured</Badge>
+              <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl">{featuredFilm.title}</h1>
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-blue-100">{featuredFilm.description}</p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Button type="button" size="lg" onClick={() => openFilm(aiFilmCatalog[0])}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
-                <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(aiFilmCatalog[0])}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
+                <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
+                <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(featuredFilm)}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
                 <Button type="button" size="lg" variant="outline" onClick={scrollToStudio}><Sparkles aria-hidden="true" className="mr-2 h-5 w-5" /> Create a Film</Button>
+                <Button type="button" size="lg" variant="outline" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
               </div>
             </div>
           </div>
@@ -213,8 +254,6 @@ const AIFilms = () => {
         <div id="openmontage-studio-anchor" className="scroll-mt-24 border-t border-border/70"><FilmPage /></div>
       </section>
 
-      <Button type="button" size="lg" className="fixed bottom-6 right-6 z-40 rounded-full shadow-2xl" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
-
       <AnimatePresence>
         {selectedFilm && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFilm(null)}>
@@ -223,7 +262,15 @@ const AIFilms = () => {
               <Badge>{selectedFilm.category}</Badge><h2 id="film-detail-title" className="mt-4 text-3xl font-bold">{selectedFilm.title}</h2><p className="mt-4 text-slate-300">{selectedFilm.description}</p>
               <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-400"><span>{selectedFilm.year}</span><span>•</span><span>{selectedFilm.duration}</span><span>•</span><span>{selectedFilm.maturity}</span></div>
               <div className="mt-5 flex flex-wrap gap-2">{selectedFilm.topics.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
-              <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setProgress(selectedFilm.id, Math.min(100, (library.progress[selectedFilm.id] || 0) + 20))}><Play className="mr-2 h-4 w-4" /> Simulate Playback</Button><Button variant="outline" onClick={() => toggleSaved(selectedFilm.id)}>{library.saved.includes(selectedFilm.id) ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />} My Library</Button><Button variant="outline" onClick={() => setCompanionOpen(true)}><Bot className="mr-2 h-4 w-4" /> Ask AI</Button></div>
+              {selectedFilm.trailerUrl ? (
+                <figure className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-black">
+                  <video controls playsInline poster={selectedFilm.posterUrl} preload="metadata" className="aspect-video w-full" aria-describedby="selected-film-preview-caption" aria-label={`${selectedFilm.title} preview`} src={selectedFilm.trailerUrl}>Your browser does not support video playback.</video>
+                  <figcaption id="selected-film-preview-caption" className="px-4 py-3 text-sm text-slate-300">Preview clip for <strong>{selectedFilm.title}</strong>. {selectedFilm.description} Spoken-word captions will be added when a verified transcript is available.</figcaption>
+                </figure>
+              ) : (
+                <div className="mt-6 rounded-xl border border-dashed border-white/15 bg-white/5 p-4 text-sm text-slate-300"><strong>{selectedFilm.title}</strong> is in development. A title-specific preview will appear here when it is published.</div>
+              )}
+              <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setProgress(selectedFilm.id, Math.min(100, (library.progress[selectedFilm.id] || 0) + 20))}>{selectedFilm.trailerUrl ? <Play className="mr-2 h-4 w-4" /> : <Info className="mr-2 h-4 w-4" />}{selectedFilm.trailerUrl ? 'Track Preview Progress' : 'Track Interest'}</Button><Button variant="outline" onClick={() => toggleSaved(selectedFilm.id)}>{library.saved.includes(selectedFilm.id) ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />} My Library</Button><Button variant="outline" onClick={() => setCompanionOpen(true)}><Bot className="mr-2 h-4 w-4" /> Ask AI</Button></div>
               {(library.progress[selectedFilm.id] || 0) > 0 && <Progress value={library.progress[selectedFilm.id]} className="mt-6" />}
             </Card>
           </motion.div>

@@ -50,9 +50,9 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: `pnpm build && pnpm preview --host 127.0.0.1 --port ${PORT}`,
-        url: baseURL,
-        reuseExistingServer: !process.env.CI,
+      command: `pnpm build && pnpm preview --host 127.0.0.1 --port ${PORT}`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
         timeout: 120_000,
       },
   projects: selectedProjects,
