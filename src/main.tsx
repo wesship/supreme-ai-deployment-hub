@@ -2,7 +2,7 @@ import { Component, StrictMode, type ErrorInfo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { createClientStartupWatchdog } from './lib/clientStartupWatchdog';
+import { CLIENT_STARTUP_TIMEOUT_MS, createClientStartupWatchdog } from './lib/clientStartupWatchdog';
 import './index.css';
 import './styles/d3vonn-new-ui.css';
 import './styles/d3vonn-design-system.css';
@@ -101,8 +101,11 @@ class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBound
 root.render(<StartupShell />);
 
 const startupWatchdog = createClientStartupWatchdog({
+  timeoutMs: CLIENT_STARTUP_TIMEOUT_MS,
   onTimeout: () => {
-    const error = new Error('The application bundle did not load within 12 seconds. Check your connection and retry.');
+    const error = new Error(
+      `The application bundle did not load within ${CLIENT_STARTUP_TIMEOUT_MS / 1_000} seconds. Check your connection and retry.`,
+    );
     console.error('[D3VONN] App module import timed out:', error);
     root.render(<StartupFailure stage="app-import-timeout" error={error} />);
   },
