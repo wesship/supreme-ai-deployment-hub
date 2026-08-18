@@ -33,7 +33,7 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
   const previewLabel = film.trailerUrl
     ? `${film.title} preview clip`
     : `${film.title} is in development; no preview video has been published`;
-  const shouldShowFeaturedPoster = featured && Boolean(film.posterUrl);
+  const shouldShowFeaturedPoster = featured && !film.trailerUrl && Boolean(film.posterUrl);
 
   return (
     <div className={`overflow-hidden bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.45),transparent_25%),linear-gradient(135deg,#06142b,#02040a_70%)] ${featured ? 'absolute inset-0' : 'relative aspect-video'}`}>
@@ -48,6 +48,8 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
         <video
           aria-hidden="true"
           className="h-full w-full object-cover object-[68%_center] transition duration-700 group-hover:scale-105"
+          autoPlay
+          loop
           muted
           playsInline
           poster={film.posterUrl}
@@ -264,7 +266,7 @@ const AIFilms = () => {
               <div className="mt-5 flex flex-wrap gap-2">{selectedFilm.topics.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
               {selectedFilm.trailerUrl ? (
                 <figure className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-black">
-                  <video controls playsInline poster={selectedFilm.posterUrl} preload="metadata" className="aspect-video w-full" aria-describedby="selected-film-preview-caption" aria-label={`${selectedFilm.title} preview`} src={selectedFilm.trailerUrl}>Your browser does not support video playback.</video>
+                  <video controls autoPlay playsInline poster={selectedFilm.posterUrl} preload="metadata" className="aspect-video w-full" aria-describedby="selected-film-preview-caption" aria-label={`${selectedFilm.title} preview`} src={selectedFilm.trailerUrl}>Your browser does not support video playback.</video>
                   <figcaption id="selected-film-preview-caption" className="px-4 py-3 text-sm text-slate-300">Preview clip for <strong>{selectedFilm.title}</strong>. {selectedFilm.description} Spoken-word captions will be added when a verified transcript is available.</figcaption>
                 </figure>
               ) : (

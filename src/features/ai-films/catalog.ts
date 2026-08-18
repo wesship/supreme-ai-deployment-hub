@@ -83,6 +83,8 @@ export const aiFilmCatalog: AIFilm[] = [
     year: 2027,
     maturity: 'PG-13',
     topics: ['machine civilization', 'emergence', 'science fiction'],
+    posterUrl: '/films/genesis-protocol-keyframe.png',
+    trailerUrl: '/films/genesis-protocol.mp4',
   },
 ];
 
