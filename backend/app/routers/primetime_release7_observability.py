@@ -440,7 +440,7 @@ async def create_slo_evaluation(body: SloEvaluationCreate, user_id: str = Depend
             raise HTTPException(status_code=400, detail="Source telemetry signal metric_key must match the SLO metric_key")
 
     evaluation_status = _evaluate_slo(definition, body.measured_value)
-    payload = body.model_dump(mode="json")
+    payload = body.model_dump(mode="json", exclude_none=True)
     payload.update({
         "workspace_id": context["workspace_id"],
         "slo_definition_id": safe_slo,

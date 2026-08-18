@@ -1,6 +1,10 @@
 import pytest
 
-from backend.app.routers.primetime_release7_observability import _evaluate_slo, _validate_dimensions
+from backend.app.routers.primetime_release7_observability import (
+    SloEvaluationCreate,
+    _evaluate_slo,
+    _validate_dimensions,
+)
 
 
 @pytest.mark.parametrize(
@@ -38,3 +42,14 @@ def test_dimensions_normalize_safe_keys_and_values():
 def test_dimensions_reject_unsafe_or_high_cardinality_data(dimensions):
     with pytest.raises(ValueError):
         _validate_dimensions(dimensions)
+
+
+def test_evaluation_payload_omits_optional_timestamp_for_database_default():
+    payload = SloEvaluationCreate(
+        workspace_id="11111111-1111-1111-1111-111111111111",
+        slo_definition_id="22222222-2222-2222-2222-222222222222",
+        measured_value=99.9,
+    ).model_dump(mode="json", exclude_none=True)
+
+    assert "evaluated_at" not in payload
+    assert "source_signal_id" not in payload

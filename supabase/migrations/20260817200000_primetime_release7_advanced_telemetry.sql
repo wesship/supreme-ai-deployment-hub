@@ -8,7 +8,15 @@ language sql
 immutable
 as $$
     select jsonb_typeof(input) = 'object'
-       and (select count(*) from jsonb_object_keys(input)) <= 12;
+       and (select count(*) from jsonb_object_keys(input)) <= 12
+       and not exists (
+           select 1
+           from jsonb_each(input) as dimension(key, value)
+           where key !~ '^[a-z][a-z0-9_]{0,63}$'
+              or key in ('email', 'phone', 'token', 'secret', 'authorization', 'cookie', 'payload', 'body', 'message')
+              or jsonb_typeof(value) <> 'string'
+              or char_length(btrim(value #>> '{}')) not between 1 and 128
+       );
 $$;
 
 create table if not exists public.primetime_telemetry_signals (

@@ -69,6 +69,7 @@ def test_release7_router_enforces_safe_telemetry_values_and_alert_lifecycle() ->
         "Compliant SLO evaluations cannot open telemetry alerts",
         "Resolved or silenced alerts cannot be reopened through Release 7",
         "_evaluate_slo",
+        'model_dump(mode="json", exclude_none=True)',
     ]:
         assert required in source
 
@@ -101,9 +102,15 @@ def test_release7_migration_enforces_rls_indexes_and_history_immutability() -> N
         "trg_primetime_slo_definitions_no_delete",
         "trg_primetime_telemetry_alerts_no_delete",
         "on delete restrict",
+        "jsonb_each(input)",
+        "^[a-z][a-z0-9_]{0,63}$",
+        "'authorization'",
+        "jsonb_typeof(value) <> 'string'",
+        "not between 1 and 128",
     ]:
         assert required in migration
     assert "on delete cascade" not in migration
+    assert "and (select count(*) from jsonb_object_keys(input)) <= 12;" not in migration
 
 
 def test_release7_frontend_routes_and_client_contract_are_present() -> None:
