@@ -8,6 +8,7 @@
 - [x] Release 4: AI Assistance — certified
 - [x] Release 5: Analytics — certified
 - [ ] Release 6: Production Hardening — in progress
+- [ ] Release 7: Advanced Telemetry and Observability — in progress
 
 ## Compliance Boundaries
 
@@ -23,6 +24,13 @@
 - security/snyk (wesship) and security/snyk (wesship8): Non-blocking duplicate vulnerability documented
 - no_quote_endpoint: enforced across all releases
 - no_hard_delete: enforced via trigger and RLS
+
+## Staging Validation
+
+- [x] Release 6 staging gate is automated through the `PRIMETIME Release 6 Staging Gate` workflow.
+- The gate uses unauthenticated, read-only GET requests only; it never creates, changes, or deletes regulated records.
+- Supply HTTPS frontend and API staging URLs when manually dispatching the workflow. It verifies all certified PRIMETIME frontend routes, `/health`, anonymous API denial, and the absence of blocked endpoint fragments.
+- A passing staging gate is required before production deployment, together with compliance signoff and the documented rollback plan.
 
 ## Security
 

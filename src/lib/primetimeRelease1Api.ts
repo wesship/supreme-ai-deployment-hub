@@ -195,4 +195,24 @@ export const primetimeRelease1Api = {
   createReleaseGovernanceObservation: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/analytics/release-governance-observations', payload),
   updateReleaseGovernanceObservation: (observationId: string, payload: PrimetimePayload) =>
     patch<PrimetimeRecord>(`/primetime/v1/analytics/release-governance-observations/${observationId}`, payload),
+
+  getObservabilityOverview: (workspaceId: string) =>
+    primetimeFetch<PrimetimeRecord>(`/primetime/v1/observability/overview?${query({ workspace_id: workspaceId })}`),
+  listTelemetrySignals: (workspaceId: string, metricKey?: string, domain?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/observability/signals?${query({ workspace_id: workspaceId, metric_key: metricKey, domain })}`),
+  createTelemetrySignal: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/observability/signals', payload),
+  listSloDefinitions: (workspaceId: string, status?: string, domain?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/observability/slos?${query({ workspace_id: workspaceId, status, domain })}`),
+  createSloDefinition: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/observability/slos', payload),
+  updateSloDefinition: (sloId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/observability/slos/${sloId}`, payload),
+  listSloEvaluations: (workspaceId: string, sloDefinitionId?: string, evaluationStatus?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/observability/evaluations?${query({ workspace_id: workspaceId, slo_definition_id: sloDefinitionId, evaluation_status: evaluationStatus })}`),
+  createSloEvaluation: (payload: PrimetimePayload) => post<PrimetimeRecord>('/primetime/v1/observability/evaluations', payload),
+  listTelemetryAlerts: (workspaceId: string, status?: string, severity?: string) =>
+    primetimeFetch<PrimetimeRecord[]>(`/primetime/v1/observability/alerts?${query({ workspace_id: workspaceId, status, severity })}`),
+  openTelemetryAlert: (evaluationId: string) =>
+    post<PrimetimeRecord>(`/primetime/v1/observability/evaluations/${evaluationId}/alerts`, {}),
+  updateTelemetryAlert: (alertId: string, payload: PrimetimePayload) =>
+    patch<PrimetimeRecord>(`/primetime/v1/observability/alerts/${alertId}`, payload),
 };

@@ -75,6 +75,7 @@ const PrimetimeScheduling = lazy(() => import("./pages/PrimetimeScheduling"));
 const PrimetimeCommunications = lazy(() => import("./pages/PrimetimeCommunications"));
 const PrimetimeAiAssistance = lazy(() => import("./pages/PrimetimeAiAssistance"));
 const PrimetimeExecutiveCommandCenter = lazy(() => import("./pages/PrimetimeExecutiveCommandCenter"));
+const PrimetimeObservability = lazy(() => import("./pages/PrimetimeObservability"));
 const PrimetimeAgentOsCanary = lazy(() => import("./pages/PrimetimeAgentOsCanary"));
 
 const AdminRouteWrapper = lazy(() =>
@@ -179,6 +180,8 @@ function App() {
                 <Route path="/primetime/release-4" element={<PrimetimeAiAssistance />} />
                 <Route path="/primetime/executive-command-center" element={<PrimetimeExecutiveCommandCenter />} />
                 <Route path="/primetime/release-5" element={<PrimetimeExecutiveCommandCenter />} />
+                <Route path="/primetime/observability" element={<AuthenticatedRoute><PrimetimeObservability /></AuthenticatedRoute>} />
+                <Route path="/primetime/release-7" element={<AuthenticatedRoute><PrimetimeObservability /></AuthenticatedRoute>} />
                 <Route path="/primetime/agent-os-canary" element={<AuthenticatedRoute><PrimetimeAgentOsCanary /></AuthenticatedRoute>} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />

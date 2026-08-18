@@ -178,6 +178,14 @@ except ImportError as _primetime_release5_analytics_err:
     logger.warning("PRIMETIME Release 5 analytics router not found — skipping. (%s)", _primetime_release5_analytics_err)
 
 try:
+    from backend.app.routers.primetime_release7_observability import router as primetime_release7_observability_router  # type: ignore
+
+    app.include_router(primetime_release7_observability_router)
+    logger.info("PRIMETIME Release 7 observability router registered at /primetime/v1")
+except ImportError as _primetime_release7_observability_err:
+    logger.warning("PRIMETIME Release 7 observability router not found — skipping. (%s)", _primetime_release7_observability_err)
+
+try:
     from backend.api.v1.router import router as v1_router  # type: ignore
 
     app.include_router(v1_router, prefix="/api/v1", tags=["v1"])
