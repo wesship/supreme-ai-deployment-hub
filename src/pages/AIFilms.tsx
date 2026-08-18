@@ -33,13 +33,21 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
   const previewLabel = film.trailerUrl
     ? `${film.title} preview clip`
     : `${film.title} is in development; no preview video has been published`;
+  const shouldShowFeaturedPoster = featured && Boolean(film.posterUrl);
 
   return (
     <div className={`relative overflow-hidden bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.45),transparent_25%),linear-gradient(135deg,#06142b,#02040a_70%)] ${featured ? 'absolute inset-0' : 'aspect-video'}`}>
-      {film.trailerUrl ? (
+      {shouldShowFeaturedPoster ? (
+        <img
+          src={film.posterUrl}
+          alt=""
+          className="h-full w-full object-cover object-[68%_center]"
+          loading="eager"
+        />
+      ) : film.trailerUrl ? (
         <video
           aria-hidden="true"
-          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+          className="h-full w-full object-cover object-[68%_center] transition duration-700 group-hover:scale-105"
           muted
           playsInline
           poster={film.posterUrl}
@@ -54,8 +62,8 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
           <Film className="h-11 w-11 text-cyan-200/90" />
         </div>
       )}
-      <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-slate-950/20" />
-      <span className="absolute bottom-3 left-4 right-4 truncate text-xs font-medium tracking-wide text-white/90">{previewLabel}</span>
+      <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-slate-950/5 to-slate-950/10" />
+      {!featured && <span className="absolute bottom-3 left-4 right-4 truncate text-xs font-medium tracking-wide text-white/90">{previewLabel}</span>}
     </div>
   );
 }
@@ -200,7 +208,7 @@ const AIFilms = () => {
       <section aria-label="D3VONN AI Films" className="overflow-hidden bg-background">
         <div className="relative min-h-[72vh] border-b border-border/60">
           <FilmPreviewMedia film={featuredFilm} featured />
-          <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_78%_30%,rgba(20,105,255,0.35),transparent_30%),radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.12),transparent_24%),linear-gradient(120deg,#030711_10%,#07162f_58%,#020409)]" />
+          <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_78%_30%,rgba(20,105,255,0.2),transparent_34%),linear-gradient(90deg,rgba(2,7,20,0.94)_0%,rgba(2,7,20,0.82)_33%,rgba(2,7,20,0.32)_64%,rgba(2,7,20,0.08)_100%)]" />
           <div className="container relative z-10 mx-auto flex min-h-[72vh] items-end px-4 pb-16 pt-28 sm:px-6 lg:pb-24">
             <div className="max-w-3xl">
               <Badge className="mb-5" variant="secondary">{featuredFilm.category} · Featured</Badge>
@@ -210,7 +218,7 @@ const AIFilms = () => {
                 <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
                 <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(featuredFilm)}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
                 <Button type="button" size="lg" variant="outline" onClick={scrollToStudio}><Sparkles aria-hidden="true" className="mr-2 h-5 w-5" /> Create a Film</Button>
-                <Button type="button" size="lg" variant="outline" className="sm:hidden" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
+                <Button type="button" size="lg" variant="outline" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
               </div>
             </div>
           </div>
@@ -245,8 +253,6 @@ const AIFilms = () => {
 
         <div id="openmontage-studio-anchor" className="scroll-mt-24 border-t border-border/70"><FilmPage /></div>
       </section>
-
-      <Button type="button" size="lg" className="fixed bottom-6 right-6 z-40 hidden rounded-full shadow-2xl sm:inline-flex" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>
 
       <AnimatePresence>
         {selectedFilm && (
