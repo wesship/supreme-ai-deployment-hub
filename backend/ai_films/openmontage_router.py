@@ -134,7 +134,7 @@ async def dispatch_openmontage(
                 "title": title,
                 "description": request.idea,
                 "format": "scene",
-                "status": "in_production",
+                "status": "draft",
                 "metadata": {
                     "openmontage_job_id": request.job_id,
                     "source": "openmontage-edge-dispatch",

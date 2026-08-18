@@ -96,6 +96,21 @@ ensure_env_exists() {
     chmod 600 "$ENV_FILE"
 }
 
+ensure_pollo_entitlement() {
+    local current
+    current="$(sed -n 's/^POLLO_ENTITLED_USER_IDS=//p' "$ENV_FILE" | tail -n 1)"
+    if [ -z "$current" ] || printf "%s" "$current" | grep -Eqi '^(PASTE_|CHANGE_ME|YOUR_|your-|replace-with|placeholder)'; then
+        if grep -q '^POLLO_ENTITLED_USER_IDS=' "$ENV_FILE" 2>/dev/null; then
+            sed -i 's|^POLLO_ENTITLED_USER_IDS=.*|POLLO_ENTITLED_USER_IDS=47b92f04-15b6-4525-924d-4fbbcc469af6|' "$ENV_FILE"
+        else
+            printf '%s\n' 'POLLO_ENTITLED_USER_IDS=47b92f04-15b6-4525-924d-4fbbcc469af6' >> "$ENV_FILE"
+        fi
+        log "Configured authorized Pollo entitlement"
+    else
+        log "Preserved existing Pollo entitlement configuration"
+    fi
+}
+
 validate_env() {
     if [ "$SKIP_VALIDATE" = true ]; then
         warn "Skipping production env validation (--skip-validate)"
@@ -188,6 +203,7 @@ show_status() {
 deploy() {
     ensure_project_exists
     ensure_env_exists
+    ensure_pollo_entitlement
     validate_env
 
     echo "╔══════════════════════════════════════════════════════════════╗"
