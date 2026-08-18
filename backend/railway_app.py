@@ -41,7 +41,11 @@ def _task_state(app_instance, name: str) -> str:
     if task.cancelled():
         return "cancelled"
     if task.done():
-        return "stopped"
+        try:
+            error = task.exception()
+        except asyncio.CancelledError:
+            return "cancelled"
+        return f"failed:{type(error).__name__}" if error else "stopped"
     return "running"
 
 
