@@ -1,0 +1,26 @@
+# Dedicated Railway image for the non-HTTP Hermes polling worker.
+# This service intentionally does not expose an HTTP port or define a Docker HEALTHCHECK.
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl ffmpeg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY backend/ ./backend/
+COPY MASTER_CONTEXT.md ./MASTER_CONTEXT.md
+
+ENV PYTHONPATH=/app:/app/backend
+
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser && \
+    chown -R appuser:appgroup /app
+
+USER appuser
+
+CMD ["python", "-m", "backend.hermes.worker"]
