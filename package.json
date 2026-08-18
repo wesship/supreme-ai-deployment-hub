@@ -32,7 +32,8 @@
     "memory:export": "node scripts/memory-tree-export.mjs",
     "memory:compress": "node scripts/tokenjuice-lite.mjs",
     "connectors:audit": "node scripts/connector-inventory.mjs",
-    "validate:speech": "node deployment/scripts/validate-speech-support.js"
+    "validate:speech": "node deployment/scripts/validate-speech-support.js",
+    "primetime:staging-gate": "node scripts/primetime-staging-gate.mjs"
   },
   "dependencies": {
     "@11labs/react": "^0.2.0",
