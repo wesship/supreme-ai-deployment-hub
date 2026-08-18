@@ -218,7 +218,7 @@ async def run_openai_video_worker(*, environ: Mapping[str, str] | None = None, o
     runtime_environment = str(
         source.get("RAILWAY_ENVIRONMENT_NAME") or source.get("ENVIRONMENT") or ""
     ).strip().lower()
-    if runtime_environment != "production" or not _enabled(source):
+    if runtime_environment != "production":
         return
     db = SupabaseAssemblyClient(source)
     poll = max(5.0, float(source.get("AI_FILM_VIDEO_WORKER_POLL_SECONDS", "15") or 15))
