@@ -5,6 +5,7 @@
     "dockerfilePath": "Dockerfile.hermes-worker",
     "watchPatterns": [
       "backend/**",
+      "MASTER_CONTEXT.md",
       "Dockerfile.hermes-worker",
       "railway.hermes-worker.json"
     ]
