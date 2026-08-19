@@ -57,6 +57,7 @@ async def test_unconfigured_supabase_degrades_without_network():
     client = SupabaseRestClient(HermesInfrastructureConfig())
     assert await client.get("hermes_tasks", {}) == []
     assert await client.post("hermes_tasks", {"title": "x"}) == {}
+    assert await client.rpc("hermes_claim_task", {"p_worker_id": "worker-a"}) is None
     assert await client.patch("hermes_tasks", "id", {"status": "PENDING"}) == {}
     assert await client.count("hermes_tasks") == -1
 
@@ -74,6 +75,12 @@ async def test_supabase_normalizes_list_and_count_responses():
     post_response.json.return_value = [{"id": "1"}]
     post_response.raise_for_status.return_value = None
 
+    rpc_response = MagicMock()
+    rpc_response.status_code = 200
+    rpc_response.content = b'[{"task_id":"1"}]'
+    rpc_response.json.return_value = [{"task_id": "1"}]
+    rpc_response.raise_for_status.return_value = None
+
     count_response = MagicMock()
     count_response.status_code = 200
     count_response.headers = {"content-range": "0-9/42"}
@@ -82,13 +89,17 @@ async def test_supabase_normalizes_list_and_count_responses():
     mock_client = AsyncMock()
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
-    mock_client.post = AsyncMock(return_value=post_response)
+    mock_client.post = AsyncMock(side_effect=[post_response, rpc_response])
     mock_client.get = AsyncMock(return_value=count_response)
 
     with patch("backend.hermes.infrastructure.supabase_client.httpx.AsyncClient", return_value=mock_client):
         assert await client.post("hermes_tasks", {"title": "x"}) == {"id": "1"}
+        assert await client.rpc("hermes_claim_task", {"p_worker_id": "worker-a"}) == [{"task_id": "1"}]
         assert await client.count("hermes_tasks") == 42
 
+    rpc_call = mock_client.post.await_args_list[1]
+    assert rpc_call.args[0] == "https://example.supabase.co/rest/v1/rpc/hermes_claim_task"
+    assert rpc_call.kwargs["json"] == {"p_worker_id": "worker-a"}
 
 @pytest.mark.asyncio
 async def test_dispatch_signs_exact_transmitted_body_and_optional_auth():

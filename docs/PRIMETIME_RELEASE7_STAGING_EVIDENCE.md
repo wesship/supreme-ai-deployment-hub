@@ -85,3 +85,34 @@ The direct-access RLS finding has been resolved by the reviewed `20260818014000_
 Informational RLS-without-policy findings remain for other PRIMETIME tables that are intentionally backend-only; RLS prevents direct browser access and trusted service-role API paths retain governed access. Separate mutable-search-path warnings for legacy PRIMETIME helper functions remain tracked as hardening work, but they do not reopen the direct table-access issue.
 
 > **Release 1–6 baseline, its critical RLS prerequisite, and the Release 7 staging migration are complete. Database-level Release 7 operational validation passed. The frontend/API read-only gate remains intentionally withheld until a distinct sanctioned staging API target is provisioned; no production endpoint or production promotion was used.**
+
+
+## Hermes Worker Recovery — Canonical Staging
+
+The deployed Hermes Python worker uses the canonical `Supreme_ai_deployment_hub_staging` Supabase project (`ypomzwhtaamxdmcwtpyf`). It was repeatedly terminated by an HTTP health check aimed at `/health`, although `python -m backend.hermes.worker` is intentionally a non-HTTP background process. The repair therefore keeps staging canonical, removes the worker's unsafe list-then-claim behavior, and requires a Railway configuration change rather than adding a public HTTP server to the worker.
+
+| Item | Evidence / state |
+|---|---|
+| Canonical database | `ypomzwhtaamxdmcwtpyf` (`Supreme_ai_deployment_hub_staging`) |
+| Initial lifecycle migration | `hermes_atomic_claim_and_recovery` applied successfully on 2026-08-18 UTC |
+| Forward-only SQL correction | `fix_hermes_atomic_claim_worker_alias` applied successfully on 2026-08-18 UTC |
+| Python worker path | New work uses `hermes_claim_task` through a service-role RPC; the REST `status=PENDING` scan is removed from `backend.hermes.worker` |
+| Lease lifecycle | Database RPCs now provide claim, heartbeat, renew, release, stale-lease reaping, and stale-worker reaping |
+| Browser access | Railway was at its authentication screen in this session; the health-check mutation and redeploy remain pending authenticated access |
+
+The initial claim function was applied as a new staging migration and its first invocation exposed an ambiguous unqualified `worker_id` reference. No application record was changed by that failed invocation. A second, forward-only migration replaced only that function with an explicit table alias; the follow-up invocation passed. This preserves an auditable migration history rather than altering the already-applied migration in place.
+
+### Controlled Database Validation
+
+All validation records were created solely in canonical staging with `source=staging_validation` and descriptive validation titles. They are intentionally retained as non-PII audit evidence; no regulated record was deleted.
+
+| Validation | Result |
+|---|---|
+| Atomic claim | The isolated `validation-atomic-claim` task was returned as `LOCKED` with a newly created `active` lease in one function invocation. |
+| Terminal release | The controlled task was marked `COMPLETED`; `hermes_release_worker_lease` returned its lease as `released`. |
+| Stale-lease recovery | An intentionally expired validation lease became `expired`; its `LOCKED` task returned to `PENDING`, `retry_count` incremented to `1`, and the worker's active lease count returned to `0`. |
+| Stale-worker recovery | An intentionally aged validation heartbeat marked only the validation worker `lost`, expired its lease, returned the task to `PENDING`, incremented `retry_count` to `2`, and restored active capacity to `0`. |
+| RPC boundary | `anon` and `authenticated` have no execute privilege for `hermes_claim_task`; `service_role` has it. The same backend-only boundary is confirmed for `hermes_reap_stale_leases`. |
+| Focused repository tests | **20 passed** for Supabase RPC infrastructure, persistence, worker runtime, and worker-dispatch coverage. |
+
+> **Current staging status:** Canonical database primitives and the Python atomic-claim code are ready. The live worker will remain offline until Railway access is used to remove the HTTP health check from `hermes-worker-staging`, set the persistent-worker environment variables, and redeploy. No production promotion or public HTTP endpoint is part of this recovery.

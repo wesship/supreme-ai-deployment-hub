@@ -18,10 +18,6 @@ class RuntimeStub:
         self.lease = lease
         self.releases: list[tuple[str, bool]] = []
 
-    async def acquire(self, task_id: str) -> WorkerLease:
-        assert task_id == self.lease.task_id
-        return self.lease
-
     async def release(self, lease_id: str, *, cancelled: bool = False) -> WorkerLease:
         self.releases.append((lease_id, cancelled))
         return self.lease
@@ -41,7 +37,7 @@ def active_lease() -> WorkerLease:
 
 
 @pytest.mark.asyncio
-async def test_persistent_worker_leases_claims_dispatches_and_releases(monkeypatch):
+async def test_locked_task_dispatches_and_releases_its_atomic_lease(monkeypatch):
     lease = active_lease()
     runtime = RuntimeStub(lease)
     transition = AsyncMock(return_value={})
@@ -52,19 +48,18 @@ async def test_persistent_worker_leases_claims_dispatches_and_releases(monkeypat
     await worker._process_task(
         {
             "id": lease.task_id,
-            "status": "PENDING",
+            "status": "LOCKED",
             "agent_name": "TARS",
             "input_data": {"goal": "test"},
         },
         runtime=runtime,
+        recovered_lease=lease,
     )
 
     assert [call.args[1] for call in transition.await_args_list] == [
-        "LOCKED",
         "RUNNING",
         "COMPLETED",
     ]
-    assert transition.await_args_list[0].kwargs["expected_status"] == "PENDING"
     assert dispatch.await_args.kwargs["idempotency_key"] == (
         f"hermes-task:{lease.task_id}"
     )
