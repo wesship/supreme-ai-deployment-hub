@@ -29,8 +29,6 @@ async function collectRuntimeErrors(page: Page) {
     if (message.type() !== 'error') return;
 
     const text = message.text();
-    // Chromium emits this anonymous message for failed responses. The response
-    // listener below records the status and URL so failures stay actionable.
     if (text.startsWith('Failed to load resource:')) return;
     errors.push(`console: ${text}`);
   });
@@ -58,9 +56,15 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await waitForApplication(page);
     await expect(page.locator('h1').filter({ hasText: 'Sovereign Signal' })).toBeVisible();
 
-    const featuredHeroPoster = page.locator('section[aria-label="D3VONN AI Films"] > div > div > img');
-    await expect(featuredHeroPoster).toHaveAttribute('src', '/films/sovereign-signal-keyframe.png');
-    await expect.poll(async () => featuredHeroPoster.evaluate((element) => getComputedStyle(element.parentElement!).position)).toBe('absolute');
+    const featuredHeroMedia = page.locator('section[aria-label="D3VONN AI Films"] > div > div').locator('img, video');
+    await expect(featuredHeroMedia).toHaveCount(1);
+    const featuredMediaTag = await featuredHeroMedia.evaluate((element) => element.tagName);
+    if (featuredMediaTag === 'IMG') {
+      await expect(featuredHeroMedia).toHaveAttribute('src', '/films/sovereign-signal-keyframe.png');
+    } else {
+      await expect(featuredHeroMedia).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
+    }
+    await expect.poll(async () => featuredHeroMedia.evaluate((element) => getComputedStyle(element.parentElement!).position)).toBe('absolute');
 
     const mobileCompanionTrigger = page.getByRole('button', { name: 'Open AI Film Companion' });
     await expect(mobileCompanionTrigger).toBeVisible();
@@ -151,7 +155,6 @@ test.describe('D3VONN.IO production interaction audit', () => {
           })
           .toBeGreaterThanOrEqual(20);
       }
-
     });
   }
 
