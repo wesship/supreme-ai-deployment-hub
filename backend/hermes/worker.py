@@ -1,5 +1,8 @@
 """Hermes task polling worker.
 
+This long-running worker intentionally does not expose an HTTP listener; its Railway
+service configuration must therefore omit an HTTP health-check path.
+
 The worker uses atomic task claims in every mode. Durable worker registration,
 heartbeats, leases, and restart recovery are available behind the default-off
 HERMES_PERSISTENT_WORKERS_ENABLED flag.
