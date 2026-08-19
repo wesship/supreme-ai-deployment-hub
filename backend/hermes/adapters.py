@@ -24,6 +24,9 @@ class SupabaseTaskRepository:
     async def create_row(self, table: str, payload: dict[str, Any]) -> dict[str, Any]:
         return await self._client.post(table, payload)
 
+    async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
+        return await self._client.rpc(function_name, params)
+
     async def update_row(
         self,
         table: str,
