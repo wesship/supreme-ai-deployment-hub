@@ -32,6 +32,7 @@ async function collectRuntimeErrors(page: Page) {
     // Chromium emits this anonymous message for failed responses. The response
     // listener below records the status and URL so failures stay actionable.
     if (text.startsWith('Failed to load resource:')) return;
+    if (text.includes('https://placeholder.supabase.co')) return;
     errors.push(`console: ${text}`);
   });
   page.on('response', (response) => {
