@@ -3,6 +3,10 @@ type VitalName = 'LCP' | 'INP' | 'CLS';
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 
 export function recordVital(name: VitalName, value: number): void {
+  // Production RUM must never report local preview traffic to the production API.
+  // The production-interaction audit intentionally runs the frontend on 127.0.0.1.
+  if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') return;
+
   const route = window.location.pathname || '/';
   const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
   const body = JSON.stringify({
