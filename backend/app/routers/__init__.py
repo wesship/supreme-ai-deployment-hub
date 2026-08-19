@@ -179,32 +179,6 @@ except ImportError as exc:
     logger.warning("Proxy vault router not registered: %s", exc)
 
 try:
-    from backend.ai_films.router import router as ai_film_router
-    proxy_router.include_router(ai_film_router, tags=["ai-films"])
-except ImportError as exc:
-    logger.warning("AI Film provider router not registered: %s", exc)
-
-try:
-    from backend.ai_films.commerce_router import router as ai_film_commerce_router
-    proxy_router.include_router(ai_film_commerce_router, tags=["ai-films-commerce"])
-    logger.info("AI Films Commerce Studio registered at /api/ai-films/commerce/*.")
-except ImportError as exc:
-    logger.warning("AI Films Commerce Studio router not registered: %s", exc)
-
-try:
-    from backend.ai_films.mastering_router import router as ai_film_mastering_router
-    proxy_router.include_router(ai_film_mastering_router, tags=["ai-films-mastering"])
-    logger.info("AI Films mastering queue registered at /api/ai-films/mastering/*.")
-except ImportError as exc:
-    logger.warning("AI Films mastering router not registered: %s", exc)
-
-try:
-    from backend.ai_films.index_router import router as ai_film_index_router
-    proxy_router.include_router(ai_film_index_router, tags=["ai-films-index"])
-except ImportError as exc:
-    logger.warning("AI Film TwelveLabs index router not registered: %s", exc)
-
-try:
     from backend.ai_films.picker_router import router as ai_film_picker_router
     proxy_router.include_router(ai_film_picker_router, tags=["ai-films-admin"])
 except ImportError as exc:
@@ -216,34 +190,6 @@ try:
     logger.info("AI Film MovieFlow retry router registered at /api/ai-films/admin/movieflow/*.")
 except ImportError as exc:
     logger.warning("AI Film MovieFlow retry router not registered: %s", exc)
-
-try:
-    from backend.ai_films.performance_router import router as ai_film_performance_router
-    proxy_router.include_router(ai_film_performance_router, tags=["ai-films-performance"])
-    logger.info("AI Film character performance router registered at /api/ai-films/character-performance/*.")
-except ImportError as exc:
-    logger.warning("AI Film character performance router not registered: %s", exc)
-
-try:
-    from backend.ai_films.director_router import router as ai_film_director_router
-    proxy_router.include_router(ai_film_director_router, tags=["ai-films-director"])
-    logger.info("AI Director / Movie Assembly router registered at /api/ai-films/director/*.")
-except ImportError as exc:
-    logger.warning("AI Director router not registered: %s", exc)
-
-try:
-    from backend.ai_films.bible_router import router as ai_film_bible_router
-    proxy_router.include_router(ai_film_bible_router, tags=["ai-films-production-bible"])
-    logger.info("AI Films Production Bible / Shot Manifest router registered at /api/ai-films/production/*.")
-except ImportError as exc:
-    logger.warning("AI Films Production Bible router not registered: %s", exc)
-
-try:
-    from backend.ai_films.anchor_router import router as ai_film_anchor_router
-    proxy_router.include_router(ai_film_anchor_router, tags=["ai-films-anchor-frames"])
-    logger.info("AI Films Anchor Frame review router registered at /api/ai-films/production/anchors/*.")
-except ImportError as exc:
-    logger.warning("AI Films Anchor Frame router not registered: %s", exc)
 
 try:
     from backend.app.routers.d3vonn_events import router as d3vonn_events_router

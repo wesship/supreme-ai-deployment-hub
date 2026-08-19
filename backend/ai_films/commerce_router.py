@@ -6,6 +6,7 @@ import binascii
 import hashlib
 import hmac
 import json
+import logging
 import os
 import time
 import uuid
@@ -20,6 +21,7 @@ from pydantic import BaseModel, Field, HttpUrl
 from backend.ai_films.orchestration import OrchestrationError, SupabaseRLSClient
 from backend.ai_films.openmontage_router import OpenMontageDispatchRequest, dispatch_openmontage
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai-films/commerce", tags=["ai-films-commerce"])
 AdFormat = Literal["ugc", "money_shot", "virtual_try_on", "tvc", "problem_solution", "before_after", "unboxing", "tutorial", "feature_highlight"]
 Platform = Literal["tiktok", "instagram_reels", "meta_feed", "youtube_shorts", "youtube", "connected_tv"]
@@ -322,7 +324,35 @@ async def dispatch_pollo(request: PolloDispatchRequest, authorization: str | Non
         if not task_id:
             raise ValueError("Pollo did not return a taskId")
         await _user_update(token, "ai_film_commerce_jobs", {"task_id": task_id, "status": "submitted", "provider_response": result}, job_id)
+    except httpx.HTTPStatusError as exc:
+        # Preserve Pollo's real status/body instead of flattening every upstream
+        # failure into a generic 502 — auth (401/403), entitlement, and rate-limit
+        # (429) errors need to reach the caller and the logs distinctly so they
+        # can be diagnosed without re-triggering a paid generation call.
+        upstream_status = exc.response.status_code
+        try:
+            upstream_body: object = exc.response.json()
+        except ValueError:
+            upstream_body = exc.response.text
+        logger.error(
+            "Pollo dispatch rejected by upstream: status=%s body=%s job_id=%s",
+            upstream_status, upstream_body, job_id,
+        )
+        await _user_update(
+            token,
+            "ai_film_commerce_jobs",
+            {"status": "failed", "error_message": f"Pollo {upstream_status}: {upstream_body}"},
+            job_id,
+        )
+        client_status = upstream_status if upstream_status in (401, 403, 404, 422, 429) else 502
+        raise HTTPException(
+            status_code=client_status,
+            detail={"provider": "pollo", "upstream_status": upstream_status, "upstream_body": upstream_body},
+        ) from exc
     except (httpx.HTTPError, ValueError) as exc:
+        # Network-level failures (timeout, connect error, bad taskId payload) —
+        # there is no upstream status code to preserve here, so 502 is accurate.
+        logger.error("Pollo dispatch failed before a response was received: %s job_id=%s", exc, job_id)
         await _user_update(token, "ai_film_commerce_jobs", {"status": "failed", "error_message": str(exc)}, job_id)
         raise HTTPException(status_code=502, detail=f"Pollo dispatch failed: {exc}") from exc
 
