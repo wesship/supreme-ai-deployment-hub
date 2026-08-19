@@ -20,6 +20,7 @@ const PUBLIC_ROUTES = [
 const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']);
 const EXPECTED_STUB_ORIGINS = new Set(['https://placeholder.supabase.co']);
 const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insights/script.js']);
+const LOOPBACK_RUM_CORS_ARTIFACT = "Access to resource at 'https://api.d3vonn.io/api/assurance/public/rum' from origin 'http://127.0.0.1:4173' has been blocked by CORS policy";
 
 async function collectRuntimeErrors(page: Page) {
   const errors: string[] = [];
@@ -32,6 +33,11 @@ async function collectRuntimeErrors(page: Page) {
     // Chromium emits this anonymous message for failed responses. The response
     // listener below records the status and URL so failures stay actionable.
     if (text.startsWith('Failed to load resource:')) return;
+    // The audit host is a local Vite preview, while telemetry is intentionally
+    // configured for the public API. Verify the canonical-origin preflight in a
+    // dedicated test below; this loopback-only CORS diagnostic is not a runtime
+    // defect on the deployed D3VONN application.
+    if (text.includes(LOOPBACK_RUM_CORS_ARTIFACT)) return;
     errors.push(`console: ${text}`);
   });
   page.on('response', (response) => {
@@ -53,6 +59,21 @@ async function waitForApplication(page: Page) {
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
+  test('public RUM telemetry authorizes the canonical D3VONN origin', async ({ request }) => {
+    const response = await request.fetch('https://api.d3vonn.io/api/assurance/public/rum', {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://d3vonn.io',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type',
+      },
+    });
+
+    expect(response.status()).toBeLessThan(400);
+    expect(response.headers()['access-control-allow-origin']).toBe('https://d3vonn.io');
+    expect(response.headers()['access-control-allow-methods']).toContain('POST');
+  });
+
   test('AI Film cards use title-linked preview media and preserve an honest upcoming-title state', async ({ page }) => {
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
