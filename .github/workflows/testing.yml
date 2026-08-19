@@ -178,6 +178,25 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  primetime-compliance-test:
+    name: PRIMETIME Compliance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Set up Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pytest
+      - name: Run PRIMETIME compliance tests
+        run: |
+          pytest backend/tests/test_primetime_*.py -v
+
   extension-test:
     name: Extension Tests
     runs-on: ubuntu-latest
