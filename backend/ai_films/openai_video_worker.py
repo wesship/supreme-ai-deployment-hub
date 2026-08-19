@@ -87,11 +87,14 @@ async def _load_reference(db: SupabaseAssemblyClient, asset_id: str) -> tuple[st
 class OpenAIVideoClient:
     def __init__(self, environ: Mapping[str, str] | None = None) -> None:
         source = environ or os.environ
-        self.api_key = str(source.get("OPENAI_API_KEY", "")).strip()
+        # Railway production historically stores the project key as OpenAiKey.
+        # Prefer that canonical deployment variable, while retaining the
+        # conventional OPENAI_API_KEY fallback used by VPS/CI/local runs.
+        self.api_key = str(source.get("OpenAiKey") or source.get("OPENAI_API_KEY") or "").strip()
         self.model = str(source.get("AI_FILM_OPENAI_VIDEO_MODEL", "sora-2")).strip() or "sora-2"
         self.base_url = str(source.get("OPENAI_API_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
         if not self.api_key:
-            raise OpenAIVideoWorkerError("OPENAI_API_KEY is not configured")
+            raise OpenAIVideoWorkerError("OpenAiKey/OPENAI_API_KEY is not configured")
         self.headers = {"Authorization": f"Bearer {self.api_key}"}
 
     async def create(
