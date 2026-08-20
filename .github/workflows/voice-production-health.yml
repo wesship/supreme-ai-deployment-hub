@@ -1,0 +1,68 @@
+name: Voice Production Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voice-production-health
+  cancel-in-progress: true
+
+jobs:
+  production-health:
+    name: Verify D3VONN voice production surfaces
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check public production route
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl -sS -L -o /tmp/voice-studio.html -w '%{http_code}' --max-time 20 https://www.d3vonn.io/voice-studio)"
+          test "$status" = "200"
+          grep -q 'id="root"' /tmp/voice-studio.html
+          grep -q 'api.d3vonn.io' /tmp/voice-studio.html
+
+      - name: Check API DNS and TLS reachability
+        shell: bash
+        run: |
+          set -euo pipefail
+          getent ahosts api.d3vonn.io
+          curl -sS -I -o /tmp/api-headers.txt -w '%{http_code}' --max-time 20 https://api.d3vonn.io/ > /tmp/api-status.txt || true
+          status="$(cat /tmp/api-status.txt)"
+          case "$status" in
+            2*|3*|4*|5*) ;;
+            *) echo "api.d3vonn.io did not return an HTTP response"; cat /tmp/api-headers.txt || true; exit 1 ;;
+          esac
+
+      - name: Check voice session route is published
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl -sS -o /tmp/voice-session.txt -w '%{http_code}' --max-time 20 https://api.d3vonn.io/api/voice/session || true)"
+          case "$status" in
+            200|204|401|403|405) ;;
+            *) echo "Unexpected voice session status: $status"; cat /tmp/voice-session.txt || true; exit 1 ;;
+          esac
+
+      - name: Check production security headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -D /tmp/headers.txt -o /dev/null --max-time 20 https://www.d3vonn.io/voice-studio
+          grep -qi '^strict-transport-security:' /tmp/headers.txt
+          grep -qi '^x-content-type-options:' /tmp/headers.txt
+          grep -qi '^content-security-policy:' /tmp/headers.txt
+          grep -qi '^permissions-policy:' /tmp/headers.txt
+
+      - name: Report verification context
+        if: always()
+        shell: bash
+        run: |
+          echo "Production voice health probe completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Frontend: https://www.d3vonn.io/voice-studio"
+          echo "Voice API: https://api.d3vonn.io/api/voice/session"
