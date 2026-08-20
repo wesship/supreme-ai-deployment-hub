@@ -18,9 +18,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npx vitest run tests/ai-therapy/shadow-corpus.test.ts --reporter=verbose
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run tests/ai-therapy/shadow-corpus.test.ts --reporter=verbose
