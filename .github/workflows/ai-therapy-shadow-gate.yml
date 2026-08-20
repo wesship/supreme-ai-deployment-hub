@@ -1,0 +1,26 @@
+name: AI Therapy Shadow Safety Gate
+
+on:
+  pull_request:
+    paths:
+      - 'docs/ai-therapy/**'
+      - 'tests/ai-therapy/**'
+      - '.github/workflows/ai-therapy-shadow-gate.yml'
+  push:
+    branches:
+      - feat/ai-therapy-shadow-evidence
+
+jobs:
+  shadow-safety-gate:
+    name: Shadow safety corpus gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run tests/ai-therapy/shadow-corpus.test.ts --reporter=verbose
