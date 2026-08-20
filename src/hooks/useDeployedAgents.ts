@@ -3,6 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Json } from "@/integrations/supabase/types";
 
+export type MarketplaceInstallationStatus =
+  | "starting"
+  | "running"
+  | "stopped"
+  | "paused"
+  | "error"
+  | "revoked"
+  | "configuring"
+  | "suspended";
+
 export interface McpConfig {
   gateway_url: string | null;
   enabled_tools: string[];
@@ -15,7 +25,7 @@ export interface DeployedAgent {
   name: string;
   config: Json;
   mcp_config: Json;
-  status: string;
+  status: MarketplaceInstallationStatus;
   health_score: number;
   last_heartbeat: string | null;
   total_runs: number;
@@ -23,6 +33,9 @@ export interface DeployedAgent {
   failed_runs: number;
   cpu_usage: number;
   memory_usage: number;
+  requested_at: string;
+  verified_at: string | null;
+  last_error: string | null;
   deployed_at: string;
   updated_at: string;
 }
@@ -34,7 +47,6 @@ export interface DeployAgentInput {
   mcp_config?: Partial<McpConfig>;
 }
 
-// Helper to safely parse mcp_config from Json
 export function parseMcpConfig(config: Json): McpConfig {
   if (typeof config === 'object' && config !== null && !Array.isArray(config)) {
     return {
@@ -89,24 +101,18 @@ export function useDeployAgent() {
         enabled_tools: input.mcp_config?.enabled_tools ?? [],
       };
 
-      const { data, error } = await (supabase as any)
-        .from("deployed_agents")
-        .insert({
-          user_id: user.id,
-          template_id: input.template_id || null,
-          name: input.name,
-          config: (input.config ?? {}) as Json,
-          mcp_config: mcpConfig as unknown as Json,
-          status: "starting",
-        })
-        .select()
-        .single();
+      const { data, error } = await (supabase as any).rpc("marketplace_install_agent", {
+        p_template_id: input.template_id ?? null,
+        p_name: input.name,
+        p_config: (input.config ?? {}) as Json,
+        p_mcp_config: mcpConfig as unknown as Json,
+      });
       if (error) throw error;
-      return data;
+      return data as DeployedAgent;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deployed-agents"] });
-      toast({ title: "Agent deployed successfully", description: "Your agent is now starting up." });
+      toast({ title: "Agent deployed successfully", description: "Your governed installation is now starting up." });
     },
     onError: (error) => {
       toast({ title: "Failed to deploy agent", description: error.message, variant: "destructive" });
@@ -119,15 +125,18 @@ export function useUpdateDeployedAgent() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<DeployedAgent, 'id' | 'user_id' | 'deployed_at'>>) => {
-      const { data, error } = await (supabase as any)
-        .from("deployed_agents")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+    mutationFn: async ({ id, status, last_error }: {
+      id: string;
+      status: MarketplaceInstallationStatus;
+      last_error?: string | null;
+    }) => {
+      const { data, error } = await (supabase as any).rpc("marketplace_update_installation_status", {
+        p_id: id,
+        p_status: status,
+        p_last_error: last_error ?? null,
+      });
       if (error) throw error;
-      return data;
+      return data as DeployedAgent;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["deployed-agent", variables.id] });
@@ -146,18 +155,16 @@ export function useDeleteDeployedAgent() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from("deployed_agents")
-        .delete()
-        .eq("id", id);
+      const { data, error } = await (supabase as any).rpc("marketplace_uninstall_agent", { p_id: id });
       if (error) throw error;
+      if (!data) throw new Error("Installation not found or already removed");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deployed-agents"] });
-      toast({ title: "Agent deleted" });
+      toast({ title: "Agent uninstalled" });
     },
     onError: (error) => {
-      toast({ title: "Failed to delete agent", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to uninstall agent", description: error.message, variant: "destructive" });
     },
   });
 }
@@ -166,9 +173,7 @@ export function useStartAgent() {
   const updateAgent = useUpdateDeployedAgent();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      return updateAgent.mutateAsync({ id, status: "running", last_heartbeat: new Date().toISOString() });
-    },
+    mutationFn: async (id: string) => updateAgent.mutateAsync({ id, status: "running" }),
   });
 }
 
@@ -176,8 +181,6 @@ export function useStopAgent() {
   const updateAgent = useUpdateDeployedAgent();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      return updateAgent.mutateAsync({ id, status: "stopped" });
-    },
+    mutationFn: async (id: string) => updateAgent.mutateAsync({ id, status: "stopped" }),
   });
 }
