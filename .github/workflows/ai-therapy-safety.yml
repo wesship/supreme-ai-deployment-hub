@@ -1,0 +1,32 @@
+name: AI Therapy Safety Gate
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/ai-therapy/**'
+      - 'docs/AI_THERAPY_SAFETY_KERNEL.md'
+      - '.github/workflows/ai-therapy-safety.yml'
+  push:
+    branches:
+      - main
+      - 'feat/ai-therapy-safety-kernel'
+
+permissions:
+  contents: read
+
+jobs:
+  safety-regression:
+    name: P0 safety regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run src/lib/ai-therapy/safetyKernel.test.ts
