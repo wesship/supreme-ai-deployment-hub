@@ -62,7 +62,7 @@ const DeployAgentModal: React.FC<DeployAgentModalProps> = ({
     setStep('deploying');
     try {
       const deployed = await deployMutation.mutateAsync({
-        template_id: agent.id,
+        catalog_key: agent.id,
         name: config.name,
         config: {
           slug: agent.slug,
@@ -95,7 +95,7 @@ const DeployAgentModal: React.FC<DeployAgentModalProps> = ({
             Deploy {agent.name}
           </DialogTitle>
           <DialogDescription>
-            Creates a real deployed-agent record and enables the agent for your workspace.
+            Creates a governed installation record and enables the agent for your workspace.
           </DialogDescription>
         </DialogHeader>
 
@@ -154,7 +154,7 @@ const DeployAgentModal: React.FC<DeployAgentModalProps> = ({
 
             {agent.slug === 'openmontage-video-intelligence-studio' && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
-                OpenMontage will be registered with Hermes, FFmpeg, media-provider, and publishing capabilities.
+                OpenMontage will request Hermes, FFmpeg, media-provider, and publishing capabilities.
               </div>
             )}
 
@@ -206,7 +206,7 @@ const DeployAgentModal: React.FC<DeployAgentModalProps> = ({
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/20 animate-pulse">
               <Zap className="h-8 w-8 text-primary" />
             </div>
-            <div className="text-lg font-medium">Creating deployment record…</div>
+            <div className="text-lg font-medium">Creating governed installation…</div>
           </div>
         )}
 
