@@ -99,13 +99,17 @@ BEGIN
 END;
 $$;
 
+-- SECURITY DEFINER functions must never inherit PUBLIC execution. The only
+-- browser caller is the authenticated role, and identity is derived from
+-- auth.uid() inside each function rather than accepted from the client.
 REVOKE ALL ON FUNCTION public.moneyhub_create_agent(text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.moneyhub_set_agent_status(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.moneyhub_create_agent(text, text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.moneyhub_set_agent_status(uuid, text) TO authenticated;
 
--- Ensure MoneyHub can refresh when an agent lifecycle state changes. Avoid
--- duplicate-publication errors on projects where this table was added manually.
+-- Ensure both tables used by the MoneyHub live view are in realtime. These
+-- checks are idempotent because older projects may already have one table
+-- registered in the publication.
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -116,6 +120,16 @@ BEGIN
       AND tablename = 'money_agents'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.money_agents;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'agent_earnings'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.agent_earnings;
   END IF;
 END;
 $$;
