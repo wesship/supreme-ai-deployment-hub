@@ -27,19 +27,21 @@ jobs:
           grep -q 'id="root"' /tmp/voice-studio.html
           grep -q 'api.d3vonn.io' /tmp/voice-studio.html
 
-      - name: Check API DNS and TLS reachability
+      - name: Check API DNS record and TLS reachability
         shell: bash
         run: |
           set -euo pipefail
+          expected="apiymvrdxe8.up.railway.app."
+          actual="$(dig +short CNAME api.d3vonn.io | tail -n 1 | tr -d '\r')"
+          if [ "$actual" != "$expected" ] && [ "$actual" != "${expected%.}" ]; then
+            echo "Unexpected api.d3vonn.io CNAME: '$actual' (expected '$expected')"
+            exit 1
+          fi
           getent ahosts api.d3vonn.io
-          curl -sS -I -o /tmp/api-headers.txt -w '%{http_code}' --max-time 20 https://api.d3vonn.io/ > /tmp/api-status.txt || true
-          status="$(cat /tmp/api-status.txt)"
-          case "$status" in
-            2*|3*|4*|5*) ;;
-            *) echo "api.d3vonn.io did not return an HTTP response"; cat /tmp/api-headers.txt || true; exit 1 ;;
-          esac
+          status="$(curl -sS -I -o /tmp/api-headers.txt -w '%{http_code}' --max-time 20 https://api.d3vonn.io/health || true)"
+          test "$status" = "200"
 
-      - name: Check voice session route is published
+      - name: Check voice session route is published and protected
         shell: bash
         run: |
           set -euo pipefail
