@@ -1,0 +1,193 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+
+const env = (name: string) => Deno.env.get(name) ?? "";
+
+const userClient = (req: Request) => createClient(
+  env("SUPABASE_URL"),
+  env("SUPABASE_ANON_KEY"),
+  { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+);
+
+const adminClient = () => createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"));
+
+const aceRequest = async (path: string, init: RequestInit = {}) => {
+  const base = env("ACESTEP_API_URL").replace(/\/$/, "");
+  if (!base) throw new Error("ACESTEP_API_URL is not configured");
+  const headers = new Headers(init.headers);
+  headers.set("Content-Type", "application/json");
+  const key = env("ACESTEP_API_KEY");
+  if (key) headers.set("Authorization", `Bearer ${key}`);
+  const response = await fetch(`${base}${path}`, { ...init, headers });
+  if (!response.ok) throw new Error(`ACE-Step API returned HTTP ${response.status}`);
+  return response.json();
+};
+
+const extractResult = (payload: any) => {
+  const raw = payload?.data?.[0]?.result ?? payload?.data?.result ?? payload?.result;
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+  return raw;
+};
+
+const absoluteAudioUrl = (path: string) => {
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${env("ACESTEP_API_URL").replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+};
+
+const saveCompletedAudio = async (job: any, result: any) => {
+  const file = result?.file ?? result?.audio_url ?? result?.audio;
+  if (!file) throw new Error("ACE-Step completed without an audio file");
+
+  const audioResponse = await fetch(absoluteAudioUrl(file), {
+    headers: env("ACESTEP_API_KEY") ? { Authorization: `Bearer ${env("ACESTEP_API_KEY")}` } : undefined,
+  });
+  if (!audioResponse.ok) throw new Error(`Unable to download generated audio (HTTP ${audioResponse.status})`);
+
+  const bytes = new Uint8Array(await audioResponse.arrayBuffer());
+  const path = `${job.user_id}/${job.id}.mp3`;
+  const admin = adminClient();
+  const upload = await admin.storage.from("music-library").upload(path, bytes, {
+    contentType: "audio/mpeg",
+    upsert: true,
+  });
+  if (upload.error) throw upload.error;
+
+  const signed = await admin.storage.from("music-library").createSignedUrl(path, 60 * 60 * 24 * 7);
+  if (signed.error) throw signed.error;
+
+  const { data: updated, error } = await admin
+    .from("music_generation_jobs")
+    .update({
+      status: "succeeded",
+      audio_path: path,
+      audio_url: signed.data.signedUrl,
+      completed_at: new Date().toISOString(),
+      error_message: null,
+    })
+    .eq("id", job.id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return updated;
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const auth = req.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return json({ error: "Authentication required" }, 401);
+
+  const client = userClient(req);
+  const { data: { user }, error: authError } = await client.auth.getUser();
+  if (authError || !user) return json({ error: "Invalid authentication" }, 401);
+
+  const body = await req.json().catch(() => ({}));
+  const action = body.action;
+  const admin = adminClient();
+
+  if (action === "submit") {
+    const prompt = String(body.prompt ?? "").trim();
+    if (prompt.length < 4 || prompt.length > 4000) return json({ error: "Prompt must be 4-4000 characters" }, 400);
+
+    const lyrics = String(body.lyrics ?? "").slice(0, 12000);
+    const parameters = {
+      bpm: Math.min(240, Math.max(40, Number(body.bpm ?? 120))),
+      duration: Math.min(600, Math.max(10, Number(body.duration ?? 90))),
+      vocal_language: String(body.vocal_language ?? "en"),
+      instrumental: Boolean(body.instrumental),
+      audio_format: "mp3",
+    };
+
+    const { data: job, error: insertError } = await admin
+      .from("music_generation_jobs")
+      .insert({ user_id: user.id, prompt, lyrics, parameters, status: "queued" })
+      .select("*")
+      .single();
+    if (insertError) return json({ error: insertError.message }, 500);
+
+    try {
+      const task = await aceRequest("/release_task", {
+        method: "POST",
+        body: JSON.stringify({
+          prompt,
+          lyrics: parameters.instrumental ? "" : lyrics,
+          bpm: parameters.bpm,
+          audio_duration: parameters.duration,
+          vocal_language: parameters.vocal_language,
+          audio_format: parameters.audio_format,
+          thinking: true,
+        }),
+      });
+
+      const taskId = task?.data?.task_id ?? task?.task_id;
+      if (!taskId) throw new Error("ACE-Step did not return a task id");
+      const { data: updated, error } = await admin
+        .from("music_generation_jobs")
+        .update({ provider_task_id: taskId, status: "queued" })
+        .eq("id", job.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return json({ job: updated });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Generation submission failed";
+      await admin.from("music_generation_jobs").update({ status: "failed", error_message: message }).eq("id", job.id);
+      return json({ error: message }, 502);
+    }
+  }
+
+  if (action === "status") {
+    const jobId = String(body.job_id ?? "");
+    const { data: job, error } = await admin
+      .from("music_generation_jobs")
+      .select("*")
+      .eq("id", jobId)
+      .eq("user_id", user.id)
+      .single();
+    if (error || !job) return json({ error: "Job not found" }, 404);
+
+    if (job.status === "succeeded" || job.status === "failed") return json({ job });
+    if (!job.provider_task_id) return json({ job });
+
+    try {
+      const resultPayload = await aceRequest("/query_result", {
+        method: "POST",
+        body: JSON.stringify({ task_id_list: [job.provider_task_id] }),
+      });
+      const providerResult = resultPayload?.data?.[0];
+      if (providerResult?.status === 2) {
+        const failed = await admin.from("music_generation_jobs").update({ status: "failed", error_message: providerResult.error ?? "ACE-Step generation failed" }).eq("id", job.id).select("*").single();
+        return json({ job: failed.data ?? job });
+      }
+      if (providerResult?.status !== 1) {
+        if (job.status !== "running") await admin.from("music_generation_jobs").update({ status: "running" }).eq("id", job.id);
+        return json({ job: { ...job, status: "running" } });
+      }
+
+      const result = extractResult(resultPayload);
+      const completed = await saveCompletedAudio(job, result);
+      return json({ job: completed });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Generation status check failed";
+      return json({ error: message }, 502);
+    }
+  }
+
+  return json({ error: "Unknown action" }, 400);
+});
