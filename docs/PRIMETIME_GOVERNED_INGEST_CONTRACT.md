@@ -1,6 +1,6 @@
 # PRIMETIME Governed Ingest Contract
 
-Status: Contract-first; implementation follows after reconciliation
+Status: Contract-first; runtime remains disabled until durable persistence and queue wiring are validated.
 Issue: #982
 
 ## Endpoint
@@ -15,37 +15,31 @@ The request is rejected before inference if any control fails:
 - authenticated workspace resolution
 - request signature verification
 - timestamp within configured replay window
-- unique idempotency key
-- request body size limit
-- rate limit
-- JSON schema validation
-- audit event creation
+- bounded request size
+- strict JSON schema
+- required idempotency key
+- durable workspace-scoped idempotency check
+- Redis concurrency lock
+- append-only audit/event record
 
-The request body must not be able to select or override the authenticated workspace.
+## Authorization
 
-## Request envelope
+The submitted `organization` field is metadata only. It never determines tenant authorization. Workspace identity comes from the authenticated request context and the canonical PRIMETIME workspace membership boundary.
 
-```json
-{
-  "idempotency_key": "client-generated-unique-key",
-  "event_type": "interaction.received",
-  "occurred_at": "2026-08-20T19:25:00Z",
-  "organization": "submitted-as-metadata-only",
-  "lead": {
-    "external_id": "optional-source-id",
-    "first_name": "Jane",
-    "last_name": "Doe",
-    "email": "jane@example.com",
-    "phone": "+1..."
-  },
-  "interaction": {
-    "type": "message",
-    "channel": "email",
-    "content": "...",
-    "metadata": {}
-  }
-}
-```
+## Runtime sequence
+
+1. Authenticate.
+2. Verify request signature and replay window.
+3. Resolve workspace and membership.
+4. Validate schema.
+5. Acquire Redis fast-path lock.
+6. Check/insert durable idempotency record in PostgreSQL.
+7. Append the ingest event to the event ledger.
+8. Commit the durable acceptance transaction.
+9. Enqueue governed work.
+10. Run scoring and downstream agents only through explicit capabilities.
+
+Until steps 6–9 are fully wired and tested, `PRIMETIME_INGEST_ENABLE_RUNTIME` must remain disabled and the endpoint must not return `202 Accepted`.
 
 ## Response semantics
 
@@ -56,11 +50,11 @@ The request body must not be able to select or override the authenticated worksp
 - `413`: request too large
 - `422`: schema validation failure
 - `429`: rate limit exceeded
-- `202`: accepted and queued
+- `202`: accepted and queued, only after durable acceptance and enqueue are verified
 
 ## Idempotency
 
-The authenticated workspace plus idempotency key is the uniqueness boundary. Redis may provide the short-lived processing lock, but the database uniqueness constraint remains the durable duplicate guard.
+The authenticated workspace plus idempotency key is the uniqueness boundary. Redis provides the short-lived concurrency lock, while the database uniqueness constraint remains the durable duplicate guard.
 
 A duplicate request with the same key and equivalent payload returns the original acceptance identity rather than creating another interaction/dispatch.
 
@@ -88,3 +82,13 @@ Generated artifacts have independent states:
 `ai_generated -> human_approved -> externally_sent`
 
 Rejection and supersession are terminal artifact states. An agent cannot transition an artifact directly to `externally_sent` without the existing approval/compliance path.
+
+## Workflow state machine
+
+The AI workflow state is separate from the CRM pipeline stage:
+
+`RECEIVED -> VALIDATED -> QUEUED -> SCORING -> SCORED -> RESEARCHING -> DRAFTING/ASSET_GENERATION -> AGGREGATING -> READY_FOR_REVIEW -> APPROVED -> READY_FOR_ENGAGEMENT -> ENGAGED -> CONVERTED`
+
+Failures use `FAILED -> RETRYING -> QUEUED` or `FAILED_PERMANENTLY`.
+
+Agents cannot skip states. Human approval is required for `APPROVED` and `READY_FOR_ENGAGEMENT`.
