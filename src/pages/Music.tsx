@@ -4,6 +4,24 @@ import { supabase } from '@/integrations/supabase/client';
 
 const MUSIC_FUNCTION = 'music-generate';
 
+const DEMO_TRACKS = [
+  {
+    title: 'Duru Rondo',
+    mood: 'Original / upbeat',
+    src: 'https://raw.githubusercontent.com/uncle-sheepsky/duru-ai-cc0-bgm/main/mp3/duru-rondo.mp3',
+  },
+  {
+    title: 'Duru Roomscene Lofi',
+    mood: 'Original / lofi',
+    src: 'https://raw.githubusercontent.com/uncle-sheepsky/duru-ai-cc0-bgm/main/mp3/duru-roomscene-lofi.mp3',
+  },
+  {
+    title: 'Duru Rhythm Fever',
+    mood: 'Original / electronic',
+    src: 'https://raw.githubusercontent.com/uncle-sheepsky/duru-ai-cc0-bgm/main/mp3/duru-rhythm-fever.mp3',
+  },
+];
+
 type Job = {
   id: string;
   status: 'queued' | 'running' | 'succeeded' | 'failed';
@@ -96,6 +114,28 @@ const Music = () => {
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Music Generator</h1>
             <p className="mt-2 max-w-2xl text-slate-300">Create an original song from a prompt, lyrics and production controls, powered by the open-source ACE-Step engine.</p>
           </div>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">Real music previews</h2>
+              <p className="mt-1 text-xs text-slate-400">These are actual CC0 tracks, not silent UI placeholders. They are suitable for product demos while ACE-Step inference is connected.</p>
+            </div>
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">CC0 demo audio</span>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {DEMO_TRACKS.map((track) => (
+              <div key={track.src} className="rounded-xl border border-white/10 bg-slate-900/80 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-white/10 p-2"><Play className="h-4 w-4" aria-hidden="true" /></div>
+                  <div className="min-w-0"><p className="truncate text-sm font-medium">{track.title}</p><p className="text-xs text-slate-500">{track.mood}</p></div>
+                </div>
+                <audio className="mt-3 w-full" controls preload="none" src={track.src} aria-label={`Preview ${track.title}`} />
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-slate-500">Demo source: DURU-AI CC0 music repository. CC0 permits commercial use and redistribution without required attribution. D3VONN keeps the source visible here for provenance.</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.6fr]">
