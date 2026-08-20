@@ -1,8 +1,33 @@
 -- Marketplace governance hardening
--- Installation lifecycle is controlled through RPCs; runtime fields are not
--- directly writable by browser clients.
+-- The public Marketplace currently contains curated catalog entries in the frontend.
+-- This migration establishes a server-side catalog registry and moves installation
+-- authorization behind RPCs so browser clients cannot self-authorize runtime state.
+
+CREATE TABLE IF NOT EXISTS public.marketplace_catalog_entries (
+  catalog_key TEXT NOT NULL PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  publisher TEXT NOT NULL DEFAULT 'D3VONN.IO',
+  version TEXT NOT NULL DEFAULT '1.0.0',
+  status TEXT NOT NULL DEFAULT 'published',
+  capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
+  integrations TEXT[] NOT NULL DEFAULT '{}',
+  required_permissions TEXT[] NOT NULL DEFAULT '{}',
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT marketplace_catalog_entries_status_check
+    CHECK (status IN ('draft', 'pending-review', 'published', 'deprecated', 'revoked'))
+);
+
+ALTER TABLE public.marketplace_catalog_entries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view published marketplace catalog entries" ON public.marketplace_catalog_entries;
+CREATE POLICY "Anyone can view published marketplace catalog entries"
+  ON public.marketplace_catalog_entries FOR SELECT
+  USING (status = 'published');
 
 ALTER TABLE public.deployed_agents
+  ADD COLUMN IF NOT EXISTS catalog_key TEXT,
   ADD COLUMN IF NOT EXISTS requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS last_error TEXT;
@@ -14,8 +39,8 @@ ALTER TABLE public.deployed_agents
   ADD CONSTRAINT deployed_agents_status_check
   CHECK (status IN ('starting', 'running', 'stopped', 'paused', 'error', 'revoked', 'configuring', 'suspended'));
 
-CREATE INDEX IF NOT EXISTS idx_deployed_agents_template_status
-  ON public.deployed_agents(template_id, status);
+CREATE INDEX IF NOT EXISTS idx_deployed_agents_catalog_status
+  ON public.deployed_agents(catalog_key, status);
 
 CREATE INDEX IF NOT EXISTS idx_deployed_agents_requested_at
   ON public.deployed_agents(requested_at DESC);
@@ -33,6 +58,7 @@ CREATE TABLE IF NOT EXISTS public.marketplace_installation_events (
 
 ALTER TABLE public.marketplace_installation_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own marketplace installation events" ON public.marketplace_installation_events;
 CREATE POLICY "Users can view own marketplace installation events"
   ON public.marketplace_installation_events FOR SELECT
   TO authenticated
@@ -68,6 +94,33 @@ CREATE TRIGGER marketplace_installation_audit
   FOR EACH ROW
   EXECUTE FUNCTION public.marketplace_record_installation_event();
 
+-- Seed the currently published curated catalog keys. Metadata is intentionally
+-- minimal here; the frontend remains the presentation source until catalog sync
+-- is implemented as a separate release.
+INSERT INTO public.marketplace_catalog_entries (catalog_key, display_name, publisher, version)
+VALUES
+  ('agent-001', 'Security Sentinel', 'D3VONN.IO', '2.1.0'),
+  ('agent-002', 'Infrastructure Healer', 'D3VONN.IO', '1.8.3'),
+  ('agent-003', 'Cloud Cost Optimizer', 'CloudOps Pro', '3.0.1'),
+  ('agent-004', 'DevOps Pipeline Guardian', 'DevTools Inc', '2.4.0'),
+  ('agent-005', 'Database Performance Tuner', 'D3VONN.IO', '1.5.2'),
+  ('agent-006', 'Log Analyzer Pro', 'Open Source Community', '1.2.0'),
+  ('agent-007', 'API Gateway Monitor', 'API Tools', '2.0.0'),
+  ('agent-008', 'Kubernetes Autopilot', 'D3VONN.IO', '3.1.0'),
+  ('agent-009', 'Slack Ops Bot', 'ChatOps Team', '1.0.5'),
+  ('agent-010', 'Compliance Auditor', 'D3VONN.IO', '2.2.1'),
+  ('agent-011', 'N8N Workflow Orchestrator', 'D3VONN.IO', '1.3.0'),
+  ('agent-012', 'Backup Verification Agent', 'DataOps Solutions', '1.1.0'),
+  ('agent-brandforge-001', 'BrandForge Site Builder', 'D3VONN.IO', '1.0.0'),
+  ('agent-brandforge-002', 'Brand Direction Analyst', 'D3VONN.IO', '1.0.0'),
+  ('agent-video-001', 'OpenMontage Video Intelligence Studio', 'D3VONN.IO', '1.0.0')
+ON CONFLICT (catalog_key) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  publisher = EXCLUDED.publisher,
+  version = EXCLUDED.version,
+  status = 'published',
+  updated_at = now();
+
 -- Browser clients cannot directly insert/update/delete installation rows.
 DROP POLICY IF EXISTS "Users can update own deployed agents" ON public.deployed_agents;
 DROP POLICY IF EXISTS "Users can delete own deployed agents" ON public.deployed_agents;
@@ -75,7 +128,7 @@ DROP POLICY IF EXISTS "Users can deploy agents" ON public.deployed_agents;
 DROP POLICY IF EXISTS "Users can create marketplace installs" ON public.deployed_agents;
 
 CREATE OR REPLACE FUNCTION public.marketplace_install_agent(
-  p_template_id UUID,
+  p_catalog_key TEXT,
   p_name TEXT,
   p_config JSONB DEFAULT '{}'::jsonb,
   p_mcp_config JSONB DEFAULT '{"gateway_url": null, "enabled_tools": []}'::jsonb
@@ -86,6 +139,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_catalog public.marketplace_catalog_entries;
   v_result public.deployed_agents;
 BEGIN
   IF auth.uid() IS NULL THEN
@@ -96,18 +150,20 @@ BEGIN
     RAISE EXCEPTION 'invalid installation name';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM public.agent_templates
-    WHERE id = p_template_id AND status = 'published'
-  ) THEN
-    RAISE EXCEPTION 'marketplace template is not published';
+  SELECT * INTO v_catalog
+  FROM public.marketplace_catalog_entries
+  WHERE catalog_key = p_catalog_key
+    AND status = 'published';
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'marketplace listing is not published';
   END IF;
 
   INSERT INTO public.deployed_agents (
-    user_id, template_id, name, config, mcp_config, status, requested_at
+    user_id, catalog_key, name, config, mcp_config, status, requested_at
   )
   VALUES (
-    auth.uid(), p_template_id, trim(p_name), COALESCE(p_config, '{}'::jsonb),
+    auth.uid(), v_catalog.catalog_key, trim(p_name), COALESCE(p_config, '{}'::jsonb),
     COALESCE(p_mcp_config, '{"gateway_url": null, "enabled_tools": []}'::jsonb),
     'starting', now()
   )
@@ -178,9 +234,9 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.marketplace_install_agent(UUID, TEXT, JSONB, JSONB) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.marketplace_install_agent(TEXT, TEXT, JSONB, JSONB) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.marketplace_update_installation_status(UUID, TEXT, TEXT) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.marketplace_uninstall_agent(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.marketplace_install_agent(UUID, TEXT, JSONB, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.marketplace_install_agent(TEXT, TEXT, JSONB, JSONB) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.marketplace_update_installation_status(UUID, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.marketplace_uninstall_agent(UUID) TO authenticated;
