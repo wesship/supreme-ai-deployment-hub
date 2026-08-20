@@ -1,17 +1,13 @@
-"""Audio validation and mastering service for D3VONN Music Studio.
-
-This endpoint is intended for private service-to-service use by the music Edge
-Function. It validates an audio artifact with ffprobe, analyzes loudness and
-silence with ffmpeg, produces a normalized mastered copy, and returns a concise
-QA record. It deliberately does not hold provider credentials.
-"""
+"""Audio validation and mastering service for D3VONN Music Studio."""
 from __future__ import annotations
 
 import asyncio
 import base64
+import ipaddress
 import json
 import os
 import re
+import socket
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -45,20 +41,41 @@ class AudioQaResponse(BaseModel):
 def _require_service_token(token: str | None) -> None:
     expected = os.getenv("MUSIC_AUDIO_QA_TOKEN", "").strip()
     if not expected:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Music audio QA token is not configured",
-        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Music audio QA token is not configured")
     if not token or token != expected:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid music audio QA token")
 
 
+def _is_public_ip(address: str) -> bool:
+    ip = ipaddress.ip_address(address)
+    return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified)
+
+
+async def _assert_public_source(source_url: str) -> None:
+    parsed = urlparse(source_url)
+    if parsed.scheme != "https":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Audio source must use HTTPS")
+    hostname = (parsed.hostname or "").rstrip(".").lower()
+    if not hostname:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Audio source hostname is required")
+    try:
+        literal = ipaddress.ip_address(hostname)
+        if not _is_public_ip(str(literal)):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Private or reserved audio source addresses are not allowed")
+        return
+    except ValueError:
+        pass
+    try:
+        records = await asyncio.to_thread(socket.getaddrinfo, hostname, 443, type=socket.SOCK_STREAM)
+    except socket.gaierror as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Unable to resolve audio source") from exc
+    addresses = {record[4][0] for record in records}
+    if not addresses or any(not _is_public_ip(address) for address in addresses):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Audio source resolves to a private or reserved address")
+
+
 async def _run_command(*command: str) -> tuple[str, str]:
-    process = await asyncio.create_subprocess_exec(
-        *command,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     stdout, stderr = await process.communicate()
     stdout_text = stdout.decode("utf-8", errors="replace")
     stderr_text = stderr.decode("utf-8", errors="replace")
@@ -68,20 +85,18 @@ async def _run_command(*command: str) -> tuple[str, str]:
 
 
 async def _download_audio(source_url: str, target_path: Path) -> tuple[int, str]:
-    parsed = urlparse(source_url)
-    if parsed.scheme not in {"http", "https"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Audio source must use HTTP or HTTPS")
+    await _assert_public_source(source_url)
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=10.0), follow_redirects=False) as client:
             async with client.stream("GET", source_url, headers={"Accept": "audio/*"}) as response:
                 if response.status_code != 200:
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail=f"Audio source returned HTTP {response.status_code}",
-                    )
+                    raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Audio source returned HTTP {response.status_code}")
                 content_type = response.headers.get("content-type", "audio/mpeg").split(";", 1)[0].strip().lower()
                 if not content_type.startswith("audio/") and content_type not in {"application/octet-stream", "video/ogg"}:
                     raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=f"Unexpected source type: {content_type}")
+                declared_length = response.headers.get("content-length")
+                if declared_length and declared_length.isdigit() and int(declared_length) > MAX_AUDIO_BYTES:
+                    raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="Audio source exceeds 32 MB")
                 size = 0
                 with target_path.open("wb") as target:
                     async for chunk in response.aiter_bytes():
@@ -97,16 +112,7 @@ async def _download_audio(source_url: str, target_path: Path) -> tuple[int, str]
 
 
 async def _probe(path: Path) -> dict[str, Any]:
-    stdout, _ = await _run_command(
-        "ffprobe",
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration,format_name,bit_rate:stream=codec_name,codec_type,sample_rate,channels",
-        "-of",
-        "json",
-        str(path),
-    )
+    stdout, _ = await _run_command("ffprobe", "-v", "error", "-show_entries", "format=duration,format_name,bit_rate:stream=codec_name,codec_type,sample_rate,channels", "-of", "json", str(path))
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError as exc:
@@ -119,80 +125,32 @@ async def _probe(path: Path) -> dict[str, Any]:
     except (KeyError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Audio duration is unavailable") from exc
     if not MIN_DURATION_SECONDS <= duration <= MAX_DURATION_SECONDS:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Audio duration must be between {MIN_DURATION_SECONDS:g} and {MAX_DURATION_SECONDS:g} seconds",
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Audio duration must be between {MIN_DURATION_SECONDS:g} and {MAX_DURATION_SECONDS:g} seconds")
     audio_stream = audio_streams[0]
-    return {
-        "duration_seconds": round(duration, 3),
-        "format": payload.get("format", {}).get("format_name"),
-        "bit_rate": payload.get("format", {}).get("bit_rate"),
-        "codec": audio_stream.get("codec_name"),
-        "sample_rate": audio_stream.get("sample_rate"),
-        "channels": audio_stream.get("channels"),
-    }
+    return {"duration_seconds": round(duration, 3), "format": payload.get("format", {}).get("format_name"), "bit_rate": payload.get("format", {}).get("bit_rate"), "codec": audio_stream.get("codec_name"), "sample_rate": audio_stream.get("sample_rate"), "channels": audio_stream.get("channels")}
 
 
 async def _volume(path: Path) -> dict[str, float | None]:
     _, stderr = await _run_command("ffmpeg", "-hide_banner", "-i", str(path), "-af", "volumedetect", "-f", "null", "-")
     mean_match = re.search(r"mean_volume:\s*(-?[\d.]+) dB", stderr)
     max_match = re.search(r"max_volume:\s*(-?[\d.]+) dB", stderr)
-    return {
-        "mean_volume_db": float(mean_match.group(1)) if mean_match else None,
-        "max_volume_db": float(max_match.group(1)) if max_match else None,
-    }
+    return {"mean_volume_db": float(mean_match.group(1)) if mean_match else None, "max_volume_db": float(max_match.group(1)) if max_match else None}
 
 
 async def _silence(path: Path, duration: float) -> dict[str, Any]:
-    _, stderr = await _run_command(
-        "ffmpeg",
-        "-hide_banner",
-        "-i",
-        str(path),
-        "-af",
-        "silencedetect=n=-50dB:d=0.75",
-        "-f",
-        "null",
-        "-",
-    )
+    _, stderr = await _run_command("ffmpeg", "-hide_banner", "-i", str(path), "-af", "silencedetect=n=-50dB:d=0.75", "-f", "null", "-")
     durations = [float(match) for match in re.findall(r"silence_duration:\s*([\d.]+)", stderr)]
     total = round(sum(durations), 3)
-    return {
-        "segments": len(durations),
-        "total_seconds": total,
-        "ratio": round(total / duration, 4) if duration else 0.0,
-    }
+    return {"segments": len(durations), "total_seconds": total, "ratio": round(total / duration, 4) if duration else 0.0}
 
 
 async def _master(source: Path, target: Path, target_lufs: float, true_peak_dbtp: float) -> None:
-    # A deterministic one-pass loudness normalization is preferable here to a
-    # provider-specific preset. The original is retained separately for auditability.
     filter_chain = f"loudnorm=I={target_lufs}:TP={true_peak_dbtp}:LRA=11"
-    await _run_command(
-        "ffmpeg",
-        "-y",
-        "-hide_banner",
-        "-i",
-        str(source),
-        "-map_metadata",
-        "-1",
-        "-af",
-        filter_chain,
-        "-c:a",
-        "libmp3lame",
-        "-b:a",
-        "192k",
-        str(target),
-    )
+    await _run_command("ffmpeg", "-y", "-hide_banner", "-i", str(source), "-map_metadata", "-1", "-af", filter_chain, "-c:a", "libmp3lame", "-b:a", "192k", str(target))
 
 
 @router.post("/audio-qa", response_model=AudioQaResponse)
-async def audio_qa_and_master(
-    request: AudioQaRequest,
-    x_music_qa_token: str | None = Header(default=None),
-) -> AudioQaResponse:
-    """Validate and master a privately signed generated-audio artifact."""
+async def audio_qa_and_master(request: AudioQaRequest, x_music_qa_token: str | None = Header(default=None)) -> AudioQaResponse:
     _require_service_token(x_music_qa_token)
     with tempfile.TemporaryDirectory(prefix="d3vonn-music-") as temporary_directory:
         workdir = Path(temporary_directory)
@@ -204,10 +162,7 @@ async def audio_qa_and_master(
             volume_before = await _volume(source_path)
             silence = await _silence(source_path, metadata["duration_seconds"])
         except FileNotFoundError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Audio QA dependencies ffmpeg and ffprobe are not installed",
-            ) from exc
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Audio QA dependencies ffmpeg and ffprobe are not installed") from exc
         max_volume = volume_before["max_volume_db"]
         if max_volume is None or max_volume < MIN_PEAK_DB:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Generated audio did not contain a usable audible signal")
@@ -219,16 +174,5 @@ async def audio_qa_and_master(
         mastered_bytes = mastered_path.read_bytes()
         if not mastered_bytes or len(mastered_bytes) > MAX_AUDIO_BYTES:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Mastered audio is empty or exceeds storage limits")
-        qa_result: dict[str, Any] = {
-            "status": "passed",
-            "pipeline": ["validation", "metadata", "loudness_analysis", "silence_detection", "mastering"],
-            "source": {"size_bytes": source_size, "content_type": source_content_type, "metadata": metadata, "volume": volume_before},
-            "mastered": {"size_bytes": len(mastered_bytes), "content_type": "audio/mpeg", "metadata": mastered_metadata, "volume": volume_after},
-            "silence": silence,
-            "mastering": {"target_lufs": request.target_lufs, "true_peak_dbtp": request.true_peak_dbtp, "codec": "mp3", "bit_rate": "192k"},
-        }
-        return AudioQaResponse(
-            audio_base64=base64.b64encode(mastered_bytes).decode("ascii"),
-            content_type="audio/mpeg",
-            qa_result=qa_result,
-        )
+        qa_result: dict[str, Any] = {"status": "passed", "pipeline": ["validation", "metadata", "loudness_analysis", "silence_detection", "mastering"], "source": {"size_bytes": source_size, "content_type": source_content_type, "metadata": metadata, "volume": volume_before}, "mastered": {"size_bytes": len(mastered_bytes), "content_type": "audio/mpeg", "metadata": mastered_metadata, "volume": volume_after}, "silence": silence, "mastering": {"target_lufs": request.target_lufs, "true_peak_dbtp": request.true_peak_dbtp, "codec": "mp3", "bit_rate": "192k"}}
+        return AudioQaResponse(audio_base64=base64.b64encode(mastered_bytes).decode("ascii"), content_type="audio/mpeg", qa_result=qa_result)
