@@ -5,10 +5,13 @@ import { videoProductionAgentTemplates } from './videoIntelligenceLayer';
 
 /** Canonical Marketplace presentation layer for the already verified 16-agent ecosystem. */
 const verifiedUpdates: Record<string, Partial<AgentTemplate>> = {
-  'agent-006': { featured: true },
+  // Match the verified Marketplace presentation: nine featured listings.
+  'agent-001': { featured: false },
+  'agent-002': { featured: false },
   'agent-003': { featured: true },
-  'agent-009': { featured: true },
+  'agent-006': { featured: true },
   'agent-008': { featured: true },
+  'agent-009': { featured: true },
   'agent-011': { featured: true },
 };
 
