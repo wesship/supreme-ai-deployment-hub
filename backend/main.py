@@ -150,6 +150,16 @@ for _ai_films_name, _ai_films_module, _ai_films_attr in _AI_FILMS_ROUTERS:
     except (ImportError, AttributeError) as _ai_films_err:
         logger.warning("AI Films %s router unavailable — skipping. (%s)", _ai_films_name, _ai_films_err)
 
+# Music Studio keeps provider dispatch in an Edge Function, while this private
+# backend route performs CPU-based audio validation and mastering.
+try:
+    from backend.music.audio_qa import router as music_audio_qa_router  # type: ignore
+
+    app.include_router(music_audio_qa_router, prefix="/api")
+    logger.info("Music audio QA router registered at /api/music/audio-qa")
+except ImportError as _music_audio_qa_err:
+    logger.warning("Music audio QA router unavailable — skipping. (%s)", _music_audio_qa_err)
+
 try:
     from backend.app.routers import proxy_router  # type: ignore
 

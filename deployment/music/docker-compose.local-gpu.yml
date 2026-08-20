@@ -1,0 +1,65 @@
+# D3VONN Music Studio — private local CUDA provider
+#
+# This file intentionally binds ACE-Step only to 127.0.0.1. Expose it to the
+# D3VONN Edge Function only through an authenticated private connector or a
+# private network path; never publish port 8001 directly to the Internet.
+#
+# Prerequisites:
+#   1. Clone https://github.com/ace-step/ACE-Step-1.5 beside this repository.
+#   2. Install NVIDIA Container Toolkit on the GPU host.
+#   3. Copy deployment/music/.env.local-gpu.example to .env.local-gpu and set a
+#      long random ACESTEP_API_KEY. Keep that value only in the connector and
+#      the Supabase function secret; do not commit it.
+#   4. docker compose --env-file deployment/music/.env.local-gpu \
+#        -f deployment/music/docker-compose.local-gpu.yml up --build -d
+
+name: d3vonn-music-local
+
+services:
+  ace-step:
+    build:
+      context: ${ACESTEP_SOURCE_DIR:?Set ACESTEP_SOURCE_DIR to the official ACE-Step-1.5 checkout}
+      dockerfile: Dockerfile
+      args:
+        CUDA_VERSION: ${ACESTEP_CUDA_VERSION:-12.8.1}
+    image: d3vonn/ace-step-1.5:${ACESTEP_IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      ACESTEP_MODE: api
+      ACESTEP_API_HOST: 0.0.0.0
+      ACESTEP_API_PORT: 8001
+      ACESTEP_API_KEY: ${ACESTEP_API_KEY:?Set a long random ACESTEP_API_KEY}
+      ACESTEP_INIT_SERVICE: ${ACESTEP_INIT_SERVICE:-true}
+      ACESTEP_CONFIG_PATH: ${ACESTEP_CONFIG_PATH:-acestep-v15-turbo}
+      ACESTEP_LM_MODEL_PATH: ${ACESTEP_LM_MODEL_PATH:-acestep-5Hz-lm-0.6B}
+      ACESTEP_LLM_BACKEND: ${ACESTEP_LLM_BACKEND:-pt}
+      ACESTEP_OFFLOAD_TO_CPU: ${ACESTEP_OFFLOAD_TO_CPU:-false}
+      ACESTEP_QUEUE_MAXSIZE: ${ACESTEP_QUEUE_MAXSIZE:-20}
+      ACESTEP_QUEUE_WORKERS: ${ACESTEP_QUEUE_WORKERS:-1}
+      TOKENIZERS_PARALLELISM: "false"
+    ports:
+      - "127.0.0.1:${ACESTEP_API_PORT:-8001}:8001"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ${ACESTEP_CHECKPOINTS_DIR:-./data/checkpoints}:/app/checkpoints
+      - ${ACESTEP_OUTPUT_DIR:-./data/output}:/app/output
+      - acestep_hf_cache:/root/.cache/huggingface
+    shm_size: "2gb"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS --max-time 5 http://localhost:8001/health >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10m
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  acestep_hf_cache:

@@ -1,0 +1,183 @@
+# D3VONN Music Studio — cloud GPU provider template
+#
+# Prerequisites before applying this file:
+#   - A GPU-enabled Kubernetes cluster with NVIDIA device plugin installed.
+#   - A ReadWriteOnce persistent volume class named fast-ssd (or update below).
+#   - An image built from the official ACE-Step 1.5 source and pushed to a private registry.
+#   - The d3vonn-music-secrets Secret containing ACESTEP_API_KEY.
+#   - Private service-to-service routing from the D3VONN provider connector.
+#
+# This template has no public Ingress. Do not add one. Provider requests must go
+# through the authenticated D3VONN connector, which sets Authorization bearer auth.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: d3vonn-music
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ace-step-models
+  namespace: d3vonn-music
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 200Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ace-step-output
+  namespace: d3vonn-music
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: fast-ssd
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ace-step-provider
+  namespace: d3vonn-music
+  labels:
+    app.kubernetes.io/name: ace-step-provider
+    app.kubernetes.io/part-of: d3vonn-music
+spec:
+  replicas: 0 # Keep at zero until model and hosted-use approval gates are complete.
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ace-step-provider
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ace-step-provider
+        app.kubernetes.io/part-of: d3vonn-music
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ace-step
+          image: registry.example.invalid/d3vonn/ace-step-1.5:replace-before-apply
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # Model caches and transient generation output are mounted volumes.
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: api
+              containerPort: 8001
+          env:
+            - name: ACESTEP_MODE
+              value: api
+            - name: ACESTEP_API_HOST
+              value: 0.0.0.0
+            - name: ACESTEP_API_PORT
+              value: "8001"
+            - name: ACESTEP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: d3vonn-music-secrets
+                  key: ACESTEP_API_KEY
+            - name: ACESTEP_INIT_SERVICE
+              value: "true"
+            - name: ACESTEP_CONFIG_PATH
+              value: acestep-v15-turbo
+            - name: ACESTEP_LM_MODEL_PATH
+              value: acestep-5Hz-lm-1.7B
+            - name: ACESTEP_LLM_BACKEND
+              value: pt
+            - name: ACESTEP_QUEUE_MAXSIZE
+              value: "20"
+            - name: ACESTEP_QUEUE_WORKERS
+              value: "1"
+            - name: TOKENIZERS_PARALLELISM
+              value: "false"
+          resources:
+            requests:
+              cpu: "4"
+              memory: 24Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: models
+              mountPath: /app/checkpoints
+            - name: output
+              mountPath: /app/output
+          startupProbe:
+            httpGet:
+              path: /health
+              port: api
+            failureThreshold: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: api
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ace-step-models
+        - name: output
+          persistentVolumeClaim:
+            claimName: ace-step-output
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ace-step-provider
+  namespace: d3vonn-music
+  labels:
+    app.kubernetes.io/name: ace-step-provider
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ace-step-provider
+  ports:
+    - name: api
+      port: 8001
+      targetPort: api
+---
+# Optional idle-to-zero policy. Apply only after a Prometheus adapter exposes
+# d3vonn_music_provider_queue_depth and the private connector has been smoke
+# tested. KEDA will maintain zero replicas when demand remains zero.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: ace-step-provider-queue
+  namespace: d3vonn-music
+  annotations:
+    d3vonn.io/optional: "Apply only after KEDA and Prometheus metrics are configured."
+spec:
+  scaleTargetRef:
+    name: ace-step-provider
+  pollingInterval: 30
+  cooldownPeriod: 600
+  minReplicaCount: 0
+  maxReplicaCount: 1
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-operated.monitoring.svc:9090
+        metricName: d3vonn_music_provider_queue_depth
+        query: sum(d3vonn_music_provider_queue_depth{provider="ace-step-1.5"})
+        threshold: "1"
