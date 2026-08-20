@@ -6,6 +6,7 @@ import pytest
 
 from backend.hermes.testing import FrozenClock, InMemoryEventSink, InMemoryTaskRepository
 from backend.hermes.workflows import (
+    RetryPolicy,
     StepStatus,
     WorkflowDefinition,
     WorkflowEngine,
@@ -16,18 +17,25 @@ from backend.hermes.workflows import (
 )
 
 
-def _definition() -> WorkflowDefinition:
+def _definition(*, max_attempts: int = 1) -> WorkflowDefinition:
     return WorkflowDefinition(
         id="reconcile-flow",
         version="1.0.0",
-        steps=(WorkflowStepDefinition(id="research", agent="TARS"),),
+        steps=(
+            WorkflowStepDefinition(
+                id="research",
+                agent="TARS",
+                retry=RetryPolicy(max_attempts=max_attempts),
+            ),
+        ),
     )
 
 
-async def _bound_snapshot(task_id: str):
+async def _bound_snapshot(task_id: str, *, definition: WorkflowDefinition | None = None):
+    definition = definition or _definition()
     clock = FrozenClock(datetime(2026, 7, 18, 2, 30, tzinfo=timezone.utc))
     engine = WorkflowEngine(clock)
-    snapshot = engine.create_execution(_definition(), execution_id="exec-1")
+    snapshot = engine.create_execution(definition, execution_id="exec-1")
     snapshot = engine.mark_running(snapshot, "research", task_id=task_id)
     snapshot.steps["research"].status = StepStatus.WAITING
     return clock, snapshot
@@ -47,7 +55,8 @@ def test_dispatch_idempotency_key_is_stable_and_attempt_scoped() -> None:
 
 @pytest.mark.asyncio
 async def test_completed_task_resolves_waiting_step_without_redispatch() -> None:
-    clock, snapshot = await _bound_snapshot("task-1")
+    definition = _definition()
+    clock, snapshot = await _bound_snapshot("task-1", definition=definition)
     repository = InMemoryTaskRepository(
         tables={
             "hermes_tasks": [
@@ -67,7 +76,7 @@ async def test_completed_task_resolves_waiting_step_without_redispatch() -> None
         event_sink=events,
     )
 
-    updated = await reconciler.reconcile(_definition(), snapshot)
+    updated = await reconciler.reconcile(definition, snapshot)
 
     assert updated.status is WorkflowStatus.COMPLETED
     assert updated.steps["research"].status is StepStatus.COMPLETED
@@ -77,7 +86,8 @@ async def test_completed_task_resolves_waiting_step_without_redispatch() -> None
 
 @pytest.mark.asyncio
 async def test_active_task_remains_bound_and_waiting() -> None:
-    clock, snapshot = await _bound_snapshot("task-1")
+    definition = _definition()
+    clock, snapshot = await _bound_snapshot("task-1", definition=definition)
     repository = InMemoryTaskRepository(
         tables={"hermes_tasks": [{"id": "task-1", "status": "RUNNING"}]}
     )
@@ -88,7 +98,7 @@ async def test_active_task_remains_bound_and_waiting() -> None:
         event_sink=events,
     )
 
-    updated = await reconciler.reconcile(_definition(), snapshot)
+    updated = await reconciler.reconcile(definition, snapshot)
 
     assert updated.steps["research"].status is StepStatus.WAITING
     assert updated.steps["research"].task_id == "task-1"
@@ -97,7 +107,8 @@ async def test_active_task_remains_bound_and_waiting() -> None:
 
 @pytest.mark.asyncio
 async def test_missing_task_releases_step_for_safe_redispatch() -> None:
-    clock, snapshot = await _bound_snapshot("missing-task")
+    definition = _definition()
+    clock, snapshot = await _bound_snapshot("missing-task", definition=definition)
     events = InMemoryEventSink()
     reconciler = WorkflowTaskReconciler(
         repository=InMemoryTaskRepository(),
@@ -105,7 +116,7 @@ async def test_missing_task_releases_step_for_safe_redispatch() -> None:
         event_sink=events,
     )
 
-    updated = await reconciler.reconcile(_definition(), snapshot)
+    updated = await reconciler.reconcile(definition, snapshot)
 
     assert updated.steps["research"].status is StepStatus.READY
     assert updated.steps["research"].task_id is None
@@ -114,8 +125,9 @@ async def test_missing_task_releases_step_for_safe_redispatch() -> None:
 
 
 @pytest.mark.asyncio
-async def test_failed_task_fails_workflow() -> None:
-    clock, snapshot = await _bound_snapshot("task-1")
+async def test_failed_task_fails_workflow_when_retry_budget_exhausted() -> None:
+    definition = _definition(max_attempts=1)
+    clock, snapshot = await _bound_snapshot("task-1", definition=definition)
     repository = InMemoryTaskRepository(
         tables={
             "hermes_tasks": [
@@ -123,14 +135,72 @@ async def test_failed_task_fails_workflow() -> None:
             ]
         }
     )
+    events = InMemoryEventSink()
     reconciler = WorkflowTaskReconciler(
         repository=repository,
         clock=clock,
-        event_sink=InMemoryEventSink(),
+        event_sink=events,
     )
 
-    updated = await reconciler.reconcile(_definition(), snapshot)
+    updated = await reconciler.reconcile(definition, snapshot)
 
     assert updated.status is WorkflowStatus.FAILED
     assert updated.steps["research"].status is StepStatus.FAILED
     assert updated.steps["research"].error == "agent error"
+    assert events.events[-1]["event"] == "workflow.step.reconciled.failed"
+
+
+@pytest.mark.asyncio
+async def test_failed_task_honors_retry_policy_and_releases_step() -> None:
+    definition = _definition(max_attempts=3)
+    clock, snapshot = await _bound_snapshot("task-1", definition=definition)
+    repository = InMemoryTaskRepository(
+        tables={
+            "hermes_tasks": [
+                {"id": "task-1", "status": "FAILED", "error_message": "transient agent error"}
+            ]
+        }
+    )
+    events = InMemoryEventSink()
+    reconciler = WorkflowTaskReconciler(
+        repository=repository,
+        clock=clock,
+        event_sink=events,
+    )
+
+    updated = await reconciler.reconcile(definition, snapshot)
+
+    assert updated.status is WorkflowStatus.RUNNING
+    assert updated.steps["research"].status is StepStatus.READY
+    assert updated.steps["research"].attempt == 1
+    assert updated.steps["research"].task_id is None
+    assert updated.steps["research"].error == "transient agent error"
+    assert events.events[-1]["event"] == "workflow.step.reconciled.retry"
+
+
+@pytest.mark.asyncio
+async def test_retry_budget_exhausts_after_third_attempt() -> None:
+    definition = _definition(max_attempts=3)
+    clock, snapshot = await _bound_snapshot("task-3", definition=definition)
+    snapshot.steps["research"].attempt = 3
+    repository = InMemoryTaskRepository(
+        tables={
+            "hermes_tasks": [
+                {"id": "task-3", "status": "FAILED", "error_message": "final agent error"}
+            ]
+        }
+    )
+    events = InMemoryEventSink()
+    reconciler = WorkflowTaskReconciler(
+        repository=repository,
+        clock=clock,
+        event_sink=events,
+    )
+
+    updated = await reconciler.reconcile(definition, snapshot)
+
+    assert updated.status is WorkflowStatus.FAILED
+    assert updated.steps["research"].status is StepStatus.FAILED
+    assert updated.steps["research"].attempt == 3
+    assert updated.steps["research"].task_id == "task-3"
+    assert events.events[-1]["event"] == "workflow.step.reconciled.failed"
