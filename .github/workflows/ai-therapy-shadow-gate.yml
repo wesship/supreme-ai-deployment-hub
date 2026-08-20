@@ -4,7 +4,8 @@ on:
   pull_request:
     paths:
       - 'docs/ai-therapy/**'
-      - 'tests/ai-therapy/**'
+      - 'runtime-validation/scenarios/ai-therapy-shadow-corpus.test.ts'
+      - 'src/lib/ai-therapy/**'
       - '.github/workflows/ai-therapy-shadow-gate.yml'
   push:
     branches:
@@ -27,4 +28,4 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run tests/ai-therapy/shadow-corpus.test.ts --reporter=verbose
+      - run: pnpm exec vitest run runtime-validation/scenarios/ai-therapy-shadow-corpus.test.ts --reporter=verbose
