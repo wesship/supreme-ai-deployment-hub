@@ -1,242 +1,34 @@
 -- Marketplace governance hardening
--- The public Marketplace currently contains curated catalog entries in the frontend.
--- This migration establishes a server-side catalog registry and moves installation
--- authorization behind RPCs so browser clients cannot self-authorize runtime state.
 
-CREATE TABLE IF NOT EXISTS public.marketplace_catalog_entries (
-  catalog_key TEXT NOT NULL PRIMARY KEY,
-  display_name TEXT NOT NULL,
-  publisher TEXT NOT NULL DEFAULT 'D3VONN.IO',
-  version TEXT NOT NULL DEFAULT '1.0.0',
-  status TEXT NOT NULL DEFAULT 'published',
-  capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
-  integrations TEXT[] NOT NULL DEFAULT '{}',
-  required_permissions TEXT[] NOT NULL DEFAULT '{}',
-  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT marketplace_catalog_entries_status_check
-    CHECK (status IN ('draft', 'pending-review', 'published', 'deprecated', 'revoked'))
-);
-
+CREATE TABLE IF NOT EXISTS public.marketplace_catalog_entries (catalog_key TEXT NOT NULL PRIMARY KEY, display_name TEXT NOT NULL, publisher TEXT NOT NULL DEFAULT 'D3VONN.IO', version TEXT NOT NULL DEFAULT '1.0.0', status TEXT NOT NULL DEFAULT 'published', capabilities JSONB NOT NULL DEFAULT '[]'::jsonb, integrations TEXT[] NOT NULL DEFAULT '{}', required_permissions TEXT[] NOT NULL DEFAULT '{}', metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), CONSTRAINT marketplace_catalog_entries_status_check CHECK (status IN ('draft', 'pending-review', 'published', 'deprecated', 'revoked')));
 ALTER TABLE public.marketplace_catalog_entries ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Anyone can view published marketplace catalog entries" ON public.marketplace_catalog_entries;
-CREATE POLICY "Anyone can view published marketplace catalog entries"
-  ON public.marketplace_catalog_entries FOR SELECT
-  USING (status = 'published');
-
-ALTER TABLE public.deployed_agents
-  ADD COLUMN IF NOT EXISTS catalog_key TEXT,
-  ADD COLUMN IF NOT EXISTS requested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS last_error TEXT;
-
-ALTER TABLE public.deployed_agents
-  DROP CONSTRAINT IF EXISTS deployed_agents_status_check;
-
-ALTER TABLE public.deployed_agents
-  ADD CONSTRAINT deployed_agents_status_check
-  CHECK (status IN ('starting', 'running', 'stopped', 'paused', 'error', 'revoked', 'configuring', 'suspended'));
-
-CREATE INDEX IF NOT EXISTS idx_deployed_agents_catalog_status
-  ON public.deployed_agents(catalog_key, status);
-
-CREATE INDEX IF NOT EXISTS idx_deployed_agents_requested_at
-  ON public.deployed_agents(requested_at DESC);
-
-CREATE TABLE IF NOT EXISTS public.marketplace_installation_events (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  installation_id UUID,
-  actor_id UUID,
-  event_type TEXT NOT NULL,
-  before_state JSONB,
-  after_state JSONB,
-  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
+CREATE POLICY "Anyone can view published marketplace catalog entries" ON public.marketplace_catalog_entries FOR SELECT USING (status = 'published');
+ALTER TABLE public.deployed_agents ADD COLUMN IF NOT EXISTS catalog_key TEXT, ADD COLUMN IF NOT EXISTS requested_at TIMESTAMPTZ NOT NULL DEFAULT now(), ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS last_error TEXT;
+ALTER TABLE public.deployed_agents DROP CONSTRAINT IF EXISTS deployed_agents_status_check;
+ALTER TABLE public.deployed_agents ADD CONSTRAINT deployed_agents_status_check CHECK (status IN ('starting','running','stopped','paused','error','revoked','configuring','suspended'));
+CREATE INDEX IF NOT EXISTS idx_deployed_agents_catalog_status ON public.deployed_agents(catalog_key,status);
+CREATE INDEX IF NOT EXISTS idx_deployed_agents_requested_at ON public.deployed_agents(requested_at DESC);
+CREATE TABLE IF NOT EXISTS public.marketplace_installation_events (id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY, installation_id UUID, actor_id UUID, event_type TEXT NOT NULL, before_state JSONB, after_state JSONB, metadata JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now());
 ALTER TABLE public.marketplace_installation_events ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Users can view own marketplace installation events" ON public.marketplace_installation_events;
-CREATE POLICY "Users can view own marketplace installation events"
-  ON public.marketplace_installation_events FOR SELECT
-  TO authenticated
-  USING (actor_id = auth.uid());
-
-CREATE INDEX IF NOT EXISTS idx_marketplace_installation_events_installation
-  ON public.marketplace_installation_events(installation_id, created_at DESC);
-
-CREATE OR REPLACE FUNCTION public.marketplace_record_installation_event()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO public.marketplace_installation_events (
-    installation_id, actor_id, event_type, before_state, after_state
-  )
-  VALUES (
-    COALESCE(NEW.id, OLD.id),
-    auth.uid(),
-    CASE TG_OP WHEN 'INSERT' THEN 'installed' WHEN 'UPDATE' THEN 'updated' ELSE 'uninstalled' END,
-    CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
-    CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END
-  );
-  RETURN COALESCE(NEW, OLD);
-END;
-$$;
-
+CREATE POLICY "Users can view own marketplace installation events" ON public.marketplace_installation_events FOR SELECT TO authenticated USING (actor_id = auth.uid());
+CREATE INDEX IF NOT EXISTS idx_marketplace_installation_events_installation ON public.marketplace_installation_events(installation_id,created_at DESC);
+CREATE OR REPLACE FUNCTION public.marketplace_record_installation_event() RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN INSERT INTO public.marketplace_installation_events(installation_id,actor_id,event_type,before_state,after_state) VALUES (COALESCE(NEW.id,OLD.id),auth.uid(),CASE TG_OP WHEN 'INSERT' THEN 'installed' WHEN 'UPDATE' THEN 'updated' ELSE 'uninstalled' END,CASE WHEN TG_OP IN ('UPDATE','DELETE') THEN to_jsonb(OLD) ELSE NULL END,CASE WHEN TG_OP IN ('INSERT','UPDATE') THEN to_jsonb(NEW) ELSE NULL END); RETURN COALESCE(NEW,OLD); END; $$;
 DROP TRIGGER IF EXISTS marketplace_installation_audit ON public.deployed_agents;
-CREATE TRIGGER marketplace_installation_audit
-  AFTER INSERT OR UPDATE OR DELETE ON public.deployed_agents
-  FOR EACH ROW
-  EXECUTE FUNCTION public.marketplace_record_installation_event();
-
--- Seed the currently published curated catalog keys. Metadata is intentionally
--- minimal here; the frontend remains the presentation source until catalog sync
--- is implemented as a separate release.
-INSERT INTO public.marketplace_catalog_entries (catalog_key, display_name, publisher, version)
-VALUES
-  ('agent-001', 'Security Sentinel', 'D3VONN.IO', '2.1.0'),
-  ('agent-002', 'Infrastructure Healer', 'D3VONN.IO', '1.8.3'),
-  ('agent-003', 'Cloud Cost Optimizer', 'CloudOps Pro', '3.0.1'),
-  ('agent-004', 'DevOps Pipeline Guardian', 'DevTools Inc', '2.4.0'),
-  ('agent-005', 'Database Performance Tuner', 'D3VONN.IO', '1.5.2'),
-  ('agent-006', 'Log Analyzer Pro', 'Open Source Community', '1.2.0'),
-  ('agent-007', 'API Gateway Monitor', 'API Tools', '2.0.0'),
-  ('agent-008', 'Kubernetes Autopilot', 'D3VONN.IO', '3.1.0'),
-  ('agent-009', 'Slack Ops Bot', 'ChatOps Team', '1.0.5'),
-  ('agent-010', 'Compliance Auditor', 'D3VONN.IO', '2.2.1'),
-  ('agent-011', 'N8N Workflow Orchestrator', 'D3VONN.IO', '1.3.0'),
-  ('agent-012', 'Backup Verification Agent', 'DataOps Solutions', '1.1.0'),
-  ('agent-brandforge-001', 'BrandForge Site Builder', 'D3VONN.IO', '1.0.0'),
-  ('agent-brandforge-002', 'Brand Direction Analyst', 'D3VONN.IO', '1.0.0'),
-  ('agent-video-001', 'OpenMontage Video Intelligence Studio', 'D3VONN.IO', '1.0.0')
-ON CONFLICT (catalog_key) DO UPDATE SET
-  display_name = EXCLUDED.display_name,
-  publisher = EXCLUDED.publisher,
-  version = EXCLUDED.version,
-  status = 'published',
-  updated_at = now();
-
--- Browser clients cannot directly insert/update/delete installation rows.
+CREATE TRIGGER marketplace_installation_audit AFTER INSERT OR UPDATE OR DELETE ON public.deployed_agents FOR EACH ROW EXECUTE FUNCTION public.marketplace_record_installation_event();
+INSERT INTO public.marketplace_catalog_entries(catalog_key,display_name,publisher,version) VALUES ('agent-001','Security Sentinel','D3VONN.IO','2.1.0'),('agent-002','Infrastructure Healer','D3VONN.IO','1.8.3'),('agent-003','Cloud Cost Optimizer','CloudOps Pro','3.0.1'),('agent-004','DevOps Pipeline Guardian','DevTools Inc','2.4.0'),('agent-005','Database Performance Tuner','D3VONN.IO','1.5.2'),('agent-006','Log Analyzer Pro','Open Source Community','1.2.0'),('agent-007','API Gateway Monitor','API Tools','2.0.0'),('agent-008','Kubernetes Autopilot','D3VONN.IO','3.1.0'),('agent-009','Slack Ops Bot','ChatOps Team','1.0.5'),('agent-010','Compliance Auditor','D3VONN.IO','2.2.1'),('agent-011','N8N Workflow Orchestrator','D3VONN.IO','1.3.0'),('agent-012','Backup Verification Agent','DataOps Solutions','1.1.0'),('agent-brandforge-001','BrandForge Site Builder','D3VONN.IO','1.0.0'),('agent-brandforge-002','Brand Direction Analyst','D3VONN.IO','1.0.0'),('agent-video-001','OpenMontage Video Intelligence Studio','D3VONN.IO','1.0.0') ON CONFLICT (catalog_key) DO UPDATE SET display_name=EXCLUDED.display_name,publisher=EXCLUDED.publisher,version=EXCLUDED.version,status='published',updated_at=now();
 DROP POLICY IF EXISTS "Users can update own deployed agents" ON public.deployed_agents;
 DROP POLICY IF EXISTS "Users can delete own deployed agents" ON public.deployed_agents;
 DROP POLICY IF EXISTS "Users can deploy agents" ON public.deployed_agents;
 DROP POLICY IF EXISTS "Users can create marketplace installs" ON public.deployed_agents;
-
-CREATE OR REPLACE FUNCTION public.marketplace_install_agent(
-  p_catalog_key TEXT,
-  p_name TEXT,
-  p_config JSONB DEFAULT '{}'::jsonb,
-  p_mcp_config JSONB DEFAULT '{"gateway_url": null, "enabled_tools": []}'::jsonb
-)
-RETURNS public.deployed_agents
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_catalog public.marketplace_catalog_entries;
-  v_result public.deployed_agents;
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'authentication required';
-  END IF;
-
-  IF p_name IS NULL OR length(trim(p_name)) < 1 OR length(trim(p_name)) > 120 THEN
-    RAISE EXCEPTION 'invalid installation name';
-  END IF;
-
-  SELECT * INTO v_catalog
-  FROM public.marketplace_catalog_entries
-  WHERE catalog_key = p_catalog_key
-    AND status = 'published';
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'marketplace listing is not published';
-  END IF;
-
-  INSERT INTO public.deployed_agents (
-    user_id, catalog_key, name, config, mcp_config, status, requested_at
-  )
-  VALUES (
-    auth.uid(), v_catalog.catalog_key, trim(p_name), COALESCE(p_config, '{}'::jsonb),
-    COALESCE(p_mcp_config, '{"gateway_url": null, "enabled_tools": []}'::jsonb),
-    'starting', now()
-  )
-  RETURNING * INTO v_result;
-
-  RETURN v_result;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.marketplace_update_installation_status(
-  p_id UUID,
-  p_status TEXT,
-  p_last_error TEXT DEFAULT NULL
-)
-RETURNS public.deployed_agents
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_result public.deployed_agents;
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'authentication required';
-  END IF;
-
-  IF p_status NOT IN ('starting', 'running', 'stopped', 'paused', 'error', 'revoked', 'suspended') THEN
-    RAISE EXCEPTION 'invalid installation status';
-  END IF;
-
-  UPDATE public.deployed_agents
-  SET status = p_status,
-      last_error = NULLIF(trim(COALESCE(p_last_error, '')), ''),
-      last_heartbeat = CASE WHEN p_status = 'running' THEN now() ELSE last_heartbeat END,
-      verified_at = CASE WHEN p_status = 'running' THEN COALESCE(verified_at, now()) ELSE verified_at END,
-      updated_at = now()
-  WHERE id = p_id
-    AND user_id = auth.uid()
-  RETURNING * INTO v_result;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'installation not found';
-  END IF;
-
-  RETURN v_result;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.marketplace_uninstall_agent(p_id UUID)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_count INTEGER;
-BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'authentication required';
-  END IF;
-
-  DELETE FROM public.deployed_agents
-  WHERE id = p_id
-    AND user_id = auth.uid();
-
-  GET DIAGNOSTICS v_count = ROW_COUNT;
-  RETURN v_count > 0;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.marketplace_install_agent(TEXT, TEXT, JSONB, JSONB) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.marketplace_update_installation_status(UUID, TEXT, TEXT) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.marketplace_uninstall_agent(UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.marketplace_install_agent(TEXT, TEXT, JSONB, JSONB) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.marketplace_update_installation_status(UUID, TEXT, TEXT) TO authenticated;
+CREATE OR REPLACE FUNCTION public.marketplace_install_agent(p_catalog_key TEXT,p_name TEXT,p_config JSONB DEFAULT '{}'::jsonb,p_mcp_config JSONB DEFAULT '{"gateway_url": null, "enabled_tools": []}'::jsonb) RETURNS public.deployed_agents LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE v_catalog public.marketplace_catalog_entries; v_result public.deployed_agents; BEGIN IF auth.uid() IS NULL THEN RAISE EXCEPTION 'authentication required'; END IF; IF p_name IS NULL OR length(trim(p_name))<1 OR length(trim(p_name))>120 THEN RAISE EXCEPTION 'invalid installation name'; END IF; SELECT * INTO v_catalog FROM public.marketplace_catalog_entries WHERE catalog_key=p_catalog_key AND status='published'; IF NOT FOUND THEN RAISE EXCEPTION 'marketplace listing is not published'; END IF; INSERT INTO public.deployed_agents(user_id,catalog_key,name,config,mcp_config,status,requested_at) VALUES(auth.uid(),v_catalog.catalog_key,trim(p_name),COALESCE(p_config,'{}'::jsonb),COALESCE(p_mcp_config,'{"gateway_url": null, "enabled_tools": []}'::jsonb),'starting',now()) RETURNING * INTO v_result; RETURN v_result; END; $$;
+CREATE OR REPLACE FUNCTION public.marketplace_update_installation_status(p_id UUID,p_status TEXT,p_last_error TEXT DEFAULT NULL) RETURNS public.deployed_agents LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE v_result public.deployed_agents; BEGIN IF auth.uid() IS NULL THEN RAISE EXCEPTION 'authentication required'; END IF; IF p_status NOT IN ('starting','running','stopped','paused','error','revoked','suspended') THEN RAISE EXCEPTION 'invalid installation status'; END IF; UPDATE public.deployed_agents SET status=p_status,last_error=NULLIF(trim(COALESCE(p_last_error,'')),''),last_heartbeat=CASE WHEN p_status='running' THEN now() ELSE last_heartbeat END,verified_at=CASE WHEN p_status='running' THEN COALESCE(verified_at,now()) ELSE verified_at END,updated_at=now() WHERE id=p_id AND user_id=auth.uid() RETURNING * INTO v_result; IF NOT FOUND THEN RAISE EXCEPTION 'installation not found'; END IF; RETURN v_result; END; $$;
+CREATE OR REPLACE FUNCTION public.marketplace_uninstall_agent(p_id UUID) RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ DECLARE v_count INTEGER; BEGIN IF auth.uid() IS NULL THEN RAISE EXCEPTION 'authentication required'; END IF; DELETE FROM public.deployed_agents WHERE id=p_id AND user_id=auth.uid(); GET DIAGNOSTICS v_count=ROW_COUNT; RETURN v_count>0; END; $$;
+REVOKE ALL ON FUNCTION public.marketplace_install_agent(TEXT,TEXT,JSONB,JSONB) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.marketplace_update_installation_status(UUID,TEXT,TEXT) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.marketplace_uninstall_agent(UUID) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.marketplace_record_installation_event() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.marketplace_install_agent(TEXT,TEXT,JSONB,JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.marketplace_update_installation_status(UUID,TEXT,TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.marketplace_uninstall_agent(UUID) TO authenticated;
