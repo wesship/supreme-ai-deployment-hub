@@ -20,26 +20,59 @@ CREATE INDEX IF NOT EXISTS idx_deployed_agents_template_status
 CREATE INDEX IF NOT EXISTS idx_deployed_agents_requested_at
   ON public.deployed_agents(requested_at DESC);
 
--- Browser clients must not mutate runtime-controlled installation state directly.
+CREATE TABLE IF NOT EXISTS public.marketplace_installation_events (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  installation_id UUID,
+  actor_id UUID,
+  event_type TEXT NOT NULL,
+  before_state JSONB,
+  after_state JSONB,
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.marketplace_installation_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own marketplace installation events"
+  ON public.marketplace_installation_events FOR SELECT
+  TO authenticated
+  USING (actor_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_installation_events_installation
+  ON public.marketplace_installation_events(installation_id, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.marketplace_record_installation_event()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.marketplace_installation_events (
+    installation_id, actor_id, event_type, before_state, after_state
+  )
+  VALUES (
+    COALESCE(NEW.id, OLD.id),
+    auth.uid(),
+    CASE TG_OP WHEN 'INSERT' THEN 'installed' WHEN 'UPDATE' THEN 'updated' ELSE 'uninstalled' END,
+    CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+    CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END
+  );
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DROP TRIGGER IF EXISTS marketplace_installation_audit ON public.deployed_agents;
+CREATE TRIGGER marketplace_installation_audit
+  AFTER INSERT OR UPDATE OR DELETE ON public.deployed_agents
+  FOR EACH ROW
+  EXECUTE FUNCTION public.marketplace_record_installation_event();
+
+-- Browser clients cannot directly insert/update/delete installation rows.
 DROP POLICY IF EXISTS "Users can update own deployed agents" ON public.deployed_agents;
 DROP POLICY IF EXISTS "Users can delete own deployed agents" ON public.deployed_agents;
 DROP POLICY IF EXISTS "Users can deploy agents" ON public.deployed_agents;
-
-CREATE POLICY "Users can create marketplace installs"
-  ON public.deployed_agents FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    auth.uid() = user_id
-    AND (
-      template_id IS NULL
-      OR EXISTS (
-        SELECT 1
-        FROM public.agent_templates t
-        WHERE t.id = template_id
-          AND t.status = 'published'
-      )
-    )
-  );
+DROP POLICY IF EXISTS "Users can create marketplace installs" ON public.deployed_agents;
 
 CREATE OR REPLACE FUNCTION public.marketplace_install_agent(
   p_template_id UUID,
@@ -53,7 +86,6 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_template public.agent_templates;
   v_result public.deployed_agents;
 BEGIN
   IF auth.uid() IS NULL THEN
@@ -64,12 +96,10 @@ BEGIN
     RAISE EXCEPTION 'invalid installation name';
   END IF;
 
-  SELECT * INTO v_template
-  FROM public.agent_templates
-  WHERE id = p_template_id
-    AND status = 'published';
-
-  IF NOT FOUND THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.agent_templates
+    WHERE id = p_template_id AND status = 'published'
+  ) THEN
     RAISE EXCEPTION 'marketplace template is not published';
   END IF;
 
@@ -133,7 +163,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_deleted BOOLEAN;
+  v_count INTEGER;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'authentication required';
@@ -143,8 +173,8 @@ BEGIN
   WHERE id = p_id
     AND user_id = auth.uid();
 
-  GET DIAGNOSTICS v_deleted = ROW_COUNT > 0;
-  RETURN v_deleted;
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count > 0;
 END;
 $$;
 
