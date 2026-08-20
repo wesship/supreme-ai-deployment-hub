@@ -21,6 +21,7 @@ export interface McpConfig {
 export interface DeployedAgent {
   id: string;
   user_id: string;
+  catalog_key: string | null;
   template_id: string | null;
   name: string;
   config: Json;
@@ -41,7 +42,7 @@ export interface DeployedAgent {
 }
 
 export interface DeployAgentInput {
-  template_id?: string;
+  catalog_key: string;
   name: string;
   config?: Record<string, unknown>;
   mcp_config?: Partial<McpConfig>;
@@ -102,7 +103,7 @@ export function useDeployAgent() {
       };
 
       const { data, error } = await (supabase as any).rpc("marketplace_install_agent", {
-        p_template_id: input.template_id ?? null,
+        p_catalog_key: input.catalog_key,
         p_name: input.name,
         p_config: (input.config ?? {}) as Json,
         p_mcp_config: mcpConfig as unknown as Json,
