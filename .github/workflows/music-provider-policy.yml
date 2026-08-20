@@ -1,0 +1,30 @@
+name: Music Provider Policy
+
+on:
+  pull_request:
+    paths:
+      - 'config/music/**'
+      - 'scripts/validate-music-provider-policy.mjs'
+      - 'docs/music/**'
+      - '.github/workflows/music-provider-policy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/music/**'
+      - 'scripts/validate-music-provider-policy.mjs'
+      - 'docs/music/**'
+      - '.github/workflows/music-provider-policy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate music provider policy
+        run: node scripts/validate-music-provider-policy.mjs
