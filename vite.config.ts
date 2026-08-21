@@ -8,6 +8,12 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 export default defineConfig(({ mode }) => {
   const loadedEnv = loadEnv(mode, process.cwd(), "");
   const effectiveApiUrl = loadedEnv.VITE_API_URL;
+  const assuranceApiTarget = effectiveApiUrl || "https://api.d3vonn.io";
+  const assuranceRumProxy = {
+    target: assuranceApiTarget,
+    changeOrigin: true,
+    secure: true,
+  };
 
   return {
     // Direct import.meta.env.VITE_API_URL references are replaced at build time.
@@ -20,6 +26,18 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port: 8080,
+      proxy: {
+        "/api/assurance/public/rum": assuranceRumProxy,
+      },
+    },
+    preview: {
+      host: "::",
+      port: 4173,
+      proxy: {
+        // Keep local production-interaction audits same-origin. Only the public
+        // RUM endpoint is proxied; the rest of the API remains unchanged.
+        "/api/assurance/public/rum": assuranceRumProxy,
+      },
     },
     plugins: [
       react(),
