@@ -2,7 +2,8 @@
 backend/api/v1/router.py — D3VONN.IO REST API v1
 
 Provides stable, versioned endpoints for agents, tasks, feature flags,
-health checks, operations telemetry, incidents, and governed remediation.
+health checks, operations telemetry, incidents, governed remediation,
+and wearable/vision ingress.
 """
 
 from __future__ import annotations
@@ -284,3 +285,9 @@ async def request_remediation(
     if response.status_code >= 400:
         raise HTTPException(status_code=502, detail="remediation request could not be recorded")
     return {"status": "accepted", "approval_required": approval_status == "pending", "remediation": response.json()[0]}
+
+
+# Wearable ingress is kept in a dedicated module so vendor-specific integration
+# work cannot destabilize the existing v1 API surface.
+from backend.api.v1.wearable_router import router as wearable_router
+router.include_router(wearable_router)
