@@ -24,6 +24,8 @@
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/privacy-policy", "destination": "/privacy.html" },
+    { "source": "/pilot-checklist", "destination": "/pilot-checklist.md" },
+    { "source": "/pilot-checklist/", "destination": "/pilot-checklist.md" },
     { "source": "/(.*)", "destination": "/" }
   ],
   "headers": [
@@ -37,6 +39,15 @@
       "source": "/",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/pilot-checklist(.*)",
+      "headers": [
+        { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
+        { "key": "Content-Disposition", "value": "inline; filename=\"pilot-checklist.md\"" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
+        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=300, must-revalidate" }
       ]
     },
     {
