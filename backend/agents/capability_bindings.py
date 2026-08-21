@@ -92,6 +92,15 @@ def create_default_agent_tool_registry() -> ToolRegistry:
                 data_sensitivity=DataSensitivity.INTERNAL,
                 allowed_agents={"openclaw-bridge"},
             ),
+            ToolDefinition(
+                name="quantum.optimize",
+                description="Run a bounded optimization experiment and compare it with the classical baseline.",
+                required_permissions=["optimization.quantum"],
+                risk_level=RiskLevel.MEDIUM,
+                side_effect_class=SideEffectClass.NONE,
+                data_sensitivity=DataSensitivity.INTERNAL,
+                allowed_agents={"devonn-coordinator"},
+            ),
         ]
     )
 
