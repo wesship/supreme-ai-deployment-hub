@@ -1,6 +1,17 @@
 type VitalName = 'LCP' | 'INP' | 'CLS';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
+const LOCAL_AUDIT_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
+function rumEndpoint(): string {
+  // Local production-interaction audits run from a Vite preview origin. Route
+  // telemetry through that origin's scoped proxy instead of making a cross-origin
+  // request to the public API and triggering a JSON CORS preflight.
+  if (typeof window !== 'undefined' && LOCAL_AUDIT_HOSTNAMES.has(window.location.hostname)) {
+    return '/api/assurance/public/rum';
+  }
+  return `${API_BASE}/api/assurance/public/rum`;
+}
 
 export function recordVital(name: VitalName, value: number): void {
   const route = window.location.pathname || '/';
@@ -12,7 +23,7 @@ export function recordVital(name: VitalName, value: number): void {
     navigation_type: navigation?.type || 'navigate',
     deployment: import.meta.env.MODE,
   });
-  const endpoint = `${API_BASE}/api/assurance/public/rum`;
+  const endpoint = rumEndpoint();
   if (navigator.sendBeacon) {
     navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }));
     return;
