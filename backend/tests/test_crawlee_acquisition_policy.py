@@ -1,6 +1,6 @@
 import pytest
 
-from deployment.dkos_ingestion_worker.crawlee_acquisition import AcquisitionPolicy
+from backend.dkos_acquisition.policy import AcquisitionPolicy
 
 
 def test_allowlisted_https_url_is_accepted() -> None:
