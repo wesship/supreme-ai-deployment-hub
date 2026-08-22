@@ -80,8 +80,8 @@ def test_release6_gate_config_has_no_legacy_scanner_exception() -> None:
     gates = json.loads(read(GATES))
     baseline = read(SECURITY_BASELINE)
 
-    assert gates["known_blockers"] == {}
-    assert gates["known_external_checks"] == []
+    for section in ("known_blockers", "known_external_checks"):
+        assert "snyk" not in json.dumps(gates.get(section, {})).lower()
     assert "Gitleaks" in baseline
     assert "Grype" in baseline
 

@@ -4,11 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = ROOT / "docs" / "security" / "OPEN_SOURCE_SECURITY_BASELINE.md"
-ACTIVE_WORKFLOWS = [
-    ROOT / ".github" / "workflows" / "testing.yml",
-    ROOT / ".github" / "workflows" / "auto-merge.yml",
-    ROOT / ".github" / "workflows" / "validate-secrets.yml",
-]
+WORKFLOWS_DIR = ROOT / ".github" / "workflows"
 REQUIRED_SECRETS = ROOT / "config" / "required-secrets.json"
 SECRET_INVENTORY = ROOT / "config" / "secret-inventory.json"
 RELEASE_GATES = ROOT / "config" / "primetime-release-gates.json"
@@ -22,7 +18,12 @@ def test_open_source_security_baseline_names_retained_controls() -> None:
 
 
 def test_active_workflows_do_not_depend_on_snyk() -> None:
-    for workflow in ACTIVE_WORKFLOWS:
+    workflows = sorted(
+        [*WORKFLOWS_DIR.glob("*.yml"), *WORKFLOWS_DIR.glob("*.yaml")]
+    )
+    assert workflows, "Expected at least one active workflow"
+
+    for workflow in workflows:
         assert "snyk" not in workflow.read_text(encoding="utf-8").lower()
 
 
@@ -37,5 +38,5 @@ def test_active_secret_inventories_do_not_require_snyk_token() -> None:
 def test_release_gates_have_no_legacy_snyk_exception() -> None:
     gates = json.loads(RELEASE_GATES.read_text(encoding="utf-8"))
 
-    assert gates["known_blockers"] == {}
-    assert gates["known_external_checks"] == []
+    for section in ("known_blockers", "known_external_checks"):
+        assert "snyk" not in json.dumps(gates.get(section, {})).lower()

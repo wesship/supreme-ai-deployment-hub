@@ -75,7 +75,11 @@ done
 
 # 3. Merge safe Dependabot patches (Bucket B)
 gh pr list --search "is:open is:pr label:auto-merge author:app/dependabot" \
-  --json number --jq '.[].number' | xargs -r -I{} gh pr merge {} --squash --auto
+  --json number --jq '.[].number' |
+  while IFS= read -r pr; do
+    [ -n "$pr" ] || continue
+    gh pr merge "$pr" --squash --auto
+  done
 
 # 4. Review remaining PRs manually (Bucket C)
 gh pr list --label needs-manual-review
