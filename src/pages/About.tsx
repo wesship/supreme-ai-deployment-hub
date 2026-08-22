@@ -76,6 +76,21 @@ const About: React.FC = () => (
         </motion.div>
       </div>
 
+      <section className="mx-auto max-w-4xl py-12" aria-labelledby="human-advantage-heading">
+        <div className="rounded-3xl border border-primary/15 bg-primary/5 px-6 py-10 text-center shadow-sm sm:px-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">The Human Advantage</p>
+          <h2 id="human-advantage-heading" className="mt-4 text-3xl font-black sm:text-4xl">
+            Intelligence turns nature's strengths into possibility.
+          </h2>
+          <blockquote className="mx-auto mt-8 max-w-3xl text-lg leading-8 text-muted-foreground sm:text-xl sm:leading-9">
+            <p>A cheetah is faster. A gorilla is stronger. An eagle sees farther. A dog smells better. A whale survives where humans cannot.</p>
+            <p className="mt-5">But humanity possesses something greater: the ability to understand nature, learn from it, recreate its strengths, and combine them into something entirely new.</p>
+            <p className="mt-5">We may not be the strongest, fastest, or most naturally gifted species—but we are the species capable of turning understanding into possibility.</p>
+            <footer className="mt-6 text-sm font-semibold uppercase tracking-wider text-foreground">— D3VONN.IO</footer>
+          </blockquote>
+        </div>
+      </section>
+
       <section className="py-12" aria-labelledby="operating-principles-heading">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">Operating principles</p>
@@ -100,13 +115,4 @@ const About: React.FC = () => (
   </>
 );
 
-export default About;        <section className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-3xl border border-blue-500/20 bg-blue-950/10">
-          <img
-            src="/illustrations/governed-operations.svg"
-            alt="D3VONN.IO's supervised-autonomy philosophy: every consequential agent action passes a human approval checkpoint"
-            className="h-auto w-full"
-            loading="lazy"
-          />
-        </section>
-
-
+export default About;
