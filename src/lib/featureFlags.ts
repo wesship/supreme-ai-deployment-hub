@@ -11,45 +11,28 @@
  *
  * Usage:
  *   import { useFeatureFlag } from '@/lib/featureFlags';
- *
- *   function MyComponent() {
- *     const isEnabled = useFeatureFlag('multi_agent_mesh');
- *     if (!isEnabled) return null;
- *     return <AgentMeshPanel />;
- *   }
  */
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { env } from './env';
 
-// ── Flag Definitions ──────────────────────────────────────────────────────────
-
-/**
- * Define all feature flags here with their default values.
- * Add new flags to this object before using them in components.
- */
 export const FLAG_DEFAULTS = {
-  multi_agent_mesh:        false,  // Enable the multi-agent mesh UI
-  openclaw_bridge:         false,  // Enable OpenClaw code generation
-  experimental_tools:      false,  // Show experimental tools in sidebar
-  beta_agents:             false,  // Show beta agent types
-  chaos_testing_ui:        false,  // Show chaos testing controls (internal only)
-  cost_dashboard:          false,  // Show AWS cost dashboard
-  supabase_realtime:       true,   // Use Supabase realtime subscriptions
-  lighthouse_score_badge:  false,  // Show Lighthouse score badge in header
-  ai_film_companion:       false,  // Keep the AI Film Companion hidden until controlled rollout
+  multi_agent_mesh: false,
+  openclaw_bridge: false,
+  experimental_tools: false,
+  beta_agents: false,
+  chaos_testing_ui: false,
+  cost_dashboard: false,
+  supabase_realtime: true,
+  lighthouse_score_badge: false,
+  ai_film_companion: false,
 } as const;
 
 export type FeatureFlagKey = keyof typeof FLAG_DEFAULTS;
 export type FeatureFlags = Record<FeatureFlagKey, boolean>;
 
-// ── Supabase Client ───────────────────────────────────────────────────────────
-
 const supabase = createClient(env.supabaseUrl, env.supabaseAnonKey);
-
-// ── Flag Resolution ───────────────────────────────────────────────────────────
-
 const LOCAL_STORAGE_KEY = 'devonn_flag_overrides';
 
 function getLocalOverrides(): Partial<FeatureFlags> {
@@ -65,7 +48,6 @@ export function setLocalOverride(flag: FeatureFlagKey, value: boolean): void {
   const overrides = getLocalOverrides();
   overrides[flag] = value;
   localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(overrides));
-  // Trigger a storage event so other tabs update
   window.dispatchEvent(new Event('storage'));
 }
 
@@ -74,6 +56,10 @@ export function clearLocalOverrides(): void {
 }
 
 async function fetchRemoteFlags(): Promise<Partial<FeatureFlags>> {
+  // Local/CI builds may intentionally use placeholder Supabase configuration.
+  // In that mode, defaults remain authoritative and no browser request is made.
+  if (!env.supabaseUrl || env.supabaseUrl.includes('placeholder.supabase.co')) return {};
+
   try {
     const { data, error } = await supabase
       .from('feature_flags')
@@ -93,35 +79,20 @@ async function fetchRemoteFlags(): Promise<Partial<FeatureFlags>> {
   }
 }
 
-// ── React Hook ────────────────────────────────────────────────────────────────
-
 let cachedFlags: FeatureFlags | null = null;
 let cacheExpiry = 0;
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function resolveFlags(): Promise<FeatureFlags> {
-  if (cachedFlags && Date.now() < cacheExpiry) {
-    return cachedFlags;
-  }
+  if (cachedFlags && Date.now() < cacheExpiry) return cachedFlags;
 
   const remote = await fetchRemoteFlags();
   const local = getLocalOverrides();
-
-  // Priority: local overrides > remote flags > defaults
-  cachedFlags = {
-    ...FLAG_DEFAULTS,
-    ...remote,
-    ...local,
-  } as FeatureFlags;
+  cachedFlags = { ...FLAG_DEFAULTS, ...remote, ...local } as FeatureFlags;
   cacheExpiry = Date.now() + CACHE_TTL_MS;
-
   return cachedFlags;
 }
 
-/**
- * Hook to check if a single feature flag is enabled.
- * Returns the default value immediately, then updates when remote flags load.
- */
 export function useFeatureFlag(flag: FeatureFlagKey): boolean {
   const [value, setValue] = useState<boolean>(
     () => getLocalOverrides()[flag] ?? FLAG_DEFAULTS[flag]
@@ -133,13 +104,11 @@ export function useFeatureFlag(flag: FeatureFlagKey): boolean {
       if (!cancelled) setValue(flags[flag]);
     });
 
-    // Re-check when local overrides change
     const handleStorage = () => {
       const overrides = getLocalOverrides();
       if (flag in overrides) setValue(overrides[flag]!);
     };
     window.addEventListener('storage', handleStorage);
-
     return () => {
       cancelled = true;
       window.removeEventListener('storage', handleStorage);
@@ -149,9 +118,6 @@ export function useFeatureFlag(flag: FeatureFlagKey): boolean {
   return value;
 }
 
-/**
- * Hook to get all feature flags at once.
- */
 export function useAllFeatureFlags(): FeatureFlags {
   const [flags, setFlags] = useState<FeatureFlags>({
     ...FLAG_DEFAULTS,
