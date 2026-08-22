@@ -1,0 +1,3 @@
+# Open-source, self-hosted web acquisition engine.
+# Pin to the current 1.x Python line; review/upgrade through normal dependency security checks.
+crawlee[parsel]>=1.8.3,<2.0
