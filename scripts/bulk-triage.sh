@@ -78,7 +78,7 @@ mapfile -t SAFE < <(
     --json number,title,author,mergeable,autoMergeRequest,isDraft \
     --jq '.[]
       | select(.isDraft == false)
-      | select((.author.login | test("dependabot"; "i")))
+      | select(.author.login == "app/dependabot" or .author.login == "dependabot")
       | select(.title | test("major"; "i") | not)
       | select(.title | test("bump|upgrade|fix|patch"; "i"))
       | "\(.number)\t\(.autoMergeRequest != null)\t\(.title)"'

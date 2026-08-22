@@ -50,7 +50,7 @@ bucket "REVIEW — Dependabot major bumps" "$Y" '
 
 # 3. Dependabot PATCH/MINOR — safe to auto-merge
 bucket "MERGE — Safe Dependabot patches" "$G" '
-  .[] | select((.author.login | test("dependabot"; "i")))
+  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot")
       | select(.title | test("bump|upgrade|fix"; "i"))
       | select(.title | test("major"; "i") | not)
 '
