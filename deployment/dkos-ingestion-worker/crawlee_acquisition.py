@@ -10,30 +10,11 @@ access control.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from urllib.parse import urlparse
 from uuid import uuid4
 
 from crawlee.crawlers import ParselCrawler, ParselCrawlingContext
 
-
-@dataclass(frozen=True)
-class AcquisitionPolicy:
-    """Controls the trust boundary before a page enters DKOS."""
-
-    allowed_domains: frozenset[str]
-    max_requests: int = 100
-    max_depth: int = 3
-    require_https: bool = True
-
-    def validate_url(self, url: str) -> None:
-        parsed = urlparse(url)
-        if parsed.scheme not in {"https", "http"}:
-            raise ValueError("Only HTTP(S) sources are supported")
-        if self.require_https and parsed.scheme != "https":
-            raise ValueError("HTTPS is required by the acquisition policy")
-        host = (parsed.hostname or "").lower().rstrip(".")
-        if not host or host not in self.allowed_domains:
-            raise PermissionError(f"Domain is not allowlisted: {host or '<missing>'}")
+from backend.dkos_acquisition.policy import AcquisitionPolicy
 
 
 @dataclass(frozen=True)
@@ -45,11 +26,12 @@ class AcquisitionRecord:
 
 
 def build_crawler(policy: AcquisitionPolicy) -> ParselCrawler:
-    """Build a crawler that only starts from and follows allowlisted domains."""
+    """Build a crawler that stays inside the current allowlisted host scope."""
 
     crawler = ParselCrawler(
         max_requests_per_crawl=policy.max_requests,
         max_crawl_depth=policy.max_depth,
+        respect_robots_txt_file=True,
     )
 
     @crawler.router.default_handler
@@ -74,17 +56,10 @@ def build_crawler(policy: AcquisitionPolicy) -> ParselCrawler:
             }
         )
 
-        # Crawlee's enqueue_links is followed by a policy check at each request;
-        # therefore a discovered external link cannot silently cross the trust
-        # boundary.
-        links = context.selector.xpath("//a/@href").getall()
-        for link in links:
-            try:
-                absolute = context.request.construct_absolute_url(link)
-                policy.validate_url(absolute)
-                await context.add_requests([absolute])
-            except (ValueError, PermissionError):
-                continue
+        # Crawlee's default link enqueue strategy is same-hostname. This keeps
+        # the crawler inside the current source boundary; each processed request
+        # is independently checked against the explicit allowlist above.
+        await context.enqueue_links()
 
     return crawler
 
