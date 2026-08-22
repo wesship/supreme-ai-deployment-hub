@@ -1,0 +1,141 @@
+{
+  "name": "D3VONN Billing - Stripe Subscription & Metered Usage",
+  "meta": { "instanceId": "d3vonn-billing-001" },
+  "nodes": [
+    {
+      "id": "stripe-webhook",
+      "name": "Stripe Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [-1300, 400],
+      "webhookId": "d3vonn-stripe-events",
+      "parameters": { "path": "billing/stripe-webhook", "httpMethod": "POST", "options": {}, "responseMode": "responseNode" },
+      "typeVersion": 2
+    },
+    {
+      "id": "verify-stripe-sig",
+      "name": "Verify Stripe Signature",
+      "type": "n8n-nodes-base.code",
+      "position": [-1060, 400],
+      "parameters": { "jsCode": "// Placeholder signature check.\n// In production: verify $json.headers['stripe-signature'] against STRIPE_WEBHOOK_SECRET\n// using Stripe's SDK constructEvent() before trusting the payload.\nreturn { json: { ...$json.body, _verified: true } };" },
+      "typeVersion": 2
+    },
+    {
+      "id": "route-event-type",
+      "name": "Route by Stripe Event Type",
+      "type": "n8n-nodes-base.switch",
+      "position": [-820, 400],
+      "parameters": {
+        "options": {},
+        "rules": { "values": [
+          { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "combinator": "and", "conditions": [{ "id": "s1", "operator": { "type": "string", "operation": "equals" }, "leftValue": "={{ $json.type }}", "rightValue": "customer.subscription.created" }] }, "outputKey": "subscription_created" },
+          { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "combinator": "and", "conditions": [{ "id": "s2", "operator": { "type": "string", "operation": "equals" }, "leftValue": "={{ $json.type }}", "rightValue": "customer.subscription.updated" }] }, "outputKey": "subscription_updated" },
+          { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "combinator": "and", "conditions": [{ "id": "s3", "operator": { "type": "string", "operation": "equals" }, "leftValue": "={{ $json.type }}", "rightValue": "customer.subscription.deleted" }] }, "outputKey": "subscription_canceled" },
+          { "conditions": { "options": { "version": 2, "leftValue": "", "caseSensitive": true, "typeValidation": "strict" }, "combinator": "and", "conditions": [{ "id": "s4", "operator": { "type": "string", "operation": "equals" }, "leftValue": "={{ $json.type }}", "rightValue": "invoice.payment_failed" }] }, "outputKey": "payment_failed" }
+        ] }
+      },
+      "typeVersion": 3.2
+    },
+    {
+      "id": "update-supabase-active",
+      "name": "Update Supabase - Set Plan Active",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [-560, 100],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/org_subscriptions",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" }, { "name": "Prefer", "value": "resolution=merge-duplicates" } ] },
+        "sendBody": true,
+        "bodyParameters": { "parameters": [
+          { "name": "stripe_customer_id", "value": "={{ $json.data.object.customer }}" },
+          { "name": "stripe_subscription_id", "value": "={{ $json.data.object.id }}" },
+          { "name": "status", "value": "active" },
+          { "name": "plan", "value": "={{ $json.data.object.items.data[0].price.id }}" }
+        ] },
+        "options": {}
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "update-supabase-updated",
+      "name": "Update Supabase - Sync Plan Change",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [-560, 260],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/org_subscriptions",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" } ] },
+        "sendBody": true,
+        "bodyParameters": { "parameters": [ { "name": "status", "value": "={{ $json.data.object.status }}" }, { "name": "plan", "value": "={{ $json.data.object.items.data[0].price.id }}" } ] },
+        "options": { "queryParameters": { "parameters": [ { "name": "stripe_subscription_id", "value": "=eq.{{ $json.data.object.id }}" } ] } }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "update-supabase-canceled",
+      "name": "Update Supabase - Mark Canceled + Downgrade",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [-560, 420],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/org_subscriptions",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" } ] },
+        "sendBody": true,
+        "bodyParameters": { "parameters": [ { "name": "status", "value": "canceled" }, { "name": "plan", "value": "free_tier" } ] },
+        "options": { "queryParameters": { "parameters": [ { "name": "stripe_subscription_id", "value": "=eq.{{ $json.data.object.id }}" } ] } }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "dunning-flow",
+      "name": "Flag Payment Failed - Dunning Sequence",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [-560, 580],
+      "parameters": {
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/org_subscriptions",
+        "method": "PATCH",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "apikey", "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}" } ] },
+        "sendBody": true,
+        "bodyParameters": { "parameters": [ { "name": "status", "value": "past_due" } ] },
+        "options": { "queryParameters": { "parameters": [ { "name": "stripe_customer_id", "value": "=eq.{{ $json.data.object.customer }}" } ] } }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "notify-slack",
+      "name": "Notify Ops Slack - Billing Event",
+      "type": "n8n-nodes-base.slack",
+      "position": [-300, 580],
+      "parameters": { "text": "=Billing event: {{ $('Route by Stripe Event Type').item.json.type }} for customer {{ $json.data.object.customer }}", "select": "channel", "channelId": { "__rl": true, "mode": "name", "value": "billing-alerts" } },
+      "credentials": { "slackApi": { "id": "PLACEHOLDER_SLACK_CRED", "name": "Slack account" } },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "respond-webhook",
+      "name": "Respond 200 to Stripe",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [-40, 400],
+      "parameters": { "options": {}, "respondWith": "json", "responseBody": "={{ { \"received\": true } }}" },
+      "typeVersion": 1.1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Stripe Webhook": { "main": [[{ "node": "Verify Stripe Signature", "type": "main", "index": 0 }]] },
+    "Verify Stripe Signature": { "main": [[{ "node": "Route by Stripe Event Type", "type": "main", "index": 0 }]] },
+    "Route by Stripe Event Type": { "main": [
+      [{ "node": "Update Supabase - Set Plan Active", "type": "main", "index": 0 }],
+      [{ "node": "Update Supabase - Sync Plan Change", "type": "main", "index": 0 }],
+      [{ "node": "Update Supabase - Mark Canceled + Downgrade", "type": "main", "index": 0 }],
+      [{ "node": "Flag Payment Failed - Dunning Sequence", "type": "main", "index": 0 }]
+    ] },
+    "Update Supabase - Set Plan Active": { "main": [[{ "node": "Respond 200 to Stripe", "type": "main", "index": 0 }]] },
+    "Update Supabase - Sync Plan Change": { "main": [[{ "node": "Respond 200 to Stripe", "type": "main", "index": 0 }]] },
+    "Update Supabase - Mark Canceled + Downgrade": { "main": [[{ "node": "Respond 200 to Stripe", "type": "main", "index": 0 }]] },
+    "Flag Payment Failed - Dunning Sequence": { "main": [[{ "node": "Notify Ops Slack - Billing Event", "type": "main", "index": 0 }]] },
+    "Notify Ops Slack - Billing Event": { "main": [[{ "node": "Respond 200 to Stripe", "type": "main", "index": 0 }]] }
+  }
+}
