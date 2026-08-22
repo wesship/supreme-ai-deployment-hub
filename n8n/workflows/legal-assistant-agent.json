@@ -1,0 +1,13 @@
+{
+  "name": "D3VONN Legal Assistant Agent",
+  "nodes": [
+    {"parameters":{"httpMethod":"POST","path":"d3vonn/legal-assistant","responseMode":"responseNode","options":{}},"id":"legal-webhook","name":"Legal Intake","type":"n8n-nodes-base.webhook","typeVersion":2,"position":[-520,0],"webhookId":"d3vonn-legal-assistant"},
+    {"parameters":{"jsCode":"const text = String($json.body?.message ?? $json.message ?? '').trim();\nconst blocked = /(sign (this|the)|represent me|representing me|court|file (a|the) lawsuit|legal advice|act as my lawyer|attorney[- ]client)/i.test(text);\nreturn [{json:{...$json, message:text, compliance:{allowed:!blocked, reason:blocked?'Licensed legal counsel required for representation, legal advice, filing, or signing.':'Information-only legal education permitted.'}}}];"},"id":"legal-gate","name":"Fail Closed Compliance Gate","type":"n8n-nodes-base.code","typeVersion":2,"position":[-280,0]},
+    {"parameters":{"conditions":{"boolean":[{"value1":"={{$json.compliance.allowed}}","operation":"true"}]}},"id":"legal-if","name":"Allowed?","type":"n8n-nodes-base.if","typeVersion":2,"position":[-40,0]},
+    {"parameters":{"jsCode":"return [{json:{status:'blocked',handoff_required:true,disclaimer:'This service provides general information, not legal advice or legal representation.',reason:$json.compliance.reason}}];"},"id":"legal-block","name":"Blocked Response","type":"n8n-nodes-base.code","typeVersion":2,"position":[200,120]},
+    {"parameters":{"jsCode":"const m=$json.message; return [{json:{status:'allowed',mode:'information_only',scope:['explain legal concepts','identify contract red flags','suggest questions for qualified counsel'],message:m,disclaimer:'General information only; not legal advice, representation, or a substitute for qualified counsel.'}}];"},"id":"legal-agent","name":"Scoped Legal Agent","type":"n8n-nodes-base.code","typeVersion":2,"position":[200,-80]},
+    {"parameters":{"respondWith":"json","responseBody":"={{$json}}","options":{}},"id":"legal-response","name":"Response","type":"n8n-nodes-base.respondToWebhook","typeVersion":1.4,"position":[440,0]}
+  ],
+  "connections":{"Legal Intake":{"main":[[{"node":"Fail Closed Compliance Gate","type":"main","index":0}]]},"Fail Closed Compliance Gate":{"main":[[{"node":"Allowed?","type":"main","index":0}]]},"Allowed?":{"main":[[{"node":"Scoped Legal Agent","type":"main","index":0}],[{"node":"Blocked Response","type":"main","index":0}]]},"Scoped Legal Agent":{"main":[[{"node":"Response","type":"main","index":0}]]},"Blocked Response":{"main":[[{"node":"Response","type":"main","index":0}]]}},
+  "active":false,"settings":{"executionOrder":"v1"},"versionId":"d3vonn-legal-v1","meta":{"templateCredsSetupCompleted":true},"tags":[]
+}
