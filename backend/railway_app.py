@@ -231,6 +231,8 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_commerce_webhook": "/api/ai-films/commerce/providers/pollo/webhook" in paths,
             "ai_films_commerce_render": "/api/ai-films/commerce/campaigns/render" in paths,
             "ai_films_openmontage": "/api/ai-films/openmontage/dispatch" in paths,
+            "hermes_tasks": "/api/hermes/tasks" in paths,
+            "hermes_recency": "/api/hermes/recency/status" in paths,
         },
         "intelligence_import_error": INTELLIGENCE_IMPORT_ERROR,
         "official_cors_origins": [origin for origin in RAILWAY_ALLOWED_ORIGINS if _is_official_d3vonn_origin(origin)],

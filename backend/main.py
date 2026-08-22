@@ -92,6 +92,15 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
     except (ImportError, AttributeError):
         pass
 
+# Hermes is the canonical execution kernel. Its protected task and recency APIs
+# must be mounted at startup so the deployed backend cannot report healthy while
+# the orchestration control plane is absent.
+from backend.hermes.recency_router import router as hermes_recency_router
+from backend.hermes.router import router as hermes_task_router
+
+app.include_router(hermes_task_router)
+app.include_router(hermes_recency_router)
+
 # Quantum optimization is optional but now part of the canonical API surface.
 try:
     from backend.optimization.api import router as optimization_router
