@@ -196,7 +196,7 @@ Our CI/CD pipeline runs the following test stages:
 
 1. **Lint**: Static code analysis
 2. **Security Scan**: pnpm audit, Dependency Review, Gitleaks, Grype SBOM vulnerability analysis, and CodeQL according to their workflow triggers
-3. **Unit Test**: All Jest unit tests
+3. **Unit Test**: All Vitest unit tests
 4. **Extension Test**: Chrome extension specific tests
 5. **E2E Test**: Playwright browser tests
 6. **Performance Test**: Lighthouse CI and bundle analysis
