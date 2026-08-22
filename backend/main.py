@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("D3VONN.IO backend shutting down…")
     try:
-        from backend.db.pool import close_pool
+        from backend.db.pool import init_pool, close_pool
         await close_pool()
     except ImportError:
         pass
@@ -91,6 +91,49 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
             app.include_router(router)
     except (ImportError, AttributeError):
         pass
+
+# PRIMETIME governed API surfaces.
+try:
+    from backend.app.routers.primetime_release1 import router as primetime_release1_router
+    app.include_router(primetime_release1_router)
+    logger.info("PRIMETIME Release 1 router registered at /primetime/v1")
+except ImportError as exc:
+    logger.warning("PRIMETIME Release 1 router unavailable — skipping. (%s)", exc)
+
+try:
+    from backend.app.routers.primetime_release2_scheduling import router as primetime_release2_scheduling_router
+    app.include_router(primetime_release2_scheduling_router)
+    logger.info("PRIMETIME Release 2 scheduling router registered at /primetime/v1")
+except ImportError as exc:
+    logger.warning("PRIMETIME Release 2 scheduling router unavailable — skipping. (%s)", exc)
+
+try:
+    from backend.app.routers.primetime_release3_communications import router as primetime_release3_communications_router
+    app.include_router(primetime_release3_communications_router)
+    logger.info("PRIMETIME Release 3 communications router registered at /primetime/v1")
+except ImportError as exc:
+    logger.warning("PRIMETIME Release 3 communications router unavailable — skipping. (%s)", exc)
+
+try:
+    from backend.app.routers.primetime_release4_ai_assistance import router as primetime_release4_ai_assistance_router
+    app.include_router(primetime_release4_ai_assistance_router)
+    logger.info("PRIMETIME Release 4 AI assistance router registered at /primetime/v1")
+except ImportError as exc:
+    logger.warning("PRIMETIME Release 4 AI assistance router unavailable — skipping. (%s)", exc)
+
+try:
+    from backend.app.routers.primetime_release5_analytics import router as primetime_release5_analytics_router
+    app.include_router(primetime_release5_analytics_router)
+    logger.info("PRIMETIME Release 5 analytics router registered at /primetime/v1")
+except ImportError as exc:
+    logger.warning("PRIMETIME Release 5 analytics router unavailable — skipping. (%s)", exc)
+
+try:
+    from backend.app.routers.primetime_release7_observability import router as primetime_release7_observability_router
+    app.include_router(primetime_release7_observability_router)
+    logger.info("PRIMETIME Release 7 observability router registered at /primetime/v1")
+except ImportError as exc:
+    logger.warning("PRIMETIME Release 7 observability router unavailable — skipping. (%s)", exc)
 
 # Quantum optimization is optional but now part of the canonical API surface.
 try:
