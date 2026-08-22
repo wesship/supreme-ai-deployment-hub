@@ -229,6 +229,7 @@ jobs:
           VITE_API_URL: https://api.d3vonn.io
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
+          VITE_DISABLE_RUM: "true"
         run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project="${{ matrix.browser }}"
       - name: Upload Playwright report and diagnostics
         if: always()
