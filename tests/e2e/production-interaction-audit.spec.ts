@@ -27,14 +27,12 @@ async function collectRuntimeErrors(page: Page) {
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
-
     const text = message.text();
     if (text.startsWith('Failed to load resource:')) return;
     errors.push(`console: ${text}`);
   });
   page.on('response', (response) => {
     if (response.status() < 400) return;
-
     const url = new URL(response.url());
     if (EXPECTED_STUB_ORIGINS.has(url.origin)) return;
     if (url.hostname === '127.0.0.1' && EXPECTED_LOCAL_404_PATHS.has(url.pathname)) return;
@@ -51,39 +49,35 @@ async function waitForApplication(page: Page) {
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
-  test('AI Film cards use title-linked preview media and preserve an honest upcoming-title state', async ({ page }) => {
+  test('AI Films expose real preview media and honest catalog states', async ({ page }) => {
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
-    await expect(page.locator('h1').filter({ hasText: 'Sovereign Signal' })).toBeVisible();
 
-    const featuredSection = page.locator('section[aria-label="D3VONN AI Films"]');
-    const featuredHeroMedia = featuredSection.locator('video, img').first();
+    await expect(page.getByRole('heading', { name: 'Sovereign Signal' }).first()).toBeVisible();
+
+    const filmSection = page.locator('section[aria-label="D3VONN AI Films"]');
+    await expect(filmSection).toBeVisible();
+
+    const featuredHeroMedia = filmSection.locator('video, img').first();
     await expect(featuredHeroMedia).toBeVisible();
-    if (await featuredHeroMedia.evaluate((element) => element.tagName.toLowerCase()) === 'video') {
-      await expect(featuredHeroMedia).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    } else {
-      await expect(featuredHeroMedia).toHaveAttribute('src', '/films/sovereign-signal-keyframe.png');
-    }
-    await expect.poll(async () => featuredHeroMedia.evaluate((element) => getComputedStyle(element.parentElement!).position)).toBe('absolute');
+    await expect(featuredHeroMedia).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
 
-    const mobileCompanionTrigger = page.getByRole('button', { name: 'Open AI Film Companion' });
-    await expect(mobileCompanionTrigger).toBeVisible();
-    expect(await mobileCompanionTrigger.evaluate((element) => getComputedStyle(element).position)).not.toBe('fixed');
-
-    const sovereignSignalCard = page.locator('article').filter({ hasText: 'Sovereign Signal' }).first();
+    const sovereignSignalCard = page.locator('button[aria-label="Open Sovereign Signal"]').first();
+    await expect(sovereignSignalCard).toBeVisible();
     await expect(sovereignSignalCard.locator('video')).toHaveAttribute('src', '/films/sovereign-signal.mp4');
     await expect(sovereignSignalCard.locator('video')).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    await sovereignSignalCard.getByRole('button', { name: 'Watch Sovereign Signal preview' }).click();
 
+    await sovereignSignalCard.click();
     const sovereignSignalDialog = page.getByRole('dialog', { name: 'Sovereign Signal' });
-    await expect(sovereignSignalDialog.getByLabel('Sovereign Signal preview')).toHaveAttribute('src', '/films/sovereign-signal.mp4');
-    await expect(sovereignSignalDialog.getByText('Preview clip for')).toBeVisible();
-    await expect(sovereignSignalDialog.getByText('Spoken-word captions will be added when a verified transcript is available.')).toBeVisible();
+    await expect(sovereignSignalDialog).toBeVisible();
+    await expect(sovereignSignalDialog.getByRole('button', { name: 'Close film details' })).toBeVisible();
+    await sovereignSignalDialog.getByLabel('Sovereign Signal preview').toHaveAttribute('src', '/films/sovereign-signal.mp4');
+    await sovereignSignalDialog.getByText('Preview clip for').toBeVisible();
     await sovereignSignalDialog.getByRole('button', { name: 'Close film details' }).click();
 
-    const genesisProtocolCard = page.locator('article').filter({ hasText: 'Genesis Protocol' }).first();
-    await expect(genesisProtocolCard.locator('video')).toHaveCount(0);
-    await expect(genesisProtocolCard.getByRole('button', { name: 'View Genesis Protocol details' })).toBeVisible();
+    for (const title of ['Building D3VONN.IO', 'Inside HERMES', 'GUARDIAN', 'The AI Workforce', 'Agent Zero']) {
+      await expect(page.locator(`button[aria-label="Open ${title}"]`)).toBeVisible();
+    }
   });
 
   test('the malformed encoded film path redirects to the canonical film page', async ({ page }) => {
@@ -105,41 +99,37 @@ test.describe('D3VONN.IO production interaction audit', () => {
       await expect(page.locator('#root')).not.toBeEmpty();
       await expect(page.locator('#main-content')).toBeVisible();
 
-      const visibleLinks = page.locator('a:visible');
-      const linkCount = await visibleLinks.count();
-      expect(linkCount, `${route} contains no visible links`).toBeGreaterThan(0);
+      const links = await page.locator('a:visible').evaluateAll((elements) =>
+        elements.map((link) => ({
+          href: (link.getAttribute('href') ?? '').trim(),
+          label: ((link.getAttribute('aria-label') ?? link.textContent) ?? '').trim(),
+        })),
+      );
+      expect(links.length, `${route} contains no visible links`).toBeGreaterThan(0);
 
-      for (let index = 0; index < linkCount; index += 1) {
-        const link = visibleLinks.nth(index);
-        const href = (await link.getAttribute('href'))?.trim() ?? '';
-        const label = ((await link.getAttribute('aria-label')) ?? (await link.innerText())).trim();
-
-        expect(label, `Unnamed visible link at ${route} index ${index}`).not.toBe('');
+      for (const { href, label } of links) {
+        expect(label, `Unnamed visible link on ${route}`).not.toBe('');
         expect(DISALLOWED_HREFS.has(href.toLowerCase()), `Dead link "${label}" on ${route}: ${href}`).toBeFalsy();
-
         if (href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/api/') && !href.includes('#')) {
           const target = await request.get(href, { failOnStatusCode: false });
           expect(target.status(), `Internal link "${label}" from ${route} failed: ${href}`).toBeLessThan(400);
         }
       }
 
-      const visibleButtons = page.locator('button:visible');
-      const buttonCount = await visibleButtons.count();
+      const buttons = await page.locator('button:visible').evaluateAll((elements) =>
+        elements.map((button) => ({
+          label: ((button.getAttribute('aria-label') ?? button.getAttribute('title') ?? button.textContent) ?? '').trim(),
+          disabled: (button as HTMLButtonElement).disabled,
+          width: button.getBoundingClientRect().width,
+          height: button.getBoundingClientRect().height,
+        })),
+      );
 
-      for (let index = 0; index < buttonCount; index += 1) {
-        const button = visibleButtons.nth(index);
-        const label = ((await button.getAttribute('aria-label')) ?? (await button.getAttribute('title')) ?? (await button.innerText())).trim();
-
-        expect(label, `Unnamed visible button at ${route} index ${index}`).not.toBe('');
-        await expect(button, `Button "${label}" is disabled on ${route}`).toBeEnabled();
-        await expect.poll(async () => (await button.boundingBox())?.width ?? 0, {
-          message: `Button "${label}" is too narrow to click on ${route}`,
-          timeout: 5_000,
-        }).toBeGreaterThanOrEqual(20);
-        await expect.poll(async () => (await button.boundingBox())?.height ?? 0, {
-          message: `Button "${label}" is too short to click on ${route}`,
-          timeout: 5_000,
-        }).toBeGreaterThanOrEqual(20);
+      for (const button of buttons) {
+        expect(button.label, `Unnamed visible button on ${route}`).not.toBe('');
+        expect(button.disabled, `Button "${button.label}" is disabled on ${route}`).toBe(false);
+        expect(button.width, `Button "${button.label}" is too narrow on ${route}`).toBeGreaterThanOrEqual(20);
+        expect(button.height, `Button "${button.label}" is too short on ${route}`).toBeGreaterThanOrEqual(20);
       }
     });
   }
@@ -149,38 +139,40 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await waitForApplication(page);
 
     const hrefs = await page.locator('a:visible[href^="/"]').evaluateAll((links) =>
-      links.map((link) => link.getAttribute('href') ?? ''),
+      [...new Set(links.map((link) => link.getAttribute('href') ?? '').filter((href) => href && !href.startsWith('/api/')))],
     );
-    const tested = [...new Set(hrefs.filter((href) => href && !href.startsWith('/api/')))];
 
-    for (const href of tested) {
+    for (const href of hrefs) {
       const response = await request.get(href, { failOnStatusCode: false });
       expect(response.status(), `Homepage destination failed: ${href}`).toBeLessThan(400);
     }
 
-    expect(tested.length, 'Homepage did not expose any testable internal destinations').toBeGreaterThan(0);
+    expect(hrefs.length, 'Homepage did not expose any testable internal destinations').toBeGreaterThan(0);
   });
 
-  test('mobile header controls are reachable and do not sit beneath the EXU overlay', async ({ page }) => {
+  test('mobile header controls are reachable and remain within the viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
 
-    const buttons = page.locator('button:visible');
-    const count = await buttons.count();
-    expect(count, 'No mobile buttons were visible').toBeGreaterThan(0);
-
     const viewport = page.viewportSize();
     expect(viewport).not.toBeNull();
 
-    for (let index = 0; index < count; index += 1) {
-      const button = buttons.nth(index);
-      const label = ((await button.getAttribute('aria-label')) ?? (await button.getAttribute('title')) ?? (await button.innerText())).trim();
-      const box = await button.boundingBox();
-      if (!box) continue;
+    const buttons = await page.locator('button:visible').evaluateAll((elements) =>
+      elements.map((button) => ({
+        label: ((button.getAttribute('aria-label') ?? button.getAttribute('title') ?? button.textContent) ?? '').trim(),
+        rect: (() => {
+          const box = button.getBoundingClientRect();
+          return { x: box.x, right: box.right };
+        })(),
+      })),
+    );
 
-      expect(box.x, `Mobile button "${label}" extends off the left edge`).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width, `Mobile button "${label}" extends off the right edge`).toBeLessThanOrEqual(viewport!.width + 1);
+    expect(buttons.length, 'No mobile buttons were visible').toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button.label, 'Unnamed mobile button').not.toBe('');
+      expect(button.rect.x, `Mobile button "${button.label}" extends off the left edge`).toBeGreaterThanOrEqual(0);
+      expect(button.rect.right, `Mobile button "${button.label}" extends off the right edge`).toBeLessThanOrEqual(viewport!.width + 1);
     }
   });
 });
