@@ -65,7 +65,7 @@ Devonn.AI is composed of five primary layers: the **Frontend**, the **Backend AP
 | Infrastructure | AWS EKS + Helm | Container orchestration and scaling |
 | Secrets | External Secrets Operator | Sync AWS Secrets Manager → K8s Secrets |
 | Observability | Prometheus + Grafana + Loki | Metrics, dashboards, log aggregation |
-| Security | Falco + OPA + CodeQL + Snyk | Runtime, policy, SAST, and dependency security |
+| Security | Falco + OPA + CodeQL + Dependency Review + Gitleaks + Grype | Runtime, policy, SAST, secret detection, SBOM, and dependency vulnerability security |
 
 ---
 
@@ -88,10 +88,12 @@ The repository uses GitHub Actions for all CI/CD operations. The pipeline consis
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `build.yml` | PR, push to main | TypeScript typecheck, ESLint, production build |
-| `testing.yml` | PR, push to main | Unit tests (Vitest), Python tests (pytest), Snyk scan |
+| `testing.yml` | PR, push to main | Unit tests (Vitest), Python tests (pytest), and a pnpm dependency audit |
 | `deploy.yml` | Push to main | Vercel production deployment |
 | `codeql.yml` | PR, schedule | SAST security analysis |
-| `sbom.yml` | Push to main | Software Bill of Materials generation |
+| `dependency-review.yml` | PR | Dependency-change review before merge |
+| `secret-scanning.yml` | PR, push to main | Gitleaks secret detection |
+| `grype.yml` | Dependency changes, schedule | SPDX SBOM generation and high/critical vulnerability enforcement |
 | `final-green-check.yml` | PR to main | Pre-merge validation gate |
 
 ---

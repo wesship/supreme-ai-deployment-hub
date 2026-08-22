@@ -41,7 +41,7 @@ POST https://api.d3vonn.io/api/voice/session
 
 ## Security decisions
 
-- Do not bypass Snyk or other security gates.
+- Do not bypass required checks or the open-source security controls documented in `docs/security/OPEN_SOURCE_SECURITY_BASELINE.md`.
 - Do not expose Vapi private keys, webhook secrets, Supabase access tokens, or Hermes credentials to the browser.
 - Do not treat a 401/403/405 from an unauthenticated voice-session probe as a production failure; those responses can demonstrate that the route is protected/published.
 - Do not mark the voice assistant production-certified solely from static UI or source tests.

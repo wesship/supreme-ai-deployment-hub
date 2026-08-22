@@ -195,7 +195,7 @@ Devonn.AI uses several tools to measure and ensure good performance:
 Our CI/CD pipeline runs the following test stages:
 
 1. **Lint**: Static code analysis
-2. **Security Scan**: npm audit and Snyk scans
+2. **Security Scan**: pnpm audit, Dependency Review, Gitleaks, Grype SBOM vulnerability analysis, and CodeQL according to their workflow triggers
 3. **Unit Test**: All Jest unit tests
 4. **Extension Test**: Chrome extension specific tests
 5. **E2E Test**: Playwright browser tests

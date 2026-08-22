@@ -63,14 +63,6 @@
   "no_hard_delete": true,
   "no_quote_endpoint": true,
   "no_communication_send_endpoint": true,
-  "known_blockers": {
-    "snyk_duplicate": "Non-blocking \u2014 documented duplicate vulnerability in transitive dependency"
-  },
-  "known_external_checks": [
-    {
-      "name": "security/snyk (wesship8)",
-      "status": "non-blocking",
-      "reason": "Duplicate transitive dependency vulnerability"
-    }
-  ]
+  "known_blockers": {},
+  "known_external_checks": []
 }

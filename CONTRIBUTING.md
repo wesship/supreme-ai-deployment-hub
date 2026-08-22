@@ -40,7 +40,7 @@ git push origin feat/your-feature-name
 This repository is connected to the **Devonn Central Orchestrator** at `https://central-orchestrator.onrender.com`. When you open a PR or push code:
 
 1. The **Debug Agent** scans for runtime errors and test failures.
-2. The **Security Agent** checks for vulnerabilities (Snyk, bandit).
+2. The **Security Agent** checks for vulnerabilities through the repository’s [open-source security baseline](docs/security/OPEN_SOURCE_SECURITY_BASELINE.md), including CodeQL, dependency review, Gitleaks, Grype, container hardening, and security-focused tests.
 3. The **Refactor Agent** suggests code quality improvements.
 4. The **Performance Agent** flags slow paths and memory leaks.
 

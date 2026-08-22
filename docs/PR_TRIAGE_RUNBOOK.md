@@ -26,7 +26,7 @@ Bulk action: see `scripts/bulk-close-stale-copilot-prs.sh`.
 
 Criteria (all):
 - CI green
-- Authored by maintainer OR a security bot (Snyk, Dependabot patch)
+- Authored by a maintainer OR Dependabot for a reviewed patch/minor update
 - No major-version bump (guard workflow enforces this)
 - Touches ≤ 3 files OR is a pure dependency patch
 
@@ -73,9 +73,9 @@ for PR in $(gh pr list --author "dependabot[bot]" --json number,title \
   gh pr edit "$PR" --remove-label auto-merge --add-label needs-manual-review
 done
 
-# 3. Merge safe Snyk + Dependabot patches (Bucket B)
-gh pr list --search "is:open is:pr label:auto-merge author:app/snyk-bot" \
-  --json number --jq '.[].number' | xargs -I{} gh pr merge {} --squash --auto
+# 3. Merge safe Dependabot patches (Bucket B)
+gh pr list --search "is:open is:pr label:auto-merge author:app/dependabot" \
+  --json number --jq '.[].number' | xargs -r -I{} gh pr merge {} --squash --auto
 
 # 4. Review remaining PRs manually (Bucket C)
 gh pr list --label needs-manual-review

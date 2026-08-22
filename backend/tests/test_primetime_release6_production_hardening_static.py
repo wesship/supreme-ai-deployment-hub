@@ -9,6 +9,7 @@ PLAN = ROOT / "docs" / "PRIMETIME_RELEASE6_PRODUCTION_HARDENING_PLAN.md"
 CHECKLIST = ROOT / "docs" / "PRIMETIME_PRODUCTION_READINESS_CHECKLIST.md"
 RUNBOOK = ROOT / "docs" / "PRIMETIME_RELEASE_STACK_RUNBOOK.md"
 GATES = ROOT / "config" / "primetime-release-gates.json"
+SECURITY_BASELINE = ROOT / "docs" / "security" / "OPEN_SOURCE_SECURITY_BASELINE.md"
 APP = ROOT / "src" / "App.tsx"
 MAIN = ROOT / "backend" / "main.py"
 
@@ -75,12 +76,14 @@ def test_release6_gate_config_blocks_regulated_endpoints_and_delete() -> None:
     assert "DELETE" in data["blocked_http_methods_for_primetime"]
 
 
-def test_release6_docs_document_known_duplicate_snyk_blocker() -> None:
-    checklist = read(CHECKLIST)
+def test_release6_gate_config_has_no_legacy_scanner_exception() -> None:
     gates = json.loads(read(GATES))
-    assert "security/snyk (wesship)" in checklist
-    assert "security/snyk (wesship8)" in checklist
-    assert any(item["name"] == "security/snyk (wesship8)" for item in gates["known_external_checks"])
+    baseline = read(SECURITY_BASELINE)
+
+    assert gates["known_blockers"] == {}
+    assert gates["known_external_checks"] == []
+    assert "Gitleaks" in baseline
+    assert "Grype" in baseline
 
 
 def test_release6_docs_preserve_non_negotiable_compliance_boundaries() -> None:
