@@ -158,7 +158,10 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  useEffect(() => { startRumCollection(); }, []);
+  useEffect(() => {
+    if (import.meta.env.VITE_DISABLE_RUM === 'true') return;
+    startRumCollection();
+  }, []);
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <Router>
@@ -238,31 +241,23 @@ function App() {
                 <Route path="/solutions" element={<Solutions />} />
                 <Route path="/resources" element={<Resources />} />
                 <Route path="/security" element={<Security />} />
+                <Route path="/security/dashboard" element={<AuthenticatedRoute><SecurityDashboard /></AuthenticatedRoute>} />
+                <Route path="/security/ops" element={<AuthenticatedRoute><SecurityOps /></AuthenticatedRoute>} />
+                <Route path="/security/command-center" element={<AuthenticatedRoute><SecurityCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/security/secrets" element={<AuthenticatedRoute><SecretsVault /></AuthenticatedRoute>} />
                 <Route path="/security/disclosure" element={<SecurityDisclosure />} />
-                <Route path="/enterprise" element={<Security />} />
                 <Route path="/enterprise-readiness" element={<EnterpriseReadiness />} />
-                <Route path="/assurance" element={<AdminRoute><AssuranceConsole /></AdminRoute>} />
-                <Route path="/security/ops" element={<SecurityOps />} />
-                <Route path="/security/dashboard" element={<SecurityDashboard />} />
-                <Route path="/security/command-center" element={<SecurityCommandCenter />} />
-                <Route path="/security/secrets" element={<AdminRoute><SecretsVault /></AdminRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
-                <Route path="/research-os" element={<ResearchOS />} />
-                <Route path="/analytics" element={<Navigate to="/app" replace />} />
-                <Route path="/rag" element={<Navigate to="/dkos-ingestion" replace />} />
-                <Route path="/platform" element={<Navigate to="/#platform" replace />} />
-                <Route path="/signin" element={<Navigate to="/login" replace />} />
-                <Route path="/sign-in" element={<Navigate to="/login" replace />} />
-                <Route path="/log-in" element={<Navigate to="/login" replace />} />
-                <Route path="/signup" element={<Navigate to="/login" replace />} />
-                <Route path="/sign-up" element={<Navigate to="/login" replace />} />
+                <Route path="/research" element={<ResearchOS />} />
+                <Route path="/assurance" element={<AuthenticatedRoute><AssuranceConsole /></AuthenticatedRoute>} />
                 <Route path="*" element={<CanonicalPathFallback />} />
               </Routes>
             </Suspense>
           </main>
-          <Suspense fallback={null}><FloatingChatWidget /></Suspense>
         </DeferredProviders>
-        <Suspense fallback={null}><Toaster /><Analytics /></Suspense>
+        <Suspense fallback={null}><FloatingChatWidget /></Suspense>
+        <Suspense fallback={null}><Toaster /></Suspense>
+        <Suspense fallback={null}><Analytics /></Suspense>
       </Router>
     </ThemeProvider>
   );
