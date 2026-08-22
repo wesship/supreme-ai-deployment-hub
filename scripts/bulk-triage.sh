@@ -47,8 +47,8 @@ mapfile -t MAJORS < <(
   gh pr list --state open --limit 200 \
     --json number,title,author,autoMergeRequest \
     --jq ".[]
-      | select(.author.login == \"app/dependabot\" or .author.login == \"dependabot\")
-      | select(.title | test(\"$RISKY_PKGS_REGEX\"; \"i\"))
+      | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
+      | select(.title | test("$RISKY_PKGS_REGEX"; "i"))
       | \"\(.number)\t\(.autoMergeRequest != null)\t\(.title)\""
 )
 
@@ -78,7 +78,7 @@ mapfile -t SAFE < <(
     --json number,title,author,mergeable,autoMergeRequest,isDraft \
     --jq '.[]
       | select(.isDraft == false)
-      | select(.author.login == "app/dependabot" or .author.login == "dependabot")
+      | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
       | select(.title | test("major"; "i") | not)
       | select(.title | test("bump|upgrade|fix|patch"; "i"))
       | "\(.number)\t\(.autoMergeRequest != null)\t\(.title)"'

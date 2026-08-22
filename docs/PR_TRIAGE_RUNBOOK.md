@@ -74,8 +74,10 @@ for PR in $(gh pr list --author "dependabot[bot]" --json number,title \
 done
 
 # 3. Merge safe Dependabot patches (Bucket B)
-gh pr list --search "is:open is:pr label:auto-merge author:app/dependabot" \
-  --json number --jq '.[].number' |
+gh pr list --search "is:open is:pr label:auto-merge" --limit 200 \
+  --json number,author --jq '.[]
+    | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
+    | .number' |
   while IFS= read -r pr; do
     [ -n "$pr" ] || continue
     gh pr merge "$pr" --squash --auto

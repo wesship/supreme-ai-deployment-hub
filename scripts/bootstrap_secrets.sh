@@ -71,7 +71,7 @@ set_secret AWS_REGION
 set_secret ECR_REGISTRY
 set_secret EKS_CLUSTER_NAME
 
-# ── Security reporting ─────────────────────────────────────────────────────
+# ── Coverage reporting ─────────────────────────────────────────────────────
 set_secret CODECOV_TOKEN
 
 # ── Observability ──────────────────────────────────────────────────────────

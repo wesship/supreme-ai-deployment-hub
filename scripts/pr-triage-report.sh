@@ -43,14 +43,14 @@ bucket "CLOSE — Stale Copilot drafts" "$R" '
 
 # 2. Dependabot MAJOR bumps — strip auto-merge, manual review
 bucket "REVIEW — Dependabot major bumps" "$Y" '
-  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot")
+  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
       | select(.title | test("bump (tailwindcss|vite|react-day-picker|react|react-router-dom|@tanstack/react-query|zod|@types/react)"; "i"))
       | select(.title | test("from [0-9]+\\.[^ ]+ to [0-9]+"; "x") | not)
 '
 
 # 3. Dependabot PATCH/MINOR — safe to auto-merge
 bucket "MERGE — Safe Dependabot patches" "$G" '
-  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot")
+  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
       | select(.title | test("bump|upgrade|fix"; "i"))
       | select(.title | test("major"; "i") | not)
 '
