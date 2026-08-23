@@ -84,7 +84,6 @@ export const aiFilmCatalog: AIFilm[] = [
     maturity: 'PG-13',
     topics: ['machine civilization', 'emergence', 'science fiction'],
     posterUrl: '/films/genesis-protocol-keyframe.png',
-    trailerUrl: '/films/genesis-protocol.mp4',
   },
 ];
 
