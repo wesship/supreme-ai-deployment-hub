@@ -13,6 +13,21 @@ This policy applies to production, staging, CI, build, deployment, and developer
 
 Development-only dependencies are not automatically exempt. Build and CI dependencies may access deployment credentials, environment variables, source maps, and repository contents.
 
+## Snyk retirement and replacement
+
+D3VONN.IO does not require Snyk for its repository security gates. The Snyk GitHub integration/check is being retired for the `wesship8` account because its paid test allowance is exhausted.
+
+Security controls are **not** being bypassed. The repository uses a layered, no-Snyk assurance stack:
+
+1. **CodeQL SAST** — JavaScript/TypeScript and Python static analysis.
+2. **Grype + SBOM** — dependency vulnerability scanning with blocking High/Critical enforcement.
+3. **GitHub Dependency Review** — pull-request dependency and license policy checks when the GitHub capability is available.
+4. **Gitleaks + TruffleHog OSS** — repository secret detection.
+5. **Dependabot** — dependency update and security-alert workflow.
+6. Existing repository lint, typecheck, tests, build, and client-secret bundle checks remain required.
+
+Snyk must not be re-added as a required status check. If an old Snyk status remains in GitHub branch protection, remove only that obsolete Snyk requirement after confirming the replacement controls above are active.
+
 ## Fast-track merge criteria
 
 A dependency security pull request may be fast-tracked when:
