@@ -7,6 +7,7 @@ import platform
 import socket
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Iterable
 
 from backend.hermes.ports import Clock, TaskRepository
 from backend.hermes.worker_persistence import PersistentWorkerRegistry
@@ -33,6 +34,12 @@ def _env_bool(name: str, default: bool = False) -> bool:
     raise ValueError(f"{name} must be a boolean value")
 
 
+def _normalize_capabilities(capabilities: Iterable[str]) -> tuple[str, ...]:
+    return tuple(
+        sorted({item.strip().lower() for item in capabilities if item.strip()})
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class PersistentWorkerRuntimeConfig:
     enabled: bool = False
@@ -47,13 +54,11 @@ class PersistentWorkerRuntimeConfig:
     @classmethod
     def from_env(cls) -> "PersistentWorkerRuntimeConfig":
         hostname = socket.gethostname()
-        capabilities = tuple(
-            item.strip().lower()
-            for item in os.getenv(
-                "HERMES_WORKER_CAPABILITIES", "task-dispatch"
-            ).split(",")
-            if item.strip()
+        capabilities = _normalize_capabilities(
+            os.getenv("HERMES_WORKER_CAPABILITIES", "task-dispatch").split(",")
         )
+        if "task-dispatch" not in capabilities:
+            capabilities = ("task-dispatch", *capabilities)
         return cls(
             enabled=_env_bool("HERMES_PERSISTENT_WORKERS_ENABLED", False),
             worker_id=os.getenv("HERMES_WORKER_ID", hostname),
@@ -136,15 +141,23 @@ class PersistentWorkerRuntime:
         await self.persistence.sweep()
         return await self.persistence.heartbeat_worker(self.worker_id)
 
-    async def acquire(self, task_id: str) -> WorkerLease | None:
+    async def acquire(
+        self,
+        task_id: str,
+        *,
+        required_capabilities: Iterable[str] = (),
+    ) -> WorkerLease | None:
         if not self.started:
             return None
         await self.persistence.sweep()
+        required = _normalize_capabilities(required_capabilities)
+        if "task-dispatch" not in required:
+            required = ("task-dispatch", *required)
         try:
             lease = await self.persistence.acquire_for_worker(
                 worker_id=self.worker_id,
                 task_id=task_id,
-                required_capabilities=("task-dispatch",),
+                required_capabilities=required,
             )
         except WorkerRegistryError:
             return None
