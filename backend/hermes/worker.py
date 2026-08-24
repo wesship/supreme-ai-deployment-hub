@@ -49,6 +49,21 @@ def _handle_shutdown(signum: int, _frame: Any) -> None:
     _stop_event.set()
 
 
+def _required_capabilities(task: dict[str, Any]) -> tuple[str, ...]:
+    """Read routing capabilities from task metadata without granting privileges.
+
+    Authorization remains a separate policy decision. These values only determine
+    which registered worker is eligible for the lease.
+    """
+    input_data = task.get("input_data") or {}
+    raw = input_data.get("required_capabilities", ())
+    if not isinstance(raw, (list, tuple, set, frozenset)):
+        return ()
+    return tuple(
+        sorted({str(item).strip().lower() for item in raw if str(item).strip()})
+    )
+
+
 async def _release_lease_safely(
     runtime: PersistentWorkerRuntime,
     lease: WorkerLease,
@@ -87,9 +102,12 @@ async def _process_task(
 
     lease = recovered_lease
     if runtime is not None and lease is None:
-        lease = await runtime.acquire(str(task_id))
+        lease = await runtime.acquire(
+            str(task_id),
+            required_capabilities=_required_capabilities(task),
+        )
         if lease is None:
-            logger.info("task lease unavailable id=%s; another worker owns it", task_id)
+            logger.info("task lease unavailable id=%s; no eligible worker or another worker owns it", task_id)
             return
 
     input_data = task.get("input_data") or {}
