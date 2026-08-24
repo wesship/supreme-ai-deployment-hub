@@ -13,11 +13,26 @@ export function recordVital(name: VitalName, value: number): void {
     deployment: import.meta.env.MODE,
   });
   const endpoint = `${API_BASE}/api/assurance/public/rum`;
+
+  // Keep the beacon request CORS-simple. application/json can force a
+  // cross-origin preflight, which is especially fragile for fire-and-forget
+  // telemetry. The API still parses the JSON request body normally.
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }));
-    return;
+    const accepted = navigator.sendBeacon(
+      endpoint,
+      new Blob([body], { type: 'text/plain;charset=UTF-8' }),
+    );
+    if (accepted) return;
   }
-  void fetch(endpoint, { method: 'POST', body, keepalive: true, headers: { 'content-type': 'application/json' } });
+
+  void fetch(endpoint, {
+    method: 'POST',
+    body,
+    keepalive: true,
+    headers: { 'content-type': 'text/plain;charset=UTF-8' },
+  }).catch(() => {
+    // RUM must never degrade the application when telemetry is unavailable.
+  });
 }
 
 export function startRumCollection(): void {
