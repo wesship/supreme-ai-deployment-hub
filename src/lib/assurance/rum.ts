@@ -12,7 +12,7 @@ export function recordVital(name: VitalName, value: number): void {
     navigation_type: navigation?.type || 'navigate',
     deployment: import.meta.env.MODE,
   });
-  const endpoint = `${API_BASE}/api/assurance/public/rum`;
+  const endpoint = new URL('/api/assurance/public/rum', window.location.origin).toString();
   if (navigator.sendBeacon) {
     navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }));
     return;
