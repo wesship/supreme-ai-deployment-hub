@@ -1,0 +1,1 @@
+Hermes v0.20.5 is pinned for isolated staging. The existing D3VONN Hermes control plane remains authoritative until compatibility gates pass.
