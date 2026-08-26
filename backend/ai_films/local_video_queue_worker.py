@@ -141,10 +141,9 @@ async def worker_loop(environ: Mapping[str, str] | None = None) -> None:
     interval = max(1.0, float(source.get("AI_FILM_VIDEO_WORKER_POLL_SECONDS", "5")))
     while True:
         result = await run_once(source)
-        if result.get("status") in {"disabled", "completed", "failed"}:
-            await asyncio.sleep(0 if result.get("status") == "disabled" else 0.1)
-        else:
-            await asyncio.sleep(interval)
+        if result.get("status") == "disabled":
+            return
+        await asyncio.sleep(0.1 if result.get("status") in {"completed", "failed"} else interval)
 
 
 if __name__ == "__main__":
