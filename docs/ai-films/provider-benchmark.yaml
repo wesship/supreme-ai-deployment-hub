@@ -1,0 +1,57 @@
+version: 1
+name: d3vonn-ai-films-provider-benchmark
+purpose: Verify providers before production activation.
+production_gate:
+  required_status: production
+  forbidden_automation:
+    - browser_scraping
+    - rate_limit_bypass
+    - access_control_bypass
+  required_checks:
+    - authorized_api_or_worker
+    - current_terms_review
+    - commercial_use_review
+    - watermark_label_review
+    - auth_secret_review
+    - quota_rate_limit_review
+    - reliability_test
+    - output_quality_test
+benchmark:
+  prompts:
+    - id: cinematic_environment
+      text: "Cinematic tracking shot through a detailed futuristic city at dusk, realistic lighting, stable geometry, natural camera motion."
+      mode: text_to_video
+    - id: image_animation
+      text: "Animate the supplied reference image with a slow cinematic camera move while preserving subject identity and scene geometry."
+      mode: image_to_video
+    - id: character_consistency
+      text: "Keep the reference character's face, clothing, proportions, and identity consistent throughout the shot."
+      mode: reference_to_video
+  metrics:
+    prompt_adherence: 0-5
+    temporal_consistency: 0-5
+    character_consistency: 0-5
+    motion_quality: 0-5
+    artifact_rate: 0-5
+    output_quality: 0-5
+    reliability: 0-5
+    latency: seconds
+    watermark: none|label|watermark
+    licensing: unknown|personal|commercial|white_label
+  activation:
+    minimum_score: 4
+    required_licensing: commercial
+    required_watermark: none
+providers:
+  vibes_meta:
+    status: unverified
+    evidence: official_product_page
+  symphony_tiktok:
+    status: verification_candidate
+    evidence: official_api_and_product_pages
+  snapgen:
+    status: unverified
+    evidence: insufficient_primary_source_evidence
+  zsky:
+    status: verification_candidate
+    evidence: official_api_docs_and_pricing
