@@ -1,0 +1,8 @@
+- [x] Pin upstream v2026.8.19 / 0.20.5
+- [x] Isolated updater
+- [x] Preflight script
+- [x] Compatibility gates documented
+- [x] Production rollback guardrail documented
+- [ ] Run staging VPS preflight
+- [ ] Run D3VONN integration tests
+- [ ] Production adapter cutover
