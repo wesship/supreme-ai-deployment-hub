@@ -1,0 +1,1 @@
+Pinned upstream Hermes: v2026.8.19 / 0.20.5. Production remains on D3VONN Hermes until the compatibility matrix passes.
