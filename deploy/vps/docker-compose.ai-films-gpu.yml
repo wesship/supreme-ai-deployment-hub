@@ -1,0 +1,55 @@
+# D3VONN AI Films — optional NVIDIA GPU worker overlay
+#
+# Usage on a GPU host:
+#   docker compose --env-file env/.env.production \
+#     -f docker-compose.yml -f docker-compose.ai-films-gpu.yml up -d ai-films-gpu-worker
+#
+# This overlay deliberately does not download or redistribute model weights.
+# Pin the worker image and provide Wan/LTX runner commands in the host env.
+services:
+  ai-films-gpu-worker:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: d3vonn-ai-films-gpu-worker
+    restart: unless-stopped
+    command: ["python", "-m", "backend.ai_films.local_video_queue_worker"]
+    environment:
+      - ENVIRONMENT=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - AI_FILM_GENERATION_EXECUTION_ENABLED=${AI_FILM_GENERATION_EXECUTION_ENABLED:-false}
+      - AI_FILM_EXECUTABLE_VIDEO_PROVIDERS=${AI_FILM_EXECUTABLE_VIDEO_PROVIDERS:-wan,ltx}
+      - D3VONN_WAN_WORKER_COMMAND=${D3VONN_WAN_WORKER_COMMAND:-}
+      - D3VONN_LTX_WORKER_COMMAND=${D3VONN_LTX_WORKER_COMMAND:-}
+      - AI_FILM_VIDEO_WORKER_POLL_SECONDS=${AI_FILM_VIDEO_WORKER_POLL_SECONDS:-5}
+      - AI_FILM_RENDER_BUCKET=${AI_FILM_RENDER_BUCKET:-ai-film-renders}
+    volumes:
+      - ai_films_models:/models
+      - ai_films_cache:/cache
+    networks:
+      - d3vonn-internal
+    gpus: all
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=8g
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  ai_films_models:
+    driver: local
+  ai_films_cache:
+    driver: local
