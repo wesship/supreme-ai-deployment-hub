@@ -66,7 +66,6 @@ for module_name, middleware_name in (("backend.middleware.request_context", "Req
     except ImportError:
         logger.warning("%s unavailable — skipping.", middleware_name)
 
-# Preserve the existing router registration surface through optional imports.
 _OPTIONAL_ROUTERS = (
     ("backend.app.routers", "proxy_router", None),
     ("backend.api.v1.router", "router", "/api/v1"),
@@ -80,6 +79,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.research_os.leads_router", "router", None),
     ("backend.app.security.router", "router", None),
     ("backend.app.assurance.router", "router", None),
+    ("backend.aquagov.jobs", "router", None),
 )
 for module_name, attr, prefix in _OPTIONAL_ROUTERS:
     try:
@@ -92,7 +92,6 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
     except (ImportError, AttributeError):
         pass
 
-# Quantum optimization is optional but now part of the canonical API surface.
 try:
     from backend.optimization.api import router as optimization_router
     app.include_router(optimization_router)
