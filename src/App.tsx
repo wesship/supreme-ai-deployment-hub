@@ -11,9 +11,7 @@ import { startRumCollection } from './lib/assurance/rum';
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
-const FloatingChatWidget = lazy(() =>
-  import("./components/ai/FloatingChatWidget").then(m => ({ default: m.FloatingChatWidget }))
-);
+const FloatingChatWidget = lazy(() => import("./components/ai/FloatingChatWidget").then(m => ({ default: m.FloatingChatWidget })));
 const Navbar = lazy(() => import("./components/Navbar"));
 const ChatProvider = lazy(() => import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider })));
 const DeploymentProvider = lazy(() => import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider })));
@@ -81,80 +79,40 @@ const PrimetimeAgentOsCanary = lazy(() => import("./pages/PrimetimeAgentOsCanary
 const AssuranceConsole = lazy(() => import("./pages/AssuranceConsole"));
 const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
+const AquaGov = lazy(() => import("./pages/AquaGov"));
 
-const AdminRouteWrapper = lazy(() =>
-  import("./components/auth/AdminRoute").then(mod => {
-    const AdminRoute = mod.default;
-    return import("./pages/OperatorCommandCenterRC1").then(occMod => ({
-      default: () => <AdminRoute><occMod.default /></AdminRoute>
-    }));
-  })
-);
+const AdminRouteWrapper = lazy(() => import("./components/auth/AdminRoute").then(mod => {
+  const AdminRoute = mod.default;
+  return import("./pages/OperatorCommandCenterRC1").then(occMod => ({ default: () => <AdminRoute><occMod.default /></AdminRoute> }));
+}));
 
 const PageLoader = () => (
   <div className="d3-ai-loader" role="status" aria-live="polite" aria-label="D3VONN.IO is preparing your workspace">
-    <div className="d3-ai-loader__core">
-      <div className="d3-ai-loader__ring" aria-hidden="true" />
-      <div>
-        <p className="text-sm font-semibold tracking-wide text-white">Preparing workspace</p>
-        <p className="mt-1 text-xs text-blue-100/60">Connecting systems and loading intelligence</p>
-      </div>
-    </div>
+    <div className="d3-ai-loader__core"><div className="d3-ai-loader__ring" aria-hidden="true" /><div><p className="text-sm font-semibold tracking-wide text-white">Preparing workspace</p><p className="mt-1 text-xs text-blue-100/60">Connecting systems and loading intelligence</p></div></div>
   </div>
 );
 
 function CanonicalPathFallback() {
   const location = useLocation();
   const rawPathname = window.location.pathname;
-
-  if (/^\/film(?:%60|`|\s)+$/i.test(rawPathname)) {
-    return <Navigate to={{ pathname: "/film", search: location.search, hash: location.hash }} replace />;
-  }
-
+  if (/^\/film(?:%60|`|\s)+$/i.test(rawPathname)) return <Navigate to={{ pathname: "/film", search: location.search, hash: location.hash }} replace />;
   return <NotFound />;
 }
 
 function LegacyFilmPathRepair() {
   const location = useLocation();
-
-  useEffect(() => {
-    if (/^\/film(?:%60|`|\s)+$/i.test(window.location.pathname)) {
-      window.location.replace(`/film${location.search}${location.hash}`);
-    }
-  }, [location.hash, location.pathname, location.search]);
-
+  useEffect(() => { if (/^\/film(?:%60|`|\s)+$/i.test(window.location.pathname)) window.location.replace(`/film${location.search}${location.hash}`); }, [location.hash, location.pathname, location.search]);
   return null;
 }
 
 function DeferredProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
-
   useEffect(() => {
-    const id = ('requestIdleCallback' in window)
-      ? (window as any).requestIdleCallback(() => setReady(true))
-      : setTimeout(() => setReady(true), 50);
-    return () => {
-      if ('cancelIdleCallback' in window) {
-        (window as any).cancelIdleCallback(id);
-      } else {
-        clearTimeout(id);
-      }
-    };
+    const id = ('requestIdleCallback' in window) ? (window as any).requestIdleCallback(() => setReady(true)) : setTimeout(() => setReady(true), 50);
+    return () => { if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback(id); else clearTimeout(id); };
   }, []);
-
   if (!ready) return <>{children}</>;
-
-  return (
-    <Suspense fallback={<>{children}</>}>
-      <DeploymentProvider>
-        <APIProvider>
-          <ChatProvider>
-            <AGUIProvider>{children}</AGUIProvider>
-          </ChatProvider>
-        </APIProvider>
-      </DeploymentProvider>
-    </Suspense>
-  );
+  return <Suspense fallback={<>{children}</>}><DeploymentProvider><APIProvider><ChatProvider><AGUIProvider>{children}</AGUIProvider></ChatProvider></APIProvider></DeploymentProvider></Suspense>;
 }
 
 function App() {
@@ -162,101 +120,22 @@ function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <Router>
-        <ScrollToTop />
-        <LegacyFilmPathRepair />
-        <SkipToContent />
+        <ScrollToTop /><LegacyFilmPathRepair /><SkipToContent />
         <Suspense fallback={null}><Navbar /></Suspense>
         <DeferredProviders>
           <main id="main-content" tabIndex={-1} className="min-h-screen pt-16 focus:outline-none">
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/auth" element={<AuthCallback />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/auth/confirm" element={<AuthCallback />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/film" element={<FilmPage />} />
-                <Route path="/ai-films" element={<FilmPage />} />
-                <Route path="/ai-films/studio" element={<AuthenticatedRoute><AIFilmStudio /></AuthenticatedRoute>} />
-                <Route path="/ai-films/commerce" element={<AuthenticatedRoute><CommerceStudio /></AuthenticatedRoute>} />
-                <Route path="/deployment" element={<DeploymentDashboard />} />
-                <Route path="/api" element={<APIManagement />} />
-                <Route path="/documentation" element={<Documentation />} />
-                <Route path="/agents" element={<AgentDashboard />} />
-                <Route path="/ai-workforce" element={<AgentDashboard />} />
-                <Route path="/devonn" element={<DevonnDashboard />} />
-                <Route path="/flow" element={<FlowEditor />} />
-                <Route path="/workflows" element={<WorkflowManagement />} />
-                <Route path="/agent-demo" element={<AgentDemo />} />
-                <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
-                <Route path="/marketplace" element={<AgentMarketplace />} />
-                <Route path="/mcp" element={<AuthenticatedRoute><McpPage /></AuthenticatedRoute>} />
-                <Route path="/status" element={<StatusDashboard />} />
-                <Route path="/manifest" element={<ManifestPage />} />
-                <Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} />
-                <Route path="/command-center" element={<CommandCenter />} />
-                <Route path="/operations" element={<CommandCenter />} />
-                <Route path="/dkos-ingestion" element={<DkosIngestion />} />
-                <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
-                <Route path="/primetime" element={<PrimetimeRelease1 />} />
-                <Route path="/primetime/release-1" element={<PrimetimeRelease1 />} />
-                <Route path="/primetime/scheduling" element={<PrimetimeScheduling />} />
-                <Route path="/primetime/release-2" element={<PrimetimeScheduling />} />
-                <Route path="/primetime/communications" element={<PrimetimeCommunications />} />
-                <Route path="/primetime/release-3" element={<PrimetimeCommunications />} />
-                <Route path="/primetime/ai-assistance" element={<PrimetimeAiAssistance />} />
-                <Route path="/primetime/release-4" element={<PrimetimeAiAssistance />} />
-                <Route path="/primetime/executive-command-center" element={<PrimetimeExecutiveCommandCenter />} />
-                <Route path="/primetime/release-5" element={<PrimetimeExecutiveCommandCenter />} />
-                <Route path="/primetime/observability" element={<AuthenticatedRoute><PrimetimeObservability /></AuthenticatedRoute>} />
-                <Route path="/primetime/release-7" element={<AuthenticatedRoute><PrimetimeObservability /></AuthenticatedRoute>} />
-                <Route path="/primetime/agent-os-canary" element={<AuthenticatedRoute><PrimetimeAgentOsCanary /></AuthenticatedRoute>} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/privacy-policy" element={<Privacy />} />
-                <Route path="/chat" element={<ChatPage />} />
-                <Route path="/voice-studio" element={<VoiceStudio />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/admin/demo-control" element={<AdminRoute><DemoControlCenter /></AdminRoute>} />
-                <Route path="/occ" element={<AdminRouteWrapper />} />
-                <Route path="/unauthorized" element={<Unauthorized />} />
-                <Route path="/moneyhub" element={<MoneyHub />} />
-                <Route path="/ai-therapy" element={<AITherapy />} />
-                <Route path="/therapy" element={<AITherapy />} />
-                <Route path="/sovereignty" element={<SovereigntyMatrix />} />
-                <Route path="/sovereignty-matrix" element={<SovereigntyMatrix />} />
-                <Route path="/music" element={<Music />} />
-                <Route path="/backtesting" element={<Backtesting />} />
-                <Route path="/jetson" element={<JetsonControl />} />
-                <Route path="/jetson-control" element={<JetsonControl />} />
-                <Route path="/app" element={<AuthenticatedRoute><LaunchApp /></AuthenticatedRoute>} />
-                <Route path="/ai-agents" element={<AIAgents />} />
-                <Route path="/business-automation" element={<BusinessAutomation />} />
-                <Route path="/solutions" element={<Solutions />} />
-                <Route path="/resources" element={<Resources />} />
-                <Route path="/security" element={<Security />} />
-                <Route path="/security/disclosure" element={<SecurityDisclosure />} />
-                <Route path="/enterprise" element={<Security />} />
-                <Route path="/enterprise-readiness" element={<EnterpriseReadiness />} />
-                <Route path="/assurance" element={<AdminRoute><AssuranceConsole /></AdminRoute>} />
-                <Route path="/security/ops" element={<SecurityOps />} />
-                <Route path="/security/dashboard" element={<SecurityDashboard />} />
-                <Route path="/security/command-center" element={<SecurityCommandCenter />} />
-                <Route path="/security/secrets" element={<AdminRoute><SecretsVault /></AdminRoute>} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/research-os" element={<ResearchOS />} />
-                <Route path="/analytics" element={<Navigate to="/app" replace />} />
-                <Route path="/rag" element={<Navigate to="/dkos-ingestion" replace />} />
-                <Route path="/platform" element={<Navigate to="/#platform" replace />} />
-                <Route path="/signin" element={<Navigate to="/login" replace />} />
-                <Route path="/sign-in" element={<Navigate to="/login" replace />} />
-                <Route path="/log-in" element={<Navigate to="/login" replace />} />
-                <Route path="/signup" element={<Navigate to="/login" replace />} />
-                <Route path="/sign-up" element={<Navigate to="/login" replace />} />
-                <Route path="*" element={<CanonicalPathFallback />} />
+                <Route path="/" element={<Index />} /><Route path="/login" element={<Login />} /><Route path="/auth" element={<AuthCallback />} /><Route path="/auth/callback" element={<AuthCallback />} /><Route path="/auth/confirm" element={<AuthCallback />} />
+                <Route path="/dashboard" element={<Dashboard />} /><Route path="/film" element={<FilmPage />} /><Route path="/ai-films" element={<FilmPage />} /><Route path="/ai-films/studio" element={<AuthenticatedRoute><AIFilmStudio /></AuthenticatedRoute>} /><Route path="/ai-films/commerce" element={<AuthenticatedRoute><CommerceStudio /></AuthenticatedRoute>} />
+                <Route path="/deployment" element={<DeploymentDashboard />} /><Route path="/api" element={<APIManagement />} /><Route path="/documentation" element={<Documentation />} /><Route path="/agents" element={<AgentDashboard />} /><Route path="/ai-workforce" element={<AgentDashboard />} /><Route path="/devonn" element={<DevonnDashboard />} /><Route path="/flow" element={<FlowEditor />} /><Route path="/workflows" element={<WorkflowManagement />} /><Route path="/agent-demo" element={<AgentDemo />} /><Route path="/enhanced-agents" element={<EnhancedAgentDemo />} /><Route path="/marketplace" element={<AgentMarketplace />} /><Route path="/mcp" element={<AuthenticatedRoute><McpPage /></AuthenticatedRoute>} />
+                <Route path="/status" element={<StatusDashboard />} /><Route path="/manifest" element={<ManifestPage />} /><Route path="/github-diagnostic" element={<GitHubConnectorDiagnostic />} /><Route path="/command-center" element={<CommandCenter />} /><Route path="/operations" element={<CommandCenter />} /><Route path="/dkos-ingestion" element={<DkosIngestion />} /><Route path="/knowledge-ingestion" element={<DkosIngestion />} />
+                <Route path="/primetime" element={<PrimetimeRelease1 />} /><Route path="/primetime/release-1" element={<PrimetimeRelease1 />} /><Route path="/primetime/scheduling" element={<PrimetimeScheduling />} /><Route path="/primetime/release-2" element={<PrimetimeScheduling />} /><Route path="/primetime/communications" element={<PrimetimeCommunications />} /><Route path="/primetime/release-3" element={<PrimetimeCommunications />} /><Route path="/primetime/ai-assistance" element={<PrimetimeAiAssistance />} /><Route path="/primetime/release-4" element={<PrimetimeAiAssistance />} /><Route path="/primetime/executive-command-center" element={<PrimetimeExecutiveCommandCenter />} /><Route path="/primetime/release-5" element={<PrimetimeExecutiveCommandCenter />} /><Route path="/primetime/observability" element={<AuthenticatedRoute><PrimetimeObservability /></AuthenticatedRoute>} /><Route path="/primetime/release-7" element={<AuthenticatedRoute><PrimetimeObservability /></AuthenticatedRoute>} /><Route path="/primetime/agent-os-canary" element={<AuthenticatedRoute><PrimetimeAgentOsCanary /></AuthenticatedRoute>} />
+                <Route path="/about" element={<About />} /><Route path="/contact" element={<Contact />} /><Route path="/terms" element={<Terms />} /><Route path="/privacy" element={<Privacy />} /><Route path="/privacy-policy" element={<Privacy />} /><Route path="/chat" element={<ChatPage />} /><Route path="/voice-studio" element={<VoiceStudio />} /><Route path="/admin" element={<AdminPage />} /><Route path="/admin/demo-control" element={<AdminRoute><DemoControlCenter /></AdminRoute>} /><Route path="/occ" element={<AdminRouteWrapper />} /><Route path="/unauthorized" element={<Unauthorized />} />
+                <Route path="/moneyhub" element={<MoneyHub />} /><Route path="/ai-therapy" element={<AITherapy />} /><Route path="/therapy" element={<AITherapy />} /><Route path="/sovereignty" element={<SovereigntyMatrix />} /><Route path="/sovereignty-matrix" element={<SovereigntyMatrix />} /><Route path="/music" element={<Music />} /><Route path="/backtesting" element={<Backtesting />} /><Route path="/jetson" element={<JetsonControl />} /><Route path="/jetson-control" element={<JetsonControl />} /><Route path="/app" element={<AuthenticatedRoute><LaunchApp /></AuthenticatedRoute>} /><Route path="/ai-agents" element={<AIAgents />} /><Route path="/business-automation" element={<BusinessAutomation />} /><Route path="/solutions" element={<Solutions />} /><Route path="/resources" element={<Resources />} /><Route path="/security" element={<Security />} />
+                <Route path="/security/disclosure" element={<SecurityDisclosure />} /><Route path="/enterprise" element={<Security />} /><Route path="/enterprise-readiness" element={<EnterpriseReadiness />} /><Route path="/assurance" element={<AdminRoute><AssuranceConsole /></AdminRoute>} /><Route path="/security/ops" element={<SecurityOps />} /><Route path="/security/dashboard" element={<SecurityDashboard />} /><Route path="/security/command-center" element={<SecurityCommandCenter />} /><Route path="/security/secrets" element={<AdminRoute><SecretsVault /></AdminRoute>} /><Route path="/pricing" element={<Pricing />} /><Route path="/research-os" element={<ResearchOS />} />
+                <Route path="/aquagov" element={<AquaGov />} />
+                <Route path="/analytics" element={<Navigate to="/app" replace />} /><Route path="/rag" element={<Navigate to="/dkos-ingestion" replace />} /><Route path="/platform" element={<Navigate to="/#platform" replace />} /><Route path="/signin" element={<Navigate to="/login" replace />} /><Route path="/sign-in" element={<Navigate to="/login" replace />} /><Route path="/log-in" element={<Navigate to="/login" replace />} /><Route path="/signup" element={<Navigate to="/login" replace />} /><Route path="/sign-up" element={<Navigate to="/login" replace />} /><Route path="*" element={<CanonicalPathFallback />} />
               </Routes>
             </Suspense>
           </main>
