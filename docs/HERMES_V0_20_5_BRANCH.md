@@ -1,0 +1,1 @@
+Staging branch: feat/hermes-v0.20.5-upstream-main. Upstream Hermes is pinned to v0.20.5 / v2026.8.19.
