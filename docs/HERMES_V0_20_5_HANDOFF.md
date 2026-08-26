@@ -1,0 +1,1 @@
+Handoff: staging branch contains the v0.20.5 pin, isolated updater, preflight, compatibility documentation, and rollout guardrails. Production cutover is intentionally not included.
