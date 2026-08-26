@@ -13,7 +13,11 @@ This avoids replacing D3VONN's agent registry, policy routing, memory contracts,
 - Hermes version: `0.20.5`
 - Release date: August 19, 2026
 
-The pin was verified against the upstream GitHub latest-release API on August 25, 2026.
+The pin was verified against the upstream GitHub latest-release page on August 25, 2026.
+
+## Compatibility status
+
+The upstream runtime is **staged, not production-wired**. See `docs/HERMES_V0_20_5_COMPATIBILITY_MATRIX.md` for the required gates before adapter integration.
 
 ## Update procedure
 
