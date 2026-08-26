@@ -1,0 +1,1 @@
+Plan: install pinned upstream Hermes into isolated venv, run preflight, execute D3VONN compatibility gates, then integrate through an adapter only after staging passes. Keep current worker for rollback.
