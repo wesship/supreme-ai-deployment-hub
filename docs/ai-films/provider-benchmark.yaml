@@ -47,11 +47,22 @@ providers:
     status: unverified
     evidence: official_product_page
   symphony_tiktok:
-    status: verification_candidate
-    evidence: official_api_and_product_pages
+    status: api_candidate
+    evidence: official_symphony_api_page_and_june_2026_product_announcement
+    current_capabilities: text_to_video,image_to_video,reference_to_video,avatars,dubbing,lip_sync
+    production_blockers:
+      - developer_access_requirements
+      - commercial_terms_review
+      - api_quota_and_rate_limit_verification
+      - output_labeling_policy
   snapgen:
     status: unverified
     evidence: insufficient_primary_source_evidence
   zsky:
-    status: verification_candidate
+    status: api_candidate
     evidence: official_api_docs_and_pricing
+    current_capabilities: text_to_video,image_to_video,audio,up_to_4k,asynchronous_jobs
+    production_blockers:
+      - max_plan_required_for_api
+      - private_beta_access_confirmation
+      - quota_and_overage_policy_review
