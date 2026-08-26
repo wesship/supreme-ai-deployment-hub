@@ -1,0 +1,1 @@
+Hermes Agent v0.20.5 / v2026.8.19 is the pinned upstream staging release. Production integration remains gated by compatibility testing.
