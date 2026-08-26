@@ -1,0 +1,1 @@
+Pinned upstream Hermes Agent v0.20.5 / v2026.8.19. Integration is staged separately from the D3VONN control plane.
