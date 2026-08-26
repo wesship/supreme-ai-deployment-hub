@@ -20,6 +20,8 @@ class VideoRoute:
 
 
 _VIDEO_MODEL_ENV = {
+    "wan": "D3VONN_WAN_VIDEO_MODEL",
+    "ltx": "D3VONN_LTX_VIDEO_MODEL",
     "openai": "AI_FILM_OPENAI_VIDEO_MODEL",
     "higgsfield": "AI_FILM_HIGGSFIELD_VIDEO_MODEL",
     "xai": "AI_FILM_XAI_VIDEO_MODEL",
@@ -27,17 +29,17 @@ _VIDEO_MODEL_ENV = {
     "runway": "AI_FILM_RUNWAY_MODEL",
     "replicate": "AI_FILM_REPLICATE_VIDEO_MODEL",
 }
-_PROVIDER_ALIASES = {"sora": "openai", "grok": "xai", "xai": "xai", "openai": "openai"}
-_BASE_SCORE = {"openai": 100, "higgsfield": 95, "runway": 88, "xai": 84, "movieflow": 82, "replicate": 72}
+_PROVIDER_ALIASES = {"sora": "openai", "grok": "xai", "xai": "xai", "openai": "openai", "wan2": "wan", "ltx2": "ltx"}
+_BASE_SCORE = {"ltx": 106, "wan": 104, "openai": 100, "higgsfield": 95, "runway": 88, "xai": 84, "movieflow": 82, "replicate": 72}
 
 
 def _executable_video_providers(source: Mapping[str, str]) -> set[str]:
-    """Return provider routes backed by a running worker in this deployment.
+    """Return video routes backed by workers in this deployment.
 
-    The default is deliberately OpenAI-only: the Railway lifespan starts the
-    OpenAI/Sora worker and no worker is started for the other declared adapters.
-    Operators may add a provider only after shipping its worker and setting this
-    explicit allowlist, preventing stranded queued render jobs.
+    Production defaults retain the existing OpenAI worker. Self-hosted D3VONN
+    deployments should explicitly set this to ``wan,ltx`` (or a superset) after
+    installing those local runners. This prevents queued jobs from targeting
+    adapters for which no worker exists.
     """
     configured = str(source.get("AI_FILM_EXECUTABLE_VIDEO_PROVIDERS", "openai"))
     return {_normalize_provider(value) for value in configured.split(",") if value.strip()}
@@ -77,16 +79,16 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
                 reasons.append("preferred_by_manifest")
             else:
                 score -= 10
-        if anchors and provider in {"openai", "higgsfield", "runway", "replicate"}:
+        if anchors and provider in {"openai", "higgsfield", "runway", "replicate", "wan", "ltx"}:
             score += 8
             reasons.append("anchor_frame_fit")
-        if character_locks and provider in {"openai", "higgsfield", "runway"}:
+        if character_locks and provider in {"openai", "higgsfield", "runway", "wan", "ltx"}:
             score += 7
             reasons.append("character_continuity_fit")
         if dialogue:
-            if provider in {"openai", "xai"}:
+            if provider in {"openai", "xai", "ltx"}:
                 score += 5
-                reasons.append("synced_audio_fit")
+                reasons.append("synced_audio_fit" if provider == "ltx" else "audio_fit")
             else:
                 reasons.append("dialogue_requires_post_lipsync")
         if not configured:
