@@ -25,6 +25,8 @@ class ProviderSpec:
 PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
     ProviderSpec("image", "openai", ("OPENAI_API_KEY",), ("AI_FILM_IMAGE_MODEL",)),
     ProviderSpec("image", "replicate", ("REPLICATE_API_TOKEN",), ("AI_FILM_REPLICATE_IMAGE_MODEL",)),
+    ProviderSpec("video", "wan", ("D3VONN_WAN_VIDEO_RUNNER",), ("D3VONN_WAN_VIDEO_MODEL",)),
+    ProviderSpec("video", "ltx", ("D3VONN_LTX_VIDEO_RUNNER",), ("D3VONN_LTX_VIDEO_MODEL",)),
     ProviderSpec("video", "openai", ("OPENAI_API_KEY",), ("AI_FILM_OPENAI_VIDEO_MODEL",)),
     ProviderSpec("video", "higgsfield", ("HIGGSFIELD_API_KEY",), ("AI_FILM_HIGGSFIELD_VIDEO_MODEL", "HIGGSFIELD_API_BASE_URL")),
     ProviderSpec("video", "xai", ("XAI_API_KEY",), ("AI_FILM_XAI_VIDEO_MODEL", "XAI_API_BASE_URL")),
