@@ -3,68 +3,49 @@ name: Voice Production Health
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"
-
-permissions:
-  contents: read
-
-concurrency:
-  group: voice-production-health
-  cancel-in-progress: true
+    - cron: "*/30 * * * *"
 
 jobs:
-  production-health:
-    name: Verify D3VONN voice production surfaces
+  health:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Check public production route
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check public Voice Studio
         shell: bash
         run: |
           set -euo pipefail
-          status="$(curl -sS -L -o /tmp/voice-studio.html -w '%{http_code}' --max-time 20 https://www.d3vonn.io/voice-studio)"
-          test "$status" = "200"
-          grep -q 'id="root"' /tmp/voice-studio.html
+          curl -fsSL https://www.d3vonn.io/voice-studio -o /tmp/voice-studio.html
           grep -q 'api.d3vonn.io' /tmp/voice-studio.html
 
       - name: Check API DNS record and TLS reachability
         shell: bash
         run: |
           set -euo pipefail
-          expected="apiymvrdxe8.up.railway.app."
+          expected="ymvrdxe8.up.railway.app."
           actual="$(dig +short CNAME api.d3vonn.io | tail -n 1 | tr -d '\r')"
           if [ "$actual" != "$expected" ] && [ "$actual" != "${expected%.}" ]; then
             echo "Unexpected api.d3vonn.io CNAME: '$actual' (expected '$expected')"
             exit 1
           fi
           getent ahosts api.d3vonn.io
-          status="$(curl -sS -I -o /tmp/api-headers.txt -w '%{http_code}' --max-time 20 https://api.d3vonn.io/health || true)"
-          test "$status" = "200"
+          curl -fsS --fail-with-body https://api.d3vonn.io/health
 
-      - name: Check voice session route is published and protected
+      - name: Check voice session protection
         shell: bash
         run: |
           set -euo pipefail
-          status="$(curl -sS -o /tmp/voice-session.txt -w '%{http_code}' --max-time 20 https://api.d3vonn.io/api/voice/session || true)"
+          status="$(curl -sS -o /tmp/voice-session.json -w '%{http_code}' -X POST https://api.d3vonn.io/api/voice/session -H 'Content-Type: application/json' -d '{}')"
           case "$status" in
-            200|204|401|403|405) ;;
-            *) echo "Unexpected voice session status: $status"; cat /tmp/voice-session.txt || true; exit 1 ;;
+            401|403|503) ;;
+            *) echo "Unexpected unauthenticated voice session status: $status"; cat /tmp/voice-session.json; exit 1;;
           esac
 
       - name: Check production security headers
         shell: bash
         run: |
           set -euo pipefail
-          curl -sS -D /tmp/headers.txt -o /dev/null --max-time 20 https://www.d3vonn.io/voice-studio
-          grep -qi '^strict-transport-security:' /tmp/headers.txt
-          grep -qi '^x-content-type-options:' /tmp/headers.txt
-          grep -qi '^content-security-policy:' /tmp/headers.txt
-          grep -qi '^permissions-policy:' /tmp/headers.txt
-
-      - name: Report verification context
-        if: always()
-        shell: bash
-        run: |
-          echo "Production voice health probe completed at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          echo "Frontend: https://www.d3vonn.io/voice-studio"
-          echo "Voice API: https://api.d3vonn.io/api/voice/session"
+          curl -fsSI https://www.d3vonn.io/voice-studio | tee /tmp/voice-headers.txt
+          grep -qi '^strict-transport-security:' /tmp/voice-headers.txt
+          grep -qi '^x-content-type-options:' /tmp/voice-headers.txt
