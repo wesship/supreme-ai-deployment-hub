@@ -20,7 +20,7 @@ export const SmartLaunchLink: React.FC<Props> = ({
 }) => {
   const authed = useAuthState();
   const to =
-    authed === false
+    authed !== true
       ? `${anonTo}?redirect=${encodeURIComponent(authedTo)}`
       : authedTo;
   return (
