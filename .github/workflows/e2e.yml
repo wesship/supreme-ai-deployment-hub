@@ -66,18 +66,22 @@ jobs:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
 
-      - name: Run Playwright E2E tests
+      - name: Run Playwright local E2E tests
         shell: bash
         env:
           CI: "true"
           VITE_API_URL: https://api.d3vonn.io
+          VITE_RUM_ENABLED: "false"
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
         run: |
+          # This workflow audits the local build (webServer on 127.0.0.1).
+          # Credentialed production canaries run in their dedicated workflows.
+          LOCAL_SPECS="tests/e2e/home.spec.ts tests/e2e/homepage-hash-deeplink.spec.ts tests/e2e/public-smoke.spec.ts tests/e2e/deployment-smoke.spec.ts tests/e2e/voice-studio-mount.spec.ts tests/e2e/specs"
           if [ "${{ inputs.browser }}" = "all" ]; then
-            pnpm exec playwright test
+            pnpm exec playwright test $LOCAL_SPECS
           else
-            pnpm exec playwright test --project="${{ inputs.browser }}"
+            pnpm exec playwright test $LOCAL_SPECS --project="${{ inputs.browser }}"
           fi
 
       - name: Upload Playwright report and diagnostics

@@ -171,7 +171,7 @@ jobs:
             -v
       - name: Upload proxy coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: backend-proxy-coverage
           path: backend/proxy-coverage.xml
@@ -195,7 +195,7 @@ jobs:
       - name: Run extension tests
         run: pnpm run test:extension
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: extension-test-results
           path: test-results/
@@ -227,6 +227,7 @@ jobs:
         env:
           CI: "true"
           VITE_API_URL: https://api.d3vonn.io
+          VITE_RUM_ENABLED: "false"
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
         run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project="${{ matrix.browser }}"

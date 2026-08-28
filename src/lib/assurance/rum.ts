@@ -1,8 +1,10 @@
 type VitalName = 'LCP' | 'INP' | 'CLS';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
+const RUM_ENABLED = import.meta.env.VITE_RUM_ENABLED !== 'false';
 
 export function recordVital(name: VitalName, value: number): void {
+  if (!RUM_ENABLED) return;
   const route = window.location.pathname || '/';
   const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
   const body = JSON.stringify({
@@ -21,7 +23,7 @@ export function recordVital(name: VitalName, value: number): void {
 }
 
 export function startRumCollection(): void {
-  if (!('PerformanceObserver' in window)) return;
+  if (!RUM_ENABLED || !('PerformanceObserver' in window)) return;
   for (const metric of ['largest-contentful-paint', 'layout-shift', 'event'] as const) {
     try {
       const observer = new PerformanceObserver((entries) => {
