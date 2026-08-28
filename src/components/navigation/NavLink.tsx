@@ -15,7 +15,7 @@ interface NavLinkProps {
 const NavLink: React.FC<NavLinkProps> = ({ to, currentPath, children, requiresAuth }) => {
   const authed = useAuthState();
   const resolvedTo =
-    requiresAuth && authed === false
+    requiresAuth && authed !== true
       ? `/login?redirect=${encodeURIComponent(to)}`
       : to;
 

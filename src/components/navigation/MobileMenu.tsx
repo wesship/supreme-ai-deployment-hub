@@ -79,7 +79,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
           <div className="flex-1 overflow-y-auto px-4 py-5">
             <nav aria-label="Mobile primary navigation" className="space-y-2">
               {navigationItems.map((item) => {
-                const needsAuth = item.protected && authed === false;
+                const needsAuth = item.protected && authed !== true;
                 const target = needsAuth
                   ? `/login?redirect=${encodeURIComponent(item.path)}`
                   : item.path;
