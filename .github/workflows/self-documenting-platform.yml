@@ -115,6 +115,11 @@ jobs:
           git config user.name "github-actions[bot]"
           cp ARCHITECTURE.md "$RUNNER_TEMP/ARCHITECTURE.md"
 
+          # The generated document modifies a tracked file on the checked-out
+          # commit. Restore the worktree before switching to the publication
+          # branch, then reapply the generated evidence there.
+          git reset --hard HEAD
+
           if git fetch origin "$UPDATE_BRANCH"; then
             git checkout -B "$UPDATE_BRANCH" "origin/$UPDATE_BRANCH"
           else
@@ -134,13 +139,23 @@ jobs:
           git commit -m "docs: auto-update ARCHITECTURE.md [skip ci]"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-          if git push origin HEAD:"$UPDATE_BRANCH"; then
+          set +e
+          push_output="$(git push origin HEAD:"$UPDATE_BRANCH" 2>&1)"
+          push_status=$?
+          set -e
+          printf '%s\n' "$push_output"
+
+          if [ "$push_status" -eq 0 ]; then
             echo "published=true" >> "$GITHUB_OUTPUT"
             echo "Published documentation update to $UPDATE_BRANCH"
-          else
+          elif printf '%s\n' "$push_output" | grep -Eqi 'GH013|GH006|repository rule|protected branch|changes must be made through a pull request'; then
             echo "published=false" >> "$GITHUB_OUTPUT"
             echo "Repository rules prevented automation branch publication; generated documentation remains available as a workflow artifact."
             echo "::notice title=Architecture branch protected::ARCHITECTURE.md was generated successfully, but repository rules rejected the branch update. Review the workflow artifact instead of bypassing branch protection."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=Architecture publication failed::The branch push failed for a reason that was not identified as repository protection."
+            exit "$push_status"
           fi
 
       - name: Report review path
