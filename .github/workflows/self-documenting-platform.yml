@@ -87,14 +87,23 @@ jobs:
               '',
               '## Governance',
               '',
-              '- Generated documentation is published to `automation/self-documenting-platform`.',
+              '- Generated documentation is always retained as a workflow artifact.',
+              '- Publication to `automation/self-documenting-platform` is attempted without force-pushing and only succeeds when repository rules allow it.',
               '- Changes to `main` still require the repository normal pull-request and required-check path.',
-              '- Repository policy may prohibit GitHub Actions from creating pull requests; that policy does not make documentation generation itself fail.',
+              '- Repository policy may prohibit automation branch publication or pull-request creation; those controls do not make documentation generation itself fail.',
               '',
           ]
           Path('ARCHITECTURE.md').write_text('\n'.join(lines))
           print(f'Generated ARCHITECTURE.md with {len(rows)} workflow entries')
           PYEOF
+
+      - name: Retain architecture evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: architecture-${{ github.sha }}
+          path: ARCHITECTURE.md
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Publish architecture update branch
         id: publish
@@ -104,23 +113,38 @@ jobs:
           set -euo pipefail
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
+          cp ARCHITECTURE.md "$RUNNER_TEMP/ARCHITECTURE.md"
+
+          if git fetch origin "$UPDATE_BRANCH"; then
+            git checkout -B "$UPDATE_BRANCH" "origin/$UPDATE_BRANCH"
+          else
+            git checkout -B "$UPDATE_BRANCH"
+          fi
+
+          cp "$RUNNER_TEMP/ARCHITECTURE.md" ARCHITECTURE.md
           git add ARCHITECTURE.md
 
           if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "published=false" >> "$GITHUB_OUTPUT"
             echo "No changes to ARCHITECTURE.md"
             exit 0
           fi
 
-          git checkout -B "$UPDATE_BRANCH"
           git commit -m "docs: auto-update ARCHITECTURE.md [skip ci]"
-          git fetch origin "$UPDATE_BRANCH":refs/remotes/origin/"$UPDATE_BRANCH" || true
-          git push --force-with-lease origin HEAD:"$UPDATE_BRANCH"
           echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "Published documentation update to $UPDATE_BRANCH"
+
+          if git push origin HEAD:"$UPDATE_BRANCH"; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "Published documentation update to $UPDATE_BRANCH"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "Repository rules prevented automation branch publication; generated documentation remains available as a workflow artifact."
+            echo "::notice title=Architecture branch protected::ARCHITECTURE.md was generated successfully, but repository rules rejected the branch update. Review the workflow artifact instead of bypassing branch protection."
+          fi
 
       - name: Report review path
-        if: steps.publish.outputs.changed == 'true'
+        if: steps.publish.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPDATE_BRANCH: automation/self-documenting-platform
