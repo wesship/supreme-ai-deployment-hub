@@ -15,6 +15,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
+import httpx
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,19 +38,8 @@ async def lifespan(app: FastAPI):
     logger.info("D3VONN.IO backend starting up…")
     if init_weave():
         logger.info("W&B Weave initialized successfully.")
-    try:
-        from backend.db.pool import init_pool, close_pool
-        await init_pool()
-        logger.info("Database pool initialised.")
-    except ImportError:
-        logger.warning("backend.db.pool not found — skipping DB pool init.")
     yield
     logger.info("D3VONN.IO backend shutting down…")
-    try:
-        from backend.db.pool import close_pool
-        await close_pool()
-    except ImportError:
-        pass
 
 
 app = FastAPI(title="D3VONN.IO API", description="Multi-agent orchestration platform", version="2.0.0", docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json", lifespan=lifespan)
@@ -118,6 +108,22 @@ def _redis_status() -> str:
         return "unreachable"
 
 
+async def _supabase_status() -> str:
+    url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not url or not key:
+        return "not_configured"
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            response = await client.get(
+                f"{url}/rest/v1/",
+                headers={"apikey": key, "Authorization": f"Bearer {key}"},
+            )
+        return "reachable" if response.status_code < 400 else "unreachable"
+    except Exception:
+        return "unreachable"
+
+
 @app.get("/health", tags=["ops"])
 @app.get("/health/live", tags=["ops"])
 async def health_check():
@@ -127,13 +133,14 @@ async def health_check():
 @app.get("/ready", tags=["ops"])
 @app.get("/health/ready", tags=["ops"])
 async def readiness_check():
+    supabase_status = await _supabase_status()
     services = {
-        "supabase": "configured" if _env_configured("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY") else "not_configured",
+        "supabase": supabase_status,
         "openai": "configured" if _env_configured("OPENAI_API_KEY") else "not_configured",
         "anthropic": "configured" if _env_configured("ANTHROPIC_API_KEY") else "not_configured",
         "google_ai": "configured" if _env_configured("GOOGLE_AI_API_KEY") else "not_configured",
     }
     redis_status = _redis_status()
-    ready = services["supabase"] == "configured" and redis_status == "reachable"
+    ready = supabase_status == "reachable" and redis_status == "reachable"
     body = {"status": "ready" if ready else "not_ready", "version": app.version, "environment": os.getenv("ENVIRONMENT", "unknown"), "services": {"api": "healthy", "redis": redis_status, **services}}
     return JSONResponse(status_code=200 if ready else 503, content=body)
