@@ -90,8 +90,10 @@ const AIFilms = () => {
   const { state: library, toggleSaved, setProgress } = useFilmLibrary();
 
   useEffect(() => {
+    const introRequested = new URLSearchParams(window.location.search).get('intro') === '1';
     const hasSeenIntro = window.localStorage.getItem(INTRO_STORAGE_KEY) === 'true';
-    setShowIntro(!hasSeenIntro && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setShowIntro(introRequested && !hasSeenIntro && !prefersReducedMotion);
   }, []);
 
   useEffect(() => {
