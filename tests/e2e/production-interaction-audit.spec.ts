@@ -68,9 +68,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(page.locator('#openmontage-studio-anchor')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toBeVisible({ timeout: 15_000 });
 
-    const sovereignSignalCard = filmsSection.locator('article').filter({
-      has: filmsSection.getByRole('heading', { name: 'Sovereign Signal', exact: true }),
-    }).first();
+    const sovereignSignalCard = filmsSection.locator('article').filter({ hasText: 'Sovereign Signal' }).first();
     await expect(sovereignSignalCard).toBeVisible();
     const sovereignSignalVideo = sovereignSignalCard.locator('video');
     await expect(sovereignSignalVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
@@ -88,9 +86,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await sovereignSignalDialog.getByRole('button', { name: 'Close film details' }).click();
     await expect(sovereignSignalDialog).toHaveCount(0);
 
-    const genesisCard = filmsSection.locator('article').filter({
-      has: filmsSection.getByRole('heading', { name: 'Genesis Protocol', exact: true }),
-    }).first();
+    const genesisCard = filmsSection.locator('article').filter({ hasText: 'Genesis Protocol' }).first();
     await expect(genesisCard).toBeVisible();
     await expect(genesisCard.getByText('Coming Soon', { exact: true })).toBeVisible();
     await expect(genesisCard.getByRole('button', { name: 'Watch Genesis Protocol preview' })).toBeVisible();
