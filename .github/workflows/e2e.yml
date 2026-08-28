@@ -21,6 +21,11 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  VITE_API_URL: https://api.d3vonn.io
+  VITE_SUPABASE_URL: https://tjygexesognbkwualywq.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
 jobs:
   e2e:
     name: Playwright E2E Audit (${{ inputs.browser }})
@@ -43,6 +48,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate E2E Supabase configuration
+        shell: bash
+        run: |
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || {
+            echo "Missing required GitHub Actions secret: VITE_SUPABASE_PUBLISHABLE_KEY" >&2
+            exit 1
+          }
+
       - name: Install selected Playwright browser dependencies
         shell: bash
         run: |
@@ -61,18 +74,11 @@ jobs:
 
       - name: Build application
         run: pnpm run build
-        env:
-          VITE_API_URL: https://api.d3vonn.io
-          VITE_SUPABASE_URL: https://placeholder.supabase.co
-          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
 
       - name: Run Playwright E2E tests
         shell: bash
         env:
           CI: "true"
-          VITE_API_URL: https://api.d3vonn.io
-          VITE_SUPABASE_URL: https://placeholder.supabase.co
-          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
         run: |
           if [ "${{ inputs.browser }}" = "all" ]; then
             pnpm exec playwright test
