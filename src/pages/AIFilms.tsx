@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Bookmark,
@@ -21,11 +21,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import FilmPage from './Film';
 import { aiFilmCatalog, aiFilmCategories, type AIFilm } from '@/features/ai-films/catalog';
 import { useFilmLibrary } from '@/features/ai-films/useFilmLibrary';
-import { supabase } from '@/integrations/supabase/client';
 import { useFeatureFlag } from '@/lib/featureFlags';
+
+const FilmPage = lazy(() => import('./Film'));
 
 const breadcrumbs = [{ label: 'AI Films' }, { label: 'D3VONN Studios' }];
 const INTRO_STORAGE_KEY = 'd3vonn-ai-films-intro-seen';
@@ -35,7 +35,7 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
   const previewLabel = film.trailerUrl
     ? `${film.title} preview clip`
     : `${film.title} is in development; no preview video has been published`;
-  const shouldShowFeaturedPoster = featured && !film.trailerUrl && Boolean(film.posterUrl);
+  const shouldShowFeaturedPoster = featured && Boolean(film.posterUrl);
 
   return (
     <div className={`overflow-hidden bg-[radial-gradient(circle_at_70%_25%,rgba(34,211,238,.45),transparent_25%),linear-gradient(135deg,#06142b,#02040a_70%)] ${featured ? 'absolute inset-0' : 'relative aspect-video'}`}>
@@ -45,22 +45,24 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
           alt=""
           className="h-full w-full object-cover object-[68%_center]"
           loading="eager"
+          fetchPriority="high"
+          decoding="async"
         />
       ) : film.trailerUrl ? (
         <video
           aria-hidden="true"
           className="h-full w-full object-cover object-[68%_center] transition duration-700 group-hover:scale-105"
-          autoPlay
+          autoPlay={!featured}
           loop
           muted
           playsInline
           poster={film.posterUrl}
-          preload={featured ? 'metadata' : 'none'}
+          preload="none"
           src={film.trailerUrl}
           tabIndex={-1}
         />
       ) : film.posterUrl ? (
-        <img src={film.posterUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+        <img src={film.posterUrl} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
       ) : (
         <div aria-hidden="true" className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_72%_20%,rgba(34,211,238,.28),transparent_26%),linear-gradient(135deg,#071a36,#02040a_78%)]">
           <Film className="h-11 w-11 text-cyan-200/90" />
@@ -82,6 +84,8 @@ const AIFilms = () => {
   const [companionQuery, setCompanionQuery] = useState('');
   const [companionAnswer, setCompanionAnswer] = useState('Select a film and ask a question grounded in its approved transcript.');
   const [companionBusy, setCompanionBusy] = useState(false);
+  const [studioReady, setStudioReady] = useState(false);
+  const studioAnchorRef = useRef<HTMLDivElement | null>(null);
   const companionEnabled = useFeatureFlag('ai_film_companion');
   const { state: library, toggleSaved, setProgress } = useFilmLibrary();
 
@@ -100,12 +104,29 @@ const AIFilms = () => {
   }, [showIntro]);
 
   useEffect(() => {
+    const anchor = studioAnchorRef.current;
+    if (!anchor || studioReady) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setStudioReady(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '500px 0px' },
+    );
+    observer.observe(anchor);
+    return () => observer.disconnect();
+  }, [studioReady]);
+
+  useEffect(() => {
+    if (!studioReady) return;
     const studioRoot = document.getElementById('openmontage-studio-anchor');
     const nestedSearch = studioRoot?.querySelector<HTMLInputElement>('input[placeholder="Search films, topics, or series"]');
     if (nestedSearch && !nestedSearch.hasAttribute('aria-label')) {
       nestedSearch.setAttribute('aria-label', 'Search OpenMontage films, topics, or series');
     }
-  }, []);
+  }, [studioReady]);
 
   const visibleFilms = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -143,6 +164,7 @@ const AIFilms = () => {
     setCompanionBusy(true);
     setCompanionAnswer('Searching the approved transcript…');
     try {
+      const { supabase } = await import('@/integrations/supabase/client');
       const { data, error } = await supabase.functions.invoke('ai-film-companion', {
         body: { filmId: film.id, question },
       });
@@ -161,7 +183,10 @@ const AIFilms = () => {
   };
 
   const scrollToStudio = () => {
-    document.getElementById('openmontage-studio-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setStudioReady(true);
+    window.requestAnimationFrame(() => {
+      document.getElementById('openmontage-studio-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const FilmCard = ({ film }: { film: AIFilm }) => {
@@ -266,13 +291,26 @@ const AIFilms = () => {
           </section>
         </div>
 
-        <div id="openmontage-studio-anchor" className="scroll-mt-24 border-t border-border/70"><FilmPage /></div>
+        <div ref={studioAnchorRef} id="openmontage-studio-anchor" className="min-h-96 scroll-mt-24 border-t border-border/70">
+          {studioReady ? (
+            <Suspense fallback={<div className="container mx-auto px-4 py-16 text-sm text-muted-foreground">Loading OpenMontage Studio…</div>}>
+              <FilmPage />
+            </Suspense>
+          ) : (
+            <div className="container mx-auto px-4 py-16 text-center sm:px-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">OpenMontage Studio</p>
+              <h2 className="mt-3 text-3xl font-bold">Create when you are ready</h2>
+              <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">The full production studio loads only when you reach this section, keeping the movie catalog fast and responsive.</p>
+              <Button type="button" className="mt-6" onClick={() => setStudioReady(true)}><Sparkles className="mr-2 h-4 w-4" /> Load Studio</Button>
+            </div>
+          )}
+        </div>
       </section>
 
       <AnimatePresence>
         {selectedFilm && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFilm(null)}>
-            <Card className="relative w-full max-w-2xl border-white/10 bg-slate-950 p-6 text-white" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="film-detail-title">
+            <Card className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto border-white/10 bg-slate-950 p-6 text-white" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="film-detail-title">
               <Button type="button" variant="ghost" size="icon" className="absolute right-3 top-3" onClick={() => setSelectedFilm(null)} aria-label="Close film details"><X className="h-5 w-5" /></Button>
               <Badge>{selectedFilm.category}</Badge><h2 id="film-detail-title" className="mt-4 text-3xl font-bold">{selectedFilm.title}</h2><p className="mt-4 text-slate-300">{selectedFilm.description}</p>
               <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-400"><span>{selectedFilm.year}</span><span>•</span><span>{selectedFilm.duration}</span><span>•</span><span>{selectedFilm.maturity}</span></div>
