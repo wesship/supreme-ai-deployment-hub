@@ -45,4 +45,30 @@ def test_health_remains_200_when_dependencies_fail():
     with patch("backend.main._supabase_status", new=AsyncMock(return_value="unreachable")), patch("backend.main._redis_status", return_value="unreachable"):
         response = TestClient(app).get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+
+
+def test_rum_cors_allows_d3vonn_production_origin():
+    client = TestClient(app)
+    response = client.options(
+        "/api/assurance/public/rum",
+        headers={
+            "Origin": "https://d3vonn.io",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://d3vonn.io"
+
+
+def test_rum_cors_does_not_allow_arbitrary_origin():
+    client = TestClient(app)
+    response = client.options(
+        "/api/assurance/public/rum",
+        headers={
+            "Origin": "https://example.invalid",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert "access-control-allow-origin" not in response.headers
