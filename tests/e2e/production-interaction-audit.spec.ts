@@ -54,11 +54,16 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(sovereignSignalVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
     await sovereignSignalCard.click();
 
-    const sovereignSignalDialog = page.getByRole('dialog', { name: 'Sovereign Signal' });
-    await expect(sovereignSignalDialog.getByLabel('Sovereign Signal preview')).toHaveAttribute('src', '/films/sovereign-signal.mp4');
-    await expect(sovereignSignalDialog.getByText('Preview clip for')).toBeVisible();
-    await expect(sovereignSignalDialog.getByText('Spoken-word captions will be added when a verified transcript is available.')).toBeVisible();
-    await sovereignSignalDialog.getByRole('button', { name: 'Close film details' }).click();
+    const sovereignSignalDialog = page.getByRole('dialog', { name: 'Sovereign Signal details' });
+    await expect(sovereignSignalDialog).toBeVisible();
+    const dialogVideo = sovereignSignalDialog.locator('video');
+    await expect(dialogVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
+    await expect(dialogVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
+    await expect(sovereignSignalDialog.getByRole('heading', { name: 'Sovereign Signal', exact: true })).toBeVisible();
+    await expect(sovereignSignalDialog.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+    await expect(sovereignSignalDialog.getByRole('button', { name: 'Add to Library', exact: true })).toBeVisible();
+    await sovereignSignalDialog.getByRole('button', { name: 'Close movie details' }).click();
+    await expect(sovereignSignalDialog).toHaveCount(0);
 
     await expect(page.getByText('Genesis Protocol')).toHaveCount(0);
   });
