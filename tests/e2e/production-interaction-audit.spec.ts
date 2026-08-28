@@ -29,8 +29,6 @@ async function collectRuntimeErrors(page: Page) {
     if (message.type() !== 'error') return;
 
     const text = message.text();
-    // Chromium emits this anonymous message for failed responses. The response
-    // listener below records the status and URL so failures stay actionable.
     if (text.startsWith('Failed to load resource:')) return;
     errors.push(`console: ${text}`);
   });
@@ -58,9 +56,9 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await waitForApplication(page);
     await expect(page.locator('h1').filter({ hasText: 'Sovereign Signal' })).toBeVisible();
 
-    const featuredHeroPoster = page.locator('section[aria-label="D3VONN AI Films"] > div > div > img');
-    await expect(featuredHeroPoster).toHaveAttribute('src', '/films/sovereign-signal-keyframe.png');
-    await expect.poll(async () => featuredHeroPoster.evaluate((element) => getComputedStyle(element.parentElement!).position)).toBe('absolute');
+    const featuredHeroVideo = page.locator('section[aria-label="D3VONN AI Films"] > div > div > video').first();
+    await expect(featuredHeroVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
+    await expect.poll(async () => featuredHeroVideo.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
 
     const mobileCompanionTrigger = page.getByRole('button', { name: 'Open AI Film Companion' });
     await expect(mobileCompanionTrigger).toBeVisible();
@@ -113,12 +111,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
         expect(label, `Unnamed visible link at ${route} index ${index}`).not.toBe('');
         expect(DISALLOWED_HREFS.has(href.toLowerCase()), `Dead link "${label}" on ${route}: ${href}`).toBeFalsy();
 
-        if (
-          href.startsWith('/') &&
-          !href.startsWith('//') &&
-          !href.startsWith('/api/') &&
-          !href.includes('#')
-        ) {
+        if (href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/api/') && !href.includes('#')) {
           const target = await request.get(href, { failOnStatusCode: false });
           expect(target.status(), `Internal link "${label}" from ${route} failed: ${href}`).toBeLessThan(400);
         }
@@ -138,20 +131,15 @@ test.describe('D3VONN.IO production interaction audit', () => {
         expect(label, `Unnamed visible button at ${route} index ${index}`).not.toBe('');
         await expect(button, `Button "${label}" is disabled on ${route}`).toBeEnabled();
 
-        await expect
-          .poll(async () => (await button.boundingBox())?.width ?? 0, {
-            message: `Button "${label}" is too narrow to click on ${route}`,
-            timeout: 5_000,
-          })
-          .toBeGreaterThanOrEqual(20);
-        await expect
-          .poll(async () => (await button.boundingBox())?.height ?? 0, {
-            message: `Button "${label}" is too short to click on ${route}`,
-            timeout: 5_000,
-          })
-          .toBeGreaterThanOrEqual(20);
+        await expect.poll(async () => (await button.boundingBox())?.width ?? 0, {
+          message: `Button "${label}" is too narrow to click on ${route}`,
+          timeout: 5_000,
+        }).toBeGreaterThanOrEqual(20);
+        await expect.poll(async () => (await button.boundingBox())?.height ?? 0, {
+          message: `Button "${label}" is too short to click on ${route}`,
+          timeout: 5_000,
+        }).toBeGreaterThanOrEqual(20);
       }
-
     });
   }
 
