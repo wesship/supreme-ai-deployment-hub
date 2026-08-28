@@ -21,11 +21,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  VITE_API_URL: https://api.d3vonn.io
-  VITE_SUPABASE_URL: https://tjygexesognbkwualywq.supabase.co
-  VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-
 jobs:
   e2e:
     name: Playwright E2E Audit (${{ inputs.browser }})
@@ -48,14 +43,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate E2E Supabase configuration
-        shell: bash
-        run: |
-          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || {
-            echo "Missing required GitHub Actions secret: VITE_SUPABASE_PUBLISHABLE_KEY" >&2
-            exit 1
-          }
-
       - name: Install selected Playwright browser dependencies
         shell: bash
         run: |
@@ -74,16 +61,37 @@ jobs:
 
       - name: Build application
         run: pnpm run build
+        env:
+          VITE_API_URL: https://api.d3vonn.io
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
 
       - name: Run Playwright E2E tests
         shell: bash
         env:
           CI: "true"
+          VITE_API_URL: https://api.d3vonn.io
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder_anon_key
         run: |
+          # This workflow audits the local build (webServer on 127.0.0.1) and
+          # has no production credentials wired in. It must not also invoke
+          # the production-canary specs below: each of those hardcodes a
+          # https://d3vonn.io / https://api.d3vonn.io fallback baseURL, makes
+          # real calls against live infra (including a real Vapi WebRTC call
+          # in voice-live-production.spec.ts), and already has its own
+          # dedicated, credentialed, gated certification workflow:
+          #   ai-production-canary.spec.ts          -> d3vonn-post-deploy-audit-mobile.yml / related canary workflow
+          #   authenticated-production-audit.spec.ts -> d3vonn-authenticated-audit.yml
+          #   backend-production-audit.spec.ts       -> d3vonn-backend-api-audit.yml
+          #   production-interaction-audit.spec.ts   -> d3vonn-post-deploy-audit.yml
+          #   voice-live-production.spec.ts          -> voice-live-browser-certification.yml (requires CERTIFY_VOICE input)
+          LOCAL_SPECS="tests/e2e/home.spec.ts tests/e2e/homepage-hash-deeplink.spec.ts tests/e2e/public-smoke.spec.ts tests/e2e/deployment-smoke.spec.ts tests/e2e/voice-studio-mount.spec.ts tests/e2e/specs"
+
           if [ "${{ inputs.browser }}" = "all" ]; then
-            pnpm exec playwright test
+            pnpm exec playwright test $LOCAL_SPECS
           else
-            pnpm exec playwright test --project="${{ inputs.browser }}"
+            pnpm exec playwright test $LOCAL_SPECS --project="${{ inputs.browser }}"
           fi
 
       - name: Upload Playwright report and diagnostics
