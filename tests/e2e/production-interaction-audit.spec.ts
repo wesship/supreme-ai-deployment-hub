@@ -40,35 +40,57 @@ async function waitForApplication(page: Page) {
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
-  test('AI Film cards use title-linked preview media and preserve an honest upcoming-title state', async ({ page }) => {
+  test('AI Films keeps the featured shell lightweight and loads OpenMontage on demand', async ({ page }) => {
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
-    await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toBeVisible();
 
-    const featuredVideo = page.locator('main > section').first().locator('video').first();
-    await expect(featuredVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
-    await expect(featuredVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    await expect(featuredVideo).toHaveClass(/\babsolute\b/);
+    const skipIntro = page.getByRole('button', { name: 'Skip Intro' });
+    if (await skipIntro.isVisible().catch(() => false)) await skipIntro.click();
 
-    const sovereignSignalCard = page.getByRole('button', { name: 'Open Sovereign Signal' }).first();
+    const filmsSection = page.locator('section[aria-label="D3VONN AI Films"]');
+    await expect(filmsSection).toBeVisible();
+    await expect(filmsSection.getByRole('heading', { name: 'Sovereign Signal', exact: true }).first()).toBeVisible();
+
+    const featuredMedia = filmsSection.locator(':scope > div').first();
+    const featuredPoster = featuredMedia.locator('img').first();
+    await expect(featuredPoster).toHaveAttribute('src', '/films/sovereign-signal-keyframe.png');
+    await expect(featuredPoster).toHaveAttribute('loading', 'eager');
+    await expect(featuredPoster).toHaveAttribute('fetchpriority', 'high');
+    await expect(featuredMedia.locator('video')).toHaveCount(0);
+
+    // The expensive embedded studio must not be part of the initial render.
+    await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toHaveCount(0);
+    await expect(filmsSection.getByRole('heading', { name: 'Movies and Originals', exact: true })).toBeVisible();
+
+    const createFilm = filmsSection.getByRole('button', { name: 'Create a Film', exact: true });
+    await expect(createFilm).toBeVisible();
+    await createFilm.click();
+    await expect(page.locator('#openmontage-studio-anchor')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toBeVisible({ timeout: 15_000 });
+
+    const sovereignSignalCard = filmsSection.locator('article').filter({
+      has: filmsSection.getByRole('heading', { name: 'Sovereign Signal', exact: true }),
+    }).first();
     await expect(sovereignSignalCard).toBeVisible();
     const sovereignSignalVideo = sovereignSignalCard.locator('video');
     await expect(sovereignSignalVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
     await expect(sovereignSignalVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    await sovereignSignalCard.click();
+    await expect(sovereignSignalVideo).toHaveAttribute('preload', 'none');
+    await sovereignSignalCard.getByRole('button', { name: 'Watch Sovereign Signal preview' }).click();
 
-    const sovereignSignalDialog = page.getByRole('dialog', { name: 'Sovereign Signal details' });
+    const sovereignSignalDialog = page.getByRole('dialog', { name: 'Sovereign Signal' });
     await expect(sovereignSignalDialog).toBeVisible();
     const dialogVideo = sovereignSignalDialog.locator('video');
     await expect(dialogVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
     await expect(dialogVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    await expect(sovereignSignalDialog.getByRole('heading', { name: 'Sovereign Signal', exact: true })).toBeVisible();
-    await expect(sovereignSignalDialog.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
-    await expect(sovereignSignalDialog.getByRole('button', { name: 'Add to Library', exact: true })).toBeVisible();
-    await sovereignSignalDialog.getByRole('button', { name: 'Close movie details' }).click();
+    await expect(sovereignSignalDialog.getByRole('button', { name: 'Track Preview Progress' })).toBeVisible();
+    await expect(sovereignSignalDialog.getByRole('button', { name: 'My Library' })).toBeVisible();
+    await sovereignSignalDialog.getByRole('button', { name: 'Close film details' }).click();
     await expect(sovereignSignalDialog).toHaveCount(0);
 
-    const genesisCard = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Genesis Protocol', exact: true }) }).first();
+    const genesisCard = filmsSection.locator('article').filter({
+      has: filmsSection.getByRole('heading', { name: 'Genesis Protocol', exact: true }),
+    }).first();
     await expect(genesisCard).toBeVisible();
     await expect(genesisCard.getByText('Coming Soon', { exact: true })).toBeVisible();
     await expect(genesisCard.getByRole('button', { name: 'Watch Genesis Protocol preview' })).toBeVisible();
