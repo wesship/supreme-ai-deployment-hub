@@ -102,7 +102,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ navigationItems }) => {
                       <span>{item.name}</span>
                       <span className="flex items-center gap-2">
                         {needsAuth && <Lock className="h-3.5 w-3.5 text-white/35" aria-hidden="true" />}
-                        <ArrowRight className="h-4 w-4 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-200" aria-hidden="true" />}
+                        <ArrowRight className="h-4 w-4 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-200" aria-hidden="true" />
                       </span>
                     </Link>
                   </SheetClose>
