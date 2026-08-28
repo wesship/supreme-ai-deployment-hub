@@ -8,7 +8,7 @@ const PUBLIC_ROUTES = [
 
 const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']);
 const EXPECTED_STUB_ORIGINS = new Set(['https://placeholder.supabase.co']);
-const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insight/script.js']);
+const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insights/script.js']);
 
 async function collectRuntimeErrors(page: Page) {
   const errors: string[] = [];
