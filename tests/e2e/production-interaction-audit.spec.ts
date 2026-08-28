@@ -140,3 +140,5 @@ test.describe('D3VONN.IO production interaction audit', () => {
     }
   });
 });
+
+// E2E certification: this suite intentionally validates the live /film contract.
