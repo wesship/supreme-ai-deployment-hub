@@ -310,7 +310,7 @@ const AIFilms = () => {
       <AnimatePresence>
         {selectedFilm && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedFilm(null)}>
-            <Card className="relative w-full max-w-2xl border-white/10 bg-slate-950 p-6 text-white" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="film-detail-title">
+            <Card className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto border-white/10 bg-slate-950 p-6 text-white" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="film-detail-title">
               <Button type="button" variant="ghost" size="icon" className="absolute right-3 top-3" onClick={() => setSelectedFilm(null)} aria-label="Close film details"><X className="h-5 w-5" /></Button>
               <Badge>{selectedFilm.category}</Badge><h2 id="film-detail-title" className="mt-4 text-3xl font-bold">{selectedFilm.title}</h2><p className="mt-4 text-slate-300">{selectedFilm.description}</p>
               <div className="mt-4 flex flex-wrap gap-2 text-sm text-slate-400"><span>{selectedFilm.year}</span><span>•</span><span>{selectedFilm.duration}</span><span>•</span><span>{selectedFilm.maturity}</span></div>
