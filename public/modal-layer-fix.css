@@ -1,0 +1,10 @@
+/* Ensure document-level navigation never intercepts modal interactions. */
+body:has([role="dialog"][aria-modal="true"]) {
+  overflow: hidden;
+}
+
+body:has([role="dialog"][aria-modal="true"]) #root > header,
+body:has([role="dialog"][aria-modal="true"]) #root header.fixed {
+  z-index: 0 !important;
+  pointer-events: none;
+}
