@@ -30,7 +30,7 @@ jobs:
             exit 1
           fi
           getent ahosts api.d3vonn.io
-          curl -fsS --fail-with-body https://api.d3vonn.io/health
+          curl -fsS https://api.d3vonn.io/health
 
       - name: Check voice session protection
         shell: bash
