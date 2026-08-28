@@ -40,8 +40,8 @@ jobs:
           const fs = require('fs');
           const config = JSON.parse(fs.readFileSync('lighthouse-config.json', 'utf8'));
           config.ci.collect.url = [
-            'https://d3vonn.io/',
-            'https://d3vonn.io/film'
+            'https://www.d3vonn.io/',
+            'https://www.d3vonn.io/film'
           ];
           config.ci.collect.numberOfRuns = 3;
           config.ci.upload = { target: 'filesystem', outputDir: '.lighthouseci' };
@@ -61,5 +61,6 @@ jobs:
           path: |
             .lighthouseci/
             lighthouse-production-config.json
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 30
