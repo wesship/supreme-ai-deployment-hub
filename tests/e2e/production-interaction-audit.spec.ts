@@ -40,7 +40,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
   test('AI Film cards use title-linked preview media and preserve an honest upcoming-title state', async ({ page }) => {
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
-    await expect(page.locator('h1').filter({ hasText: 'AI Films' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toBeVisible();
 
     const featuredVideo = page.locator('section').filter({ hasText: 'SOVEREIGN SIGNAL' }).first().locator('video').first();
     await expect(featuredVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
