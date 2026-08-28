@@ -14,8 +14,11 @@ interface NavLinkProps {
 
 const NavLink: React.FC<NavLinkProps> = ({ to, currentPath, children, requiresAuth }) => {
   const authed = useAuthState();
+  // Fail closed: while useAuthState is still resolving (authed === null) a
+  // protected link must route through /login just like the confirmed
+  // unauthenticated case. Only a confirmed `authed === true` should bypass it.
   const resolvedTo =
-    requiresAuth && authed === false
+    requiresAuth && authed !== true
       ? `/login?redirect=${encodeURIComponent(to)}`
       : to;
 
