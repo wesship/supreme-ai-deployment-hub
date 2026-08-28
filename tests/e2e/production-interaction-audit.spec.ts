@@ -8,7 +8,7 @@ const PUBLIC_ROUTES = [
 
 const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']);
 const EXPECTED_STUB_ORIGINS = new Set(['https://placeholder.supabase.co']);
-const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insights/script.js']);
+const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insight/script.js']);
 
 async function collectRuntimeErrors(page: Page) {
   const errors: string[] = [];
@@ -43,7 +43,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
 
     const featuredHeroVideo = page.locator('section[aria-label="D3VONN AI Films"] > div > div > video').first();
     await expect(featuredHeroVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    await expect.poll(async () => featuredHeroVideo.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
+    await expect.poll(async () => featuredHeroVideo.evaluate((element) => getComputedStyle(element.parentElement!).position)).toBe('absolute');
 
     const mobileCompanionTrigger = page.getByRole('button', { name: 'Open AI Film Companion' });
     await expect(mobileCompanionTrigger).toBeVisible();
@@ -98,15 +98,17 @@ test.describe('D3VONN.IO production interaction audit', () => {
         }
       }
 
-      const visibleButtons = page.locator('button:visible');
-      const buttonCount = await visibleButtons.count();
-      for (let index = 0; index < buttonCount; index += 1) {
-        const button = visibleButtons.nth(index);
-        const label = ((await button.getAttribute('aria-label')) ?? (await button.getAttribute('title')) ?? (await button.innerText())).trim();
-        expect(label, `Unnamed visible button at ${route} index ${index}`).not.toBe('');
-        await expect(button, `Button "${label}" is disabled on ${route}`).toBeEnabled();
-        await expect.poll(async () => (await button.boundingBox())?.width ?? 0, { timeout: 5_000 }).toBeGreaterThanOrEqual(20);
-        await expect.poll(async () => (await button.boundingBox())?.height ?? 0, { timeout: 5_000 }).toBeGreaterThanOrEqual(20);
+      const controls = await page.locator('button:visible').evaluateAll((buttons) => buttons.map((button) => {
+        const label = ((button.getAttribute('aria-label') ?? button.getAttribute('title') ?? button.textContent ?? '')).trim();
+        const rect = button.getBoundingClientRect();
+        return { label, disabled: (button as HTMLButtonElement).disabled, width: rect.width, height: rect.height };
+      }));
+      expect(controls.length, `${route} contains no visible buttons`).toBeGreaterThan(0);
+      for (const [index, control] of controls.entries()) {
+        expect(control.label, `Unnamed visible button at ${route} index ${index}`).not.toBe('');
+        expect(control.disabled, `Button "${control.label}" is disabled on ${route}`).toBe(false);
+        expect(control.width, `Button "${control.label}" is too narrow on ${route}`).toBeGreaterThanOrEqual(20);
+        expect(control.height, `Button "${control.label}" is too short on ${route}`).toBeGreaterThanOrEqual(20);
       }
     });
   }
@@ -127,18 +129,17 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
-    const buttons = page.locator('button:visible');
-    const count = await buttons.count();
-    expect(count, 'No mobile buttons were visible').toBeGreaterThan(0);
+    const controls = await page.locator('button:visible').evaluateAll((buttons) => buttons.map((button) => {
+      const label = ((button.getAttribute('aria-label') ?? button.getAttribute('title') ?? button.textContent ?? '')).trim();
+      const box = button.getBoundingClientRect();
+      return { label, x: box.x, right: box.right };
+    }));
+    expect(controls.length, 'No mobile buttons were visible').toBeGreaterThan(0);
     const viewport = page.viewportSize();
     expect(viewport).not.toBeNull();
-    for (let index = 0; index < count; index += 1) {
-      const button = buttons.nth(index);
-      const label = ((await button.getAttribute('aria-label')) ?? (await button.getAttribute('title')) ?? (await button.innerText())).trim();
-      const box = await button.boundingBox();
-      if (!box) continue;
-      expect(box.x, `Mobile button "${label}" extends off the left edge`).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width, `Mobile button "${label}" extends off the right edge`).toBeLessThanOrEqual(viewport!.width + 1);
+    for (const control of controls) {
+      expect(control.x, `Mobile button "${control.label}" extends off the left edge`).toBeGreaterThanOrEqual(0);
+      expect(control.right, `Mobile button "${control.label}" extends off the right edge`).toBeLessThanOrEqual(viewport!.width + 1);
     }
   });
 });
