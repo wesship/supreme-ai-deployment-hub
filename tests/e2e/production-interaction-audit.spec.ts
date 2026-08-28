@@ -17,7 +17,10 @@ async function collectRuntimeErrors(page: Page) {
     if (message.type() !== 'error') return;
     const text = message.text();
     if (text.startsWith('Failed to load resource:')) return;
-    if (text.includes('ERR_FAILED') && text.includes('placeholder.supabase.co')) return;
+    if (
+      text.includes('placeholder.supabase.co')
+      && (text.includes('ERR_FAILED') || text.includes('Cross-Origin Request Blocked'))
+    ) return;
     errors.push(`console: ${text}`);
   });
   page.on('response', (response) => {
