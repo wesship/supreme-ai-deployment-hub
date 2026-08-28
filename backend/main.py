@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 import sentry_sdk
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -44,8 +44,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="D3VONN.IO API", description="Multi-agent orchestration platform", version="2.0.0", docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json", lifespan=lifespan)
 
-PRODUCTION_ORIGINS = "https://d3vonn.io,https://www.d3vonn.io,https://app.d3vonn.io"
-ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", PRODUCTION_ORIGINS).split(",") if o.strip()]
+PRODUCTION_ORIGINS = ["https://d3vonn.io", "https://www.d3vonn.io", "https://app.d3vonn.io"]
+CONFIGURED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+ALLOWED_ORIGINS = list(dict.fromkeys([*PRODUCTION_ORIGINS, *CONFIGURED_ORIGINS]))
 ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or None
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_origin_regex=ALLOWED_ORIGIN_REGEX, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"])
 
@@ -56,7 +57,6 @@ for module_name, middleware_name in (("backend.middleware.request_context", "Req
     except ImportError:
         logger.warning("%s unavailable — skipping.", middleware_name)
 
-# Preserve the existing router registration surface through optional imports.
 _OPTIONAL_ROUTERS = (
     ("backend.app.routers", "proxy_router", None),
     ("backend.api.v1.router", "router", "/api/v1"),
@@ -82,7 +82,6 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
     except (ImportError, AttributeError):
         pass
 
-# Quantum optimization is optional but now part of the canonical API surface.
 try:
     from backend.optimization.api import router as optimization_router
     app.include_router(optimization_router)
