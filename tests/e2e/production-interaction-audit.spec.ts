@@ -42,7 +42,8 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await waitForApplication(page);
     await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toBeVisible();
 
-    const featuredVideo = page.locator('section').filter({ hasText: 'SOVEREIGN SIGNAL' }).first().locator('video').first();
+    const featuredVideo = page.locator('main > section').first().locator('video').first();
+    await expect(featuredVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
     await expect(featuredVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
     await expect(featuredVideo).toHaveClass(/\babsolute\b/);
 
