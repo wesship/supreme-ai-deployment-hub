@@ -19,8 +19,10 @@ export const SmartLaunchLink: React.FC<Props> = ({
   ...rest
 }) => {
   const authed = useAuthState();
+  // Fail closed while useAuthState is still resolving (authed === null):
+  // only a confirmed `authed === true` should point at the authed destination.
   const to =
-    authed === false
+    authed !== true
       ? `${anonTo}?redirect=${encodeURIComponent(authedTo)}`
       : authedTo;
   return (
