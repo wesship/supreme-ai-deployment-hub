@@ -98,6 +98,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
         }
       }
 
+      // Snapshot visible controls once so React-driven overlays cannot invalidate a live locator during iteration.
       const controls = await page.locator('button:visible').evaluateAll((buttons) => buttons.map((button) => {
         const label = ((button.getAttribute('aria-label') ?? button.getAttribute('title') ?? button.textContent ?? '')).trim();
         const rect = button.getBoundingClientRect();
