@@ -44,7 +44,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
 
     const featuredVideo = page.locator('section').filter({ hasText: 'SOVEREIGN SIGNAL' }).first().locator('video').first();
     await expect(featuredVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    await expect.poll(async () => featuredVideo.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
+    await expect(featuredVideo).toHaveClass(/\babsolute\b/);
 
     const sovereignSignalCard = page.getByRole('button', { name: 'Open Sovereign Signal' }).first();
     await expect(sovereignSignalCard).toBeVisible();
