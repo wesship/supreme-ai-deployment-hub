@@ -65,7 +65,10 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await sovereignSignalDialog.getByRole('button', { name: 'Close movie details' }).click();
     await expect(sovereignSignalDialog).toHaveCount(0);
 
-    await expect(page.getByText('Genesis Protocol')).toHaveCount(0);
+    const genesisCard = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Genesis Protocol', exact: true }) }).first();
+    await expect(genesisCard).toBeVisible();
+    await expect(genesisCard.getByText('Coming Soon', { exact: true })).toBeVisible();
+    await expect(genesisCard.getByRole('button', { name: 'Watch Genesis Protocol preview' })).toBeVisible();
   });
 
   test('the malformed encoded film path redirects to the canonical film page', async ({ page }) => {
