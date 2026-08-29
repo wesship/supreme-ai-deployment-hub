@@ -203,7 +203,7 @@ jobs:
           retention-days: 7
 
   e2e-test:
-    name: Production Interaction Audit (${{ matrix.browser }})
+    name: Production + auth interaction audit (${{ matrix.browser }})
     runs-on: ubuntu-latest
     timeout-minutes: 35
     needs: [unit-test]
@@ -223,19 +223,24 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install selected Playwright browser
         run: pnpm exec playwright install --with-deps "${{ matrix.browser }}"
-      - name: Run production interaction audit (${{ matrix.browser }})
+      - name: Run production and auth interaction audit (${{ matrix.browser }})
         env:
           CI: "true"
           VITE_API_URL: https://api.d3vonn.io
           VITE_RUM_ENABLED: "false"
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
-        run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project="${{ matrix.browser }}"
+        run: |
+          pnpm exec playwright test \
+            tests/e2e/production-interaction-audit.spec.ts \
+            tests/e2e/specs/auth.spec.ts \
+            tests/e2e/specs/navbar-protected-routes.spec.ts \
+            --project="${{ matrix.browser }}"
       - name: Upload Playwright report and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: production-interaction-audit-${{ matrix.browser }}
+          name: production-auth-interaction-audit-${{ matrix.browser }}
           path: |
             playwright-report/
             test-results/
