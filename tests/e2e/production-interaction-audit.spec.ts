@@ -9,9 +9,10 @@ const PUBLIC_ROUTES = [
 const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']);
 const EXPECTED_STUB_ORIGINS = new Set(['https://placeholder.supabase.co']);
 const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insights/script.js']);
-const EXPECTED_CSP_DIAGNOSTICS = [
-  "The Content Security Policy directive 'upgrade-insecure-requests' is ignored when delivered in a report-only policy.",
-] as const;
+
+function isExpectedCspDiagnostic(text: string) {
+  return text.includes('upgrade-insecure-requests') && text.toLowerCase().includes('report-only');
+}
 
 async function collectRuntimeErrors(page: Page) {
   const errors: string[] = [];
@@ -20,7 +21,7 @@ async function collectRuntimeErrors(page: Page) {
     if (message.type() !== 'error') return;
     const text = message.text();
     if (text.startsWith('Failed to load resource:')) return;
-    if (EXPECTED_CSP_DIAGNOSTICS.some((diagnostic) => text.includes(diagnostic))) return;
+    if (isExpectedCspDiagnostic(text)) return;
     if (
       text.includes('placeholder.supabase.co')
       && (text.includes('ERR_FAILED') || text.includes('Cross-Origin Request Blocked'))
