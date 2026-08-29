@@ -92,7 +92,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(genesisCard.getByText('Coming Soon', { exact: true })).toBeVisible();
     await expect(genesisCard.getByRole('button', { name: 'Watch Genesis Protocol preview' })).toBeVisible();
 
-    const createFilm = filmsSection.getByRole('button', { name: 'Create a Film', exact: true });
+    const createFilm = filmsSection.getByRole('button', { name: 'Create a Film', exact: true }).first();
     await expect(createFilm).toBeVisible();
     await createFilm.click();
     await expect(page.locator('#openmontage-studio-anchor')).toBeVisible();
