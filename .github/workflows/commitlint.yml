@@ -1,6 +1,6 @@
 name: Commit Lint
 
-# Validates that all commit messages in a PR follow the repository's commit policy.
+# Validates that commits unique to a PR follow the repository's commit policy.
 # Supports standard Conventional Commits plus Devonn wave/phase commit families.
 
 on:
@@ -37,13 +37,17 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Validate PR commits
         run: |
+          git fetch origin "${{ github.event.pull_request.base.ref }}" --no-tags
+          BASE_SHA="$(git merge-base "origin/${{ github.event.pull_request.base.ref }}" "${{ github.event.pull_request.head.sha }}")"
+          echo "Linting commits unique to the PR from ${BASE_SHA} to ${{ github.event.pull_request.head.sha }}"
           npx commitlint \
             --config commitlint.config.cjs \
-            --from ${{ github.event.pull_request.base.sha }} \
-            --to ${{ github.event.pull_request.head.sha }} \
+            --from "${BASE_SHA}" \
+            --to "${{ github.event.pull_request.head.sha }}" \
             --verbose
