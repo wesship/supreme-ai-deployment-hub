@@ -68,7 +68,7 @@ jobs:
       - name: Run Snyk scan
         uses: snyk/actions/node@12140f4059e244892ae643824a95459a102120dd
         with:
-          args: --file=pnpm-lock.yaml --package-manager=pnpm --severity-threshold=high
+          args: --all-projects --exclude=requirements.txt --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
