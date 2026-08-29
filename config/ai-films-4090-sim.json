@@ -1,0 +1,41 @@
+{
+  "reserve_gib": 2.5,
+  "workloads": [
+    {
+      "name": "Wan 2.1 14B quantized 720p 81f",
+      "model_gib": 11.0,
+      "runtime_gib": 2.5,
+      "latent_gib": 1.0,
+      "activation_gib": 3.0,
+      "overhead_gib": 1.0,
+      "width": 1280,
+      "height": 720,
+      "frames": 81,
+      "batch": 1
+    },
+    {
+      "name": "ComfyUI image-to-video 1024x576 81f",
+      "model_gib": 9.0,
+      "runtime_gib": 2.0,
+      "latent_gib": 0.8,
+      "activation_gib": 2.5,
+      "overhead_gib": 1.0,
+      "width": 1024,
+      "height": 576,
+      "frames": 81,
+      "batch": 1
+    },
+    {
+      "name": "Gaussian Splat reconstruction planning pass",
+      "model_gib": 6.0,
+      "runtime_gib": 2.0,
+      "latent_gib": 1.0,
+      "activation_gib": 2.0,
+      "overhead_gib": 1.0,
+      "width": 1920,
+      "height": 1080,
+      "frames": 1,
+      "batch": 1
+    }
+  ]
+}
