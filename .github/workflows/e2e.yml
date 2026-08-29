@@ -1,6 +1,9 @@
 name: Playwright E2E Audit
 
 on:
+  push:
+    branches:
+      - fix/supabase-readiness
   pull_request:
   workflow_dispatch:
     inputs:
