@@ -1,0 +1,41 @@
+name: Regenerate pnpm lockfile PR1031
+
+on:
+  push:
+    branches:
+      - fix/ai-films-runtime-mastering-deps
+    paths:
+      - package.json
+      - .github/workflows/regenerate-pnpm-lock-pr1031.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Setup pnpm
+        uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
+        with:
+          version: 9.15.9
+          run_install: false
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Regenerate lockfile only
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Verify frozen install
+        run: pnpm install --frozen-lockfile
+      - name: Upload regenerated lockfile
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pnpm-lock-pr1031
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 1
