@@ -1,6 +1,7 @@
 name: Playwright E2E Audit
 
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       browser:
@@ -23,9 +24,12 @@ permissions:
 
 jobs:
   e2e:
-    name: Playwright E2E Audit (${{ inputs.browser }})
+    name: Playwright E2E Audit (${{ github.event_name == 'workflow_dispatch' && inputs.browser || 'all' }})
     runs-on: ubuntu-latest
     timeout-minutes: 35
+
+    env:
+      BROWSER_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.browser || 'all' }}
 
     steps:
       - name: Checkout repository
@@ -46,15 +50,15 @@ jobs:
       - name: Install selected Playwright browser dependencies
         shell: bash
         run: |
-          case "${{ inputs.browser }}" in
+          case "$BROWSER_SCOPE" in
             chromium|firefox|webkit)
-              pnpm exec playwright install --with-deps "${{ inputs.browser }}"
+              pnpm exec playwright install --with-deps "$BROWSER_SCOPE"
               ;;
             all)
               pnpm exec playwright install --with-deps chromium firefox webkit
               ;;
             *)
-              echo "Unsupported browser selection: ${{ inputs.browser }}" >&2
+              echo "Unsupported browser selection: $BROWSER_SCOPE" >&2
               exit 1
               ;;
           esac
@@ -89,17 +93,17 @@ jobs:
           #   voice-live-production.spec.ts          -> voice-live-browser-certification.yml (requires CERTIFY_VOICE input)
           LOCAL_SPECS="tests/e2e/home.spec.ts tests/e2e/homepage-hash-deeplink.spec.ts tests/e2e/public-smoke.spec.ts tests/e2e/deployment-smoke.spec.ts tests/e2e/voice-studio-mount.spec.ts tests/e2e/specs"
 
-          if [ "${{ inputs.browser }}" = "all" ]; then
+          if [ "$BROWSER_SCOPE" = "all" ]; then
             pnpm exec playwright test $LOCAL_SPECS
           else
-            pnpm exec playwright test $LOCAL_SPECS --project="${{ inputs.browser }}"
+            pnpm exec playwright test $LOCAL_SPECS --project="$BROWSER_SCOPE"
           fi
 
       - name: Upload Playwright report and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-e2e-${{ inputs.browser }}-${{ github.run_id }}
+          name: playwright-e2e-${{ github.event_name == 'workflow_dispatch' && inputs.browser || 'all' }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
