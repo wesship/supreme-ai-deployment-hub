@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
     paths:
+      - 'backend/requirements.txt'
+      - 'requirements.txt'
       - 'backend/ai_films/canary.py'
       - 'backend/ai_films/camera_color.py'
       - 'scripts/ai_films/production_mastering_canary.py'
