@@ -9,6 +9,12 @@ img[src^="/d3vonn-main-logo.svg"] {
   filter: drop-shadow(0 0 22px rgba(37, 126, 255, 0.38));
 }
 
+/* Keep the site header below film-detail dialogs without relying on inline styles. */
+body:has([role="dialog"][aria-label$=" details"]) header {
+  z-index: 0 !important;
+  pointer-events: none !important;
+}
+
 /* Use the main D3VONN.IO logo inside the Command Interface and show the full image. */
 img[alt="D3VONN.IO D3 Core"] {
   content: url('/d3vonn-main-logo.svg?v=20260726-command-interface');
@@ -23,6 +29,14 @@ img[alt="D3VONN.IO D3 Core"] {
   object-fit: contain !important;
   object-position: center !important;
   filter: saturate(1.08) contrast(1.04) drop-shadow(0 0 32px rgba(62, 155, 255, 0.48));
+}
+
+/* Preserve the old runtime repair dimensions without style= mutations. */
+img[alt="D3VONN.IO D3 Core"].d3-core-artwork-repaired {
+  background-color: #020b1c;
+  max-height: 390px;
+  width: 88% !important;
+  object-fit: contain !important;
 }
 
 /* Convert the former portrait artwork slot into a landscape logo surface. */
