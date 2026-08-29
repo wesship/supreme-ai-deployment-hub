@@ -88,13 +88,37 @@ def test_kill_switch_overrides_valid_permission():
     assert result.governance.decision is GovernanceDecision.DENY
 
 
+def test_chip_design_space_capability_requires_explicit_permission():
+    denied = evaluate_agent_capability_dry_run(
+        AgentDryRunRequest(
+            workspace_id="ws-1",
+            actor_id="user-1",
+            agent_name="devonn-coordinator",
+            capability="chip.design_space.optimize",
+        )
+    )
+    allowed = evaluate_agent_capability_dry_run(
+        AgentDryRunRequest(
+            workspace_id="ws-1",
+            actor_id="user-1",
+            agent_name="devonn-coordinator",
+            capability="chip.design_space.optimize",
+            workspace_permissions={"optimization.chip_design_space"},
+        )
+    )
+    assert denied.governance.decision is GovernanceDecision.DENY
+    assert allowed.governance.decision is GovernanceDecision.ALLOW
+
+
 def test_registry_contains_only_current_mesh_capabilities():
     names = [tool.name for tool in create_default_agent_tool_registry().list_enabled()]
     assert names == [
+        "chip.design_space.optimize",
         "code_generate",
         "code_review",
         "orchestrate",
         "plan",
+        "quantum.optimize",
         "review",
         "summarize",
         "test_generate",

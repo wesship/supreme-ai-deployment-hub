@@ -101,6 +101,15 @@ def create_default_agent_tool_registry() -> ToolRegistry:
                 data_sensitivity=DataSensitivity.INTERNAL,
                 allowed_agents={"devonn-coordinator"},
             ),
+            ToolDefinition(
+                name="chip.design_space.optimize",
+                description="Rank bounded FPGA or ASIC design candidates against explicit engineering constraints.",
+                required_permissions=["optimization.chip_design_space"],
+                risk_level=RiskLevel.MEDIUM,
+                side_effect_class=SideEffectClass.NONE,
+                data_sensitivity=DataSensitivity.INTERNAL,
+                allowed_agents={"devonn-coordinator"},
+            ),
         ]
     )
 
