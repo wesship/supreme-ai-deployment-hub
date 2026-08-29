@@ -43,7 +43,8 @@ test.describe('D3VONN.IO production interaction audit', () => {
 
     const featuredHeroVideo = page.locator('section[aria-label="D3VONN AI Films"] > div > div > video').first();
     await expect(featuredHeroVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
-    await expect.poll(async () => featuredHeroVideo.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
+    const featuredHeroMedia = featuredHeroVideo.locator('..');
+    await expect.poll(async () => featuredHeroMedia.evaluate((element) => getComputedStyle(element).position)).toBe('absolute');
 
     const mobileCompanionTrigger = page.getByRole('button', { name: 'Open AI Film Companion' });
     await expect(mobileCompanionTrigger).toBeVisible();
