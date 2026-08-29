@@ -2,16 +2,22 @@
   "reserve_gib": 2.5,
   "workloads": [
     {
-      "name": "Wan 2.1 14B quantized 720p 81f",
+      "name": "Wan 2.1 14B quantized 720p 81f production-safe",
       "model_gib": 11.0,
-      "runtime_gib": 2.5,
-      "latent_gib": 1.0,
-      "activation_gib": 3.0,
-      "overhead_gib": 1.0,
+      "runtime_gib": 2.0,
+      "latent_gib": 0.8,
+      "activation_gib": 2.25,
+      "overhead_gib": 0.75,
       "width": 1280,
       "height": 720,
       "frames": 81,
-      "batch": 1
+      "batch": 1,
+      "required_features": [
+        "quantized-model",
+        "cpu-offload",
+        "vae-tiling",
+        "attention-slicing"
+      ]
     },
     {
       "name": "ComfyUI image-to-video 1024x576 81f",
