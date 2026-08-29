@@ -13,6 +13,9 @@ on:
           - firefox
           - webkit
           - all
+  push:
+    branches:
+      - fix/supabase-readiness
 
 concurrency:
   group: e2e-audit-${{ github.ref }}
@@ -23,9 +26,11 @@ permissions:
 
 jobs:
   e2e:
-    name: Playwright E2E Audit (${{ inputs.browser }})
+    name: Playwright E2E Audit (${{ github.event_name == 'workflow_dispatch' && inputs.browser || 'all' }})
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      TEST_BROWSER: ${{ github.event_name == 'workflow_dispatch' && inputs.browser || 'all' }}
 
     steps:
       - name: Checkout repository
@@ -46,15 +51,15 @@ jobs:
       - name: Install selected Playwright browser dependencies
         shell: bash
         run: |
-          case "${{ inputs.browser }}" in
+          case "$TEST_BROWSER" in
             chromium|firefox|webkit)
-              pnpm exec playwright install --with-deps "${{ inputs.browser }}"
+              pnpm exec playwright install --with-deps "$TEST_BROWSER"
               ;;
             all)
               pnpm exec playwright install --with-deps chromium firefox webkit
               ;;
             *)
-              echo "Unsupported browser selection: ${{ inputs.browser }}" >&2
+              echo "Unsupported browser selection: $TEST_BROWSER" >&2
               exit 1
               ;;
           esac
@@ -80,17 +85,17 @@ jobs:
           # production credentials, live providers, or backend runtime behavior.
           # Those belong in their dedicated deployment/production workflows.
           LOCAL_SPECS="tests/e2e/home.spec.ts tests/e2e/homepage-hash-deeplink.spec.ts tests/e2e/public-smoke.spec.ts tests/e2e/voice-studio-mount.spec.ts tests/e2e/specs/auth.spec.ts tests/e2e/specs/navbar-protected-routes.spec.ts tests/e2e/specs/public-site-reliability.spec.ts"
-          if [ "${{ inputs.browser }}" = "all" ]; then
+          if [ "$TEST_BROWSER" = "all" ]; then
             pnpm exec playwright test $LOCAL_SPECS
           else
-            pnpm exec playwright test $LOCAL_SPECS --project="${{ inputs.browser }}"
+            pnpm exec playwright test $LOCAL_SPECS --project="$TEST_BROWSER"
           fi
 
       - name: Upload Playwright report and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-e2e-${{ inputs.browser }}-${{ github.run_id }}
+          name: playwright-e2e-${{ github.event_name == 'workflow_dispatch' && inputs.browser || 'all' }}-${{ github.run_id }}
           path: |
             playwright-report/
             test-results/
