@@ -13,7 +13,7 @@ function cspFor(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' https://apis.google.com https://cdn.jsdelivr.net https://*.supabase.co https://*.sentry.io https://*.vercel-insights.com`,
     "worker-src 'self' blob:",
-    "style-src 'self' https://fonts.googleapis.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "style-src-attr 'unsafe-inline'",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://www.d3vonn.io https://images.unsplash.com",
