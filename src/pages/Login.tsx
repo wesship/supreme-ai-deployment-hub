@@ -11,6 +11,8 @@ const safeRedirect = (value: string | null) => {
   return value;
 };
 
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
 const Login = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -70,6 +72,10 @@ const Login = () => {
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
       setEmailError('Enter your email and password.');
+      return;
+    }
+    if (!isValidEmail(normalizedEmail)) {
+      setEmailError('Enter a valid email address.');
       return;
     }
 
@@ -142,7 +148,7 @@ const Login = () => {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <form id="auth-sign-in" onSubmit={handleEmailSubmit} aria-busy={emailLoading} className="space-y-4">
+          <form id="auth-sign-in" noValidate onSubmit={handleEmailSubmit} aria-busy={emailLoading} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-medium text-foreground">
                 Email
@@ -153,6 +159,7 @@ const Login = () => {
                 type="email"
                 autoComplete="email"
                 required
+                aria-invalid={Boolean(emailError)}
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 disabled={emailLoading}
