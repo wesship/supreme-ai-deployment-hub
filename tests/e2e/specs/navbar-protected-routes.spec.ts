@@ -14,10 +14,9 @@
  *      protected destinations directly without being bounced to /login.
  *
  * The authenticated case uses a synthetic Supabase session written into
- * localStorage under the project's storage key. The server-side calls the
- * page would make will 401, but the client-side `useAuthState` /
- * `ProtectedRoute` gate only checks for a session object — which is what
- * this spec is asserting.
+ * localStorage under the storage key derived from the same VITE_SUPABASE_URL
+ * used to build/run the local app. This keeps the fixture valid when CI uses
+ * an intentionally non-production placeholder Supabase URL.
  */
 
 import { test, expect, type Page } from '@playwright/test';
@@ -25,7 +24,8 @@ import { test, expect, type Page } from '@playwright/test';
 const PROTECTED_PATH = '/agents';
 const PUBLIC_PATHS = ['/platform', '/solutions', '/resources', '/security', '/pricing'];
 
-const SUPABASE_PROJECT_REF = 'bqkpxdjmpbucenbppxzc';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? 'https://tjygexesognbkwualywq.supabase.co';
+const SUPABASE_PROJECT_REF = new URL(SUPABASE_URL).hostname.split('.')[0];
 const SUPABASE_STORAGE_KEY = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
 
 function fakeSession() {
