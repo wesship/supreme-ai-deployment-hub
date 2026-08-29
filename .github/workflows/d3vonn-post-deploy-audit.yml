@@ -1,31 +1,65 @@
 name: D3VONN.IO Post-Deploy Audit
 
 on:
-  workflow_run:
-    workflows:
-      - Devonn.AI Deploy
-    types:
-      - completed
+  push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: d3vonn-post-deploy-${{ github.event.workflow_run.head_sha }}
+  group: d3vonn-post-deploy-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
   live-functional-audit:
     name: Live Functional Audit (chromium)
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
+
+      - name: Wait for production frontend and certify security headers
+        run: |
+          set -euo pipefail
+          headers="$(mktemp)"
+          body="$(mktemp)"
+          trap 'rm -f "$headers" "$body"' EXIT
+
+          ready=0
+          for attempt in $(seq 1 30); do
+            echo "Production readiness attempt ${attempt}/30"
+            if curl --fail --silent --show-error --location \
+              --connect-timeout 10 --max-time 30 \
+              -D "$headers" https://d3vonn.io/ -o "$body"; then
+              csp="$(tr -d '\r' < "$headers" | awk 'BEGIN{IGNORECASE=1} /^content-security-policy:/ {sub(/^[^:]+:[[:space:]]*/, ""); print; exit}')"
+              nonce="$(tr -d '\r' < "$headers" | awk 'BEGIN{IGNORECASE=1} /^x-csp-nonce-generated:/ {sub(/^[^:]+:[[:space:]]*/, ""); print; exit}')"
+
+              if [ -n "$csp" ] \
+                && printf '%s' "$csp" | grep -Fq "style-src-attr 'unsafe-inline'" \
+                && printf '%s' "$csp" | grep -Fq "https://images.unsplash.com" \
+                && printf '%s' "$csp" | grep -Fq "script-src 'self' 'nonce-" \
+                && ! printf '%s' "$csp" | grep -Fq "script-src 'self' 'unsafe-inline'" \
+                && [ "$nonce" = "1" ]; then
+                ready=1
+                break
+              fi
+            fi
+            sleep 10
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            echo "ERROR: production frontend did not expose the certified CSP within the readiness window."
+            cat "$headers" || true
+            exit 1
+          fi
+
+          echo "Production CSP and nonce headers certified."
+
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
