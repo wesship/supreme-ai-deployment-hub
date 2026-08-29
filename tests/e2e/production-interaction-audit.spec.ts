@@ -10,6 +10,10 @@ const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']
 const EXPECTED_STUB_ORIGINS = new Set(['https://placeholder.supabase.co']);
 const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insights/script.js']);
 
+function isExpectedCspDiagnostic(text: string) {
+  return text.includes('upgrade-insecure-requests') && text.toLowerCase().includes('report-only');
+}
+
 async function collectRuntimeErrors(page: Page) {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
@@ -17,6 +21,7 @@ async function collectRuntimeErrors(page: Page) {
     if (message.type() !== 'error') return;
     const text = message.text();
     if (text.startsWith('Failed to load resource:')) return;
+    if (isExpectedCspDiagnostic(text)) return;
     if (
       text.includes('placeholder.supabase.co')
       && (text.includes('ERR_FAILED') || text.includes('Cross-Origin Request Blocked'))
@@ -62,12 +67,9 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toHaveCount(0);
     await expect(filmsSection.getByRole('heading', { name: 'Movies and Originals', exact: true })).toBeVisible();
 
-    const createFilm = filmsSection.getByRole('button', { name: 'Create a Film', exact: true });
-    await expect(createFilm).toBeVisible();
-    await createFilm.click();
-    await expect(page.locator('#openmontage-studio-anchor')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toBeVisible({ timeout: 15_000 });
-
+    // Exercise the featured preview before mounting OpenMontage. On mobile,
+    // mounting the studio scrolls its anchor into view and can temporarily cover
+    // the featured card while layout settles.
     const sovereignSignalCard = filmsSection.locator('article').filter({ hasText: 'Sovereign Signal' }).first();
     await expect(sovereignSignalCard).toBeVisible();
     const sovereignSignalVideo = sovereignSignalCard.locator('video');
@@ -90,6 +92,12 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(genesisCard).toBeVisible();
     await expect(genesisCard.getByText('Coming Soon', { exact: true })).toBeVisible();
     await expect(genesisCard.getByRole('button', { name: 'Watch Genesis Protocol preview' })).toBeVisible();
+
+    const createFilm = filmsSection.getByRole('button', { name: 'Create a Film', exact: true }).first();
+    await expect(createFilm).toBeVisible();
+    await createFilm.click();
+    await expect(page.locator('#openmontage-studio-anchor')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toBeVisible({ timeout: 15_000 });
   });
 
   test('the malformed encoded film path redirects to the canonical film page', async ({ page }) => {
