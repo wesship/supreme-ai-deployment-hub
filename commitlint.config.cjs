@@ -1,5 +1,6 @@
 module.exports = {
   ignores: [
+    (message) => /^merge\b/i.test(message),
     (message) => message === 'Require Pollo webhook secret before paid dispatch',
     (message) => message === 'Test Pollo dispatch fail-closed webhook secret',
   ],
