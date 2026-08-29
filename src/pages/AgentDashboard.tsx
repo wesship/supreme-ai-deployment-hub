@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowRight, Bot, BrainCircuit, Network, ShieldCheck, Workflow } from 'lucide-react';
 import AgentManager from '@/components/agent/AgentManager';
+import AuthenticatedRoute from '@/components/auth/AuthenticatedRoute';
 import Container from '@/components/Container';
 import PublicPageShell from '@/components/shell/PublicPageShell';
 import { D3SectionHeader, D3Surface } from '@/components/d3/D3Surface';
@@ -14,7 +15,7 @@ const workforceSignals = [
   { label: 'Security', value: 'Protected', icon: ShieldCheck },
 ];
 
-const AgentDashboard: React.FC = () => {
+const AgentDashboardContent: React.FC = () => {
   return (
     <PublicPageShell breadcrumbs={[{ label: 'AI Workforce' }]}>
       <Helmet>
@@ -80,5 +81,11 @@ const AgentDashboard: React.FC = () => {
     </PublicPageShell>
   );
 };
+
+const AgentDashboard: React.FC = () => (
+  <AuthenticatedRoute>
+    <AgentDashboardContent />
+  </AuthenticatedRoute>
+);
 
 export default AgentDashboard;
