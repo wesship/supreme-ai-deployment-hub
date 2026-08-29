@@ -12,14 +12,13 @@
     <link rel="icon" type="image/svg+xml" href="/d3vonn-icon.svg?v=20260724-official" />
     <link rel="alternate icon" type="image/png" href="/favicon.png" />
     <link rel="canonical" href="https://www.d3vonn.io/" />
-    <link rel="stylesheet" href="/brand-overrides.css?v=20260714-approved" />
+    <link rel="stylesheet" href="/brand-overrides.css?v=20260828-csp" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://api.d3vonn.io" crossorigin />
     <link rel="dns-prefetch" href="https://api.d3vonn.io" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" /></noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" />
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content="D3VONN.IO — One Platform. Infinite Intelligence." />
@@ -32,13 +31,6 @@
     <meta name="twitter:title" content="D3VONN.IO — One Platform. Infinite Intelligence." />
     <meta name="twitter:description" content="Build, orchestrate, govern, and scale intelligent AI workforces from one enterprise operating system." />
     <meta name="twitter:image" content="https://www.d3vonn.io/d3vonn-main-logo.svg?v=20260724-official" />
-
-    <style>
-      body:has([role="dialog"][aria-label$=" details"]) header {
-        z-index: 0 !important;
-        pointer-events: none !important;
-      }
-    </style>
 
     <script type="application/ld+json">
       {
@@ -75,82 +67,7 @@
 
   <body>
     <div id="root"></div>
-    <script>
-      (() => {
-        if (!/^\/film(?:\/|$)/.test(window.location.pathname)) return;
-
-        const tracked = new WeakSet();
-        const mediaObserver = new IntersectionObserver((entries) => {
-          for (const entry of entries) {
-            const video = entry.target;
-            if (!(video instanceof HTMLVideoElement)) continue;
-            if (!entry.isIntersecting) continue;
-            if (video.dataset.d3DeferredAutoplay === 'true') void video.play().catch(() => undefined);
-            mediaObserver.unobserve(video);
-          }
-        }, { rootMargin: '500px 0px' });
-
-        const deferBelowFoldVideos = () => {
-          document.querySelectorAll('video').forEach((video, index) => {
-            if (tracked.has(video) || index === 0) return;
-            tracked.add(video);
-            if (video.getBoundingClientRect().top <= window.innerHeight + 500) return;
-            video.dataset.d3DeferredAutoplay = video.autoplay ? 'true' : 'false';
-            video.autoplay = false;
-            video.preload = 'none';
-            video.pause();
-            mediaObserver.observe(video);
-          });
-        };
-
-        const mediaMutationObserver = new MutationObserver(deferBelowFoldVideos);
-        mediaMutationObserver.observe(document.documentElement, { childList: true, subtree: true });
-        window.addEventListener('DOMContentLoaded', deferBelowFoldVideos, { once: true });
-        window.addEventListener('load', deferBelowFoldVideos, { once: true });
-      })();
-    </script>
-    <script>
-      (() => {
-        const CORE_ALT = 'D3VONN.IO D3 Core';
-        const CORE_SRC = '/core-01-helmet.svg?v=20260725-core-fix';
-        const FALLBACK_SRC = '/d3vonn-main-logo.svg?v=20260724-official';
-
-        const repairCoreArtwork = () => {
-          const image = document.querySelector(`img[alt="${CORE_ALT}"]`);
-          if (!(image instanceof HTMLImageElement)) return false;
-
-          if (!image.dataset.coreArtworkRepaired) {
-            image.dataset.coreArtworkRepaired = 'true';
-            image.style.backgroundColor = '#020b1c';
-            image.style.maxHeight = '390px';
-            image.style.width = '88%';
-            image.style.objectFit = 'contain';
-            image.onerror = () => {
-              if (!image.src.includes('d3vonn-main-logo.svg')) {
-                image.src = FALLBACK_SRC;
-              }
-            };
-          }
-
-          if (!image.src.includes('core-01-helmet.svg') && !image.src.includes('d3vonn-main-logo.svg')) {
-            image.src = CORE_SRC;
-          }
-
-          return true;
-        };
-
-        const observer = new MutationObserver(() => {
-          if (repairCoreArtwork()) observer.disconnect();
-        });
-
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-        window.addEventListener('DOMContentLoaded', repairCoreArtwork, { once: true });
-        window.setTimeout(() => {
-          repairCoreArtwork();
-          observer.disconnect();
-        }, 10000);
-      })();
-    </script>
+    <script defer src="/d3vonn-bootstrap.js?v=20260828-csp"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
