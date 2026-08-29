@@ -24,10 +24,19 @@
       });
     };
 
-    const mediaMutationObserver = new MutationObserver(deferBelowFoldVideos);
+    let mediaScanFrame = 0;
+    const scheduleVideoScan = () => {
+      if (mediaScanFrame) return;
+      mediaScanFrame = window.requestAnimationFrame(() => {
+        mediaScanFrame = 0;
+        deferBelowFoldVideos();
+      });
+    };
+
+    const mediaMutationObserver = new MutationObserver(scheduleVideoScan);
     mediaMutationObserver.observe(document.documentElement, { childList: true, subtree: true });
-    window.addEventListener('DOMContentLoaded', deferBelowFoldVideos, { once: true });
-    window.addEventListener('load', deferBelowFoldVideos, { once: true });
+    window.addEventListener('DOMContentLoaded', scheduleVideoScan, { once: true });
+    window.addEventListener('load', scheduleVideoScan, { once: true });
   }
 
   const CORE_ALT = 'D3VONN.IO D3 Core';
