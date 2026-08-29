@@ -34,6 +34,14 @@ pinecone==5.4.2
 wandb
 weave
 
+# ── AI FILMS mastering runtime ──────────────────────────────────────────────
+# Required by the Railway API/Hermes worker image for frame decoding,
+# OpenEXR mastering, color management, and OTIO timeline packaging.
+numpy>=1.26,<3
+OpenEXR>=3.3,<4
+opencolorio>=2.5.2,<3
+opentimelineio>=0.18.1,<0.19
+
 # ── Observability ──────────────────────────────────────────────────────────
 sentry-sdk[fastapi]==2.60.0
 prometheus-fastapi-instrumentator==8.1.0

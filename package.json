@@ -172,7 +172,7 @@
     "overrides": {
       "form-data": "4.0.6",
       "typed-rest-client>qs": "6.15.2",
-      "tar": "7.5.20",
+      "tar": "7.5.21",
       "protobufjs": "7.6.5",
       "@babel/core": "7.29.7",
       "sharp": "0.35.3",
