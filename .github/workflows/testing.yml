@@ -57,9 +57,16 @@ jobs:
       - name: Run pnpm audit
         run: pnpm audit --prod
         continue-on-error: true
+      - name: Verify Snyk token is configured
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "::error::SNYK_TOKEN is not configured. Add it in GitHub repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
       - name: Run Snyk scan
         uses: snyk/actions/node@12140f4059e244892ae643824a95459a102120dd
-        continue-on-error: true
         with:
           args: --severity-threshold=high
         env:
