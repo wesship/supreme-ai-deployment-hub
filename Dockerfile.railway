@@ -4,9 +4,17 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Keep system executables discoverable for API and Hermes worker processes even when
+# the hosting platform injects a restricted PATH.
+ENV PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Install system dependencies required by the API and AI FILMS mastering worker.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ffmpeg \
+    && command -v ffmpeg \
+    && command -v ffprobe \
+    && ffmpeg -version >/dev/null \
+    && ffprobe -version >/dev/null \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,6 +36,10 @@ RUN groupadd --gid 1001 appgroup && \
     chown -R appuser:appgroup /app
 
 USER appuser
+
+# Re-assert the runtime dependency after dropping privileges. This makes an image
+# unusable at build time instead of discovering a missing FFmpeg binary in production.
+RUN command -v ffmpeg && command -v ffprobe
 
 # Health check using curl
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
