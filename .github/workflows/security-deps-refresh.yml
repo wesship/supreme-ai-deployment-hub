@@ -54,3 +54,5 @@ jobs:
             package.json
             pnpm-lock.yaml
           retention-days: 1
+
+# Triggered intentionally to refresh the lockfile on this branch.
