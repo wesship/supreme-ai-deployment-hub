@@ -53,4 +53,4 @@ jobs:
             exit 0
           fi
           git commit -m "fix(security): refresh vulnerable dependencies"
-          git push --force origin HEAD:refs/heads/chore/security-deps-refresh-output
+          git push origin HEAD:refs/heads/chore/security-deps-refresh-output-v2
