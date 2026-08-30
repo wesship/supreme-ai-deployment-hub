@@ -27,7 +27,7 @@ jobs:
           cache: pnpm
       - name: Refresh vulnerable dependency graph
         run: |
-          pnpm up react-router-dom@7.18.0 @vitest/coverage-v8@4.1.8
+          pnpm up react-router-dom@7.18.0 @vitest/coverage-v8@4.1.10
           pnpm pkg set pnpm.overrides.fast-uri=3.1.6
           pnpm pkg set pnpm.overrides.esbuild=0.28.1
           pnpm install --no-frozen-lockfile
@@ -35,7 +35,15 @@ jobs:
         run: |
           node -e "const p=require('./package.json'); console.log({reactRouterDom:p.dependencies['react-router-dom'], coverage:p.devDependencies['@vitest/coverage-v8'], overrides:p.pnpm?.overrides})"
           pnpm why react-router react-router-dom fast-uri esbuild @vitest/coverage-v8
-      - name: Commit refreshed manifests
+      - name: Upload refreshed manifests
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: security-dependency-refresh
+          path: |
+            package.json
+            pnpm-lock.yaml
+          retention-days: 1
+      - name: Export refreshed manifests to staging branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -45,14 +53,4 @@ jobs:
             exit 0
           fi
           git commit -m "fix(security): refresh vulnerable dependencies"
-          git push origin HEAD:fix/supabase-readiness
-      - name: Upload refreshed manifests
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: security-dependency-refresh
-          path: |
-            package.json
-            pnpm-lock.yaml
-          retention-days: 1
-
-# Triggered intentionally to refresh the lockfile on this branch.
+          git push --force origin HEAD:refs/heads/chore/security-deps-refresh-output
