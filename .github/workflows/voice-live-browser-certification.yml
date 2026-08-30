@@ -1,6 +1,11 @@
 name: Voice Live Browser Certification
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/voice-live-browser-certification.yml
   workflow_dispatch:
     inputs:
       confirmation:
@@ -18,7 +23,7 @@ concurrency:
 jobs:
   certify:
     name: Certify signed-out and authenticated voice calls
-    if: ${{ inputs.confirmation == 'CERTIFY_VOICE' }}
+    if: ${{ github.event_name == 'push' || inputs.confirmation == 'CERTIFY_VOICE' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 25
