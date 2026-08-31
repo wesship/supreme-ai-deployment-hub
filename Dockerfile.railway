@@ -41,9 +41,15 @@ USER appuser
 # unusable at build time instead of discovering a missing FFmpeg binary in production.
 RUN command -v ffmpeg && command -v ffprobe
 
-# Health check using curl
+# The API serves /health, while the persistent Hermes worker intentionally has no
+# HTTP listener. Treat a running Hermes worker process as healthy; retain the HTTP
+# probe for API containers so API health semantics are unchanged.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
+    CMD if tr '\0' ' ' < /proc/1/cmdline | grep -q 'backend.hermes.worker'; then \
+          exit 0; \
+        else \
+          curl -f http://localhost:${PORT:-8000}/health || exit 1; \
+        fi
 
 # Expose port (Railway uses $PORT)
 EXPOSE 8000
