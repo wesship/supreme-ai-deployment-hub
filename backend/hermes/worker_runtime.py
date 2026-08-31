@@ -1,5 +1,4 @@
-"""Default-off production activation layer for durable Hermes worker state."""
-
+"""Persistent runtime for database-authoritative Hermes workers."""
 from __future__ import annotations
 
 import os
@@ -9,13 +8,12 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from backend.hermes.ports import Clock, TaskRepository
-from backend.hermes.worker_persistence import PersistentWorkerRegistry
+from backend.hermes.worker_persistence import ClaimedTask, PersistentWorkerRegistry
 from backend.hermes.workflows.workers import (
     LeaseStatus,
     WorkerCapabilities,
     WorkerLease,
     WorkerRecord,
-    WorkerRegistryError,
     WorkerRegistryPolicy,
     WorkerStatus,
 )
@@ -35,7 +33,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
 
 @dataclass(frozen=True, slots=True)
 class PersistentWorkerRuntimeConfig:
-    enabled: bool = False
+    enabled: bool = True
     worker_id: str = "hermes-worker"
     hostname: str = "localhost"
     region: str = "unknown"
@@ -55,7 +53,7 @@ class PersistentWorkerRuntimeConfig:
             if item.strip()
         )
         return cls(
-            enabled=_env_bool("HERMES_PERSISTENT_WORKERS_ENABLED", False),
+            enabled=_env_bool("HERMES_PERSISTENT_WORKERS_ENABLED", True),
             worker_id=os.getenv("HERMES_WORKER_ID", hostname),
             hostname=hostname,
             region=os.getenv("HERMES_WORKER_REGION", "unknown"),
@@ -77,7 +75,7 @@ class PersistentWorkerRuntimeConfig:
 
 
 class PersistentWorkerRuntime:
-    """Own one process worker record and its durable task leases."""
+    """Own one process worker record and database-authoritative task leases."""
 
     def __init__(
         self,
@@ -95,13 +93,24 @@ class PersistentWorkerRuntime:
     def worker_id(self) -> str:
         return self.config.worker_id
 
+    @property
+    def lease_ttl_seconds(self) -> int:
+        return max(30, int(self.config.lease_ttl_seconds))
+
+    @property
+    def heartbeat_timeout_seconds(self) -> int:
+        return max(60, int(self.config.heartbeat_timeout_seconds))
+
     async def start(self) -> WorkerRecord | None:
         if not self.config.enabled:
             return None
         if not self.persistence.store.configured:
             raise RuntimeError(
-                "persistent Hermes workers require configured Supabase service-role access"
+                "Hermes workers require configured Supabase service-role access"
             )
+        await self.persistence.reap_stale_state(
+            heartbeat_timeout_seconds=self.heartbeat_timeout_seconds
+        )
         await self.persistence.restore()
         registry = self.persistence.registry
         existing = registry.workers.get(self.worker_id)
@@ -133,27 +142,25 @@ class PersistentWorkerRuntime:
     async def heartbeat(self) -> WorkerRecord | None:
         if not self.started:
             return None
-        await self.persistence.sweep()
+        await self.persistence.reap_stale_state(
+            heartbeat_timeout_seconds=self.heartbeat_timeout_seconds
+        )
         return await self.persistence.heartbeat_worker(self.worker_id)
 
-    async def acquire(self, task_id: str) -> WorkerLease | None:
+    async def claim_next_task(self) -> ClaimedTask | None:
         if not self.started:
             return None
-        await self.persistence.sweep()
-        try:
-            lease = await self.persistence.acquire_for_worker(
-                worker_id=self.worker_id,
-                task_id=task_id,
-                required_capabilities=("task-dispatch",),
-            )
-        except WorkerRegistryError:
-            return None
-        if lease.worker_id != self.worker_id or lease.status is not LeaseStatus.ACTIVE:
-            return None
-        return lease
+        return await self.persistence.claim_next_task(
+            worker_id=self.worker_id,
+            required_capabilities=self.config.capabilities,
+            lease_ttl_seconds=self.lease_ttl_seconds,
+        )
 
     async def renew(self, lease_id: str) -> WorkerLease:
-        return await self.persistence.renew_lease(lease_id)
+        return await self.persistence.renew_lease(
+            lease_id,
+            lease_ttl_seconds=self.lease_ttl_seconds,
+        )
 
     async def release(
         self,

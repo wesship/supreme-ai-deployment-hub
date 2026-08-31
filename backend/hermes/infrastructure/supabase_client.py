@@ -52,6 +52,22 @@ class SupabaseRestClient:
         data = response.json()
         return data[0] if isinstance(data, list) and data else data
 
+    async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
+        """Invoke a backend-only PostgreSQL RPC through Supabase REST."""
+        if not self.configured:
+            return None
+        endpoint = f"{self.config.supabase_url}/rest/v1/rpc/{function_name}"
+        async with httpx.AsyncClient(timeout=self.config.rest_timeout_seconds) as client:
+            response = await client.post(
+                endpoint,
+                headers=self.headers(),
+                json=params,
+            )
+        response.raise_for_status()
+        if response.status_code == 204 or not response.content:
+            return None
+        return response.json()
+
     async def patch(
         self,
         table: str,

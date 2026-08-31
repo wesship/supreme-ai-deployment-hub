@@ -19,6 +19,9 @@ class TaskRepository(Protocol):
     async def create_row(self, table: str, payload: dict[str, Any]) -> dict[str, Any]:
         ...
 
+    async def rpc(self, function_name: str, params: dict[str, Any]) -> Any:
+        ...
+
     async def update_row(
         self,
         table: str,
