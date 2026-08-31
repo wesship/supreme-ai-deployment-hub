@@ -20,7 +20,13 @@ class WorkerRegistryStore(Protocol):
 
     async def list_workers(self) -> list[dict[str, Any]]: ...
 
-    async def create_lease(self, payload: dict[str, Any]) -> dict[str, Any]: ...
+    async def claim_next_task(
+        self,
+        *,
+        worker_id: str,
+        capabilities: tuple[str, ...],
+        lease_ttl_seconds: int,
+    ) -> dict[str, Any] | None: ...
 
     async def update_lease(self, lease_id: str, payload: dict[str, Any]) -> dict[str, Any]: ...
 

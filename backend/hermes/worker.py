@@ -1,11 +1,11 @@
-"""Hermes task polling worker.
+"""Hermes persistent background worker.
 
 This long-running worker intentionally does not expose an HTTP listener; its Railway
 service configuration must therefore omit an HTTP health-check path.
 
-The worker uses atomic task claims in every mode. Durable worker registration,
-heartbeats, leases, and restart recovery are available behind the default-off
-HERMES_PERSISTENT_WORKERS_ENABLED flag.
+The worker obtains every new task through PostgreSQL's atomic claim RPC. Durable
+worker registration, heartbeats, leases, and restart recovery are required for
+execution; the legacy REST list-then-claim path is intentionally unavailable.
 """
 from __future__ import annotations
 
@@ -21,11 +21,10 @@ from backend.hermes.worker_runtime import (
     build_persistent_worker_runtime,
 )
 from backend.hermes.workflows.workers import WorkerLease
-from hermes.task_engine import (
+from backend.hermes.task_engine import (
     TaskTransitionConflict,
     dispatch_to_agent,
     get_task,
-    list_tasks,
     log_event,
     transition_task,
 )
@@ -71,7 +70,7 @@ async def _release_lease_safely(
 
 async def _process_task(
     task: dict[str, Any],
-    runtime: PersistentWorkerRuntime | None = None,
+    runtime: PersistentWorkerRuntime,
     recovered_lease: WorkerLease | None = None,
 ) -> None:
     task_id = task.get("id")
@@ -86,11 +85,8 @@ async def _process_task(
         return
 
     lease = recovered_lease
-    if runtime is not None and lease is None:
-        lease = await runtime.acquire(str(task_id))
-        if lease is None:
-            logger.info("task lease unavailable id=%s; another worker owns it", task_id)
-            return
+    if lease is None:
+        raise RuntimeError("atomic Hermes task processing requires an acquired database lease")
 
     input_data = task.get("input_data") or {}
     completed = False
@@ -98,14 +94,6 @@ async def _process_task(
     logger.info("processing task id=%s agent=%s", task_id, agent_name)
 
     try:
-        if status == "PENDING":
-            await transition_task(
-                task_id,
-                "LOCKED",
-                agent_name=agent_name,
-                expected_status="PENDING",
-            )
-            status = "LOCKED"
         if status == "LOCKED":
             await transition_task(task_id, "RUNNING", agent_name=agent_name)
             status = "RUNNING"
@@ -152,12 +140,11 @@ async def _process_task(
                 data={"original_error": str(exc)},
             )
     finally:
-        if runtime is not None and lease is not None:
-            await _release_lease_safely(
-                runtime,
-                lease,
-                cancelled=not completed,
-            )
+        await _release_lease_safely(
+            runtime,
+            lease,
+            cancelled=not completed,
+        )
 
 
 async def _recover_leased_tasks(runtime: PersistentWorkerRuntime) -> None:
@@ -171,23 +158,24 @@ async def _recover_leased_tasks(runtime: PersistentWorkerRuntime) -> None:
 
 async def run_worker() -> None:
     dependencies = get_dependencies()
-    configured_runtime = build_persistent_worker_runtime(
+    runtime = build_persistent_worker_runtime(
         repository=dependencies.repository,
         clock=dependencies.clock,
     )
-    runtime: PersistentWorkerRuntime | None = None
-    if configured_runtime.config.enabled:
-        await configured_runtime.start()
-        runtime = configured_runtime
-        await _recover_leased_tasks(runtime)
+    if not runtime.config.enabled:
+        raise RuntimeError(
+            "HERMES_PERSISTENT_WORKERS_ENABLED must remain enabled; non-atomic worker polling is disabled"
+        )
+    await runtime.start()
+    await _recover_leased_tasks(runtime)
 
     logger.info(
         "Hermes worker starting poll_interval=%ss max_tasks_per_tick=%s "
-        "default_agent=%s persistent_workers=%s",
+        "default_agent=%s persistent_workers=true worker_id=%s",
         POLL_INTERVAL_SECONDS,
         MAX_TASKS_PER_TICK,
         DEFAULT_AGENT,
-        runtime is not None,
+        runtime.worker_id,
     )
     await log_event(
         event="hermes.worker.started",
@@ -197,23 +185,30 @@ async def run_worker() -> None:
             "poll_interval_seconds": POLL_INTERVAL_SECONDS,
             "max_tasks_per_tick": MAX_TASKS_PER_TICK,
             "default_agent": DEFAULT_AGENT,
-            "persistent_workers": runtime is not None,
-            "worker_id": runtime.worker_id if runtime is not None else None,
+            "persistent_workers": True,
+            "worker_id": runtime.worker_id,
         },
     )
 
     try:
         while not _stop_event.is_set():
             try:
-                if runtime is not None:
-                    await runtime.heartbeat()
-                tasks = await list_tasks(status="PENDING", limit=MAX_TASKS_PER_TICK)
-                if not tasks:
-                    logger.debug("no pending Hermes tasks")
-                for task in tasks:
+                await runtime.heartbeat()
+                claimed_count = 0
+                for _ in range(MAX_TASKS_PER_TICK):
                     if _stop_event.is_set():
                         break
-                    await _process_task(task, runtime=runtime)
+                    claim = await runtime.claim_next_task()
+                    if claim is None:
+                        break
+                    claimed_count += 1
+                    await _process_task(
+                        claim.task,
+                        runtime=runtime,
+                        recovered_lease=claim.lease,
+                    )
+                if claimed_count == 0:
+                    logger.debug("no eligible Hermes tasks available for atomic claim")
             except Exception as exc:  # noqa: BLE001
                 logger.exception("Hermes worker tick failed: %s", exc)
                 await log_event(
@@ -228,8 +223,7 @@ async def run_worker() -> None:
             except asyncio.TimeoutError:
                 continue
     finally:
-        if runtime is not None:
-            await runtime.stop()
+        await runtime.stop()
 
     await log_event(
         event="hermes.worker.stopped",
