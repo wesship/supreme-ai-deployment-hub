@@ -23,6 +23,17 @@ class RuntimeStub:
         return self.lease
 
 
+class StartupRuntimeStub:
+    def __init__(self, failures: int) -> None:
+        self.failures = failures
+        self.attempts = 0
+
+    async def start(self) -> None:
+        self.attempts += 1
+        if self.attempts <= self.failures:
+            raise RuntimeError("database contract not ready")
+
+
 def active_lease() -> WorkerLease:
     now = datetime(2026, 8, 9, tzinfo=timezone.utc)
     return WorkerLease(
@@ -34,6 +45,34 @@ def active_lease() -> WorkerLease:
         renewed_at=now,
         expires_at=now + timedelta(minutes=5),
     )
+
+
+@pytest.mark.asyncio
+async def test_startup_retries_until_database_contract_is_ready(monkeypatch):
+    runtime = StartupRuntimeStub(failures=1)
+    monkeypatch.setattr(worker, "_stop_event", worker.asyncio.Event())
+    monkeypatch.setattr(worker, "STARTUP_RETRY_SECONDS", 0)
+
+    assert await worker._start_runtime_with_retry(runtime) is True
+    assert runtime.attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_startup_stops_retrying_on_shutdown(monkeypatch):
+    runtime = StartupRuntimeStub(failures=1)
+    monkeypatch.setattr(worker, "_stop_event", worker.asyncio.Event())
+    monkeypatch.setattr(worker, "STARTUP_RETRY_SECONDS", 60)
+
+    async def stop_after_failure() -> None:
+        while runtime.attempts == 0:
+            await worker.asyncio.sleep(0)
+        worker._stop_event.set()
+
+    stopper = worker.asyncio.create_task(stop_after_failure())
+    try:
+        assert await worker._start_runtime_with_retry(runtime) is False
+    finally:
+        await stopper
 
 
 @pytest.mark.asyncio
