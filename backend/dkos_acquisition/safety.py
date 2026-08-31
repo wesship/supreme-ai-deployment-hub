@@ -120,11 +120,14 @@ def promote_after_security_scan(
     if obj.state is not AcquisitionState.SCANNING:
         raise ValueError("security results are accepted only while scanning")
 
-    if not scan_passed or content_sha256 is None:
+    digest_is_valid = content_sha256 is not None and bool(
+        _SHA256_RE.fullmatch(content_sha256)
+    )
+    if not scan_passed or not digest_is_valid:
         return transition(
             obj,
             AcquisitionState.QUARANTINED,
-            content_sha256=content_sha256,
+            content_sha256=content_sha256 if digest_is_valid else None,
         )
 
     return transition(
