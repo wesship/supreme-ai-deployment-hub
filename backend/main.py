@@ -115,12 +115,12 @@ async def _supabase_status() -> str:
     if not url or not key:
         return "not_configured"
     try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
+        async with httpx.AsyncClient(timeout=3.0, follow_redirects=True) as client:
             response = await client.get(
                 f"{url}/rest/v1/",
                 headers={"apikey": key, "Authorization": f"Bearer {key}"},
             )
-        return "reachable" if response.status_code < 400 else "unreachable"
+        return "reachable" if response.is_success else "unreachable"
     except Exception:
         return "unreachable"
 
