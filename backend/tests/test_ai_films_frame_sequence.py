@@ -1,5 +1,7 @@
+from io import BytesIO
 from pathlib import Path
-from unittest.mock import patch
+import struct
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -58,3 +60,38 @@ def test_invalid_start_number_is_rejected(tmp_path: Path) -> None:
             metadata=_metadata(source),
             start_number=-1,
         )
+
+
+def test_decoder_uses_camera_match_source_space(tmp_path: Path) -> None:
+    source = tmp_path / "clip.mov"
+    source.write_bytes(b"media")
+
+    process = MagicMock()
+    process.stdout = BytesIO(struct.pack("<12f", *([0.5] * 12)))
+    process.stderr = BytesIO()
+    process.wait.return_value = 0
+    process.poll.return_value = 0
+
+    with (
+        patch("backend.ai_films.frame_sequence.shutil.which", return_value="/usr/bin/ffmpeg"),
+        patch("backend.ai_films.frame_sequence.probe_frame_timestamps", return_value=(0.0,)),
+        patch("backend.ai_films.frame_sequence.subprocess.Popen", return_value=process),
+        patch("backend.ai_films.frame_sequence.write_color_managed_exr") as write_exr,
+        patch("backend.ai_films.frame_sequence.build_editorial_conform_manifest", return_value=object()),
+        patch(
+            "backend.ai_films.frame_sequence.write_editorial_manifest",
+            return_value=tmp_path / "frames" / "editorial_conform.json",
+        ),
+        patch(
+            "backend.ai_films.frame_sequence.write_otio_timeline",
+            return_value=tmp_path / "frames" / "editorial_conform.otio",
+        ),
+    ):
+        manifest = decode_to_acescg_exr_sequence(
+            source,
+            tmp_path / "frames",
+            metadata=_metadata(source),
+        )
+
+    assert manifest.source_color_space == "ARRI LogC4"
+    assert write_exr.call_args.kwargs["source_space"] == "ARRI LogC4"
