@@ -206,7 +206,7 @@ def decode_to_acescg_exr_sequence(
                 red=red,
                 green=green,
                 blue=blue,
-                source_space=camera_match.color_space,
+                source_space=camera_match.source_space,
                 metadata={
                     "aiFilmsSourceFrameIndex": offset,
                     "aiFilmsSourcePTSSeconds": pts,
@@ -262,7 +262,7 @@ def decode_to_acescg_exr_sequence(
         height=height,
         frame_rate=media.frame_rate,
         frame_count=len(frames),
-        source_color_space=camera_match.color_space,
+        source_color_space=camera_match.source_space,
         frames=tuple(frames),
         editorial_manifest_path=str(conform_path),
         otio_timeline_path=str(otio_path),
