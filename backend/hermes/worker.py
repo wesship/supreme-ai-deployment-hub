@@ -38,6 +38,7 @@ logger = logging.getLogger("hermes.worker")
 DEFAULT_AGENT = os.getenv("HERMES_DEFAULT_AGENT", "TARS")
 POLL_INTERVAL_SECONDS = float(os.getenv("HERMES_POLL_INTERVAL_SECONDS", "10"))
 MAX_TASKS_PER_TICK = int(os.getenv("HERMES_MAX_TASKS_PER_TICK", "5"))
+STARTUP_RETRY_SECONDS = float(os.getenv("HERMES_STARTUP_RETRY_SECONDS", "10"))
 EXTERNAL_COORDINATOR_AGENTS = frozenset({"ai-films-mastering"})
 
 _stop_event = asyncio.Event()
@@ -156,6 +157,30 @@ async def _recover_leased_tasks(runtime: PersistentWorkerRuntime) -> None:
         await _process_task(task, runtime=runtime, recovered_lease=lease)
 
 
+async def _start_runtime_with_retry(runtime: PersistentWorkerRuntime) -> bool:
+    """Keep the process alive while its database contract is being deployed."""
+    attempt = 0
+    while not _stop_event.is_set():
+        attempt += 1
+        try:
+            await runtime.start()
+            return True
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "Hermes worker startup attempt %s failed; retrying in %ss: %s",
+                attempt,
+                STARTUP_RETRY_SECONDS,
+                exc,
+            )
+            try:
+                await asyncio.wait_for(
+                    _stop_event.wait(), timeout=max(1.0, STARTUP_RETRY_SECONDS)
+                )
+            except asyncio.TimeoutError:
+                continue
+    return False
+
+
 async def run_worker() -> None:
     dependencies = get_dependencies()
     runtime = build_persistent_worker_runtime(
@@ -166,7 +191,9 @@ async def run_worker() -> None:
         raise RuntimeError(
             "HERMES_PERSISTENT_WORKERS_ENABLED must remain enabled; non-atomic worker polling is disabled"
         )
-    await runtime.start()
+    if not await _start_runtime_with_retry(runtime):
+        logger.info("Hermes worker stopped before startup completed")
+        return
     await _recover_leased_tasks(runtime)
 
     logger.info(
