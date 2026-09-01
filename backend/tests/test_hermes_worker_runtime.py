@@ -13,11 +13,18 @@ from backend.hermes.worker_persistence import (
 from backend.hermes.worker_runtime import (
     PersistentWorkerRuntime,
     PersistentWorkerRuntimeConfig,
+    _normalize_capabilities,
 )
 from backend.hermes.workflows.workers import LeaseStatus, WorkerRegistryPolicy, WorkerStatus
 
 
 TASK_ID = "00000000-0000-0000-0000-000000000001"
+
+
+def test_worker_capabilities_are_normalized_and_keep_dispatch_base():
+    assert _normalize_capabilities(
+        (" Visual-QA ", "browser-control", "visual-qa")
+    ) == ("browser-control", "task-dispatch", "visual-qa")
 
 
 def runtime_service(
@@ -124,7 +131,7 @@ async def test_claim_next_task_uses_atomic_rpc_and_returns_locked_task_with_leas
     repository.tables["hermes_workers"][0].update(
         {"active_leases": 1, "version_counter": 2}
     )
-    repository.rpc_results["hermes_claim_task"] = [
+    repository.rpc_results["hermes_claim_capability_task"] = [
         {
             "task_id": TASK_ID,
             "lease_id": "lease-claimed",
@@ -151,4 +158,6 @@ async def test_claim_next_task_uses_atomic_rpc_and_returns_locked_task_with_leas
     assert claim.task["status"] == "LOCKED"
     assert claim.lease.status is LeaseStatus.ACTIVE
     assert claim.lease.lease_id == "lease-claimed"
-    assert any(name == "hermes_claim_task" for name, _ in repository.rpc_calls)
+    assert any(
+        name == "hermes_claim_capability_task" for name, _ in repository.rpc_calls
+    )
