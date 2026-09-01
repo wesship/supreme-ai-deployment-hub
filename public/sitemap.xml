@@ -71,6 +71,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://www.d3vonn.io/glasses/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.d3vonn.io/enterprise-readiness</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
