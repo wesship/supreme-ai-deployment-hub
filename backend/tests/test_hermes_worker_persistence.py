@@ -80,7 +80,7 @@ async def test_atomic_claim_uses_one_database_rpc_and_reconciles_local_state():
     repository.tables["hermes_workers"][0].update(
         {"active_leases": 1, "status": "healthy", "version_counter": row["version_counter"] + 1}
     )
-    repository.rpc_results["hermes_claim_task"] = [
+    repository.rpc_results["hermes_claim_capability_task"] = [
         {
             "task_id": TASK_ID,
             "lease_id": "lease-db-claim",
@@ -103,7 +103,6 @@ async def test_atomic_claim_uses_one_database_rpc_and_reconciles_local_state():
 
     claim = await persistent.claim_next_task(
         worker_id=worker.worker_id,
-        required_capabilities=("task-dispatch",),
         lease_ttl_seconds=20,
     )
 
@@ -113,10 +112,9 @@ async def test_atomic_claim_uses_one_database_rpc_and_reconciles_local_state():
     assert claim.lease.lease_id == "lease-db-claim"
     assert persistent.registry.task_leases[TASK_ID] == "lease-db-claim"
     assert repository.rpc_calls[0] == (
-        "hermes_claim_task",
+        "hermes_claim_capability_task",
         {
             "p_worker_id": "worker-a",
-            "p_capabilities": ["task-dispatch"],
             "p_lease_ttl_seconds": 20,
         },
     )
@@ -127,17 +125,16 @@ async def test_atomic_claim_uses_one_database_rpc_and_reconciles_local_state():
 async def test_atomic_claim_returns_none_when_database_has_no_eligible_task():
     persistent, _, repository, _ = service()
     worker, _ = await register_worker(persistent)
-    repository.rpc_results["hermes_claim_task"] = []
+    repository.rpc_results["hermes_claim_capability_task"] = []
 
     claim = await persistent.claim_next_task(
         worker_id=worker.worker_id,
-        required_capabilities=("task-dispatch",),
         lease_ttl_seconds=300,
     )
 
     assert claim is None
     assert persistent.registry.task_leases == {}
-    assert repository.rpc_calls[-1][0] == "hermes_claim_task"
+    assert repository.rpc_calls[-1][0] == "hermes_claim_capability_task"
 
 
 @pytest.mark.asyncio
