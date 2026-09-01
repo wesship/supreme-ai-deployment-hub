@@ -24,6 +24,10 @@ from ..router.router import tool_router
 
 logger = logging.getLogger(__name__)
 
+MAX_AGENTS_PER_RUN = 5
+MAX_SUBTASKS = 5
+MAX_RUNTIME_SECONDS = 15 * 60
+
 
 class SubTask(BaseModel):
     sub_task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -62,6 +66,8 @@ class AgentOrchestrator:
 
     def register_agent(self, name: str, executor: AgentExecutor) -> None:
         """Register a named agent executor."""
+        if name not in self._agents and len(self._agents) >= MAX_AGENTS_PER_RUN:
+            raise ValueError(f"Cannot register more than {MAX_AGENTS_PER_RUN} agents")
         self._agents[name] = executor
         logger.info("Registered agent: %s", name)
 
@@ -79,6 +85,7 @@ class AgentOrchestrator:
         run = OrchestrationRun(goal=goal, user_id=user_id, session_id=session_id)
         self._active_runs[run.run_id] = run
         run.status = "running"
+        started_at = time.monotonic()
 
         # Store goal in conversation memory
         if session_id:
@@ -86,14 +93,23 @@ class AgentOrchestrator:
 
         try:
             # Step 1: Decompose goal into sub-tasks
-            sub_tasks = await self._decompose_goal(goal, context or {})
-            run.sub_tasks = sub_tasks
+            sub_tasks = await asyncio.wait_for(
+                self._decompose_goal(goal, context or {}),
+                timeout=self._remaining_run_time(started_at),
+            )
+            run.sub_tasks = sub_tasks[:MAX_SUBTASKS]
 
             # Step 2: Execute sub-tasks (parallel where possible)
-            await self._execute_sub_tasks(run, context or {})
+            await asyncio.wait_for(
+                self._execute_sub_tasks(run, context or {}),
+                timeout=self._remaining_run_time(started_at),
+            )
 
             # Step 3: Synthesize final answer
-            run.final_answer = await self._synthesize_results(run)
+            run.final_answer = await asyncio.wait_for(
+                self._synthesize_results(run),
+                timeout=self._remaining_run_time(started_at),
+            )
             run.status = "success"
 
             # Store result in memory
@@ -106,6 +122,10 @@ class AgentOrchestrator:
                     user_id=user_id
                 )
 
+        except TimeoutError:
+            run.status = "failed"
+            run.error = "Maximum orchestration runtime exceeded"
+            logger.error("Orchestration runtime limit exceeded")
         except Exception as exc:
             run.status = "failed"
             run.error = str(exc)
@@ -114,6 +134,13 @@ class AgentOrchestrator:
             run.completed_at = time.time()
 
         return run
+
+    @staticmethod
+    def _remaining_run_time(started_at: float) -> float:
+        remaining = MAX_RUNTIME_SECONDS - (time.monotonic() - started_at)
+        if remaining <= 0:
+            raise TimeoutError("Maximum orchestration runtime exceeded")
+        return remaining
 
     async def _decompose_goal(
         self, goal: str, context: Dict[str, Any]
@@ -155,6 +182,7 @@ Keep sub-tasks atomic and actionable."""
                     }
                 )
 
+            resp.raise_for_status()
             data = resp.json()
             content = json.loads(data["choices"][0]["message"]["content"])
             tasks_data = content.get("sub_tasks", [{"description": goal, "agent": "default"}])
@@ -164,7 +192,7 @@ Keep sub-tasks atomic and actionable."""
                     description=t.get("description", goal),
                     assigned_agent=t.get("agent", "default")
                 )
-                for t in tasks_data[:5]  # Cap at 5 sub-tasks
+                for t in tasks_data[:MAX_SUBTASKS]
             ]
 
         except Exception as exc:
@@ -241,6 +269,7 @@ Keep sub-tasks atomic and actionable."""
                     }
                 )
 
+            resp.raise_for_status()
             data = resp.json()
             return data["choices"][0]["message"]["content"]
 
