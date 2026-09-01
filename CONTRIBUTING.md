@@ -39,6 +39,10 @@ git push origin feat/your-feature-name
 
 This repository is connected to the **Devonn Central Orchestrator** at `https://central-orchestrator.onrender.com`. When you open a PR or push code:
 
+Coding assistants are optional operator tools; no GitHub Copilot subscription or
+specific assistant is required. See the
+[coding-agent independence policy](docs/CODING_AGENT_INDEPENDENCE.md).
+
 1. The **Debug Agent** scans for runtime errors and test failures.
 2. The **Security Agent** checks for vulnerabilities through the repository’s [open-source security baseline](docs/security/OPEN_SOURCE_SECURITY_BASELINE.md), including CodeQL, dependency review, Gitleaks, Grype, container hardening, and security-focused tests.
 3. The **Refactor Agent** suggests code quality improvements.
