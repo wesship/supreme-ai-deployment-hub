@@ -80,7 +80,7 @@ function evaluatePolicy(ctx) {
 
   if (ctx.riskSignals.touchesDependencies) {
     return warn(
-      "Dependency manifests modified — Dependabot and Snyk scans will run",
+      "Dependency manifests modified — Dependency Review and Grype checks will run",
       "hermes.ci"
     );
   }

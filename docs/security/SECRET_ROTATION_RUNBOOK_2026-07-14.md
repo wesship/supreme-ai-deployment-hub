@@ -12,7 +12,6 @@ This runbook covers rotation of secrets referenced by the production repository 
 - `SUPABASE_ACCESS_TOKEN`
 - Supabase service-role key used by backend services
 - `VERCEL_TOKEN`
-- `SNYK_TOKEN`
 - `CODECOV_TOKEN`
 - `SENTRY_AUTH_TOKEN`
 - AWS access keys, when configured
@@ -48,7 +47,6 @@ These are identifiers or public client configuration, not confidential credentia
 | `SUPABASE_ACCESS_TOKEN` | Supabase account tokens | GitHub Actions |
 | Supabase service-role key | Supabase project API settings | Backend/VPS runtime only |
 | `VERCEL_TOKEN` | Vercel account tokens | GitHub Actions |
-| `SNYK_TOKEN` | Snyk account settings | GitHub Actions |
 | `CODECOV_TOKEN` | Codecov repository settings | GitHub Actions |
 | `SENTRY_AUTH_TOKEN` | Sentry auth tokens | GitHub Actions |
 | AWS access keys | AWS IAM | GitHub Actions / cloud runtime |

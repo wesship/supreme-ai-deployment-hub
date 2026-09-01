@@ -1,38 +1,43 @@
-# Required Status Checks — main branch
+# Required Checks
 
-These checks MUST pass before any PR may merge to `main`. Configured in
-GitHub → Settings → Branches → `main` → Branch protection rules.
+This document records the repository’s protected-branch merge gates and the supporting open-source security controls. The authoritative enforcement configuration remains the GitHub ruleset for `main`; this document must be updated in the same pull request as a ruleset change.
 
-## Mandatory (block merge on failure)
+## Required merge checks
 
-- `build` — production build succeeds
-- `lint` — eslint + typescript no errors
-- `test` — vitest suite green
-- `security/snyk` — no new high/critical vulns
-- `governance/dependabot-auto-merge-guard` — no risky majors auto-merging
-- `supabase/migration-dry-run` — pending migrations parse cleanly
+The `main` ruleset currently requires the following checks before merge.
 
-## Advisory (warn, do not block)
+| Required check | Purpose |
+|---|---|
+| `Lint` | Checks maintained application source for lint regressions. |
+| `Unit Tests (Node.js)` | Validates frontend and platform behavior. |
+| `Backend Proxy Tests (FastAPI)` | Validates backend API routing and proxy security boundaries. |
+| `Gitleaks Secret Scan` | Detects committed credentials and high-risk secret patterns. |
 
-- `bundle-size` — alerts >5% growth
-- `a11y` — accessibility regressions
-- `ci-analytics` — flaky-test surface
+## Supporting security controls
+
+The following controls remain part of the security baseline according to their existing workflow triggers and repository configuration. They are not replaced by a paid scanner or by a third-party status context.
+
+| Control | Purpose |
+|---|---|
+| CodeQL | Performs static analysis and reports security findings to GitHub Security. |
+| Dependency Review | Evaluates dependency changes in pull requests. |
+| Anchore SBOM + Grype | Generates SPDX SBOMs and enforces high- and critical-severity vulnerability findings. |
+| Container hardening | Validates container-hardening controls. |
+| Application and security tests | Exercise application, backend, and security-specific regression boundaries. |
+| Vercel and Railway deployment checks | Verify the normal Git-connected delivery path after the protected merge process. |
+
+The authoritative control description is [Open-Source Security Baseline](../docs/security/OPEN_SOURCE_SECURITY_BASELINE.md).
 
 ## Branch protection settings
 
-- Require PR before merging: **YES**
-- Require approvals: **1** (2 for governance/ paths)
-- Dismiss stale reviews on push: **YES**
-- Require conversation resolution: **YES**
-- Require signed commits: **PREFERRED** (enforce after migration to signed commits)
-- Require linear history: **YES**
-- Require deployments to succeed: production env
-- Lock branch: **NO** (use merge queue instead)
-- Do not allow force pushes: **YES**
-- Do not allow deletions: **YES**
-- Allow merge queue: **YES** (squash merge)
+- Require pull request before merging: **Yes**.
+- Require approvals and code-owner review: **Yes**, according to the active repository ruleset.
+- Dismiss stale reviews on push: **Yes**.
+- Require conversation resolution: **Yes**.
+- Require linear history: **Yes**.
+- Do not allow force pushes or branch deletion: **Yes**.
+- Allowed merge methods: merge, squash, and rebase, according to the active ruleset.
 
 ## Change control
 
-Modifying this list requires a PR to `governance/REQUIRED_CHECKS.md`
-with sign-off from @core-platform and @security.
+Modifying the required-check policy or a security workflow requires a pull request with platform and security review. Do not disable required checks, weaken branch rules, or add a credential-dependent scanner as an implicit production gate without an explicit policy decision.

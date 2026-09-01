@@ -4,7 +4,7 @@
 # Bundles the three safe automated actions from docs/PR_TRIAGE_RUNBOOK.md:
 #   1. Close stale Copilot drafts (delegates to bulk-close-stale-copilot-prs.sh)
 #   2. Strip auto-merge from risky Dependabot MAJOR bumps
-#   3. Enable squash auto-merge on safe Snyk/Dependabot patch+minor PRs
+#   3. Enable squash auto-merge on safe Dependabot patch+minor PRs
 #
 # Usage:
 #   bash scripts/bulk-triage.sh           # dry run, prints planned actions
@@ -47,7 +47,7 @@ mapfile -t MAJORS < <(
   gh pr list --state open --limit 200 \
     --json number,title,author,autoMergeRequest \
     --jq ".[]
-      | select(.author.login == \"app/dependabot\" or .author.login == \"dependabot\")
+      | select(.author.login == \"app/dependabot\" or .author.login == \"dependabot\" or .author.login == \"dependabot[bot]\")
       | select(.title | test(\"$RISKY_PKGS_REGEX\"; \"i\"))
       | \"\(.number)\t\(.autoMergeRequest != null)\t\(.title)\""
 )
@@ -71,14 +71,14 @@ fi
 echo
 
 # ── Step 3: Enable squash auto-merge on safe patches ─────────────────────────
-say "Step 3 / 3  ·  Auto-merge safe Snyk / Dependabot patches"
+say "Step 3 / 3  ·  Auto-merge safe Dependabot patches"
 
 mapfile -t SAFE < <(
   gh pr list --state open --limit 200 \
     --json number,title,author,mergeable,autoMergeRequest,isDraft \
     --jq '.[]
       | select(.isDraft == false)
-      | select((.author.login | test("snyk|dependabot"; "i")))
+      | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
       | select(.title | test("major"; "i") | not)
       | select(.title | test("bump|upgrade|fix|patch"; "i"))
       | "\(.number)\t\(.autoMergeRequest != null)\t\(.title)"'

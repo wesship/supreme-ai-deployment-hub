@@ -41,7 +41,7 @@ jobs:
         run: pnpm exec eslint src --ext .ts,.tsx,.js,.jsx --no-error-on-unmatched-pattern --quiet
 
   security-scan:
-    name: Security Scan
+    name: Dependency Audit
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -57,13 +57,6 @@ jobs:
       - name: Run pnpm audit
         run: pnpm audit --prod
         continue-on-error: true
-      - name: Run Snyk scan
-        uses: snyk/actions/node@12140f4059e244892ae643824a95459a102120dd
-        continue-on-error: true
-        with:
-          args: --severity-threshold=high
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
   unit-test:
     name: Unit Tests (Node.js)

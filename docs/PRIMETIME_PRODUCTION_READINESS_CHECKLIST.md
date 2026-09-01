@@ -21,7 +21,6 @@
 
 ## Known Blockers
 
-- security/snyk (wesship) and security/snyk (wesship8): Non-blocking duplicate vulnerability documented
 - no_quote_endpoint: enforced across all releases
 - no_hard_delete: enforced via trigger and RLS
 
@@ -33,6 +32,8 @@
 - A passing staging gate is required before production deployment, together with compliance signoff and the documented rollback plan.
 
 ## Security
+
+- The repository follows the [open-source security baseline](security/OPEN_SOURCE_SECURITY_BASELINE.md); no third-party scanner status context is a release gate.
 
 - All endpoints require Supabase JWT
 - Workspace membership enforced

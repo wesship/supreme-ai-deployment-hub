@@ -6,8 +6,7 @@ Update this file whenever a workflow is added, renamed, or transferred.
 | Workflow | Owner | Category | Notes |
 |---|---|---|---|
 | `build.yml` | @core-platform | ci | primary build gate |
-| `auto-merge.yml` | @core-platform | governance | gates dependabot/snyk |
-| `auto-merge-snyk.yml` | @security | governance | patches only |
+| `auto-merge.yml` | @core-platform | governance | Dependabot-only native auto-merge configuration |
 | `dependabot-auto-merge-guard.yml` | @core-platform | governance | blocks risky majors |
 | `production-lock.yml` *(future)* | @core-platform | governance | runs `scripts/production-lock.sh` |
 | `azure-container-apps-deploy.yml` | @infra | deploy | main branch only |

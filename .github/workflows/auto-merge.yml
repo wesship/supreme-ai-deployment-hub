@@ -18,9 +18,7 @@ jobs:
     name: Configure native auto-merge
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: >-
-      github.event.pull_request.user.login == 'dependabot[bot]' ||
-      github.event.pull_request.user.login == 'snyk-bot'
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     # Trusted metadata-only context: never check out or execute pull-request code.
     # GitHub enforces every required review and status check before completing auto-merge.
     steps:
@@ -32,21 +30,6 @@ jobs:
             const pr = context.payload.pull_request;
             const label = context.payload.label?.name;
             const labels = new Set(pr.labels.map(({ name }) => name));
-
-            if (
-              pr.user.login === 'snyk-bot' &&
-              context.payload.action !== 'unlabeled' &&
-              !labels.has('auto-merge')
-            ) {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                labels: ['auto-merge', 'security'],
-              });
-              labels.add('auto-merge');
-              core.info(`Applied verified Snyk labels to PR #${pr.number}.`);
-            }
 
             const { node } = await github.graphql(`
               query($pullRequestId: ID!) {
