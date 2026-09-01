@@ -45,6 +45,23 @@ async function waitForApplication(page: Page) {
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
+  test('the wearable display preview is CSP-safe and keyboard operable', async ({ page }) => {
+    const runtimeErrors = await collectRuntimeErrors(page);
+    const response = await page.goto('/glasses/', { waitUntil: 'domcontentloaded' });
+    expect(response?.status()).toBeLessThan(400);
+    await expect(page.getByText('Simulator', { exact: true })).toBeVisible();
+    await expect(page.locator('script:not([src])')).toHaveCount(0);
+
+    const ask = page.getByRole('button', { name: 'ASK Ask D3VONN' });
+    const radio = page.getByRole('button', { name: 'PLAY HNF Radio' });
+    await ask.focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(radio).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('heading', { name: 'HNF Radio preview' })).toBeVisible();
+    expect(runtimeErrors).toEqual([]);
+  });
+
   test('AI Films keeps the featured shell lightweight and loads OpenMontage on demand', async ({ page }) => {
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
