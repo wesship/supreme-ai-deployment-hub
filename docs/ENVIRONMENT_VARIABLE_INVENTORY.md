@@ -79,9 +79,10 @@ These normally belong in GitHub Actions environment/repository secrets, not Rail
 | `SUPABASE_PROJECT_ID` | Required for project-targeted workflows | GitHub Actions environment | Must use staging or production project reference according to environment. |
 | `SUPABASE_DB_PASSWORD` | Migration/admin only | GitHub Actions environment | Not required for ordinary HTTP API runtime unless code explicitly opens a direct DB connection. |
 | `CODECOV_TOKEN` | Optional CI reporting | GitHub Actions | Coverage upload only. |
-| `SNYK_TOKEN` | Optional security scanning | GitHub Actions | Scanner credential; never client-side. |
 | `E2E_TEST_EMAIL` | Certification-only | GitHub Actions production environment | Dedicated low-privilege audit identity. |
 | `E2E_TEST_PASSWORD` | Certification-only | GitHub Actions production environment | Rotate if exposed; dedicated low-privilege identity only. |
+
+The repository security controls are defined in [Open-Source Security Baseline](security/OPEN_SOURCE_SECURITY_BASELINE.md); they do not require a third-party scanner credential.
 
 ## Known legacy or review-required names
 
