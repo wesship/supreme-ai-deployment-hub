@@ -7,6 +7,7 @@ the task is complete or a step limit is reached.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -17,6 +18,15 @@ import httpx
 from pydantic import BaseModel, Field
 
 from backend.app.config import get_settings
+from .safety_policy import (
+    ApprovalMode,
+    ToolPolicy,
+    ToolRisk,
+    evaluate_tool_action,
+    redact_sensitive_text,
+    remaining_runtime_seconds,
+    validate_agent_budget,
+)
 from ..prompts.engine import prompt_engine
 
 logger = logging.getLogger(__name__)
@@ -52,16 +62,29 @@ class AgentExecutor:
 
     def __init__(self):
         self._tool_handlers: Dict[str, Any] = {}
+        self._tool_policies: Dict[str, ToolPolicy] = {}
 
-    def register_tool(self, name: str, handler) -> None:
-        """Register a callable tool handler."""
+    def register_tool(
+        self,
+        name: str,
+        handler,
+        *,
+        risk_tier: Optional[ToolRisk] = None,
+    ) -> None:
+        """Register a handler; unclassified tools remain fail-closed."""
         self._tool_handlers[name] = handler
+        if risk_tier is None:
+            self._tool_policies.pop(name, None)
+        else:
+            self._tool_policies[name] = ToolPolicy(risk=risk_tier)
 
     async def execute(self, task: str, context: Dict[str, Any] = None) -> AgentResult:
         """Execute a task autonomously."""
         settings = get_settings()
         result = AgentResult(task=task)
         context = context or {}
+        started_at = time.monotonic()
+        tool_calls = 0
 
         messages = [
             {
@@ -76,8 +99,20 @@ class AgentExecutor:
 
         for step_num in range(1, MAX_STEPS + 1):
             try:
+                budget = validate_agent_budget(
+                    active_agents=1,
+                    depth=1,
+                    tool_calls=tool_calls,
+                    started_at=started_at,
+                )
+                if budget.mode is ApprovalMode.DENY:
+                    raise RuntimeError(budget.reason)
+
                 # Get next action from LLM
-                async with httpx.AsyncClient(timeout=60.0) as client:
+                request_timeout = min(60.0, remaining_runtime_seconds(started_at))
+                if request_timeout <= 0:
+                    raise RuntimeError("Maximum autonomous runtime exceeded.")
+                async with httpx.AsyncClient(timeout=request_timeout) as client:
                     resp = await client.post(
                         "https://api.openai.com/v1/chat/completions",
                         json={
@@ -118,7 +153,12 @@ class AgentExecutor:
                     break
 
                 # Execute the tool
-                observation = await self._execute_action(action, action_input)
+                observation, executed = await self._execute_action(
+                    action,
+                    action_input,
+                    started_at=started_at,
+                )
+                tool_calls += int(executed)
                 step.observation = observation
                 result.steps.append(step)
 
@@ -129,7 +169,7 @@ class AgentExecutor:
             except Exception as exc:
                 logger.exception("Agent step %d failed: %s", step_num, exc)
                 result.status = "failed"
-                result.error = str(exc)
+                result.error = redact_sensitive_text(str(exc))
                 break
         else:
             result.status = "max_steps_reached"
@@ -138,20 +178,39 @@ class AgentExecutor:
         result.completed_at = time.time()
         return result
 
-    async def _execute_action(self, action: str, action_input: Dict[str, Any]) -> str:
-        """Execute a tool action and return the observation string."""
+    async def _execute_action(
+        self,
+        action: str,
+        action_input: Dict[str, Any],
+        *,
+        started_at: Optional[float] = None,
+    ) -> tuple[str, bool]:
+        """Policy-check a tool action and return its observation and execution state."""
         handler = self._tool_handlers.get(action)
         if handler is None:
-            return f"Error: Unknown tool '{action}'. Available tools: {list(self._tool_handlers.keys())}"
+            return f"Denied: unknown tool '{action}'.", False
+
+        decision = evaluate_tool_action(action, action_input, self._tool_policies)
+        if decision.mode is ApprovalMode.DENY:
+            return f"Denied: {decision.reason}", False
+        if decision.mode is ApprovalMode.APPROVAL_REQUIRED:
+            return f"Approval required: {decision.reason}", False
+
+        action_started_at = started_at if started_at is not None else time.monotonic()
+        timeout = remaining_runtime_seconds(action_started_at)
+        if timeout <= 0:
+            return "Denied: Maximum autonomous runtime exceeded.", False
         try:
-            result = await handler(**action_input)
-            return str(result)
+            result = await asyncio.wait_for(handler(**action_input), timeout=timeout)
+            return redact_sensitive_text(str(result)), True
+        except TimeoutError:
+            return "Tool error: autonomous runtime limit exceeded.", True
         except Exception as exc:
-            return f"Tool error: {exc}"
+            return f"Tool error: {redact_sensitive_text(str(exc))}", True
 
     def _build_system_prompt(self, context: Dict[str, Any]) -> str:
         """Build the system prompt for the agent."""
-        tool_list = "\n".join([f"- {name}" for name in self._tool_handlers.keys()]) or "- none"
+        tool_list = "\n".join([f"- {name}" for name in self._tool_policies]) or "- none"
         ctx_str = json.dumps(context, indent=2) if context else "{}"
         return f"""You are a Devonn.ai autonomous agent.
 You execute tasks step by step using available tools.
