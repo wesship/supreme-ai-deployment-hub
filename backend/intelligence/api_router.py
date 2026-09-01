@@ -118,7 +118,7 @@ async def get_orchestration_run(
 ):
     """Get the status of an orchestration run."""
     run = orchestrator.get_run(run_id)
-    if run is None:
+    if run is None or run.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
     return run.model_dump()
 
