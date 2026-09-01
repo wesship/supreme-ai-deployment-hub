@@ -6,6 +6,7 @@ import platform
 import socket
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Iterable
 
 from backend.hermes.ports import Clock, TaskRepository
 from backend.hermes.worker_persistence import ClaimedTask, PersistentWorkerRegistry
@@ -31,6 +32,16 @@ def _env_bool(name: str, default: bool = False) -> bool:
     raise ValueError(f"{name} must be a boolean value")
 
 
+def _normalize_capabilities(capabilities: Iterable[str]) -> tuple[str, ...]:
+    normalized = {
+        item.strip().lower()
+        for item in capabilities
+        if isinstance(item, str) and item.strip()
+    }
+    normalized.add("task-dispatch")
+    return tuple(sorted(normalized))
+
+
 @dataclass(frozen=True, slots=True)
 class PersistentWorkerRuntimeConfig:
     enabled: bool = True
@@ -45,12 +56,8 @@ class PersistentWorkerRuntimeConfig:
     @classmethod
     def from_env(cls) -> "PersistentWorkerRuntimeConfig":
         hostname = socket.gethostname()
-        capabilities = tuple(
-            item.strip().lower()
-            for item in os.getenv(
-                "HERMES_WORKER_CAPABILITIES", "task-dispatch"
-            ).split(",")
-            if item.strip()
+        capabilities = _normalize_capabilities(
+            os.getenv("HERMES_WORKER_CAPABILITIES", "task-dispatch").split(",")
         )
         return cls(
             enabled=_env_bool("HERMES_PERSISTENT_WORKERS_ENABLED", True),
@@ -152,7 +159,6 @@ class PersistentWorkerRuntime:
             return None
         return await self.persistence.claim_next_task(
             worker_id=self.worker_id,
-            required_capabilities=self.config.capabilities,
             lease_ttl_seconds=self.lease_ttl_seconds,
         )
 
