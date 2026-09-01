@@ -176,7 +176,7 @@ function evaluatePolicy(ctx) {
       "hermes.ci",
       "low",
       [
-        "Dependabot and Snyk scans will run automatically",
+        "Dependency Review and Grype checks will run automatically",
         "Review the diff for unexpected version bumps",
         "Prefer exact version pinning over semver ranges in production",
       ],
