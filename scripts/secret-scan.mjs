@@ -7,6 +7,7 @@ const ignoredDirs = new Set([
   '.git', 'node_modules', 'dist', 'build', '.next', '.vercel', 'coverage',
   'benchmark-artifacts', '.turbo', '.cache', 'storybook-static'
 ]);
+const virtualEnvironmentDirPattern = /^\.?venv.*$/;
 const ignoredFiles = new Set(['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock']);
 const fixtureFiles = new Set([
   '.env.example',
@@ -46,7 +47,9 @@ function isPlaceholder(line) {
 function walk(dir, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
-      if (!ignoredDirs.has(entry.name)) walk(path.join(dir, entry.name), files);
+      if (!ignoredDirs.has(entry.name) && !virtualEnvironmentDirPattern.test(entry.name)) {
+        walk(path.join(dir, entry.name), files);
+      }
       continue;
     }
     const filePath = path.join(dir, entry.name);

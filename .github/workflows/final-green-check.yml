@@ -58,11 +58,11 @@ jobs:
           }
           NODE
 
-      - name: CI doctor advisory
-        run: pnpm ci:doctor || echo "CI doctor advisory failed; continuing to lint/typecheck/test/build."
+      - name: CI doctor
+        run: pnpm ci:doctor
 
-      - name: Workflow audit advisory
-        run: pnpm workflow:audit || echo "Workflow audit advisory failed; continuing to lint/typecheck/test/build."
+      - name: Workflow audit
+        run: pnpm workflow:audit
 
       - name: Lint
         run: pnpm lint
@@ -79,5 +79,4 @@ jobs:
       - name: Green Light
         run: |
           echo "✅ Final Green Check completed."
-          echo "✅ Install, lint, typecheck, tests, and build all completed."
-          echo "✅ Advisory CI doctor/workflow audit output reviewed separately."
+          echo "✅ Install, CI doctor, workflow audit, lint, typecheck, tests, and build all completed."

@@ -81,114 +81,17 @@ jobs:
           python -m pytest
           backend/tests/test_proxy_routes.py
           backend/tests/test_ai_film_provider_adapters.py
+          tests/test_readiness.py
           -q
 
       - name: Secret scan
         run: pnpm security:scan
 
       - name: Validate workflow YAML structure
-        run: |
-          python3 - <<'PYEOF'
-          import glob
-          import re
-          import sys
-          import yaml
-
-          expression_pattern = re.compile(r'\$\{\{.*?\}\}', re.DOTALL)
-          if_pattern = re.compile(r'^(\s*if:\s*)(.*?)(\s*(?:#.*)?)$', re.MULTILINE)
-
-          def normalize_github_syntax(content):
-              content = expression_pattern.sub('GITHUB_EXPRESSION', content)
-
-              def replace_if(match):
-                  prefix, value, suffix = match.groups()
-                  stripped = value.strip()
-                  if not stripped or stripped[0] in {'"', "'"}:
-                      return match.group(0)
-                  return f'{prefix}"GITHUB_CONDITION"{suffix}'
-
-              return if_pattern.sub(replace_if, content)
-
-          errors = []
-          workflow_files = sorted(glob.glob('.github/workflows/*.{yml,yaml}'))
-          for workflow in workflow_files:
-              try:
-                  with open(workflow, encoding='utf-8') as handle:
-                      yaml.safe_load(normalize_github_syntax(handle.read()))
-              except yaml.YAMLError as error:
-                  errors.append(f'{workflow}: {error}')
-
-          if errors:
-              for error in errors:
-                  print(f'::error::{error}')
-              sys.exit(1)
-
-          print(f'All {len(workflow_files)} workflow files have valid YAML structure.')
-          PYEOF
+        run: python3 scripts/validate_workflows.py --mode yaml
 
       - name: Validate GitHub Action references
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PYEOF'
-          import glob
-          import re
-          import sys
-          import yaml
+        run: python3 scripts/validate_workflows.py --mode actions
 
-          expression_pattern = re.compile(r'\$\{\{.*?\}\}', re.DOTALL)
-          if_pattern = re.compile(r'^(\s*if:\s*)(.*?)(\s*(?:#.*)?)$', re.MULTILINE)
-          dangerous_refs = {'main', 'master', 'HEAD'}
-          sha_pattern = re.compile(r'^[^@\s]+@[0-9a-f]{40}$')
-          required_gate = '.github/workflows/required-pr-gate.yml'
-
-          def normalize_github_syntax(content):
-              content = expression_pattern.sub('GITHUB_EXPRESSION', content)
-
-              def replace_if(match):
-                  prefix, value, suffix = match.groups()
-                  stripped = value.strip()
-                  if not stripped or stripped[0] in {'"', "'"}:
-                      return match.group(0)
-                  return f'{prefix}"GITHUB_CONDITION"{suffix}'
-
-              return if_pattern.sub(replace_if, content)
-
-          def collect_uses(value, found):
-              if isinstance(value, dict):
-                  for key, child in value.items():
-                      if key == 'uses' and isinstance(child, str):
-                          found.append(child)
-                      else:
-                          collect_uses(child, found)
-              elif isinstance(value, list):
-                  for child in value:
-                      collect_uses(child, found)
-
-          errors = []
-          for workflow in sorted(glob.glob('.github/workflows/*.{yml,yaml}')):
-              with open(workflow, encoding='utf-8') as handle:
-                  parsed = yaml.safe_load(normalize_github_syntax(handle.read())) or {}
-
-              references = []
-              collect_uses(parsed, references)
-              for reference in references:
-                  if reference.startswith('./') or reference.startswith('docker://'):
-                      continue
-                  if '@' not in reference:
-                      errors.append(f'{workflow}: external action has no ref: {reference}')
-                      continue
-
-                  ref = reference.rsplit('@', 1)[1]
-                  if ref in dangerous_refs:
-                      errors.append(f'{workflow}: mutable action ref is not allowed: {reference}')
-                  if workflow == required_gate and not sha_pattern.fullmatch(reference):
-                      errors.append(f'{workflow}: required-gate action is not pinned to a full SHA: {reference}')
-
-          if errors:
-              for error in errors:
-                  print(f'::error::{error}')
-              sys.exit(1)
-
-          print('All workflow action references satisfy the required-gate policy.')
-          PYEOF
+      - name: Run CI doctor
+        run: pnpm ci:doctor

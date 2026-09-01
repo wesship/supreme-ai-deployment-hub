@@ -49,3 +49,7 @@ secrets.json
 __pycache__/
 *.pyc
 *.pyo
+
+# Local Python virtual environments
+.venv*/
+venv*/

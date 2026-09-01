@@ -72,3 +72,19 @@ def test_rum_cors_does_not_allow_arbitrary_origin():
         },
     )
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_rum_metric_accepts_mile_high_golden_elevation_route():
+    client = TestClient(app)
+    response = client.post(
+        "/api/assurance/public/rum",
+        json={
+            "name": "LCP",
+            "value": 42,
+            "route": "/mile-high-golden-elevation",
+            "navigation_type": "navigate",
+            "deployment": "production",
+        },
+    )
+    assert response.status_code == 202
+    assert response.json() == {"accepted": True}

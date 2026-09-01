@@ -1,13 +1,6 @@
 name: VPS Deploy — D3VONN.IO
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'backend/**'
-      - 'deploy/vps/**'
-      - '.github/workflows/vps-deploy.yml'
   workflow_dispatch:
     inputs:
       skip_deploy:
@@ -53,6 +46,7 @@ jobs:
           echo "All required secrets are present."
 
       - name: Configure SSH
+        if: ${{ inputs.skip_deploy == 'false' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -62,7 +56,19 @@ jobs:
           chmod 600 ~/.ssh/vps_key
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Verify secure SSH connectivity
+        if: ${{ inputs.skip_deploy == 'false' }}
+        run: |
+          ssh \
+            -i ~/.ssh/vps_key \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            'printf "Secure SSH connectivity verified.\n"'
+
       - name: Pull latest code on VPS
+        if: ${{ inputs.skip_deploy == 'false' }}
         env:
           REPO_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -84,6 +90,7 @@ jobs:
                || echo \"WARNING: vps-deploy.yml not found on this commit\""
 
       - name: Generate internal secrets and patch .env.production
+        if: ${{ inputs.skip_deploy == 'false' }}
         run: |
           ssh \
             -i ~/.ssh/vps_key \
@@ -137,6 +144,7 @@ jobs:
              echo "=== Done ==="'
 
       - name: Inject provider API keys from GitHub Secrets
+        if: ${{ inputs.skip_deploy == 'false' }}
         run: |
           ssh \
             -i ~/.ssh/vps_key \
@@ -173,6 +181,7 @@ jobs:
              echo '=== Injection complete ==='"
 
       - name: Validate environment
+        if: ${{ inputs.skip_deploy == 'false' }}
         run: |
           ssh \
             -i ~/.ssh/vps_key \
@@ -186,7 +195,7 @@ jobs:
              sudo bash scripts/validate-production-env.sh env/.env.production'
 
       - name: Deploy (docker compose up)
-        if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
+        if: ${{ inputs.skip_deploy == 'false' }}
         run: |
           ssh \
             -i ~/.ssh/vps_key \
@@ -201,7 +210,7 @@ jobs:
              sudo bash -c '\''APP_DIR=/opt/supreme-ai-deployment-hub SKIP_GIT_SYNC=true exec bash /opt/supreme-ai-deployment-hub/deploy/vps/scripts/deploy.sh'\'''
 
       - name: Verify container health
-        if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
+        if: ${{ inputs.skip_deploy == 'false' }}
         run: |
           ssh \
             -i ~/.ssh/vps_key \
@@ -226,7 +235,7 @@ jobs:
              sudo docker exec d3vonn-redis redis-cli -a "$REDIS_PASSWORD" ping'
 
       - name: Public endpoint smoke test
-        if: ${{ github.event_name == 'push' || inputs.skip_deploy == 'false' }}
+        if: ${{ inputs.skip_deploy == 'false' }}
         run: |
           sleep 5
           echo "=== Public health check ==="
