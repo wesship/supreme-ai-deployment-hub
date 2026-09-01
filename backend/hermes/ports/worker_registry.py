@@ -24,7 +24,6 @@ class WorkerRegistryStore(Protocol):
         self,
         *,
         worker_id: str,
-        capabilities: tuple[str, ...],
         lease_ttl_seconds: int,
     ) -> dict[str, Any] | None: ...
 
