@@ -81,6 +81,7 @@ const PrimetimeAgentOsCanary = lazy(() => import("./pages/PrimetimeAgentOsCanary
 const AssuranceConsole = lazy(() => import("./pages/AssuranceConsole"));
 const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
+const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -171,6 +172,7 @@ function App() {
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/mile-high-golden-elevation" element={<MileHighGoldenElevation />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/auth" element={<AuthCallback />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />

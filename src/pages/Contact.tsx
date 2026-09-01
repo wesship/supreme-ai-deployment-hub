@@ -9,6 +9,8 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 import { env } from '@/lib/env';
+import { contactPreset } from '@/lib/contactPresets';
+import { useSearchParams } from 'react-router-dom';
 
 type ContactFormState = {
   name: string;
@@ -27,7 +29,11 @@ const EMPTY_FORM: ContactFormState = {
 };
 
 const Contact: React.FC = () => {
-  const [form, setForm] = useState<ContactFormState>(EMPTY_FORM);
+  const [searchParams] = useSearchParams();
+  const [form, setForm] = useState<ContactFormState>(() => ({
+    ...EMPTY_FORM,
+    ...(contactPreset(searchParams.get('inquiry')) ?? {}),
+  }));
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateField = (field: keyof ContactFormState, value: string) => {

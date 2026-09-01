@@ -14,6 +14,7 @@ export const PUBLIC_ROUTES = [
   ['/documentation', 'Documentation | D3VONN.IO', 'Read D3VONN.IO documentation for platform setup, AI agents, workflows, APIs, and deployment.', 'TechArticle', 'weekly', '0.8'],
   ['/about', 'About D3VONN.IO', 'Learn about D3VONN.IO and its mission to power autonomous AI-driven businesses.', 'AboutPage', 'monthly', '0.6'],
   ['/contact', 'Contact D3VONN.IO', 'Contact D3VONN.IO for product, partnership, support, and business inquiries.', 'ContactPage', 'monthly', '0.6'],
+  ['/mile-high-golden-elevation', 'Mile High Golden Elevation | Denver Fine Jewelry', 'Discover Mile High Golden Elevation, a Denver fine-jewelry company focused on handcrafted pieces, responsible materials, custom design, and private consultation.', 'Organization', 'weekly', '0.7'],
   ['/enterprise-readiness', 'Enterprise Readiness | D3VONN.IO', 'Review current D3VONN.IO enterprise controls, evidence, and dated roadmap milestones.', 'WebPage', 'monthly', '0.8'],
   ['/terms', 'Terms of Service | D3VONN.IO', 'Read the D3VONN.IO terms of service.', 'WebPage', 'yearly', '0.3'],
   ['/privacy', 'Privacy Policy | D3VONN.IO', 'Read the D3VONN.IO privacy policy.', 'WebPage', 'yearly', '0.3'],
