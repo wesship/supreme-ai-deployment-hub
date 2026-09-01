@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 const PUBLIC_ROUTES = [
   '/', '/solutions', '/pricing', '/security', '/resources', '/ai-agents',
   '/business-automation', '/marketplace', '/film', '/documentation', '/about',
-  '/contact', '/terms', '/privacy',
+  '/contact', '/mile-high-golden-elevation', '/terms', '/privacy',
 ] as const;
 
 const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']);
