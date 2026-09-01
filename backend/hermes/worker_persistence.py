@@ -99,15 +99,13 @@ class SupabaseWorkerRegistryStore:
         self,
         *,
         worker_id: str,
-        capabilities: tuple[str, ...],
         lease_ttl_seconds: int,
     ) -> dict[str, Any] | None:
         """Atomically select, lock, and lease one eligible task in PostgreSQL."""
         result = await self._repository.rpc(
-            "hermes_claim_task",
+            "hermes_claim_capability_task",
             {
                 "p_worker_id": worker_id,
-                "p_capabilities": list(capabilities),
                 "p_lease_ttl_seconds": lease_ttl_seconds,
             },
         )
@@ -274,12 +272,10 @@ class PersistentWorkerRegistry:
         self,
         *,
         worker_id: str,
-        required_capabilities: tuple[str, ...],
         lease_ttl_seconds: int,
     ) -> ClaimedTask | None:
         row = await self.store.claim_next_task(
             worker_id=worker_id,
-            capabilities=required_capabilities,
             lease_ttl_seconds=lease_ttl_seconds,
         )
         if row is None:
