@@ -43,21 +43,21 @@ bucket "CLOSE — Stale Copilot drafts" "$R" '
 
 # 2. Dependabot MAJOR bumps — strip auto-merge, manual review
 bucket "REVIEW — Dependabot major bumps" "$Y" '
-  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot")
+  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
       | select(.title | test("bump (tailwindcss|vite|react-day-picker|react|react-router-dom|@tanstack/react-query|zod|@types/react)"; "i"))
       | select(.title | test("from [0-9]+\\.[^ ]+ to [0-9]+"; "x") | not)
 '
 
-# 3. Snyk / Dependabot PATCH/MINOR — safe to auto-merge
-bucket "MERGE — Safe patches (snyk / dependabot patch)" "$G" '
-  .[] | select((.author.login | test("snyk|dependabot"; "i")))
+# 3. Dependabot PATCH/MINOR — safe to auto-merge
+bucket "MERGE — Safe Dependabot patches" "$G" '
+  .[] | select(.author.login == "app/dependabot" or .author.login == "dependabot" or .author.login == "dependabot[bot]")
       | select(.title | test("bump|upgrade|fix"; "i"))
       | select(.title | test("major"; "i") | not)
 '
 
 # 4. Everything else — human review
 bucket "HUMAN — Needs manual triage" "$C" '
-  .[] | select((.author.login | test("copilot|dependabot|snyk"; "i")) | not)
+  .[] | select((.author.login | test("copilot|dependabot"; "i")) | not)
 '
 
 echo "${DIM}Next: bash scripts/bulk-triage.sh           # dry run${NC}"
