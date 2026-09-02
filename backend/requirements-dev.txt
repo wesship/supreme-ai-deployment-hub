@@ -10,5 +10,5 @@ anyio==4.14.2
 PyYAML==6.0.3
 
 # Linting / formatting
-ruff==0.8.0
+ruff==0.16.1
 mypy==1.13.0
