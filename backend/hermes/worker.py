@@ -69,6 +69,26 @@ async def _release_lease_safely(
         )
 
 
+async def _renew_lease_until_stopped(
+    runtime: PersistentWorkerRuntime,
+    lease: WorkerLease,
+    stop_event: asyncio.Event,
+) -> None:
+    """Renew an active lease while a potentially long agent dispatch is running."""
+    interval = max(1.0, min(runtime.lease_ttl_seconds / 3, 30.0))
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval)
+            return
+        except asyncio.TimeoutError:
+            lease = await runtime.renew(lease.lease_id)
+            logger.debug(
+                "renewed Hermes task lease id=%s expires_at=%s",
+                lease.lease_id,
+                lease.expires_at,
+            )
+
+
 async def _process_task(
     task: dict[str, Any],
     runtime: PersistentWorkerRuntime,
@@ -91,6 +111,11 @@ async def _process_task(
 
     input_data = task.get("input_data") or {}
     completed = False
+    renewal_stop = asyncio.Event()
+    renewal_task = asyncio.create_task(
+        _renew_lease_until_stopped(runtime, lease, renewal_stop),
+        name=f"hermes-lease-renewal-{lease.lease_id}",
+    )
 
     logger.info("processing task id=%s agent=%s", task_id, agent_name)
 
@@ -141,6 +166,20 @@ async def _process_task(
                 data={"original_error": str(exc)},
             )
     finally:
+        renewal_stop.set()
+        try:
+            await renewal_task
+        except Exception as exc:  # noqa: BLE001
+            completed = False
+            logger.exception("lease renewal failed id=%s: %s", lease.lease_id, exc)
+            await log_event(
+                event="hermes.worker.lease_renewal_failed",
+                task_id=lease.task_id,
+                agent_name="HERMES",
+                level="error",
+                message=str(exc),
+                data={"lease_id": lease.lease_id, "worker_id": runtime.worker_id},
+            )
         await _release_lease_safely(
             runtime,
             lease,
