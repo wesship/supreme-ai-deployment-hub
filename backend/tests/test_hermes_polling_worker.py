@@ -13,10 +13,16 @@ from backend.hermes.workflows.workers import WorkerLease
 
 class RuntimeStub:
     worker_id = "worker-a"
+    lease_ttl_seconds = 300
 
     def __init__(self, lease: WorkerLease) -> None:
         self.lease = lease
         self.releases: list[tuple[str, bool]] = []
+        self.renewals: list[str] = []
+
+    async def renew(self, lease_id: str) -> WorkerLease:
+        self.renewals.append(lease_id)
+        return self.lease
 
     async def release(self, lease_id: str, *, cancelled: bool = False) -> WorkerLease:
         self.releases.append((lease_id, cancelled))
@@ -102,6 +108,35 @@ async def test_locked_task_dispatches_and_releases_its_atomic_lease(monkeypatch)
     assert dispatch.await_args.kwargs["idempotency_key"] == (
         f"hermes-task:{lease.task_id}"
     )
+    assert runtime.releases == [("lease-a", False)]
+
+
+@pytest.mark.asyncio
+async def test_active_dispatch_renews_lease_until_processing_finishes(monkeypatch):
+    lease = active_lease()
+    runtime = RuntimeStub(lease)
+    runtime.lease_ttl_seconds = 3
+    transition = AsyncMock(return_value={})
+
+    async def slow_dispatch(**_kwargs):
+        await worker.asyncio.sleep(1.1)
+        return {"status": "queued"}
+
+    monkeypatch.setattr(worker, "transition_task", transition)
+    monkeypatch.setattr(worker, "dispatch_to_agent", slow_dispatch)
+
+    await worker._process_task(
+        {
+            "id": lease.task_id,
+            "status": "LOCKED",
+            "agent_name": "TARS",
+            "input_data": {},
+        },
+        runtime=runtime,
+        recovered_lease=lease,
+    )
+
+    assert runtime.renewals == ["lease-a"]
     assert runtime.releases == [("lease-a", False)]
 
 
