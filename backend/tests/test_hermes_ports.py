@@ -54,6 +54,14 @@ def test_task_lifecycle_uses_injected_repository_clock_and_event_sink():
     configure_runtime(dependencies)
     try:
         task = run(create_task("Port-backed task", correlation_id="corr-1"))
+        task = run(
+            transition_task(
+                task["id"],
+                "LOCKED",
+                agent_name="TARS",
+                expected_status="PENDING",
+            )
+        )
         updated = run(transition_task(task["id"], "RUNNING", agent_name="TARS"))
 
         assert updated["status"] == "RUNNING"
@@ -62,6 +70,7 @@ def test_task_lifecycle_uses_injected_repository_clock_and_event_sink():
         assert repository.tables["hermes_tasks"][0]["agent_name"] == "TARS"
         assert [event["event"] for event in event_sink.events] == [
             "task.created",
+            "task.locked",
             "task.running",
         ]
         assert event_sink.events[0]["correlation_id"] == "corr-1"

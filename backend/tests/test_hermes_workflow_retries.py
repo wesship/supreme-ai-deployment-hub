@@ -67,7 +67,10 @@ def test_failure_schedules_exponential_retry_and_checkpoint() -> None:
     assert state.task_id is None
     assert scheduled.status is WorkflowStatus.RUNNING
     assert len(checkpoints.records) == 1
-    assert events.events[-1]["event"] == "workflow.step.retry.scheduled"
+    assert [event["event"] for event in events.events[-2:]] == [
+        "workflow.step.retry.scheduled",
+        "workflow.checkpoint.saved",
+    ]
 
 
 def test_retry_is_not_released_before_deadline_then_becomes_ready() -> None:
@@ -99,7 +102,10 @@ def test_retry_is_not_released_before_deadline_then_becomes_ready() -> None:
     assert released.steps["work"].next_retry_at is None
     assert released.steps["work"].error is None
     assert len(checkpoints.records) == 2
-    assert events.events[-1]["event"] == "workflow.step.retry.released"
+    assert [event["event"] for event in events.events[-2:]] == [
+        "workflow.step.retry.released",
+        "workflow.checkpoint.saved",
+    ]
 
 
 def test_non_retryable_error_fails_immediately_and_is_dead_letter_ready() -> None:
@@ -125,7 +131,10 @@ def test_non_retryable_error_fails_immediately_and_is_dead_letter_ready() -> Non
     assert state.status is StepStatus.FAILED
     assert state.dead_letter_ready is True
     assert failed.status is WorkflowStatus.FAILED
-    assert events.events[-1]["event"] == "workflow.step.retry.ineligible"
+    assert [event["event"] for event in events.events[-2:]] == [
+        "workflow.step.retry.ineligible",
+        "workflow.checkpoint.saved",
+    ]
 
 
 def test_exhausted_attempts_fail_permanently() -> None:
@@ -147,7 +156,10 @@ def test_exhausted_attempts_fail_permanently() -> None:
     assert failed.steps["work"].status is StepStatus.FAILED
     assert failed.steps["work"].dead_letter_ready is True
     assert failed.status is WorkflowStatus.FAILED
-    assert events.events[-1]["event"] == "workflow.step.retry.exhausted"
+    assert [event["event"] for event in events.events[-2:]] == [
+        "workflow.step.retry.exhausted",
+        "workflow.checkpoint.saved",
+    ]
 
 
 def test_jitter_is_deterministic_for_same_execution_attempt() -> None:
