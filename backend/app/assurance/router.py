@@ -41,6 +41,7 @@ PUBLIC_ROUTE_PATHS = (
     "/marketplace",
     "/mcp",
     "/film",
+    "/mile-high-golden-elevation",
     "/documentation",
     "/about",
     "/contact",

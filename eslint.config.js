@@ -9,6 +9,8 @@ export default tseslint.config(
     ignores: [
       "dist",
       "node_modules",
+      ".venv*/**",
+      "venv*/**",
       "scripts/**",
       "**/*.cjs",
       "tailwind.config.ts",
