@@ -2,6 +2,6 @@
 # Notebook tooling (Jupyter/IPython) is intentionally excluded from production
 # because it expands the transitive attack surface and is not required at runtime.
 torch>=2.8.0
-transformers>=5.0.0
+transformers>=5.16.1
 accelerate==0.26.1
 bitsandbytes==0.49.2
