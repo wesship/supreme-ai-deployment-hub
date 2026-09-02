@@ -1,4 +1,4 @@
-name: Governance Review v3
+name: Hermes Governance Review v3
 
 on:
   workflow_dispatch:
@@ -7,8 +7,5 @@ permissions:
   contents: read
 
 jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Manual review placeholder
-        run: echo "Manual governance v3 review placeholder for stabilization."
+  production-certification:
+    uses: ./.github/workflows/hermes-gate.yml
