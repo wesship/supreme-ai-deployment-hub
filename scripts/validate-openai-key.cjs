@@ -32,9 +32,9 @@ async function validateAPIKey(apiKey) {
 
 // Allow this to be used as a module or run directly
 if (require.main === module) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OpenAiKey || process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.error('❌ No API Key provided. Set OPENAI_API_KEY environment variable.');
+    console.error('❌ No API Key provided. Set OpenAiKey or OPENAI_API_KEY environment variable.');
     process.exit(1);
   }
 
