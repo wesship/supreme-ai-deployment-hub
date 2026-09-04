@@ -53,6 +53,21 @@ async def capabilities() -> dict[str, object]:
     }
 
 
+@router.get("/providers/{provider}/health")
+async def provider_health(provider: EngineProvider) -> dict[str, object]:
+    adapter = _adapter_for(provider)
+    probe = getattr(adapter, "health", None)
+    if probe is None:
+        return {
+            "provider": provider.value,
+            "configured": adapter.configured,
+            "reachable": False,
+            "reason": "Provider does not expose a live transport probe yet.",
+        }
+    result = await probe()
+    return {"provider": provider.value, **result}
+
+
 @router.post("/jobs/execute", response_model=DoorJob)
 async def execute_job(
     project: GameProject,
