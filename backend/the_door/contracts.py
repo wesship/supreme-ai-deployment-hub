@@ -1,7 +1,7 @@
 """Domain contracts for THE DOOR game-development runtime.
 
-THE DOOR intentionally depends on internal engine adapter contracts instead of
-binding Hermes directly to Aura or Unreal implementation details.
+THE DOOR depends on internal engine and asset-pipeline contracts instead of
+binding Hermes directly to any one engine, editor agent, or DCC tool.
 """
 from __future__ import annotations
 
@@ -11,9 +11,27 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class EngineRuntime(str, Enum):
+    UNREAL = "unreal"
+    GODOT = "godot"
+    O3DE = "o3de"
+    BEVY = "bevy"
+    STRIDE = "stride"
+    GDEVELOP = "gdevelop"
+
+
 class EngineProvider(str, Enum):
     AURA = "aura"
     UNREAL_NATIVE = "unreal-native"
+    GODOT = "godot"
+    O3DE = "o3de"
+    BEVY = "bevy"
+    STRIDE = "stride"
+    GDEVELOP = "gdevelop"
+
+
+class AssetPipelineProvider(str, Enum):
+    BLENDER = "blender"
 
 
 class DoorJobKind(str, Enum):
@@ -48,13 +66,14 @@ class AssetReference(BaseModel):
     asset_id: str = Field(..., min_length=1)
     uri: str | None = None
     media_type: str | None = None
+    source_provider: AssetPipelineProvider | None = None
 
 
 class GameProject(BaseModel):
     schema: Literal["d3vonn.the-door.game-project/v1"] = "d3vonn.the-door.game-project/v1"
     project_id: str = Field(..., min_length=1)
     title: str = Field(..., min_length=1)
-    engine: Literal["unreal"] = "unreal"
+    engine: EngineRuntime = EngineRuntime.UNREAL
     engine_version: str | None = None
     canon: list[CanonReference] = Field(default_factory=list)
     assets: list[AssetReference] = Field(default_factory=list)
@@ -81,3 +100,19 @@ class VerificationResult(BaseModel):
     checks: list[str] = Field(default_factory=list)
     failures: list[str] = Field(default_factory=list)
     observations: dict[str, Any] = Field(default_factory=dict)
+
+
+class AssetPreparationRequest(BaseModel):
+    schema: Literal["d3vonn.the-door.asset-preparation/v1"] = "d3vonn.the-door.asset-preparation/v1"
+    asset: AssetReference
+    target_engine: EngineRuntime
+    operations: list[str] = Field(default_factory=list)
+
+
+class AssetPreparationResult(BaseModel):
+    schema: Literal["d3vonn.the-door.asset-preparation-result/v1"] = "d3vonn.the-door.asset-preparation-result/v1"
+    provider: AssetPipelineProvider = AssetPipelineProvider.BLENDER
+    configured: bool
+    state: DoorJobState
+    output_asset: AssetReference | None = None
+    notes: list[str] = Field(default_factory=list)
