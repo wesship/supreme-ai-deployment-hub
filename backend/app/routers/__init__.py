@@ -252,3 +252,11 @@ try:
     logger.info("D3VONN governed event read router registered at /api/events.")
 except ImportError as exc:
     logger.warning("D3VONN event read router not registered: %s", exc)
+
+try:
+    from backend.game_dev.godmod3_location_router import router as godmod3_location_router
+
+    proxy_router.include_router(godmod3_location_router, tags=["game-dev", "godmod3"])
+    logger.info("GODMOD3 location ideation router registered at /api/game-dev/location-ideas.")
+except ImportError as exc:
+    logger.warning("GODMOD3 location ideation router not registered: %s", exc)
