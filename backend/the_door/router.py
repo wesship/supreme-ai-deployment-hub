@@ -1,8 +1,9 @@
 """FastAPI surface for THE DOOR game-development runtime."""
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from backend.app.middleware.auth import get_current_user_id
 from backend.the_door.aura_adapter import AuraDoorAdapter
 from backend.the_door.contracts import DoorJob, GameProject, VerificationResult
 
@@ -32,10 +33,18 @@ async def capabilities() -> dict[str, object]:
 
 
 @router.post("/jobs/execute", response_model=DoorJob)
-async def execute_job(project: GameProject, job: DoorJob) -> DoorJob:
+async def execute_job(
+    project: GameProject,
+    job: DoorJob,
+    _: str = Depends(get_current_user_id),
+) -> DoorJob:
     return await _aura.execute(project, job)
 
 
 @router.post("/jobs/verify", response_model=VerificationResult)
-async def verify_job(project: GameProject, job: DoorJob) -> VerificationResult:
+async def verify_job(
+    project: GameProject,
+    job: DoorJob,
+    _: str = Depends(get_current_user_id),
+) -> VerificationResult:
     return await _aura.verify(project, job)
