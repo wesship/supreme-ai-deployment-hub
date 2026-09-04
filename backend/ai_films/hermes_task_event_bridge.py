@@ -1,6 +1,7 @@
 """Event bridge that advances AI Films workflows from terminal Hermes task events."""
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -8,9 +9,13 @@ from backend.ai_films.hermes_film_dag import HermesFilmDAG
 from backend.ai_films.hermes_film_runtime import HermesFilmRuntime
 from backend.hermes.adapters import SupabaseCheckpointStore
 from backend.hermes.dependencies import HermesDependencies
+from backend.hermes.model_council.shadow_runtime import build_shadow_step_observer
 from backend.hermes.workflows.checkpoints import WorkflowRecoveryService
 from backend.hermes.workflows.coordinator import WorkflowExecutionCoordinator
 from backend.hermes.workflows.reconciliation import WorkflowTaskReconciler
+
+
+_SHADOW_TASKS: set[asyncio.Task[None]] = set()
 
 
 async def advance_ai_film_for_task(task_id: str, dependencies: HermesDependencies) -> bool:
@@ -18,6 +23,16 @@ async def advance_ai_film_for_task(task_id: str, dependencies: HermesDependencie
 
     Returns False when the task is not part of an AI Films workflow.
     """
+    task_rows = await dependencies.repository.list_rows(
+        "hermes_tasks",
+        {"id": f"eq.{task_id}", "limit": "1"},
+    )
+    source_task = task_rows[0] if task_rows else {}
+    source_input = source_task.get("input_data")
+    if not isinstance(source_input, dict):
+        source_input = {}
+    source_agent = str(source_task.get("agent_name") or "unknown")
+
     rows = await dependencies.repository.list_rows(
         "hermes_checkpoints",
         {
@@ -93,4 +108,18 @@ async def advance_ai_film_for_task(task_id: str, dependencies: HermesDependencie
             "status": advanced.status.value,
         }
     )
+
+    observer = build_shadow_step_observer(dependencies.event_sink)
+    shadow_task = asyncio.create_task(
+        observer(
+            execution_id=execution_id,
+            workflow_id=advanced.workflow_id,
+            step_id=task_id,
+            agent_name=source_agent,
+            input_data=source_input,
+        ),
+        name=f"model-council-shadow:{task_id}",
+    )
+    _SHADOW_TASKS.add(shadow_task)
+    shadow_task.add_done_callback(_SHADOW_TASKS.discard)
     return True
