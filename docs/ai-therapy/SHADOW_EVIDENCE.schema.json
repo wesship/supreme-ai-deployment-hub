@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "D3VONN AI Therapy Shadow Evidence",
+  "type": "object",
+  "required": ["framework_version", "policy_version", "corpus_version", "evaluation_version", "results", "certification_state"],
+  "properties": {
+    "framework_version": {"type": "string"},
+    "policy_version": {"type": "string"},
+    "corpus_version": {"type": "string"},
+    "evaluation_version": {"type": "string"},
+    "model_provider_versions": {"type": "array", "items": {"type": "string"}},
+    "artifact_hashes": {"type": "array", "items": {"type": "string"}},
+    "results": {
+      "type": "object",
+      "required": ["total", "passed", "failed", "p0_failures"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "p0_failures": {"type": "integer", "minimum": 0}
+      }
+    },
+    "certification_state": {
+      "enum": ["BLOCKED", "SHADOW_PASS", "REVIEW_REQUIRED", "CERTIFIED"]
+    }
+  },
+  "additionalProperties": false
+}

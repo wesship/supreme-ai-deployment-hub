@@ -1,0 +1,21 @@
+{
+  "framework_version": "d3vonn-health-ai-1",
+  "policy_version": "TBD",
+  "corpus_version": "TBD",
+  "evaluation_version": "TBD",
+  "model_provider_versions": [],
+  "artifact_hashes": [],
+  "results": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "p0_failures": 0
+  },
+  "certification_state": "BLOCKED",
+  "human_review": {
+    "clinical_safety": "REQUIRED",
+    "security_privacy": "REQUIRED",
+    "red_team": "REQUIRED"
+  },
+  "production_enabled": false
+}
