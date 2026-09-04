@@ -17,7 +17,7 @@ class GodotDoorAdapter:
     def __init__(self) -> None:
         self._base_url = os.getenv("THE_DOOR_GODOT_TRANSPORT_URL", "").strip().rstrip("/")
         self._token = os.getenv("THE_DOOR_GODOT_TRANSPORT_TOKEN", "").strip()
-        self._timeout = float(os.getenv("THE_DOOR_GODOT_TIMEOUT_SECONDS", "30"))
+        self._timeout = max(1.0, min(float(os.getenv("THE_DOOR_GODOT_TIMEOUT_SECONDS", "30")), 300.0))
 
     @property
     def name(self) -> str:
@@ -25,7 +25,7 @@ class GodotDoorAdapter:
 
     @property
     def configured(self) -> bool:
-        return bool(self._base_url and self._valid_base_url(self._base_url))
+        return bool(self._base_url and self._token and self._valid_base_url(self._base_url))
 
     @staticmethod
     def _valid_base_url(value: str) -> bool:
@@ -40,10 +40,10 @@ class GodotDoorAdapter:
         )
 
     def _headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
-        if self._token:
-            headers["Authorization"] = f"Bearer {self._token}"
-        return headers
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._token}",
+        }
 
     def capabilities(self) -> dict[str, object]:
         return {
@@ -63,7 +63,11 @@ class GodotDoorAdapter:
 
     async def health(self) -> dict[str, object]:
         if not self.configured:
-            return {"configured": False, "reachable": False, "reason": "Godot transport is not configured."}
+            return {
+                "configured": False,
+                "reachable": False,
+                "reason": "Godot transport URL and token are required.",
+            }
         try:
             async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=False) as client:
                 response = await client.get(f"{self._base_url}/health", headers=self._headers())
@@ -75,7 +79,7 @@ class GodotDoorAdapter:
 
     async def execute(self, project: GameProject, job: DoorJob) -> DoorJob:
         if not self.configured:
-            return self._blocked(job, "Godot transport is not configured yet.")
+            return self._blocked(job, "Godot transport URL and token are not configured.")
         payload = {"project": project.model_dump(mode="json"), "job": job.model_dump(mode="json")}
         try:
             async with httpx.AsyncClient(timeout=self._timeout, follow_redirects=False) as client:
@@ -93,7 +97,7 @@ class GodotDoorAdapter:
         if not self.configured:
             return VerificationResult(
                 passed=False,
-                failures=["Godot transport is not configured yet."],
+                failures=["Godot transport URL and token are not configured."],
                 observations={"provider": self.name, "engine": project.engine.value},
             )
         payload = {"project": project.model_dump(mode="json"), "job": job.model_dump(mode="json")}
