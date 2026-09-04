@@ -18,7 +18,7 @@ const Navbar = lazy(() => import("./components/Navbar"));
 const ChatProvider = lazy(() => import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider })));
 const DeploymentProvider = lazy(() => import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider })));
 const APIProvider = lazy(() => import("./contexts/APIContext").then(m => ({ default: m.APIProvider })));
-const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider })));
+const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUiProvider })));
 const Toaster = lazy(() => import("./components/ui/sonner").then(m => ({ default: m.Toaster })));
 const Analytics = lazy(() => import("@vercel/analytics/react").then(m => ({ default: m.Analytics })));
 
@@ -82,6 +82,7 @@ const AssuranceConsole = lazy(() => import("./pages/AssuranceConsole"));
 const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
+const AquaGov = lazy(() => import("./pages/AquaGov"));
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -173,6 +174,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/mile-high-golden-elevation" element={<MileHighGoldenElevation />} />
+                <Route path="/aquagov" element={<AquaGov />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/auth" element={<AuthCallback />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
