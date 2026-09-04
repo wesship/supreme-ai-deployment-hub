@@ -19,6 +19,11 @@ from backend.app.middleware.auth import get_current_user_id
 
 router = APIRouter(prefix="/game-dev", tags=["game-dev", "godmod3"])
 
+GODS_EYE_VIEW_REPO_URL = "https://github.com/bilawalsidhu/gods-eye-view"
+GODS_EYE_VIEW_MEDIA_REFERENCE_URL = (
+    "https://github.com/bilawalsidhu/gods-eye-view/blob/main/"
+    "docs/media/hero-open-source-reveal.gif"
+)
 
 RealityName = Literal["Normal", "Echo", "Fractured", "Convergence", "Any"]
 LocationType = Literal[
@@ -54,6 +59,23 @@ class LocationIdeasRequest(BaseModel):
     tone: str = Field(default="mysterious, cinematic, playable, readable", max_length=300)
 
 
+class LocationSceneDeployment(BaseModel):
+    """Non-authoritative visual deployment plan for staging a location reveal."""
+
+    reveal_style: str = "god-eye-spatial-reveal"
+    camera_path: list[str] = Field(default_factory=list)
+    spatial_layers: list[str] = Field(default_factory=list)
+    transition_cue: str
+    player_handoff: str
+    implementation_reference: str = GODS_EYE_VIEW_REPO_URL
+    media_reference: str = GODS_EYE_VIEW_MEDIA_REFERENCE_URL
+    reuse_policy: str = (
+        "Use the MIT-licensed God's Eye View codebase only as an implementation/design "
+        "reference. Do not copy, bundle, modify, or commercially reuse the referenced "
+        "hero GIF without separate permission from its owner."
+    )
+
+
 class LocationIdea(BaseModel):
     id: str
     name: str
@@ -67,6 +89,7 @@ class LocationIdea(BaseModel):
     encounter_hook: str
     narrative_purpose: str
     audio_hook: str
+    scene_deployment: LocationSceneDeployment
     gameplay_risks: list[str] = Field(default_factory=list)
     production_notes: list[str] = Field(default_factory=list)
 
@@ -101,7 +124,14 @@ def _system_prompt() -> str:
         "state, progression, save state, encounter completion, or runtime rules. "
         "Prioritize strong spatial identity, Door/reality logic, Foresight utility, "
         "traversal readability, combat readability, environmental storytelling, and "
-        "reasonable production scope. Return JSON only, with no markdown fences."
+        "reasonable production scope. Every location must include a scene_deployment "
+        "plan inspired by the open-source God's Eye View spatial/cinematic grammar: "
+        "begin with readable geographic/spatial context, progressively reveal relevant "
+        "layers or landmarks, move through a purposeful camera path, and hand control "
+        "back to the player cleanly. Treat God's Eye View as an implementation/design "
+        "reference only. Do not copy, reproduce, modify, or redistribute its referenced "
+        "hero GIF or other separately licensed promotional media. Return JSON only, "
+        "with no markdown fences."
     )
 
 
@@ -121,6 +151,27 @@ def _user_prompt(request: LocationIdeasRequest) -> str:
                 "encounter_hook": "string",
                 "narrative_purpose": "string",
                 "audio_hook": "string",
+                "scene_deployment": {
+                    "reveal_style": "god-eye-spatial-reveal",
+                    "camera_path": [
+                        "establish spatial context",
+                        "descend toward the playable location",
+                        "frame Door/landmark",
+                    ],
+                    "spatial_layers": [
+                        "terrain or architecture",
+                        "Door/reality signal",
+                        "gameplay landmarks",
+                    ],
+                    "transition_cue": "string",
+                    "player_handoff": "string",
+                    "implementation_reference": GODS_EYE_VIEW_REPO_URL,
+                    "media_reference": GODS_EYE_VIEW_MEDIA_REFERENCE_URL,
+                    "reuse_policy": (
+                        "Reference only; do not copy/bundle/modify the hero GIF without "
+                        "separate permission."
+                    ),
+                },
                 "gameplay_risks": ["string"],
                 "production_notes": ["string"],
             }
@@ -136,6 +187,15 @@ def _user_prompt(request: LocationIdeasRequest) -> str:
         "constraints": request.constraints,
         "required_elements": request.required_elements,
         "forbidden_elements": request.forbidden_elements,
+        "scene_deployment_reference": {
+            "project": "God's Eye View",
+            "repository": GODS_EYE_VIEW_REPO_URL,
+            "hero_media_reference": GODS_EYE_VIEW_MEDIA_REFERENCE_URL,
+            "intent": (
+                "Adapt the open-source project's spatial reveal and scene-director ideas "
+                "for The Door; never redistribute the separately licensed hero GIF."
+            ),
+        },
     }
     return (
         "Generate location ideas from this brief:\n"
