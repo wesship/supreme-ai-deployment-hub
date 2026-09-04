@@ -12,7 +12,8 @@ export type AgentPricingModel =
   | 'free'
   | 'one-time'
   | 'subscription'
-  | 'usage-based';
+  | 'usage-based'
+  | 'contact-sales';
 
 export type AgentStatus = 
   | 'draft'
@@ -27,7 +28,8 @@ export type AgentCapability =
   | 'reporting'
   | 'integration'
   | 'scheduling'
-  | 'ml-powered';
+  | 'ml-powered'
+  | (string & {});
 
 export interface AgentPricing {
   model: AgentPricingModel;
