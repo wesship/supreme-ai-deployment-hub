@@ -29,7 +29,7 @@ export type AgentCapability =
   | 'integration'
   | 'scheduling'
   | 'ml-powered'
-  | (string & {});
+  | (string & { readonly __registryCapability?: never });
 
 export interface AgentPricing {
   model: AgentPricingModel;
