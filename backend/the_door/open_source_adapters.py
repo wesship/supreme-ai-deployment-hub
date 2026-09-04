@@ -1,8 +1,7 @@
 """Provider-neutral open-source engine adapter boundaries for THE DOOR.
 
-These adapters intentionally fail closed until a real local/remote editor or
-runtime transport is configured. Capability discovery may be exposed safely;
-mutation jobs must never pretend an engine operation succeeded.
+Godot has a real operator-configured HTTP worker transport. The remaining engine
+adapters intentionally fail closed until their transports are implemented.
 """
 from __future__ import annotations
 
@@ -15,6 +14,7 @@ from backend.the_door.contracts import (
     GameProject,
     VerificationResult,
 )
+from backend.the_door.godot_adapter import GodotDoorAdapter
 
 
 @dataclass(frozen=True)
@@ -110,8 +110,11 @@ OPEN_SOURCE_ENGINE_DESCRIPTORS = (
 )
 
 
-def build_open_source_adapters() -> dict[EngineProvider, UnconfiguredEngineAdapter]:
-    return {
-        descriptor.provider: UnconfiguredEngineAdapter(descriptor)
-        for descriptor in OPEN_SOURCE_ENGINE_DESCRIPTORS
-    }
+def build_open_source_adapters() -> dict[EngineProvider, object]:
+    adapters: dict[EngineProvider, object] = {}
+    for descriptor in OPEN_SOURCE_ENGINE_DESCRIPTORS:
+        if descriptor.provider == EngineProvider.GODOT:
+            adapters[descriptor.provider] = GodotDoorAdapter()
+        else:
+            adapters[descriptor.provider] = UnconfiguredEngineAdapter(descriptor)
+    return adapters
