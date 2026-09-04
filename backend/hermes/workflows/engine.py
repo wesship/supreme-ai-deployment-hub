@@ -135,13 +135,14 @@ class WorkflowEngine:
     ) -> WorkflowExecutionSnapshot:
         updated = snapshot.model_copy(deep=True)
         state = self._require_step(updated, step_id)
-        if state.status is not StepStatus.RUNNING:
-            raise ValueError(f"step {step_id} is not running")
+        if state.status not in {StepStatus.RUNNING, StepStatus.WAITING}:
+            raise ValueError(f"step {step_id} is not active")
         step = next(item for item in definition.steps if item.id == step_id)
         state.error = error
         state.completed_at = self._clock.now().isoformat()
         if state.attempt < step.retry.max_attempts:
             state.status = StepStatus.READY
+            state.task_id = None
         else:
             state.status = StepStatus.FAILED
             updated.status = WorkflowStatus.FAILED

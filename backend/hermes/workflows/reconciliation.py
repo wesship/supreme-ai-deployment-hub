@@ -7,6 +7,7 @@ from typing import Any
 
 from backend.hermes.contracts import TaskStatus
 from backend.hermes.ports import Clock, EventSink, TaskRepository
+from backend.hermes.workflows.engine import WorkflowEngine
 from backend.hermes.workflows.models import (
     StepStatus,
     WorkflowDefinition,
@@ -36,6 +37,7 @@ class WorkflowTaskReconciler:
         self._repository = repository
         self._clock = clock
         self._events = event_sink
+        self._engine = WorkflowEngine(clock)
 
     async def reconcile(
         self,
@@ -71,11 +73,17 @@ class WorkflowTaskReconciler:
                 state.completed_at = task.get("completed_at") or self._clock.now().isoformat()
                 await self._emit("workflow.step.reconciled.completed", updated, step.id)
             elif task_status is TaskStatus.FAILED:
-                state.status = StepStatus.FAILED
-                state.error = task.get("error_message") or "bound task failed"
-                state.completed_at = task.get("completed_at") or self._clock.now().isoformat()
-                updated.status = WorkflowStatus.FAILED
-                await self._emit("workflow.step.reconciled.failed", updated, step.id)
+                error = task.get("error_message") or "bound task failed"
+                updated = self._engine.fail_step(
+                    definition,
+                    updated,
+                    step.id,
+                    error=error,
+                )
+                if updated.steps[step.id].status is StepStatus.READY:
+                    await self._emit("workflow.step.reconciled.retry", updated, step.id)
+                else:
+                    await self._emit("workflow.step.reconciled.failed", updated, step.id)
             elif task_status is TaskStatus.CANCELLED:
                 state.status = StepStatus.CANCELLED
                 state.error = task.get("error_message")
@@ -128,4 +136,4 @@ class WorkflowTaskReconciler:
         if snapshot.workflow_version != definition.version:
             raise ValueError("workflow definition version does not match execution")
         if set(snapshot.steps) != {step.id for step in definition.steps}:
-            raise ValueError("workflow step set does not match definition")
+            raise ValueError("workflow execution steps do not match definition")
