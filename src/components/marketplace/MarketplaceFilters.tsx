@@ -2,7 +2,7 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { AgentCategory, AgentPricingModel, MarketplaceFilters as FilterType } from '@/types/marketplace';
 import { getCategoryIcon, getCategoryLabel } from '@/data/mockAgentTemplates';
 
@@ -16,7 +16,8 @@ const pricingModels: { value: AgentPricingModel; label: string }[] = [
   { value: 'free', label: 'Free' },
   { value: 'one-time', label: 'One-time' },
   { value: 'subscription', label: 'Subscription' },
-  { value: 'usage-based', label: 'Usage-based' }
+  { value: 'usage-based', label: 'Usage-based' },
+  { value: 'contact-sales', label: 'Contact' },
 ];
 
 const sortOptions: { value: FilterType['sortBy']; label: string }[] = [
@@ -24,7 +25,7 @@ const sortOptions: { value: FilterType['sortBy']; label: string }[] = [
   { value: 'newest', label: 'Newest' },
   { value: 'rating', label: 'Top Rated' },
   { value: 'price-low', label: 'Price: Low to High' },
-  { value: 'price-high', label: 'Price: High to Low' }
+  { value: 'price-high', label: 'Price: High to Low' },
 ];
 
 const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFiltersChange }) => {
@@ -32,7 +33,7 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
     filters.category,
     filters.pricing,
     filters.minRating,
-    filters.search
+    filters.search,
   ].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -41,7 +42,6 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
 
   return (
     <div className="space-y-4">
-      {/* Search Bar */}
       <div className="relative">
         <Search aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
@@ -53,7 +53,6 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
         />
       </div>
 
-      {/* Category Pills */}
       <div className="flex flex-wrap gap-2">
         <Button
           variant={!filters.category ? 'default' : 'outline'}
@@ -68,9 +67,9 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
             key={category}
             variant={filters.category === category ? 'default' : 'outline'}
             size="sm"
-            onClick={() => onFiltersChange({ 
-              ...filters, 
-              category: filters.category === category ? undefined : category 
+            onClick={() => onFiltersChange({
+              ...filters,
+              category: filters.category === category ? undefined : category,
             })}
             className="text-xs"
           >
@@ -80,12 +79,10 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
         ))}
       </div>
 
-      {/* Pricing & Sort Row */}
       <div className="flex flex-wrap items-center gap-4">
-        {/* Pricing Filter */}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Pricing:</span>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {pricingModels.map((pricing) => (
               <Badge
                 key={pricing.value}
@@ -93,7 +90,7 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
                 className="cursor-pointer text-xs hover:bg-primary/20"
                 onClick={() => onFiltersChange({
                   ...filters,
-                  pricing: filters.pricing === pricing.value ? undefined : pricing.value
+                  pricing: filters.pricing === pricing.value ? undefined : pricing.value,
                 })}
               >
                 {pricing.label}
@@ -102,7 +99,6 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
           </div>
         </div>
 
-        {/* Sort Dropdown */}
         <div className="flex items-center gap-2 ml-auto">
           <label htmlFor="marketplace-sort" className="text-xs text-muted-foreground">Sort by:</label>
           <select
@@ -119,7 +115,6 @@ const MarketplaceFilters: React.FC<MarketplaceFiltersProps> = ({ filters, onFilt
           </select>
         </div>
 
-        {/* Clear Filters */}
         {activeFilterCount > 0 && (
           <Button
             variant="ghost"
