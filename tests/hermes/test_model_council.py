@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+import json
+
+import httpx
 import pytest
 
+from backend.hermes.model_council.integrations import (
+    OpenAIChatCouncilProvider,
+    research_evidence_verification_hook,
+)
 from backend.hermes.model_council.policy import ModelCouncilPolicy
 from backend.hermes.model_council.schemas import CandidateResult, CandidateSpec, CouncilMode, CouncilRequest
 
@@ -52,3 +59,68 @@ async def test_unsafe_candidate_cannot_win(monkeypatch: pytest.MonkeyPatch) -> N
     result = await ModelCouncilPolicy(provider, verification_hook=verify).run(request)
     assert result.winner is not None
     assert result.winner.model == "safe"
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_uses_server_side_adapter_without_self_awarding_grounding() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["Authorization"] == "Bearer server-key"
+        payload = json.loads(request.content)
+        assert payload["model"] == "gpt-test"
+        assert payload["messages"][-1]["content"] == "Explain Hermes"
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "Hermes coordinates durable workflows."}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 6},
+            },
+            headers={"x-request-id": "req-test"},
+        )
+
+    transport = httpx.MockTransport(handler)
+    provider = OpenAIChatCouncilProvider(
+        api_key="server-key",
+        client_factory=lambda: httpx.AsyncClient(transport=transport),
+    )
+    result = await provider(
+        CandidateSpec(provider="openai", model="gpt-test"),
+        CouncilRequest(prompt="Explain Hermes", require_verification=False),
+    )
+    assert result.success is True
+    assert result.content == "Hermes coordinates durable workflows."
+    assert result.groundedness == 0.0
+    assert result.metadata["provider_request_id"] == "req-test"
+
+
+@pytest.mark.asyncio
+async def test_research_evidence_verifier_accepts_grounded_candidate() -> None:
+    request = CouncilRequest(
+        prompt="How does Hermes recover durable workflows?",
+        context={
+            "evidence": [
+                {
+                    "source": "web",
+                    "title": "Hermes checkpoint recovery",
+                    "snippet": "Hermes persists durable workflow checkpoints so execution can recover safely after interruption.",
+                }
+            ],
+            "evidence_score_floor": 0.20,
+            "evidence_overlap_floor": 0.05,
+        },
+    )
+    candidate = CandidateResult(
+        provider="openai",
+        model="gpt-test",
+        content="Hermes recovers durable workflow execution from persisted checkpoints after interruption.",
+        success=True,
+    )
+    assert await research_evidence_verification_hook(candidate, request) is True
+    assert candidate.groundedness > 0
+    assert candidate.metadata["verification"]["evidence_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_research_evidence_verifier_fails_closed_without_evidence() -> None:
+    candidate = CandidateResult(provider="openai", model="gpt-test", content="Unverified answer", success=True)
+    request = CouncilRequest(prompt="test", context={})
+    assert await research_evidence_verification_hook(candidate, request) is False
