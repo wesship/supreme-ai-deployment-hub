@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from uuid import UUID
 
 from backend.hermes.infrastructure import HermesDispatchClient, SupabaseRestClient
 
@@ -157,10 +158,43 @@ class EdgeFunctionAgentDispatcher:
 
 
 class RepositoryEventSink:
-    """EventSink implementation that persists lifecycle events to hermes_logs."""
+    """EventSink implementation that persists lifecycle events to hermes_logs.
+
+    Hermes events are intentionally richer than the fixed hermes_logs schema. Keep
+    the canonical searchable columns at the top level and preserve the complete
+    event as JSONB in ``data`` so new event metadata cannot break persistence.
+    """
 
     def __init__(self, repository: SupabaseTaskRepository) -> None:
         self._repository = repository
 
+    @staticmethod
+    def _uuid_or_none(value: Any) -> str | None:
+        if value is None:
+            return None
+        try:
+            return str(UUID(str(value)))
+        except (TypeError, ValueError, AttributeError):
+            return None
+
     async def emit(self, event: dict[str, Any]) -> None:
-        await self._repository.create_row("hermes_logs", event)
+        event_name = str(event.get("event") or "hermes.event")
+        payload: dict[str, Any] = {
+            "level": str(event.get("level") or "info"),
+            "event": event_name,
+            "message": str(event.get("message") or event_name),
+            "data": dict(event),
+        }
+        task_id = self._uuid_or_none(event.get("task_id"))
+        run_id = self._uuid_or_none(event.get("run_id"))
+        correlation_id = self._uuid_or_none(event.get("correlation_id"))
+        if task_id:
+            payload["task_id"] = task_id
+        if run_id:
+            payload["run_id"] = run_id
+        if correlation_id:
+            payload["correlation_id"] = correlation_id
+        agent_name = event.get("agent_name") or event.get("agent")
+        if agent_name:
+            payload["agent_name"] = str(agent_name)
+        await self._repository.create_row("hermes_logs", payload)
