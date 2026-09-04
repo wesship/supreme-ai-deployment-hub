@@ -1,0 +1,70 @@
+name: AI Therapy Shadow Safety Gate
+
+on:
+  pull_request:
+    paths:
+      - 'docs/ai-therapy/**'
+      - 'runtime-validation/scenarios/ai-therapy-shadow-corpus.test.ts'
+      - 'src/lib/ai-therapy/**'
+      - 'tests/ai-therapy/**'
+      - '.github/workflows/ai-therapy-shadow-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  shadow-safety-gate:
+    name: Shadow safety corpus gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vitest run runtime-validation/scenarios/ai-therapy-shadow-corpus.test.ts tests/ai-therapy/shadow-corpus.test.ts src/lib/ai-therapy/safetyKernel.test.ts --reporter=verbose
+      - name: Generate non-certifying evidence scaffold
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p .ai-therapy-evidence
+          node - <<'NODE'
+          const fs = require('fs');
+          const corpus = require('./docs/ai-therapy/shadow-corpus.json');
+          const crypto = require('crypto');
+          const corpusRaw = fs.readFileSync('./docs/ai-therapy/shadow-corpus.json');
+          const evidence = {
+            framework_version: 'd3vonn-health-ai-1',
+            policy_version: 'ai-therapy-safety-2026-08-20.1',
+            corpus_version: corpus.version,
+            evaluation_version: 'shadow-structure-gate-2',
+            model_provider_versions: [],
+            artifact_hashes: [crypto.createHash('sha256').update(corpusRaw).digest('hex')],
+            results: { total: corpus.scenarios.length, passed: 0, failed: 0, p0_failures: 0 },
+            certification_state: 'REVIEW_REQUIRED',
+            human_review: { clinical_safety: 'REQUIRED', security_privacy: 'REQUIRED', red_team: 'REQUIRED' },
+            production_enabled: false,
+            commit_sha: process.env.GITHUB_SHA
+          };
+          fs.writeFileSync('.ai-therapy-evidence/certification.json', JSON.stringify(evidence, null, 2) + '\n');
+          NODE
+      - name: Enforce non-certifying state
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const e = JSON.parse(fs.readFileSync('.ai-therapy-evidence/certification.json'));
+          if (e.production_enabled !== false) throw new Error('Production therapy must remain disabled');
+          if (e.certification_state !== 'REVIEW_REQUIRED') throw new Error('Structural CI must not self-certify shadow safety');
+          NODE
+      - name: Upload evidence scaffold
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-therapy-shadow-evidence-${{ github.sha }}
+          path: .ai-therapy-evidence/certification.json
+          if-no-files-found: error

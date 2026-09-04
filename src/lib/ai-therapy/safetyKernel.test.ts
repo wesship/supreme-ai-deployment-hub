@@ -17,8 +17,16 @@ describe('AI Therapy safety kernel', () => {
   });
 
   it('blocks high-risk self-harm content and tools', () => {
-    const result = assessSafety({ text: 'I want to kill myself.' });
+    const result = assessSafety({ text: 'I want to hurt myself.' });
     expect(result.level).toBe('high');
+    expect(result.allowGeneration).toBe(false);
+    expect(result.requireHumanEscalation).toBe(true);
+    expect(result.blockTools).toBe(true);
+  });
+
+  it('uses the strongest imminent-risk gate when explicit self-harm intent is present', () => {
+    const result = assessSafety({ text: 'I want to kill myself.' });
+    expect(result.level).toBe('imminent');
     expect(result.allowGeneration).toBe(false);
     expect(result.requireHumanEscalation).toBe(true);
     expect(result.blockTools).toBe(true);
