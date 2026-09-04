@@ -28,11 +28,12 @@ from backend.the_door.contracts import (
 
 app = FastAPI(title="D3VONN THE DOOR Godot Worker", version="0.1.0")
 
-WORKSPACE_ROOT = Path(os.getenv("THE_DOOR_GODOT_WORKSPACE_ROOT", "")).expanduser()
+WORKSPACE_ROOT_RAW = os.getenv("THE_DOOR_GODOT_WORKSPACE_ROOT", "").strip()
+WORKSPACE_ROOT = Path(WORKSPACE_ROOT_RAW).expanduser() if WORKSPACE_ROOT_RAW else None
 GODOT_BIN = os.getenv("THE_DOOR_GODOT_BIN", "godot").strip() or "godot"
 WORKER_TOKEN = os.getenv("THE_DOOR_GODOT_WORKER_TOKEN", "").strip()
-COMMAND_TIMEOUT_SECONDS = float(os.getenv("THE_DOOR_GODOT_COMMAND_TIMEOUT_SECONDS", "120"))
-MAX_LOG_CHARS = int(os.getenv("THE_DOOR_GODOT_MAX_LOG_CHARS", "12000"))
+COMMAND_TIMEOUT_SECONDS = max(1.0, min(float(os.getenv("THE_DOOR_GODOT_COMMAND_TIMEOUT_SECONDS", "120")), 1800.0))
+MAX_LOG_CHARS = max(1000, min(int(os.getenv("THE_DOOR_GODOT_MAX_LOG_CHARS", "12000")), 100000))
 
 
 class WorkerRequest(BaseModel):
@@ -55,17 +56,21 @@ def _resolved_binary() -> str | None:
 
 
 def _workspace_ready() -> bool:
-    return bool(str(WORKSPACE_ROOT)) and WORKSPACE_ROOT.is_dir()
+    return WORKSPACE_ROOT is not None and WORKSPACE_ROOT.is_dir()
+
+
+def _workspace_root() -> Path:
+    if not _workspace_ready() or WORKSPACE_ROOT is None:
+        raise HTTPException(status_code=503, detail="Godot workspace root is not configured")
+    return WORKSPACE_ROOT.resolve()
 
 
 def _project_dir(job: DoorJob) -> Path:
     raw = str(job.input.get("project_path", "")).strip()
     if not raw:
         raise HTTPException(status_code=422, detail="job.input.project_path is required")
-    if not _workspace_ready():
-        raise HTTPException(status_code=503, detail="Godot workspace root is not configured")
 
-    root = WORKSPACE_ROOT.resolve()
+    root = _workspace_root()
     candidate = (root / raw).resolve()
     try:
         candidate.relative_to(root)
@@ -84,6 +89,21 @@ def _bounded_child_path(project_dir: Path, raw: str, label: str) -> Path:
         candidate.relative_to(project_dir.resolve())
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"{label} escapes project directory") from exc
+    return candidate
+
+
+def _bounded_existing_output(project_dir: Path, raw: str, label: str) -> Path | None:
+    if not raw:
+        return None
+    candidate = Path(raw).expanduser()
+    if not candidate.is_absolute():
+        candidate = (project_dir / candidate).resolve()
+    else:
+        candidate = candidate.resolve()
+    try:
+        candidate.relative_to(project_dir.resolve())
+    except ValueError:
+        return None
     return candidate
 
 
@@ -212,6 +232,7 @@ async def execute_job(request: WorkerRequest, _: None = Depends(_require_worker_
 async def verify_job(request: WorkerRequest, _: None = Depends(_require_worker_token)) -> VerificationResult:
     _validate_request(request)
     job = request.job
+    project_dir = _project_dir(job)
 
     checks: list[str] = []
     failures: list[str] = []
@@ -221,22 +242,21 @@ async def verify_job(request: WorkerRequest, _: None = Depends(_require_worker_t
         failures.append("Job has not succeeded")
 
     if job.kind == DoorJobKind.PACKAGE_BUILD:
-        artifact = str(job.output.get("artifact_path", "")).strip()
-        artifact_exists = bool(artifact and Path(artifact).is_file())
+        artifact = _bounded_existing_output(project_dir, str(job.output.get("artifact_path", "")).strip(), "artifact_path")
+        artifact_exists = bool(artifact and artifact.is_file())
         observations["artifact_exists"] = artifact_exists
         if artifact_exists:
-            checks.append("packaged artifact exists")
+            checks.append("packaged artifact exists within project workspace")
         else:
-            failures.append("packaged artifact is missing")
+            failures.append("packaged artifact is missing or outside project workspace")
     elif job.kind == DoorJobKind.RUN_PLAYTEST:
         if int(job.output.get("exit_code", -1)) == 0:
             checks.append("headless playtest exited successfully")
         else:
             failures.append("headless playtest returned a non-zero exit code")
     elif job.kind == DoorJobKind.CREATE_OR_OPEN_PROJECT:
-        project_file = str(job.output.get("project_file", "")).strip()
-        if project_file and Path(project_file).is_file():
-            checks.append("project.godot exists")
+        if (project_dir / "project.godot").is_file():
+            checks.append("project.godot exists within configured workspace")
         else:
             failures.append("project.godot could not be verified")
     else:
