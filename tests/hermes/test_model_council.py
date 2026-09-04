@@ -20,14 +20,33 @@ async def _provider(spec: CandidateSpec, request: CouncilRequest) -> CandidateRe
 @pytest.mark.asyncio
 async def test_feature_flag_blocks_execution(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("HERMES_MODEL_COUNCIL_ENABLED", raising=False)
+    monkeypatch.delenv("HERMES_MODEL_COUNCIL_SHADOW_MODE", raising=False)
     result = await ModelCouncilPolicy(_provider).run(CouncilRequest(prompt="test"))
     assert result.winner is None
     assert result.blocked_reason == "feature_disabled"
 
 
 @pytest.mark.asyncio
+async def test_shadow_mode_never_returns_authoritative_winner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HERMES_MODEL_COUNCIL_ENABLED", "true")
+    monkeypatch.setenv("HERMES_MODEL_COUNCIL_SHADOW_MODE", "true")
+
+    async def verify(candidate: CandidateResult, request: CouncilRequest) -> bool:
+        return True
+
+    request = CouncilRequest(prompt="test", mode=CouncilMode.SMART, candidates=[CandidateSpec(provider="p", model="m1")])
+    result = await ModelCouncilPolicy(_provider, verification_hook=verify).run(request)
+    assert result.winner is None
+    assert result.verification_passed is True
+    assert result.blocked_reason == "shadow_mode_non_authoritative"
+    assert result.metadata["shadow_mode"] is True
+    assert result.metadata["shadow_selected_model"] == "m1"
+
+
+@pytest.mark.asyncio
 async def test_smart_mode_caps_candidates_and_requires_verification(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HERMES_MODEL_COUNCIL_ENABLED", "true")
+    monkeypatch.delenv("HERMES_MODEL_COUNCIL_SHADOW_MODE", raising=False)
 
     async def verify(candidate: CandidateResult, request: CouncilRequest) -> bool:
         return candidate.model == "m2"
@@ -43,6 +62,7 @@ async def test_smart_mode_caps_candidates_and_requires_verification(monkeypatch:
 @pytest.mark.asyncio
 async def test_unsafe_candidate_cannot_win(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HERMES_MODEL_COUNCIL_ENABLED", "true")
+    monkeypatch.delenv("HERMES_MODEL_COUNCIL_SHADOW_MODE", raising=False)
 
     async def provider(spec: CandidateSpec, request: CouncilRequest) -> CandidateResult:
         result = await _provider(spec, request)
