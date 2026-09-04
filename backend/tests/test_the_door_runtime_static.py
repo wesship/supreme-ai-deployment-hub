@@ -4,6 +4,8 @@ ROOT = Path(__file__).resolve().parents[2]
 ROUTER = ROOT / "backend" / "the_door" / "router.py"
 REGISTRY = ROOT / "backend" / "app" / "routers" / "__init__.py"
 AURA = ROOT / "backend" / "the_door" / "aura_adapter.py"
+GODOT = ROOT / "backend" / "the_door" / "godot_adapter.py"
+GODOT_WORKER = ROOT / "backend" / "the_door" / "godot_worker.py"
 OPEN_SOURCE = ROOT / "backend" / "the_door" / "open_source_adapters.py"
 BLENDER = ROOT / "backend" / "the_door" / "blender_pipeline.py"
 CONTRACTS = ROOT / "backend" / "the_door" / "contracts.py"
@@ -19,6 +21,7 @@ def test_the_door_exposes_health_and_capabilities():
     source = ROUTER.read_text()
     assert '@router.get("/health")' in source
     assert '@router.get("/capabilities")' in source
+    assert '@router.get("/providers/{provider}/health")' in source
     assert '@router.get("/assets/capabilities")' in source
     assert '@router.post("/assets/prepare"' in source
     assert '"purpose": "game-development"' in source
@@ -39,9 +42,28 @@ def test_aura_is_adapter_not_hard_dependency():
     assert "Aura editor transport is not configured yet." in source
 
 
-def test_open_source_engine_boundaries_exist_and_fail_closed():
+def test_godot_has_real_http_worker_transport():
+    adapter = GODOT.read_text()
+    worker = GODOT_WORKER.read_text()
+    registry = OPEN_SOURCE.read_text()
+    assert 'THE_DOOR_GODOT_TRANSPORT_URL' in adapter
+    assert 'THE_DOOR_GODOT_TRANSPORT_TOKEN' in adapter
+    assert '"mode": "http-worker-transport"' in adapter
+    assert 'follow_redirects=False' in adapter
+    assert 'GodotDoorAdapter()' in registry
+    assert 'THE_DOOR_GODOT_WORKSPACE_ROOT' in worker
+    assert 'THE_DOOR_GODOT_WORKER_TOKEN' in worker
+    assert 'asyncio.create_subprocess_exec' in worker
+    assert 'shell=True' not in worker
+    assert 'DoorJobKind.RUN_PLAYTEST' in worker
+    assert 'DoorJobKind.PACKAGE_BUILD' in worker
+    assert '"--headless"' in worker
+    assert '"--export-release"' in worker
+
+
+def test_remaining_open_source_engine_boundaries_fail_closed():
     source = OPEN_SOURCE.read_text()
-    for provider in ("GODOT", "O3DE", "BEVY", "STRIDE", "GDEVELOP"):
+    for provider in ("O3DE", "BEVY", "STRIDE", "GDEVELOP"):
         assert f"EngineProvider.{provider}" in source
     assert '"mode": "adapter-boundary"' in source
     assert "transport is not configured yet." in source
