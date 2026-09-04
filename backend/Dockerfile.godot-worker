@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 ARG GODOT_VERSION=4.7.2
 ARG GODOT_RELEASE=stable
-ARG GODOT_SHA256=5f4f390e956bb7cc9d5d68dcf6fe2dc8e5707270798030550440d01760bfd4a1
+ARG GODOT_SHA256=cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -19,7 +19,7 @@ RUN apt-get update \
         libxkbcommon0 libxrandr2 libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fL "https://godot-releases.nbg1.your-objectstorage.com/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip" -o /tmp/godot.zip \
+RUN curl -fL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip" -o /tmp/godot.zip \
     && echo "${GODOT_SHA256}  /tmp/godot.zip" | sha256sum -c - \
     && unzip /tmp/godot.zip -d /tmp/godot \
     && mv "/tmp/godot/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64" /usr/local/bin/godot \
