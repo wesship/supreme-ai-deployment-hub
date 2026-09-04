@@ -85,6 +85,74 @@ async def test_dispatch_keeps_internal_webhook_authoritative(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_dispatch_surfaces_pollo_403_instead_of_generic_502(monkeypatch):
+    """Regression test: a 403 (or 401/404/422/429) from Pollo must reach the
+    caller as that real status code with the upstream body attached, not be
+    flattened into a generic 502 that hides the actual cause."""
+    captured: dict[str, Any] = {}
+
+    async def require_user(_authorization):
+        return "user-1"
+
+    def no_op(_user_id):
+        return None
+
+    async def user_update(_token, _table, payload, _row_id):
+        captured["update"] = payload
+
+    class FakeDb:
+        def __init__(self, _token):
+            pass
+
+        async def insert(self, _table, payload):
+            return {"id": "job-1"}
+
+    class FakeResponse:
+        status_code = 403
+
+        def raise_for_status(self):
+            import httpx
+
+            raise httpx.HTTPStatusError("Forbidden", request=None, response=self)
+
+        def json(self):
+            return {"error": "entitlement_not_configured", "message": "Account lacks pollo-v2-5 access"}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, *, json, headers):
+            return FakeResponse()
+
+    monkeypatch.setattr(commerce_router, "_require_user", require_user)
+    monkeypatch.setattr(commerce_router, "_require_pollo_entitlement", no_op)
+    monkeypatch.setattr(commerce_router, "_check_pollo_rate_limit", no_op)
+    monkeypatch.setattr(commerce_router, "_user_update", user_update)
+    monkeypatch.setattr(commerce_router, "SupabaseRLSClient", FakeDb)
+    monkeypatch.setattr(commerce_router.httpx, "AsyncClient", FakeClient)
+    monkeypatch.setenv("POLLO_API_KEY", "test-key")
+    monkeypatch.setenv("POLLO_WEBHOOK_URL", "https://api.d3vonn.io/api/ai-films/commerce/providers/pollo/webhook")
+    monkeypatch.setenv("POLLO_WEBHOOK_SECRET", "dGVzdC1zZWNyZXQ=")
+
+    request = commerce_router.PolloDispatchRequest(prompt="Create a polished product hero video for testing.")
+    with pytest.raises(commerce_router.HTTPException) as exc_info:
+        await commerce_router.dispatch_pollo(request, authorization="Bearer test-token")
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail["upstream_status"] == 403
+    assert exc_info.value.detail["upstream_body"]["error"] == "entitlement_not_configured"
+    assert captured["update"]["status"] == "failed"
+    assert "403" in captured["update"]["error_message"]
+
+
+@pytest.mark.asyncio
 async def test_dispatch_fails_before_reservation_without_internal_webhook(monkeypatch):
     inserted = False
 
