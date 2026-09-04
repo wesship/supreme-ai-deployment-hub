@@ -18,7 +18,7 @@ const Navbar = lazy(() => import("./components/Navbar"));
 const ChatProvider = lazy(() => import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider })));
 const DeploymentProvider = lazy(() => import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider })));
 const APIProvider = lazy(() => import("./contexts/APIContext").then(m => ({ default: m.APIProvider })));
-const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUiProvider })));
+const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider })));
 const Toaster = lazy(() => import("./components/ui/sonner").then(m => ({ default: m.Toaster })));
 const Analytics = lazy(() => import("@vercel/analytics/react").then(m => ({ default: m.Analytics })));
 
