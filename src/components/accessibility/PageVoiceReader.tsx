@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { Loader2, Pause, Play, Square, Volume2 } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
@@ -53,9 +52,8 @@ export function chunkReadableText(text: string, maxLength = MAX_CHUNK): string[]
   for (const paragraph of paragraphs) {
     if (paragraph.length <= maxLength) {
       const candidate = current ? `${current}\n${paragraph}` : paragraph;
-      if (candidate.length <= maxLength) {
-        current = candidate;
-      } else {
+      if (candidate.length <= maxLength) current = candidate;
+      else {
         pushCurrent();
         current = paragraph;
       }
@@ -91,12 +89,12 @@ export function chunkReadableText(text: string, maxLength = MAX_CHUNK): string[]
 }
 
 export default function PageVoiceReader() {
-  const location = useLocation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const stoppedRef = useRef(false);
   const chunksRef = useRef<string[]>([]);
   const indexRef = useRef(0);
+  const routeRef = useRef(`${window.location.pathname}${window.location.search}${window.location.hash}`);
 
   const [state, setState] = useState<'idle' | 'loading' | 'playing' | 'paused' | 'error'>('idle');
   const [message, setMessage] = useState('Read this page');
@@ -122,12 +120,20 @@ export default function PageVoiceReader() {
   };
 
   useEffect(() => {
-    stop();
-    // stop playback whenever navigation changes
+    const interval = window.setInterval(() => {
+      const route = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (route !== routeRef.current) {
+        routeRef.current = route;
+        stop();
+      }
+    }, 400);
+    return () => {
+      window.clearInterval(interval);
+      cleanupAudio();
+    };
+    // lifecycle intentionally owns audio cleanup for the isolated reader root
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname, location.search]);
-
-  useEffect(() => () => cleanupAudio(), []);
+  }, []);
 
   const synthesizeAndPlay = async (index: number) => {
     if (stoppedRef.current || index >= chunksRef.current.length) {
