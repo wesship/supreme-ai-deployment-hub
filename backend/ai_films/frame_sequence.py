@@ -207,6 +207,7 @@ def decode_to_acescg_exr_sequence(
                 green=green,
                 blue=blue,
                 source_space=camera_match.source_space,
+                config_name=camera_match.config_name,
                 metadata={
                     "aiFilmsSourceFrameIndex": offset,
                     "aiFilmsSourcePTSSeconds": pts,

@@ -95,3 +95,4 @@ def test_decoder_uses_camera_match_source_space(tmp_path: Path) -> None:
 
     assert manifest.source_color_space == "ARRI LogC4"
     assert write_exr.call_args.kwargs["source_space"] == "ARRI LogC4"
+    assert write_exr.call_args.kwargs["config_name"] == "studio-config-v4.0.0_aces-v2.0_ocio-v2.5"
