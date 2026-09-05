@@ -12,6 +12,7 @@ on:
       - 'requirements.txt'
       - 'backend/ai_films/canary.py'
       - 'backend/ai_films/camera_color.py'
+      - 'backend/ai_films/color_management.py'
       - 'backend/ai_films/frame_sequence.py'
       - 'scripts/ai_films/production_mastering_canary.py'
       - '.github/workflows/ai-films-production-mastering-canary.yml'
