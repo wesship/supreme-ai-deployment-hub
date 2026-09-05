@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Json } from "@/integrations/supabase/types";
 
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.d3vonn.io').replace(/\/+$/, '');
+
 export interface McpConfig {
   gateway_url: string | null;
   enabled_tools: string[];
@@ -34,7 +36,14 @@ export interface DeployAgentInput {
   mcp_config?: Partial<McpConfig>;
 }
 
-// Helper to safely parse mcp_config from Json
+type MarketplaceMutationResult = {
+  id: string;
+  agentId?: string | null;
+  name?: string;
+  status: string;
+  authority: 'server';
+};
+
 export function parseMcpConfig(config: Json): McpConfig {
   if (typeof config === 'object' && config !== null && !Array.isArray(config)) {
     return {
@@ -45,6 +54,36 @@ export function parseMcpConfig(config: Json): McpConfig {
   return { gateway_url: null, enabled_tools: [] };
 }
 
+async function marketplaceMutation(path: string, init: RequestInit): Promise<MarketplaceMutationResult> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('Not authenticated');
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(init.headers || {}),
+    },
+  });
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const detail = payload && typeof payload === 'object' && 'detail' in payload
+      ? String((payload as { detail?: unknown }).detail || 'Marketplace request failed')
+      : 'Marketplace request failed';
+    throw new Error(detail);
+  }
+  return payload as MarketplaceMutationResult;
+}
+
 export function useDeployedAgents() {
   return useQuery({
     queryKey: ["deployed-agents"],
@@ -52,6 +91,7 @@ export function useDeployedAgents() {
       const { data, error } = await (supabase as any)
         .from("deployed_agents")
         .select("*")
+        .neq("status", "revoked")
         .order("deployed_at", { ascending: false });
       if (error) throw error;
       return ((data ?? []) as unknown) as DeployedAgent[];
@@ -67,6 +107,7 @@ export function useDeployedAgent(id: string) {
         .from("deployed_agents")
         .select("*")
         .eq("id", id)
+        .neq("status", "revoked")
         .single();
       if (error) throw error;
       return data as unknown as DeployedAgent;
@@ -81,63 +122,60 @@ export function useDeployAgent() {
 
   return useMutation({
     mutationFn: async (input: DeployAgentInput) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!input.template_id) throw new Error('Marketplace agent identity is required');
+      const config = input.config ?? {};
+      const notifications = config.notifications && typeof config.notifications === 'object'
+        ? config.notifications as Record<string, unknown>
+        : {};
+      const emailValue = notifications.email;
+      const email = Array.isArray(emailValue) ? emailValue[0] : emailValue;
 
-      const mcpConfig: McpConfig = {
-        gateway_url: input.mcp_config?.gateway_url ?? null,
-        enabled_tools: input.mcp_config?.enabled_tools ?? [],
-      };
-
-      const { data, error } = await (supabase as any)
-        .from("deployed_agents")
-        .insert({
-          user_id: user.id,
-          template_id: input.template_id || null,
+      return marketplaceMutation('/api/marketplace/installations', {
+        method: 'POST',
+        body: JSON.stringify({
+          agent_id: input.template_id,
           name: input.name,
-          config: (input.config ?? {}) as Json,
-          mcp_config: mcpConfig as unknown as Json,
-          status: "starting",
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
+          environment: typeof config.environment === 'string' ? config.environment : 'development',
+          notifications: typeof email === 'string' && email ? { email } : {},
+          enabled_tools: input.mcp_config?.enabled_tools ?? [],
+        }),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["deployed-agents"] });
-      toast({ title: "Agent deployed successfully", description: "Your agent is now starting up." });
+      toast({ title: "Agent deployment requested", description: "The governed runtime is starting your agent." });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({ title: "Failed to deploy agent", description: error.message, variant: "destructive" });
     },
   });
 }
 
-export function useUpdateDeployedAgent() {
+function useLifecycleAction(action: 'start' | 'stop') {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<DeployedAgent, 'id' | 'user_id' | 'deployed_at'>>) => {
-      const { data, error } = await (supabase as any)
-        .from("deployed_agents")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["deployed-agent", variables.id] });
+    mutationFn: async (id: string) => marketplaceMutation(`/api/marketplace/installations/${id}/lifecycle`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ["deployed-agent", id] });
       queryClient.invalidateQueries({ queryKey: ["deployed-agents"] });
-      toast({ title: "Agent updated" });
+      toast({ title: action === 'start' ? 'Agent start requested' : 'Agent stopped' });
     },
-    onError: (error) => {
-      toast({ title: "Failed to update agent", description: error.message, variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: `Failed to ${action} agent`, description: error.message, variant: "destructive" });
     },
   });
+}
+
+export function useStartAgent() {
+  return useLifecycleAction('start');
+}
+
+export function useStopAgent() {
+  return useLifecycleAction('stop');
 }
 
 export function useDeleteDeployedAgent() {
@@ -145,39 +183,16 @@ export function useDeleteDeployedAgent() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from("deployed_agents")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
+    mutationFn: async (id: string) => marketplaceMutation(`/api/marketplace/installations/${id}`, {
+      method: 'DELETE',
+    }),
+    onSuccess: (_, id) => {
+      queryClient.removeQueries({ queryKey: ["deployed-agent", id] });
       queryClient.invalidateQueries({ queryKey: ["deployed-agents"] });
-      toast({ title: "Agent deleted" });
+      toast({ title: "Agent uninstalled" });
     },
-    onError: (error) => {
-      toast({ title: "Failed to delete agent", description: error.message, variant: "destructive" });
-    },
-  });
-}
-
-export function useStartAgent() {
-  const updateAgent = useUpdateDeployedAgent();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      return updateAgent.mutateAsync({ id, status: "running", last_heartbeat: new Date().toISOString() });
-    },
-  });
-}
-
-export function useStopAgent() {
-  const updateAgent = useUpdateDeployedAgent();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      return updateAgent.mutateAsync({ id, status: "stopped" });
+    onError: (error: Error) => {
+      toast({ title: "Failed to uninstall agent", description: error.message, variant: "destructive" });
     },
   });
 }
