@@ -4,8 +4,14 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+ENV PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl ffmpeg \
+    && command -v ffmpeg \
+    && command -v ffprobe \
+    && ffmpeg -version >/dev/null \
+    && ffprobe -version >/dev/null \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,5 +28,7 @@ RUN groupadd --gid 1001 appgroup && \
     chown -R appuser:appgroup /app
 
 USER appuser
+
+RUN command -v ffmpeg && command -v ffprobe
 
 CMD ["python", "-m", "backend.hermes.worker"]

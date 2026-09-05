@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 FROM python:3.11-slim AS runtime
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
+ENV PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin" \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/backend \
     PIP_NO_CACHE_DIR=1 \
@@ -20,7 +21,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl ffmpeg \
+    && command -v ffmpeg \
+    && command -v ffprobe \
+    && ffmpeg -version >/dev/null \
+    && ffprobe -version >/dev/null \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -38,6 +43,11 @@ RUN mkdir -p /app/.devonn/api-vault \
     && chown -R appuser:appgroup /app/.devonn /app/backend
 
 USER appuser
+
+# Fail the image build if the non-root production runtime cannot execute the
+# binaries required by the AI FILMS frame decoder and mastering worker.
+RUN command -v ffmpeg && command -v ffprobe
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

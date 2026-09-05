@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - 'Dockerfile.railway'
+      - 'Dockerfile.hermes-worker'
+      - 'backend/Dockerfile'
       - 'backend/requirements.txt'
       - 'requirements.txt'
       - 'backend/ai_films/canary.py'
