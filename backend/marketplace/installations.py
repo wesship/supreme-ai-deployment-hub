@@ -1,25 +1,27 @@
 """Server-authoritative Marketplace installation policy.
 
 Pure validation helpers used by the authenticated FastAPI mutation boundary.
-The browser may request an installation, but it cannot choose ownership,
-runtime status, health, counters, or resource telemetry.
+The browser may request an installation or lifecycle action, but it cannot
+choose ownership, runtime status, health, counters, or resource telemetry.
 """
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _ALLOWED_ENVIRONMENTS = {"development", "staging", "production"}
-_ALLOWED_CAPABILITIES = {
-    "hermes",
-    "ffmpeg",
-    "media-provider",
-    "publish",
-}
+_ALLOWED_CAPABILITIES = {"hermes", "ffmpeg", "media-provider", "publish"}
 _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$")
+
+# User-facing lifecycle requests map to a narrowly-governed status transition.
+# Runtime workers may still own richer internal states such as error/suspended.
+_LIFECYCLE_TARGETS: dict[str, dict[str, str]] = {
+    "start": {"stopped": "starting", "paused": "starting", "error": "starting"},
+    "stop": {"starting": "stopped", "running": "stopped", "paused": "stopped", "error": "stopped"},
+}
 
 
 class InstallationRequest(BaseModel):
@@ -69,6 +71,11 @@ class InstallationRequest(BaseModel):
         return {"email": email.strip()}
 
 
+class LifecycleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["start", "stop"]
+
+
 def installation_row(*, user_id: str, request: InstallationRequest, registry_row: dict[str, Any]) -> dict[str, Any]:
     """Build the only client-requestable fields for a new deployment row."""
     registry_id = str(registry_row.get("id") or "")
@@ -85,10 +92,19 @@ def installation_row(*, user_id: str, request: InstallationRequest, registry_row
         "user_id": user_id,
         "template_id": registry_id,
         "name": request.name,
-        "config": {
-            "environment": request.environment,
-            "notifications": request.notifications,
-        },
+        "config": {"environment": request.environment, "notifications": request.notifications},
         "mcp_config": {"gateway_url": None, "enabled_tools": request.enabled_tools},
         "status": "starting",
     }
+
+
+def lifecycle_target(*, current_status: str, action: str) -> str:
+    """Return the only permitted user-requested lifecycle target."""
+    normalized = (current_status or "").strip().lower()
+    target = _LIFECYCLE_TARGETS.get(action, {}).get(normalized)
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Marketplace lifecycle transition is not allowed",
+        )
+    return target
