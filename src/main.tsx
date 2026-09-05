@@ -125,6 +125,22 @@ void import('./App.tsx')
         </RootErrorBoundary>
       </StrictMode>,
     );
+
+    // The accessibility reader is isolated from the primary React tree so a
+    // voice-only failure can never block or blank the application shell.
+    const voiceRootElement = document.createElement('div');
+    voiceRootElement.id = 'page-voice-reader-root';
+    voiceRootElement.setAttribute('data-voice-skip', 'true');
+    document.body.appendChild(voiceRootElement);
+    void import('./components/accessibility/PageVoiceReader')
+      .then(({ default: PageVoiceReader }) => {
+        createRoot(voiceRootElement).render(
+          <StrictMode>
+            <PageVoiceReader />
+          </StrictMode>,
+        );
+      })
+      .catch((error) => console.error('[D3VONN] Page voice reader failed to load:', error));
   })
   .catch((error: unknown) => {
     if (!startupWatchdog.settle()) return;
