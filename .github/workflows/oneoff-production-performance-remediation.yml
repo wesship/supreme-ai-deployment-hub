@@ -6,7 +6,7 @@ on:
       - perf/production-performance-remediation
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: oneoff-production-performance-remediation
@@ -44,17 +44,31 @@ jobs:
           ! grep -q -- '-keyframe.png' src/features/ai-films/catalog.ts
           grep -q 'reportOnlyPolicy = cspFor(nonce, true)' middleware.ts
           git diff --check
+          git diff -- src/features/ai-films/catalog.ts src/pages/Film.tsx tests/e2e/production-interaction-audit.spec.ts src/pages/Index.tsx src/components/Navbar.tsx src/pages/AIFilms.tsx middleware.ts lighthouse-config.json vercel.json > production-performance-remediation.patch
           du -h public/films/*-keyframe.webp public/d3vonn-enterprise-core.webp
 
-      - name: Commit remediation
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No remediation changes were produced" >&2
-            exit 1
-          fi
-          git commit -m "perf(prod): remediate Lighthouse production gate"
-          git push origin HEAD:perf/production-performance-remediation
+      - name: Upload remediation payload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-performance-remediation
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 6
+          path: |
+            src/features/ai-films/catalog.ts
+            src/pages/Film.tsx
+            tests/e2e/production-interaction-audit.spec.ts
+            src/pages/Index.tsx
+            src/components/Navbar.tsx
+            src/pages/AIFilms.tsx
+            middleware.ts
+            lighthouse-config.json
+            vercel.json
+            public/films/sovereign-signal-keyframe.webp
+            public/films/building-d3vonn-keyframe.webp
+            public/films/inside-hermes-keyframe.webp
+            public/films/guardian-keyframe.webp
+            public/films/ai-workforce-keyframe.webp
+            public/films/genesis-protocol-keyframe.webp
+            public/d3vonn-enterprise-core.webp
+            production-performance-remediation.patch
