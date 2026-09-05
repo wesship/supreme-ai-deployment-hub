@@ -1,14 +1,5 @@
 """
-backend/main.py — D3VONN.IO FastAPI Application Entry Point
-
-This is the canonical backend entry point for the supreme-ai-deployment-hub.
-It registers all API routers, middleware, and lifecycle hooks.
-
-Run locally:
-    uvicorn backend.main:app --reload --port 8000
-
-Run in Docker:
-    CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+backend/main.py — D3VONN.IO FastAPI Application Entry Point.
 """
 
 import logging
@@ -28,9 +19,18 @@ except ModuleNotFoundError:
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "")
 if SENTRY_DSN:
-    sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=0.2, environment=os.getenv("ENVIRONMENT", "production"))
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.2,
+        environment=os.getenv("ENVIRONMENT", "production"),
+    )
 
 logger = logging.getLogger(__name__)
+
+
+def _strict_security_environment() -> bool:
+    env = (os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or "production").lower()
+    return env not in {"dev", "development", "local", "test", "testing"}
 
 
 @asynccontextmanager
@@ -42,20 +42,61 @@ async def lifespan(app: FastAPI):
     logger.info("D3VONN.IO backend shutting down…")
 
 
-app = FastAPI(title="D3VONN.IO API", description="Multi-agent orchestration platform", version="2.0.0", docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json", lifespan=lifespan)
+app = FastAPI(
+    title="D3VONN.IO API",
+    description="Multi-agent orchestration platform",
+    version="2.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
 
-PRODUCTION_ORIGINS = ["https://d3vonn.io", "https://www.d3vonn.io", "https://app.d3vonn.io"]
-CONFIGURED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+PRODUCTION_ORIGINS = [
+    "https://d3vonn.io",
+    "https://www.d3vonn.io",
+    "https://app.d3vonn.io",
+]
+CONFIGURED_ORIGINS = [
+    value.strip()
+    for value in os.getenv("ALLOWED_ORIGINS", "").split(",")
+    if value.strip()
+]
 ALLOWED_ORIGINS = list(dict.fromkeys([*PRODUCTION_ORIGINS, *CONFIGURED_ORIGINS]))
 ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or None
-app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_origin_regex=ALLOWED_ORIGIN_REGEX, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "X-Requested-With",
+        "X-Request-ID",
+        "X-Workspace-ID",
+    ],
+)
 
-for module_name, middleware_name in (("backend.middleware.request_context", "RequestContextMiddleware"), ("backend.middleware.logging", "LoggingMiddleware"), ("backend.middleware.rate_limit", "RateLimitMiddleware"), ("backend.middleware.multi_tenancy", "MultiTenancyMiddleware")):
+_REQUIRED_MIDDLEWARE = (
+    ("backend.middleware.request_context", "RequestContextMiddleware"),
+    ("backend.middleware.logging", "LoggingMiddleware"),
+    ("backend.middleware.rate_limit", "RateLimitMiddleware"),
+    ("backend.middleware.multi_tenancy", "MultiTenancyMiddleware"),
+)
+for module_name, middleware_name in _REQUIRED_MIDDLEWARE:
     try:
         module = __import__(module_name, fromlist=[middleware_name])
-        app.add_middleware(getattr(module, middleware_name))
-    except ImportError:
-        logger.warning("%s unavailable — skipping.", middleware_name)
+        middleware_class = getattr(module, middleware_name)
+    except (ImportError, AttributeError) as exc:
+        if _strict_security_environment():
+            raise RuntimeError(
+                f"Required security middleware unavailable: {middleware_name}"
+            ) from exc
+        logger.warning("%s unavailable — development-only skip.", middleware_name)
+        continue
+    app.add_middleware(middleware_class)
 
 _OPTIONAL_ROUTERS = (
     ("backend.app.routers", "proxy_router", None),
@@ -87,6 +128,7 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
 
 try:
     from backend.optimization.api import router as optimization_router
+
     app.include_router(optimization_router)
     logger.info("Optimization router registered at /api/v1/optimization")
 except ImportError as exc:
@@ -103,7 +145,12 @@ def _redis_status() -> str:
         return "not_configured"
     try:
         import redis
-        client = redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
+
+        client = redis.from_url(
+            redis_url,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
         client.ping()
         return "reachable"
     except Exception:
@@ -136,13 +183,20 @@ async def health_check():
 @app.get("/health/ready", tags=["ops"])
 async def readiness_check():
     supabase_status = await _supabase_status()
+    redis_status = _redis_status()
     services = {
+        "api": "healthy",
+        "redis": redis_status,
         "supabase": supabase_status,
         "openai": "configured" if _env_configured("OPENAI_API_KEY") else "not_configured",
         "anthropic": "configured" if _env_configured("ANTHROPIC_API_KEY") else "not_configured",
         "google_ai": "configured" if _env_configured("GOOGLE_AI_API_KEY") else "not_configured",
     }
-    redis_status = _redis_status()
     ready = supabase_status == "reachable" and redis_status == "reachable"
-    body = {"status": "ready" if ready else "not_ready", "version": app.version, "environment": os.getenv("ENVIRONMENT", "unknown"), "services": {"api": "healthy", "redis": redis_status, **services}}
+    body = {
+        "status": "ready" if ready else "not_ready",
+        "version": app.version,
+        "environment": os.getenv("ENVIRONMENT", "unknown"),
+        "services": services,
+    }
     return JSONResponse(status_code=200 if ready else 503, content=body)
