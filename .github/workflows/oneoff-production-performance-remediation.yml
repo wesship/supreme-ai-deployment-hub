@@ -1,0 +1,60 @@
+name: One-off Production Performance Remediation
+
+on:
+  push:
+    branches:
+      - perf/production-performance-remediation
+
+permissions:
+  contents: write
+
+concurrency:
+  group: oneoff-production-performance-remediation
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out remediation branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: perf/production-performance-remediation
+          fetch-depth: 0
+
+      - name: Install WebP encoder
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y webp
+
+      - name: Optimize Lighthouse-critical assets and contracts
+        run: python3 tools/oneoff_production_perf_remediation.py
+
+      - name: Validate optimized production assets
+        run: |
+          set -euo pipefail
+          test -s public/films/sovereign-signal-keyframe.webp
+          test -s public/films/building-d3vonn-keyframe.webp
+          test -s public/films/inside-hermes-keyframe.webp
+          test -s public/films/guardian-keyframe.webp
+          test -s public/films/ai-workforce-keyframe.webp
+          test -s public/films/genesis-protocol-keyframe.webp
+          test -s public/d3vonn-enterprise-core.webp
+          ! grep -q -- '-keyframe.png' src/features/ai-films/catalog.ts
+          grep -q 'reportOnlyPolicy = cspFor(nonce, true)' middleware.ts
+          git diff --check
+          du -h public/films/*-keyframe.webp public/d3vonn-enterprise-core.webp
+
+      - name: Commit remediation
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No remediation changes were produced" >&2
+            exit 1
+          fi
+          git commit -m "perf(prod): remediate Lighthouse production gate"
+          git push origin HEAD:perf/production-performance-remediation
