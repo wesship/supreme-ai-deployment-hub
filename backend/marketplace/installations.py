@@ -10,7 +10,7 @@ import re
 from typing import Any
 
 from fastapi import HTTPException, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 _ALLOWED_ENVIRONMENTS = {"development", "staging", "production"}
 _ALLOWED_CAPABILITIES = {
@@ -23,6 +23,8 @@ _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$")
 
 
 class InstallationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     agent_id: str = Field(min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=80)
     environment: str = "development"
