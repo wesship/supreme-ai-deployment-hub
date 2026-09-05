@@ -80,6 +80,16 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
         pass
 
 try:
+    from backend.app.routers.primetime_release1 import router as primetime_release1_router
+
+    app.include_router(primetime_release1_router)
+    logger.info("PRIMETIME Release 1 router registered at /primetime/v1")
+except ImportError as exc:
+    if _environment not in {"development", "dev", "test", "local"}:
+        raise RuntimeError("Required PRIMETIME Release 1 router unavailable") from exc
+    logger.warning("PRIMETIME Release 1 router unavailable — skipping in %s only. (%s)", _environment, exc)
+
+try:
     from backend.optimization.api import router as optimization_router
     app.include_router(optimization_router)
     logger.info("Optimization router registered at /api/v1/optimization")
