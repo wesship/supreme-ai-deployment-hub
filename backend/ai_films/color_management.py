@@ -118,7 +118,7 @@ def transform_rgb(
 ) -> tuple[list[float], list[float], list[float]]:
     if not (len(red) == len(green) == len(blue)):
         raise ColorManagementError("RGB channel lengths must match")
-    if not red:
+    if len(red) == 0:
         return [], [], []
     try:
         import numpy as np
