@@ -2,15 +2,65 @@ name: PRIMETIME Staging Certification
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/primetime-staging-certification.yml'
+      - 'scripts/primetime-staging-gate.mjs'
+      - 'src/**'
+      - 'backend/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
 
 permissions:
   contents: read
 
+concurrency:
+  group: primetime-staging-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   staging-certification:
+    name: PRIMETIME Release 1-5 staging gate
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PRIMETIME_STAGING_FRONTEND_URL: https://supreme-ai-deployment-hub-git-gate4-pr-364267-wesships-projects.vercel.app
+      PRIMETIME_STAGING_API_URL: https://devonn-ai-api-staging.up.railway.app
+      PRIMETIME_GATE_TIMEOUT_MS: '15000'
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Gate configuration pending preview binding
-        run: echo "Gate 4 workflow scaffold ready for Vercel preview binding"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for staging surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            frontend_code=$(curl -L -sS -o /dev/null -w '%{http_code}' "$PRIMETIME_STAGING_FRONTEND_URL/primetime" || true)
+            api_code=$(curl -L -sS -o /dev/null -w '%{http_code}' "$PRIMETIME_STAGING_API_URL/health/ready" || true)
+            echo "attempt=$attempt frontend=$frontend_code api_ready=$api_code"
+            if [[ "$frontend_code" == 2* && "$api_code" == "200" ]]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Staging surfaces did not become ready in time.' >&2
+          exit 1
+
+      - name: Run PRIMETIME staging gate
+        run: pnpm primetime:staging-gate
