@@ -260,7 +260,7 @@ const AIFilms = () => {
                 <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
                 <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(featuredFilm)}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
                 <Button type="button" size="lg" variant="outline" onClick={scrollToStudio}><Sparkles aria-hidden="true" className="mr-2 h-5 w-5" /> Create a Film</Button>
-                {companionEnabled && <Button type="button" size="lg" variant="outline" onClick={() => setCompanionOpen(true)} aria-label="Open AI Film Companion"><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>}
+                {companionEnabled && <Button type="button" size="lg" variant="outline" onClick={() => setCompanionOpen(true)}><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>}
               </div>
             </div>
           </div>

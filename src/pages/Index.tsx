@@ -44,7 +44,7 @@ import {
 } from '@/lib/homepageTelemetry';
 
 const MASTER_LOGO_SRC = '/d3vonn-logo-clean.png?v=20260801-clean';
-const ENTERPRISE_CORE_SRC = '/d3vonn-enterprise-core.jpg?v=20260801-clean';
+const ENTERPRISE_CORE_SRC = '/d3vonn-enterprise-core.webp?v=20260904-perf';
 
 const useHomepageTelemetry = () => {
   const [telemetry, setTelemetry] = useState<HomepageTelemetry>(defaultHomepageTelemetry);

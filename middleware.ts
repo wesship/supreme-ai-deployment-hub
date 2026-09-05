@@ -8,8 +8,8 @@ function createNonce(): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-function cspFor(nonce: string): string {
-  return [
+function cspFor(nonce: string, reportOnly = false): string {
+  const directives = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' https://apis.google.com https://cdn.jsdelivr.net https://*.supabase.co https://*.sentry.io https://*.vercel-insights.com`,
     "worker-src 'self' blob:",
@@ -23,9 +23,10 @@ function cspFor(nonce: string): string {
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
-    'upgrade-insecure-requests',
-    `report-uri ${CSP_REPORT_ENDPOINT}`,
-  ].join('; ');
+  ];
+  if (!reportOnly) directives.push('upgrade-insecure-requests');
+  directives.push(`report-uri ${CSP_REPORT_ENDPOINT}`);
+  return directives.join('; ');
 }
 
 export default function middleware(request: Request) {
@@ -36,10 +37,11 @@ export default function middleware(request: Request) {
 
   const nonce = createNonce();
   const policy = cspFor(nonce);
+  const reportOnlyPolicy = cspFor(nonce, true);
   return next({
     headers: {
       'Content-Security-Policy': policy,
-      'Content-Security-Policy-Report-Only': policy,
+      'Content-Security-Policy-Report-Only': reportOnlyPolicy,
       'X-CSP-Nonce-Generated': '1',
       'Vary': 'Accept-Encoding',
     },

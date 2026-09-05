@@ -60,7 +60,7 @@ const movies: Movie[] = [
     badge: 'Featured Original',
     accent: 'from-cyan-500/40 via-blue-700/20 to-black',
     videoSrc: '/films/sovereign-signal.mp4',
-    posterSrc: '/films/sovereign-signal-keyframe.png',
+    posterSrc: '/films/sovereign-signal-keyframe.webp',
   },
   {
     title: 'Building D3VONN.IO',
@@ -70,7 +70,7 @@ const movies: Movie[] = [
     progress: 36,
     accent: 'from-blue-500/35 via-slate-800/30 to-black',
     videoSrc: '/films/building-d3vonn.mp4',
-    posterSrc: '/films/building-d3vonn-keyframe.png',
+    posterSrc: '/films/building-d3vonn-keyframe.webp',
   },
   {
     title: 'Inside HERMES',
@@ -80,7 +80,7 @@ const movies: Movie[] = [
     badge: 'Engineering Series',
     accent: 'from-indigo-500/35 via-blue-950/40 to-black',
     videoSrc: '/films/inside-hermes.mp4',
-    posterSrc: '/films/inside-hermes-keyframe.png',
+    posterSrc: '/films/inside-hermes-keyframe.webp',
   },
   {
     title: 'GUARDIAN',
@@ -89,7 +89,7 @@ const movies: Movie[] = [
     duration: '24 min',
     accent: 'from-sky-500/30 via-slate-950/40 to-black',
     videoSrc: '/films/guardian.mp4',
-    posterSrc: '/films/guardian-keyframe.png',
+    posterSrc: '/films/guardian-keyframe.webp',
   },
   {
     title: 'The AI Workforce',
@@ -99,7 +99,7 @@ const movies: Movie[] = [
     badge: 'New Release',
     accent: 'from-cyan-400/30 via-blue-900/35 to-black',
     videoSrc: '/films/ai-workforce.mp4',
-    posterSrc: '/films/ai-workforce-keyframe.png',
+    posterSrc: '/films/ai-workforce-keyframe.webp',
   },
   {
     title: 'Agent Zero',
