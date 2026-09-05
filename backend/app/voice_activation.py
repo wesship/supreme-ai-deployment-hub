@@ -161,7 +161,7 @@ async def _inspect_direct_elevenlabs_key(
         await _emit(
             "voice.activation.direct_elevenlabs_degraded",
             "Direct ElevenLabs BYOK access is unavailable; Vapi-managed ElevenLabs remains active.",
-            level="warning",
+            level="warn",
             data={
                 "direct_api_status": direct_status,
                 "http_status": status_code,
@@ -175,7 +175,7 @@ async def _inspect_direct_elevenlabs_key(
         await _emit(
             "voice.activation.direct_elevenlabs_degraded",
             "Direct ElevenLabs BYOK validation could not complete; Vapi-managed ElevenLabs remains active.",
-            level="warning",
+            level="warn",
             data={
                 "direct_api_status": "validation_error",
                 "error_type": type(exc).__name__,
@@ -227,7 +227,7 @@ async def activate_voice_runtime() -> None:
         await _emit(
             "voice.activation.blocked",
             "Railway voice activation is blocked by missing core configuration.",
-            level="warning",
+            level="warn",
             data={"missing": missing, "readiness": readiness},
             correlation_id=correlation_id,
         )

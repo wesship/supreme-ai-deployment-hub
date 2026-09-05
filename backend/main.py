@@ -1,16 +1,4 @@
-"""
-backend/main.py — D3VONN.IO FastAPI Application Entry Point
-
-This is the canonical backend entry point for the supreme-ai-deployment-hub.
-It registers all API routers, middleware, and lifecycle hooks.
-
-Run locally:
-    uvicorn backend.main:app --reload --port 8000
-
-Run in Docker:
-    CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
-"""
-
+"""backend/main.py — D3VONN.IO FastAPI Application Entry Point."""
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -48,14 +36,23 @@ PRODUCTION_ORIGINS = ["https://d3vonn.io", "https://www.d3vonn.io", "https://app
 CONFIGURED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 ALLOWED_ORIGINS = list(dict.fromkeys([*PRODUCTION_ORIGINS, *CONFIGURED_ORIGINS]))
 ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or None
-app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_origin_regex=ALLOWED_ORIGIN_REGEX, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"])
+app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_origin_regex=ALLOWED_ORIGIN_REGEX, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID"])
 
-for module_name, middleware_name in (("backend.middleware.request_context", "RequestContextMiddleware"), ("backend.middleware.logging", "LoggingMiddleware"), ("backend.middleware.rate_limit", "RateLimitMiddleware"), ("backend.middleware.multi_tenancy", "MultiTenancyMiddleware")):
+_REQUIRED_MIDDLEWARE = (
+    ("backend.middleware.request_context", "RequestContextMiddleware"),
+    ("backend.middleware.logging", "LoggingMiddleware"),
+    ("backend.middleware.rate_limit", "RateLimitMiddleware"),
+    ("backend.middleware.multi_tenancy", "MultiTenancyMiddleware"),
+)
+_environment = os.getenv("ENVIRONMENT", "production").lower()
+for module_name, middleware_name in _REQUIRED_MIDDLEWARE:
     try:
         module = __import__(module_name, fromlist=[middleware_name])
         app.add_middleware(getattr(module, middleware_name))
-    except ImportError:
-        logger.warning("%s unavailable — skipping.", middleware_name)
+    except (ImportError, AttributeError) as exc:
+        if _environment not in {"development", "dev", "test", "local"}:
+            raise RuntimeError(f"Required middleware {middleware_name} unavailable") from exc
+        logger.warning("%s unavailable — skipping in %s only.", middleware_name, _environment)
 
 _OPTIONAL_ROUTERS = (
     ("backend.app.routers", "proxy_router", None),
@@ -78,10 +75,7 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
     try:
         module = __import__(module_name, fromlist=[attr])
         router = getattr(module, attr)
-        if prefix:
-            app.include_router(router, prefix=prefix)
-        else:
-            app.include_router(router)
+        app.include_router(router, prefix=prefix) if prefix else app.include_router(router)
     except (ImportError, AttributeError):
         pass
 
@@ -117,10 +111,7 @@ async def _supabase_status() -> str:
         return "not_configured"
     try:
         async with httpx.AsyncClient(timeout=3.0, follow_redirects=True) as client:
-            response = await client.get(
-                f"{url}/rest/v1/",
-                headers={"apikey": key, "Authorization": f"Bearer {key}"},
-            )
+            response = await client.get(f"{url}/rest/v1/", headers={"apikey": key, "Authorization": f"Bearer {key}"})
         return "reachable" if response.is_success else "unreachable"
     except Exception:
         return "unreachable"
