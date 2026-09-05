@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
 const DISALLOWED_HREFS = new Set(['', '#', 'javascript:void(0)', 'javascript:;']);
 const EXPECTED_STUB_ORIGINS = new Set(['https://placeholder.supabase.co']);
 const EXPECTED_LOCAL_404_PATHS = new Set(['/api/public/stats', '/_vercel/insights/script.js']);
+const MARKETPLACE_API_URL = 'https://api.d3vonn.io/api/marketplace/agents';
 
 function isExpectedCspDiagnostic(text: string) {
   return text.includes('upgrade-insecure-requests') && text.toLowerCase().includes('report-only');
@@ -42,6 +43,31 @@ async function waitForApplication(page: Page) {
   await expect(page.locator('#root')).toBeAttached({ timeout: 15_000 });
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
   await page.waitForTimeout(250);
+}
+
+async function bridgeMarketplaceApiForLocalPreview(page: Page) {
+  const configuredBaseUrl = test.info().project.use.baseURL;
+  if (!configuredBaseUrl) return;
+
+  let previewOrigin: string;
+  try {
+    previewOrigin = new URL(configuredBaseUrl).origin;
+  } catch {
+    return;
+  }
+
+  if (!['http://127.0.0.1:4173', 'http://localhost:4173'].includes(previewOrigin)) return;
+
+  await page.route(MARKETPLACE_API_URL, async (route) => {
+    const upstream = await route.fetch();
+    await route.fulfill({
+      response: upstream,
+      headers: {
+        ...upstream.headers(),
+        'access-control-allow-origin': previewOrigin,
+      },
+    });
+  });
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
@@ -126,6 +152,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
 
   for (const route of PUBLIC_ROUTES) {
     test(`${route} loads and exposes valid interactive controls`, async ({ page, request }) => {
+      if (route === '/marketplace') await bridgeMarketplaceApiForLocalPreview(page);
       const runtimeErrors = await collectRuntimeErrors(page);
       const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
       await waitForApplication(page);
