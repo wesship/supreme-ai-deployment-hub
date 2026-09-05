@@ -87,7 +87,6 @@ const Navbar = ({
                 <button
                   type="button"
                   onClick={openD3CommandPalette}
-                  aria-label="Open D3VONN.IO Command Nexus"
                   title="Command Nexus (⌘K or Ctrl+K)"
                   className="d3-command-surface inline-flex min-h-11 items-center gap-2 rounded-xl border border-blue-300/20 bg-blue-400/[0.065] px-3 text-sm font-medium text-blue-50 transition hover:border-blue-300/45 hover:bg-blue-400/[0.12]"
                 >

@@ -6,94 +6,249 @@
   "cleanUrls": true,
   "installCommand": "corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile",
   "rewrites": [
-    { "source": "/health", "destination": "/health.json" },
-    { "source": "/d3vonn-logo.webp", "destination": "/d3vonn-main-logo.svg" },
-    { "source": "/solutions", "destination": "/solutions.html" },
-    { "source": "/pricing", "destination": "/pricing.html" },
-    { "source": "/security", "destination": "/security.html" },
-    { "source": "/security/disclosure", "destination": "/security/disclosure.html" },
-    { "source": "/resources", "destination": "/resources.html" },
-    { "source": "/ai-agents", "destination": "/ai-agents.html" },
-    { "source": "/business-automation", "destination": "/business-automation.html" },
-    { "source": "/marketplace", "destination": "/marketplace.html" },
-    { "source": "/film", "destination": "/film.html" },
-    { "source": "/documentation", "destination": "/documentation.html" },
-    { "source": "/about", "destination": "/about.html" },
-    { "source": "/contact", "destination": "/contact.html" },
-    { "source": "/enterprise-readiness", "destination": "/enterprise-readiness.html" },
-    { "source": "/terms", "destination": "/terms.html" },
-    { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/privacy-policy", "destination": "/privacy.html" },
-    { "source": "/pilot-checklist", "destination": "/pilot-checklist.md" },
-    { "source": "/pilot-checklist/", "destination": "/pilot-checklist.md" },
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/health",
+      "destination": "/health.json"
+    },
+    {
+      "source": "/d3vonn-logo.webp",
+      "destination": "/d3vonn-main-logo.svg"
+    },
+    {
+      "source": "/solutions",
+      "destination": "/solutions.html"
+    },
+    {
+      "source": "/pricing",
+      "destination": "/pricing.html"
+    },
+    {
+      "source": "/security",
+      "destination": "/security.html"
+    },
+    {
+      "source": "/security/disclosure",
+      "destination": "/security/disclosure.html"
+    },
+    {
+      "source": "/resources",
+      "destination": "/resources.html"
+    },
+    {
+      "source": "/ai-agents",
+      "destination": "/ai-agents.html"
+    },
+    {
+      "source": "/business-automation",
+      "destination": "/business-automation.html"
+    },
+    {
+      "source": "/marketplace",
+      "destination": "/marketplace.html"
+    },
+    {
+      "source": "/film",
+      "destination": "/film.html"
+    },
+    {
+      "source": "/documentation",
+      "destination": "/documentation.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/about.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/contact.html"
+    },
+    {
+      "source": "/enterprise-readiness",
+      "destination": "/enterprise-readiness.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/privacy-policy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/pilot-checklist",
+      "destination": "/pilot-checklist.md"
+    },
+    {
+      "source": "/pilot-checklist/",
+      "destination": "/pilot-checklist.md"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
   ],
   "headers": [
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/d3vonn-enterprise-core.webp",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/films/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, s-maxage=0, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, s-maxage=0, must-revalidate"
+        }
       ]
     },
     {
       "source": "/pilot-checklist(.*)",
       "headers": [
-        { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
-        { "key": "Content-Disposition", "value": "inline; filename=\"pilot-checklist.md\"" },
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
-        { "key": "Cache-Control", "value": "public, max-age=300, s-maxage=300, must-revalidate" }
+        {
+          "key": "Content-Type",
+          "value": "text/markdown; charset=utf-8"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "inline; filename=\"pilot-checklist.md\""
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=300, s-maxage=300, must-revalidate"
+        }
       ]
     },
     {
       "source": "/health",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" },
-        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/json; charset=utf-8"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        }
       ]
     },
     {
       "source": "/(app|admin|occ|dashboard|login|signin|signup|unauthorized|github-diagnostic|command-center|agents|workflows|deployment|api|flow|status|manifest|chat|voice-studio|research-os|dkos-ingestion|knowledge-ingestion|jetson|jetson-control|backtesting)(.*)",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
-        { "key": "Cache-Control", "value": "private, no-store" }
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
       ]
     },
     {
       "source": "/security/(ops|dashboard|command-center)(.*)",
       "headers": [
-        { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" },
-        { "key": "Cache-Control", "value": "private, no-store" }
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
       ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://apis.google.com https://cdn.jsdelivr.net https://*.supabase.co https://*.sentry.io https://*.vercel-insights.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.d3vonn.io https://images.unsplash.com; connect-src 'self' https://api.d3vonn.io https://www.googleapis.com https://accounts.google.com https://api.vapi.ai wss://api.vapi.ai https://*.daily.co wss://*.daily.co https://*.pluot.blue wss://*.pluot.blue https://*.supabase.co https://*.sentry.io wss://*.supabase.co https://*.vercel-insights.com; frame-src 'self' https://apis.google.com https://docs.google.com https://drive.google.com https://accounts.google.com https://*.daily.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests; report-uri https://api.d3vonn.io/api/assurance/public/csp-reports" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(self), geolocation=()" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
-        { "key": "Cross-Origin-Resource-Policy", "value": "same-site" }
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' https://apis.google.com https://cdn.jsdelivr.net https://*.supabase.co https://*.sentry.io https://*.vercel-insights.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://www.d3vonn.io https://images.unsplash.com; connect-src 'self' https://api.d3vonn.io https://www.googleapis.com https://accounts.google.com https://api.vapi.ai wss://api.vapi.ai https://*.daily.co wss://*.daily.co https://*.pluot.blue wss://*.pluot.blue https://*.supabase.co https://*.sentry.io wss://*.supabase.co https://*.vercel-insights.com; frame-src 'self' https://apis.google.com https://docs.google.com https://drive.google.com https://accounts.google.com https://*.daily.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests; report-uri https://api.d3vonn.io/api/assurance/public/csp-reports"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(self), geolocation=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin"
+        },
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "same-site"
+        }
       ]
     }
   ],
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "redirects": [
-    { "source": "/film%60", "destination": "/film", "permanent": false },
-    { "source": "/film`", "destination": "/film", "permanent": false },
+    {
+      "source": "/film%60",
+      "destination": "/film",
+      "permanent": false
+    },
+    {
+      "source": "/film`",
+      "destination": "/film",
+      "permanent": false
+    },
     {
       "source": "/:path*",
       "has": [
-        { "type": "host", "value": "d3vonn.io" }
+        {
+          "type": "host",
+          "value": "d3vonn.io"
+        }
       ],
       "destination": "https://www.d3vonn.io/:path*",
       "permanent": true
@@ -101,7 +256,10 @@
     {
       "source": "/",
       "has": [
-        { "type": "host", "value": "app.d3vonn.io" }
+        {
+          "type": "host",
+          "value": "app.d3vonn.io"
+        }
       ],
       "destination": "https://www.d3vonn.io/app",
       "permanent": true
@@ -109,12 +267,23 @@
     {
       "source": "/:path*",
       "has": [
-        { "type": "host", "value": "app.d3vonn.io" }
+        {
+          "type": "host",
+          "value": "app.d3vonn.io"
+        }
       ],
       "destination": "https://www.d3vonn.io/:path*",
       "permanent": true
     },
-    { "source": "/analytics", "destination": "/app", "permanent": false },
-    { "source": "/rag", "destination": "/dkos-ingestion", "permanent": true }
+    {
+      "source": "/analytics",
+      "destination": "/app",
+      "permanent": false
+    },
+    {
+      "source": "/rag",
+      "destination": "/dkos-ingestion",
+      "permanent": true
+    }
   ]
 }

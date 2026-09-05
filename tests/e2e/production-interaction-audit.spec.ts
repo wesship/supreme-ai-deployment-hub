@@ -101,7 +101,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
 
     const featuredMedia = filmsSection.locator(':scope > div').first();
     const featuredPoster = featuredMedia.locator('img').first();
-    await expect(featuredPoster).toHaveAttribute('src', '/films/sovereign-signal-keyframe.png');
+    await expect(featuredPoster).toHaveAttribute('src', '/films/sovereign-signal-keyframe.webp');
     await expect(featuredPoster).toHaveAttribute('loading', 'eager');
     await expect(featuredPoster).toHaveAttribute('fetchpriority', 'high');
     await expect(featuredMedia.locator('video')).toHaveCount(0);
@@ -117,7 +117,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(sovereignSignalCard).toBeVisible();
     const sovereignSignalVideo = sovereignSignalCard.locator('video');
     await expect(sovereignSignalVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
-    await expect(sovereignSignalVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
+    await expect(sovereignSignalVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.webp');
     await expect(sovereignSignalVideo).toHaveAttribute('preload', 'none');
     await sovereignSignalCard.getByRole('button', { name: 'Watch Sovereign Signal preview' }).click();
 
@@ -125,7 +125,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(sovereignSignalDialog).toBeVisible();
     const dialogVideo = sovereignSignalDialog.locator('video');
     await expect(dialogVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
-    await expect(dialogVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.png');
+    await expect(dialogVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.webp');
     await expect(sovereignSignalDialog.getByRole('button', { name: 'Track Preview Progress' })).toBeVisible();
     await expect(sovereignSignalDialog.getByRole('button', { name: 'My Library' })).toBeVisible();
     await sovereignSignalDialog.getByRole('button', { name: 'Close film details' }).click();
