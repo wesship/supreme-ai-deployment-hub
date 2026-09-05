@@ -75,7 +75,7 @@ jobs:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: https://d3vonn.io
           BROWSER: chromium
-        run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project=chromium --reporter=github,html
+        run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts tests/e2e/marketplace-production-certification.spec.ts --project=chromium --reporter=github,html
       - name: Upload Playwright evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
