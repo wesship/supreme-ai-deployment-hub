@@ -126,6 +126,4 @@ def test_installation_rejects_client_runtime_fields():
         },
     )
 
-    # Extra client-supplied runtime fields are ignored by the typed request and
-    # therefore can never reach persistence.
-    assert response.status_code in {404, 503}
+    assert response.status_code == 422
