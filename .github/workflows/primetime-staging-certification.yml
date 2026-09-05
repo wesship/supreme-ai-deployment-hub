@@ -1,4 +1,5 @@
 name: PRIMETIME Staging Certification
+# Gate 4 final recertification after Railway deployed main commit 6deb1364998ea0bfcebb0240822ae15dd9abe829.
 
 on:
   workflow_dispatch:
