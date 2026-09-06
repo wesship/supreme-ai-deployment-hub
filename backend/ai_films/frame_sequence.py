@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -41,6 +42,29 @@ class FrameSequenceManifest:
     otio_timeline_path: str | None = None
 
 
+_SYSTEM_BINARY_DIRS = (Path("/usr/bin"), Path("/usr/local/bin"))
+
+
+def _resolve_media_binary(binary: str) -> str | None:
+    """Resolve ffmpeg/ffprobe even if the runtime PATH is unexpectedly restricted."""
+    resolved = shutil.which(binary)
+    if resolved:
+        return resolved
+
+    candidate = Path(binary)
+    if candidate.is_absolute():
+        return str(candidate) if candidate.is_file() and os.access(candidate, os.X_OK) else None
+
+    if candidate.parent != Path("."):
+        return None
+
+    for directory in _SYSTEM_BINARY_DIRS:
+        system_candidate = directory / binary
+        if system_candidate.is_file() and os.access(system_candidate, os.X_OK):
+            return str(system_candidate)
+    return None
+
+
 def _require_numpy():
     try:
         import numpy as np
@@ -56,7 +80,7 @@ def probe_frame_timestamps(
     timeout_seconds: float = 300.0,
 ) -> tuple[float, ...]:
     """Return real decoded-frame timestamps, preserving VFR edit points."""
-    ffprobe = shutil.which(ffprobe_binary)
+    ffprobe = _resolve_media_binary(ffprobe_binary)
     if ffprobe is None:
         raise FrameDecoderUnavailableError(f"ffprobe executable not found: {ffprobe_binary}")
     command = [
@@ -119,7 +143,7 @@ def decode_to_acescg_exr_sequence(
     if start_number < 0:
         raise FrameSequenceError("start_number must be non-negative")
 
-    ffmpeg = shutil.which(ffmpeg_binary)
+    ffmpeg = _resolve_media_binary(ffmpeg_binary)
     if ffmpeg is None:
         raise FrameDecoderUnavailableError(f"ffmpeg executable not found: {ffmpeg_binary}")
 
