@@ -38,6 +38,7 @@ PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
     ProviderSpec("lip_sync", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_LIPSYNC_MODEL")),
     ProviderSpec("virtual_try_on", "pollo", ("POLLO_API_KEY",), ("POLLO_API_BASE_URL",)),
     ProviderSpec("product_image", "pollo", ("POLLO_API_KEY",), ("POLLO_API_BASE_URL",)),
+    ProviderSpec("vfx_asset", "makebigfilms", optional_env=("MAKEBIGFILMS_PROJECT_URL",)),
     ProviderSpec("assembly", "ffmpeg", required_binary=("ffmpeg",)),
     ProviderSpec("voice", "elevenlabs", ("ELEVENLABS_API_KEY",), ("ELEVENLABS_VOICE_ID",)),
     ProviderSpec("voice", "openai", ("OPENAI_API_KEY",), ("AI_FILM_VOICE_MODEL",)),
