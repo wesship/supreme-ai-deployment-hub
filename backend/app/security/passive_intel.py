@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 import httpx
 
+from backend.app.security.passive_graph import PassiveGraphError, persist_passive_finding
 from backend.app.security.tool_registry import evaluate_policy
 
 IndicatorType = Literal["ip", "domain", "url", "hash"]
@@ -55,7 +56,6 @@ def _vt_path(indicator_type: IndicatorType, indicator: str) -> str:
         return f"/api/v3/files/{quote(indicator, safe='')}"
     if indicator_type == "url":
         import base64
-
         url_id = base64.urlsafe_b64encode(indicator.encode()).decode().rstrip("=")
         return f"/api/v3/urls/{url_id}"
     raise PassiveIntelError("unsupported_indicator_type")
@@ -90,7 +90,7 @@ def _start_audit(db: Any, indicator_type: IndicatorType, indicator: str) -> str:
             "automated": True,
         },
         "result": "pending",
-        "agent_version": "cyber-tool-registry-v0.1",
+        "agent_version": "cyber-tool-registry-v0.2",
     }
     try:
         action_resp = db.table("hermes_security_actions").insert(action_record).execute()
@@ -99,24 +99,22 @@ def _start_audit(db: Any, indicator_type: IndicatorType, indicator: str) -> str:
         if not action_id:
             raise PassiveIntelError("audit_unavailable")
 
-        event_resp = db.table("security_events").insert(
-            {
-                "source": "cyber-tool-registry",
-                "event_type": "security.tool.passive_enrichment_requested",
-                "severity": "info",
-                "actor": "hermes-security-agent",
-                "metadata": {
-                    "tool_id": "virustotal",
-                    "capability": _capability(indicator_type),
-                    "activity_class": "passive",
-                    "indicator_type": indicator_type,
-                    "indicator_sha256": fingerprint,
-                    "action_id": str(action_id),
-                    "active_scan": False,
-                },
-                "outcome": "unknown",
-            }
-        ).execute()
+        event_resp = db.table("security_events").insert({
+            "source": "cyber-tool-registry",
+            "event_type": "security.tool.passive_enrichment_requested",
+            "severity": "info",
+            "actor": "hermes-security-agent",
+            "metadata": {
+                "tool_id": "virustotal",
+                "capability": _capability(indicator_type),
+                "activity_class": "passive",
+                "indicator_type": indicator_type,
+                "indicator_sha256": fingerprint,
+                "action_id": str(action_id),
+                "active_scan": False,
+            },
+            "outcome": "unknown",
+        }).execute()
         if not event_resp.data:
             db.table("hermes_security_actions").update({"result": "failure"}).eq("id", str(action_id)).execute()
             raise PassiveIntelError("audit_unavailable")
@@ -153,40 +151,31 @@ def _finish_audit(
         "active_scan": False,
     }
     if result:
-        metadata.update(
-            {
-                "reputation": result.reputation,
-                "malicious": result.malicious,
-                "suspicious": result.suspicious,
-                "harmless": result.harmless,
-                "undetected": result.undetected,
-                "tags": result.tags,
-                "provider_object_id": result.raw_id,
-            }
-        )
+        metadata.update({
+            "reputation": result.reputation,
+            "malicious": result.malicious,
+            "suspicious": result.suspicious,
+            "harmless": result.harmless,
+            "undetected": result.undetected,
+            "tags": result.tags,
+            "provider_object_id": result.raw_id,
+            "graph_persisted": success,
+        })
     if error:
         metadata["error"] = error[:160]
 
     try:
-        update_resp = (
-            db.table("hermes_security_actions")
-            .update({"result": outcome})
-            .eq("id", action_id)
-            .execute()
-        )
+        update_resp = db.table("hermes_security_actions").update({"result": outcome}).eq("id", action_id).execute()
         if not update_resp.data:
             raise PassiveIntelError("audit_finalize_failed")
-
-        event_resp = db.table("security_events").insert(
-            {
-                "source": "cyber-tool-registry",
-                "event_type": "security.tool.passive_enrichment_completed",
-                "severity": severity,
-                "actor": "hermes-security-agent",
-                "metadata": metadata,
-                "outcome": outcome,
-            }
-        ).execute()
+        event_resp = db.table("security_events").insert({
+            "source": "cyber-tool-registry",
+            "event_type": "security.tool.passive_enrichment_completed",
+            "severity": severity,
+            "actor": "hermes-security-agent",
+            "metadata": metadata,
+            "outcome": outcome,
+        }).execute()
         if not event_resp.data:
             raise PassiveIntelError("audit_finalize_failed")
     except PassiveIntelError:
@@ -203,7 +192,7 @@ async def virustotal_enrich(
     client: httpx.AsyncClient | None = None,
     audit_db: Any | None = None,
 ) -> PassiveIntelResult:
-    """Perform read-only VirusTotal enrichment after registry authorization and audit setup."""
+    """Perform read-only VirusTotal enrichment with audit and graph durability gates."""
     value = indicator.strip()
     if not value or len(value) > 2048:
         raise PassiveIntelError("invalid_indicator")
@@ -224,7 +213,6 @@ async def virustotal_enrich(
         raise PassiveIntelError("audit_not_configured")
 
     action_id = _start_audit(audit_db, indicator_type, value)
-
     owns_client = client is None
     http = client or httpx.AsyncClient(base_url="https://www.virustotal.com", timeout=12.0)
     try:
@@ -239,7 +227,6 @@ async def virustotal_enrich(
         if response.status_code >= 400:
             raise PassiveIntelError(f"provider_http_{response.status_code}")
         payload = response.json()
-
         data = payload.get("data") or {}
         attrs = data.get("attributes") or {}
         stats = attrs.get("last_analysis_stats") or {}
@@ -255,6 +242,10 @@ async def virustotal_enrich(
             tags=list(attrs.get("tags") or []),
             raw_id=data.get("id"),
         )
+        try:
+            persist_passive_finding(audit_db, result)
+        except PassiveGraphError as exc:
+            raise PassiveIntelError(str(exc)) from exc
         _finish_audit(
             audit_db,
             action_id=action_id,
@@ -266,38 +257,17 @@ async def virustotal_enrich(
         return result
     except httpx.TimeoutException as exc:
         try:
-            _finish_audit(
-                audit_db,
-                action_id=action_id,
-                indicator_type=indicator_type,
-                indicator=value,
-                success=False,
-                error="provider_timeout",
-            )
+            _finish_audit(audit_db, action_id=action_id, indicator_type=indicator_type, indicator=value, success=False, error="provider_timeout")
         finally:
             raise PassiveIntelError("provider_timeout") from exc
     except httpx.RequestError as exc:
         try:
-            _finish_audit(
-                audit_db,
-                action_id=action_id,
-                indicator_type=indicator_type,
-                indicator=value,
-                success=False,
-                error="provider_unreachable",
-            )
+            _finish_audit(audit_db, action_id=action_id, indicator_type=indicator_type, indicator=value, success=False, error="provider_unreachable")
         finally:
             raise PassiveIntelError("provider_unreachable") from exc
     except PassiveIntelError as exc:
-        if str(exc) not in {"audit_finalize_failed"}:
-            _finish_audit(
-                audit_db,
-                action_id=action_id,
-                indicator_type=indicator_type,
-                indicator=value,
-                success=False,
-                error=str(exc),
-            )
+        if str(exc) != "audit_finalize_failed":
+            _finish_audit(audit_db, action_id=action_id, indicator_type=indicator_type, indicator=value, success=False, error=str(exc))
         raise
     finally:
         if owns_client:
