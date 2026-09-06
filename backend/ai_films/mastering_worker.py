@@ -23,9 +23,19 @@ from backend.ai_films.frame_sequence import decode_to_acescg_exr_sequence
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_FFMPEG_BINARY = "/usr/bin/ffmpeg"
+_DEFAULT_FFPROBE_BINARY = "/usr/bin/ffprobe"
+
 
 class MasteringWorkerError(RuntimeError):
     """Raised when a queued mastering job cannot be completed safely."""
+
+
+def _media_binaries() -> tuple[str, str]:
+    """Return deterministic mastering binary paths with explicit env overrides."""
+    ffmpeg = os.getenv("AI_FILM_FFMPEG_BINARY", _DEFAULT_FFMPEG_BINARY).strip() or _DEFAULT_FFMPEG_BINARY
+    ffprobe = os.getenv("AI_FILM_FFPROBE_BINARY", _DEFAULT_FFPROBE_BINARY).strip() or _DEFAULT_FFPROBE_BINARY
+    return ffmpeg, ffprobe
 
 
 async def _claim_next_job(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
@@ -196,11 +206,19 @@ async def process_mastering_job(
             await _download_source(source_url, source_path)
             await db.update_job(job_id, {"progress": 18})
 
+            ffmpeg_binary, ffprobe_binary = _media_binaries()
+            logger.info(
+                "AI FILMS mastering decoder binaries resolved: ffmpeg=%s ffprobe=%s",
+                ffmpeg_binary,
+                ffprobe_binary,
+            )
             manifest = await asyncio.to_thread(
                 decode_to_acescg_exr_sequence,
                 source_path,
                 frames_dir,
                 start_timecode=start_timecode,
+                ffmpeg_binary=ffmpeg_binary,
+                ffprobe_binary=ffprobe_binary,
             )
             await db.update_job(job_id, {"progress": 78})
             package = await store.persist_frame_sequence_package(
