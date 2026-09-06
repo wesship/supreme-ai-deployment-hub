@@ -70,6 +70,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.research_os.leads_router", "router", None),
     ("backend.app.security.router", "router", None),
     ("backend.app.assurance.router", "router", None),
+    ("backend.opensource_integrations.router", "router", None),
     ("backend.liquidity_agent.router", "router", None),
 )
 for module_name, attr, prefix in _OPTIONAL_ROUTERS:
