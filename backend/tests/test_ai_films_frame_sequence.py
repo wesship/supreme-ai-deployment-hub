@@ -8,6 +8,7 @@ import pytest
 from backend.ai_films.frame_sequence import (
     FrameDecodeError,
     FrameDecoderUnavailableError,
+    _resolve_media_binary,
     decode_to_acescg_exr_sequence,
 )
 from backend.ai_films.media_metadata import MediaMetadata
@@ -45,9 +46,24 @@ def test_missing_source_fails_before_ffmpeg(tmp_path: Path) -> None:
 def test_missing_ffmpeg_is_typed(tmp_path: Path) -> None:
     source = tmp_path / "clip.mov"
     source.write_bytes(b"media")
-    with patch("backend.ai_films.frame_sequence.shutil.which", return_value=None):
+    with (
+        patch("backend.ai_films.frame_sequence.shutil.which", return_value=None),
+        patch("backend.ai_films.frame_sequence.Path.is_file", return_value=False),
+    ):
         with pytest.raises(FrameDecoderUnavailableError, match="ffmpeg executable not found"):
             decode_to_acescg_exr_sequence(source, tmp_path / "frames", metadata=_metadata(source))
+
+
+def test_resolver_falls_back_to_usr_bin_when_path_lookup_fails() -> None:
+    def is_file(candidate: Path) -> bool:
+        return str(candidate) == "/usr/bin/ffmpeg"
+
+    with (
+        patch("backend.ai_films.frame_sequence.shutil.which", return_value=None),
+        patch("backend.ai_films.frame_sequence.Path.is_file", autospec=True, side_effect=is_file),
+        patch("backend.ai_films.frame_sequence.os.access", return_value=True),
+    ):
+        assert _resolve_media_binary("ffmpeg") == "/usr/bin/ffmpeg"
 
 
 def test_invalid_start_number_is_rejected(tmp_path: Path) -> None:
@@ -73,7 +89,7 @@ def test_decoder_uses_camera_match_source_space(tmp_path: Path) -> None:
     process.poll.return_value = 0
 
     with (
-        patch("backend.ai_films.frame_sequence.shutil.which", return_value="/usr/bin/ffmpeg"),
+        patch("backend.ai_films.frame_sequence._resolve_media_binary", return_value="/usr/bin/ffmpeg"),
         patch("backend.ai_films.frame_sequence.probe_frame_timestamps", return_value=(0.0,)),
         patch("backend.ai_films.frame_sequence.subprocess.Popen", return_value=process),
         patch("backend.ai_films.frame_sequence.write_color_managed_exr") as write_exr,
