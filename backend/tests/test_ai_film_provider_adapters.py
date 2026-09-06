@@ -25,8 +25,13 @@ def test_all_provider_specs_declare_server_side_runtime_contracts():
     for spec in PROVIDER_SPECS:
         assert spec.provider
         assert spec.capability
-        assert spec.required_env or spec.required_binary
         assert all(not name.startswith("VITE_") for name in spec.required_env)
+
+        if spec.dispatchable:
+            assert spec.required_env or spec.required_binary
+        else:
+            assert spec.lifecycle != "production"
+            assert spec.configured({}) is False
 
 
 def test_ffmpeg_assembly_declares_binary_runtime_requirement():
