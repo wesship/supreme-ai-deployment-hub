@@ -1,0 +1,321 @@
+name: Liquidity V4 Simulation Certification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/liquidity-v4-simulation-certification.yml'
+      - 'tools/liquidity_v4/**'
+      - 'backend/liquidity_agent/**'
+      - 'backend/tests/test_liquidity_agent_v0_5.py'
+  workflow_dispatch:
+    inputs:
+      pool_id:
+        description: 'Canonical Uniswap V4 PoolId (bytes32)'
+        required: true
+        type: string
+      currency0:
+        description: 'Sorted ERC-20 currency0 address'
+        required: true
+        type: string
+      currency1:
+        description: 'Sorted ERC-20 currency1 address'
+        required: true
+        type: string
+      fee:
+        description: 'V4 fee value'
+        required: true
+        type: string
+      tick_spacing:
+        description: 'V4 tick spacing'
+        required: true
+        type: string
+      hooks:
+        description: 'V4 hooks address'
+        required: true
+        default: '0x0000000000000000000000000000000000000000'
+        type: string
+      fork_block:
+        description: 'Pinned Base block number'
+        required: true
+        type: string
+      tick_lower:
+        description: 'Simulation lower tick'
+        required: true
+        type: string
+      tick_upper:
+        description: 'Simulation upper tick'
+        required: true
+        type: string
+      safe_address:
+        description: 'Safe smart-account address to impersonate only on the fork'
+        required: true
+        type: string
+      hermes_user_id:
+        description: 'Hermes owner user UUID for certificate persistence'
+        required: true
+        type: string
+      hermes_goal_id:
+        description: 'Existing Hermes goal UUID for certificate persistence'
+        required: true
+        type: string
+      execution_id:
+        description: 'Optional deterministic Hermes execution ID'
+        required: false
+        default: ''
+        type: string
+      initial_liquidity:
+        description: 'Fork-only initial liquidity units'
+        required: false
+        default: '1000000000000'
+        type: string
+      delta_liquidity:
+        description: 'Fork-only increase/decrease liquidity units'
+        required: false
+        default: '100000000000'
+        type: string
+      gas_ceiling:
+        description: 'Maximum gas allowed for each lifecycle operation'
+        required: false
+        default: '3000000'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: liquidity-v4-certification-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+env:
+  FOUNDRY_VERSION: v1.8.1
+  FORGE_STD_REV: 886b4f8b63409ef474542de6394d25a9b5908ed3
+  V4_CORE_REV: 46c6834698c48bc4a463a86d8420f4eb1d7f3b75
+  V4_PERIPHERY_REV: dce236d4e2057422d0791d9a973a58765eb46f65
+
+jobs:
+  preflight:
+    name: Liquidity V4 Certification Preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Harden runner
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6
+        with:
+          egress-policy: audit
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+
+      - name: Install pinned Foundry
+        uses: foundry-rs/foundry-toolchain@8a8ba57a9ae4f0b236736d8fe30b5c7d9a281770
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Install reviewed V4 dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tools/liquidity_v4
+          forge install "foundry-rs/forge-std@${FORGE_STD_REV}" --no-commit
+          forge install "Uniswap/v4-core@${V4_CORE_REV}" --no-commit
+          forge install "Uniswap/v4-periphery@${V4_PERIPHERY_REV}" --no-commit
+
+      - name: Compile fork harness
+        run: forge build --root tools/liquidity_v4
+
+      - name: Run certificate schema self-test
+        run: python3 tools/liquidity_v4/certify_report.py --self-test
+
+      - name: Enforce no-production-signing policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            .github/workflows/liquidity-v4-simulation-certification.yml
+            tools/liquidity_v4/test/D3VONNLiquidityV4Fork.t.sol
+            tools/liquidity_v4/certify_report.py
+            tools/liquidity_v4/persist_checkpoint.py
+            backend/liquidity_agent/certification.py
+          )
+          if grep -Eni 'forge[[:space:]]+script.*--broadcast|cast[[:space:]]+send|PRIVATE[_-]?KEY|MNEMONIC' "${files[@]}"; then
+            echo '::error::V0.5 certification code must not contain a production signing/broadcast path.'
+            exit 1
+          fi
+          echo 'No signing key, mnemonic, cast send, or forge broadcast path detected.'
+
+  certify:
+    name: Trusted Base Fork Certification
+    if: github.event_name == 'workflow_dispatch'
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    env:
+      LIQUIDITY_BASE_RPC_URL: ${{ secrets.LIQUIDITY_BASE_RPC_URL || secrets.BASE_RPC_URL || 'https://mainnet.base.org' }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      D3VONN_V4_POOL_ID: ${{ inputs.pool_id }}
+      D3VONN_V4_CURRENCY0: ${{ inputs.currency0 }}
+      D3VONN_V4_CURRENCY1: ${{ inputs.currency1 }}
+      D3VONN_V4_FEE: ${{ inputs.fee }}
+      D3VONN_V4_TICK_SPACING: ${{ inputs.tick_spacing }}
+      D3VONN_V4_HOOKS: ${{ inputs.hooks }}
+      D3VONN_V4_FORK_BLOCK: ${{ inputs.fork_block }}
+      D3VONN_V4_TICK_LOWER: ${{ inputs.tick_lower }}
+      D3VONN_V4_TICK_UPPER: ${{ inputs.tick_upper }}
+      D3VONN_V4_SAFE_ADDRESS: ${{ inputs.safe_address }}
+      D3VONN_V4_INITIAL_LIQUIDITY: ${{ inputs.initial_liquidity }}
+      D3VONN_V4_DELTA_LIQUIDITY: ${{ inputs.delta_liquidity }}
+      D3VONN_V4_GAS_CEILING: ${{ inputs.gas_ceiling }}
+      D3VONN_V4_MUTATION_TESTS: 'true'
+      HERMES_USER_ID: ${{ inputs.hermes_user_id }}
+      HERMES_GOAL_ID: ${{ inputs.hermes_goal_id }}
+      D3VONN_V4_CERTIFICATE_SEQUENCE: '1'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Harden trusted runner
+        uses: step-security/harden-runner@17d0e2bd7d51742c71671bd19fa12bdc9d40a3d6
+        with:
+          egress-policy: audit
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            raw.githubusercontent.com:443
+            objects.githubusercontent.com:443
+            mainnet.base.org:443
+            *.supabase.co:443
+
+      - name: Install pinned Foundry
+        uses: foundry-rs/foundry-toolchain@8a8ba57a9ae4f0b236736d8fe30b5c7d9a281770
+        with:
+          version: ${{ env.FOUNDRY_VERSION }}
+
+      - name: Install reviewed V4 dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd tools/liquidity_v4
+          forge install "foundry-rs/forge-std@${FORGE_STD_REV}" --no-commit
+          forge install "Uniswap/v4-core@${V4_CORE_REV}" --no-commit
+          forge install "Uniswap/v4-periphery@${V4_PERIPHERY_REV}" --no-commit
+
+      - name: Validate explicit certification inputs
+        env:
+          EXECUTION_INPUT: ${{ inputs.execution_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, re, uuid
+
+          address = re.compile(r'^0x[a-fA-F0-9]{40}$')
+          pool_id = re.compile(r'^0x[a-fA-F0-9]{64}$')
+          if not pool_id.fullmatch(os.environ['D3VONN_V4_POOL_ID']):
+              raise SystemExit('invalid pool_id')
+          for key in ('D3VONN_V4_CURRENCY0', 'D3VONN_V4_CURRENCY1', 'D3VONN_V4_HOOKS', 'D3VONN_V4_SAFE_ADDRESS'):
+              if not address.fullmatch(os.environ[key]):
+                  raise SystemExit(f'invalid address: {key}')
+          c0 = int(os.environ['D3VONN_V4_CURRENCY0'], 16)
+          c1 = int(os.environ['D3VONN_V4_CURRENCY1'], 16)
+          if c0 == 0 or c1 == 0 or c0 >= c1:
+              raise SystemExit('V0.5 requires sorted ERC20/ERC20 currencies')
+          if int(os.environ['D3VONN_V4_SAFE_ADDRESS'], 16) == 0:
+              raise SystemExit('safe address cannot be zero')
+          fee = int(os.environ['D3VONN_V4_FEE'])
+          spacing = int(os.environ['D3VONN_V4_TICK_SPACING'])
+          block = int(os.environ['D3VONN_V4_FORK_BLOCK'])
+          lower = int(os.environ['D3VONN_V4_TICK_LOWER'])
+          upper = int(os.environ['D3VONN_V4_TICK_UPPER'])
+          initial = int(os.environ['D3VONN_V4_INITIAL_LIQUIDITY'])
+          delta = int(os.environ['D3VONN_V4_DELTA_LIQUIDITY'])
+          gas = int(os.environ['D3VONN_V4_GAS_CEILING'])
+          if not (0 <= fee <= 16_777_215): raise SystemExit('fee out of range')
+          if not (1 <= spacing <= 32767): raise SystemExit('tick spacing out of range')
+          if block <= 0 or lower >= upper: raise SystemExit('invalid block/tick range')
+          if initial <= 0 or delta <= 0 or gas <= 0: raise SystemExit('invalid liquidity/gas limits')
+          uuid.UUID(os.environ['HERMES_USER_ID'])
+          uuid.UUID(os.environ['HERMES_GOAL_ID'])
+          execution = os.environ.get('EXECUTION_INPUT', '').strip()
+          if execution and not re.fullmatch(r'[A-Za-z0-9._:-]{1,120}', execution):
+              raise SystemExit('invalid execution_id')
+          PY
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo '::error::Hermes certificate persistence requires protected Supabase server credentials.'
+            exit 1
+          fi
+
+      - name: Bind execution and proposal deadline
+        env:
+          EXECUTION_INPUT: ${{ inputs.execution_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          execution="${EXECUTION_INPUT:-}"
+          if [ -z "$execution" ]; then
+            execution="liquidity-v4-${GITHUB_RUN_ID}"
+          fi
+          deadline="$(( $(date +%s) + 3600 ))"
+          echo "D3VONN_V4_EXECUTION_ID=$execution" >> "$GITHUB_ENV"
+          echo "D3VONN_V4_PROPOSAL_DEADLINE=$deadline" >> "$GITHUB_ENV"
+
+      - name: Execute pinned Base fork lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf tools/liquidity_v4/reports
+          forge test \
+            --root tools/liquidity_v4 \
+            --match-test test_forkOnlyPositionLifecycle \
+            -vvv
+          test -s tools/liquidity_v4/reports/raw-simulation-report.json
+
+      - name: Build deterministic passing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/liquidity_v4/certify_report.py \
+            --report tools/liquidity_v4/reports/raw-simulation-report.json \
+            --out-dir tools/liquidity_v4/reports
+          sha256sum tools/liquidity_v4/reports/certification-envelope.json
+
+      - name: Compute certificate subject digest
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="$(sha256sum tools/liquidity_v4/reports/certification-envelope.json | awk '{print $1}')"
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attest certification envelope
+        id: attest
+        uses: actions/attest-build-provenance@9d57eef8c06cd9d6b433effeeb7a6a77b3ff94ad
+        with:
+          subject-path: tools/liquidity_v4/reports/certification-envelope.json
+
+      - name: Persist attested PASS certificate to Hermes
+        env:
+          GITHUB_ATTESTATION_URL: ${{ steps.attest.outputs.attestation-url }}
+          CERTIFICATE_SUBJECT_SHA256: ${{ steps.digest.outputs.sha256 }}
+        run: |
+          python3 tools/liquidity_v4/persist_checkpoint.py \
+            --certificate tools/liquidity_v4/reports/certification-envelope.json \
+            --output tools/liquidity_v4/reports/hermes-checkpoint.json
+
+      - name: Upload certification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: liquidity-v4-certification-${{ github.run_id }}
+          path: tools/liquidity_v4/reports/
+          if-no-files-found: error
+          retention-days: 90
