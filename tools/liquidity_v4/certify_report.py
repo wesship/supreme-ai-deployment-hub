@@ -34,6 +34,33 @@ def object_sha256(value: Any) -> str:
     return hashlib.sha256(canonical_bytes(value)).hexdigest()
 
 
+def normalize_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Normalize Foundry's flat serialization into the signed report schema."""
+    normalized = dict(report)
+    if "candidate_transaction" not in normalized:
+        required = ("candidate_to", "candidate_value", "candidate_data")
+        missing = [key for key in required if key not in normalized]
+        if missing:
+            raise CertificationError(f"candidate_transaction_missing_fields:{','.join(missing)}")
+        normalized["candidate_transaction"] = {
+            "to": normalized.pop("candidate_to"),
+            "value": normalized.pop("candidate_value"),
+            "data": normalized.pop("candidate_data"),
+        }
+    if "execution" not in normalized:
+        required = (
+            "private_key_access",
+            "signing_enabled",
+            "broadcast_enabled",
+            "production_execution_enabled",
+        )
+        missing = [key for key in required if key not in normalized]
+        if missing:
+            raise CertificationError(f"execution_lock_missing_fields:{','.join(missing)}")
+        normalized["execution"] = {key: normalized.pop(key) for key in required}
+    return normalized
+
+
 def _int(report: dict[str, Any], key: str) -> int:
     value = report.get(key)
     if isinstance(value, bool):
@@ -109,7 +136,11 @@ def validate_report(report: dict[str, Any], *, now_epoch: int | None = None) -> 
     target = candidate.get("to")
     if not isinstance(target, str) or target.lower() != POSITION_MANAGER:
         raise CertificationError("candidate_target_mismatch")
-    if int(candidate.get("value", -1)) != 0:
+    try:
+        candidate_value = int(candidate.get("value", -1))
+    except (TypeError, ValueError) as exc:
+        raise CertificationError("candidate_value_invalid") from exc
+    if candidate_value != 0:
         raise CertificationError("candidate_value_not_zero")
     data = candidate.get("data")
     if not isinstance(data, str) or not HEX_RE.fullmatch(data) or len(data) < 10 or len(data) > 262_146:
@@ -180,7 +211,7 @@ def write_canonical(path: Path, value: Any) -> None:
 
 def self_test() -> None:
     now = int(time.time())
-    report = {
+    flat_report = {
         "schema_version": SCHEMA,
         "status": "pass",
         "chain_id": 8453,
@@ -202,14 +233,15 @@ def self_test() -> None:
         "collect_gas": 250_000,
         "exit_gas": 300_000,
         "final_position_liquidity": 0,
-        "candidate_transaction": {"to": POSITION_MANAGER, "value": 0, "data": "0x12345678"},
-        "execution": {
-            "private_key_access": False,
-            "signing_enabled": False,
-            "broadcast_enabled": False,
-            "production_execution_enabled": False,
-        },
+        "candidate_to": POSITION_MANAGER,
+        "candidate_value": 0,
+        "candidate_data": "0x12345678",
+        "private_key_access": False,
+        "signing_enabled": False,
+        "broadcast_enabled": False,
+        "production_execution_enabled": False,
     }
+    report = normalize_report(flat_report)
     validate_report(report, now_epoch=now)
     env = {
         "GITHUB_REPOSITORY": TRUSTED_REPOSITORY,
@@ -244,9 +276,10 @@ def main() -> int:
         return 0
 
     report_path = Path(args.report)
-    report = json.loads(report_path.read_text(encoding="utf-8"))
-    if not isinstance(report, dict):
+    raw_report = json.loads(report_path.read_text(encoding="utf-8"))
+    if not isinstance(raw_report, dict):
         raise CertificationError("report_root_must_be_object")
+    report = normalize_report(raw_report)
     certificate = build_certificate(report)
     out_dir = Path(args.out_dir)
     certificate_path = out_dir / "certification-envelope.json"
