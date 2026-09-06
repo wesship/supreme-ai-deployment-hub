@@ -12,11 +12,12 @@ router = APIRouter(prefix="/api/liquidity", tags=["liquidity-agent"])
 
 @router.get("/health")
 async def liquidity_health():
-    graph_configured = bool(
-        os.getenv("LIQUIDITY_UNISWAP_V3_SUBGRAPH_URL")
-        or os.getenv("LIQUIDITY_THE_GRAPH_API_KEY")
-        or os.getenv("THE_GRAPH_API_KEY")
+    graph_url_configured = bool(os.getenv("LIQUIDITY_UNISWAP_V3_SUBGRAPH_URL"))
+    graph_gateway_configured = bool(
+        (os.getenv("LIQUIDITY_THE_GRAPH_API_KEY") or os.getenv("THE_GRAPH_API_KEY"))
+        and os.getenv("LIQUIDITY_UNISWAP_V3_SUBGRAPH_ID")
     )
+    graph_configured = graph_url_configured or graph_gateway_configured
     rpc_configured = bool(os.getenv("LIQUIDITY_BASE_RPC_URL") or os.getenv("BASE_RPC_URL"))
     return {
         "status": "ok",
