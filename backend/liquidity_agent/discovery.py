@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import re
+import time
 from typing import Any
 
 import httpx
@@ -10,6 +12,11 @@ from .policy import DEFAULT_POLICY, LiquidityPolicy
 
 DEFILLAMA_POOLS_URL = "https://yields.llama.fi/pools"
 DEFILLAMA_TIMEOUT_SECONDS = 12.0
+DEFILLAMA_CACHE_TTL_SECONDS = 60.0
+
+_cache_lock = asyncio.Lock()
+_cache_rows: list[dict[str, Any]] = []
+_cache_expires_at = 0.0
 
 
 def _as_float(value: Any) -> float | None:
@@ -19,6 +26,20 @@ def _as_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _as_bool(value: Any) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "yes", "1"}:
+            return True
+        if normalized in {"false", "no", "0"}:
+            return False
+    return bool(value)
 
 
 def _symbol_tokens(symbol: str | None) -> tuple[str | None, str | None]:
@@ -52,10 +73,10 @@ def normalize_defillama_pool(row: dict[str, Any]) -> PoolCandidate:
         reward_apy=_as_float(row.get("apyReward")),
         apy_total=_as_float(row.get("apy")),
         apy_mean_30d=_as_float(row.get("apyMean30d")),
-        stablecoin=bool(row.get("stablecoin")) if row.get("stablecoin") is not None else None,
+        stablecoin=_as_bool(row.get("stablecoin")),
         il_risk=str(row.get("ilRisk")) if row.get("ilRisk") is not None else None,
         exposure=str(row.get("exposure")) if row.get("exposure") is not None else None,
-        outlier=bool(row.get("outlier")) if row.get("outlier") is not None else None,
+        outlier=_as_bool(row.get("outlier")),
         underlying_tokens=[str(x) for x in (row.get("underlyingTokens") or []) if x],
     )
 
@@ -85,6 +106,33 @@ def _quality_sort_key(candidate: PoolCandidate) -> tuple[float, float, float]:
     )
 
 
+async def _defillama_rows() -> list[dict[str, Any]]:
+    global _cache_rows, _cache_expires_at
+
+    now = time.monotonic()
+    if _cache_rows and now < _cache_expires_at:
+        return _cache_rows
+
+    async with _cache_lock:
+        now = time.monotonic()
+        if _cache_rows and now < _cache_expires_at:
+            return _cache_rows
+
+        async with httpx.AsyncClient(timeout=DEFILLAMA_TIMEOUT_SECONDS, follow_redirects=False) as client:
+            response = await client.get(
+                DEFILLAMA_POOLS_URL,
+                headers={"User-Agent": "D3VONN-Liquidity-Agent/0.2"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+
+        rows = payload.get("data", []) if isinstance(payload, dict) else []
+        normalized_rows = [row for row in rows if isinstance(row, dict)]
+        _cache_rows = normalized_rows
+        _cache_expires_at = time.monotonic() + DEFILLAMA_CACHE_TTL_SECONDS
+        return _cache_rows
+
+
 async def discover_defillama_pools(
     chain: str,
     protocol: str,
@@ -95,21 +143,13 @@ async def discover_defillama_pools(
     """Fetch and normalize read-only pool intelligence from DefiLlama.
 
     The URL is fixed in code and no wallet, signing key, transaction payload, or
-    user-supplied remote URL is accepted by this adapter.
+    user-supplied remote URL is accepted by this adapter. The upstream feed is
+    cached briefly to avoid repeatedly downloading the full multi-megabyte pool set.
     """
-    async with httpx.AsyncClient(timeout=DEFILLAMA_TIMEOUT_SECONDS, follow_redirects=False) as client:
-        response = await client.get(
-            DEFILLAMA_POOLS_URL,
-            headers={"User-Agent": "D3VONN-Liquidity-Agent/0.2"},
-        )
-        response.raise_for_status()
-        payload = response.json()
+    rows = await _defillama_rows()
 
-    rows = payload.get("data", []) if isinstance(payload, dict) else []
     candidates: list[PoolCandidate] = []
     for row in rows:
-        if not isinstance(row, dict):
-            continue
         candidate = normalize_defillama_pool(row)
         if not _matches(candidate, chain, protocol):
             continue
