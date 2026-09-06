@@ -180,7 +180,7 @@ PROVIDERS: Dict[str, IntegrationProvider] = {
     "hummingbot_gateway": IntegrationProvider(
         key="hummingbot_gateway",
         name="Hummingbot Gateway",
-        source_url="https://github.com/hummingbot/hummingbot",
+        source_url="https://github.com/hummingbot/gateway",
         replaces="Custom DEX connector and AMM execution middleware",
         tier=IntegrationTier.tier_2,
         status=IntegrationStatus.planned,
