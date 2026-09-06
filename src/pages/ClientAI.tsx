@@ -5,6 +5,7 @@ const clientKey = (import.meta.env.VITE_CLIENT_AI_CLIENT_KEY || 'default').trim(
 const funnelKey = (import.meta.env.VITE_CLIENT_AI_FUNNEL_KEY || 'create1').trim();
 const brandName = (import.meta.env.VITE_CLIENT_AI_BRAND_NAME || 'Your AI').trim();
 const accentCopy = (import.meta.env.VITE_CLIENT_AI_TAGLINE || 'Built from your voice, knowledge, and point of view.').trim();
+const apiBase = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://api.d3vonn.io' : 'http://localhost:8000')).replace(/\/$/, '');
 
 const steps = [
   {
@@ -31,7 +32,7 @@ const steps = [
 ];
 
 async function submitLead(email: string) {
-  const response = await fetch('/api/client-ai/leads', {
+  const response = await fetch(`${apiBase}/api/client-ai/leads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
