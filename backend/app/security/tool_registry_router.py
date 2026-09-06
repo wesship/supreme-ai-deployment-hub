@@ -21,7 +21,7 @@ from backend.app.security.tool_registry import (
     stix_projection,
 )
 
-router = APIRouter(prefix="/api/security/tools", tags=["security-tool-registry"])
+router = APIRouter(prefix="/tools", tags=["security-tool-registry"])
 
 
 class ToolPolicyRequest(BaseModel):
