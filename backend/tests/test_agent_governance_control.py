@@ -34,6 +34,32 @@ async def test_workspace_admin_can_update_policy(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_workspace_admin_can_start_bounded_canary_lease(monkeypatch):
+    async def membership(workspace_id: str, user_id: str):
+        return {"workspace_id": workspace_id, "role": "workspace_admin"}
+
+    captured = {}
+
+    async def mutate(**kwargs):
+        captured.update(kwargs)
+        return {"canary_unlock_expires_at": "2026-09-06T19:00:00+00:00"}
+
+    monkeypatch.setattr(governance_control, "_membership_required", membership)
+    monkeypatch.setattr(governance_control, "set_canary_unlock_lease", mutate)
+    response = await governance_control.start_canary_unlock_lease(
+        governance_control.CanaryLeaseRequest(
+            workspace_id="w",
+            disabled_agents=["openclaw-bridge"],
+            lease_seconds=90,
+        ),
+        user_id="u",
+    )
+    assert response.operation == "canary_unlock_lease_started"
+    assert captured["lease_seconds"] == 90
+    assert captured["disabled_agents"] == {"openclaw-bridge"}
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "role",
     ["representative", "manager", "compliance_reviewer", "platform_admin", "auditor"],
@@ -124,7 +150,7 @@ async def test_approval_lifetime_over_seven_days_is_rejected(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_workspace_admin_can_read_canary_status(monkeypatch):
+async def test_workspace_admin_can_read_run_scoped_canary_status(monkeypatch):
     async def membership(workspace_id: str, user_id: str):
         return {"workspace_id": workspace_id, "role": "workspace_admin"}
 
@@ -136,24 +162,20 @@ async def test_workspace_admin_can_read_canary_status(monkeypatch):
 
     async def rest_get(path: str, params: dict[str, str]):
         calls.append((path, params))
+        if path == "agent_os_workspace_policies":
+            return [{"canary_unlock_expires_at": None}]
         if path == "agent_os_approvals":
-            return [
-                {
-                    "id": "approval-1",
-                    "action": "orchestrate",
-                    "agent_name": "devonn-coordinator",
-                    "expires_at": "2026-08-17T00:00:00+00:00",
-                }
-            ]
+            return []
         if path == "primetime_audit_events":
+            assert params["metadata->>canary_run_id"] == "eq.run-1"
             return [
                 {
                     "id": 42,
                     "action": "agent_os.dispatch.decision",
-                    "entity_type": "agent_dispatch",
-                    "entity_id": "task-1",
-                    "metadata": {"decision": "deny"},
-                    "created_at": "2026-08-16T17:00:00+00:00",
+                    "entity_type": "agent_task",
+                    "entity_id": None,
+                    "metadata": {"decision": "deny", "canary_run_id": "run-1", "task_id": "task-1"},
+                    "created_at": "2026-09-06T18:00:00+00:00",
                 }
             ]
         raise AssertionError(f"unexpected path: {path}")
@@ -162,14 +184,18 @@ async def test_workspace_admin_can_read_canary_status(monkeypatch):
     monkeypatch.setattr(governance_control, "resolve_workspace_policy", policy)
     monkeypatch.setattr(governance_control, "_rest_get", rest_get)
 
-    response = await governance_control.get_canary_status(workspace_id="w", user_id="u")
+    response = await governance_control.get_canary_status(
+        workspace_id="w",
+        canary_run_id="run-1",
+        user_id="u",
+    )
 
     assert response.role == "workspace_admin"
     assert response.policy.kill_switch_enabled is True
     assert response.policy.disabled_agents == ["openclaw-bridge"]
-    assert response.active_approvals[0].action == "orchestrate"
-    assert response.recent_audit[0].action == "agent_os.dispatch.decision"
+    assert response.recent_audit[0].metadata["canary_run_id"] == "run-1"
     assert [path for path, _ in calls] == [
+        "agent_os_workspace_policies",
         "agent_os_approvals",
         "primetime_audit_events",
     ]
@@ -191,6 +217,10 @@ async def test_canary_status_is_workspace_admin_only(monkeypatch, role):
     monkeypatch.setattr(governance_control, "resolve_workspace_policy", forbidden_policy)
 
     with pytest.raises(HTTPException) as exc:
-        await governance_control.get_canary_status(workspace_id="w", user_id="u")
+        await governance_control.get_canary_status(
+            workspace_id="w",
+            canary_run_id=None,
+            user_id="u",
+        )
 
     assert exc.value.status_code == 403
