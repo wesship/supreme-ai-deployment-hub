@@ -13,17 +13,12 @@ from pydantic import BaseModel, Field
 
 from ..app.middleware.auth import get_current_user_id
 from ..mesh.agent_mesh import AgentTask, AgentResult, TaskPriority, default_mesh
-from .capability_bindings import (
-    AgentDryRunRequest,
-    AgentDryRunResult,
-    evaluate_agent_capability_dry_run,
-)
+from .capability_bindings import AgentDryRunRequest, AgentDryRunResult, evaluate_agent_capability_dry_run
 from .dispatch_audit import write_dispatch_audit
 from .governance_context import resolve_agent_governance_context
 from .governance_control import router as governance_control_router
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter(tags=["agents"])
 router.include_router(governance_control_router)
 
@@ -72,14 +67,17 @@ class AgentInfo(BaseModel):
     status: str
 
 
+def _canary_run_id(payload: dict[str, Any]) -> str | None:
+    value = payload.get("canary_run_id")
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value[:100] if value else None
+
+
 async def _list_agents_impl() -> list[AgentInfo]:
     return [
-        AgentInfo(
-            name=name,
-            base_url=client.reg.base_url,
-            capabilities=client.reg.capabilities,
-            status=client.status.value,
-        )
+        AgentInfo(name=name, base_url=client.reg.base_url, capabilities=client.reg.capabilities, status=client.status.value)
         for name, client in default_mesh._agents.items()
     ]
 
@@ -87,31 +85,24 @@ async def _list_agents_impl() -> list[AgentInfo]:
 @router.get("/", response_model=list[AgentInfo])
 @router.get("/agents/", response_model=list[AgentInfo], include_in_schema=False)
 async def list_agents():
-    """List all registered agents and their current status."""
     return await _list_agents_impl()
 
 
 @router.get("/health")
 @router.get("/agents/health", include_in_schema=False)
 async def health_check_all():
-    """Run health checks against all registered agents."""
     results = await default_mesh.health_check_all()
     overall = all(results.values()) if results else False
     return {"overall": "healthy" if overall else "degraded", "agents": results}
 
 
 @router.post("/governance/dry-run", response_model=GovernanceDryRunApiResponse)
-async def governance_dry_run(
-    request: GovernanceDryRunApiRequest,
-    user_id: str = Depends(get_current_user_id),
-):
-    """Evaluate server-resolved Agent OS policy without executing anything."""
+async def governance_dry_run(request: GovernanceDryRunApiRequest, user_id: str = Depends(get_current_user_id)):
     context = await resolve_agent_governance_context(
         workspace_id=request.workspace_id,
         user_id=user_id,
         agent_name=request.agent_name,
     )
-
     try:
         result: AgentDryRunResult = evaluate_agent_capability_dry_run(
             AgentDryRunRequest(
@@ -136,7 +127,6 @@ async def governance_dry_run(
             reason=str(exc),
             executed=False,
         )
-
     return GovernanceDryRunApiResponse(
         workspace_id=context.workspace_id,
         actor_id=context.actor_id,
@@ -152,16 +142,9 @@ async def governance_dry_run(
 
 @router.post("/dispatch", response_model=AgentResult)
 @router.post("/agents/dispatch", response_model=AgentResult, include_in_schema=False)
-async def dispatch_task(
-    request: DispatchRequest,
-    user_id: str = Depends(get_current_user_id),
-):
-    """Dispatch to a named agent only after server-resolved Agent OS governance allows it."""
+async def dispatch_task(request: DispatchRequest, user_id: str = Depends(get_current_user_id)):
     if not default_mesh.get_agent(request.agent_name):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Agent '{request.agent_name}' is not registered.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Agent '{request.agent_name}' is not registered.")
 
     context = await resolve_agent_governance_context(
         workspace_id=request.workspace_id,
@@ -176,6 +159,7 @@ async def dispatch_task(
         timeout_seconds=request.timeout_seconds,
         max_retries=request.max_retries,
     )
+    run_id = _canary_run_id(request.payload)
 
     try:
         dry_run = evaluate_agent_capability_dry_run(
@@ -198,6 +182,14 @@ async def dispatch_task(
         reason = str(exc)
         missing_permissions = []
 
+    decision_data: dict[str, Any] = {
+        "decision": decision,
+        "reason": reason,
+        "missing_permissions": missing_permissions,
+        "priority": request.priority.value,
+    }
+    if run_id:
+        decision_data["canary_run_id"] = run_id
     try:
         await write_dispatch_audit(
             workspace_id=context.workspace_id,
@@ -206,12 +198,7 @@ async def dispatch_task(
             agent_name=request.agent_name,
             action=request.action,
             task_id=task.task_id,
-            event_data={
-                "decision": decision,
-                "reason": reason,
-                "missing_permissions": missing_permissions,
-                "priority": request.priority.value,
-            },
+            event_data=decision_data,
         )
     except Exception as exc:
         logger.exception("Mandatory pre-dispatch Agent OS audit failed")
@@ -225,14 +212,14 @@ async def dispatch_task(
     if decision == "require_approval":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=reason)
     if decision != "allow":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Dispatch blocked by an unknown governance decision.",
-        )
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Dispatch blocked by an unknown governance decision.")
 
     try:
         result = await default_mesh.dispatch(task)
     except Exception as exc:
+        outcome_data: dict[str, Any] = {"success": False, "exception": type(exc).__name__}
+        if run_id:
+            outcome_data["canary_run_id"] = run_id
         try:
             await write_dispatch_audit(
                 workspace_id=context.workspace_id,
@@ -241,12 +228,20 @@ async def dispatch_task(
                 agent_name=request.agent_name,
                 action=request.action,
                 task_id=task.task_id,
-                event_data={"success": False, "exception": type(exc).__name__},
+                event_data=outcome_data,
             )
         except Exception:
             logger.exception("Post-dispatch exception audit failed for task %s", task.task_id)
         raise
 
+    outcome_data = {
+        "success": result.success,
+        "error": result.error,
+        "duration_ms": result.duration_ms,
+        "retries_used": result.retries_used,
+    }
+    if run_id:
+        outcome_data["canary_run_id"] = run_id
     try:
         await write_dispatch_audit(
             workspace_id=context.workspace_id,
@@ -255,31 +250,19 @@ async def dispatch_task(
             agent_name=request.agent_name,
             action=request.action,
             task_id=task.task_id,
-            event_data={
-                "success": result.success,
-                "error": result.error,
-                "duration_ms": result.duration_ms,
-                "retries_used": result.retries_used,
-            },
+            event_data=outcome_data,
         )
     except Exception:
         logger.exception("Post-dispatch outcome audit failed for task %s", task.task_id)
 
     if not result.success:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=result.error or "Agent task failed.",
-        )
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=result.error or "Agent task failed.")
     return result
 
 
 @router.post("/capability", response_model=AgentResult)
 @router.post("/agents/capability", response_model=AgentResult, include_in_schema=False)
-async def dispatch_by_capability(
-    request: CapabilityDispatchRequest,
-    user_id: str = Depends(get_current_user_id),
-):
-    """Select a healthy capability candidate, then use the governed named-dispatch path."""
+async def dispatch_by_capability(request: CapabilityDispatchRequest, user_id: str = Depends(get_current_user_id)):
     candidates = default_mesh.find_by_capability(request.capability)
     for client in candidates:
         if await client.health_check():
@@ -295,8 +278,4 @@ async def dispatch_by_capability(
                 ),
                 user_id=user_id,
             )
-
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail=f"No healthy agent with capability '{request.capability}'.",
-    )
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"No healthy agent with capability '{request.capability}'.")
