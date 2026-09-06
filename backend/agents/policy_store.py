@@ -28,11 +28,23 @@ async def _rest_get(path: str, params: dict[str, str]) -> list[dict[str, Any]]:
     return response.json()
 
 
+def _parse_timestamp(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 async def resolve_workspace_policy(workspace_id: str) -> tuple[bool, set[str]]:
     rows = await _rest_get(
         "agent_os_workspace_policies",
         {
-            "select": "kill_switch_enabled,disabled_agents",
+            "select": "kill_switch_enabled,disabled_agents,canary_unlock_expires_at",
             "workspace_id": f"eq.{workspace_id}",
             "limit": "1",
         },
@@ -40,7 +52,11 @@ async def resolve_workspace_policy(workspace_id: str) -> tuple[bool, set[str]]:
     if not rows:
         return False, set()
     row = rows[0]
-    return bool(row.get("kill_switch_enabled")), set(row.get("disabled_agents") or [])
+    stored_kill_switch = bool(row.get("kill_switch_enabled"))
+    lease_expires_at = _parse_timestamp(row.get("canary_unlock_expires_at"))
+    lease_expired = lease_expires_at is not None and lease_expires_at <= datetime.now(timezone.utc)
+    effective_kill_switch = stored_kill_switch or lease_expired
+    return effective_kill_switch, set(row.get("disabled_agents") or [])
 
 
 async def _active_approval_actions_for_scope(
