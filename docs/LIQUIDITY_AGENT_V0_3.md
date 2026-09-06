@@ -41,7 +41,7 @@ Canonical Base V3 factory getPool(token0, token1, fee)
         +--> must equal candidate pool address
         |
         v
-Optional Uniswap V3 Base subgraph history
+Optional explicitly configured V3 history indexer
         |
         +--> poolDayDatas
         +--> TVL / volume / fees / liquidity / tick
@@ -89,7 +89,7 @@ Uniswap V4: discovery/risk research only
 
 ## Historical indexing
 
-V0.3 supports the Uniswap V3 Base `PoolDayData` schema for:
+V0.3 supports the Uniswap V3 `PoolDayData` schema for:
 
 - daily liquidity
 - sqrt price
@@ -111,6 +111,10 @@ The service calculates observed-window summaries:
 The annualized metric is a mathematical normalization of observed historical fees. It is
 not a forecast, guaranteed APY, or recommendation.
 
+D3VONN does not silently select or trust a third-party subgraph deployment. Historical
+indexing is enabled only when an operator explicitly supplies either a reviewed GraphQL
+endpoint or both a Graph gateway API key and reviewed subgraph deployment ID.
+
 If the Graph indexer is unavailable, the agent can still expose the DefiLlama
 `volume_7d_usd` and `apy_mean_30d` fields as fallback research signals.
 
@@ -127,15 +131,19 @@ LIQUIDITY_BASE_RPC_URL=
 Optional historical indexer configuration:
 
 ```bash
-# Option A: operator/self-hosted GraphQL endpoint
+# Option A: operator/self-hosted or otherwise reviewed GraphQL endpoint
 LIQUIDITY_UNISWAP_V3_SUBGRAPH_URL=
 
-# Option B: The Graph gateway
+# Option B: The Graph gateway with an explicitly reviewed deployment ID
 LIQUIDITY_THE_GRAPH_API_KEY=
-# THE_GRAPH_API_KEY= is also accepted as a compatibility fallback.
+LIQUIDITY_UNISWAP_V3_SUBGRAPH_ID=
+
+# THE_GRAPH_API_KEY= is accepted as a compatibility fallback for the API key only.
+# A deployment ID is still required.
 ```
 
-No RPC or Graph key is returned in API responses.
+No RPC URL, Graph key, or subgraph deployment ID is accepted from the public request API,
+and no credential is returned in API responses.
 
 ## API
 
@@ -172,7 +180,7 @@ The endpoint forces the action to `verify_pool_state`.
 
 `POST /api/liquidity/history`
 
-The endpoint first verifies the selected pool canonically, then loads configured
+The endpoint first verifies the selected pool canonically, then loads explicitly configured
 historical data.
 
 ### Fork plan
@@ -243,6 +251,8 @@ No API accepts:
 - arbitrary JSON-RPC method
 - transaction broadcast flag
 - arbitrary remote pool-data URL
+- Graph API key
+- subgraph deployment ID
 
 ## Gate exit criteria
 
