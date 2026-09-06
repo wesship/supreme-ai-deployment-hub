@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 
+from .certification import SimulationCertificateError, load_certified_safe_draft
 from .models import LiquidityAction, LiquidityRequest, LiquidityResponse
 from .policy import evaluate_request
 from .uniswap_v4 import V4VerificationError, normalize_pool_id, verify_uniswap_v4_pool
@@ -47,8 +48,18 @@ def _static_pool_key_mismatches(request: LiquidityRequest) -> list[str]:
     return mismatches
 
 
+def _metadata_int(request: LiquidityRequest, key: str, default: int) -> int:
+    value = request.metadata.get(key, default)
+    if isinstance(value, bool):
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 async def run_v4_liquidity_agent(request: LiquidityRequest) -> LiquidityResponse:
-    """Canonical Base V4 verification and fork-only simulation planning."""
+    """Canonical Base V4 verification, trusted certification, and proposal-only planning."""
     violations = evaluate_request(request)
     if violations:
         return LiquidityResponse(
@@ -62,7 +73,7 @@ async def run_v4_liquidity_agent(request: LiquidityRequest) -> LiquidityResponse
         return LiquidityResponse(
             action=request.action,
             status="policy_blocked",
-            message="The V0.4 StateView verifier is restricted to Base Uniswap V4.",
+            message="The V4 verifier is restricted to Base Uniswap V4.",
             data={"execution": _execution_lock()},
         )
 
@@ -111,7 +122,7 @@ async def run_v4_liquidity_agent(request: LiquidityRequest) -> LiquidityResponse
         return LiquidityResponse(
             action=request.action,
             status="v4_history_not_enabled",
-            message="V0.4 verifies V4 chain state but does not claim a historical indexer source for this PoolId.",
+            message="The V4 chain-state verifier does not claim a historical indexer source for this PoolId.",
             data=base_data,
         )
 
@@ -184,11 +195,57 @@ async def run_v4_liquidity_agent(request: LiquidityRequest) -> LiquidityResponse
         )
 
     if request.action == LiquidityAction.propose_safe_transaction:
+        goal_id = request.metadata.get("certificate_goal_id")
+        execution_id = request.metadata.get("certificate_execution_id")
+        sequence = _metadata_int(request, "certificate_sequence", 1)
+        max_block_age = _metadata_int(request, "max_certificate_block_age", 900)
+        if not isinstance(goal_id, str) or not goal_id or not isinstance(execution_id, str) or not execution_id:
+            return LiquidityResponse(
+                action=request.action,
+                status="certificate_reference_required",
+                message="A persisted Hermes simulation-certificate reference is required before a Safe draft can be prepared.",
+                data={**base_data, "execution": _execution_lock()},
+            )
+
+        try:
+            safe_draft = await load_certified_safe_draft(
+                goal_id=goal_id,
+                execution_id=execution_id,
+                sequence=sequence,
+                expected_pool_id=state.pool_id,
+                current_block_number=state.block_number,
+                expected_pool_key=request.v4_pool_key,
+                max_block_age=max_block_age,
+            )
+        except (SimulationCertificateError, ValueError, TypeError) as exc:
+            return LiquidityResponse(
+                action=request.action,
+                status="proposal_blocked_by_certificate",
+                message="The persisted V4 simulation certificate did not satisfy the Safe-draft policy.",
+                data={
+                    **base_data,
+                    "reason": str(exc) if isinstance(exc, SimulationCertificateError) else type(exc).__name__,
+                    "execution": _execution_lock(),
+                },
+            )
+
         return LiquidityResponse(
             action=request.action,
-            status="proposal_blocked_until_simulation_report",
-            message="Safe proposal construction remains blocked until a persisted passing V4 fork simulation report exists.",
-            data=base_data,
+            status="safe_proposal_draft_ready",
+            message=(
+                "A Safe proposal draft was reconstructed from a persisted passing simulation certificate. "
+                "Submission, signing, broadcasting, and autonomous fund movement remain disabled."
+            ),
+            data={
+                **base_data,
+                "safe_proposal_draft": safe_draft,
+                "certificate_reference": {
+                    "goal_id": goal_id,
+                    "execution_id": execution_id,
+                    "sequence": sequence,
+                },
+                "execution": _execution_lock(),
+            },
         )
 
     return LiquidityResponse(
