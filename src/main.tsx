@@ -96,7 +96,7 @@ class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErrorBound
 }
 
 // Paint a deterministic shell before importing the application tree. If a
-// top-level App dependency fails during module evaluation, the user sees a
+// top-level dependency fails during module evaluation, the user sees a
 // diagnostic state instead of an empty #root.
 root.render(<StartupShell />);
 
@@ -111,7 +111,10 @@ const startupWatchdog = createClientStartupWatchdog({
   },
 });
 
-void import('./App.tsx')
+const isClientAIPath = /^\/client-ai(?:\/|$)/.test(window.location.pathname);
+const appModulePromise = isClientAIPath ? import('./pages/ClientAI.tsx') : import('./App.tsx');
+
+void appModulePromise
   .then(({ default: App }) => {
     if (!startupWatchdog.settle()) return;
     root.render(
@@ -128,19 +131,21 @@ void import('./App.tsx')
 
     // The accessibility reader is isolated from the primary React tree so a
     // voice-only failure can never block or blank the application shell.
-    const voiceRootElement = document.createElement('div');
-    voiceRootElement.id = 'page-voice-reader-root';
-    voiceRootElement.setAttribute('data-voice-skip', 'true');
-    document.body.appendChild(voiceRootElement);
-    void import('./components/accessibility/PageVoiceReader')
-      .then(({ default: PageVoiceReader }) => {
-        createRoot(voiceRootElement).render(
-          <StrictMode>
-            <PageVoiceReader />
-          </StrictMode>,
-        );
-      })
-      .catch((error) => console.error('[D3VONN] Page voice reader failed to load:', error));
+    if (!isClientAIPath) {
+      const voiceRootElement = document.createElement('div');
+      voiceRootElement.id = 'page-voice-reader-root';
+      voiceRootElement.setAttribute('data-voice-skip', 'true');
+      document.body.appendChild(voiceRootElement);
+      void import('./components/accessibility/PageVoiceReader')
+        .then(({ default: PageVoiceReader }) => {
+          createRoot(voiceRootElement).render(
+            <StrictMode>
+              <PageVoiceReader />
+            </StrictMode>,
+          );
+        })
+        .catch((error) => console.error('[D3VONN] Page voice reader failed to load:', error));
+    }
   })
   .catch((error: unknown) => {
     if (!startupWatchdog.settle()) return;
