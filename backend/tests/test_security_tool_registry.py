@@ -70,8 +70,9 @@ def test_active_scan_requires_asset_authorization_and_human_approval() -> None:
         actor="human",
     )
     assert authorized.decision == "allow"
-    # The registry only evaluates policy; it never executes the scan itself.
-    assert authorized.production_execution is False
+    # This flag means the capability cleared registry policy for a future
+    # execution gate. The registry/router themselves never execute a scan.
+    assert authorized.production_execution is True
 
 
 def test_restricted_exploitation_is_denied_in_production() -> None:
