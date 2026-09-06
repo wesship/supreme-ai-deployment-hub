@@ -7,7 +7,7 @@
 - [x] Release 3: Communications — certified
 - [x] Release 4: AI Assistance — certified
 - [x] Release 5: Analytics — certified
-- [ ] Release 6: Production Hardening — in progress
+- [x] Release 6: Production Hardening — certified
 - [ ] Release 7: Advanced Telemetry and Observability — in progress
 
 ## Compliance Boundaries
@@ -27,9 +27,20 @@
 ## Staging Validation
 
 - [x] Release 6 staging gate is automated through the `PRIMETIME Release 6 Staging Gate` workflow.
+- [x] Supabase migration changes trigger PRIMETIME staging certification before merge.
 - The gate uses unauthenticated, read-only GET requests only; it never creates, changes, or deletes regulated records.
-- Supply HTTPS frontend and API staging URLs when manually dispatching the workflow. It verifies all certified PRIMETIME frontend routes, `/health`, anonymous API denial, and the absence of blocked endpoint fragments.
+- Supply HTTPS frontend and API staging URLs when manually dispatching the workflow. It verifies all certified PRIMETIME frontend routes, `/health/ready`, anonymous API denial, and the absence of blocked endpoint fragments.
 - A passing staging gate is required before production deployment, together with compliance signoff and the documented rollback plan.
+
+## Release 6 Production Certification
+
+- [x] Production-compatible Gate 4 Supabase migration reviewed through PR #1133 and applied to `tjygexesognbkwualywq`.
+- [x] Six production Jetson/Quantum service-only tables deny browser access and preserve `service_role` authority.
+- [x] Production Supabase Security Advisor is clean after promotion (`lints: []`).
+- [x] Production Railway deployment uses `/health/ready` as the repository-authoritative healthcheck.
+- [x] Railway deployment `f5c33cef-42ca-4b3e-8d06-23f9b13888cf` completed successfully on merge SHA `4d121eca1381196e7570844e77115e89fc9b7204` with `Path: /health/ready`.
+- [x] Blocked regulated PRIMETIME endpoints remain absent from the governed client/API contract and the staging gate continues to enforce their absence.
+- [x] No Gate 4 rollback was required.
 
 ## Security
 
