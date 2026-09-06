@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import time
+import uuid
 from typing import Any
 
 from backend.hermes.adapters import SupabaseCheckpointStore
@@ -28,9 +29,17 @@ class SimulationCertificateError(ValueError):
     pass
 
 
+def _canonical_json_bytes(value: Any) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
 def canonical_object_sha256(value: Any) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
+    return hashlib.sha256(_canonical_json_bytes(value)).hexdigest()
+
+
+def canonical_file_sha256(value: Any) -> str:
+    """Hash the exact canonical JSON file representation emitted by the certifier."""
+    return hashlib.sha256(_canonical_json_bytes(value) + b"\n").hexdigest()
 
 
 def _require_mapping(value: Any, reason: str) -> dict[str, Any]:
@@ -49,10 +58,9 @@ def _safe_int(value: Any, reason: str) -> int:
     if isinstance(value, bool):
         raise SimulationCertificateError(reason)
     try:
-        parsed = int(value)
+        return int(value)
     except (TypeError, ValueError) as exc:
         raise SimulationCertificateError(reason) from exc
-    return parsed
 
 
 def _assert_false(mapping: dict[str, Any], key: str) -> None:
@@ -98,6 +106,11 @@ def validate_persisted_v4_certificate(
     certificate = _require_mapping(checkpoint.get("certificate"), "certificate_payload_missing")
     if certificate.get("schema_version") != CERTIFICATE_SCHEMA or certificate.get("status") != "pass":
         raise SimulationCertificateError("invalid_certificate_payload")
+    certificate_hash = checkpoint.get("certificate_sha256")
+    if not isinstance(certificate_hash, str) or not _SHA256_RE.fullmatch(certificate_hash):
+        raise SimulationCertificateError("invalid_certificate_hash")
+    if canonical_object_sha256(certificate) != certificate_hash:
+        raise SimulationCertificateError("certificate_payload_hash_mismatch")
 
     report = _require_mapping(certificate.get("report"), "certificate_report_missing")
     report_hash = certificate.get("report_sha256")
@@ -120,9 +133,17 @@ def validate_persisted_v4_certificate(
         f"https://github.com/{TRUSTED_REPOSITORY}/attestations/"
     ):
         raise SimulationCertificateError("invalid_github_attestation_url")
+    if attestation.get("repository") != TRUSTED_REPOSITORY:
+        raise SimulationCertificateError("github_attestation_repository_mismatch")
+    if str(attestation.get("github_sha", "")) != str(runner.get("github_sha", "")):
+        raise SimulationCertificateError("github_attestation_sha_mismatch")
+    if str(attestation.get("run_id", "")) != str(runner.get("run_id", "")):
+        raise SimulationCertificateError("github_attestation_run_mismatch")
     subject_digest = attestation.get("subject_digest_sha256")
     if not isinstance(subject_digest, str) or not _SHA256_RE.fullmatch(subject_digest):
         raise SimulationCertificateError("invalid_github_attestation_subject_digest")
+    if subject_digest != canonical_file_sha256(certificate):
+        raise SimulationCertificateError("github_attestation_subject_digest_mismatch")
 
     pool_id = normalize_pool_id(str(report.get("pool_id", "")))
     if pool_id != normalize_pool_id(expected_pool_id):
@@ -173,7 +194,9 @@ def validate_persisted_v4_certificate(
         "proposal_deadline": deadline,
         "pool_id": pool_id,
         "report_sha256": report_hash,
+        "certificate_sha256": certificate_hash,
         "github_attestation_url": attestation_url,
+        "github_attestation_subject_digest_sha256": subject_digest,
         "requires_human_or_multisig_approval": True,
         "requires_allowance_preconditions": True,
         "requires_onchain_reverification_before_submission": True,
@@ -194,6 +217,10 @@ async def load_certified_safe_draft(
     expected_pool_key: V4PoolKey | None,
     max_block_age: int = DEFAULT_MAX_CERTIFICATE_BLOCK_AGE,
 ) -> dict[str, Any]:
+    try:
+        uuid.UUID(goal_id)
+    except (ValueError, AttributeError) as exc:
+        raise SimulationCertificateError("invalid_certificate_goal_id") from exc
     if not _EXECUTION_ID_RE.fullmatch(execution_id):
         raise SimulationCertificateError("invalid_certificate_execution_id")
     if sequence < 1 or sequence > 999_999:
