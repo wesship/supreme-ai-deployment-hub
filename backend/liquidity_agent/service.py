@@ -3,15 +3,19 @@ from __future__ import annotations
 import httpx
 
 from .discovery import DEFILLAMA_POOLS_URL, discover_defillama_pools
+from .history import fetch_uniswap_v3_pool_history
 from .models import (
     LiquidityAction,
     LiquidityRequest,
     LiquidityResponse,
+    PoolHistorySummary,
     RankedPool,
     RiskAssessment,
 )
 from .policy import DEFAULT_POLICY, evaluate_request
 from .rpc import base_rpc_snapshot
+from .simulation import build_foundry_plan
+from .uniswap_v3 import PoolVerificationError, verify_uniswap_v3_pool
 
 
 def _risk_for(request: LiquidityRequest) -> RiskAssessment:
@@ -64,8 +68,18 @@ def _risk_for(request: LiquidityRequest) -> RiskAssessment:
     return RiskAssessment(score=score, verdict=verdict, reasons=reasons)
 
 
+def _execution_lock() -> dict[str, bool]:
+    return {
+        "private_key_access": False,
+        "signing": False,
+        "broadcast": False,
+        "fund_movement": False,
+        "production_execution": False,
+    }
+
+
 def run_liquidity_agent(request: LiquidityRequest) -> LiquidityResponse:
-    """Run deterministic non-network actions while preserving the V0.1 safety boundary."""
+    """Run deterministic non-network actions while preserving the safety boundary."""
     violations = evaluate_request(request)
     if violations:
         return LiquidityResponse(
@@ -88,6 +102,19 @@ def run_liquidity_agent(request: LiquidityRequest) -> LiquidityResponse:
                 "protocol": request.protocol,
                 "preferred_sources": ["defillama_yields", "base_rpc"],
             },
+        )
+
+    if request.action in {
+        LiquidityAction.verify_pool_state,
+        LiquidityAction.analyze_pool_history,
+        LiquidityAction.build_simulation_plan,
+    }:
+        return LiquidityResponse(
+            action=request.action,
+            status="read_only_async_required",
+            message="This action requires the async read-only Base RPC/Graph verification path.",
+            risk=risk,
+            data={"execution": _execution_lock()},
         )
 
     if request.action in {LiquidityAction.simulate_deposit, LiquidityAction.simulate_rebalance}:
@@ -195,17 +222,236 @@ async def discover_liquidity_intelligence(request: LiquidityRequest) -> Liquidit
             "historical_fields": ["apy_mean_30d", "volume_7d_usd"],
             "rpc_freshness": rpc,
             "screening_policy": DEFAULT_POLICY.__dict__,
-            "execution": {
-                "private_key_access": False,
-                "signing": False,
-                "broadcast": False,
-                "fund_movement": False,
-            },
+            "execution": _execution_lock(),
         },
+    )
+
+
+def _pool_address(request: LiquidityRequest) -> str | None:
+    if not request.pool:
+        return None
+    return request.pool.pool_address or (
+        request.pool.pool_id
+        if request.pool.pool_id and request.pool.pool_id.startswith("0x") and len(request.pool.pool_id) == 42
+        else None
+    )
+
+
+def _state_mismatches(request: LiquidityRequest, state) -> list[str]:
+    mismatches: list[str] = []
+    pool = request.pool
+    if not pool:
+        return mismatches
+    if pool.pool_address and pool.pool_address.lower() != state.pool_address.lower():
+        mismatches.append("candidate_pool_address_mismatch")
+    if pool.fee_tier is not None and pool.fee_tier != state.fee_tier:
+        mismatches.append("candidate_fee_tier_mismatch")
+
+    address_tokens = {
+        value.lower()
+        for value in pool.underlying_tokens
+        if isinstance(value, str) and value.startswith("0x") and len(value) == 42
+    }
+    if len(address_tokens) >= 2 and not {
+        state.token0_address.lower(),
+        state.token1_address.lower(),
+    }.issubset(address_tokens):
+        mismatches.append("candidate_underlying_token_mismatch")
+    return mismatches
+
+
+async def _safe_history(pool_address: str, days: int) -> PoolHistorySummary:
+    try:
+        return await fetch_uniswap_v3_pool_history(pool_address, days=days)
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
+        return PoolHistorySummary(
+            status=f"unavailable:{type(exc).__name__}",
+            source="uniswap_v3_subgraph",
+            days_returned=0,
+            points=[],
+        )
+
+
+async def verify_and_plan_liquidity(request: LiquidityRequest) -> LiquidityResponse:
+    """Verify selected V3 pool state, enrich history, and optionally build a fork plan."""
+    violations = evaluate_request(request)
+    if violations:
+        return LiquidityResponse(
+            action=request.action,
+            status="policy_blocked",
+            message="Liquidity request was blocked before on-chain verification.",
+            data={"violations": violations},
+        )
+
+    if request.chain.lower() != "base":
+        return LiquidityResponse(
+            action=request.action,
+            status="policy_blocked",
+            message="V0.3 direct pool verification is restricted to Base.",
+            data={"violations": [f"chain_not_supported_by_v0_3_verifier:{request.chain.lower()}"]},
+        )
+
+    if request.protocol.lower() != "uniswap-v3":
+        return LiquidityResponse(
+            action=request.action,
+            status="verifier_not_enabled",
+            message="V0.3 uses the Uniswap V3 pool ABI only; V4 StateView verification is a separate gate.",
+            data={
+                "protocol": request.protocol,
+                "execution": _execution_lock(),
+            },
+        )
+
+    pool_address = _pool_address(request)
+    if not pool_address:
+        return LiquidityResponse(
+            action=request.action,
+            status="pool_address_required",
+            message="A concrete pool address is required for canonical on-chain verification.",
+            data={"execution": _execution_lock()},
+        )
+
+    try:
+        state = await verify_uniswap_v3_pool(pool_address)
+    except (PoolVerificationError, httpx.HTTPError, ValueError, TypeError) as exc:
+        return LiquidityResponse(
+            action=request.action,
+            status="verification_failed",
+            message="The pool could not be verified as a canonical Base Uniswap V3 pool.",
+            data={
+                "pool_address": pool_address,
+                "reason": str(exc) if isinstance(exc, PoolVerificationError) else type(exc).__name__,
+                "execution": _execution_lock(),
+            },
+        )
+
+    mismatches = _state_mismatches(request, state)
+    if mismatches:
+        return LiquidityResponse(
+            action=request.action,
+            status="candidate_mismatch",
+            message="Provider metadata does not match the canonical on-chain pool state.",
+            data={
+                "violations": mismatches,
+                "verified_state": state.model_dump(),
+                "execution": _execution_lock(),
+            },
+        )
+
+    if state.liquidity <= 0 or not state.unlocked:
+        state_violations = []
+        if state.liquidity <= 0:
+            state_violations.append("onchain_liquidity_is_zero")
+        if not state.unlocked:
+            state_violations.append("pool_not_unlocked")
+        return LiquidityResponse(
+            action=request.action,
+            status="state_blocked",
+            message="Canonical pool state was verified but is not eligible for simulation planning.",
+            data={
+                "violations": state_violations,
+                "verified_state": state.model_dump(),
+                "execution": _execution_lock(),
+            },
+        )
+
+    risk = _risk_for(request)
+    if "onchain_canonical_pool_verified" not in risk.reasons:
+        risk.reasons.append("onchain_canonical_pool_verified")
+        risk.score = min(100, risk.score + 5)
+
+    history = await _safe_history(pool_address, request.history_days)
+    fallback_history = {
+        "volume_7d_usd": request.pool.volume_7d_usd if request.pool else None,
+        "apy_mean_30d": request.pool.apy_mean_30d if request.pool else None,
+    }
+
+    base_data = {
+        "verified_state": state.model_dump(),
+        "history": history.model_dump(),
+        "provider_history_fallback": fallback_history,
+        "execution": _execution_lock(),
+    }
+
+    if request.action == LiquidityAction.verify_pool_state:
+        return LiquidityResponse(
+            action=request.action,
+            status="canonical_pool_verified",
+            message="Canonical Base Uniswap V3 pool state verified with read-only RPC calls.",
+            risk=risk,
+            data=base_data,
+        )
+
+    if request.action == LiquidityAction.analyze_pool_history:
+        return LiquidityResponse(
+            action=request.action,
+            status="history_ready" if history.status == "ok" else "history_partial",
+            message="Historical pool metrics loaded when the configured indexer is available.",
+            risk=risk,
+            data=base_data,
+        )
+
+    if request.action in {
+        LiquidityAction.build_simulation_plan,
+        LiquidityAction.simulate_deposit,
+        LiquidityAction.simulate_rebalance,
+    }:
+        try:
+            plan = build_foundry_plan(
+                state,
+                action=request.action.value,
+                half_width_bps=request.range_half_width_bps,
+            )
+        except ValueError as exc:
+            return LiquidityResponse(
+                action=request.action,
+                status="simulation_plan_blocked",
+                message="A deterministic fork range plan could not be produced safely.",
+                risk=risk,
+                data={
+                    **base_data,
+                    "reason": str(exc),
+                },
+            )
+
+        return LiquidityResponse(
+            action=request.action,
+            status="fork_plan_ready",
+            message=(
+                "A pinned Foundry/Anvil fork plan is ready. It contains no signing key, "
+                "production transaction broadcast, or live fund movement."
+            ),
+            risk=risk,
+            data={
+                **base_data,
+                "simulation_plan": plan.model_dump(),
+            },
+        )
+
+    return LiquidityResponse(
+        action=request.action,
+        status="verified_analysis_ready",
+        message="Selected pool analysis includes canonical on-chain state and optional historical indexing.",
+        risk=risk,
+        data=base_data,
     )
 
 
 async def run_liquidity_agent_async(request: LiquidityRequest) -> LiquidityResponse:
     if request.action == LiquidityAction.discover_pools:
         return await discover_liquidity_intelligence(request)
+
+    if request.action == LiquidityAction.analyze_pool and request.protocol.lower() != "uniswap-v3":
+        return run_liquidity_agent(request)
+
+    if request.action in {
+        LiquidityAction.analyze_pool,
+        LiquidityAction.verify_pool_state,
+        LiquidityAction.analyze_pool_history,
+        LiquidityAction.build_simulation_plan,
+        LiquidityAction.simulate_deposit,
+        LiquidityAction.simulate_rebalance,
+    } and request.pool is not None:
+        return await verify_and_plan_liquidity(request)
+
     return run_liquidity_agent(request)
