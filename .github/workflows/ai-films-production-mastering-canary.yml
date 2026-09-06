@@ -14,6 +14,8 @@ on:
       - 'backend/ai_films/camera_color.py'
       - 'backend/ai_films/color_management.py'
       - 'backend/ai_films/frame_sequence.py'
+      - 'backend/ai_films/mastering_worker.py'
+      - 'backend/tests/test_ai_films_mastering_worker_binary_paths.py'
       - 'scripts/ai_films/production_mastering_canary.py'
       - '.github/workflows/ai-films-production-mastering-canary.yml'
 
