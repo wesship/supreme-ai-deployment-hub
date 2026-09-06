@@ -90,7 +90,11 @@ contract D3VONNLiquidityV4ForkTest is Test {
 
         assertTrue(Currency.unwrap(currency0) != address(0), "native currency mutation disabled");
         assertTrue(Currency.unwrap(currency1) != address(0), "native currency mutation disabled");
-        assertLt(Currency.unwrap(currency0), Currency.unwrap(currency1), "pool currencies must be sorted");
+        assertLt(
+            uint256(uint160(Currency.unwrap(currency0))),
+            uint256(uint160(Currency.unwrap(currency1))),
+            "pool currencies must be sorted"
+        );
 
         actor = vm.envAddress("D3VONN_V4_SAFE_ADDRESS");
         assertTrue(actor != address(0), "safe address required");
