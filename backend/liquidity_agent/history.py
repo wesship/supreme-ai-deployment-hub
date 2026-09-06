@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from statistics import mean
 from typing import Any
 from urllib.parse import quote, urlparse
@@ -9,8 +10,8 @@ import httpx
 
 from .models import PoolHistoryPoint, PoolHistorySummary
 
-BASE_V3_SUBGRAPH_ID = "96eJ9Go8gFjySRGnndG7EYxThaiwVDV8BYPp1TMDcoYh"
 GRAPH_TIMEOUT_SECONDS = 10.0
+_SUBGRAPH_ID_RE = re.compile(r"^[A-Za-z0-9_-]{20,128}$")
 
 _POOL_HISTORY_QUERY = """
 query PoolHistory($pool: String!, $first: Int!) {
@@ -36,6 +37,12 @@ query PoolHistory($pool: String!, $first: Int!) {
 
 
 def _endpoint() -> tuple[str | None, str]:
+    """Resolve an explicitly configured historical-data endpoint.
+
+    D3VONN does not silently trust a hard-coded third-party subgraph deployment.
+    Operators must supply either a full GraphQL endpoint, or both a Graph gateway
+    API key and the subgraph deployment ID they have reviewed.
+    """
     configured = (os.getenv("LIQUIDITY_UNISWAP_V3_SUBGRAPH_URL") or "").strip()
     if configured:
         parsed = urlparse(configured)
@@ -43,11 +50,13 @@ def _endpoint() -> tuple[str | None, str]:
             return configured, "operator_configured_graph"
 
     api_key = (os.getenv("LIQUIDITY_THE_GRAPH_API_KEY") or os.getenv("THE_GRAPH_API_KEY") or "").strip()
-    if api_key:
+    subgraph_id = (os.getenv("LIQUIDITY_UNISWAP_V3_SUBGRAPH_ID") or "").strip()
+    if api_key and subgraph_id and _SUBGRAPH_ID_RE.fullmatch(subgraph_id):
         safe_key = quote(api_key, safe="")
+        safe_id = quote(subgraph_id, safe="")
         return (
-            f"https://gateway.thegraph.com/api/{safe_key}/subgraphs/id/{BASE_V3_SUBGRAPH_ID}",
-            "the_graph_gateway",
+            f"https://gateway.thegraph.com/api/{safe_key}/subgraphs/id/{safe_id}",
+            "the_graph_gateway_explicit_deployment",
         )
     return None, "not_configured"
 
@@ -116,9 +125,8 @@ def summarize_history(points: list[PoolHistoryPoint], source: str) -> PoolHistor
 async def fetch_uniswap_v3_pool_history(pool_address: str, days: int = 30) -> PoolHistorySummary:
     """Fetch fixed-schema historical Base Uniswap V3 pool data.
 
-    The endpoint is either an operator-controlled Graph URL or the official Graph
-    gateway constructed from a server-side API key. No user-provided remote URL
-    is accepted by this function.
+    The endpoint is explicitly operator configured. No user-provided remote URL,
+    Graph API key, or subgraph deployment ID is accepted through the request API.
     """
     endpoint, source = _endpoint()
     if not endpoint:
