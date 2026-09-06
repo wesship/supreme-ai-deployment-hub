@@ -10,75 +10,26 @@ on:
       - 'backend/tests/test_liquidity_agent_v0_5.py'
   workflow_dispatch:
     inputs:
-      pool_id:
-        description: 'Canonical Uniswap V4 PoolId (bytes32)'
-        required: true
-        type: string
-      currency0:
-        description: 'Sorted ERC-20 currency0 address'
-        required: true
-        type: string
-      currency1:
-        description: 'Sorted ERC-20 currency1 address'
-        required: true
-        type: string
-      fee:
-        description: 'V4 fee value'
-        required: true
-        type: string
-      tick_spacing:
-        description: 'V4 tick spacing'
-        required: true
-        type: string
+      pool_id: { description: 'Canonical V4 PoolId', required: true, type: string }
+      currency0: { description: 'Sorted ERC-20 currency0', required: true, type: string }
+      currency1: { description: 'Sorted ERC-20 currency1', required: true, type: string }
+      fee: { description: 'V4 fee', required: true, type: string }
+      tick_spacing: { description: 'V4 tick spacing', required: true, type: string }
       hooks:
         description: 'V4 hooks address'
         required: true
         default: '0x0000000000000000000000000000000000000000'
         type: string
-      fork_block:
-        description: 'Pinned Base block number'
-        required: true
-        type: string
-      tick_lower:
-        description: 'Simulation lower tick'
-        required: true
-        type: string
-      tick_upper:
-        description: 'Simulation upper tick'
-        required: true
-        type: string
-      safe_address:
-        description: 'Safe smart-account address to impersonate only on the fork'
-        required: true
-        type: string
-      hermes_user_id:
-        description: 'Hermes owner user UUID for certificate persistence'
-        required: true
-        type: string
-      hermes_goal_id:
-        description: 'Existing Hermes goal UUID for certificate persistence'
-        required: true
-        type: string
-      execution_id:
-        description: 'Optional deterministic Hermes execution ID'
-        required: false
-        default: ''
-        type: string
-      initial_liquidity:
-        description: 'Fork-only initial liquidity units'
-        required: false
-        default: '1000000000000'
-        type: string
-      delta_liquidity:
-        description: 'Fork-only increase/decrease liquidity units'
-        required: false
-        default: '100000000000'
-        type: string
-      gas_ceiling:
-        description: 'Maximum gas allowed for each lifecycle operation'
-        required: false
-        default: '3000000'
-        type: string
+      fork_block: { description: 'Pinned Base block', required: true, type: string }
+      tick_lower: { description: 'Lower tick', required: true, type: string }
+      tick_upper: { description: 'Upper tick', required: true, type: string }
+      safe_address: { description: 'Safe address impersonated only on the fork', required: true, type: string }
+      hermes_user_id: { description: 'Hermes owner UUID', required: true, type: string }
+      hermes_goal_id: { description: 'Existing Hermes goal UUID', required: true, type: string }
+      execution_id: { description: 'Optional deterministic execution ID', required: false, default: '', type: string }
+      initial_liquidity: { description: 'Fork-only initial liquidity', required: false, default: '1000000000000', type: string }
+      delta_liquidity: { description: 'Fork-only liquidity delta', required: false, default: '100000000000', type: string }
+      gas_ceiling: { description: 'Per-operation gas ceiling', required: false, default: '3000000', type: string }
 
 permissions:
   contents: read
@@ -119,7 +70,7 @@ jobs:
         with:
           version: ${{ env.FOUNDRY_VERSION }}
 
-      - name: Install reviewed V4 dependencies
+      - name: Install reviewed dependencies
         shell: bash
         run: |
           set -euo pipefail
@@ -128,7 +79,7 @@ jobs:
           forge install "Uniswap/v4-core@${V4_CORE_REV}" --no-commit
           forge install "Uniswap/v4-periphery@${V4_PERIPHERY_REV}" --no-commit
 
-      - name: Compile fork harness
+      - name: Compile harness
         run: forge build --root tools/liquidity_v4
 
       - name: Run certificate schema self-test
@@ -138,18 +89,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          files=(
-            .github/workflows/liquidity-v4-simulation-certification.yml
-            tools/liquidity_v4/test/D3VONNLiquidityV4Fork.t.sol
-            tools/liquidity_v4/certify_report.py
-            tools/liquidity_v4/persist_checkpoint.py
-            backend/liquidity_agent/certification.py
-          )
-          if grep -Eni 'forge[[:space:]]+script.*--broadcast|cast[[:space:]]+send|PRIVATE[_-]?KEY|MNEMONIC' "${files[@]}"; then
-            echo '::error::V0.5 certification code must not contain a production signing/broadcast path.'
-            exit 1
-          fi
-          echo 'No signing key, mnemonic, cast send, or forge broadcast path detected.'
+          python3 - <<'PY'
+          import pathlib, re
+          files = [
+              pathlib.Path('tools/liquidity_v4/test/D3VONNLiquidityV4Fork.t.sol'),
+              pathlib.Path('tools/liquidity_v4/certify_report.py'),
+              pathlib.Path('tools/liquidity_v4/persist_checkpoint.py'),
+              pathlib.Path('backend/liquidity_agent/certification.py'),
+          ]
+          patterns = [
+              re.compile(r'forge\s+script.*--broadcast', re.I),
+              re.compile(r'cast\s+send', re.I),
+              re.compile(r'\bPRIVATE_KEY\b', re.I),
+              re.compile(r'\bMNEMONIC\b', re.I),
+          ]
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              for pattern in patterns:
+                  if pattern.search(text):
+                      raise SystemExit(f'forbidden signing/broadcast path in {path}: {pattern.pattern}')
+          print('V0.5 signing/broadcast policy: PASS')
+          PY
 
   certify:
     name: Trusted Base Fork Certification
@@ -200,7 +160,7 @@ jobs:
         with:
           version: ${{ env.FOUNDRY_VERSION }}
 
-      - name: Install reviewed V4 dependencies
+      - name: Install reviewed dependencies
         shell: bash
         run: |
           set -euo pipefail
@@ -217,40 +177,29 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import os, re, uuid
-
           address = re.compile(r'^0x[a-fA-F0-9]{40}$')
           pool_id = re.compile(r'^0x[a-fA-F0-9]{64}$')
-          if not pool_id.fullmatch(os.environ['D3VONN_V4_POOL_ID']):
-              raise SystemExit('invalid pool_id')
-          for key in ('D3VONN_V4_CURRENCY0', 'D3VONN_V4_CURRENCY1', 'D3VONN_V4_HOOKS', 'D3VONN_V4_SAFE_ADDRESS'):
-              if not address.fullmatch(os.environ[key]):
-                  raise SystemExit(f'invalid address: {key}')
-          c0 = int(os.environ['D3VONN_V4_CURRENCY0'], 16)
-          c1 = int(os.environ['D3VONN_V4_CURRENCY1'], 16)
-          if c0 == 0 or c1 == 0 or c0 >= c1:
-              raise SystemExit('V0.5 requires sorted ERC20/ERC20 currencies')
-          if int(os.environ['D3VONN_V4_SAFE_ADDRESS'], 16) == 0:
-              raise SystemExit('safe address cannot be zero')
-          fee = int(os.environ['D3VONN_V4_FEE'])
-          spacing = int(os.environ['D3VONN_V4_TICK_SPACING'])
+          if not pool_id.fullmatch(os.environ['D3VONN_V4_POOL_ID']): raise SystemExit('invalid pool_id')
+          for key in ('D3VONN_V4_CURRENCY0','D3VONN_V4_CURRENCY1','D3VONN_V4_HOOKS','D3VONN_V4_SAFE_ADDRESS'):
+              if not address.fullmatch(os.environ[key]): raise SystemExit(f'invalid address: {key}')
+          c0, c1 = int(os.environ['D3VONN_V4_CURRENCY0'],16), int(os.environ['D3VONN_V4_CURRENCY1'],16)
+          if c0 == 0 or c1 == 0 or c0 >= c1: raise SystemExit('V0.5 requires sorted ERC20/ERC20 currencies')
+          if int(os.environ['D3VONN_V4_SAFE_ADDRESS'],16) == 0: raise SystemExit('safe address cannot be zero')
+          fee, spacing = int(os.environ['D3VONN_V4_FEE']), int(os.environ['D3VONN_V4_TICK_SPACING'])
           block = int(os.environ['D3VONN_V4_FORK_BLOCK'])
-          lower = int(os.environ['D3VONN_V4_TICK_LOWER'])
-          upper = int(os.environ['D3VONN_V4_TICK_UPPER'])
-          initial = int(os.environ['D3VONN_V4_INITIAL_LIQUIDITY'])
-          delta = int(os.environ['D3VONN_V4_DELTA_LIQUIDITY'])
+          lower, upper = int(os.environ['D3VONN_V4_TICK_LOWER']), int(os.environ['D3VONN_V4_TICK_UPPER'])
+          initial, delta = int(os.environ['D3VONN_V4_INITIAL_LIQUIDITY']), int(os.environ['D3VONN_V4_DELTA_LIQUIDITY'])
           gas = int(os.environ['D3VONN_V4_GAS_CEILING'])
-          if not (0 <= fee <= 16_777_215): raise SystemExit('fee out of range')
-          if not (1 <= spacing <= 32767): raise SystemExit('tick spacing out of range')
+          if not 0 <= fee <= 16_777_215: raise SystemExit('fee out of range')
+          if not 1 <= spacing <= 32767: raise SystemExit('tick spacing out of range')
           if block <= 0 or lower >= upper: raise SystemExit('invalid block/tick range')
           if initial <= 0 or delta <= 0 or gas <= 0: raise SystemExit('invalid liquidity/gas limits')
-          uuid.UUID(os.environ['HERMES_USER_ID'])
-          uuid.UUID(os.environ['HERMES_GOAL_ID'])
-          execution = os.environ.get('EXECUTION_INPUT', '').strip()
-          if execution and not re.fullmatch(r'[A-Za-z0-9._:-]{1,120}', execution):
-              raise SystemExit('invalid execution_id')
+          uuid.UUID(os.environ['HERMES_USER_ID']); uuid.UUID(os.environ['HERMES_GOAL_ID'])
+          execution = os.environ.get('EXECUTION_INPUT','').strip()
+          if execution and not re.fullmatch(r'[A-Za-z0-9._:-]{1,120}', execution): raise SystemExit('invalid execution_id')
           PY
           if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
-            echo '::error::Hermes certificate persistence requires protected Supabase server credentials.'
+            echo '::error::Protected Supabase server credentials are required for Hermes persistence.'
             exit 1
           fi
 
@@ -261,40 +210,28 @@ jobs:
         run: |
           set -euo pipefail
           execution="${EXECUTION_INPUT:-}"
-          if [ -z "$execution" ]; then
-            execution="liquidity-v4-${GITHUB_RUN_ID}"
-          fi
-          deadline="$(( $(date +%s) + 3600 ))"
+          [ -n "$execution" ] || execution="liquidity-v4-${GITHUB_RUN_ID}"
           echo "D3VONN_V4_EXECUTION_ID=$execution" >> "$GITHUB_ENV"
-          echo "D3VONN_V4_PROPOSAL_DEADLINE=$deadline" >> "$GITHUB_ENV"
+          echo "D3VONN_V4_PROPOSAL_DEADLINE=$(( $(date +%s) + 3600 ))" >> "$GITHUB_ENV"
 
       - name: Execute pinned Base fork lifecycle
         shell: bash
         run: |
           set -euo pipefail
           rm -rf tools/liquidity_v4/reports
-          forge test \
-            --root tools/liquidity_v4 \
-            --match-test test_forkOnlyPositionLifecycle \
-            -vvv
+          forge test --root tools/liquidity_v4 --match-test test_forkOnlyPositionLifecycle -vvv
           test -s tools/liquidity_v4/reports/raw-simulation-report.json
 
       - name: Build deterministic passing certificate
-        shell: bash
         run: |
-          set -euo pipefail
           python3 tools/liquidity_v4/certify_report.py \
             --report tools/liquidity_v4/reports/raw-simulation-report.json \
             --out-dir tools/liquidity_v4/reports
-          sha256sum tools/liquidity_v4/reports/certification-envelope.json
 
       - name: Compute certificate subject digest
         id: digest
         shell: bash
-        run: |
-          set -euo pipefail
-          digest="$(sha256sum tools/liquidity_v4/reports/certification-envelope.json | awk '{print $1}')"
-          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+        run: echo "sha256=$(sha256sum tools/liquidity_v4/reports/certification-envelope.json | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Attest certification envelope
         id: attest
