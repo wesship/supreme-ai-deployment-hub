@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from backend.agents import policy_store
@@ -23,6 +25,40 @@ async def test_workspace_policy_returns_kill_switch_and_disabled_agents(monkeypa
     monkeypatch.setattr(policy_store, "_rest_get", fake_get)
     enabled, disabled = await policy_store.resolve_workspace_policy("workspace")
     assert enabled is True
+    assert disabled == {"openclaw-bridge"}
+
+
+@pytest.mark.asyncio
+async def test_expired_canary_unlock_lease_fails_closed(monkeypatch):
+    expired = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+
+    async def fake_get(path, params):
+        return [{
+            "kill_switch_enabled": False,
+            "disabled_agents": ["openclaw-bridge"],
+            "canary_unlock_expires_at": expired,
+        }]
+
+    monkeypatch.setattr(policy_store, "_rest_get", fake_get)
+    enabled, disabled = await policy_store.resolve_workspace_policy("workspace")
+    assert enabled is True
+    assert disabled == {"openclaw-bridge"}
+
+
+@pytest.mark.asyncio
+async def test_active_canary_unlock_lease_remains_effectively_unlocked(monkeypatch):
+    future = (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()
+
+    async def fake_get(path, params):
+        return [{
+            "kill_switch_enabled": False,
+            "disabled_agents": ["openclaw-bridge"],
+            "canary_unlock_expires_at": future,
+        }]
+
+    monkeypatch.setattr(policy_store, "_rest_get", fake_get)
+    enabled, disabled = await policy_store.resolve_workspace_policy("workspace")
+    assert enabled is False
     assert disabled == {"openclaw-bridge"}
 
 
