@@ -16,7 +16,13 @@ router = APIRouter(
 
 class CharacterPerformanceRequest(BaseModel):
     project_id: str = Field(..., min_length=1, max_length=100)
-    capability: Literal["avatar", "character_replacement", "lip_sync", "voice"]
+    capability: Literal[
+        "avatar",
+        "character_replacement",
+        "lip_sync",
+        "performance_transfer",
+        "voice",
+    ]
     provider: str = Field(default="replicate", min_length=1, max_length=50)
     source_asset_id: str | None = Field(default=None, max_length=200)
     target_character_id: str | None = Field(default=None, max_length=200)
@@ -24,6 +30,10 @@ class CharacterPerformanceRequest(BaseModel):
     voice_id: str | None = Field(default=None, max_length=200)
     dialogue_text: str | None = Field(default=None, max_length=8000)
     audio_asset_id: str | None = Field(default=None, max_length=200)
+    driving_video_asset_id: str | None = Field(default=None, max_length=200)
+    transfer_face_motion: bool = True
+    transfer_head_motion: bool = True
+    transfer_body_motion: bool = True
     preserve_body_motion: bool = True
     preserve_camera: bool = True
     preserve_wardrobe: bool = True
@@ -49,6 +59,10 @@ async def create_character_performance_job(
             voice_id=request.voice_id,
             dialogue_text=request.dialogue_text,
             audio_asset_id=request.audio_asset_id,
+            driving_video_asset_id=request.driving_video_asset_id,
+            transfer_face_motion=request.transfer_face_motion,
+            transfer_head_motion=request.transfer_head_motion,
+            transfer_body_motion=request.transfer_body_motion,
             preserve_body_motion=request.preserve_body_motion,
             preserve_camera=request.preserve_camera,
             preserve_wardrobe=request.preserve_wardrobe,
