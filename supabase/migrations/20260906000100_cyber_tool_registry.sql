@@ -43,7 +43,7 @@ create table if not exists public.security_tool_executions (
   status text not null check (status in ('requested','blocked','approved','running','succeeded','failed')),
   target_type text,
   target_value text,
-  asset_id uuid references public.security_assets(id),
+  asset_id uuid,
   policy_decision_id uuid references public.security_tool_policy_decisions(id),
   provider_request_id text,
   result_summary jsonb not null default '{}'::jsonb,
@@ -65,9 +65,10 @@ alter table public.security_tool_registry enable row level security;
 alter table public.security_tool_policy_decisions enable row level security;
 alter table public.security_tool_executions enable row level security;
 
--- These tables are internal control-plane state. No anon/authenticated policies are
--- created intentionally. Backend service-role access bypasses RLS; browser clients
--- must go through the governed FastAPI endpoints.
+-- Internal control-plane state. No anon/authenticated policies are created.
+-- Backend service-role access is expected; browser clients must use governed APIs.
+-- asset_id remains a UUID without a foreign key so this migration can deploy before
+-- the wider SOC schema; production can add the FK after security_assets is present.
 
 comment on table public.security_tool_registry is 'Governed catalog of cyber capabilities exposed to Hermes metadata/policy workflows.';
 comment on table public.security_tool_policy_decisions is 'Immutable audit trail of allow/deny/approval decisions for cyber capabilities.';
