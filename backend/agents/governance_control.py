@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.routers.primetime_release1 import _membership_required
-from .control_plane_store import grant_approval, revoke_approval, set_workspace_policy
+from .control_plane_store import grant_approval, revoke_approval, set_canary_unlock_lease, set_workspace_policy
 from .policy_store import _rest_get, resolve_workspace_policy
 
 router = APIRouter(prefix="/governance/control", tags=["agent-governance"])
@@ -22,6 +22,27 @@ class WorkspacePolicyMutationRequest(BaseModel):
     workspace_id: str = Field(min_length=1)
     kill_switch_enabled: bool
     disabled_agents: list[str] = Field(default_factory=list, max_length=100)
+    reason: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("disabled_agents")
+    @classmethod
+    def validate_disabled_agents(cls, values: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for raw in values:
+            value = raw.strip()
+            if not value:
+                raise ValueError("disabled agent names must be nonblank")
+            if value not in seen:
+                normalized.append(value)
+                seen.add(value)
+        return normalized
+
+
+class CanaryLeaseRequest(BaseModel):
+    workspace_id: str = Field(min_length=1)
+    disabled_agents: list[str] = Field(default_factory=list, max_length=100)
+    lease_seconds: int = Field(default=90, ge=15, le=180)
     reason: str | None = Field(default=None, max_length=1000)
 
     @field_validator("disabled_agents")
@@ -82,6 +103,7 @@ class GovernanceMutationResponse(BaseModel):
 class CanaryPolicyStatus(BaseModel):
     kill_switch_enabled: bool
     disabled_agents: list[str] = Field(default_factory=list)
+    canary_unlock_expires_at: str | None = None
 
 
 class CanaryApprovalStatus(BaseModel):
@@ -113,32 +135,30 @@ async def _require_role(workspace_id: str, user_id: str, allowed: set[str]) -> d
     membership = await _membership_required(workspace_id, user_id)
     role = str(membership.get("role") or "")
     if role not in allowed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient workspace governance role.",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient workspace governance role.")
     return membership
 
 
 @router.get("/canary/status", response_model=CanaryStatusResponse)
 async def get_canary_status(
     workspace_id: str = Query(min_length=1),
+    canary_run_id: str | None = Query(default=None, min_length=1, max_length=100),
     user_id: str = Depends(get_current_user_id),
 ):
-    """Return workspace-admin-only Agent OS production-canary evidence.
-
-    This endpoint is read-only. It resolves the canonical workspace membership,
-    persisted policy, active approvals, and recent Agent OS audit evidence from
-    the backend service boundary without exposing service-role credentials to the
-    browser.
-    """
     membership = await _require_role(workspace_id, user_id, _POLICY_ROLES)
     canonical_workspace_id = str(membership["workspace_id"])
     role = str(membership.get("role") or "")
 
-    kill_switch_enabled, disabled_agents = await resolve_workspace_policy(
-        canonical_workspace_id
+    kill_switch_enabled, disabled_agents = await resolve_workspace_policy(canonical_workspace_id)
+    policy_rows = await _rest_get(
+        "agent_os_workspace_policies",
+        {
+            "select": "canary_unlock_expires_at",
+            "workspace_id": f"eq.{canonical_workspace_id}",
+            "limit": "1",
+        },
     )
+    lease_expires_at = str(policy_rows[0].get("canary_unlock_expires_at") or "") if policy_rows else ""
     now = datetime.now(timezone.utc).isoformat()
     approval_rows = await _rest_get(
         "agent_os_approvals",
@@ -151,16 +171,16 @@ async def get_canary_status(
             "limit": "100",
         },
     )
-    audit_rows = await _rest_get(
-        "primetime_audit_events",
-        {
-            "select": "id,action,entity_type,entity_id,metadata,created_at",
-            "workspace_id": f"eq.{canonical_workspace_id}",
-            "action": "like.agent_os.%",
-            "order": "created_at.desc,id.desc",
-            "limit": "25",
-        },
-    )
+    audit_params = {
+        "select": "id,action,entity_type,entity_id,metadata,created_at",
+        "workspace_id": f"eq.{canonical_workspace_id}",
+        "action": "like.agent_os.%",
+        "order": "created_at.desc,id.desc",
+        "limit": "50",
+    }
+    if canary_run_id:
+        audit_params["metadata->>canary_run_id"] = f"eq.{canary_run_id}"
+    audit_rows = await _rest_get("primetime_audit_events", audit_params)
 
     return CanaryStatusResponse(
         workspace_id=canonical_workspace_id,
@@ -169,6 +189,7 @@ async def get_canary_status(
         policy=CanaryPolicyStatus(
             kill_switch_enabled=kill_switch_enabled,
             disabled_agents=sorted(disabled_agents),
+            canary_unlock_expires_at=lease_expires_at or None,
         ),
         active_approvals=[
             CanaryApprovalStatus(
@@ -193,6 +214,28 @@ async def get_canary_status(
     )
 
 
+@router.post("/canary/lease", response_model=GovernanceMutationResponse)
+async def start_canary_unlock_lease(
+    request: CanaryLeaseRequest,
+    user_id: str = Depends(get_current_user_id),
+):
+    membership = await _require_role(request.workspace_id, user_id, _POLICY_ROLES)
+    workspace_id = str(membership["workspace_id"])
+    result = await set_canary_unlock_lease(
+        workspace_id=workspace_id,
+        disabled_agents=set(request.disabled_agents),
+        actor_user_id=user_id,
+        lease_seconds=request.lease_seconds,
+        reason=request.reason,
+    )
+    return GovernanceMutationResponse(
+        workspace_id=workspace_id,
+        actor_id=user_id,
+        operation="canary_unlock_lease_started",
+        result=result,
+    )
+
+
 @router.put("/policy", response_model=GovernanceMutationResponse)
 async def update_workspace_policy(
     request: WorkspacePolicyMutationRequest,
@@ -207,31 +250,15 @@ async def update_workspace_policy(
         actor_user_id=user_id,
         reason=request.reason,
     )
-    return GovernanceMutationResponse(
-        workspace_id=workspace_id,
-        actor_id=user_id,
-        operation="workspace_policy_updated",
-        result=result,
-    )
+    return GovernanceMutationResponse(workspace_id=workspace_id, actor_id=user_id, operation="workspace_policy_updated", result=result)
 
 
-@router.post(
-    "/approvals",
-    response_model=GovernanceMutationResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_approval(
-    request: ApprovalGrantRequest,
-    user_id: str = Depends(get_current_user_id),
-):
+@router.post("/approvals", response_model=GovernanceMutationResponse, status_code=status.HTTP_201_CREATED)
+async def create_approval(request: ApprovalGrantRequest, user_id: str = Depends(get_current_user_id)):
     membership = await _require_role(request.workspace_id, user_id, _APPROVAL_ROLES)
     workspace_id = str(membership["workspace_id"])
     now = datetime.now(timezone.utc)
-    expires_at = (
-        request.expires_at
-        if request.expires_at.tzinfo
-        else request.expires_at.replace(tzinfo=timezone.utc)
-    )
+    expires_at = request.expires_at if request.expires_at.tzinfo else request.expires_at.replace(tzinfo=timezone.utc)
     expires_at = expires_at.astimezone(timezone.utc)
     lifetime = (expires_at - now).total_seconds()
     if lifetime <= 0:
@@ -247,19 +274,11 @@ async def create_approval(
         reason=request.reason,
         metadata=request.metadata,
     )
-    return GovernanceMutationResponse(
-        workspace_id=workspace_id,
-        actor_id=user_id,
-        operation="approval_granted",
-        result=result,
-    )
+    return GovernanceMutationResponse(workspace_id=workspace_id, actor_id=user_id, operation="approval_granted", result=result)
 
 
 @router.post("/approvals/revoke", response_model=GovernanceMutationResponse)
-async def revoke_existing_approval(
-    request: ApprovalRevokeRequest,
-    user_id: str = Depends(get_current_user_id),
-):
+async def revoke_existing_approval(request: ApprovalRevokeRequest, user_id: str = Depends(get_current_user_id)):
     membership = await _require_role(request.workspace_id, user_id, _APPROVAL_ROLES)
     workspace_id = str(membership["workspace_id"])
     result = await revoke_approval(
@@ -268,9 +287,4 @@ async def revoke_existing_approval(
         actor_user_id=user_id,
         reason=request.reason,
     )
-    return GovernanceMutationResponse(
-        workspace_id=workspace_id,
-        actor_id=user_id,
-        operation="approval_revoked",
-        result=result,
-    )
+    return GovernanceMutationResponse(workspace_id=workspace_id, actor_id=user_id, operation="approval_revoked", result=result)

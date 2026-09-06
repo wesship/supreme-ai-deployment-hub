@@ -32,6 +32,7 @@ export interface CanaryStatus {
   policy: {
     kill_switch_enabled: boolean;
     disabled_agents: string[];
+    canary_unlock_expires_at?: string | null;
   };
   active_approvals: CanaryApproval[];
   recent_audit: CanaryAuditEvent[];
@@ -57,14 +58,10 @@ export interface GovernanceDryRunResult {
 }
 
 async function getAuthHeaders(): Promise<HeadersInit> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
+  const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) {
     throw new Error('Your authenticated D3VONN session is required. Please sign in again.');
   }
-
   return {
     Authorization: `Bearer ${session.access_token}`,
     'Content-Type': 'application/json',
@@ -91,12 +88,11 @@ async function requestResult(path: string, options?: RequestInit): Promise<Canar
     headers: { ...headers, ...(options?.headers || {}) },
   });
   const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-  const detail =
-    typeof body?.detail === 'string'
-      ? body.detail
-      : response.ok
-        ? 'Request completed successfully.'
-        : `HTTP ${response.status}`;
+  const detail = typeof body?.detail === 'string'
+    ? body.detail
+    : response.ok
+      ? 'Request completed successfully.'
+      : `HTTP ${response.status}`;
   return { ok: response.ok, status: response.status, detail, body };
 }
 
@@ -123,12 +119,14 @@ export function useAgentOsCanary() {
   );
 
   const getStatus = useCallback(
-    (workspaceId: string) =>
-      guarded(() =>
+    (workspaceId: string, canaryRunId?: string) => {
+      const suffix = canaryRunId ? `&canary_run_id=${encodeURIComponent(canaryRunId)}` : '';
+      return guarded(() =>
         requestJson<CanaryStatus>(
-          `/api/agents/governance/control/canary/status?workspace_id=${encodeURIComponent(workspaceId)}`
+          `/api/agents/governance/control/canary/status?workspace_id=${encodeURIComponent(workspaceId)}${suffix}`
         )
-      ),
+      );
+    },
     [guarded]
   );
 
@@ -137,11 +135,7 @@ export function useAgentOsCanary() {
       guarded(() =>
         requestJson<GovernanceDryRunResult>('/api/agents/governance/dry-run', {
           method: 'POST',
-          body: JSON.stringify({
-            workspace_id: workspaceId,
-            agent_name: agentName,
-            capability,
-          }),
+          body: JSON.stringify({ workspace_id: workspaceId, agent_name: agentName, capability }),
         })
       ),
     [guarded]
@@ -156,6 +150,22 @@ export function useAgentOsCanary() {
             workspace_id: workspaceId,
             kill_switch_enabled: killSwitchEnabled,
             disabled_agents: disabledAgents,
+            reason,
+          }),
+        })
+      ),
+    [guarded]
+  );
+
+  const startCanaryLease = useCallback(
+    (workspaceId: string, disabledAgents: string[], leaseSeconds: number, reason: string) =>
+      guarded(() =>
+        requestJson<Record<string, unknown>>('/api/agents/governance/control/canary/lease', {
+          method: 'POST',
+          body: JSON.stringify({
+            workspace_id: workspaceId,
+            disabled_agents: disabledAgents,
+            lease_seconds: leaseSeconds,
             reason,
           }),
         })
@@ -207,6 +217,7 @@ export function useAgentOsCanary() {
     getStatus,
     dryRun,
     setPolicy,
+    startCanaryLease,
     dispatchNamed,
     dispatchCapability,
   };
