@@ -53,6 +53,20 @@ CAPABILITY_TO_PROVIDER: Dict[str, str] = {
     "market_research": "vibe_trading",
     "authorized_browser_automation": "camofox",
     "accessibility_tree_extraction": "camofox",
+    "liquidity_pool_discovery": "defillama_yields",
+    "yield_benchmark_data": "defillama_yields",
+    "liquidity_planning": "uniswap_ai",
+    "swap_planning": "uniswap_ai",
+    "transaction_simulation": "foundry",
+    "fork_simulation": "foundry",
+    "safe_transaction_proposal": "safe_core",
+    "multisig_policy": "safe_core",
+    "dex_execution_gateway": "hummingbot_gateway",
+    "amm_connector": "hummingbot_gateway",
+    "onchain_indexing": "graph_node",
+    "pool_history": "graph_node",
+    "uniswap_v4_hooks": "uniswap_v4",
+    "liquidity_primitives": "uniswap_v4",
 }
 
 
@@ -97,6 +111,19 @@ def route_capability(request: CapabilityRequest) -> CapabilityResponse:
             status="disabled",
             message=provider.caution or "This provider is disabled pending review.",
             data={"task": request.task},
+        )
+
+    if provider.status == IntegrationStatus.planned:
+        return CapabilityResponse(
+            provider=provider.key,
+            capability=request.capability,
+            status="planned",
+            message="Provider is registered for architecture compatibility but is not enabled for runtime use.",
+            data={
+                "task": request.task,
+                "d3vonn_use_cases": provider.d3vonn_use_cases,
+                "provider_url": provider.source_url,
+            },
         )
 
     if not env_ready(provider.key):
