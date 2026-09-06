@@ -66,6 +66,26 @@ async def set_workspace_policy(
     )
 
 
+async def set_canary_unlock_lease(
+    *,
+    workspace_id: str,
+    disabled_agents: set[str],
+    actor_user_id: str,
+    lease_seconds: int,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    return await _rpc(
+        "agent_os_set_canary_unlock_lease",
+        {
+            "p_workspace_id": workspace_id,
+            "p_disabled_agents": sorted(disabled_agents),
+            "p_actor_user_id": actor_user_id,
+            "p_lease_seconds": lease_seconds,
+            "p_reason": reason,
+        },
+    )
+
+
 async def grant_approval(
     *,
     workspace_id: str,
