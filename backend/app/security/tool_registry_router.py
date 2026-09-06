@@ -63,6 +63,7 @@ async def tool_registry_health():
         "tool_count": len(tools),
         "risk_counts": risk_counts,
         "status_counts": status_counts,
+        "tool_execution_enabled": False,
         "passive_enrichment_enabled": True,
         "passive_enrichment_requires_audit_store": True,
         "active_scan_execution_enabled": False,
@@ -79,7 +80,11 @@ async def get_tools(
     status: ToolStatus | None = Query(default=None),
 ):
     tools = list_tools(category=category, risk_tier=risk_tier, status=status)
-    return {"tools": [tool.model_dump(mode="json") for tool in tools], "count": len(tools)}
+    return {
+        "tools": [tool.model_dump(mode="json") for tool in tools],
+        "count": len(tools),
+        "execution_enabled": False,
+    }
 
 
 @router.post("/policy/evaluate")
