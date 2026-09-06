@@ -9,6 +9,7 @@ from backend.liquidity_agent.certification import (
     CERTIFICATE_TYPE,
     HERMES_CERTIFICATE_SCHEMA,
     SimulationCertificateError,
+    canonical_file_sha256,
     canonical_object_sha256,
     validate_persisted_v4_certificate,
 )
@@ -60,14 +61,21 @@ def _report() -> dict:
     }
 
 
+def _reseal(checkpoint: dict, *, refresh_report_hash: bool = True) -> None:
+    certificate = checkpoint["certificate"]
+    if refresh_report_hash:
+        certificate["report_sha256"] = canonical_object_sha256(certificate["report"])
+    checkpoint["certificate_sha256"] = canonical_object_sha256(certificate)
+    checkpoint["github_attestation"]["subject_digest_sha256"] = canonical_file_sha256(certificate)
+
+
 def _checkpoint() -> dict:
     report = _report()
-    report_hash = canonical_object_sha256(report)
     certificate = {
         "schema_version": CERTIFICATE_SCHEMA,
         "status": "pass",
         "certified_at": NOW,
-        "report_sha256": report_hash,
+        "report_sha256": canonical_object_sha256(report),
         "report": report,
         "runner": {
             "repository": "wesship/supreme-ai-deployment-hub",
@@ -85,16 +93,16 @@ def _checkpoint() -> dict:
             "runner_arch": "X64",
         },
     }
-    return {
+    checkpoint = {
         "schema_version": HERMES_CERTIFICATE_SCHEMA,
         "type": CERTIFICATE_TYPE,
         "status": "pass",
         "persisted": True,
-        "certificate_sha256": canonical_object_sha256(certificate),
+        "certificate_sha256": "",
         "certificate": certificate,
         "github_attestation": {
             "url": "https://github.com/wesship/supreme-ai-deployment-hub/attestations/123",
-            "subject_digest_sha256": "b" * 64,
+            "subject_digest_sha256": "",
             "repository": "wesship/supreme-ai-deployment-hub",
             "run_id": "1234",
             "run_attempt": "1",
@@ -102,6 +110,8 @@ def _checkpoint() -> dict:
             "github_sha": "a" * 40,
         },
     }
+    _reseal(checkpoint)
+    return checkpoint
 
 
 def _pool_key() -> V4PoolKey:
@@ -143,6 +153,7 @@ def test_passing_certificate_returns_non_submittable_safe_draft() -> None:
 def test_tampered_report_is_rejected() -> None:
     checkpoint = _checkpoint()
     checkpoint["certificate"]["report"]["tick_upper"] = 1200
+    _reseal(checkpoint, refresh_report_hash=False)
 
     with pytest.raises(SimulationCertificateError, match="certificate_report_hash_mismatch"):
         _validate(checkpoint)
@@ -156,6 +167,14 @@ def test_unpersisted_certificate_is_rejected() -> None:
         _validate(checkpoint)
 
 
+def test_attestation_digest_mismatch_is_rejected() -> None:
+    checkpoint = _checkpoint()
+    checkpoint["github_attestation"]["subject_digest_sha256"] = "b" * 64
+
+    with pytest.raises(SimulationCertificateError, match="github_attestation_subject_digest_mismatch"):
+        _validate(checkpoint)
+
+
 def test_stale_fork_certificate_is_rejected() -> None:
     with pytest.raises(SimulationCertificateError, match="simulation_certificate_stale"):
         _validate(_checkpoint(), current_block=40_001_000)
@@ -163,9 +182,8 @@ def test_stale_fork_certificate_is_rejected() -> None:
 
 def test_expired_candidate_is_rejected_even_with_passing_simulation() -> None:
     checkpoint = _checkpoint()
-    report = checkpoint["certificate"]["report"]
-    report["proposal_deadline"] = NOW - 1
-    checkpoint["certificate"]["report_sha256"] = canonical_object_sha256(report)
+    checkpoint["certificate"]["report"]["proposal_deadline"] = NOW - 1
+    _reseal(checkpoint)
 
     with pytest.raises(SimulationCertificateError, match="simulation_candidate_expired"):
         _validate(checkpoint)
@@ -173,9 +191,10 @@ def test_expired_candidate_is_rejected_even_with_passing_simulation() -> None:
 
 def test_noncanonical_position_manager_target_is_rejected() -> None:
     checkpoint = _checkpoint()
-    report = checkpoint["certificate"]["report"]
-    report["candidate_transaction"]["to"] = "0x4444444444444444444444444444444444444444"
-    checkpoint["certificate"]["report_sha256"] = canonical_object_sha256(report)
+    checkpoint["certificate"]["report"]["candidate_transaction"]["to"] = (
+        "0x4444444444444444444444444444444444444444"
+    )
+    _reseal(checkpoint)
 
     with pytest.raises(SimulationCertificateError, match="candidate_target_not_canonical_position_manager"):
         _validate(checkpoint)
@@ -190,9 +209,8 @@ def test_pool_key_mismatch_is_rejected() -> None:
 
 def test_wrong_pool_id_is_rejected() -> None:
     checkpoint = copy.deepcopy(_checkpoint())
-    report = checkpoint["certificate"]["report"]
-    report["pool_id"] = "0x" + "22" * 32
-    checkpoint["certificate"]["report_sha256"] = canonical_object_sha256(report)
+    checkpoint["certificate"]["report"]["pool_id"] = "0x" + "22" * 32
+    _reseal(checkpoint)
 
     with pytest.raises(SimulationCertificateError, match="certificate_pool_id_mismatch"):
         _validate(checkpoint)
