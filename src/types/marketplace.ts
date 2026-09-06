@@ -31,6 +31,9 @@ export type AgentCapability =
   | 'ml-powered'
   | (string & { readonly __registryCapability?: never });
 
+export type VerificationLevel = 'unverified' | 'reviewed' | 'verified' | 'production-ready';
+export type PermissionRisk = 'low' | 'medium' | 'high' | 'critical';
+
 export interface AgentPricing {
   model: AgentPricingModel;
   amount?: number;
@@ -65,6 +68,55 @@ export interface AgentStats {
   lastUpdated: string;
 }
 
+export interface AgentVerification {
+  level: VerificationLevel;
+  score: number;
+  security: number;
+  reliability: number;
+  documentation: number;
+  capabilityAccuracy: number;
+  permissionsReviewed: boolean;
+  dataHandlingReviewed: boolean;
+  lastVerifiedAt?: string;
+  verifier?: string;
+}
+
+export interface AgentPermission {
+  key: string;
+  label: string;
+  description: string;
+  risk: PermissionRisk;
+  required: boolean;
+}
+
+export interface AgentDependency {
+  id: string;
+  name: string;
+  version?: string;
+  required: boolean;
+  healthy?: boolean;
+}
+
+export interface AgentManifest {
+  schemaVersion: '1.0';
+  publisher: string;
+  capabilities: AgentCapability[];
+  permissions: AgentPermission[];
+  dependencies: AgentDependency[];
+  integrations: string[];
+  dataRequirements: string[];
+  updatePolicy: 'automatic' | 'approval-required' | 'manual';
+  rollbackSupported: boolean;
+}
+
+export interface AgentCompatibility {
+  score: number;
+  compatible: boolean;
+  missing: string[];
+  warnings: string[];
+  satisfied: string[];
+}
+
 export interface AgentTemplate {
   id: string;
   name: string;
@@ -87,6 +139,8 @@ export interface AgentTemplate {
   createdAt: string;
   updatedAt: string;
   featured?: boolean;
+  verification?: AgentVerification;
+  manifest?: AgentManifest;
 }
 
 export interface MarketplaceFilters {
