@@ -45,11 +45,20 @@ class PoolCandidate(BaseModel):
     underlying_tokens: List[str] = Field(default_factory=list)
 
 
+class V4PoolKey(BaseModel):
+    currency0_address: str
+    currency1_address: str
+    fee: int = Field(ge=0, le=16_777_215)
+    tick_spacing: int = Field(ge=1, le=32767)
+    hooks_address: str = "0x0000000000000000000000000000000000000000"
+
+
 class LiquidityRequest(BaseModel):
     action: LiquidityAction
     chain: str = "base"
     protocol: str = "uniswap-v3"
     pool: Optional[PoolCandidate] = None
+    v4_pool_key: Optional[V4PoolKey] = None
     amount_usd: Optional[float] = Field(default=None, ge=0)
     max_slippage_bps: int = Field(default=50, ge=1, le=500)
     limit: int = Field(default=10, ge=1, le=50)
@@ -89,6 +98,24 @@ class PoolStateSnapshot(BaseModel):
     liquidity: int = Field(ge=0)
     unlocked: bool
     price_token1_per_token0: Optional[str] = None
+
+
+class V4PoolStateSnapshot(BaseModel):
+    chain: str = "base"
+    protocol: str = "uniswap-v4"
+    verified: bool
+    verification_checks: List[str] = Field(default_factory=list)
+    block_number: int = Field(ge=0)
+    pool_id: str
+    canonical_pool_manager: str
+    canonical_position_manager: str
+    canonical_state_view: str
+    sqrt_price_x96: int = Field(ge=0)
+    tick: int
+    protocol_fee: int = Field(ge=0)
+    lp_fee: int = Field(ge=0)
+    liquidity: int = Field(ge=0)
+    pool_key_hash_verified_on_server: bool = False
 
 
 class PoolHistoryPoint(BaseModel):
@@ -138,6 +165,30 @@ class ForkSimulationPlan(BaseModel):
     readback_commands: List[List[str]] = Field(default_factory=list)
     simulation_steps: List[str] = Field(default_factory=list)
     requires_position_manager_harness: bool = True
+    private_key_access: bool = False
+    signing_enabled: bool = False
+    broadcast_enabled: bool = False
+    production_execution_enabled: bool = False
+
+
+class V4ForkHarnessPlan(BaseModel):
+    status: str = "fork_harness_ready"
+    chain_id: int = 8453
+    fork_block_number: int = Field(ge=0)
+    pool_id: str
+    rpc_env_var: str = "LIQUIDITY_BASE_RPC_URL"
+    canonical_pool_manager: str
+    canonical_position_manager: str
+    canonical_state_view: str
+    pool_key: V4PoolKey
+    range_plan: RangePlan
+    harness_path: str = "tools/liquidity_v4/test/D3VONNLiquidityV4Fork.t.sol"
+    scenarios: List[str] = Field(default_factory=list)
+    invariants: List[str] = Field(default_factory=list)
+    forge_command: List[str] = Field(default_factory=list)
+    report_schema: Dict[str, Any] = Field(default_factory=dict)
+    pool_id_recomputed_in_foundry: bool = True
+    test_only_funded_account: bool = True
     private_key_access: bool = False
     signing_enabled: bool = False
     broadcast_enabled: bool = False
