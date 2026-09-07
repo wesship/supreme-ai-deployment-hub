@@ -120,6 +120,40 @@ export type NonprofitAuditSummary = {
   approval_linked_events: number;
 };
 
+export type NonprofitBoardRule = {
+  organization_id: string;
+  quorum_mode: 'MAJORITY_ACTIVE_BOARD';
+  vote_mode: 'MAJORITY_VOTES_CAST';
+  written_consent_mode: 'UNANIMOUS_ELIGIBLE_BOARD';
+  recused_counts_for_quorum: boolean;
+  effective: boolean;
+  status: 'DRAFT' | 'ADOPTED' | 'SUPERSEDED';
+  authority_basis: string | null;
+  adopted_at: string | null;
+};
+
+export type NonprofitBoardStatusRow = {
+  session_id: string;
+  organization_id: string;
+  session_type: 'MEETING' | 'WRITTEN_CONSENT';
+  title: string;
+  session_status: string;
+  scheduled_at: string | null;
+  agenda_item_id: string | null;
+  item_no: number | null;
+  agenda_title: string | null;
+  action_type: string | null;
+  related_party: boolean | null;
+  agenda_status: string | null;
+  present_directors: number;
+  yes_votes: number;
+  no_votes: number;
+  abstain_votes: number;
+  resolution_id: string | null;
+  resolution_number: string | null;
+  adopted_at: string | null;
+};
+
 async function listView<T>(view: string): Promise<T[]> {
   const { data, error } = await (supabase as any).from(view).select('*');
   if (error) throw error;
@@ -139,6 +173,14 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
     return { organizations, programs, grants, approvals, approvalSteps, memberships, alerts, audit };
+  },
+
+  async loadBoardGovernance() {
+    const [rules, board] = await Promise.all([
+      listView<NonprofitBoardRule>('nonprofit_board_rules_v1'),
+      listView<NonprofitBoardStatusRow>('nonprofit_board_status_v1'),
+    ]);
+    return { rules, board };
   },
 
   async decideApprovalStep(stepId: string, decision: 'APPROVED' | 'REJECTED' | 'RECUSED', notes?: string) {
@@ -175,5 +217,31 @@ export const nonprofitCommandCenterApi = {
     });
     if (error) throw error;
     return (data ?? []) as Array<{ invite_id: string; invite_token: string; expires_at: string }>;
+  },
+
+  async markBoardAttendance(sessionId: string, status: 'PRESENT' | 'REMOTE' | 'ABSENT' = 'PRESENT') {
+    const { data, error } = await (supabase as any).rpc('nonprofit_mark_board_attendance', {
+      p_session_id: sessionId,
+      p_status: status,
+    });
+    if (error) throw error;
+    return data as string;
+  },
+
+  async castBoardVote(agendaItemId: string, vote: 'YES' | 'NO' | 'ABSTAIN') {
+    const { data, error } = await (supabase as any).rpc('nonprofit_cast_board_vote', {
+      p_agenda_item_id: agendaItemId,
+      p_vote: vote,
+    });
+    if (error) throw error;
+    return data as string;
+  },
+
+  async finalizeBoardItem(agendaItemId: string) {
+    const { data, error } = await (supabase as any).rpc('nonprofit_finalize_board_item', {
+      p_agenda_item_id: agendaItemId,
+    });
+    if (error) throw error;
+    return data as string;
   },
 };
