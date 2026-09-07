@@ -92,7 +92,7 @@
     "@testing-library/react": "^14.2.0",
     "@types/file-saver": "^2.0.7",
     "@types/jest": "^29.5.14",
-    "@types/js-yaml": "^9.0.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/uuid": "^10.0.0",
     "@vapi-ai/web": "^2.6.2",
     "@vercel/analytics": "1.6.1",
