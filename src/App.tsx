@@ -18,7 +18,7 @@ const Navbar = lazy(() => import("./components/Navbar"));
 const ChatProvider = lazy(() => import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider })));
 const DeploymentProvider = lazy(() => import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider })));
 const APIProvider = lazy(() => import("./contexts/APIContext").then(m => ({ default: m.APIProvider })));
-const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider })));
+const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUiProvider })));
 const Toaster = lazy(() => import("./components/ui/sonner").then(m => ({ default: m.Toaster })));
 const Analytics = lazy(() => import("@vercel/analytics/react").then(m => ({ default: m.Analytics })));
 
@@ -83,6 +83,7 @@ const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
 const NonprofitCommandCenter = lazy(() => import("./pages/NonprofitCommandCenter"));
+const NonprofitIdentity = lazy(() => import("./pages/NonprofitIdentity"));
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -108,44 +109,34 @@ const PageLoader = () => (
 function CanonicalPathFallback() {
   const location = useLocation();
   const rawPathname = window.location.pathname;
-
   if (/^\/film(?:%60|`|\s)+$/i.test(rawPathname)) {
     return <Navigate to={{ pathname: "/film", search: location.search, hash: location.hash }} replace />;
   }
-
   return <NotFound />;
 }
 
 function LegacyFilmPathRepair() {
   const location = useLocation();
-
   useEffect(() => {
     if (/^\/film(?:%60|`|\s)+$/i.test(window.location.pathname)) {
       window.location.replace(`/film${location.search}${location.hash}`);
     }
   }, [location.hash, location.pathname, location.search]);
-
   return null;
 }
 
 function DeferredProviders({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
-
   useEffect(() => {
     const id = ('requestIdleCallback' in window)
       ? (window as any).requestIdleCallback(() => setReady(true))
       : setTimeout(() => setReady(true), 50);
     return () => {
-      if ('cancelIdleCallback' in window) {
-        (window as any).cancelIdleCallback(id);
-      } else {
-        clearTimeout(id);
-      }
+      if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback(id);
+      else clearTimeout(id);
     };
   }, []);
-
   if (!ready) return <>{children}</>;
-
   return (
     <Suspense fallback={<>{children}</>}>
       <DeploymentProvider>
@@ -251,6 +242,7 @@ function App() {
                 <Route path="/security/secrets" element={<AdminRoute><SecretsVault /></AdminRoute>} />
                 <Route path="/nonprofit" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
                 <Route path="/nonprofit/grants" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/nonprofit/identity" element={<AuthenticatedRoute><NonprofitIdentity /></AuthenticatedRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
                 <Route path="/analytics" element={<Navigate to="/app" replace />} />
