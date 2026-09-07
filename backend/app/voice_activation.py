@@ -12,7 +12,6 @@ import httpx
 from backend.app.routers.voice_orchestration import (
     effective_assistant_id,
     effective_elevenlabs_voice_id,
-    effective_vapi_private_key,
     effective_webhook_secret,
 )
 
@@ -99,6 +98,54 @@ def _normalized_server_messages(value: Any) -> list[str]:
     )
     messages.update(_REQUIRED_VAPI_SERVER_MESSAGES)
     return sorted(messages)
+
+
+def _vapi_key_candidates() -> list[tuple[str, str]]:
+    """Return distinct server-side Vapi credential candidates without exposing values."""
+    candidates: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for name in ("VAPI_PRIVATE_KEY", "VAPI_API_KEY"):
+        value = os.getenv(name, "").strip()
+        if not value or value in seen:
+            continue
+        if value.lower().startswith(("paste_", "change_me", "your_", "placeholder")):
+            continue
+        candidates.append((name, value))
+        seen.add(value)
+    return candidates
+
+
+async def _resolve_working_vapi_key(
+    client: httpx.AsyncClient,
+    assistant_id: str,
+) -> tuple[str, str, dict[str, Any]]:
+    """Validate configured server-side candidates and return the first accepted by Vapi."""
+    candidates = _vapi_key_candidates()
+    if not candidates:
+        raise RuntimeError("No server-side Vapi credential candidate is configured")
+
+    rejected_names: list[str] = []
+    last_error: Exception | None = None
+    for name, value in candidates:
+        try:
+            response = await client.get(
+                f"https://api.vapi.ai/assistant/{assistant_id}",
+                headers={"Authorization": f"Bearer {value}"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if payload.get("id") != assistant_id:
+                raise RuntimeError("Vapi returned an unexpected assistant identifier")
+            return name, value, payload
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            if exc.response.status_code in {401, 403}:
+                rejected_names.append(name)
+                continue
+            raise
+
+    detail = ", ".join(rejected_names) or "configured candidates"
+    raise RuntimeError(f"Vapi rejected all server-side credential candidates: {detail}") from last_error
 
 
 async def _emit(
@@ -196,7 +243,7 @@ async def activate_voice_runtime() -> None:
     delay = max(0.0, float(os.getenv("D3VONN_VOICE_ACTIVATION_DELAY_SECONDS", "8")))
     await asyncio.sleep(delay)
 
-    vapi_key = effective_vapi_private_key()
+    vapi_candidates = _vapi_key_candidates()
     assistant_id = effective_assistant_id()
     webhook_secret = effective_webhook_secret()
     elevenlabs_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
@@ -206,7 +253,8 @@ async def activate_voice_runtime() -> None:
     correlation_id = f"voice-activation-{deployment_id}-{int(time.time())}"
 
     readiness = {
-        "vapi_private_key": bool(vapi_key),
+        "vapi_private_key": bool(vapi_candidates),
+        "vapi_credential_candidates": [name for name, _ in vapi_candidates],
         "vapi_assistant_id": bool(assistant_id),
         "vapi_webhook_auth": bool(webhook_secret),
         "elevenlabs_voice_id": bool(voice_id),
@@ -246,19 +294,12 @@ async def activate_voice_runtime() -> None:
         correlation_id=correlation_id,
     )
 
-    redaction_values = (vapi_key, webhook_secret, elevenlabs_key)
+    redaction_values = tuple(value for _, value in vapi_candidates) + (webhook_secret, elevenlabs_key)
     try:
         timeout = httpx.Timeout(30.0, connect=15.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
+            vapi_key_name, vapi_key, assistant = await _resolve_working_vapi_key(client, assistant_id)
             vapi_headers = {"Authorization": f"Bearer {vapi_key}"}
-            assistant_response = await client.get(
-                f"https://api.vapi.ai/assistant/{assistant_id}",
-                headers=vapi_headers,
-            )
-            assistant_response.raise_for_status()
-            assistant = assistant_response.json()
-            if assistant.get("id") != assistant_id:
-                raise RuntimeError("Vapi returned an unexpected assistant identifier")
 
             direct_api_status, voice_name = await _inspect_direct_elevenlabs_key(
                 client,
@@ -323,6 +364,7 @@ async def activate_voice_runtime() -> None:
             "Vapi assistant and Vapi-managed ElevenLabs voice configuration verified.",
             data={
                 "assistant_id": assistant_id,
+                "vapi_credential_source": vapi_key_name,
                 "voice_id": voice_id,
                 "voice_model": voice_model,
                 "webhook_url": webhook_url,
@@ -363,6 +405,7 @@ async def activate_voice_runtime() -> None:
             "Vapi-managed ElevenLabs, Railway routing, and Hermes persistence certified.",
             data={
                 "assistant_id": assistant_id,
+                "vapi_credential_source": vapi_key_name,
                 "voice_id": voice_id,
                 "voice_model": voice_model,
                 "webhook_url": webhook_url,
