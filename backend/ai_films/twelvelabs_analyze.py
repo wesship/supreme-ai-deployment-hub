@@ -44,7 +44,7 @@ class TwelveLabsAnalyzeClient:
             raise TwelveLabsError("An asset_id is required for TwelveLabs Analyze")
         if not prompt.strip():
             raise TwelveLabsError("A prompt is required for TwelveLabs Analyze")
-        if model_name not in {"pegasus1.2", "pegasus1.5"}:
+        if model_name != "pegasus1.5":
             raise TwelveLabsError("Unsupported TwelveLabs Analyze model")
 
         payload: dict[str, Any] = {
@@ -67,19 +67,29 @@ class TwelveLabsAnalyzeClient:
                     "Accept": "application/json",
                     "Content-Type": "application/json",
                 },
-                timeout=httpx.Timeout(120.0, connect=10.0),
+                timeout=httpx.Timeout(300.0, connect=10.0),
                 transport=self._transport,
             ) as client:
                 response = await client.post(f"{self.api_base_url}/analyze", json=payload)
+        except httpx.ReadTimeout as exc:
+            raise TwelveLabsError(
+                "TwelveLabs Analyze timed out before the provider returned a response"
+            ) from exc
         except httpx.HTTPError as exc:
-            raise TwelveLabsError("TwelveLabs Analyze request could not be completed") from exc
+            raise TwelveLabsError(
+                f"TwelveLabs Analyze request could not be completed: {type(exc).__name__}"
+            ) from exc
 
         if response.status_code >= 400:
+            detail = response.text[:1000].strip()
             raise TwelveLabsError(
-                f"TwelveLabs Analyze failed with HTTP {response.status_code}"
+                f"TwelveLabs Analyze failed with HTTP {response.status_code}: {detail}"
             )
 
-        result = response.json()
+        try:
+            result = response.json()
+        except ValueError as exc:
+            raise TwelveLabsError("TwelveLabs Analyze returned invalid JSON") from exc
         if not isinstance(result, dict):
             raise TwelveLabsError("TwelveLabs returned an unexpected Analyze response")
         return result
