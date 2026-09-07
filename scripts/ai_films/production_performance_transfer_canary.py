@@ -13,7 +13,6 @@ from urllib.parse import quote
 
 import httpx
 
-from backend.ai_films.artifact_store import AI_FILM_BUCKET
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient
 from backend.ai_films.performance_transfer_qa_worker import qa_performance_transfer
 from backend.ai_films.performance_transfer_worker import process_performance_transfer_job
@@ -165,7 +164,7 @@ async def run() -> dict[str, Any]:
                         "system_canary": True,
                         "performance_canary": True,
                         "canary_run_id": run_id,
-                        "storage_bucket": AI_FILM_BUCKET,
+                        "storage_bucket": db.bucket,
                         "storage_object_path": source_object_path,
                         "max_seconds": MAX_SECONDS,
                     },
