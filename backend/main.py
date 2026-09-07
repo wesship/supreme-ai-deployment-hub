@@ -65,6 +65,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.hermes.recency_router", "router", None),
     ("backend.client_ai.router", "router", None),
     ("backend.client_ai.onboarding_router", "router", None),
+    ("backend.client_ai.ingestion_router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),
     ("backend.rag.router", "router", None),
     ("backend.knowledge.router", "router", None),
