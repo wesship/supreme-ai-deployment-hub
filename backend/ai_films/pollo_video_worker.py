@@ -227,24 +227,33 @@ async def process_pollo_video_job(
         raise PolloVideoWorkerError("Character generation requires an approved input reference")
 
     client = PolloVideoClient(source)
-    created = await client.create(
-        _prompt(packet),
-        seconds=_duration(packet.get("duration_target_seconds")),
-        image_url=image_url,
-    )
-    task_id = str(created.get("taskId"))
-    await db.update_job(
-        str(job["id"]),
-        {
-            "progress": 8,
-            "output": {
-                "provider_task_id": task_id,
-                "provider_model": client.model,
-                "provider_status": created.get("status") or "pending",
-                "input_reference_asset_id": reference_id,
-            },
-        },
-    )
+    existing_output = dict(job.get("output") or {})
+    task_id = str(existing_output.get("provider_task_id") or "").strip()
+    if task_id:
+        provider_status = str(existing_output.get("provider_status") or "waiting")
+        output = dict(existing_output)
+        output.update({
+            "provider_task_id": task_id,
+            "provider_model": str(existing_output.get("provider_model") or client.model),
+            "provider_status": provider_status,
+            "input_reference_asset_id": existing_output.get("input_reference_asset_id", reference_id),
+            "resume_state": "resumed_existing_provider_task",
+        })
+        await db.update_job(str(job["id"]), {"progress": max(8, int(job.get("progress") or 0)), "output": output})
+    else:
+        created = await client.create(
+            _prompt(packet),
+            seconds=_duration(packet.get("duration_target_seconds")),
+            image_url=image_url,
+        )
+        task_id = str(created.get("taskId"))
+        output = {
+            "provider_task_id": task_id,
+            "provider_model": client.model,
+            "provider_status": created.get("status") or "pending",
+            "input_reference_asset_id": reference_id,
+        }
+        await db.update_job(str(job["id"]), {"progress": 8, "output": output})
 
     completed = await client.wait(task_id)
     media_url = str(completed["urls"][0])
