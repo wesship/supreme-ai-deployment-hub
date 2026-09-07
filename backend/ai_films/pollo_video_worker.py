@@ -87,6 +87,11 @@ async def _load_reference_url(db: SupabaseAssemblyClient, asset_id: str) -> str:
     return await _sign_master(db, object_path, expires_in=1800)
 
 
+def _unwrap(payload: Mapping[str, Any]) -> dict[str, Any]:
+    data = payload.get("data")
+    return dict(data) if isinstance(data, dict) else dict(payload)
+
+
 class PolloVideoClient:
     def __init__(self, environ: Mapping[str, str] | None = None) -> None:
         source = environ or os.environ
@@ -125,10 +130,13 @@ class PolloVideoClient:
             result = response.json()
         except ValueError as exc:
             raise PolloVideoWorkerError("Pollo video create returned invalid JSON") from exc
-        task_id = str(result.get("taskId") or "").strip() if isinstance(result, dict) else ""
+        if not isinstance(result, dict):
+            raise PolloVideoWorkerError("Pollo video create returned an unexpected response")
+        body = _unwrap(result)
+        task_id = str(body.get("taskId") or "").strip()
         if not task_id:
             raise PolloVideoWorkerError(f"Pollo video create returned no taskId: {str(result)[:1000]}")
-        return result
+        return body
 
     async def status(self, task_id: str) -> dict[str, Any]:
         safe_task_id = quote(task_id.strip(), safe="")
@@ -147,7 +155,7 @@ class PolloVideoClient:
             raise PolloVideoWorkerError("Pollo status returned invalid JSON") from exc
         if not isinstance(payload, dict):
             raise PolloVideoWorkerError("Pollo status returned an unexpected response")
-        return payload
+        return _unwrap(payload)
 
     async def wait(self, task_id: str, *, timeout_seconds: float = 1800.0) -> dict[str, Any]:
         deadline = asyncio.get_running_loop().time() + timeout_seconds
