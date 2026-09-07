@@ -21,9 +21,8 @@ def clear_env(monkeypatch) -> None:
         "TWILIO_AUTH_TOKEN",
         "HUBSPOT_ACCESS_TOKEN",
         "HUBSPOT_PRIVATE_APP_TOKEN",
-        "GOOGLE_SERVICE_ACCOUNT_JSON",
-        "GOOGLE_CALENDAR_CREDENTIALS_JSON",
-        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CALENDAR_ACCESS_TOKEN",
+        "GOOGLE_CALENDAR_ID",
         "N8N_WEBHOOK_URL",
         "N8N_BASE_URL",
     ):
@@ -41,6 +40,18 @@ def test_agent_manifest_has_seven_specialists():
     assert body["orchestration"]["async_automation"] == "n8n"
 
 
+def test_squad_manifest_has_seven_members_and_stays_unpublished():
+    response = make_client().get("/api/voice/call-center/squad/manifest")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["member_count"] == 7
+    assert body["published"] is False
+    assert body["live_pstn_enabled"] is False
+    scheduling = next(item for item in body["members"] if item["key"] == "scheduling")
+    names = {tool["function"]["name"] for tool in scheduling["assistant"]["model"]["tools"]}
+    assert {"get_available_slots", "book_appointment"} <= names
+
+
 def test_health_is_partial_without_provider_credentials(monkeypatch):
     clear_env(monkeypatch)
     response = make_client().get("/api/voice/call-center/health")
@@ -51,6 +62,8 @@ def test_health_is_partial_without_provider_credentials(monkeypatch):
     assert body["providers"]["vapi"] is False
     assert body["providers"]["elevenlabs"] is False
     assert body["providers"]["hermes"] is True
+    assert body["tool_path_ready"] is False
+    assert body["live_pstn_enabled"] is False
     assert body["secrets_exposed"] is False
 
 
@@ -61,6 +74,46 @@ def test_health_core_green_with_vapi_and_elevenlabs(monkeypatch):
     response = make_client().get("/api/voice/call-center/health")
     assert response.status_code == 200
     assert response.json()["status"] == "configured"
+
+
+def test_health_reports_operational_tool_path(monkeypatch):
+    clear_env(monkeypatch)
+    monkeypatch.setenv("VAPI_PRIVATE_KEY", "vapi-real")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "eleven-real")
+    monkeypatch.setenv("HUBSPOT_ACCESS_TOKEN", "hubspot-real")
+    monkeypatch.setenv("GOOGLE_CALENDAR_ACCESS_TOKEN", "calendar-real")
+    monkeypatch.setenv("GOOGLE_CALENDAR_ID", "calendar@example.com")
+    body = make_client().get("/api/voice/call-center/health").json()
+    assert body["tool_path_ready"] is True
+    assert all(body["operational_tools"].values())
+
+
+def test_tool_authorization_blocks_wrong_agent():
+    response = make_client().post(
+        "/api/voice/call-center/tools/book_appointment",
+        json={"call_id": "call-tool-1", "agent": "front_desk", "parameters": {"confirmed": True}},
+    )
+    assert response.status_code == 403
+
+
+def test_booking_requires_explicit_confirmation(monkeypatch):
+    monkeypatch.setenv("GOOGLE_CALENDAR_ACCESS_TOKEN", "calendar-real")
+    monkeypatch.setenv("GOOGLE_CALENDAR_ID", "primary")
+    response = make_client().post(
+        "/api/voice/call-center/tools/book_appointment",
+        json={
+            "call_id": "call-tool-2",
+            "agent": "scheduling",
+            "parameters": {
+                "start": "2026-09-08T14:00:00-06:00",
+                "end": "2026-09-08T14:30:00-06:00",
+                "confirmed": False,
+            },
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["result"]["status"] == "rejected"
+    assert response.json()["result"]["reason"] == "explicit_confirmation_required"
 
 
 def test_handoff_rejects_unknown_agent():
