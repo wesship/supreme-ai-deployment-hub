@@ -13,12 +13,12 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.parse import quote
 
 import httpx
 
 from backend.ai_films.assembly_qa_worker import _sign_master
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
-from backend.ai_films.commerce_handoff_worker import CommerceHandoffPending, fetch_pollo_result, _task_generations
 
 
 class PolloVideoWorkerError(RuntimeError):
@@ -32,8 +32,8 @@ def _enabled(source: Mapping[str, str]) -> bool:
 
 
 def _duration(value: Any) -> int:
-    target = int(float(value or 4))
-    return max(4, min(10, target))
+    target = int(float(value or 5))
+    return max(5, min(10, target))
 
 
 def _prompt(packet: Mapping[str, Any]) -> str:
@@ -91,7 +91,8 @@ class PolloVideoClient:
     def __init__(self, environ: Mapping[str, str] | None = None) -> None:
         source = environ or os.environ
         self.api_key = str(source.get("POLLO_API_KEY", "")).strip()
-        self.base_url = str(source.get("POLLO_API_BASE_URL", "https://pollo.ai/api/platform")).strip().rstrip("/")
+        configured_base = str(source.get("POLLO_API_BASE_URL", "https://pollo.ai/api/platform")).strip().rstrip("/")
+        self.base_url = configured_base if configured_base.endswith("/v1") else f"{configured_base}/v1"
         self.model = str(source.get("AI_FILM_POLLO_VIDEO_MODEL", "pollo-v2-5")).strip() or "pollo-v2-5"
         if not self.api_key:
             raise PolloVideoWorkerError("POLLO_API_KEY is not configured")
@@ -100,18 +101,18 @@ class PolloVideoClient:
         payload: dict[str, Any] = {
             "input": {
                 "prompt": prompt,
-                "length": seconds,
+                "duration": seconds,
                 "resolution": "720p",
+                "aspectRatio": "16:9",
                 "mode": "basic",
                 "generateAudio": False,
-            },
-            "clientSource": "d3vonn-ai-films-render-worker",
+            }
         }
         if image_url:
             payload["input"]["image"] = image_url
         async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=10.0)) as client:
             response = await client.post(
-                f"{self.base_url}/generation/pollo/{self.model}",
+                f"{self.base_url}/generation/pollo-ai/{self.model}/video",
                 json=payload,
                 headers={"x-api-key": self.api_key, "Accept": "application/json"},
             )
@@ -126,21 +127,43 @@ class PolloVideoClient:
             raise PolloVideoWorkerError("Pollo video create returned invalid JSON") from exc
         task_id = str(result.get("taskId") or "").strip() if isinstance(result, dict) else ""
         if not task_id:
-            raise PolloVideoWorkerError("Pollo video create returned no taskId")
+            raise PolloVideoWorkerError(f"Pollo video create returned no taskId: {str(result)[:1000]}")
         return result
+
+    async def status(self, task_id: str) -> dict[str, Any]:
+        safe_task_id = quote(task_id.strip(), safe="")
+        async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=10.0)) as client:
+            response = await client.get(
+                f"{self.base_url}/generation/{safe_task_id}/status",
+                headers={"x-api-key": self.api_key, "Accept": "application/json"},
+            )
+        if response.status_code >= 400:
+            raise PolloVideoWorkerError(
+                f"Pollo status failed with HTTP {response.status_code}: {response.text[:1000].strip()}"
+            )
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise PolloVideoWorkerError("Pollo status returned invalid JSON") from exc
+        if not isinstance(payload, dict):
+            raise PolloVideoWorkerError("Pollo status returned an unexpected response")
+        return payload
 
     async def wait(self, task_id: str, *, timeout_seconds: float = 1800.0) -> dict[str, Any]:
         deadline = asyncio.get_running_loop().time() + timeout_seconds
         while True:
-            task = await fetch_pollo_result(
-                task_id,
-                {"POLLO_API_KEY": self.api_key, "POLLO_API_BASE_URL": self.base_url},
-            )
-            try:
-                generations, urls = _task_generations(task)
-                return {"task": task, "generations": generations, "urls": urls}
-            except CommerceHandoffPending:
-                pass
+            task = await self.status(task_id)
+            generations = task.get("generations")
+            if isinstance(generations, list) and generations:
+                rows = [dict(item) for item in generations if isinstance(item, dict)]
+                statuses = {str(item.get("status") or "").strip().lower() for item in rows}
+                if statuses & {"failed", "failure", "error", "cancel", "canceled", "cancelled"}:
+                    raise PolloVideoWorkerError(f"Pollo generation failed: {str(rows)[:1200]}")
+                success = {"succeed", "succeeded", "success", "complete", "completed"}
+                if rows and statuses and statuses <= success:
+                    urls = [str(item.get("url") or "").strip() for item in rows if str(item.get("url") or "").strip()]
+                    if urls:
+                        return {"task": task, "generations": rows, "urls": urls}
             if asyncio.get_running_loop().time() >= deadline:
                 raise PolloVideoWorkerError("Pollo video generation timed out")
             await asyncio.sleep(8)
@@ -209,7 +232,7 @@ async def process_pollo_video_job(
             "output": {
                 "provider_task_id": task_id,
                 "provider_model": client.model,
-                "provider_status": created.get("status") or "submitted",
+                "provider_status": created.get("status") or "pending",
                 "input_reference_asset_id": reference_id,
             },
         },
