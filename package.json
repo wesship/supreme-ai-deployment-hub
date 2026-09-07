@@ -31,6 +31,7 @@
     "security:bundle-scan": "node scripts/assert-no-client-secrets.mjs",
     "devonnbench:security": "python -m devonnbench.cli run devonnbench/suites/security-smoke.yaml --base-url ${DEVONN_BASE_URL:-http://localhost:8000} --env ${DEVONN_ENV:-local} --threshold 100",
     "audit:repo": "pnpm security:scan && pnpm lint && pnpm typecheck && pnpm test",
+    "release:gate": "bash scripts/run-required-pr-gate.sh",
     "memory:export": "node scripts/memory-tree-export.mjs",
     "memory:compress": "node scripts/tokenjuice-lite.mjs",
     "connectors:audit": "node scripts/connector-inventory.mjs",
