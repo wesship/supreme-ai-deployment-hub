@@ -145,3 +145,27 @@ $$;
 revoke all on function public.nonprofit_decide_approval_step(uuid,text,text) from public;
 revoke all on function public.nonprofit_decide_approval_step(uuid,text,text) from anon;
 grant execute on function public.nonprofit_decide_approval_step(uuid,text,text) to authenticated;
+
+create or replace view public.nonprofit_approval_steps_v1
+with (security_invoker = true)
+as
+select
+  s.id as step_id,
+  s.approval_id,
+  a.organization_id,
+  a.action_type,
+  a.resource_type,
+  a.resource_id,
+  s.step_no,
+  s.required_role,
+  s.approver_user_id,
+  s.decision,
+  s.decided_at,
+  a.status as approval_status,
+  a.expires_at
+from nonprofit_security.approval_steps s
+join nonprofit_security.approvals a on a.id = s.approval_id
+where a.status = 'PENDING'::nonprofit.approval_status;
+
+grant select on public.nonprofit_approval_steps_v1 to authenticated;
+revoke all on public.nonprofit_approval_steps_v1 from anon;
