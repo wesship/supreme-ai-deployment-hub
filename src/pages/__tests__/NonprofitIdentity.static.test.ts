@@ -17,7 +17,7 @@ describe('Gate 21 nonprofit identity and governance activation', () => {
     expect(api).toContain('nonprofit_my_memberships_v1');
     expect(api).toContain("rpc('nonprofit_claim_membership_invite'");
     expect(api).toContain("rpc('nonprofit_create_membership_invite'");
-    expect(api).not.toContain('membership_invites').or.toContain('nonprofit_claim_membership_invite');
+    expect(api).not.toContain("from('nonprofit_security.membership_invites')");
   });
 
   it('keeps raw invitation identity material hashed and private', () => {
