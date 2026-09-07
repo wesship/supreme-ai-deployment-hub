@@ -23,11 +23,12 @@ concurrency:
 jobs:
   staging-certification:
     name: PRIMETIME Release 1-5 staging gate
+    if: ${{ vars.PRIMETIME_STAGING_FRONTEND_URL != '' && vars.PRIMETIME_STAGING_API_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      PRIMETIME_STAGING_FRONTEND_URL: https://supreme-ai-deployment-hub-git-gate4-pr-364267-wesships-projects.vercel.app
-      PRIMETIME_STAGING_API_URL: https://devonn-ai-api-staging.up.railway.app
+      PRIMETIME_STAGING_FRONTEND_URL: ${{ vars.PRIMETIME_STAGING_FRONTEND_URL }}
+      PRIMETIME_STAGING_API_URL: ${{ vars.PRIMETIME_STAGING_API_URL }}
       PRIMETIME_GATE_TIMEOUT_MS: '15000'
     steps:
       - name: Checkout repository
@@ -46,10 +47,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Wait for staging surfaces
+      - name: Wait for configured staging surfaces
         shell: bash
         run: |
           set -euo pipefail
+          echo "Using repository-configured PRIMETIME staging targets."
           for attempt in $(seq 1 30); do
             frontend_code=$(curl -L -sS -o /dev/null -w '%{http_code}' "$PRIMETIME_STAGING_FRONTEND_URL/primetime" || true)
             api_code=$(curl -L -sS -o /dev/null -w '%{http_code}' "$PRIMETIME_STAGING_API_URL/health/ready" || true)
@@ -59,8 +61,18 @@ jobs:
             fi
             sleep 5
           done
-          echo 'Staging surfaces did not become ready in time.' >&2
+          echo 'Configured staging surfaces did not become ready in time.' >&2
           exit 1
 
       - name: Run PRIMETIME staging gate
         run: pnpm primetime:staging-gate
+
+  staging-targets-unconfigured:
+    name: PRIMETIME staging targets not configured
+    if: ${{ vars.PRIMETIME_STAGING_FRONTEND_URL == '' || vars.PRIMETIME_STAGING_API_URL == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record non-blocking configuration state
+        run: |
+          echo "PRIMETIME staging certification skipped because repository variables are not fully configured."
+          echo "Set PRIMETIME_STAGING_FRONTEND_URL and PRIMETIME_STAGING_API_URL to enable live staging certification."
