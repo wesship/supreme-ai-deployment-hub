@@ -20,6 +20,7 @@ class VideoRoute:
 
 
 _VIDEO_MODEL_ENV = {
+    "pollo": "AI_FILM_POLLO_VIDEO_MODEL",
     "openai": "AI_FILM_OPENAI_VIDEO_MODEL",
     "higgsfield": "AI_FILM_HIGGSFIELD_VIDEO_MODEL",
     "xai": "AI_FILM_XAI_VIDEO_MODEL",
@@ -27,19 +28,34 @@ _VIDEO_MODEL_ENV = {
     "runway": "AI_FILM_RUNWAY_MODEL",
     "replicate": "AI_FILM_REPLICATE_VIDEO_MODEL",
 }
-_PROVIDER_ALIASES = {"sora": "openai", "grok": "xai", "xai": "xai", "openai": "openai"}
-_BASE_SCORE = {"openai": 100, "higgsfield": 95, "runway": 88, "xai": 84, "movieflow": 82, "replicate": 72}
+_PROVIDER_ALIASES = {
+    "sora": "openai",
+    "pollo-v2-5": "pollo",
+    "pollo": "pollo",
+    "grok": "xai",
+    "xai": "xai",
+    "openai": "openai",
+}
+_BASE_SCORE = {
+    "pollo": 110,
+    "openai": 60,
+    "higgsfield": 95,
+    "runway": 88,
+    "xai": 84,
+    "movieflow": 82,
+    "replicate": 72,
+}
 
 
 def _executable_video_providers(source: Mapping[str, str]) -> set[str]:
-    """Return provider routes backed by a running worker in this deployment.
+    """Return provider routes backed by running workers in this deployment.
 
-    The default is deliberately OpenAI-only: the Railway lifespan starts the
-    OpenAI/Sora worker and no worker is started for the other declared adapters.
-    Operators may add a provider only after shipping its worker and setting this
-    explicit allowlist, preventing stranded queued render jobs.
+    Pollo is the production default. OpenAI/Sora is intentionally not executable
+    by default because the Sora API is being retired and its production canary
+    is currently failing. Operators may explicitly add another provider only
+    after a worker and canary are verified, preventing stranded render jobs.
     """
-    configured = str(source.get("AI_FILM_EXECUTABLE_VIDEO_PROVIDERS", "openai"))
+    configured = str(source.get("AI_FILM_EXECUTABLE_VIDEO_PROVIDERS", "pollo"))
     return {_normalize_provider(value) for value in configured.split(",") if value.strip()}
 
 
@@ -77,10 +93,10 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
                 reasons.append("preferred_by_manifest")
             else:
                 score -= 10
-        if anchors and provider in {"openai", "higgsfield", "runway", "replicate"}:
+        if anchors and provider in {"pollo", "openai", "higgsfield", "runway", "replicate"}:
             score += 8
             reasons.append("anchor_frame_fit")
-        if character_locks and provider in {"openai", "higgsfield", "runway"}:
+        if character_locks and provider in {"pollo", "openai", "higgsfield", "runway"}:
             score += 7
             reasons.append("character_continuity_fit")
         if dialogue:
@@ -99,6 +115,8 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
             reasons.append("configured")
         model_env = _VIDEO_MODEL_ENV.get(provider)
         model = str(source.get(model_env, "")).strip() if model_env else ""
+        if provider == "pollo" and not model:
+            model = "pollo-v2-5"
         routes.append(VideoRoute(provider, configured, score, tuple(reasons), model or None))
     return sorted(routes, key=lambda route: (-route.score, route.provider))
 
