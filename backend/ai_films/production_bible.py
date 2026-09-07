@@ -141,5 +141,5 @@ SOVEREIGN_SIGNAL_SEED = ProductionBible(
         SoundRule(sound_id="creative_authority", name="Creative Authority", frequency_hz=432),
     ],
     events=[{"event_id":"SS-IE-J/L-001","immutable":True,"rule":"ritual fails; no second rescue; no physical defeat"}],
-    generation_policy={"multimodel":True,"providers":["sora","higgsfield","grok","movieflow","replicate"],"require_anchor_frames":True},
+    generation_policy={"multimodel":True,"providers":["pollo","higgsfield","grok","movieflow","replicate"],"require_anchor_frames":True},
 )
