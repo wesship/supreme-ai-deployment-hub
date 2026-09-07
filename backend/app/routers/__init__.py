@@ -106,7 +106,7 @@ async def deploy_probe(request: Request):
     return {
         "status": "ok",
         "router_registry": "backend.app.routers",
-        "deployment_marker": "backend-api-certification-2026-08-16-ai-films-mastering-ops",
+        "deployment_marker": "backend-api-certification-2026-09-06-agentic-call-center",
         "proxy_vault_expected": "/api/proxy/config",
         "contact_route_expected": "/api/contact",
         "voice_routes_expected": [
@@ -115,6 +115,10 @@ async def deploy_probe(request: Request):
             "/api/voice/health",
             "/api/voice/vapi/webhook",
             "/api/voice/jockey/certify",
+            "/api/voice/call-center/health",
+            "/api/voice/call-center/agents",
+            "/api/voice/call-center/handoff",
+            "/api/voice/call-center/events",
         ],
         "compatibility_routes": ["/api/api/tools/voice/tts", "/api/api/tools/voice/stt-token"],
         "ai_films_workers": {
@@ -153,6 +157,13 @@ try:
     proxy_router.include_router(voice_orchestration_router)
 except ImportError as exc:
     logger.warning("Voice orchestration router not registered: %s", exc)
+
+try:
+    from backend.app.routers.call_center import router as call_center_router
+    proxy_router.include_router(call_center_router)
+    logger.info("Agentic call center control plane registered at /api/voice/call-center/*.")
+except ImportError as exc:
+    logger.warning("Agentic call center router not registered: %s", exc)
 
 try:
     from backend.app.routers.jockey_canary import router as jockey_canary_router
