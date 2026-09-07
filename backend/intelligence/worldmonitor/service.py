@@ -75,6 +75,18 @@ class WorldMonitorIngestionService:
     async def _persist(self, event: IntelligenceEvent) -> dict[str, Any]:
         if not self.store.configured:
             return {}
+
+        existing = await self.store.get(
+            "intelligence_events",
+            {
+                "source": f"eq.{event.source}",
+                "fingerprint": f"eq.{event.raw_source_id}",
+                "limit": "1",
+            },
+        )
+        if existing:
+            return existing[0]
+
         payload = event.model_dump(mode="json")
         payload["fingerprint"] = event.raw_source_id
         row = await self.store.post("intelligence_events", payload)
