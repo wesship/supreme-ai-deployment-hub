@@ -29,7 +29,7 @@ jobs:
       REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
       TWELVELABS_API_KEY: ${{ secrets.TWELVELABS_API_KEY }}
       TWELVELABS_KNOWLEDGE_STORE_ID: ${{ secrets.TWELVELABS_KNOWLEDGE_STORE_ID }}
-      AI_FILMS_PERFORMANCE_CANARY_SOURCE_URL: ${{ secrets.AI_FILMS_PERFORMANCE_CANARY_SOURCE_URL }}
+      AI_FILMS_PERFORMANCE_CANARY_SOURCE_ASSET_ID: '71c8d8a5-8c62-4529-b820-566459895316'
       AI_FILMS_PERFORMANCE_CANARY_PROJECT_ID: 'b2979e7c-1d28-4024-bf4f-8db90c174d5a'
       AI_FILMS_PERFORMANCE_CANARY_OWNER_ID: '80f20fbd-c1d0-4dde-9d6e-052d23edcb3f'
       AI_FILMS_PERFORMANCE_CANARY_REFERENCE_ASSET_ID: 'c48af5af-3fe0-442d-8f73-b6f183b69743'
@@ -58,7 +58,7 @@ jobs:
           python-version: '3.11'
           cache: pip
 
-      - name: Require protected production credentials
+      - name: Require protected production credentials and bounded source
         shell: bash
         run: |
           set -euo pipefail
@@ -66,7 +66,7 @@ jobs:
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           test -n "$REPLICATE_API_TOKEN"
           test -n "$TWELVELABS_API_KEY"
-          test -n "$AI_FILMS_PERFORMANCE_CANARY_SOURCE_URL"
+          test -n "$AI_FILMS_PERFORMANCE_CANARY_SOURCE_ASSET_ID"
           test "$AI_FILM_PERFORMANCE_AUTO_RETRY_ENABLED" = "false"
 
       - name: Install runtime dependencies
