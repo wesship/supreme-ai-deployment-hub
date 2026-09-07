@@ -1,4 +1,4 @@
-"""Pollo-aware generated-shot TwelveLabs/Jockey QA worker."""
+"""Generated-shot TwelveLabs/Jockey QA worker for certified video providers."""
 from __future__ import annotations
 
 import asyncio
@@ -21,7 +21,7 @@ async def _claim(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
         "ai_film_render_jobs",
         params={
             "job_type": "eq.video",
-            "provider": "eq.pollo",
+            "provider": "in.(pollo,replicate)",
             "status": "eq.completed",
             "output->qa->>state": "eq.pending_generated_qa",
             "select": "*",
