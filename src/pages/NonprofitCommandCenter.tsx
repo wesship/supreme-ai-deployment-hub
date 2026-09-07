@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, BadgeCheck, FileCheck2, Landmark, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
-import { nonprofitCommandCenterApi, type NonprofitApprovalRow, type NonprofitAuditSummary, type NonprofitComplianceAlert, type NonprofitGrantPipelineRow, type NonprofitOrgSummary, type NonprofitProgramSummary } from '@/lib/nonprofitCommandCenterApi';
+import {
+  nonprofitCommandCenterApi,
+  type NonprofitApprovalRow,
+  type NonprofitApprovalStepRow,
+  type NonprofitAuditSummary,
+  type NonprofitComplianceAlert,
+  type NonprofitGrantPipelineRow,
+  type NonprofitOrgSummary,
+  type NonprofitProgramSummary,
+} from '@/lib/nonprofitCommandCenterApi';
 
 const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-lg shadow-black/20';
 const badge = 'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold';
+const actionButton = 'rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold hover:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-40';
 
 function money(value: number | null) {
   if (value === null || value === undefined) return '—';
@@ -11,7 +21,7 @@ function money(value: number | null) {
 }
 
 function decisionClass(decision?: string) {
-  if (decision === 'RED') return 'border-red-500/40 bg-red-500/10 text-red-200';
+  if (decision === 'RED' || decision === 'REJECTED') return 'border-red-500/40 bg-red-500/10 text-red-200';
   if (decision === 'YELLOW' || decision === 'PENDING') return 'border-amber-500/40 bg-amber-500/10 text-amber-200';
   return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200';
 }
@@ -21,10 +31,13 @@ export default function NonprofitCommandCenter() {
   const [programs, setPrograms] = useState<NonprofitProgramSummary[]>([]);
   const [grants, setGrants] = useState<NonprofitGrantPipelineRow[]>([]);
   const [approvals, setApprovals] = useState<NonprofitApprovalRow[]>([]);
+  const [approvalSteps, setApprovalSteps] = useState<NonprofitApprovalStepRow[]>([]);
   const [alerts, setAlerts] = useState<NonprofitComplianceAlert[]>([]);
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submittingStep, setSubmittingStep] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   async function refresh() {
     setLoading(true);
@@ -35,6 +48,7 @@ export default function NonprofitCommandCenter() {
       setPrograms(result.programs);
       setGrants(result.grants);
       setApprovals(result.approvals);
+      setApprovalSteps(result.approvalSteps);
       setAlerts(result.alerts);
       setAudit(result.audit);
     } catch (err) {
@@ -45,6 +59,21 @@ export default function NonprofitCommandCenter() {
   }
 
   useEffect(() => { void refresh(); }, []);
+
+  async function decide(stepId: string, decision: 'APPROVED' | 'REJECTED' | 'RECUSED') {
+    setSubmittingStep(stepId);
+    setError('');
+    setMessage('');
+    try {
+      await nonprofitCommandCenterApi.decideApprovalStep(stepId, decision);
+      setMessage(`Decision recorded: ${decision}. The action itself was not executed.`);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Approval decision was blocked');
+    } finally {
+      setSubmittingStep('');
+    }
+  }
 
   const org = organizations[0];
   const latestAudit = audit[0];
@@ -57,7 +86,7 @@ export default function NonprofitCommandCenter() {
           <div>
             <div className="mb-2 flex items-center gap-2 text-cyan-300"><ShieldCheck className="h-5 w-5" /><span className="text-sm font-semibold uppercase tracking-[0.2em]">D3VONN Nonprofit OS</span></div>
             <h1 className="text-3xl font-semibold tracking-tight">Nonprofit Command Center</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-400">Read-only operating view for legal status, programs, GrantAssist/RIPE, approvals, compliance and audit evidence. Sensitive Truth Vault and finance records remain outside this surface.</p>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">Role-scoped operating view for legal status, programs, GrantAssist/RIPE, approvals, compliance and audit evidence. Truth Vault and sensitive finance records remain outside this surface.</p>
           </div>
           <button onClick={() => void refresh()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold hover:border-cyan-400 disabled:opacity-50">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -65,6 +94,7 @@ export default function NonprofitCommandCenter() {
         </header>
 
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
+        {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
@@ -86,7 +116,16 @@ export default function NonprofitCommandCenter() {
             <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Approval inbox</h2><span className="text-xs text-slate-500">MFA + role + policy guarded</span></div>
             <div className="space-y-3">
               {approvals.length === 0 && <p className="text-sm text-slate-500">No pending approvals visible to your role.</p>}
-              {approvals.map((row) => <div key={row.approval_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{row.action_type.replaceAll('_', ' ')}</p><p className="text-sm text-slate-400">{row.resource_type} · authority: {row.authority_basis || 'not recorded'}</p></div><span className={`${badge} ${decisionClass(row.status)}`}>{row.status}</span></div><div className="mt-3 text-sm text-slate-400">Steps: {row.approved_steps}/{row.total_steps} approved · {row.pending_steps} pending · {row.recused_steps} recused</div><p className="mt-3 text-xs text-slate-500">Decisions are intentionally not auto-executed from this summary card. The guarded RPC requires an assigned step, exact nonprofit role, AAL2 MFA, non-recusal, and a non-RED policy decision.</p></div>)}
+              {approvals.map((row) => <div key={row.approval_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{row.action_type.replaceAll('_', ' ')}</p><p className="text-sm text-slate-400">{row.resource_type} · authority: {row.authority_basis || 'not recorded'}</p></div><span className={`${badge} ${decisionClass(row.status)}`}>{row.status}</span></div><div className="mt-3 text-sm text-slate-400">Steps: {row.approved_steps}/{row.total_steps} approved · {row.pending_steps} pending · {row.recused_steps} recused</div></div>)}
+            </div>
+
+            <div className="mt-5 border-t border-slate-800 pt-5">
+              <h3 className="text-sm font-semibold">Actionable approval steps</h3>
+              <p className="mt-1 text-xs text-slate-500">The database re-checks AAL2 MFA, exact nonprofit role, assignment, recusal and latest policy decision. RED policy decisions are blocked.</p>
+              <div className="mt-3 space-y-3">
+                {approvalSteps.length === 0 && <p className="text-sm text-slate-500">No approval steps are available to your role.</p>}
+                {approvalSteps.map((step) => <div key={step.step_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">Step {step.step_no} · {step.required_role}</p><p className="text-xs text-slate-500">{step.action_type.replaceAll('_', ' ')}</p></div><span className={`${badge} ${decisionClass(step.decision)}`}>{step.decision}</span></div>{step.decision === 'PENDING' && <div className="mt-4 flex flex-wrap gap-2"><button className={actionButton} disabled={submittingStep === step.step_id} onClick={() => void decide(step.step_id, 'APPROVED')}>Approve</button><button className={actionButton} disabled={submittingStep === step.step_id} onClick={() => void decide(step.step_id, 'REJECTED')}>Reject</button><button className={actionButton} disabled={submittingStep === step.step_id} onClick={() => void decide(step.step_id, 'RECUSED')}>Recuse</button></div>}</div>)}
+              </div>
             </div>
           </div>
         </section>
