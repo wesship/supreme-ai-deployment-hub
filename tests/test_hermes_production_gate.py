@@ -42,6 +42,24 @@ class HermesProductionGateTests(unittest.TestCase):
         self.assertIn("Depends(require_occ_access)", router)
         self.assertNotIn("ALLOW_DEV_ADMIN_BYPASS", router)
 
+    def test_production_lifecycle_canary_is_protected_and_real(self) -> None:
+        workflow = (
+            ROOT / ".github/workflows/hermes-production-lifecycle-canary.yml"
+        ).read_text(encoding="utf-8")
+        script = (
+            ROOT / "scripts/hermes/production_lifecycle_canary.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("environment: production", workflow)
+        self.assertIn("SUPABASE_SERVICE_ROLE_KEY", workflow)
+        self.assertIn("production_lifecycle_canary.py", workflow)
+        self.assertIn('"hermes_workers"', script)
+        self.assertIn('"hermes_worker_leases"', script)
+        self.assertIn('"hermes_tasks"', script)
+        self.assertIn('status == "COMPLETED"', script)
+        self.assertIn('lease_status != "released"', script)
+        self.assertIn("No healthy/busy Hermes worker heartbeat", script)
+
     def test_gate_is_not_a_placeholder(self) -> None:
         workflow = (
             ROOT / ".github/workflows/hermes-gate.yml"
@@ -49,6 +67,8 @@ class HermesProductionGateTests(unittest.TestCase):
         self.assertNotIn("manual review placeholder", workflow)
         self.assertIn("test_hermes_production_gate", workflow)
         self.assertIn("backend/tests/test_hermes_*.py", workflow)
+        self.assertIn("hermes-production-lifecycle-canary.yml", workflow)
+        self.assertIn("scripts/hermes/production_lifecycle_canary.py", workflow)
 
 
 if __name__ == "__main__":

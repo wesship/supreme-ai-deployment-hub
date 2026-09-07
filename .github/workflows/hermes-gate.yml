@@ -10,8 +10,10 @@ on:
       - "backend/tests/test_ai_films_hermes_mastering_bridge.py"
       - "supabase/migrations/*hermes*.sql"
       - "tests/test_hermes_*.py"
+      - "scripts/hermes/production_lifecycle_canary.py"
       - ".github/workflows/hermes-gate.yml"
       - ".github/workflows/hermes-v3-gate.yml"
+      - ".github/workflows/hermes-production-lifecycle-canary.yml"
   push:
     branches: [main]
     paths:
@@ -21,8 +23,10 @@ on:
       - "backend/tests/test_ai_films_hermes_mastering_bridge.py"
       - "supabase/migrations/*hermes*.sql"
       - "tests/test_hermes_*.py"
+      - "scripts/hermes/production_lifecycle_canary.py"
       - ".github/workflows/hermes-gate.yml"
       - ".github/workflows/hermes-v3-gate.yml"
+      - ".github/workflows/hermes-production-lifecycle-canary.yml"
   workflow_dispatch:
   workflow_call:
 
@@ -54,8 +58,8 @@ jobs:
       - name: Install pinned backend test dependencies
         run: python -m pip install --disable-pip-version-check -r backend/requirements-dev.txt
 
-      - name: Compile Hermes runtime
-        run: python -m compileall -q backend/hermes backend/ai_films
+      - name: Compile Hermes runtime and production canary
+        run: python -m compileall -q backend/hermes backend/ai_films scripts/hermes
 
       - name: Validate Hermes database and deployment boundary
         run: |
