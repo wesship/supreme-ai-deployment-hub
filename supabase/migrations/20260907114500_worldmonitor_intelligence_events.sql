@@ -34,5 +34,10 @@ create index if not exists intelligence_events_severity_idx
 
 alter table public.intelligence_events enable row level security;
 
+-- Supabase Data API access is explicit on current projects. Keep this table
+-- invisible to browser roles while allowing the backend service-role client.
+revoke all on table public.intelligence_events from anon, authenticated;
+grant select, insert, update, delete on table public.intelligence_events to service_role;
+
 comment on table public.intelligence_events is
     'Server-side normalized external intelligence signals used by Hermes and D3VONN intelligence workflows.';
