@@ -92,6 +92,11 @@ async def test_ingestion_persists_and_dispatches_to_hermes(monkeypatch):
         def __init__(self):
             self.rows = []
 
+        async def get(self, table, params):
+            assert table == "intelligence_events"
+            assert params["fingerprint"] == "eq.threat-7"
+            return []
+
         async def post(self, table, payload):
             assert table == "intelligence_events"
             self.rows.append(payload)
