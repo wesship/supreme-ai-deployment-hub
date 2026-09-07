@@ -71,6 +71,7 @@ async def railway_lifespan(app_instance):
     jockey_canary_task = assembly_worker_task = assembly_qa_task = None
     manifest_conform_task = manifest_review_task = generation_dispatch_task = None
     openai_video_worker_task = generated_shot_qa_task = anchor_candidate_task = None
+    performance_transfer_task = performance_transfer_qa_task = None
     commerce_handoff_task = None
     async with _base_lifespan(app_instance):
         try:
@@ -112,6 +113,23 @@ async def railway_lifespan(app_instance):
             logger.info("Scheduled gated AI Films OpenAI video and generated-shot QA workers.")
         except Exception as exc:
             logger.warning("Could not schedule AI Films generation workers: %s: %s", type(exc).__name__, exc)
+
+        try:
+            from backend.ai_films.performance_transfer_worker import run_performance_transfer_worker
+            from backend.ai_films.performance_transfer_qa_worker import run_performance_transfer_qa_worker
+            performance_transfer_task = asyncio.create_task(
+                run_performance_transfer_worker(),
+                name="ai-films-performance-transfer-worker",
+            )
+            performance_transfer_qa_task = asyncio.create_task(
+                run_performance_transfer_qa_worker(),
+                name="ai-films-performance-transfer-qa-worker",
+            )
+            app_instance.state.ai_films_performance_transfer_task = performance_transfer_task
+            app_instance.state.ai_films_performance_transfer_qa_task = performance_transfer_qa_task
+            logger.info("Scheduled gated AI Films performance-transfer execution and QA workers.")
+        except Exception as exc:
+            logger.warning("Could not schedule AI Films performance-transfer workers: %s: %s", type(exc).__name__, exc)
 
         try:
             from backend.ai_films.commerce_handoff_worker import run_commerce_handoff_worker
@@ -158,7 +176,23 @@ async def railway_lifespan(app_instance):
         try:
             yield
         finally:
-            for task in (bootstrap_task, drive_bootstrap_task, drive_direct_task, jockey_canary_task, manifest_conform_task, manifest_review_task, generation_dispatch_task, anchor_candidate_task, openai_video_worker_task, generated_shot_qa_task, commerce_handoff_task, assembly_worker_task, assembly_qa_task):
+            for task in (
+                bootstrap_task,
+                drive_bootstrap_task,
+                drive_direct_task,
+                jockey_canary_task,
+                manifest_conform_task,
+                manifest_review_task,
+                generation_dispatch_task,
+                anchor_candidate_task,
+                openai_video_worker_task,
+                generated_shot_qa_task,
+                performance_transfer_task,
+                performance_transfer_qa_task,
+                commerce_handoff_task,
+                assembly_worker_task,
+                assembly_qa_task,
+            ):
                 if task is not None and not task.done():
                     task.cancel()
                     with suppress(asyncio.CancelledError):
@@ -167,7 +201,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-openmontage-production-2026-08-18"
+DEPLOYMENT_REVISION = "railway-ai-films-performance-transfer-2026-09-06"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -212,6 +246,8 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_anchor_candidates": _task_state(app, "ai_films_anchor_candidate_task"),
             "ai_films_openai_video": _task_state(app, "ai_films_openai_video_worker_task"),
             "ai_films_generated_shot_qa": _task_state(app, "ai_films_generated_shot_qa_task"),
+            "ai_films_performance_transfer": _task_state(app, "ai_films_performance_transfer_task"),
+            "ai_films_performance_transfer_qa": _task_state(app, "ai_films_performance_transfer_qa_task"),
             "ai_films_commerce_handoff": _task_state(app, "ai_films_commerce_handoff_task"),
             "ai_films_assembly": _task_state(app, "ai_films_assembly_worker_task"),
             "ai_films_post_render_qa": _task_state(app, "ai_films_assembly_qa_task"),

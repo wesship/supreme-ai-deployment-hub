@@ -14,8 +14,12 @@ class ProviderSpec:
     required_env: tuple[str, ...] = ()
     optional_env: tuple[str, ...] = ()
     required_binary: tuple[str, ...] = ()
+    lifecycle: str = "production"
+    dispatchable: bool = True
 
     def configured(self, environ: Mapping[str, str] | None = None) -> bool:
+        if not self.dispatchable:
+            return False
         source = environ or os.environ
         env_ready = all(bool(source.get(name, "").strip()) for name in self.required_env)
         binary_ready = all(shutil.which(name) is not None for name in self.required_binary)
@@ -36,6 +40,13 @@ PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
     ProviderSpec("avatar", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_AVATAR_MODEL")),
     ProviderSpec("character_replacement", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_CHARACTER_MODEL")),
     ProviderSpec("lip_sync", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_LIPSYNC_MODEL")),
+    ProviderSpec("performance_transfer", "replicate", ("REPLICATE_API_TOKEN", "AI_FILM_REPLICATE_PERFORMANCE_MODEL")),
+    ProviderSpec(
+        "performance_transfer",
+        "dreamactor_m1",
+        lifecycle="research_watch",
+        dispatchable=False,
+    ),
     ProviderSpec("virtual_try_on", "pollo", ("POLLO_API_KEY",), ("POLLO_API_BASE_URL",)),
     ProviderSpec("product_image", "pollo", ("POLLO_API_KEY",), ("POLLO_API_BASE_URL",)),
     ProviderSpec("assembly", "ffmpeg", required_binary=("ffmpeg",)),
@@ -55,7 +66,13 @@ def provider_health(environ: Mapping[str, str] | None = None) -> dict[str, objec
         {
             "capability": spec.capability,
             "provider": spec.provider,
-            "status": "configured" if spec.configured(environ) else "not_configured",
+            "status": (
+                "research_only"
+                if not spec.dispatchable
+                else "configured" if spec.configured(environ) else "not_configured"
+            ),
+            "lifecycle": spec.lifecycle,
+            "dispatchable": spec.dispatchable,
             "required_env": list(spec.required_env),
             "optional_env": list(spec.optional_env),
             "required_binary": list(spec.required_binary),
@@ -76,6 +93,10 @@ def provider_health(environ: Mapping[str, str] | None = None) -> dict[str, objec
 def validate_provider(capability: str, provider: str) -> ProviderSpec:
     for spec in PROVIDER_SPECS:
         if spec.capability == capability and spec.provider == provider:
+            if not spec.dispatchable:
+                raise RuntimeError(
+                    f"{capability} provider '{provider}' is registered as {spec.lifecycle} and cannot dispatch production jobs"
+                )
             if not spec.configured():
                 missing_env = [name for name in spec.required_env if not os.getenv(name)]
                 missing_binary = [name for name in spec.required_binary if shutil.which(name) is None]
