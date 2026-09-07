@@ -9,7 +9,7 @@ import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import httpx
 
@@ -19,6 +19,7 @@ from backend.ai_films.performance_transfer_worker import process_performance_tra
 
 MAX_SECONDS = max(1.0, min(8.0, float(os.getenv("AI_FILMS_PERFORMANCE_CANARY_MAX_SECONDS", "4"))))
 TARGET_CHARACTER_ID = os.getenv("AI_FILMS_PERFORMANCE_CANARY_CHARACTER_ID", "legend").strip() or "legend"
+ALLOWED_SOURCE_HOSTS = {"oss1.movieflow.ai"}
 
 
 class PerformanceCanaryError(RuntimeError):
@@ -95,6 +96,9 @@ def _bounded_source(source_path: Path, output_path: Path) -> None:
 
 
 async def _download_source(url: str, destination: Path) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or (parsed.hostname or "").lower() not in ALLOWED_SOURCE_HOSTS:
+        raise PerformanceCanaryError("canary source must use an allowlisted MovieFlow HTTPS host")
     async with httpx.AsyncClient(timeout=httpx.Timeout(180.0, connect=15.0), follow_redirects=True) as client:
         response = await client.get(url)
     if response.status_code >= 400 or not response.content:
@@ -102,8 +106,46 @@ async def _download_source(url: str, destination: Path) -> None:
     destination.write_bytes(response.content)
 
 
+async def _resolve_source_url(
+    db: CanaryDB,
+    *,
+    source_reference_asset_id: str,
+    project_id: str,
+    owner_id: str,
+) -> str:
+    rows = await db._request(
+        "GET",
+        "ai_film_assets",
+        params={
+            "id": f"eq.{source_reference_asset_id}",
+            "project_id": f"eq.{project_id}",
+            "owner_id": f"eq.{owner_id}",
+            "asset_type": "eq.video",
+            "select": "id,status,subcategory,metadata",
+            "limit": "1",
+        },
+    )
+    if not rows:
+        raise PerformanceCanaryError("canary source asset was not found in the target project/owner boundary")
+    row = rows[0]
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    candidates = (
+        metadata.get("canonical_media_url"),
+        metadata.get("direct_media_url"),
+        metadata.get("render_url"),
+        metadata.get("source_url"),
+    )
+    source_url = next((str(value).strip() for value in candidates if isinstance(value, str) and value.strip()), "")
+    if not source_url:
+        raise PerformanceCanaryError("canary source asset has no server-readable media URL")
+    parsed = urlparse(source_url)
+    if parsed.scheme != "https" or (parsed.hostname or "").lower() not in ALLOWED_SOURCE_HOSTS:
+        raise PerformanceCanaryError("canary source asset is not on the approved MovieFlow media host")
+    return source_url
+
+
 async def run() -> dict[str, Any]:
-    source_url = _required("AI_FILMS_PERFORMANCE_CANARY_SOURCE_URL")
+    source_reference_asset_id = _required("AI_FILMS_PERFORMANCE_CANARY_SOURCE_ASSET_ID")
     project_id = _required("AI_FILMS_PERFORMANCE_CANARY_PROJECT_ID")
     owner_id = _required("AI_FILMS_PERFORMANCE_CANARY_OWNER_ID")
     reference_asset_id = _required("AI_FILMS_PERFORMANCE_CANARY_REFERENCE_ASSET_ID")
@@ -125,16 +167,24 @@ async def run() -> dict[str, Any]:
             params={
                 "id": f"eq.{reference_asset_id}",
                 "project_id": f"eq.{project_id}",
+                "owner_id": f"eq.{owner_id}",
                 "asset_type": "eq.image",
                 "select": "id,status,metadata",
                 "limit": "1",
             },
         )
         if not refs:
-            raise PerformanceCanaryError("reference image asset was not found in the target project")
+            raise PerformanceCanaryError("reference image asset was not found in the target project/owner boundary")
         ref_meta = refs[0].get("metadata") if isinstance(refs[0].get("metadata"), dict) else {}
         if not ref_meta.get("storage_object_path"):
             raise PerformanceCanaryError("reference image must already be private-stored")
+
+        source_url = await _resolve_source_url(
+            db,
+            source_reference_asset_id=source_reference_asset_id,
+            project_id=project_id,
+            owner_id=owner_id,
+        )
 
         with tempfile.TemporaryDirectory(prefix="d3vonn-performance-canary-") as tmp:
             raw = Path(tmp) / "source-original.mp4"
@@ -164,6 +214,7 @@ async def run() -> dict[str, Any]:
                         "system_canary": True,
                         "performance_canary": True,
                         "canary_run_id": run_id,
+                        "source_reference_asset_id": source_reference_asset_id,
                         "storage_bucket": db.bucket,
                         "storage_object_path": source_object_path,
                         "max_seconds": MAX_SECONDS,
@@ -203,6 +254,7 @@ async def run() -> dict[str, Any]:
                         "system_canary": True,
                         "performance_canary": True,
                         "canary_run_id": run_id,
+                        "source_reference_asset_id": source_reference_asset_id,
                         "performance_generation": 1,
                     },
                 },
@@ -235,6 +287,7 @@ async def run() -> dict[str, Any]:
             "project_id": project_id,
             "render_job_id": render_job_id,
             "generated_asset_id": output.get("generated_asset_id"),
+            "source_reference_asset_id": source_reference_asset_id,
             "target_character_id": TARGET_CHARACTER_ID,
             "max_source_seconds": MAX_SECONDS,
             "decision": decision,
