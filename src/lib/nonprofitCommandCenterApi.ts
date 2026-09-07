@@ -71,6 +71,22 @@ export type NonprofitApprovalRow = {
   recused_steps: number;
 };
 
+export type NonprofitApprovalStepRow = {
+  step_id: string;
+  approval_id: string;
+  organization_id: string;
+  action_type: string;
+  resource_type: string;
+  resource_id: string | null;
+  step_no: number;
+  required_role: string;
+  approver_user_id: string | null;
+  decision: string;
+  decided_at: string | null;
+  approval_status: string;
+  expires_at: string | null;
+};
+
 export type NonprofitComplianceAlert = {
   policy_decision_id: string;
   organization_id: string;
@@ -101,15 +117,16 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, alerts, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
       listView<NonprofitApprovalRow>('nonprofit_pending_approvals_v1'),
+      listView<NonprofitApprovalStepRow>('nonprofit_approval_steps_v1'),
       listView<NonprofitComplianceAlert>('nonprofit_compliance_alerts_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, alerts, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, audit };
   },
 
   async decideApprovalStep(stepId: string, decision: 'APPROVED' | 'REJECTED' | 'RECUSED', notes?: string) {
