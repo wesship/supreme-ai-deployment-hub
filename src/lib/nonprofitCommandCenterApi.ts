@@ -87,6 +87,17 @@ export type NonprofitApprovalStepRow = {
   expires_at: string | null;
 };
 
+export type NonprofitMembershipRow = {
+  membership_id: string;
+  organization_id: string;
+  legal_name: string;
+  display_name: string | null;
+  role: 'BOARD' | 'EXECUTIVE' | 'FINANCE' | 'GRANT' | 'PROGRAM' | 'COMPLIANCE' | 'AUDITOR';
+  active: boolean;
+  can_approve: boolean;
+  created_at: string;
+};
+
 export type NonprofitComplianceAlert = {
   policy_decision_id: string;
   organization_id: string;
@@ -117,16 +128,17 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, memberships, alerts, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
       listView<NonprofitApprovalRow>('nonprofit_pending_approvals_v1'),
       listView<NonprofitApprovalStepRow>('nonprofit_approval_steps_v1'),
+      listView<NonprofitMembershipRow>('nonprofit_my_memberships_v1'),
       listView<NonprofitComplianceAlert>('nonprofit_compliance_alerts_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, memberships, alerts, audit };
   },
 
   async decideApprovalStep(stepId: string, decision: 'APPROVED' | 'REJECTED' | 'RECUSED', notes?: string) {
@@ -137,5 +149,31 @@ export const nonprofitCommandCenterApi = {
     });
     if (error) throw error;
     return data;
+  },
+
+  async claimMembershipInvite(token: string) {
+    const { data, error } = await (supabase as any).rpc('nonprofit_claim_membership_invite', {
+      p_token: token,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async createMembershipInvite(input: {
+    organizationId: string;
+    email: string;
+    role: NonprofitMembershipRow['role'];
+    canApprove?: boolean;
+    expiresHours?: number;
+  }) {
+    const { data, error } = await (supabase as any).rpc('nonprofit_create_membership_invite', {
+      p_organization_id: input.organizationId,
+      p_email: input.email,
+      p_role: input.role,
+      p_can_approve: input.canApprove ?? false,
+      p_expires_hours: input.expiresHours ?? 72,
+    });
+    if (error) throw error;
+    return (data ?? []) as Array<{ invite_id: string; invite_token: string; expires_at: string }>;
   },
 };
