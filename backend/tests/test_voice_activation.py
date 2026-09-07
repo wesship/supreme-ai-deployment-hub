@@ -10,7 +10,9 @@ import pytest
 from backend.app.voice_activation import (
     _inspect_direct_elevenlabs_key,
     _normalized_server_messages,
+    _resolve_working_vapi_key,
     _safe_error,
+    _vapi_key_candidates,
 )
 
 
@@ -55,6 +57,40 @@ def test_provider_validation_detail_is_safe_and_actionable() -> None:
 
     assert "assistant-request is not supported" in rendered
     assert "production-secret" not in rendered
+
+
+def test_vapi_candidates_are_distinct_and_prioritized(monkeypatch) -> None:
+    monkeypatch.setenv("VAPI_PRIVATE_KEY", "stale-private")
+    monkeypatch.setenv("VAPI_API_KEY", "working-api")
+    assert _vapi_key_candidates() == [
+        ("VAPI_PRIVATE_KEY", "stale-private"),
+        ("VAPI_API_KEY", "working-api"),
+    ]
+
+    monkeypatch.setenv("VAPI_API_KEY", "stale-private")
+    assert _vapi_key_candidates() == [("VAPI_PRIVATE_KEY", "stale-private")]
+
+
+@pytest.mark.asyncio
+async def test_vapi_resolver_falls_back_after_unauthorized(monkeypatch) -> None:
+    monkeypatch.setenv("VAPI_PRIVATE_KEY", "stale-private")
+    monkeypatch.setenv("VAPI_API_KEY", "working-api")
+    assistant_id = "assistant-123"
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        auth = request.headers.get("Authorization")
+        if auth == "Bearer stale-private":
+            return httpx.Response(401, request=request, json={"message": "Invalid Key"})
+        if auth == "Bearer working-api":
+            return httpx.Response(200, request=request, json={"id": assistant_id})
+        return httpx.Response(403, request=request)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        name, value, payload = await _resolve_working_vapi_key(client, assistant_id)
+
+    assert name == "VAPI_API_KEY"
+    assert value == "working-api"
+    assert payload["id"] == assistant_id
 
 
 @pytest.mark.asyncio
