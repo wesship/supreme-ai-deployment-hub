@@ -17,14 +17,16 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_programs_v1');
     expect(api).toContain('nonprofit_grant_pipeline_v1');
     expect(api).toContain('nonprofit_pending_approvals_v1');
+    expect(api).toContain('nonprofit_approval_steps_v1');
     expect(api).toContain('nonprofit_compliance_alerts_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
 
-  it('uses the guarded approval RPC', () => {
+  it('uses the guarded approval RPC and exposes no direct execution control', () => {
     expect(api).toContain("rpc('nonprofit_decide_approval_step'");
     expect(page).toContain('MFA + role + policy guarded');
-    expect(page).toContain('non-RED policy decision');
+    expect(page).toContain('RED policy decisions are blocked');
+    expect(page).toContain('The action itself was not executed.');
   });
 });
