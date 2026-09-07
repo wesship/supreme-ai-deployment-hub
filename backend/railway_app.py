@@ -105,22 +105,24 @@ async def railway_lifespan(app_instance):
             logger.warning("Could not schedule AI Films anchor candidate extraction: %s: %s", type(exc).__name__, exc)
 
         try:
-            from backend.ai_films.pollo_video_worker import run_pollo_video_worker
+            from backend.ai_films.resilient_video_worker import run_resilient_video_worker
             from backend.ai_films.generated_shot_qa_worker_pollo import run_pollo_generated_shot_qa_worker
             from backend.ai_films.legacy_video_route_migrator import run_legacy_video_route_migrator
             legacy_video_route_migrator_task = asyncio.create_task(
                 run_legacy_video_route_migrator(), name="ai-films-legacy-sora-to-pollo-migrator"
             )
-            pollo_video_worker_task = asyncio.create_task(run_pollo_video_worker(), name="ai-films-pollo-video-worker")
+            pollo_video_worker_task = asyncio.create_task(
+                run_resilient_video_worker(), name="ai-films-resilient-video-worker"
+            )
             generated_shot_qa_task = asyncio.create_task(
-                run_pollo_generated_shot_qa_worker(), name="ai-films-pollo-generated-shot-qa-worker"
+                run_pollo_generated_shot_qa_worker(), name="ai-films-generated-shot-qa-worker"
             )
             app_instance.state.ai_films_legacy_video_route_migrator_task = legacy_video_route_migrator_task
             app_instance.state.ai_films_pollo_video_worker_task = pollo_video_worker_task
             app_instance.state.ai_films_generated_shot_qa_task = generated_shot_qa_task
-            logger.info("Scheduled gated AI Films Pollo video, legacy-route migration, and generated-shot QA workers.")
+            logger.info("Scheduled AI Films Pollo-primary/Replicate-fallback video execution and generated-shot QA workers.")
         except Exception as exc:
-            logger.warning("Could not schedule AI Films Pollo generation workers: %s: %s", type(exc).__name__, exc)
+            logger.warning("Could not schedule AI Films resilient video generation workers: %s: %s", type(exc).__name__, exc)
 
         try:
             from backend.ai_films.performance_transfer_worker import run_performance_transfer_worker
@@ -210,7 +212,7 @@ async def railway_lifespan(app_instance):
 
 app.router.lifespan_context = railway_lifespan
 
-DEPLOYMENT_REVISION = "railway-ai-films-pollo-primary-2026-09-06"
+DEPLOYMENT_REVISION = "railway-ai-films-pollo-replicate-failover-2026-09-06"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
 
@@ -254,7 +256,7 @@ async def deployment_info() -> dict[str, object]:
             "ai_films_generation_dispatch": _task_state(app, "ai_films_generation_dispatch_task"),
             "ai_films_anchor_candidates": _task_state(app, "ai_films_anchor_candidate_task"),
             "ai_films_legacy_sora_to_pollo": _task_state(app, "ai_films_legacy_video_route_migrator_task"),
-            "ai_films_pollo_video": _task_state(app, "ai_films_pollo_video_worker_task"),
+            "ai_films_video_primary_failover": _task_state(app, "ai_films_pollo_video_worker_task"),
             "ai_films_generated_shot_qa": _task_state(app, "ai_films_generated_shot_qa_task"),
             "ai_films_performance_transfer": _task_state(app, "ai_films_performance_transfer_task"),
             "ai_films_performance_transfer_qa": _task_state(app, "ai_films_performance_transfer_qa_task"),
