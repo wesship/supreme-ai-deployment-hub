@@ -12,6 +12,7 @@ class WorldMonitorConfig:
     mcp_url: str = "https://worldmonitor.app/mcp"
     api_key: str | None = None
     timeout_seconds: float = 25.0
+    user_agent: str = "D3VONN-Intelligence/1.0 (+https://d3vonn.io)"
 
     @classmethod
     def from_env(cls) -> "WorldMonitorConfig":
@@ -19,6 +20,10 @@ class WorldMonitorConfig:
             mcp_url=os.getenv("WORLDMONITOR_MCP_URL", "https://worldmonitor.app/mcp"),
             api_key=os.getenv("WORLDMONITOR_API_KEY") or None,
             timeout_seconds=float(os.getenv("WORLDMONITOR_TIMEOUT_SECONDS", "25")),
+            user_agent=os.getenv(
+                "WORLDMONITOR_USER_AGENT",
+                "D3VONN-Intelligence/1.0 (+https://d3vonn.io)",
+            ),
         )
 
 
@@ -33,7 +38,11 @@ class WorldMonitorClient:
         return bool(self.config.api_key)
 
     def _headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "User-Agent": self.config.user_agent,
+        }
         if self.config.api_key:
             headers["X-WorldMonitor-Key"] = self.config.api_key
         return headers
@@ -47,7 +56,10 @@ class WorldMonitorClient:
         if params is not None:
             payload["params"] = params
 
-        async with httpx.AsyncClient(timeout=self.config.timeout_seconds) as client:
+        async with httpx.AsyncClient(
+            timeout=self.config.timeout_seconds,
+            follow_redirects=True,
+        ) as client:
             response = await client.post(
                 self.config.mcp_url,
                 headers=self._headers(),
