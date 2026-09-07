@@ -84,6 +84,7 @@ const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
 const NonprofitCommandCenter = lazy(() => import("./pages/NonprofitCommandCenter"));
 const NonprofitIdentity = lazy(() => import("./pages/NonprofitIdentity"));
+const NonprofitBoardGovernance = lazy(() => import("./pages/NonprofitBoardGovernance"));
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -243,6 +244,8 @@ function App() {
                 <Route path="/nonprofit" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
                 <Route path="/nonprofit/grants" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
                 <Route path="/nonprofit/identity" element={<AuthenticatedRoute><NonprofitIdentity /></AuthenticatedRoute>} />
+                <Route path="/nonprofit/governance" element={<AuthenticatedRoute><NonprofitBoardGovernance /></AuthenticatedRoute>} />
+                <Route path="/nonprofit/board" element={<Navigate to="/nonprofit/governance" replace />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
                 <Route path="/analytics" element={<Navigate to="/app" replace />} />
