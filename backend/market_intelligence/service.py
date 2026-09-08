@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import os
 
-from .models import MarketIntelligenceQuery, MarketIntelligenceResponse, ProviderStatus
+from .models import (
+    HermesRoutingPlan,
+    MarketIntelligenceQuery,
+    MarketIntelligenceResponse,
+    ProviderStatus,
+)
 
 
 class MarketIntelligenceService:
@@ -59,9 +64,15 @@ class MarketIntelligenceService:
         configured_sources = [
             status for status in statuses if status.provider != "hermes_research_os" and status.configured
         ]
+        workflow = ["collect", "normalize", "rank_evidence", "synthesize"]
+        if query.save_to_dkos:
+            workflow.append("persist_dkos")
+        workflow.append("human_review")
+
         return MarketIntelligenceResponse(
             query=query,
             providers=statuses,
+            routing=HermesRoutingPlan(workflow=workflow),
             signals=[],
             status="ready" if configured_sources else "configuration_required",
         )
