@@ -47,11 +47,11 @@ class HermesRoutingPlan(BaseModel):
     broadcast_allowed: bool = False
     workflow: list[str] = Field(
         default_factory=lambda: [
-            "collect",
+            "collect_provider_bridges",
             "normalize",
-            "rank_evidence",
-            "synthesize",
-            "persist_dkos",
+            "research_os_rank_evidence",
+            "research_os_synthesize",
+            "research_os_persist_dkos",
             "human_review",
         ]
     )
@@ -64,4 +64,8 @@ class MarketIntelligenceResponse(BaseModel):
     routing: HermesRoutingPlan = Field(default_factory=HermesRoutingPlan)
     signals: list[MarketSignal] = Field(default_factory=list)
     provider_errors: dict[str, str] = Field(default_factory=dict)
+    summary: str = ""
+    dkos_status: Literal["saved", "skipped", "failed"] = "skipped"
+    dkos_records: int = 0
+    dkos_message: str | None = None
     status: Literal["ready", "configuration_required"]
