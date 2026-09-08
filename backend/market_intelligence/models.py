@@ -63,4 +63,5 @@ class MarketIntelligenceResponse(BaseModel):
     providers: list[ProviderStatus]
     routing: HermesRoutingPlan = Field(default_factory=HermesRoutingPlan)
     signals: list[MarketSignal] = Field(default_factory=list)
+    provider_errors: dict[str, str] = Field(default_factory=dict)
     status: Literal["ready", "configuration_required"]
