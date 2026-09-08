@@ -1,7 +1,7 @@
 import asyncio
 from types import SimpleNamespace
 
-from backend.market_intelligence.adapters import ReadOnlyMarketAdapter
+from backend.market_intelligence.adapters import MessariNativeAdapter, ReadOnlyMarketAdapter
 from backend.market_intelligence.models import MarketIntelligenceQuery, MarketSignal
 from backend.market_intelligence.service import MarketIntelligenceService
 
@@ -14,14 +14,12 @@ def _clear_provider_env(monkeypatch):
         monkeypatch.delenv(f"{provider}_MARKET_INTELLIGENCE_ENABLED", raising=False)
         monkeypatch.delenv(f"{provider}_MARKET_INTELLIGENCE_URL", raising=False)
         monkeypatch.delenv(f"{provider}_MARKET_INTELLIGENCE_TOKEN", raising=False)
+    monkeypatch.delenv("MESSARI_API_KEY", raising=False)
 
 
 def test_market_intelligence_defaults_to_read_only(monkeypatch):
     _clear_provider_env(monkeypatch)
-
-    service = MarketIntelligenceService()
-    response = service.build_plan(MarketIntelligenceQuery(query="market breadth and crypto momentum"))
-
+    response = MarketIntelligenceService().build_plan(MarketIntelligenceQuery(query="market breadth and crypto momentum"))
     assert response.schema == "d3vonn.market-intelligence.v1"
     assert response.status == "configuration_required"
     assert response.routing.orchestrator == "hermes"
@@ -33,14 +31,12 @@ def test_market_intelligence_defaults_to_read_only(monkeypatch):
     assert response.signals == []
 
 
-def test_enabled_provider_requires_https_read_bridge(monkeypatch):
+def test_enabled_messari_requires_server_side_api_key(monkeypatch):
     _clear_provider_env(monkeypatch)
     monkeypatch.setenv("MESSARI_MARKET_INTELLIGENCE_ENABLED", "true")
-
     response = MarketIntelligenceService().build_plan(
         MarketIntelligenceQuery(query="ethereum protocol activity", asset_class="crypto", providers=["messari"])
     )
-
     assert response.status == "configuration_required"
     messari = next(provider for provider in response.providers if provider.provider == "messari")
     assert messari.enabled is True
@@ -48,33 +44,28 @@ def test_enabled_provider_requires_https_read_bridge(monkeypatch):
     assert messari.execution_enabled is False
 
 
-def test_configured_provider_is_ready_but_still_non_executing(monkeypatch):
+def test_messari_api_key_makes_native_adapter_ready_but_non_executing(monkeypatch):
     _clear_provider_env(monkeypatch)
     monkeypatch.setenv("MESSARI_MARKET_INTELLIGENCE_ENABLED", "true")
-    monkeypatch.setenv("MESSARI_MARKET_INTELLIGENCE_URL", "https://market-data.example.com/messari")
-
+    monkeypatch.setenv("MESSARI_API_KEY", "test-key")
     response = MarketIntelligenceService().build_plan(
         MarketIntelligenceQuery(query="ethereum protocol activity", asset_class="crypto", providers=["messari"])
     )
-
     assert response.status == "ready"
     messari = next(provider for provider in response.providers if provider.provider == "messari")
     assert messari.configured is True
     assert messari.mode == "read_only"
     assert messari.execution_enabled is False
-    assert any(provider.provider == "hermes_research_os" for provider in response.providers)
+    assert MessariNativeAdapter().endpoint == "https://api.messari.io/metrics/v2/assets/details"
 
 
-def test_adapter_rejects_non_https_and_local_destinations(monkeypatch):
+def test_bridge_adapter_rejects_non_https_and_local_destinations(monkeypatch):
     _clear_provider_env(monkeypatch)
     adapter = ReadOnlyMarketAdapter("finviz")
-
     monkeypatch.setenv("FINVIZ_MARKET_INTELLIGENCE_URL", "http://market-data.example.com/finviz")
     assert adapter.configured is False
-
     monkeypatch.setenv("FINVIZ_MARKET_INTELLIGENCE_URL", "https://localhost/finviz")
     assert adapter.configured is False
-
     monkeypatch.setenv("FINVIZ_MARKET_INTELLIGENCE_URL", "https://market-data.example.com/finviz")
     assert adapter.configured is True
 
@@ -83,7 +74,6 @@ def test_dkos_opt_out_removes_persistence_step(monkeypatch):
     _clear_provider_env(monkeypatch)
     monkeypatch.setenv("FINVIZ_MARKET_INTELLIGENCE_ENABLED", "true")
     monkeypatch.setenv("FINVIZ_MARKET_INTELLIGENCE_URL", "https://market-data.example.com/finviz")
-
     response = MarketIntelligenceService().build_plan(
         MarketIntelligenceQuery(
             query="equity breadth without persistence",
@@ -92,7 +82,6 @@ def test_dkos_opt_out_removes_persistence_step(monkeypatch):
             save_to_dkos=False,
         )
     )
-
     assert response.query.save_to_dkos is False
     assert "research_os_persist_dkos" not in response.routing.workflow
     assert response.routing.workflow == [
@@ -107,7 +96,7 @@ def test_dkos_opt_out_removes_persistence_step(monkeypatch):
 def test_live_query_runs_research_os_ranker_and_dkos_writer(monkeypatch):
     _clear_provider_env(monkeypatch)
     monkeypatch.setenv("MESSARI_MARKET_INTELLIGENCE_ENABLED", "true")
-    monkeypatch.setenv("MESSARI_MARKET_INTELLIGENCE_URL", "https://market-data.example.com/messari")
+    monkeypatch.setenv("MESSARI_API_KEY", "test-key")
 
     class FakeAdapter:
         configured = True
@@ -120,7 +109,7 @@ def test_live_query_runs_research_os_ranker_and_dkos_writer(monkeypatch):
                     symbol="ETH",
                     title="Ethereum protocol activity accelerates",
                     summary="Ethereum protocol activity and fee momentum increased this week.",
-                    source_url="https://market-data.example.com/evidence/eth",
+                    source_url="https://messari.io/asset/ethereum",
                     confidence=0.4,
                     tags=["ethereum", "protocol"],
                 )
@@ -142,17 +131,11 @@ def test_live_query_runs_research_os_ranker_and_dkos_writer(monkeypatch):
     service = MarketIntelligenceService()
     fake_writer = FakeDKOSWriter()
     service.dkos_writer = fake_writer
-
     response = asyncio.run(
         service.query(
-            MarketIntelligenceQuery(
-                query="ethereum protocol activity",
-                asset_class="crypto",
-                providers=["messari"],
-            )
+            MarketIntelligenceQuery(query="ethereum protocol activity", asset_class="crypto", providers=["messari"])
         )
     )
-
     assert fake_writer.calls == 1
     assert len(fake_writer.saved_evidence) == 1
     assert fake_writer.saved_evidence[0].score > 0
