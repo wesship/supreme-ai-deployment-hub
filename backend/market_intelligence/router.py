@@ -22,5 +22,5 @@ def market_intelligence_health():
 
 
 @router.post("/query", response_model=MarketIntelligenceResponse)
-def market_intelligence_query(payload: MarketIntelligenceQuery) -> MarketIntelligenceResponse:
-    return _service.build_plan(payload)
+async def market_intelligence_query(payload: MarketIntelligenceQuery) -> MarketIntelligenceResponse:
+    return await _service.query(payload)
