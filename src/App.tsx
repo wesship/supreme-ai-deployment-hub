@@ -70,6 +70,7 @@ const SecurityCommandCenter = lazy(() => import("./pages/security/CommandCenter"
 const SecretsVault = lazy(() => import("./pages/security/SecretsVault"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
+const MarketIntelligence = lazy(() => import("./pages/MarketIntelligence"));
 const DkosIngestion = lazy(() => import("./pages/DkosIngestion"));
 const PrimetimeRelease1 = lazy(() => import("./pages/PrimetimeRelease1"));
 const PrimetimeScheduling = lazy(() => import("./pages/PrimetimeScheduling"));
@@ -250,6 +251,7 @@ function App() {
                 <Route path="/security/secrets" element={<AdminRoute><SecretsVault /></AdminRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
+                <Route path="/market-intelligence" element={<MarketIntelligence />} />
                 <Route path="/analytics" element={<Navigate to="/app" replace />} />
                 <Route path="/rag" element={<Navigate to="/dkos-ingestion" replace />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
