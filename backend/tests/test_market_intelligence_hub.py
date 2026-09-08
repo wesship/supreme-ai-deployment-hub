@@ -19,6 +19,7 @@ def test_market_intelligence_defaults_to_read_only(monkeypatch):
     assert response.routing.execution_allowed is False
     assert response.routing.signing_allowed is False
     assert response.routing.broadcast_allowed is False
+    assert "persist_dkos" in response.routing.workflow
     assert all(provider.execution_enabled is False for provider in response.providers)
     assert response.signals == []
 
@@ -36,3 +37,26 @@ def test_enabled_provider_is_still_non_executing(monkeypatch):
     assert messari.mode == "read_only"
     assert messari.execution_enabled is False
     assert any(provider.provider == "hermes_research_os" for provider in response.providers)
+
+
+def test_dkos_opt_out_removes_persistence_step(monkeypatch):
+    monkeypatch.setenv("FINVIZ_MARKET_INTELLIGENCE_ENABLED", "true")
+
+    response = MarketIntelligenceService().build_plan(
+        MarketIntelligenceQuery(
+            query="equity breadth without persistence",
+            asset_class="equity",
+            providers=["finviz"],
+            save_to_dkos=False,
+        )
+    )
+
+    assert response.query.save_to_dkos is False
+    assert "persist_dkos" not in response.routing.workflow
+    assert response.routing.workflow == [
+        "collect",
+        "normalize",
+        "rank_evidence",
+        "synthesize",
+        "human_review",
+    ]
