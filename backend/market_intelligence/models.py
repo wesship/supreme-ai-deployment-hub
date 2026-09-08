@@ -10,7 +10,7 @@ ProviderName = Literal["koyfin", "finviz", "messari", "hermes_research_os"]
 
 
 class MarketIntelligenceQuery(BaseModel):
-    query: str = Field(..., min_length=2, max_length=500)
+    query: str = Field(..., min_length=3, max_length=500)
     asset_class: AssetClass = "mixed"
     symbols: list[str] = Field(default_factory=list, max_length=50)
     providers: list[ProviderName] = Field(default_factory=list, max_length=4)
