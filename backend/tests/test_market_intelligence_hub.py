@@ -20,7 +20,9 @@ def _clear_provider_env(monkeypatch):
 def test_market_intelligence_defaults_to_read_only(monkeypatch):
     _clear_provider_env(monkeypatch)
     response = MarketIntelligenceService().build_plan(MarketIntelligenceQuery(query="market breadth and crypto momentum"))
-    assert response.schema == "d3vonn.market-intelligence.v1"
+    assert response.schema_version == "d3vonn.market-intelligence.v1"
+    assert response.model_dump(mode="json")["schema"] == "d3vonn.market-intelligence.v1"
+    assert "schema_version" not in response.model_dump(mode="json")
     assert response.status == "configuration_required"
     assert response.routing.orchestrator == "hermes"
     assert response.routing.execution_allowed is False
