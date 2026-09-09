@@ -60,17 +60,22 @@ def test_payload_preserves_provenance_confidence_and_read_only_policy():
     }
 
 
-def test_handoff_creates_canonical_ion_task():
-    captured = {}
+def test_handoff_creates_canonical_ion_task_and_audit_event():
+    captured_task = {}
+    captured_event = {}
 
     async def fake_create_task(**kwargs):
-        captured.update(kwargs)
+        captured_task.update(kwargs)
         return {"id": "task-ion-market", **kwargs}
+
+    async def fake_log_event(**kwargs):
+        captured_event.update(kwargs)
 
     task = asyncio.run(
         create_ion_market_analysis_task(
             _response(),
             create_task_fn=fake_create_task,
+            log_event_fn=fake_log_event,
             parent_task_id="parent-1",
             correlation_id="corr-1",
         )
@@ -81,4 +86,16 @@ def test_handoff_creates_canonical_ion_task():
     assert task["source"] == "hermes_market_intelligence"
     assert task["parent_task_id"] == "parent-1"
     assert task["correlation_id"] == "corr-1"
-    assert captured["input_data"]["policy"]["analysis_only"] is True
+    assert captured_task["input_data"]["policy"]["analysis_only"] is True
+
+    assert captured_event["event"] == "hermes.market_analysis.handoff"
+    assert captured_event["task_id"] == "task-ion-market"
+    assert captured_event["agent_name"] == "ION"
+    assert captured_event["correlation_id"] == "corr-1"
+    assert captured_event["data"]["providers"] == ["messari"]
+    assert captured_event["data"]["signal_count"] == 1
+    assert captured_event["data"]["confidence_min"] == 0.87
+    assert captured_event["data"]["confidence_max"] == 0.87
+    assert captured_event["data"]["confidence_avg"] == 0.87
+    assert captured_event["data"]["analysis_only"] is True
+    assert captured_event["data"]["execution_allowed"] is False
