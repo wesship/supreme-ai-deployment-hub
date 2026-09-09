@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -115,10 +116,59 @@ class MessariNativeAdapter:
 
     provider: ProviderName = "messari"
     endpoint = "https://api.messari.io/metrics/v2/assets/details"
+    _QUERY_STOPWORDS = {
+        "about",
+        "activity",
+        "asset",
+        "assets",
+        "crypto",
+        "cryptocurrency",
+        "data",
+        "latest",
+        "market",
+        "markets",
+        "momentum",
+        "price",
+        "protocol",
+        "research",
+        "show",
+        "the",
+        "this",
+        "trend",
+        "trends",
+        "with",
+    }
 
     @property
     def configured(self) -> bool:
         return bool(os.getenv("MESSARI_API_KEY", "").strip())
+
+    @classmethod
+    def _query_terms(cls, query: str) -> set[str]:
+        return {
+            term
+            for term in re.findall(r"[a-z0-9]{2,}", query.lower())
+            if term not in cls._QUERY_STOPWORDS
+        }
+
+    @classmethod
+    def _relevance_score(cls, row: dict[str, Any], query: MarketIntelligenceQuery) -> int:
+        symbols = {symbol.upper() for symbol in query.symbols if symbol.strip()}
+        row_symbol = str(row.get("symbol") or "").upper()
+        if symbols:
+            return 100 if row_symbol in symbols else 0
+
+        terms = cls._query_terms(query.query)
+        if not terms:
+            return 0
+
+        tags_raw = row.get("tags", [])
+        tags = " ".join(str(tag) for tag in tags_raw) if isinstance(tags_raw, list) else ""
+        name = str(row.get("name") or "")
+        slug = str(row.get("slug") or "")
+        description = str(row.get("description") or "")
+        searchable = f"{name} {row_symbol} {slug} {tags} {description}".lower()
+        return sum(1 for term in terms if term in searchable)
 
     async def collect(self, query: MarketIntelligenceQuery) -> list[MarketSignal]:
         api_key = os.getenv("MESSARI_API_KEY", "").strip()
@@ -139,9 +189,15 @@ class MessariNativeAdapter:
         if not isinstance(rows, list):
             return []
 
-        symbols = {symbol.upper() for symbol in query.symbols if symbol.strip()}
-        filtered = [row for row in rows if isinstance(row, dict) and (not symbols or str(row.get("symbol", "")).upper() in symbols)]
-        filtered = filtered[: query.max_results_per_source]
+        ranked_rows: list[tuple[int, dict[str, Any]]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            score = self._relevance_score(row, query)
+            if score > 0:
+                ranked_rows.append((score, row))
+        ranked_rows.sort(key=lambda item: item[0], reverse=True)
+        filtered = [row for _, row in ranked_rows[: query.max_results_per_source]]
 
         signals: list[MarketSignal] = []
         for row in filtered:
