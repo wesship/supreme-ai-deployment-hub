@@ -31,6 +31,21 @@ def _safe_number(value: Any) -> float | None:
     return None
 
 
+def _confidence_from_data(data: dict[str, Any]) -> tuple[float | None, float | None, float | None]:
+    """Read the canonical flat Hermes fields, while tolerating the older nested test fixture shape."""
+    nested = data.get("confidence") if isinstance(data.get("confidence"), dict) else {}
+    minimum = _safe_number(data.get("confidence_min"))
+    maximum = _safe_number(data.get("confidence_max"))
+    average = _safe_number(data.get("confidence_avg"))
+    if minimum is None:
+        minimum = _safe_number(nested.get("min"))
+    if maximum is None:
+        maximum = _safe_number(nested.get("max"))
+    if average is None:
+        average = _safe_number(nested.get("avg"))
+    return minimum, maximum, average
+
+
 def summarize_market_handoffs(rows: list[dict[str, Any]]) -> dict[str, Any]:
     events: list[dict[str, Any]] = []
     all_confidence: list[float] = []
@@ -39,10 +54,7 @@ def summarize_market_handoffs(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     for row in rows:
         data = row.get("data") if isinstance(row.get("data"), dict) else {}
-        confidence = data.get("confidence") if isinstance(data.get("confidence"), dict) else {}
-        minimum = _safe_number(confidence.get("min"))
-        maximum = _safe_number(confidence.get("max"))
-        average = _safe_number(confidence.get("avg"))
+        minimum, maximum, average = _confidence_from_data(data)
         if average is not None:
             all_confidence.append(average)
 
