@@ -33,7 +33,7 @@ const Dashboard = () => {
 
   const features = [
     { icon: Film, title: 'AI Filmmaker', description: 'Create 4K films from ideas', path: '/film', available: true },
-    { icon: DollarSign, title: 'MoneyHub', description: '100+ earning agents', path: '/moneyhub', available: true },
+    { icon: DollarSign, title: 'MoneyHub', description: 'Governed agent economics and earnings operations', path: '/moneyhub', available: true },
     { icon: Brain, title: 'AI Therapy', description: '4-level avatar therapy', path: '/ai-therapy', available: true },
     { icon: Crown, title: 'Sovereignty Matrix', description: 'O.P.I. scoring system', path: '/sovereignty', available: true },
     { icon: Music, title: 'Music Generator', description: 'Full AI songs with lyrics', path: '/music', available: true },
