@@ -47,7 +47,7 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
             detail="MoneyHub economic ingestion is not configured.",
         )
 
-    rpc_payload = {
+    rpc_payload: dict[str, Any] = {
         "p_kind": payload.kind,
         "p_user_id": principal.user_id,
         "p_agent_id": payload.agent_id,
@@ -60,8 +60,9 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
         "p_description": payload.description,
         "p_run_id": payload.run_id,
         "p_metadata": payload.metadata,
-        "p_occurred_at": payload.occurred_at.isoformat() if payload.occurred_at else None,
     }
+    if payload.occurred_at is not None:
+        rpc_payload["p_occurred_at"] = payload.occurred_at.isoformat()
 
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
