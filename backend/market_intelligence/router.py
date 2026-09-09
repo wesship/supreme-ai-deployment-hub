@@ -1,4 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from backend.auth.supabase_jwt import OCCPrincipal, require_occ_access
+from backend.hermes.market_analysis import create_ion_market_analysis_task
 
 from .models import MarketIntelligenceQuery, MarketIntelligenceResponse
 from .service import MarketIntelligenceService
@@ -23,4 +26,36 @@ def market_intelligence_health():
 
 @router.post("/query", response_model=MarketIntelligenceResponse)
 async def market_intelligence_query(payload: MarketIntelligenceQuery) -> MarketIntelligenceResponse:
+    """Run the existing read-only market-intelligence query without agent dispatch."""
     return await _service.query(payload)
+
+
+@router.post("/query/ion")
+async def market_intelligence_query_ion(
+    payload: MarketIntelligenceQuery,
+    _: OCCPrincipal = Depends(require_occ_access),
+) -> dict:
+    """Run read-only market intelligence and hand ranked evidence to ION for analysis.
+
+    This route is operator-gated because it creates a Hermes task. The handoff policy
+    remains analysis-only and explicitly disables execution, trading, signing, and broadcast.
+    """
+    response = await _service.query(payload)
+    task = await create_ion_market_analysis_task(response)
+    return {
+        "market_intelligence": response.model_dump(mode="json", by_alias=True),
+        "ion_task": {
+            "id": task.get("id"),
+            "status": task.get("status"),
+            "agent_name": task.get("agent_name") or "ION",
+            "task_type": task.get("task_type") or "market_analysis",
+            "source": task.get("source") or "hermes_market_intelligence",
+        },
+        "policy": {
+            "analysis_only": True,
+            "execution_allowed": False,
+            "trading_allowed": False,
+            "signing_allowed": False,
+            "broadcast_allowed": False,
+        },
+    }
