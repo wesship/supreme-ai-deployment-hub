@@ -78,6 +78,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.agents.router", "router", "/api/agents"),
     ("backend.marketplace.router", "router", None),
     ("backend.occ_operator.router", "router", "/api/operator"),
+    ("backend.occ_operator.market_intelligence_router", "router", "/api/operator"),
     ("backend.hermes.router", "router", None),
     ("backend.hermes.recency_router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),
