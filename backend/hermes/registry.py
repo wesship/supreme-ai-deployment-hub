@@ -145,8 +145,8 @@ BUILTIN_MANIFESTS = (
         version="1.0.0",
         role=AgentRole.ANALYTICS,
         description="Analytics and evaluation agent.",
-        capabilities=["analysis.compute", "evaluation.score"],
-        permissions=["tasks.read", "events.write"],
+        capabilities=["analysis.compute", "evaluation.score", "market.analyze"],
+        permissions=["tasks.read", "events.write", "market.read"],
     ),
     AgentManifest(
         id="sapphire",
