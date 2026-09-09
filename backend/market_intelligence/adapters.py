@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -12,21 +13,15 @@ from .models import AssetClass, MarketIntelligenceQuery, MarketSignal, ProviderN
 _PROVIDER_CONFIG = {
     "koyfin": ("KOYFIN_MARKET_INTELLIGENCE_URL", "KOYFIN_MARKET_INTELLIGENCE_TOKEN"),
     "finviz": ("FINVIZ_MARKET_INTELLIGENCE_URL", "FINVIZ_MARKET_INTELLIGENCE_TOKEN"),
-    "messari": ("MESSARI_MARKET_INTELLIGENCE_URL", "MESSARI_MARKET_INTELLIGENCE_TOKEN"),
 }
 
 
 class ReadOnlyMarketAdapter:
-    """GET-only bridge for licensed/export/provider-controlled market data.
-
-    The destination is configured by operators through environment variables,
-    never supplied by the request. No order, signing, wallet, or broadcast
-    methods exist in this adapter.
-    """
+    """GET-only bridge for licensed/export/provider-controlled market data."""
 
     def __init__(self, provider: ProviderName):
         if provider not in _PROVIDER_CONFIG:
-            raise ValueError(f"Unsupported read-only provider: {provider}")
+            raise ValueError(f"Unsupported bridge provider: {provider}")
         self.provider = provider
         self.url_env, self.token_env = _PROVIDER_CONFIG[provider]
 
@@ -54,7 +49,7 @@ class ReadOnlyMarketAdapter:
         if not self.configured:
             return []
 
-        headers = {"Accept": "application/json", "User-Agent": "D3VONN-MarketIntelligence/0.2"}
+        headers = {"Accept": "application/json", "User-Agent": "D3VONN-MarketIntelligence/0.3"}
         token = os.getenv(self.token_env, "").strip()
         if token:
             headers["Authorization"] = f"Bearer {token}"
@@ -116,7 +111,133 @@ class ReadOnlyMarketAdapter:
         )
 
 
-def provider_adapter(provider: ProviderName) -> ReadOnlyMarketAdapter | None:
+class MessariNativeAdapter:
+    """Official Messari GET-only API adapter using server-side API-key auth."""
+
+    provider: ProviderName = "messari"
+    endpoint = "https://api.messari.io/metrics/v2/assets/details"
+    _QUERY_STOPWORDS = {
+        "about",
+        "activity",
+        "asset",
+        "assets",
+        "crypto",
+        "cryptocurrency",
+        "data",
+        "latest",
+        "market",
+        "markets",
+        "momentum",
+        "price",
+        "protocol",
+        "research",
+        "show",
+        "the",
+        "this",
+        "trend",
+        "trends",
+        "with",
+    }
+
+    @property
+    def configured(self) -> bool:
+        return bool(os.getenv("MESSARI_API_KEY", "").strip())
+
+    @classmethod
+    def _query_terms(cls, query: str) -> set[str]:
+        return {
+            term
+            for term in re.findall(r"[a-z0-9]{2,}", query.lower())
+            if term not in cls._QUERY_STOPWORDS
+        }
+
+    @classmethod
+    def _relevance_score(cls, row: dict[str, Any], query: MarketIntelligenceQuery) -> int:
+        symbols = {symbol.upper() for symbol in query.symbols if symbol.strip()}
+        row_symbol = str(row.get("symbol") or "").upper()
+        if symbols:
+            return 100 if row_symbol in symbols else 0
+
+        terms = cls._query_terms(query.query)
+        if not terms:
+            return 0
+
+        tags_raw = row.get("tags", [])
+        tags = " ".join(str(tag) for tag in tags_raw) if isinstance(tags_raw, list) else ""
+        name = str(row.get("name") or "")
+        slug = str(row.get("slug") or "")
+        description = str(row.get("description") or "")
+        searchable = f"{name} {row_symbol} {slug} {tags} {description}".lower()
+        return sum(1 for term in terms if term in searchable)
+
+    async def collect(self, query: MarketIntelligenceQuery) -> list[MarketSignal]:
+        api_key = os.getenv("MESSARI_API_KEY", "").strip()
+        if not api_key:
+            return []
+
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "D3VONN-MarketIntelligence/0.3",
+            "x-messari-api-key": api_key,
+        }
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=False) as client:
+            response = await client.get(self.endpoint, headers=headers)
+            response.raise_for_status()
+            payload = response.json()
+
+        rows = payload.get("data", []) if isinstance(payload, dict) else []
+        if not isinstance(rows, list):
+            return []
+
+        ranked_rows: list[tuple[int, dict[str, Any]]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            score = self._relevance_score(row, query)
+            if score > 0:
+                ranked_rows.append((score, row))
+        ranked_rows.sort(key=lambda item: item[0], reverse=True)
+        filtered = [row for _, row in ranked_rows[: query.max_results_per_source]]
+
+        signals: list[MarketSignal] = []
+        for row in filtered:
+            name = str(row.get("name") or row.get("symbol") or "Messari asset").strip()
+            symbol = str(row.get("symbol") or "").upper()[:32] or None
+            market = row.get("marketData") if isinstance(row.get("marketData"), dict) else {}
+            roi = row.get("returnOnInvestment") if isinstance(row.get("returnOnInvestment"), dict) else {}
+            price = market.get("priceUsd")
+            volume = market.get("volume24Hour")
+            change24h = roi.get("priceChange24h")
+            description = str(row.get("description") or "").strip()
+            summary_parts = [description[:1200]] if description else []
+            if price is not None:
+                summary_parts.append(f"Price USD: {price}")
+            if volume is not None:
+                summary_parts.append(f"24h volume USD: {volume}")
+            if change24h is not None:
+                summary_parts.append(f"24h price change %: {change24h}")
+            if not summary_parts:
+                continue
+            tags_raw = row.get("tags", [])
+            tags = [str(tag)[:64] for tag in tags_raw[:20]] if isinstance(tags_raw, list) else []
+            signals.append(
+                MarketSignal(
+                    provider="messari",
+                    asset_class="crypto",
+                    symbol=symbol,
+                    title=f"{name} ({symbol or 'crypto'}) — Messari market snapshot",
+                    summary=" | ".join(summary_parts)[:2000],
+                    source_url=f"https://messari.io/asset/{row.get('slug')}" if row.get("slug") else "https://messari.io/",
+                    confidence=0.9,
+                    tags=tags,
+                )
+            )
+        return signals
+
+
+def provider_adapter(provider: ProviderName):
     if provider == "hermes_research_os":
         return None
+    if provider == "messari":
+        return MessariNativeAdapter()
     return ReadOnlyMarketAdapter(provider)
