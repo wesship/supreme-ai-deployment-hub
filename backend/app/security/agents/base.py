@@ -3,10 +3,11 @@ backend/app/security/agents/base.py — Base class for all D3VONN Security Agent
 
 All agents in the workforce inherit from BaseSecurityAgent and implement:
 - analyze(): Process input data and produce findings
-- act(): Execute automated response actions
+- act(): Produce agent actions and internal bookkeeping results
 - report(): Generate structured output for the dashboard/knowledge graph
 
-TODO: Replace stub implementations with OpenAI/Hermes-powered reasoning.
+High-impact containment actions are governed centrally before they are exposed
+as execution results. Subclasses must not bypass the approved containment path.
 """
 
 from __future__ import annotations
@@ -16,6 +17,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Optional
+
+from backend.app.security.action_governance import DESTRUCTIVE_ACTIONS, classify_security_action
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,9 @@ class BaseSecurityAgent(ABC):
     - An ID matching the security_agent_workforce table
     - Capabilities defining what it can do
     - Methods for analysis, action, and reporting
+
+    Any destructive containment action returned by a subclass is centrally
+    converted to a pending-approval recommendation before reporting.
     """
 
     agent_id: str = "base"
@@ -65,24 +71,32 @@ class BaseSecurityAgent(ABC):
         self.logger = logging.getLogger(f"d3vonn.agent.{self.agent_id}")
 
     async def execute(self, task: AgentTask) -> AgentResult:
-        """
-        Main execution entry point. Orchestrates analyze → act → report.
-        """
+        """Main execution entry point. Orchestrates analyze → act → govern → report."""
         self.logger.info(
             "Agent '%s' executing task: %s (type=%s, priority=%d)",
             self.agent_id, task.task_id, task.task_type, task.priority,
         )
 
         try:
-            # Update agent status
             await self._update_status("busy", task.task_type)
 
-            # Core workflow
             findings = await self.analyze(task)
-            actions = await self.act(task, findings)
+            raw_actions = await self.act(task, findings)
+            actions = self._govern_actions(raw_actions)
             result = await self.report(task, findings, actions)
 
-            # Record task completion
+            pending_approval = sum(
+                1 for action in actions if action.get("status") == "pending_approval"
+            )
+            if pending_approval:
+                result.metadata = {
+                    **result.metadata,
+                    "pending_approval_actions": pending_approval,
+                    "action_governance": "enforced",
+                }
+                if result.status == "completed":
+                    result.status = "escalated"
+
             await self._record_task(task, result)
             await self._update_status("active")
 
@@ -98,6 +112,34 @@ class BaseSecurityAgent(ABC):
                 metadata={"error": str(exc)},
             )
 
+    @staticmethod
+    def _govern_actions(actions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Apply the shared containment policy to subclass action records.
+
+        Ordinary internal bookkeeping actions are preserved. Destructive
+        containment actions are never exposed as successful/automatic results;
+        they are converted to approval-gated recommendations.
+        """
+        governed: list[dict[str, Any]] = []
+        for action_record in actions:
+            action_name = action_record.get("action") or action_record.get("action_type")
+            if action_name not in DESTRUCTIVE_ACTIONS:
+                governed.append(dict(action_record))
+                continue
+
+            decision = classify_security_action(str(action_name))
+            normalized = dict(action_record)
+            normalized.update({
+                "status": decision.status,
+                "automated": False,
+                "requires_approval": decision.requires_approval,
+                "governance_reason": decision.reason,
+            })
+            normalized.pop("result", None)
+            governed.append(normalized)
+
+        return governed
+
     @abstractmethod
     async def analyze(self, task: AgentTask) -> list[dict[str, Any]]:
         """Analyze input data and produce findings."""
@@ -105,7 +147,7 @@ class BaseSecurityAgent(ABC):
 
     @abstractmethod
     async def act(self, task: AgentTask, findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Execute automated actions based on findings."""
+        """Produce action records and internal bookkeeping results."""
         ...
 
     @abstractmethod
@@ -144,6 +186,7 @@ class BaseSecurityAgent(ABC):
                     "findings_count": len(result.findings),
                     "actions_count": len(result.actions_taken),
                     "confidence": result.confidence,
+                    "pending_approval_actions": result.metadata.get("pending_approval_actions", 0),
                 },
                 "started_at": task.created_at.isoformat(),
                 "completed_at": result.completed_at.isoformat(),
