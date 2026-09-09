@@ -153,6 +153,13 @@ except ImportError as exc:
     logger.warning("Tools proxy router not registered: %s", exc)
 
 try:
+    from backend.app.routers.market import router as market_router
+    proxy_router.include_router(market_router, tags=["market"])
+    logger.info("Market data gateway registered at /api/market/*.")
+except ImportError as exc:
+    logger.warning("Market data router not registered: %s", exc)
+
+try:
     from backend.app.routers.voice_orchestration import router as voice_orchestration_router
     proxy_router.include_router(voice_orchestration_router)
 except ImportError as exc:
@@ -205,9 +212,9 @@ except ImportError as exc:
 try:
     from backend.ai_films.mastering_router import router as ai_film_mastering_router
     proxy_router.include_router(ai_film_mastering_router, tags=["ai-films-mastering"])
-    logger.info("AI Films mastering queue registered at /api/ai-films/mastering/*.")
+    logger.info("AI FILMS mastering queue registered at /api/ai-films/mastering/*.")
 except ImportError as exc:
-    logger.warning("AI Films mastering router not registered: %s", exc)
+    logger.warning("AI FILMS mastering router not registered: %s", exc)
 
 try:
     from backend.ai_films.index_router import router as ai_film_index_router
