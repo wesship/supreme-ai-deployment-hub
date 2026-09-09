@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 AssetClass = Literal["equity", "etf", "crypto", "macro", "mixed"]
 ProviderName = Literal["koyfin", "finviz", "messari", "hermes_research_os"]
@@ -58,7 +58,19 @@ class HermesRoutingPlan(BaseModel):
 
 
 class MarketIntelligenceResponse(BaseModel):
-    schema: Literal["d3vonn.market-intelligence.v1"] = "d3vonn.market-intelligence.v1"
+    """Canonical response model.
+
+    `schema_version` avoids shadowing Pydantic's BaseModel.schema attribute while
+    retaining the public JSON key `schema` for backward compatibility.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
+
+    schema_version: Literal["d3vonn.market-intelligence.v1"] = Field(
+        default="d3vonn.market-intelligence.v1",
+        validation_alias="schema",
+        serialization_alias="schema",
+    )
     query: MarketIntelligenceQuery
     providers: list[ProviderStatus]
     routing: HermesRoutingPlan = Field(default_factory=HermesRoutingPlan)
