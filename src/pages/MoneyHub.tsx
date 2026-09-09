@@ -229,6 +229,9 @@ const MoneyHub = () => {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
+              <a href="/market-intelligence" className="inline-flex items-center gap-2 rounded-xl border border-indigo-400/30 bg-indigo-400/10 px-4 py-2.5 text-sm font-medium text-indigo-100 hover:bg-indigo-400/20">
+                <TrendingUp className="h-4 w-4" /> Market Intelligence
+              </a>
               <button type="button" onClick={() => void loadMoneyHub(true)} disabled={refreshing} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm text-slate-200 hover:bg-white/[0.08] disabled:opacity-50">
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
               </button>
