@@ -87,6 +87,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.research_os.leads_router", "router", None),
     ("backend.market_intelligence.router", "router", None),
     ("backend.app.security.router", "router", None),
+    ("backend.app.security.admin_approval_router", "router", None),
     ("backend.app.security.tool_registry_router", "router", "/api/security"),
     ("backend.app.assurance.router", "router", None),
     ("backend.opensource_integrations.router", "router", None),
