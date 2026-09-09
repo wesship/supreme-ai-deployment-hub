@@ -32,11 +32,28 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="D3VONN.IO API", description="Multi-agent orchestration platform", version="2.0.0", docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json", lifespan=lifespan)
 
-PRODUCTION_ORIGINS = ["https://d3vonn.io", "https://www.d3vonn.io", "https://app.d3vonn.io"]
+PRODUCTION_ORIGINS = [
+    "https://d3vonn.io",
+    "https://www.d3vonn.io",
+    "https://app.d3vonn.io",
+    "https://supreme-ai-deployment-hub.vercel.app",
+    "https://supreme-ai-deployment-hub.lovable.app",
+]
 CONFIGURED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 ALLOWED_ORIGINS = list(dict.fromkeys([*PRODUCTION_ORIGINS, *CONFIGURED_ORIGINS]))
-ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or None
-app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_origin_regex=ALLOWED_ORIGIN_REGEX, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID"])
+DEFAULT_PREVIEW_ORIGIN_REGEX = (
+    r"https://(?:supreme-ai-deployment-hub(?:-[a-z0-9-]+)?\.vercel\.app|"
+    r"[a-z0-9-]+--supreme-ai-deployment-hub\.lovable\.app)"
+)
+ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or DEFAULT_PREVIEW_ORIGIN_REGEX
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID"],
+)
 
 _REQUIRED_MIDDLEWARE = (
     ("backend.middleware.request_context", "RequestContextMiddleware"),
