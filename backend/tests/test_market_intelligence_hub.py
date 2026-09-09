@@ -59,6 +59,43 @@ def test_messari_api_key_makes_native_adapter_ready_but_non_executing(monkeypatc
     assert MessariNativeAdapter().endpoint == "https://api.messari.io/metrics/v2/assets/details"
 
 
+def test_messari_relevance_uses_symbols_when_present():
+    query = MarketIntelligenceQuery(
+        query="compare bitcoin and ethereum",
+        asset_class="crypto",
+        symbols=["ETH"],
+        providers=["messari"],
+    )
+    ethereum = {"name": "Ethereum", "symbol": "ETH", "slug": "ethereum", "description": "Smart contract network"}
+    bitcoin = {"name": "Bitcoin", "symbol": "BTC", "slug": "bitcoin", "description": "Digital asset"}
+    assert MessariNativeAdapter._relevance_score(ethereum, query) == 100
+    assert MessariNativeAdapter._relevance_score(bitcoin, query) == 0
+
+
+def test_messari_relevance_filters_unrelated_rows_without_symbols():
+    query = MarketIntelligenceQuery(
+        query="ethereum staking ecosystem",
+        asset_class="crypto",
+        providers=["messari"],
+    )
+    ethereum = {
+        "name": "Ethereum",
+        "symbol": "ETH",
+        "slug": "ethereum",
+        "description": "Ethereum proof-of-stake ecosystem and staking network",
+        "tags": ["smart-contract-platform"],
+    }
+    unrelated = {
+        "name": "Bitcoin",
+        "symbol": "BTC",
+        "slug": "bitcoin",
+        "description": "Proof-of-work digital asset",
+        "tags": ["payments"],
+    }
+    assert MessariNativeAdapter._relevance_score(ethereum, query) > 0
+    assert MessariNativeAdapter._relevance_score(unrelated, query) == 0
+
+
 def test_bridge_adapter_rejects_non_https_and_local_destinations(monkeypatch):
     _clear_provider_env(monkeypatch)
     adapter = ReadOnlyMarketAdapter("finviz")
