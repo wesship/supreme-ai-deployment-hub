@@ -1,0 +1,4 @@
+create index if not exists organizational_action_packages_formation_doc_idx on nonprofit_security.organizational_action_packages(formation_document_id) where formation_document_id is not null;
+create index if not exists organizational_action_packages_bylaws_doc_idx on nonprofit_security.organizational_action_packages(bylaws_document_id) where bylaws_document_id is not null;
+create index if not exists organizational_action_packages_board_resolution_idx on nonprofit_security.organizational_action_packages(board_resolution_id) where board_resolution_id is not null;
+create index if not exists organizational_action_items_document_idx on nonprofit_security.organizational_action_items(document_id) where document_id is not null;
