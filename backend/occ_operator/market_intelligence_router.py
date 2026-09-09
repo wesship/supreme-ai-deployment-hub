@@ -16,6 +16,7 @@ router = APIRouter(dependencies=[Depends(require_operator_access)])
 _CONFIG = HermesInfrastructureConfig.from_env()
 _SUPABASE = SupabaseRestClient(_CONFIG)
 _EVENT_NAME = "hermes.market_analysis.handoff"
+_EVENT_TABLE = "hermes_logs"
 
 
 def _utc_now() -> str:
@@ -69,6 +70,7 @@ def summarize_market_handoffs(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "timestamp": _utc_now(),
         "event_type": _EVENT_NAME,
+        "source_table": _EVENT_TABLE,
         "summary": {
             "handoffs": len(events),
             "providers": sorted(providers),
@@ -90,6 +92,7 @@ async def operator_market_intelligence(
             "timestamp": _utc_now(),
             "configured": False,
             "event_type": _EVENT_NAME,
+            "source_table": _EVENT_TABLE,
             "summary": {
                 "handoffs": 0,
                 "providers": [],
@@ -103,7 +106,7 @@ async def operator_market_intelligence(
 
     try:
         rows = await _SUPABASE.get(
-            "hermes_events",
+            _EVENT_TABLE,
             {
                 "event": f"eq.{_EVENT_NAME}",
                 "order": "created_at.desc",
