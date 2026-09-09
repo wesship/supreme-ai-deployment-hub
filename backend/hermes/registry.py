@@ -52,6 +52,51 @@ class AgentRegistry:
         }
 
 
+MARKET_READ_TOOLS = [
+    ToolContract(
+        name="market.lookup_asset",
+        permissions=["market.read"],
+        approval_mode=ApprovalMode.NEVER,
+        destructive=False,
+        timeout_seconds=20,
+        rate_limit_per_minute=30,
+        input_schema={
+            "type": "object",
+            "properties": {"asset": {"type": "string", "minLength": 1}},
+            "required": ["asset"],
+            "additionalProperties": False,
+        },
+    ),
+    ToolContract(
+        name="market.search_assets",
+        permissions=["market.read"],
+        approval_mode=ApprovalMode.NEVER,
+        destructive=False,
+        timeout_seconds=20,
+        rate_limit_per_minute=30,
+        input_schema={
+            "type": "object",
+            "properties": {"query": {"type": "string", "minLength": 1}},
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    ),
+    ToolContract(
+        name="market.list_exchanges",
+        permissions=["market.read"],
+        approval_mode=ApprovalMode.NEVER,
+        destructive=False,
+        timeout_seconds=20,
+        rate_limit_per_minute=15,
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    ),
+]
+
+
 BUILTIN_MANIFESTS = (
     AgentManifest(
         id="hermes",
@@ -65,14 +110,22 @@ BUILTIN_MANIFESTS = (
             "workflow.checkpoint",
             "workflow.resume",
             "approval.request",
+            "market.read",
         ],
-        permissions=["tasks.read", "tasks.write", "events.write", "agents.dispatch"],
+        permissions=[
+            "tasks.read",
+            "tasks.write",
+            "events.write",
+            "agents.dispatch",
+            "market.read",
+        ],
         tools=[
             ToolContract(
                 name="agent-dispatch",
                 permissions=["agents.dispatch"],
                 approval_mode=ApprovalMode.POLICY,
-            )
+            ),
+            *MARKET_READ_TOOLS,
         ],
         children=["tars", "ion", "sapphire", "guardian"],
     ),
@@ -82,8 +135,9 @@ BUILTIN_MANIFESTS = (
         version="1.0.0",
         role=AgentRole.EXECUTION,
         description="Execution agent for plans, summaries, follow-up, and research tasks.",
-        capabilities=["task.execute", "tool.invoke"],
-        permissions=["tasks.read", "tasks.transition", "tools.invoke"],
+        capabilities=["task.execute", "tool.invoke", "market.read"],
+        permissions=["tasks.read", "tasks.transition", "tools.invoke", "market.read"],
+        tools=MARKET_READ_TOOLS,
     ),
     AgentManifest(
         id="ion",
