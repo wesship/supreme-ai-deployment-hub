@@ -38,6 +38,18 @@ class Settings(BaseSettings):
     n8n_api_key: str = ""
     n8n_base_url: str = "https://n8n.d3vonn.io"
 
+    # ── Market data ────────────────────────────────────────────────────────────
+    # Server-side only. Never expose this credential through a VITE_* variable.
+    messari_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("MESSARI_API_KEY", "messari_api_key"),
+    )
+    messari_api_base_url: str = Field(
+        default="https://api.messari.io",
+        validation_alias=AliasChoices("MESSARI_API_BASE_URL", "messari_api_base_url"),
+    )
+    messari_timeout_seconds: float = 15.0
+
     # ── Vector DB ──────────────────────────────────────────────────────────────
     # Accept both the current proxy names and the established Railway/VPS names.
     # `PINECONE_INDEX` is preferred over the newer static `PINECONE_INDEX_NAME`
