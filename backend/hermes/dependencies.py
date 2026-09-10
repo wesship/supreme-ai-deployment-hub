@@ -15,6 +15,7 @@ from backend.hermes.infrastructure import (
     SupabaseRestClient,
 )
 from backend.hermes.ports import AgentDispatcher, Clock, EventSink, SystemClock, TaskRepository
+from backend.hermes.prompt_dispatcher import PromptAwareDispatcher
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +32,8 @@ def build_default_dependencies() -> HermesDependencies:
     fallback_dispatcher = EdgeFunctionAgentDispatcher(HermesDispatchClient(config))
     from backend.ai_films.hermes_mastering_bridge import HermesMasteringDispatcher
 
-    dispatcher = HermesMasteringDispatcher(repository, fallback_dispatcher)
+    specialized_dispatcher = HermesMasteringDispatcher(repository, fallback_dispatcher)
+    dispatcher = PromptAwareDispatcher(repository, specialized_dispatcher)
     return HermesDependencies(
         repository=repository,
         dispatcher=dispatcher,
