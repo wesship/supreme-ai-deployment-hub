@@ -30,6 +30,7 @@ jobs:
           set -euo pipefail
           python3 <<'PY'
           from pathlib import Path
+          import re
 
           workflow = Path('.github/workflows/activate-messari-production.yml').read_text(encoding='utf-8')
           required = (
@@ -45,7 +46,7 @@ jobs:
           missing = [item for item in required if item not in workflow]
           if missing:
               raise SystemExit(f'MISSING_MESSARI_ACTIVATION_GUARDRAILS: {missing}')
-          if 'MESSARI_AI_API_KEY' in workflow:
+          if re.search(r'^\s*MESSARI_AI_API_KEY\s*:', workflow, flags=re.MULTILINE):
               raise SystemExit('UNSUPPORTED_MESSARI_VARIABLE_NAME_PRESENT')
           print('Validated protected, exact-name Messari activation workflow.')
           PY
