@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from backend.app.routers.admin import _require_admin
 from backend.app.security.approval_execution import ApprovalExecutionService
+from backend.app.security.provider_executors import build_security_executors
 
 router = APIRouter(prefix="/api/security/admin/actions", tags=["security-admin"])
 
@@ -33,7 +34,9 @@ def get_db() -> Any:
 
 
 def get_approval_service(db: Any = Depends(get_db)) -> ApprovalExecutionService:
-    return ApprovalExecutionService(db=db, executors={})
+    # The registry is fail-closed by default. Today it can expose only an
+    # explicit dry-run adapter; no real containment provider is registered.
+    return ApprovalExecutionService(db=db, executors=build_security_executors())
 
 
 def _translate_error(exc: Exception) -> HTTPException:
