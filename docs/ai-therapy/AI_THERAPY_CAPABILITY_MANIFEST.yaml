@@ -1,0 +1,48 @@
+schema_version: "1"
+product: ai-therapy
+release_state: blocked
+production_enabled: false
+
+capabilities:
+  general_wellness:
+    allowed: true
+  reflection:
+    allowed: true
+  journaling:
+    allowed: true
+  diagnosis:
+    allowed: false
+  prescribing:
+    allowed: false
+  emergency_care:
+    allowed: false
+  crisis_intervention:
+    mode: escalation_only
+  human_referral:
+    allowed: true
+  autonomous_external_actions:
+    allowed: false
+  therapeutic_voice:
+    allowed: false
+
+safety:
+  fail_closed: true
+  input_safety_check: required
+  output_safety_check: required
+  tool_safety_check: required
+  dependency_evaluation: required
+  multi_turn_evaluation: required
+  human_review_for_launch: required
+
+privacy:
+  sensitive_telemetry_minimized: true
+  raw_conversation_in_routine_telemetry: false
+  tenant_isolation_required: true
+  export_required: true
+  deletion_required: true
+
+operations:
+  kill_switch_required: true
+  model_version_pinning_required: true
+  policy_version_pinning_required: true
+  rollback_required: true
