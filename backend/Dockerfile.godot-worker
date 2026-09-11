@@ -1,0 +1,46 @@
+FROM python:3.11-slim
+
+ARG GODOT_VERSION=4.7.2
+ARG GODOT_RELEASE=stable
+ARG GODOT_SHA256=cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/backend \
+    THE_DOOR_GODOT_BIN=/usr/local/bin/godot \
+    THE_DOOR_GODOT_WORKSPACE_ROOT=/workspace
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates curl unzip \
+        libfontconfig1 libgl1 libxcursor1 libxi6 libxinerama1 \
+        libxkbcommon0 libxrandr2 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fL "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_RELEASE}/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64.zip" -o /tmp/godot.zip \
+    && echo "${GODOT_SHA256}  /tmp/godot.zip" | sha256sum -c - \
+    && unzip /tmp/godot.zip -d /tmp/godot \
+    && mv "/tmp/godot/Godot_v${GODOT_VERSION}-${GODOT_RELEASE}_linux.x86_64" /usr/local/bin/godot \
+    && chmod 0755 /usr/local/bin/godot \
+    && rm -rf /tmp/godot /tmp/godot.zip
+
+COPY requirements.txt ./backend/requirements.txt
+RUN pip install --no-cache-dir -r ./backend/requirements.txt
+
+COPY . ./backend/
+RUN mkdir -p /workspace/smoke \
+    && cp -R ./backend/the_door/smoke_project/. /workspace/smoke/
+
+RUN groupadd --gid 1001 appgroup \
+    && useradd --uid 1001 --gid 1001 --create-home --shell /usr/sbin/nologin appuser \
+    && chown -R appuser:appgroup /app /workspace
+
+USER appuser
+EXPOSE 8765
+
+HEALTHCHECK --interval=20s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS "http://127.0.0.1:${PORT:-8765}/health" || exit 1
+
+CMD ["sh", "-c", "uvicorn backend.the_door.godot_worker:app --host 0.0.0.0 --port ${PORT:-8765} --workers 1 --log-level info"]
