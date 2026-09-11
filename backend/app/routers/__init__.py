@@ -160,6 +160,13 @@ except ImportError as exc:
     logger.warning("Market data router not registered: %s", exc)
 
 try:
+    from backend.app.routers.moneyhub import router as moneyhub_router
+    proxy_router.include_router(moneyhub_router, tags=["moneyhub"])
+    logger.info("MoneyHub economic ingestion registered at /api/moneyhub/*.")
+except ImportError as exc:
+    logger.warning("MoneyHub economic ingestion router not registered: %s", exc)
+
+try:
     from backend.app.routers.voice_orchestration import router as voice_orchestration_router
     proxy_router.include_router(voice_orchestration_router)
 except ImportError as exc:
