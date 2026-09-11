@@ -1,0 +1,193 @@
+name: Activate Messari Production Configuration
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/activate-messari-production.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: activate-messari-production
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate Messari activation guardrails
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Verify production-only activation policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/activate-messari-production.yml').read_text(encoding='utf-8')
+          required = (
+              'environment: production',
+              'MESSARI_API_KEY',
+              'RAILWAY_API_TOKEN',
+              'railway variable set "MESSARI_API_KEY"',
+              '--skip-deploys',
+              'railway redeploy',
+              'https://api.d3vonn.io/api/market-intelligence/health',
+              'configured is True',
+          )
+          missing = [item for item in required if item not in workflow]
+          if missing:
+              raise SystemExit(f'MISSING_MESSARI_ACTIVATION_GUARDRAILS: {missing}')
+          if 'MESSARI_AI_API_KEY' in workflow:
+              raise SystemExit('UNSUPPORTED_MESSARI_VARIABLE_NAME_PRESENT')
+          print('Validated protected, exact-name Messari activation workflow.')
+          PY
+
+  activate:
+    name: Set MESSARI_API_KEY and certify read-only provider path
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    env:
+      RAILWAY_PROJECT_ID: 65a00bf6-1a68-414e-bbe9-a30052595a83
+      RAILWAY_SERVICE_ID: 475dde82-373b-4c9f-9fd8-0ffb7a5dc2f0
+      RAILWAY_ENVIRONMENT: production
+      MESSARI_API_KEY: ${{ secrets.MESSARI_API_KEY }}
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+      MESSARI_HEALTH_URL: https://api.d3vonn.io/api/market-intelligence/health
+
+    steps:
+      - name: Check out certified source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Require protected credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in MESSARI_API_KEY RAILWAY_API_TOKEN; do
+            value="${!name:-}"
+            if [[ -z "$value" || "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+              echo "::error title=Missing protected credential::${name} is absent or malformed in the production environment."
+              exit 1
+            fi
+            printf '::add-mask::%s\n' "$value"
+          done
+          echo 'Validated protected Messari and Railway credentials without printing values.'
+
+      - name: Validate read-only Messari credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os
+          import urllib.error
+          import urllib.request
+
+          request = urllib.request.Request(
+              'https://api.messari.io/metrics/v2/assets/details',
+              headers={
+                  'Accept': 'application/json',
+                  'User-Agent': 'D3VONN-MarketIntelligence/0.3',
+                  'x-messari-api-key': os.environ['MESSARI_API_KEY'],
+              },
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  if response.status != 200:
+                      raise SystemExit(f'MESSARI_VALIDATION_HTTP_{response.status}')
+          except urllib.error.HTTPError as exc:
+              raise SystemExit(f'MESSARI_VALIDATION_HTTP_{exc.code}') from exc
+          print('Validated the read-only Messari API credential.')
+          PY
+
+      - name: Install Railway CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @railway/cli
+          railway --version
+
+      - name: Link certified production service
+        shell: bash
+        run: |
+          set -euo pipefail
+          railway link \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --service "$RAILWAY_SERVICE_ID" \
+            --json > /tmp/railway-link.json
+          railway status --json > /tmp/railway-status.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          text = Path('/tmp/railway-status.json').read_text(encoding='utf-8')
+          expected = ('65a00bf6-1a68-414e-bbe9-a30052595a83', '475dde82-373b-4c9f-9fd8-0ffb7a5dc2f0')
+          missing = [value for value in expected if value not in text]
+          if missing:
+              raise SystemExit(f'RAILWAY_LINK_MISMATCH: {missing}')
+          print('Linked the certified devonn-ai-api production service.')
+          PY
+
+      - name: Set exact Messari production variable
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$MESSARI_API_KEY" | railway variable set "MESSARI_API_KEY" \
+            --stdin \
+            --skip-deploys \
+            --service "$RAILWAY_SERVICE_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" >/dev/null
+          echo 'Set MESSARI_API_KEY on the certified production service.'
+
+      - name: Redeploy production API service
+        shell: bash
+        run: |
+          set -euo pipefail
+          railway redeploy \
+            --service "$RAILWAY_SERVICE_ID" \
+            --environment "$RAILWAY_ENVIRONMENT" \
+            --yes >/dev/null
+          echo 'Triggered the production API redeploy.'
+
+      - name: Certify live read-only Messari configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          url = os.environ['MESSARI_HEALTH_URL']
+          for _ in range(90):
+              try:
+                  with urllib.request.urlopen(url, timeout=20) as response:
+                      data = json.load(response)
+                  providers = data.get('providers') if isinstance(data.get('providers'), list) else []
+                  messari = next((item for item in providers if item.get('provider') == 'messari'), {})
+                  if (
+                      response.status == 200
+                      and data.get('mode') == 'read_only'
+                      and messari.get('enabled') is True
+                      and messari.get('configured') is True
+                      and messari.get('execution_enabled') is False
+                  ):
+                      print('Certified live Messari configuration with read-only execution policy.')
+                      raise SystemExit(0)
+              except Exception:
+                  pass
+              time.sleep(5)
+          raise SystemExit('MESSARI_PRODUCTION_CONFIGURATION_TIMEOUT')
+          PY
