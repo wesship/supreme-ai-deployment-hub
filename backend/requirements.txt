@@ -43,7 +43,7 @@ opencolorio>=2.5.2,<3
 opentimelineio>=0.18.1,<0.19
 
 # ── Observability ──────────────────────────────────────────────────────────
-sentry-sdk[fastapi]==2.60.0
+sentry-sdk[fastapi]==2.68.0
 prometheus-fastapi-instrumentator==8.1.0
 opentelemetry-api
 opentelemetry-sdk
