@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, BarChart3, Clock3, DollarSign, RefreshCw, RotateCcw, ShieldCheck, TrendingDown, TrendingUp } from 'lucide-react';
+import { Activity, BarChart3, ChevronDown, ChevronUp, Clock3, DollarSign, RefreshCw, RotateCcw, Route, ShieldCheck, TrendingDown, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { AIFilmProject } from './assetManagerService';
-import { fetchProviderIntelligence, type ProviderIntelligenceSnapshot } from './providerIntelligenceService';
+import { fetchProviderIntelligence, type ProviderIntelligenceSnapshot, type RoutingDecisionAudit } from './providerIntelligenceService';
 
 type Props = { project: AIFilmProject | null };
 type WindowDays = 7 | 30 | 90;
@@ -22,10 +22,24 @@ const Trend = ({ value, inverse = false }: { value: number | null; inverse?: boo
   return <span className={favorable ? 'text-emerald-600' : 'text-amber-600'}><Icon className="mr-1 inline h-3.5 w-3.5" />{deltaPct(value)}</span>;
 };
 
+const ActivationBadges = ({ decision }: { decision: RoutingDecisionAudit }) => {
+  const activation = decision.selectedRoute?.activation;
+  if (!activation) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Badge variant={activation.requested ? 'secondary' : 'outline'}>requested {activation.requested ? 'yes' : 'no'}</Badge>
+      <Badge variant={activation.worker_available ? 'secondary' : 'outline'}>worker {activation.worker_available ? 'ready' : 'missing'}</Badge>
+      <Badge variant={activation.canary_passed ? 'secondary' : 'outline'}>canary {activation.canary_passed ? 'passed' : 'blocked'}</Badge>
+      <Badge variant={activation.executable ? 'default' : 'outline'}>activation {activation.executable ? 'certified' : 'blocked'}</Badge>
+    </div>
+  );
+};
+
 const ProviderIntelligenceWorkspace = ({ project }: Props) => {
   const [snapshot, setSnapshot] = useState<ProviderIntelligenceSnapshot | null>(null);
   const [windowDays, setWindowDays] = useState<WindowDays>(30);
   const [busy, setBusy] = useState(false);
+  const [expandedDecision, setExpandedDecision] = useState<string | null>(null);
   const [message, setMessage] = useState('Provider intelligence uses owner-scoped render history and never changes routing by itself.');
 
   const load = async (window: WindowDays = windowDays) => {
@@ -33,7 +47,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
     try {
       const next = await fetchProviderIntelligence(project?.id, window);
       setSnapshot(next);
-      setMessage(`${next.sampledJobs} video jobs analyzed in the last ${window} days versus ${next.previousSampledJobs} in the prior ${window}-day period. Routing adjustments remain bounded to ±15 and require at least 3 QA outcomes.`);
+      setMessage(`${next.sampledJobs} video jobs analyzed in the last ${window} days versus ${next.previousSampledJobs} in the prior ${window}-day period. ${next.routingDecisions.length} persisted routing decisions are available for drill-down.`);
     } catch (error) {
       setSnapshot(null);
       setMessage(error instanceof Error ? error.message : 'Provider intelligence is unavailable.');
@@ -57,7 +71,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Provider Intelligence</p>
           <h2 id="provider-intelligence-heading" className="mt-2 text-3xl font-bold">Generation Performance Evidence</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Compare quality, reliability, latency, provider-reported spend, approval efficiency, regeneration, style evidence, and bounded routing evidence across matched time windows.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Compare quality, reliability, latency, provider-reported spend, approval efficiency, regeneration, style evidence, bounded routing evidence, and the immutable decision snapshot stored with each render job.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[7, 30, 90].map((days) => (
@@ -110,6 +124,78 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
           </Card>
         ))}
       </div>
+
+      <section aria-labelledby="routing-audit-heading" className="space-y-4">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Routing Audit</p>
+          <h3 id="routing-audit-heading" className="mt-2 text-2xl font-bold">Why this provider won</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">These records come from the routing snapshot persisted with each render job at dispatch time. They are historical evidence, not a recomputation using today’s provider rules.</p>
+        </div>
+
+        {(snapshot?.routingDecisions || []).map((decision) => {
+          const expanded = expandedDecision === decision.jobId;
+          return (
+            <Card key={decision.jobId} className="overflow-hidden">
+              <button type="button" className="flex w-full items-center justify-between gap-4 p-5 text-left" onClick={() => setExpandedDecision(expanded ? null : decision.jobId)} aria-expanded={expanded}>
+                <div className="flex min-w-0 items-start gap-3">
+                  <Route className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold capitalize">{decision.selectedProvider || decision.provider}</span>
+                      {decision.selectedModel && <Badge variant="outline">{decision.selectedModel}</Badge>}
+                      {decision.styleId && <Badge variant="secondary">{decision.styleId}</Badge>}
+                    </div>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">shot {decision.shotId || 'unknown'} · {decision.reason || 'provider_selected'} · {decision.decidedAt ? new Date(decision.decidedAt).toLocaleString() : 'timestamp unavailable'}</p>
+                  </div>
+                </div>
+                {expanded ? <ChevronUp className="h-5 w-5 shrink-0" /> : <ChevronDown className="h-5 w-5 shrink-0" />}
+              </button>
+
+              {expanded && (
+                <div className="space-y-5 border-t border-border/70 p-5">
+                  <ActivationBadges decision={decision} />
+
+                  {decision.selectedRoute && (
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      <div className="rounded-xl border border-border/70 p-3"><p className="text-xs text-muted-foreground">Base score</p><p className="mt-1 font-bold">{decision.selectedRoute.base_score ?? '—'}</p></div>
+                      <div className="rounded-xl border border-border/70 p-3"><p className="text-xs text-muted-foreground">Performance nudge</p><p className="mt-1 font-bold">{decision.selectedRoute.performance_adjustment === null ? '—' : `${decision.selectedRoute.performance_adjustment >= 0 ? '+' : ''}${decision.selectedRoute.performance_adjustment}`}</p></div>
+                      <div className="rounded-xl border border-border/70 p-3"><p className="text-xs text-muted-foreground">Final score</p><p className="mt-1 font-bold">{decision.selectedRoute.score}</p></div>
+                      <div className="rounded-xl border border-border/70 p-3"><p className="text-xs text-muted-foreground">Configured</p><p className="mt-1 font-bold">{decision.selectedRoute.configured ? 'yes' : 'no'}</p></div>
+                    </div>
+                  )}
+
+                  {decision.selectedRoute?.reasons.length ? (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Winning reasons</p>
+                      <div className="mt-2 flex flex-wrap gap-2">{decision.selectedRoute.reasons.map((reason) => <Badge key={reason} variant="outline">{reason}</Badge>)}</div>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Ranked alternatives</p>
+                    <div className="mt-3 space-y-2">
+                      {decision.routes.map((route, index) => (
+                        <div key={`${decision.jobId}-${route.provider}`} className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[2fr_1fr_1fr_1fr] sm:items-center">
+                          <div><span className="font-semibold capitalize">#{index + 1} {route.provider}</span>{route.model ? <span className="ml-2 text-xs text-muted-foreground">{route.model}</span> : null}<p className="mt-1 text-xs text-muted-foreground">{route.reasons.join(' · ') || 'no extra reasons'}</p></div>
+                          <div className="text-sm"><span className="text-muted-foreground">base </span>{route.base_score ?? '—'}</div>
+                          <div className="text-sm"><span className="text-muted-foreground">perf </span>{route.performance_adjustment === null ? '—' : `${route.performance_adjustment >= 0 ? '+' : ''}${route.performance_adjustment}`}</div>
+                          <div className="text-sm font-bold"><span className="font-normal text-muted-foreground">final </span>{route.score}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">Audit schema {decision.schema} · dispatcher {decision.dispatcher || 'unknown'} · style source {decision.styleSource || 'none'}</p>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+
+        {snapshot && snapshot.routingDecisions.length === 0 && (
+          <Card className="p-6 text-sm text-muted-foreground">No Gate 11 routing-decision snapshots exist in this {windowDays}-day window yet. Older render jobs remain valid but do not receive reconstructed historical decisions.</Card>
+        )}
+      </section>
 
       {snapshot && snapshot.providers.length === 0 && (
         <Card className="p-6 text-sm text-muted-foreground">No owner-scoped video render history is available in this {windowDays}-day window. Baseline routing remains unchanged.</Card>
