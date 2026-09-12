@@ -32,3 +32,29 @@ def test_workspace_exposes_windows_trends_and_cost_coverage():
     assert "costPerApprovedShotDelta" in text
     assert "coverage {pct(provider.reportedCostCoverageRate)}" in text
     assert "Missing billing data is never estimated" in text
+
+
+def test_routing_audit_correlates_same_job_outcome_without_recomputing_decision():
+    service = SERVICE.read_text()
+    workspace = WORKSPACE.read_text()
+    assert "export type RoutingOutcomeEvidence" in service
+    assert "outcome: routingOutcomeFromRow(row)" in service
+    assert "result_asset_id" in service
+    assert "latencySeconds: secondsBetween(row.started_at, row.completed_at)" in service
+    assert "reportedCostUsd: reportedCost(asObject(row.cost_metadata))" in service
+    assert "qaDecision" in service
+    assert "regenerationCount" in service
+    assert "Dispatch → outcome" in workspace
+    assert "choice validated" in workspace
+    assert "needs review" in workspace
+    assert "outcome joined by render job" in workspace
+
+
+def test_routing_outcome_keeps_missing_cost_and_pending_qa_explicit():
+    service = SERVICE.read_text()
+    workspace = WORKSPACE.read_text()
+    assert "reportedCostUsd: number | null" in service
+    assert "qaDecision: 'pass' | 'revise' | 'block' | null" in service
+    assert "money(outcome.reportedCostUsd)" in workspace
+    assert "outcome.qaDecision || 'pending'" in workspace
+    assert "outcome.resultAssetId || 'not linked yet'" in workspace
