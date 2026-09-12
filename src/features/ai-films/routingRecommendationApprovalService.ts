@@ -11,11 +11,12 @@ export type RoutingRecommendationApproval = {
   decision: RoutingRecommendationDecision;
   rationale: string;
   evidenceHash: string;
+  evidence: Record<string, unknown>;
   reviewerId: string;
   decidedAt: string;
 };
 
-const recommendationEvidence = (recommendation: RoutingRecommendation) => ({
+export const routingRecommendationEvidence = (recommendation: RoutingRecommendation): Record<string, unknown> => ({
   schema: 'd3vonn.ai-films.routing-recommendation-evidence/v1',
   key: recommendation.key,
   provider: recommendation.provider,
@@ -32,10 +33,15 @@ const recommendationEvidence = (recommendation: RoutingRecommendation) => ({
   rationale: recommendation.rationale,
 });
 
+export const approvalMatchesRecommendation = (
+  approval: RoutingRecommendationApproval,
+  recommendation: RoutingRecommendation,
+): boolean => JSON.stringify(approval.evidence) === JSON.stringify(routingRecommendationEvidence(recommendation));
+
 export const fetchRoutingRecommendationApprovals = async (projectId?: string): Promise<RoutingRecommendationApproval[]> => {
   let query = (supabase as any)
     .from('ai_film_routing_recommendation_approvals')
-    .select('id,recommendation_key,provider,style_id,decision,rationale,evidence_hash,reviewer_id,decided_at')
+    .select('id,recommendation_key,provider,style_id,decision,rationale,evidence_hash,evidence,reviewer_id,decided_at')
     .order('decided_at', { ascending: false })
     .limit(100);
   if (projectId) query = query.eq('project_id', projectId);
@@ -50,6 +56,7 @@ export const fetchRoutingRecommendationApprovals = async (projectId?: string): P
     decision: String(row.decision) as RoutingRecommendationDecision,
     rationale: String(row.rationale || ''),
     evidenceHash: String(row.evidence_hash || ''),
+    evidence: row.evidence && typeof row.evidence === 'object' ? row.evidence as Record<string, unknown> : {},
     reviewerId: String(row.reviewer_id),
     decidedAt: String(row.decided_at),
   }));
@@ -82,7 +89,7 @@ export const recordRoutingRecommendationDecision = async ({
       confidence: recommendation.confidence,
       decision,
       rationale: trimmed,
-      evidence: recommendationEvidence(recommendation),
+      evidence: routingRecommendationEvidence(recommendation),
     });
   if (error) {
     if (String(error.code || '') === '23505') throw new Error('This exact recommendation evidence has already been decided.');
