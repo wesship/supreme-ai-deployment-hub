@@ -87,9 +87,6 @@ async def _load_reference(db: SupabaseAssemblyClient, asset_id: str) -> tuple[st
 class OpenAIVideoClient:
     def __init__(self, environ: Mapping[str, str] | None = None) -> None:
         source = environ or os.environ
-        # Railway production historically stores the project key as OpenAiKey.
-        # Prefer that canonical deployment variable, while retaining the
-        # conventional OPENAI_API_KEY fallback used by VPS/CI/local runs.
         self.api_key = str(source.get("OpenAiKey") or source.get("OPENAI_API_KEY") or "").strip()
         self.model = str(source.get("AI_FILM_OPENAI_VIDEO_MODEL", "sora-2")).strip() or "sora-2"
         self.base_url = str(source.get("OPENAI_API_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
@@ -97,14 +94,7 @@ class OpenAIVideoClient:
             raise OpenAIVideoWorkerError("OpenAiKey/OPENAI_API_KEY is not configured")
         self.headers = {"Authorization": f"Bearer {self.api_key}"}
 
-    async def create(
-        self,
-        prompt: str,
-        *,
-        seconds: str,
-        size: str = "1280x720",
-        input_reference: tuple[str, bytes, str] | None = None,
-    ) -> dict[str, Any]:
+    async def create(self, prompt: str, *, seconds: str, size: str = "1280x720", input_reference: tuple[str, bytes, str] | None = None) -> dict[str, Any]:
         files = None
         if input_reference is not None:
             filename, content, content_type = input_reference
@@ -117,7 +107,9 @@ class OpenAIVideoClient:
                 files=files,
             )
         if response.status_code >= 400:
-            raise OpenAIVideoWorkerError(f"OpenAI video create failed with HTTP {response.status_code}")
+            detail = response.text[:1000].strip()
+            suffix = f": {detail}" if detail else ""
+            raise OpenAIVideoWorkerError(f"OpenAI video create failed with HTTP {response.status_code}{suffix}")
         payload = response.json()
         if not isinstance(payload, dict) or not payload.get("id"):
             raise OpenAIVideoWorkerError("OpenAI video create returned no job id")
@@ -215,13 +207,8 @@ async def process_openai_video_job(job: Mapping[str, Any], db: SupabaseAssemblyC
 
 async def run_openai_video_worker(*, environ: Mapping[str, str] | None = None, once: bool = False) -> None:
     source = environ or os.environ
-    # This worker runs on both Railway and the production VPS. Treat the
-    # normalized application environment as authoritative instead of requiring
-    # a Railway-only variable that is absent on non-Railway deployments.
-    runtime_environment = str(
-        source.get("RAILWAY_ENVIRONMENT_NAME") or source.get("ENVIRONMENT") or ""
-    ).strip().lower()
-    if runtime_environment != "production":
+    runtime_environment = str(source.get("RAILWAY_ENVIRONMENT_NAME") or source.get("ENVIRONMENT") or "").strip().lower()
+    if runtime_environment != "production" or not _enabled(source):
         return
     db = SupabaseAssemblyClient(source)
     poll = max(5.0, float(source.get("AI_FILM_VIDEO_WORKER_POLL_SECONDS", "15") or 15))
