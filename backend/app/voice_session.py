@@ -74,6 +74,10 @@ def verify_voice_session(token: str | None) -> dict[str, Any] | None:
     try:
         encoded_payload, encoded_signature = token.split(".", 1)
         supplied_signature = _b64decode(encoded_signature)
+        # Reject non-canonical base64url encodings with ignored padding bits.
+        # Otherwise distinct token strings can represent the same valid signature.
+        if not hmac.compare_digest(_b64encode(supplied_signature), encoded_signature):
+            return None
         expected_signature = hmac.new(
             secret.encode("utf-8"), encoded_payload.encode("ascii"), hashlib.sha256
         ).digest()
