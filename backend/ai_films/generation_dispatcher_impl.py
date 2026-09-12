@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from backend.ai_films.provider_performance import routing_adjustment
 from backend.ai_films.providers import PROVIDER_SPECS
 from backend.ai_films.production_bible import ProductionBible, ShotManifestItem
 from backend.ai_films.shot_compiler import build_generation_packet
@@ -48,13 +49,7 @@ _BASE_SCORE = {
 
 
 def _executable_video_providers(source: Mapping[str, str]) -> set[str]:
-    """Return provider routes backed by running workers in this deployment.
-
-    Pollo is the production default. OpenAI/Sora is intentionally not executable
-    by default because the Sora API is being retired and its production canary
-    is currently failing. Operators may explicitly add another provider only
-    after a worker and canary are verified, preventing stranded render jobs.
-    """
+    """Return provider routes backed by running workers in this deployment."""
     configured = str(source.get("AI_FILM_EXECUTABLE_VIDEO_PROVIDERS", "pollo"))
     return {_normalize_provider(value) for value in configured.split(",") if value.strip()}
 
@@ -68,7 +63,11 @@ def _normalize_provider(value: str) -> str:
     return _PROVIDER_ALIASES.get(cleaned, cleaned)
 
 
-def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | None = None) -> list[VideoRoute]:
+def rank_video_routes(
+    packet: Mapping[str, Any],
+    environ: Mapping[str, str] | None = None,
+    performance: Mapping[str, Mapping[str, Any]] | None = None,
+) -> list[VideoRoute]:
     source = environ or os.environ
     specs = _video_specs()
     executable = _executable_video_providers(source)
@@ -78,6 +77,8 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
     audio = packet.get("audio") if isinstance(packet.get("audio"), dict) else {}
     dialogue = bool(audio.get("dialogue"))
     character_locks = packet.get("character_locks") or {}
+    visual = packet.get("visual_intelligence") if isinstance(packet.get("visual_intelligence"), Mapping) else {}
+    style_id = str(visual.get("style_id") or "").strip() or None
     routes: list[VideoRoute] = []
     for provider, spec in specs.items():
         configured = spec.configured(source)
@@ -105,6 +106,13 @@ def rank_video_routes(packet: Mapping[str, Any], environ: Mapping[str, str] | No
                 reasons.append("synced_audio_fit")
             else:
                 reasons.append("dialogue_requires_post_lipsync")
+        adjustment, performance_reasons = routing_adjustment(
+            performance,
+            provider=provider,
+            style_id=style_id,
+        )
+        score += adjustment
+        reasons.extend(performance_reasons)
         if not configured:
             if "no_running_worker" not in reasons:
                 score -= 1000
@@ -139,11 +147,18 @@ def _anchor_block(packet: Mapping[str, Any], bible: ProductionBible) -> tuple[st
     return ("anchor_frames_required" if missing else None), sorted(set(missing))
 
 
-def dispatch_plan(shot: ShotManifestItem, bible: ProductionBible, *, conform_decision: str, environ: Mapping[str, str] | None = None) -> dict[str, Any]:
+def dispatch_plan(
+    shot: ShotManifestItem,
+    bible: ProductionBible,
+    *,
+    conform_decision: str,
+    environ: Mapping[str, str] | None = None,
+    performance: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
     if conform_decision != "generate":
         return {"shot_id": shot.shot_id, "action": "hold", "reason": f"conform_decision:{conform_decision}", "routes": []}
     packet = build_generation_packet(shot, bible)
-    routes = rank_video_routes(packet, environ)
+    routes = rank_video_routes(packet, environ, performance)
     block_reason, missing_anchors = _anchor_block(packet, bible)
     if block_reason:
         return {
