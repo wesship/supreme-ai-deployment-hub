@@ -200,6 +200,14 @@ def test_edge_function_security_configuration_is_fail_closed():
     assert "supabase functions deploy mcp-gateway" in workflow
     assert "x-mcp-gateway-url" not in mcp_gateway
     assert "body.gatewayUrl" not in mcp_gateway
+    assert 'host.startsWith("[") && host.endsWith("]")' in mcp_gateway
     assert "redirect: \"error\"" in mcp_gateway
     assert "AI_ROUTER_SMS_APPROVER_SUBJECTS" in ai_router
     assert "SMS_NOT_AUTHORIZED" in ai_router
+
+
+def test_market_intelligence_ui_keeps_public_queries_non_persisting():
+    source = (ROOT / "src" / "pages" / "MarketIntelligence.tsx").read_text(encoding="utf-8")
+    assert "useState(true)" not in source
+    assert "save_to_dkos: false" in source
+    assert "OCC workflow" in source

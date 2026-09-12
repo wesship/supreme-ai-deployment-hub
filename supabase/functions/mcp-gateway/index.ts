@@ -19,7 +19,11 @@ interface McpProxyRequest {
 }
 
 function isPrivateOrLocalHostname(hostname: string): boolean {
-  const host = hostname.toLowerCase();
+  let host = hostname.toLowerCase();
+  // URL.hostname serializes IPv6 literals with brackets, e.g. "[::1]".
+  if (host.startsWith("[") && host.endsWith("]")) {
+    host = host.slice(1, -1);
+  }
   if (
     host === "localhost" ||
     host === "0.0.0.0" ||

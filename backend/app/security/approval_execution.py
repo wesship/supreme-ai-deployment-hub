@@ -6,6 +6,7 @@ layer used by authenticated admin endpoints and explicitly registered executors.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
@@ -149,6 +150,20 @@ class ApprovalExecutionService:
         claimed_action = claimed_rows[0]
         try:
             result = await executor(claimed_action)
+        except asyncio.CancelledError:
+            completed_at = datetime.now(timezone.utc).isoformat()
+            self.db.table("hermes_security_actions").update({
+                "status": "execution_failed",
+                "details": {
+                    **(claimed_action.get("details") or {}),
+                    "execution": {
+                        **((claimed_action.get("details") or {}).get("execution") or {}),
+                        "completed_at": completed_at,
+                        "error": "Executor was cancelled before returning a result.",
+                    },
+                },
+            }).eq("id", action_id).eq("status", "executing").execute()
+            raise
         except Exception as exc:
             completed_at = datetime.now(timezone.utc).isoformat()
             self.db.table("hermes_security_actions").update({
