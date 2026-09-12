@@ -37,6 +37,32 @@ async def test_dry_run_never_reports_external_side_effect(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_dry_run_reads_block_ip_from_persisted_parameters(monkeypatch):
+    monkeypatch.setenv("SECURITY_CONTAINMENT_DRY_RUN", "true")
+    result = await dry_run_containment_executor({
+        "action_type": "block_ip",
+        "parameters": {"ip": "198.51.100.24", "actor": "user-123"},
+    })
+
+    assert result["status"] == "dry_run"
+    assert result["target"] == "198.51.100.24"
+    assert result["external_side_effect"] is False
+
+
+@pytest.mark.asyncio
+async def test_dry_run_reads_actor_for_account_containment(monkeypatch):
+    monkeypatch.setenv("SECURITY_CONTAINMENT_DRY_RUN", "true")
+    for action_type in ("revoke_token", "quarantine_account"):
+        result = await dry_run_containment_executor({
+            "action_type": action_type,
+            "parameters": {"actor": "user-456"},
+        })
+        assert result["status"] == "dry_run"
+        assert result["target"] == "user-456"
+        assert result["external_side_effect"] is False
+
+
+@pytest.mark.asyncio
 async def test_dry_run_rejects_non_destructive_action(monkeypatch):
     monkeypatch.setenv("SECURITY_CONTAINMENT_DRY_RUN", "true")
     result = await dry_run_containment_executor({
@@ -52,7 +78,7 @@ async def test_dry_run_rejects_non_destructive_action(monkeypatch):
 async def test_executor_itself_fails_closed_when_flag_disabled(monkeypatch):
     monkeypatch.setenv("SECURITY_CONTAINMENT_DRY_RUN", "false")
     result = await dry_run_containment_executor({
-        "action_type": "revoke_sessions",
+        "action_type": "revoke_token",
         "details": {"user_id": "user-123"},
     })
 
