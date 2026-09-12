@@ -21,6 +21,23 @@ def _dry_run_enabled() -> bool:
     return os.getenv(_DRY_RUN_ENV, "false").strip().lower() == "true"
 
 
+def _approved_target(action: dict[str, Any], action_type: str) -> Any:
+    """Resolve the auditable target from the persisted governed action payload."""
+    parameters = action.get("parameters") or {}
+    details = action.get("details") or {}
+
+    if action_type == "block_ip":
+        return parameters.get("ip") or details.get("ip") or details.get("target")
+    if action_type in {"revoke_token", "quarantine_account"}:
+        return (
+            parameters.get("actor")
+            or parameters.get("user_id")
+            or details.get("user_id")
+            or details.get("target")
+        )
+    return details.get("target")
+
+
 async def dry_run_containment_executor(action: dict[str, Any]) -> dict[str, Any]:
     """Return an auditable simulation result without performing containment."""
     action_type = str(action.get("action_type", ""))
@@ -38,12 +55,11 @@ async def dry_run_containment_executor(action: dict[str, Any]) -> dict[str, Any]
             "reason": f"{_DRY_RUN_ENV}=true is required for dry-run containment.",
         }
 
-    details = action.get("details") or {}
     return {
         "status": "dry_run",
         "provider": "dry_run",
         "action_type": action_type,
-        "target": details.get("target") or details.get("ip") or details.get("user_id"),
+        "target": _approved_target(action, action_type),
         "external_side_effect": False,
         "reason": "Containment simulated only; no external system was modified.",
     }
