@@ -19,6 +19,7 @@ import httpx
 
 from backend.ai_films.assembly_qa_worker import _sign_master
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
+from backend.ai_films.generation_lifecycle import provider_cost_metadata
 
 
 class PolloVideoWorkerError(RuntimeError):
@@ -227,8 +228,10 @@ async def process_pollo_video_job(
         raise PolloVideoWorkerError("Character generation requires an approved input reference")
 
     client = PolloVideoClient(source)
+    seconds = _duration(packet.get("duration_target_seconds"))
     existing_output = dict(job.get("output") or {})
     task_id = str(existing_output.get("provider_task_id") or "").strip()
+    created: dict[str, Any] = {}
     if task_id:
         provider_status = str(existing_output.get("provider_status") or "waiting")
         output = dict(existing_output)
@@ -243,7 +246,7 @@ async def process_pollo_video_job(
     else:
         created = await client.create(
             _prompt(packet),
-            seconds=_duration(packet.get("duration_target_seconds")),
+            seconds=seconds,
             image_url=image_url,
         )
         task_id = str(created.get("taskId"))
@@ -303,15 +306,33 @@ async def process_pollo_video_job(
         "provider_task_id": task_id,
         "provider_model": client.model,
         "provider_status": "completed",
-        "provider_media_url": media_url,
         "input_reference_asset_id": reference_id,
         "generated_asset_id": asset_id,
         "shot_id": shot_id,
         "qa": {"state": "pending_generated_qa"},
     }
+    generations = completed.get("generations") if isinstance(completed.get("generations"), list) else []
+    first_generation = generations[0] if generations and isinstance(generations[0], dict) else None
+    cost_metadata = provider_cost_metadata(
+        created,
+        completed.get("task") if isinstance(completed.get("task"), dict) else None,
+        first_generation,
+        provider="pollo",
+        model=client.model,
+        seconds=seconds,
+        size="720p:16:9",
+    )
     await db.update_job(
         str(job["id"]),
-        {"status": "completed", "progress": 100, "completed_at": _now(), "output": output},
+        {
+            "status": "completed",
+            "progress": 100,
+            "completed_at": _now(),
+            "output": output,
+            "result_asset_id": asset_id or None,
+            "result_storage_path": object_path,
+            "cost_metadata": cost_metadata,
+        },
     )
     return output
 
