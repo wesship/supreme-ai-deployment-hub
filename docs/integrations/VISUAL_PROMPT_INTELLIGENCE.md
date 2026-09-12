@@ -135,7 +135,7 @@ Missing provider billing data is never estimated.
 
 ## Gate 11 routing-decision audit snapshot
 
-Every newly queued AI Films generation job now stores a versioned, secret-free
+Every newly queued AI Films generation job stores a versioned, secret-free
 `input.routing_decision` snapshot beside the generation packet. The snapshot captures the exact
 evidence available at dispatch time so later configuration or scoring changes cannot rewrite history.
 
