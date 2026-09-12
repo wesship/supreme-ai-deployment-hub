@@ -217,5 +217,6 @@ def test_python_coverage_workflow_runs_backend_suite_without_masking_errors():
     workflow = (ROOT / ".github" / "workflows" / "testing.yml").read_text(encoding="utf-8")
     assert "python -m pytest backend/tests" in workflow
     assert "--cov=backend" in workflow
+    assert "apt-get install --yes --no-install-recommends ffmpeg" in workflow
     assert "--cov-omit" not in workflow
     assert '|| echo "No Python tests found - skipping"' not in workflow
