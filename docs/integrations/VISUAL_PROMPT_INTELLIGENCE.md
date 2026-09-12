@@ -23,7 +23,8 @@ The implementation lives under `backend/visual_intelligence/` and the AI Films l
 - fail-closed provider activation certification;
 - an owner-scoped Provider Intelligence workspace in AI Film Studio;
 - first-class Replicate general-video worker support behind explicit certification;
-- matched-window trend and provider-reported approval-cost analytics.
+- matched-window trend and provider-reported approval-cost analytics;
+- per-job routing-decision audit snapshots.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -132,6 +133,28 @@ The workspace is read-only. It does not mutate provider configuration, canary st
 credentials, jobs, or assets. Fewer than three QA outcomes always produce a zero routing adjustment.
 Missing provider billing data is never estimated.
 
+## Gate 11 routing-decision audit snapshot
+
+Every newly queued AI Films generation job now stores a versioned, secret-free
+`input.routing_decision` snapshot beside the generation packet. The snapshot captures the exact
+evidence available at dispatch time so later configuration or scoring changes cannot rewrite history.
+
+The audit record includes:
+
+- selected provider and model;
+- selected route and every ranked alternative;
+- provider base score and final score;
+- bounded observed-performance adjustment;
+- configuration state;
+- activation request state, worker availability, canary pass state, and final certification state;
+- routing reasons for every provider;
+- visual style ID/source used by the decision;
+- dispatcher version and decision timestamp.
+
+No provider credentials, API keys, tokens, auth headers, or signed asset URLs are copied into the
+audit snapshot. Gate 11 uses the existing render-job `input` JSON and therefore requires no schema change.
+The snapshot is audit evidence only; it does not alter provider ranking or execution eligibility.
+
 ## Brand Forge contract
 
 Brand Forge's visual-generation stage requires approved intent to pass through Visual Prompt
@@ -153,9 +176,10 @@ A dedicated backend Brand Forge executor still does not exist, so no fictitious 
 11. Provider Intelligence is read-only and owner-scoped by existing RLS.
 12. New video providers remain non-executable until a bounded production canary is separately reviewed and activated.
 13. Cost-efficiency analytics use reported costs only and expose data coverage.
+14. Every queued generation job preserves the routing evidence that selected its provider without copying secrets.
 
 ## Next implementation gates
 
 - Run and review the protected Replicate general-video certification canary before any activation change.
-- Add routing-decision audit snapshots so every selected provider records the alternatives and evidence considered at dispatch time.
+- Surface per-job routing decisions in Provider Intelligence so operators can inspect why a provider won.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
