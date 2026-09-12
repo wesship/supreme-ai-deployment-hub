@@ -24,7 +24,7 @@ The implementation lives under `backend/visual_intelligence/` and the AI Films l
 - an owner-scoped Provider Intelligence workspace in AI Film Studio;
 - first-class Replicate general-video worker support behind explicit certification;
 - matched-window trend and provider-reported approval-cost analytics;
-- per-job routing-decision audit snapshots and operator drill-down.
+- per-job routing-decision audit snapshots, operator drill-down, same-job outcome correlation, and decision-quality rollups.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -157,22 +157,50 @@ The snapshot is audit evidence only; it does not alter provider ranking or execu
 
 ## Gate 12 routing audit drill-down
 
-Provider Intelligence now reads the persisted `input.routing_decision` snapshot from the same
+Provider Intelligence reads the persisted `input.routing_decision` snapshot from the same
 owner-scoped render-job query and exposes up to the 20 most recent audited decisions in the selected
 7/30/90-day window.
 
-Each expandable decision shows:
+Each expandable decision shows selected provider/model, shot ID, decision time and reason,
+style provenance, route scoring, activation evidence, exact winning reasons, and every ranked alternative.
+Historical decisions are never recomputed with current routing rules.
 
-- selected provider/model and shot ID;
-- decision timestamp, reason, dispatcher version, and style provenance;
-- selected route base score, observed-performance adjustment, final score, and configuration state;
-- requested/worker/canary/executable activation evidence;
-- the exact winning reason strings;
-- every ranked alternative with its historical base/performance/final scores and reasons.
+## Gate 13 dispatch-to-outcome correlation
 
-The drill-down never recomputes an old decision with current routing rules. Jobs created before Gate 11
-remain valid but display no reconstructed routing history. This prevents false historical explanations.
-The UI is read-only and uses existing owner RLS; no schema or privileged browser access is added.
+Each Gate 11 decision is correlated with the outcome fields on the exact same render-job row.
+The drill-down shows current job status, final QA pass/revise/block or pending state, QA confidence,
+render latency, provider-reported cost, regeneration state/depth, result asset linkage, and completion time.
+The render job itself is the join key; there is no heuristic matching by provider, shot, or timestamp.
+Missing outcome evidence stays missing rather than being fabricated.
+
+## Gate 14 decision-quality rollups
+
+Provider Intelligence now aggregates audited top-ranked choices into read-only decision-quality rollups.
+The rollups answer whether the provider D3VONN selected actually produced a good outcome, while keeping
+routing unchanged.
+
+Rollups are available at three levels:
+
+- overall audited routing decisions;
+- selected provider;
+- selected provider × visual style.
+
+For each group the workspace shows:
+
+- audited decision count;
+- judged decision count and pending count;
+- pass, revise, block, and explicit render-failure rates;
+- outcome-evidence coverage;
+- mean QA confidence where reported;
+- mean render latency where timestamps exist;
+- mean provider-reported cost where cost exists;
+- explicit provider-cost coverage.
+
+A decision is judged only when it has terminal QA evidence (`pass`, `revise`, `block`) or an explicit
+render failure/error. Incomplete decisions remain pending. A provider or provider/style group requires at
+least three judged decisions before it is labeled `evidence sufficient`; smaller groups are labeled sparse.
+This threshold is only an operator-facing evidence-quality label and does not change routing, activation,
+provider admission, canary state, or spend. Cost and latency gaps are never imputed.
 
 ## Brand Forge contract
 
@@ -197,9 +225,10 @@ A dedicated backend Brand Forge executor still does not exist, so no fictitious 
 13. Cost-efficiency analytics use reported costs only and expose data coverage.
 14. Every queued generation job preserves the routing evidence that selected its provider without copying secrets.
 15. Historical routing explanations come only from persisted decision snapshots and are never reconstructed from current rules.
+16. Decision-quality rollups are observational only, separate sparse evidence from sufficient evidence, and cannot activate or re-rank providers.
 
 ## Next implementation gates
 
 - Run and review the protected Replicate general-video certification canary before any activation change.
-- Add dispatch-to-outcome correlation so operators can compare the original routing evidence with final QA/cost/latency outcomes for the same job.
+- Add calibrated recommendation thresholds so decision-quality evidence can propose, but not automatically apply, routing policy changes.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
