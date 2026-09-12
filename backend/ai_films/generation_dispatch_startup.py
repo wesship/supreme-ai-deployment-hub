@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient
 from backend.ai_films.generation_dispatcher import dispatch_plan
+from backend.ai_films.provider_performance import summarize_provider_performance
 from backend.ai_films.production_bible import ProductionBible, ShotManifest
 
 PROJECT_ID = "b2979e7c-1d28-4024-bf4f-8db90c174d5a"
@@ -75,6 +76,19 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
     if not manifests or not bibles:
         return {"status": "skipped", "reason": "missing_active_bible_or_manifest"}
 
+    performance_rows = await db._request(
+        "GET", "ai_film_render_jobs",
+        params={
+            "project_id": f"eq.{PROJECT_ID}",
+            "job_type": "eq.video",
+            "status": "eq.completed",
+            "select": "provider,quality_metadata,visual_context,completed_at",
+            "order": "completed_at.desc",
+            "limit": "200",
+        },
+    )
+    performance = summarize_provider_performance(performance_rows)
+
     row = manifests[0]
     manifest_data = dict(row.get("manifest") or {})
     metadata = dict(manifest_data.get("metadata") or {})
@@ -90,6 +104,7 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
             shot, bible,
             conform_decision=decisions.get(shot.shot_id, "manual_review"),
             environ=source,
+            performance=performance,
         )
 
     execution_enabled = _enabled(source, "AI_FILM_GENERATION_EXECUTION_ENABLED", "false")
@@ -139,6 +154,7 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
         "generation_dispatch_completed_at": _now(),
         "generation_execution_enabled": execution_enabled,
         "generation_dispatch_plans": plans,
+        "generation_provider_performance": performance,
         "generation_queued_job_ids": queued_job_ids,
     })
     manifest_data["metadata"] = metadata
@@ -150,6 +166,7 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
     return {
         "status": "completed",
         "execution_enabled": execution_enabled,
+        "provider_performance": performance,
         "generate_shots": [sid for sid, p in plans.items() if p.get("action") in {"queue", "blocked"}],
         "queued_job_ids": queued_job_ids,
     }
