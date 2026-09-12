@@ -154,7 +154,6 @@ jobs:
 
       - name: Upload to Chrome Web Store
         if: steps.env.outputs.name == 'production'
-        continue-on-error: true
         run: node scripts/upload-to-chrome-webstore.cjs
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
