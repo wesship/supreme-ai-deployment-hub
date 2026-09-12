@@ -4,6 +4,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SERVICE = ROOT / "src/features/ai-films/providerIntelligenceService.ts"
 WORKSPACE = ROOT / "src/features/ai-films/ProviderIntelligenceWorkspace.tsx"
+RECOMMENDATION_SERVICE = ROOT / "src/features/ai-films/routingRecommendationService.ts"
+RECOMMENDATION_WORKSPACE = ROOT / "src/features/ai-films/RoutingRecommendationWorkspace.tsx"
+STUDIO = ROOT / "src/pages/AIFilmStudio.tsx"
 
 
 def test_provider_intelligence_uses_bounded_time_windows_and_owner_rls():
@@ -82,3 +85,27 @@ def test_decision_quality_segments_provider_and_style_without_changing_routing()
     assert "sparse evidence" in workspace
     assert "Provider × style evidence" in workspace
     assert "These rollups are observational and do not change routing" in workspace
+
+
+def test_routing_recommendations_are_bounded_evidence_gated_and_human_approved():
+    text = RECOMMENDATION_SERVICE.read_text()
+    assert "if (!rollup.provider || !rollup.evidenceSufficient) return null" in text
+    assert "proposedAdjustment: Math.max(-5, Math.min(5, proposedAdjustment))" in text
+    assert "requiresHumanApproval: true" in text
+    assert "autoApply: false" in text
+    assert "humanApprovalRequired: true" in text
+    assert "maxAbsoluteAdjustment: 5" in text
+    assert "reportedCostCoverageRate >= 0.75" in text
+
+
+def test_routing_recommendations_are_advisory_and_expose_no_apply_control():
+    service = RECOMMENDATION_SERVICE.read_text()
+    workspace = RECOMMENDATION_WORKSPACE.read_text()
+    studio = STUDIO.read_text()
+    assert "buildRoutingRecommendations" in service
+    assert "Evidence-based proposals, never auto-applied" in workspace
+    assert "Human approval required" in workspace
+    assert "does not modify the dispatcher" in workspace
+    assert "No recommendation has been applied" in workspace
+    assert "Apply recommendation" not in workspace
+    assert "RoutingRecommendationWorkspace" in studio
