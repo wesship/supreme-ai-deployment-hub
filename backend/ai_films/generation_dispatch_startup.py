@@ -57,6 +57,38 @@ def _visual_context(packet: Mapping[str, Any], *, selected_model: str | None) ->
     }
 
 
+def _routing_decision_snapshot(
+    plan: Mapping[str, Any],
+    packet: Mapping[str, Any],
+    *,
+    decided_at: str,
+) -> dict[str, Any]:
+    """Capture the exact secret-free route evidence used when a job is queued."""
+    routes = plan.get("routes") if isinstance(plan.get("routes"), list) else []
+    route_rows = [dict(route) for route in routes if isinstance(route, Mapping)]
+    selected_provider = str(plan.get("selected_provider") or "").strip() or None
+    selected = next(
+        (route for route in route_rows if route.get("provider") == selected_provider),
+        None,
+    )
+    visual = packet.get("visual_intelligence")
+    visual_data = dict(visual) if isinstance(visual, Mapping) else {}
+    return {
+        "schema": "d3vonn.ai-films.routing-decision/v1",
+        "decided_at": decided_at,
+        "decision": plan.get("reason"),
+        "selected_provider": selected_provider,
+        "selected_model": plan.get("selected_model"),
+        "selected_route": selected,
+        "ranked_routes": route_rows,
+        "style_evidence": {
+            "style_id": visual_data.get("style_id"),
+            "style_source": visual_data.get("source"),
+        },
+        "dispatcher": "multimodel-v1",
+    }
+
+
 async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     source = environ or os.environ
     if str(source.get("RAILWAY_ENVIRONMENT_NAME", "")).strip().lower() != "production":
@@ -125,6 +157,12 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
             packet = plan.get("generation_packet")
             packet_data = dict(packet) if isinstance(packet, Mapping) else {}
             selected_model = plan.get("selected_model")
+            decided_at = _now()
+            routing_decision = _routing_decision_snapshot(
+                plan,
+                packet_data,
+                decided_at=decided_at,
+            )
             payload = {
                 "project_id": PROJECT_ID,
                 "owner_id": row.get("owner_id"),
@@ -138,6 +176,7 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
                     "generation_packet": packet_data,
                     "selected_model": selected_model,
                     "dispatcher": "multimodel-v1",
+                    "routing_decision": routing_decision,
                 },
                 "output": {},
                 "visual_context": _visual_context(packet_data, selected_model=selected_model),
