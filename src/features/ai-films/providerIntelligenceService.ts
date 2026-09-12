@@ -8,6 +8,42 @@ export type ProviderQuality = {
   mean_confidence: number | null;
 };
 
+export type RoutingActivationEvidence = {
+  requested: boolean;
+  worker_available: boolean;
+  canary_passed: boolean;
+  executable: boolean;
+  reasons: string[];
+};
+
+export type RoutingAlternative = {
+  provider: string;
+  configured: boolean;
+  model: string | null;
+  base_score: number | null;
+  performance_adjustment: number | null;
+  score: number;
+  reasons: string[];
+  activation: RoutingActivationEvidence | null;
+};
+
+export type RoutingDecisionAudit = {
+  jobId: string;
+  provider: string;
+  createdAt: string;
+  shotId: string | null;
+  schema: string;
+  decidedAt: string | null;
+  dispatcher: string | null;
+  reason: string | null;
+  selectedProvider: string | null;
+  selectedModel: string | null;
+  styleId: string | null;
+  styleSource: string | null;
+  selectedRoute: RoutingAlternative | null;
+  routes: RoutingAlternative[];
+};
+
 export type ProviderIntelligence = {
   provider: string;
   jobs: number;
@@ -38,6 +74,7 @@ export type ProviderIntelligenceSnapshot = {
   previousSampledJobs: number;
   providers: ProviderIntelligence[];
   stylePerformance: Array<{ key: string } & ProviderQuality>;
+  routingDecisions: RoutingDecisionAudit[];
 };
 
 const asObject = (value: unknown): Record<string, any> =>
@@ -142,6 +179,58 @@ const providerPeriodStats = (rows: any[]) => {
 const delta = (current: number | null, previous: number | null): number | null =>
   current === null || previous === null ? null : current - previous;
 
+const parseActivation = (value: unknown): RoutingActivationEvidence | null => {
+  const row = asObject(value);
+  if (!Object.keys(row).length) return null;
+  return {
+    requested: Boolean(row.requested),
+    worker_available: Boolean(row.worker_available),
+    canary_passed: Boolean(row.canary_passed),
+    executable: Boolean(row.executable),
+    reasons: Array.isArray(row.reasons) ? row.reasons.map(String) : [],
+  };
+};
+
+const parseRoute = (value: unknown): RoutingAlternative | null => {
+  const row = asObject(value);
+  const provider = String(row.provider || '').trim();
+  if (!provider) return null;
+  return {
+    provider,
+    configured: Boolean(row.configured),
+    model: row.model ? String(row.model) : null,
+    base_score: toNumber(row.base_score),
+    performance_adjustment: toNumber(row.performance_adjustment),
+    score: toNumber(row.score) ?? 0,
+    reasons: Array.isArray(row.reasons) ? row.reasons.map(String) : [],
+    activation: parseActivation(row.activation),
+  };
+};
+
+const routingDecisionFromRow = (row: any): RoutingDecisionAudit | null => {
+  const input = asObject(row.input);
+  const decision = asObject(input.routing_decision);
+  if (decision.schema !== 'd3vonn.ai-films.routing-decision/v1') return null;
+  const routes = Array.isArray(decision.routes) ? decision.routes.map(parseRoute).filter((route): route is RoutingAlternative => Boolean(route)) : [];
+  const visual = asObject(decision.visual);
+  return {
+    jobId: String(row.id),
+    provider: String(row.provider || 'unknown'),
+    createdAt: String(row.created_at || ''),
+    shotId: input.shot_id ? String(input.shot_id) : null,
+    schema: String(decision.schema),
+    decidedAt: decision.decided_at ? String(decision.decided_at) : null,
+    dispatcher: decision.dispatcher ? String(decision.dispatcher) : null,
+    reason: decision.reason ? String(decision.reason) : null,
+    selectedProvider: decision.selected_provider ? String(decision.selected_provider) : null,
+    selectedModel: decision.selected_model ? String(decision.selected_model) : null,
+    styleId: visual.style_id ? String(visual.style_id) : null,
+    styleSource: visual.style_source ? String(visual.style_source) : null,
+    selectedRoute: parseRoute(decision.selected_route),
+    routes,
+  };
+};
+
 export const fetchProviderIntelligence = async (
   projectId?: string,
   windowDays: 7 | 30 | 90 = 30,
@@ -157,7 +246,7 @@ export const fetchProviderIntelligence = async (
 
   let query = (supabase as any)
     .from('ai_film_render_jobs')
-    .select('id,project_id,provider,status,created_at,started_at,completed_at,cost_metadata,quality_metadata,visual_context,parent_job_id,regeneration_count')
+    .select('id,project_id,provider,status,created_at,started_at,completed_at,input,cost_metadata,quality_metadata,visual_context,parent_job_id,regeneration_count')
     .eq('owner_id', authData.user.id)
     .eq('job_type', 'video')
     .gte('created_at', previousWindowStart)
@@ -217,6 +306,11 @@ export const fetchProviderIntelligence = async (
     .filter(([key]) => key.includes('|'))
     .map(([key, value]) => ({ key, ...value }));
 
+  const routingDecisions = currentRows
+    .map(routingDecisionFromRow)
+    .filter((decision): decision is RoutingDecisionAudit => Boolean(decision))
+    .slice(0, 20);
+
   return {
     windowDays,
     currentWindowStart,
@@ -225,5 +319,6 @@ export const fetchProviderIntelligence = async (
     previousSampledJobs: previousRows.length,
     providers: summaries,
     stylePerformance,
+    routingDecisions,
   };
 };
