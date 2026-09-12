@@ -5,7 +5,11 @@ from backend.ai_films.generation_lifecycle import (
     regeneration_allowed,
     regeneration_packet,
 )
-from backend.ai_films.provider_performance import routing_adjustment, summarize_provider_performance
+from backend.ai_films.provider_performance import (
+    routing_adjustment,
+    summarize_provider_intelligence,
+    summarize_provider_performance,
+)
 
 
 def test_visual_context_preserves_original_and_compiled_prompts():
@@ -140,3 +144,40 @@ def test_provider_performance_does_not_nudge_with_insufficient_history():
         {"provider": "pollo", "quality_metadata": {"decision": "pass", "confidence": 1.0}, "visual_context": {}}
     ])
     assert routing_adjustment(performance, provider="pollo") == (0, ())
+
+
+def test_provider_intelligence_reports_latency_cost_failures_and_regeneration():
+    rows = [
+        {
+            "provider": "pollo",
+            "status": "completed",
+            "started_at": "2026-09-12T18:00:00+00:00",
+            "completed_at": "2026-09-12T18:01:00+00:00",
+            "cost_metadata": {"cost_usd": 0.42},
+            "quality_metadata": {"decision": "pass", "confidence": 0.9},
+            "visual_context": {"style_id": "cinematic-storyboard"},
+            "parent_job_id": None,
+            "regeneration_count": 0,
+        },
+        {
+            "provider": "pollo",
+            "status": "failed",
+            "started_at": "2026-09-12T18:02:00+00:00",
+            "completed_at": "2026-09-12T18:02:30+00:00",
+            "cost_metadata": {},
+            "quality_metadata": {},
+            "visual_context": {"style_id": "cinematic-storyboard"},
+            "parent_job_id": "parent",
+            "regeneration_count": 1,
+        },
+    ]
+    result = summarize_provider_intelligence(rows)
+    provider = result["providers"][0]
+    assert result["sampled_jobs"] == 2
+    assert provider["jobs"] == 2
+    assert provider["failed"] == 1
+    assert provider["failure_rate"] == 0.5
+    assert provider["regeneration_rate"] == 0.5
+    assert provider["mean_latency_seconds"] == 45.0
+    assert provider["reported_cost_usd_total"] == 0.42
+    assert provider["reported_cost_samples"] == 1
