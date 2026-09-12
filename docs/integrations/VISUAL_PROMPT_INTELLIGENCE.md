@@ -24,7 +24,7 @@ The implementation lives under `backend/visual_intelligence/` and the AI Films l
 - an owner-scoped Provider Intelligence workspace in AI Film Studio;
 - first-class Replicate general-video worker support behind explicit certification;
 - matched-window trend and provider-reported approval-cost analytics;
-- per-job routing-decision audit snapshots, operator drill-down, same-job outcome correlation, and decision-quality rollups.
+- per-job routing-decision audit snapshots, operator drill-down, same-job outcome correlation, decision-quality rollups, and human-approved routing recommendations.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -175,7 +175,7 @@ Missing outcome evidence stays missing rather than being fabricated.
 
 ## Gate 14 decision-quality rollups
 
-Provider Intelligence now aggregates audited top-ranked choices into read-only decision-quality rollups.
+Provider Intelligence aggregates audited top-ranked choices into read-only decision-quality rollups.
 The rollups answer whether the provider D3VONN selected actually produced a good outcome, while keeping
 routing unchanged.
 
@@ -185,22 +185,40 @@ Rollups are available at three levels:
 - selected provider;
 - selected provider × visual style.
 
-For each group the workspace shows:
-
-- audited decision count;
-- judged decision count and pending count;
-- pass, revise, block, and explicit render-failure rates;
-- outcome-evidence coverage;
-- mean QA confidence where reported;
-- mean render latency where timestamps exist;
-- mean provider-reported cost where cost exists;
-- explicit provider-cost coverage.
+For each group the workspace shows audited/judged/pending decisions, pass/revise/block/failure rates,
+outcome-evidence coverage, mean QA confidence, mean render latency, mean provider-reported cost, and
+explicit provider-cost coverage.
 
 A decision is judged only when it has terminal QA evidence (`pass`, `revise`, `block`) or an explicit
 render failure/error. Incomplete decisions remain pending. A provider or provider/style group requires at
 least three judged decisions before it is labeled `evidence sufficient`; smaller groups are labeled sparse.
 This threshold is only an operator-facing evidence-quality label and does not change routing, activation,
 provider admission, canary state, or spend. Cost and latency gaps are never imputed.
+
+## Gate 15 routing recommendation engine
+
+`src/features/ai-films/routingRecommendationService.ts` converts only evidence-sufficient Gate 14
+rollups into deterministic, bounded routing-policy proposals. The recommendation layer is advisory and
+is intentionally separate from `generation_dispatcher_impl.py`.
+
+Recommendations can propose `increase_preference`, `decrease_preference`, or `hold` with a bounded
+adjustment between `-5` and `+5`. The thresholds are conservative:
+
+- strong positive evidence can propose `+5` when pass rate is at least 80%, adverse outcomes are at most 20%, and terminal-outcome coverage is at least 75%;
+- moderate positive evidence can propose `+2` when pass rate is at least 65% and adverse outcomes are at most 35%;
+- strong negative evidence can propose `-5` when pass rate is at most 35% or block+failure reaches 40%;
+- moderate negative evidence can propose `-2` when pass rate is below 50% or total adverse outcomes reach 50%;
+- otherwise the proposal is `hold` / `0`.
+
+Confidence is labeled low/medium/high from judged sample count and terminal-outcome coverage. Cost is
+supporting context only when provider-reported cost coverage is at least 75%; sparse or missing billing
+data never drives a recommendation.
+
+`src/features/ai-films/RoutingRecommendationWorkspace.tsx` shows the proposal, provider/style scope,
+confidence, pass/adverse rates, cost coverage, and explicit rationale. Every recommendation has
+`requiresHumanApproval: true` and `autoApply: false`. There is no Apply button, no provider-config write,
+no dispatcher mutation, and no pathway that can alter activation/canary state or spend provider credits.
+No database migration is required.
 
 ## Brand Forge contract
 
@@ -226,9 +244,10 @@ A dedicated backend Brand Forge executor still does not exist, so no fictitious 
 14. Every queued generation job preserves the routing evidence that selected its provider without copying secrets.
 15. Historical routing explanations come only from persisted decision snapshots and are never reconstructed from current rules.
 16. Decision-quality rollups are observational only, separate sparse evidence from sufficient evidence, and cannot activate or re-rank providers.
+17. Routing recommendations are bounded proposals only, require explicit human approval, and have no auto-apply path.
 
 ## Next implementation gates
 
-- Run and review the protected Replicate general-video certification canary before any activation change.
-- Add calibrated recommendation thresholds so decision-quality evidence can propose, but not automatically apply, routing policy changes.
+- Add an approval-record contract that can record a human approve/reject decision without directly changing runtime routing.
+- Run and review the protected Replicate general-video certification canary only after explicit authorization and before any activation change.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
