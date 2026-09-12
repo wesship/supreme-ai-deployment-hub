@@ -20,7 +20,8 @@ The implementation lives under `backend/visual_intelligence/` and provides:
 - runtime generation integration for AI Films;
 - Supabase persistence of visual-generation provenance on the active render ledger;
 - provider-result, asset, QA, and bounded-regeneration lifecycle persistence;
-- bounded provider/style performance feedback for video routing.
+- bounded provider/style performance feedback for video routing;
+- fail-closed provider activation requiring worker + canary certification.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -110,22 +111,34 @@ Routing feedback is deliberately conservative:
 - a style-specific signal is used only when that provider/style pair has at least three samples;
 - each observed-performance adjustment is capped to `-15..+15` points;
 - the signal can reorder already executable/configured providers but can never make an
-  unconfigured or non-executable provider runnable;
-- worker admission remains controlled by `AI_FILM_EXECUTABLE_VIDEO_PROVIDERS` and the
-  provider's required credentials/configuration.
+  unconfigured or non-executable provider runnable.
 
-Pollo is the verified non-OpenAI production video worker currently present in this repo.
-xAI, Replicate, Higgsfield, Runway, and Movieflow remain provider-routing candidates only
-until a corresponding execution worker and canary are verified and explicitly admitted.
-The connected staging project currently has no completed video jobs with structured QA
-outcomes, so the observed-performance adjustment is presently zero and baseline routing
-remains unchanged until enough evidence accumulates.
+## Gate 7 provider activation certification
+
+`backend/ai_films/provider_activation.py` makes provider admission fail closed. A provider
+must be explicitly requested, have a concrete worker implementation in this repository,
+and have production canary certification before video routing may treat it as executable.
+
+Current contract:
+
+- Pollo is the certified baseline and remains the default executable provider;
+- OpenAI has a worker but requires `AI_FILM_PROVIDER_CANARY_OPENAI=pass` (or equivalent
+  truthy passed value) before it can be re-enabled;
+- xAI, Replicate, Higgsfield, Runway, and Movieflow cannot be made executable by adding
+  their name or API key alone because no certified AI Films video worker is registered;
+- aliases such as `sora` and `grok` are normalized before the activation decision;
+- observed-performance scores are applied only after this activation boundary and cannot
+  bypass it.
+
+This complements the repository's existing protected/manual canary pattern, including
+the bounded Replicate performance-transfer canary. Capability-specific workers and
+canaries do not automatically certify a provider for general AI Films video routing.
 
 The table retains its existing owner RLS policy. Anonymous access remains revoked;
 `authenticated` keeps reviewed CRUD grants and `service_role` retains backend access.
 Gate 4 and Gate 5 migrations were applied to the connected staging Supabase project
-before production promotion. Gate 6 requires no schema migration. Provider secrets are
-never written to the ledger.
+before production promotion. Gates 6 and 7 require no schema migration. Provider secrets
+are never written to the ledger.
 
 ## Brand Forge contract
 
@@ -148,9 +161,10 @@ hook was added.
 8. Generation lineage, result assets, cost/usage, quality, and source metadata persist on the active render ledger.
 9. Automatic regeneration is opt-in, execution-gated, and depth-bounded.
 10. Observed performance may nudge routing only within explicit worker/configuration gates.
+11. Provider activation requires an explicit request, a concrete worker, and canary certification.
 
 ## Next implementation gates
 
-- Add execution reliability, latency, and normalized provider-cost signals to routing analytics.
-- Add worker + canary admission for additional video providers before making them executable.
+- Surface provider/style quality, reliability, latency, and reported-cost analytics in AI Films operations.
+- Add and certify a new general-video worker before admitting another provider.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
