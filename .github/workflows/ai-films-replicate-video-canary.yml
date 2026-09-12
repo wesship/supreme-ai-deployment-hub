@@ -1,0 +1,62 @@
+name: AI FILMS Replicate Video Canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type RUN_REPLICATE_VIDEO_CANARY to authorize one paid bounded render'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-films-replicate-video-canary
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Replicate general-video certification
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 35
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      ENVIRONMENT: production
+      RAILWAY_ENVIRONMENT_NAME: production
+      AI_FILMS_REPLICATE_VIDEO_CANARY_CONFIRMATION: ${{ inputs.confirmation }}
+      AI_FILMS_REPLICATE_VIDEO_CANARY_PROJECT_ID: ${{ vars.AI_FILMS_REPLICATE_VIDEO_CANARY_PROJECT_ID }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+      AI_FILM_REPLICATE_VIDEO_MODEL: ${{ vars.AI_FILM_REPLICATE_VIDEO_MODEL }}
+      AI_FILM_GENERATION_EXECUTION_ENABLED: 'false'
+      AI_FILM_AUTO_REGEN_ENABLED: 'false'
+    steps:
+      - name: Verify explicit paid-canary confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirmation }}" = "RUN_REPLICATE_VIDEO_CANARY"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install bounded canary runtime
+        run: pip install --disable-pip-version-check -r backend/requirements.txt
+
+      - name: Execute exactly one Replicate general-video render
+        run: python scripts/ai_films/production_replicate_video_canary.py
+
+      - name: Certification guidance
+        if: success()
+        run: |
+          echo 'Replicate worker/storage/ledger/QA-handoff canary passed.'
+          echo 'Do not activate routing automatically from this workflow.'
+          echo 'After review, set AI_FILM_PROVIDER_CANARY_REPLICATE=pass and include replicate in AI_FILM_EXECUTABLE_VIDEO_PROVIDERS through the normal protected deployment path.'
