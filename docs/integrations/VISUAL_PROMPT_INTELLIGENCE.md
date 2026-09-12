@@ -19,7 +19,8 @@ The implementation lives under `backend/visual_intelligence/` and provides:
   and prompt compilation;
 - runtime generation integration for AI Films;
 - Supabase persistence of visual-generation provenance on the active render ledger;
-- provider-result, asset, QA, and bounded-regeneration lifecycle persistence.
+- provider-result, asset, QA, and bounded-regeneration lifecycle persistence;
+- bounded provider/style performance feedback for video routing.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -57,9 +58,8 @@ The router is registered beneath `/api/visual` and uses the existing Supabase JW
 
 Every generated packet keeps `original_generation_prompt`, replaces `generation_prompt`
 with the compiled provider-neutral prompt when enabled, merges negative constraints, and
-adds a `visual_intelligence` provenance block. Provider ordering is not changed by the
-visual compiler. Unknown style IDs degrade safely to the original prompt and emit a QA
-warning rather than blocking the render pipeline.
+adds a `visual_intelligence` provenance block. Unknown style IDs degrade safely to the
+original prompt and emit a QA warning rather than blocking the render pipeline.
 
 ## Supabase generation persistence
 
@@ -85,22 +85,47 @@ Gate 5 adds explicit result and regeneration fields with
 - `result_storage_path text` — private storage object path, never a signed URL;
 - `regeneration_count integer` — bounded regeneration depth.
 
-`backend/ai_films/openai_video_worker.py` writes the generated asset reference, private
-storage path, and provider-reported usage/cost fields when a render completes. It never
-invents a price when the provider response omits one. The worker also enforces the
-existing `AI_FILM_GENERATION_EXECUTION_ENABLED` switch before claiming queued work.
+OpenAI/Sora and Pollo completion workers write the generated asset reference, private
+storage path, and provider-reported usage/cost fields when a render completes. They never
+invent a price when the provider response omits one. Provider result URLs are not kept as
+the durable asset reference; private D3VONN storage remains authoritative.
 
-`backend/ai_films/generated_shot_qa_worker.py` writes structured TwelveLabs/Jockey QA
-metadata. A `revise` decision can create a child render job linked by `parent_job_id`,
-but only when both `AI_FILM_AUTO_REGEN_ENABLED=true` and
+`backend/ai_films/generated_shot_qa_worker.py` claims any completed video render marked
+`pending_generated_qa`, so Pollo and future compatible video workers use the same
+TwelveLabs/Jockey QA path. A `revise` decision can create a child render job linked by
+`parent_job_id`, but only when both `AI_FILM_AUTO_REGEN_ENABLED=true` and
 `AI_FILM_GENERATION_EXECUTION_ENABLED=true`. `AI_FILM_AUTO_REGEN_MAX` bounds the chain
-and defaults to one regeneration. `pass` and `block` never auto-regenerate. Automatic
-regeneration remains off unless explicitly enabled.
+and defaults to one regeneration. `pass` and `block` never auto-regenerate.
+
+## Gate 6 provider/style performance feedback
+
+`backend/ai_films/provider_performance.py` summarizes recent completed render QA by
+provider and by provider/style pair. The production startup planner reads up to the most
+recent 200 completed video jobs and passes that snapshot to video routing.
+
+Routing feedback is deliberately conservative:
+
+- at least three eligible QA outcomes are required before any adjustment;
+- pass/revise/block rates and QA confidence are the only inputs in this gate;
+- a style-specific signal is used only when that provider/style pair has at least three samples;
+- each observed-performance adjustment is capped to `-15..+15` points;
+- the signal can reorder already executable/configured providers but can never make an
+  unconfigured or non-executable provider runnable;
+- worker admission remains controlled by `AI_FILM_EXECUTABLE_VIDEO_PROVIDERS` and the
+  provider's required credentials/configuration.
+
+Pollo is the verified non-OpenAI production video worker currently present in this repo.
+xAI, Replicate, Higgsfield, Runway, and Movieflow remain provider-routing candidates only
+until a corresponding execution worker and canary are verified and explicitly admitted.
+The connected staging project currently has no completed video jobs with structured QA
+outcomes, so the observed-performance adjustment is presently zero and baseline routing
+remains unchanged until enough evidence accumulates.
 
 The table retains its existing owner RLS policy. Anonymous access remains revoked;
 `authenticated` keeps reviewed CRUD grants and `service_role` retains backend access.
 Gate 4 and Gate 5 migrations were applied to the connected staging Supabase project
-before production promotion. Provider secrets are never written to the ledger.
+before production promotion. Gate 6 requires no schema migration. Provider secrets are
+never written to the ledger.
 
 ## Brand Forge contract
 
@@ -122,9 +147,10 @@ hook was added.
 7. Provider-specific features belong in adapters, not in the style catalog.
 8. Generation lineage, result assets, cost/usage, quality, and source metadata persist on the active render ledger.
 9. Automatic regeneration is opt-in, execution-gated, and depth-bounded.
+10. Observed performance may nudge routing only within explicit worker/configuration gates.
 
 ## Next implementation gates
 
-- Normalize equivalent result/cost lifecycle writes for non-OpenAI video providers.
-- Feed quality outcomes into provider/style performance analytics and routing policy.
+- Add execution reliability, latency, and normalized provider-cost signals to routing analytics.
+- Add worker + canary admission for additional video providers before making them executable.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
