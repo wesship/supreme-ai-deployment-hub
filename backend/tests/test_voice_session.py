@@ -32,7 +32,15 @@ def test_voice_session_token_round_trip_and_tamper_rejection(monkeypatch):
     assert claims is not None
     assert claims["sub"] == "user-round-trip"
     assert claims["exp"] == expires_at
-    assert verify_voice_session(f"{token[:-1]}x") is None
+    payload, signature = token.split(".", 1)
+    changed_first_char = "A" if signature[0] != "A" else "B"
+    assert verify_voice_session(f"{payload}.{changed_first_char}{signature[1:]}") is None
+
+    # A SHA-256 signature has two unused pad bits in its final base64url digit.
+    # Toggling one must not produce a second valid spelling of the same token.
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    alternate_last_char = alphabet[alphabet.index(signature[-1]) ^ 1]
+    assert verify_voice_session(f"{payload}.{signature[:-1]}{alternate_last_char}") is None
     assert verify_voice_session("") is None
 
 
