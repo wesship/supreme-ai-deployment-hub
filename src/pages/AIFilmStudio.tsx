@@ -13,6 +13,7 @@ import ReleaseControlWorkspace from '@/features/ai-films/ReleaseControlWorkspace
 import StoryboardWorkspace from '@/features/ai-films/StoryboardWorkspace';
 import DeliveryWorkspace from '@/features/ai-films/DeliveryWorkspace';
 import EnterpriseStudioWorkspace from '@/features/ai-films/EnterpriseStudioWorkspace';
+import ProviderIntelligenceWorkspace from '@/features/ai-films/ProviderIntelligenceWorkspace';
 import {
   ensureSovereignSignalProject,
   fetchProjectAssets,
@@ -128,6 +129,7 @@ const AIFilmStudio = () => {
           <StoryboardWorkspace project={project} />
           <StoragePackageWorkspace project={project} assets={assets} onAssetUploaded={refreshAssets} />
           <ReleaseControlWorkspace project={project} assets={assets} onAssetsChanged={refreshAssets} />
+          <ProviderIntelligenceWorkspace project={project} />
           <DeliveryWorkspace project={project} />
           <EnterpriseStudioWorkspace project={project} assets={assets} />
 
