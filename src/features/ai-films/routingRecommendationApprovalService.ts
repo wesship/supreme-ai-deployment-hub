@@ -33,10 +33,22 @@ export const routingRecommendationEvidence = (recommendation: RoutingRecommendat
   rationale: recommendation.rationale,
 });
 
+const canonicalize = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, canonicalize(child)]),
+    );
+  }
+  return value;
+};
+
 export const approvalMatchesRecommendation = (
   approval: RoutingRecommendationApproval,
   recommendation: RoutingRecommendation,
-): boolean => JSON.stringify(approval.evidence) === JSON.stringify(routingRecommendationEvidence(recommendation));
+): boolean => JSON.stringify(canonicalize(approval.evidence)) === JSON.stringify(canonicalize(routingRecommendationEvidence(recommendation)));
 
 export const fetchRoutingRecommendationApprovals = async (projectId?: string): Promise<RoutingRecommendationApproval[]> => {
   let query = (supabase as any)
