@@ -35,6 +35,35 @@ const ActivationBadges = ({ decision }: { decision: RoutingDecisionAudit }) => {
   );
 };
 
+const OutcomeEvidence = ({ decision }: { decision: RoutingDecisionAudit }) => {
+  const outcome = decision.outcome;
+  const verdict = outcome.qaDecision === 'pass'
+    ? 'choice validated'
+    : outcome.qaDecision === 'revise' || outcome.qaDecision === 'block' || ['failed', 'error'].includes(outcome.status)
+      ? 'needs review'
+      : 'outcome pending';
+  return (
+    <div className="space-y-3 rounded-xl border border-primary/20 bg-muted/20 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Dispatch → outcome</p>
+        <Badge variant={outcome.qaDecision === 'pass' ? 'default' : 'outline'}>{verdict}</Badge>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div><p className="text-xs text-muted-foreground">Job status</p><p className="mt-1 font-semibold capitalize">{outcome.status}</p></div>
+        <div><p className="text-xs text-muted-foreground">Final QA</p><p className="mt-1 font-semibold capitalize">{outcome.qaDecision || 'pending'}</p></div>
+        <div><p className="text-xs text-muted-foreground">QA confidence</p><p className="mt-1 font-semibold">{outcome.qaConfidence === null ? '—' : pct(outcome.qaConfidence)}</p></div>
+        <div><p className="text-xs text-muted-foreground">Render latency</p><p className="mt-1 font-semibold">{seconds(outcome.latencySeconds)}</p></div>
+        <div><p className="text-xs text-muted-foreground">Reported cost</p><p className="mt-1 font-semibold">{money(outcome.reportedCostUsd)}</p></div>
+        <div><p className="text-xs text-muted-foreground">Regeneration</p><p className="mt-1 font-semibold">{outcome.regenerated ? `yes · depth ${outcome.regenerationCount}` : 'no'}</p></div>
+      </div>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+        <span>result asset: {outcome.resultAssetId || 'not linked yet'}</span>
+        <span>completed: {outcome.completedAt ? new Date(outcome.completedAt).toLocaleString() : 'pending'}</span>
+      </div>
+    </div>
+  );
+};
+
 const ProviderIntelligenceWorkspace = ({ project }: Props) => {
   const [snapshot, setSnapshot] = useState<ProviderIntelligenceSnapshot | null>(null);
   const [windowDays, setWindowDays] = useState<WindowDays>(30);
@@ -47,7 +76,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
     try {
       const next = await fetchProviderIntelligence(project?.id, window);
       setSnapshot(next);
-      setMessage(`${next.sampledJobs} video jobs analyzed in the last ${window} days versus ${next.previousSampledJobs} in the prior ${window}-day period. ${next.routingDecisions.length} persisted routing decisions are available for drill-down.`);
+      setMessage(`${next.sampledJobs} video jobs analyzed in the last ${window} days versus ${next.previousSampledJobs} in the prior ${window}-day period. ${next.routingDecisions.length} persisted routing decisions are correlated with their current job outcomes.`);
     } catch (error) {
       setSnapshot(null);
       setMessage(error instanceof Error ? error.message : 'Provider intelligence is unavailable.');
@@ -71,7 +100,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Provider Intelligence</p>
           <h2 id="provider-intelligence-heading" className="mt-2 text-3xl font-bold">Generation Performance Evidence</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Compare quality, reliability, latency, provider-reported spend, approval efficiency, regeneration, style evidence, bounded routing evidence, and the immutable decision snapshot stored with each render job.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Compare quality, reliability, latency, provider-reported spend, approval efficiency, regeneration, style evidence, bounded routing evidence, and each immutable routing decision against the same job's observed outcome.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[7, 30, 90].map((days) => (
@@ -128,8 +157,8 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
       <section aria-labelledby="routing-audit-heading" className="space-y-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Routing Audit</p>
-          <h3 id="routing-audit-heading" className="mt-2 text-2xl font-bold">Why this provider won</h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">These records come from the routing snapshot persisted with each render job at dispatch time. They are historical evidence, not a recomputation using today’s provider rules.</p>
+          <h3 id="routing-audit-heading" className="mt-2 text-2xl font-bold">Why this provider won — and what happened next</h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">The decision side comes from the immutable snapshot persisted at dispatch. The outcome side is correlated by the same render-job ID and reflects current ledger state without rewriting the historical decision.</p>
         </div>
 
         {(snapshot?.routingDecisions || []).map((decision) => {
@@ -144,6 +173,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
                       <span className="font-bold capitalize">{decision.selectedProvider || decision.provider}</span>
                       {decision.selectedModel && <Badge variant="outline">{decision.selectedModel}</Badge>}
                       {decision.styleId && <Badge variant="secondary">{decision.styleId}</Badge>}
+                      {decision.outcome.qaDecision && <Badge variant={decision.outcome.qaDecision === 'pass' ? 'default' : 'outline'}>QA {decision.outcome.qaDecision}</Badge>}
                     </div>
                     <p className="mt-1 truncate text-xs text-muted-foreground">shot {decision.shotId || 'unknown'} · {decision.reason || 'provider_selected'} · {decision.decidedAt ? new Date(decision.decidedAt).toLocaleString() : 'timestamp unavailable'}</p>
                   </div>
@@ -153,6 +183,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
 
               {expanded && (
                 <div className="space-y-5 border-t border-border/70 p-5">
+                  <OutcomeEvidence decision={decision} />
                   <ActivationBadges decision={decision} />
 
                   {decision.selectedRoute && (
@@ -185,7 +216,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
                     </div>
                   </div>
 
-                  <p className="text-xs text-muted-foreground">Audit schema {decision.schema} · dispatcher {decision.dispatcher || 'unknown'} · style source {decision.styleSource || 'none'}</p>
+                  <p className="text-xs text-muted-foreground">Audit schema {decision.schema} · dispatcher {decision.dispatcher || 'unknown'} · style source {decision.styleSource || 'none'} · outcome joined by render job {decision.jobId}</p>
                 </div>
               )}
             </Card>
