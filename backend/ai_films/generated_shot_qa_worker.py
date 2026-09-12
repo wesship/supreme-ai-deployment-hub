@@ -8,6 +8,11 @@ from typing import Any, Mapping
 
 from backend.ai_films.assembly_qa_worker import _sign_master
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
+from backend.ai_films.generation_lifecycle import (
+    quality_metadata,
+    regeneration_allowed,
+    regeneration_packet,
+)
 from backend.ai_films.ingestion import TwelveLabsIngestionRunner
 from backend.ai_films.manifest_conform_review import _extract_json, _response_text
 from backend.ai_films.twelvelabs import TwelveLabsClient
@@ -35,7 +40,6 @@ async def _claim(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
         "GET", "ai_film_render_jobs",
         params={
             "job_type": "eq.video",
-            "provider": "eq.openai",
             "status": "eq.completed",
             "output->qa->>state": "eq.pending_generated_qa",
             "select": "*",
@@ -98,13 +102,55 @@ async def _update_manifest_shot(db: SupabaseAssemblyClient, manifest_row: Mappin
     )
 
 
-async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) -> dict[str, Any]:
+async def _queue_regeneration(
+    job: Mapping[str, Any],
+    quality: Mapping[str, Any],
+    db: SupabaseAssemblyClient,
+    environ: Mapping[str, str],
+) -> str | None:
+    if not regeneration_allowed(job, quality, environ):
+        return None
+    input_payload = job.get("input") if isinstance(job.get("input"), dict) else {}
+    child_input = dict(input_payload)
+    child_input["generation_packet"] = regeneration_packet(job, quality)
+    child_input["regeneration_reason"] = "generated_shot_qa_revise"
+    child = {
+        "project_id": job["project_id"],
+        "scene_id": job.get("scene_id"),
+        "owner_id": job["owner_id"],
+        "job_type": job.get("job_type") or "video",
+        "provider": job.get("provider") or "openai",
+        "status": "queued",
+        "priority": int(job.get("priority") or 20),
+        "progress": 0,
+        "input": child_input,
+        "output": {},
+        "visual_context": dict(job.get("visual_context") or {}),
+        "parent_job_id": job["id"],
+        "regeneration_count": int(job.get("regeneration_count") or 0) + 1,
+        "source_subsystem": "ai_films.qa_regeneration",
+        "quality_metadata": {
+            "parent_decision": quality.get("decision"),
+            "parent_confidence": quality.get("confidence"),
+            "revision_prompt": quality.get("revision_prompt"),
+        },
+    }
+    created = await db._request("POST", "ai_film_render_jobs", payload=child, representation=True)
+    return str(created[0].get("id")) if created else None
+
+
+async def qa_generated_shot(
+    job: Mapping[str, Any],
+    db: SupabaseAssemblyClient,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    source = environ or os.environ
     output = dict(job.get("output") or {})
     input_payload = job.get("input") if isinstance(job.get("input"), dict) else {}
     packet = input_payload.get("generation_packet") if isinstance(input_payload.get("generation_packet"), dict) else {}
     shot_id = str(output.get("shot_id") or input_payload.get("shot_id") or packet.get("shot_id") or "")
-    asset_id = str(output.get("generated_asset_id") or "")
-    object_path = str(output.get("object_path") or "")
+    asset_id = str(output.get("generated_asset_id") or job.get("result_asset_id") or "")
+    object_path = str(output.get("object_path") or job.get("result_storage_path") or "")
     if not shot_id or not asset_id or not object_path:
         raise RuntimeError("Generated shot QA is missing shot/asset/storage identifiers")
 
@@ -168,9 +214,8 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
     decision = str(parsed.get("decision") or "revise").lower()
     if decision not in {"pass", "revise", "block"}:
         decision = "revise"
-    reasons = [str(v) for v in parsed.get("reasons", []) if isinstance(v, (str, int, float))]
-    violations = [str(v) for v in parsed.get("canon_violations", []) if isinstance(v, (str, int, float))]
-    notes = (reasons + violations)[:50]
+    quality = quality_metadata(parsed, decision=decision)
+    notes = (quality["reasons"] + quality["canon_violations"])[:50]
 
     qa = {
         "state": "passed" if decision == "pass" else decision,
@@ -185,12 +230,25 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
         "jockey_review": parsed if parsed else {"raw": text[:12000]},
     }
     output["qa"] = qa
-    await db.update_job(str(job["id"]), {"output": output})
+
+    child_job_id = await _queue_regeneration(job, quality, db, source)
+    quality = {**quality, "regeneration_child_job_id": child_job_id}
+    if child_job_id:
+        qa["regeneration_child_job_id"] = child_job_id
+        output["qa"] = qa
+    await db.update_job(str(job["id"]), {"output": output, "quality_metadata": quality})
 
     asset_rows = await db._request("GET", "ai_film_assets", params={"id": f"eq.{asset_id}", "select": "metadata", "limit": "1"})
     if asset_rows:
         meta = dict(asset_rows[0].get("metadata") or {})
-        meta.update({"qa_state": decision, "twelvelabs_asset_id": tl_asset_id, "twelvelabs_item_id": tl_item_id, "jockey_response_id": qa["jockey_response_id"]})
+        meta.update({
+            "qa_state": decision,
+            "qa_confidence": quality.get("confidence"),
+            "twelvelabs_asset_id": tl_asset_id,
+            "twelvelabs_item_id": tl_item_id,
+            "jockey_response_id": qa["jockey_response_id"],
+            "regeneration_child_job_id": child_job_id,
+        })
         await db._request(
             "PATCH", "ai_film_assets", params={"id": f"eq.{asset_id}"},
             payload={"metadata": meta, "status": "approved" if decision == "pass" else "selected", "updated_at": _now()},
@@ -213,12 +271,12 @@ async def run_generated_shot_qa_worker(*, environ: Mapping[str, str] | None = No
             await asyncio.sleep(poll)
             continue
         try:
-            await qa_generated_shot(job, db)
+            await qa_generated_shot(job, db, source)
         except Exception as exc:
             output = dict(job.get("output") or {})
             qa = dict(output.get("qa") or {})
             qa.update({"state": "failed", "failed_at": _now(), "error": f"{type(exc).__name__}: {exc}"[:2000], "retryable": True})
             output["qa"] = qa
-            await db.update_job(str(job["id"]), {"output": output})
+            await db.update_job(str(job["id"]), {"output": output, "quality_metadata": {"state": "qa_failed", "error": qa["error"]}})
         if once:
             return

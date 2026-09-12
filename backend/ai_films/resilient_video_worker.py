@@ -1,4 +1,4 @@
-"""Primary Pollo video worker with one-shot Replicate provider failover."""
+"""Certified AI Films video worker with Pollo primary and Replicate support."""
 from __future__ import annotations
 
 import asyncio
@@ -7,10 +7,14 @@ from typing import Mapping
 
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
 from backend.ai_films.pollo_video_worker import _claim, _enabled, process_pollo_video_job
+from backend.ai_films.provider_activation import activation_status
 from backend.ai_films.replicate_video_fallback import (
-    ReplicateVideoFallbackError,
     is_retryable_pollo_failure,
     process_replicate_video_fallback,
+)
+from backend.ai_films.replicate_video_worker import (
+    _claim_replicate,
+    process_replicate_video_job,
 )
 
 
@@ -27,11 +31,32 @@ async def run_resilient_video_worker(
     db = SupabaseAssemblyClient(source)
     poll = max(5.0, float(source.get("AI_FILM_VIDEO_WORKER_POLL_SECONDS", "15") or 15))
     while True:
+        provider = "pollo"
         job = await _claim(db)
+        if not job and activation_status("replicate", source).executable:
+            provider = "replicate"
+            job = await _claim_replicate(db)
         if not job:
             if once:
                 return
             await asyncio.sleep(poll)
+            continue
+
+        if provider == "replicate":
+            try:
+                await process_replicate_video_job(job, db, source)
+            except Exception as exc:
+                await db.update_job(
+                    str(job["id"]),
+                    {
+                        "status": "failed",
+                        "error_message": f"{type(exc).__name__}: {exc}"[:2000],
+                        "completed_at": _now(),
+                        "updated_at": _now(),
+                    },
+                )
+            if once:
+                return
             continue
 
         try:
@@ -55,6 +80,7 @@ async def run_resilient_video_worker(
                                 f"Replicate fallback failure: {type(fallback_exc).__name__}: {fallback_exc}"
                             )[:2000],
                             "completed_at": _now(),
+                            "updated_at": _now(),
                         },
                     )
             else:
@@ -64,6 +90,7 @@ async def run_resilient_video_worker(
                         "status": "failed",
                         "error_message": f"{type(primary_exc).__name__}: {primary_exc}"[:2000],
                         "completed_at": _now(),
+                        "updated_at": _now(),
                     },
                 )
         if once:

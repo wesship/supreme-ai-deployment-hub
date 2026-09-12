@@ -33,6 +33,69 @@ def test_generation_packet_carries_canon_and_provider_route():
     assert packet["provider_route"] == ["sora", "higgsfield"]
     assert packet["qa"]["twelvelabs_analyze"] is True
     assert packet["qa"]["jockey_corpus_reasoning"] is True
+    assert packet["generation_prompt"] == packet["original_generation_prompt"]
+    assert packet["visual_intelligence"]["enabled"] is False
+
+
+def test_generation_packet_applies_visual_intelligence_policy():
+    bible = SOVEREIGN_SIGNAL_SEED.model_copy(
+        update={
+            "generation_policy": {
+                **SOVEREIGN_SIGNAL_SEED.generation_policy,
+                "visual_intelligence": {
+                    "enabled": True,
+                    "style_id": "cinematic-storyboard",
+                    "constraints": ["restrained prestige science fiction"],
+                    "negative_constraints": ["overly saturated neon"],
+                },
+            }
+        }
+    )
+    shot = _shot(negative_prompt="no wardrobe logos")
+    packet = build_generation_packet(shot, bible)
+
+    assert packet["original_generation_prompt"] == shot.generation_prompt
+    assert "cinematic composition" in packet["generation_prompt"]
+    assert "restrained prestige science fiction" in packet["generation_prompt"]
+    assert "no wardrobe logos" in packet["negative_prompt"]
+    assert "overly saturated neon" in packet["negative_prompt"]
+    assert packet["visual_intelligence"]["style_id"] == "cinematic-storyboard"
+    assert packet["visual_intelligence"]["compiler"] == "d3vonn.visual_intelligence.v1"
+    assert packet["provider_route"] == ["sora", "higgsfield"]
+
+
+def test_visual_policy_supports_per_shot_override_without_schema_change():
+    bible = SOVEREIGN_SIGNAL_SEED.model_copy(
+        update={
+            "generation_policy": {
+                **SOVEREIGN_SIGNAL_SEED.generation_policy,
+                "visual_intelligence": {
+                    "enabled": True,
+                    "style_id": "cinematic-storyboard",
+                    "shot_overrides": {
+                        "SEQ01-SC01-SH001": {"style_id": "technical-infographic"}
+                    },
+                },
+            }
+        }
+    )
+    packet = build_generation_packet(_shot(), bible)
+    assert packet["visual_intelligence"]["style_id"] == "technical-infographic"
+    assert "clear technical infographic" in packet["generation_prompt"]
+
+
+def test_unknown_visual_style_degrades_safely_with_warning():
+    bible = SOVEREIGN_SIGNAL_SEED.model_copy(
+        update={
+            "generation_policy": {
+                **SOVEREIGN_SIGNAL_SEED.generation_policy,
+                "visual_intelligence": {"enabled": True, "style_id": "missing-style"},
+            }
+        }
+    )
+    packet = build_generation_packet(_shot(), bible)
+    assert packet["generation_prompt"] == packet["original_generation_prompt"]
+    assert "unknown_visual_style:missing-style" in packet["qa"]["warnings"]
 
 
 def test_legend_wrong_wardrobe_is_hard_canon_violation():
