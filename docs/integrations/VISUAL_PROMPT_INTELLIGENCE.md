@@ -2,8 +2,7 @@
 
 D3VONN's visual prompt intelligence layer sits before image and video providers.
 It converts loose creative intent into deterministic prompt fragments, constraints,
-negative constraints, and metadata without coupling the orchestration layer to a
-single generation vendor.
+negative constraints, and metadata without coupling orchestration to a single vendor.
 
 ## Runtime flow
 
@@ -13,12 +12,12 @@ The implementation lives under `backend/visual_intelligence/` and provides:
 
 - a native D3VONN seed catalog;
 - deterministic style lookup and search;
-- provider-neutral prompt compilation;
-- negative prompt compilation;
-- metadata identifying compiler version and applied style;
+- provider-neutral prompt and negative-prompt compilation;
+- compiler/style/source metadata;
 - a pinned upstream catalog importer;
 - authenticated FastAPI endpoints for catalog status, style search, catalog loading,
-  and prompt compilation.
+  and prompt compilation;
+- runtime generation integration for AI Films.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -26,7 +25,7 @@ The public `freestylefly/awesome-gpt-image-2` project is an MIT-licensed prompt-
 catalog. D3VONN consumes it as an import source rather than copying its website or
 binding production generation directly to its repository structure.
 
-The current reviewed source is pinned to:
+Reviewed source:
 
 `freestylefly/awesome-gpt-image-2@0dc09c46c8a30b1fdd89c18cc78a894dac2104e3`
 
@@ -47,25 +46,56 @@ The router is registered beneath `/api/visual` and uses the existing Supabase JW
 - `GET /api/visual/source` — reviewed upstream pin and current in-process catalog status.
 - `GET /api/visual/styles?q=<query>&limit=<n>` — deterministic style discovery.
 - `POST /api/visual/catalog/load` — fetch and normalize the pinned upstream catalog.
-- `POST /api/visual/compile` — compile user intent, style guidance, positive constraints,
-  and negative constraints into a provider-neutral generation packet.
+- `POST /api/visual/compile` — compile intent and constraints into a provider-neutral prompt.
 
-The upstream catalog is process-local in this gate. Persistent catalog state and
-historical generation records belong in the Supabase persistence gate.
+## AI Films runtime integration
+
+`backend/ai_films/shot_compiler.py` now resolves optional visual policy from
+`ProductionBible.generation_policy.visual_intelligence` before provider routing.
+
+Example:
+
+```json
+{
+  "visual_intelligence": {
+    "enabled": true,
+    "style_id": "cinematic-storyboard",
+    "constraints": ["restrained prestige science fiction"],
+    "negative_constraints": ["overly saturated neon"],
+    "shot_overrides": {
+      "SEQ01-SC01-SH004": {"style_id": "technical-infographic"}
+    }
+  }
+}
+```
+
+Every generated packet keeps `original_generation_prompt`, replaces `generation_prompt`
+with the compiled provider-neutral prompt when enabled, merges negative constraints, and
+adds a `visual_intelligence` provenance block. Provider ordering is not changed by the
+visual compiler. Unknown style IDs degrade safely to the original prompt and emit a QA
+warning rather than blocking the render pipeline.
+
+## Brand Forge contract
+
+Brand Forge's visual-generation stage now explicitly requires approved intent to pass
+through D3VONN Visual Prompt Intelligence before its image provider executes. The stage
+records the compiled prompt and compiler metadata alongside generated asset provenance.
+The current Brand Forge layer is a workflow/marketplace contract; a dedicated backend
+Brand Forge executor does not yet exist in this repository, so no fictitious runtime
+hook was added.
 
 ## Integration rules
 
 1. Provider credentials remain server-side.
 2. Style selection happens before provider routing.
-3. User constraints augment the selected style guidance.
+3. User constraints augment selected style guidance.
 4. Imported styles retain source attribution and immutable source commit metadata.
 5. The runtime never accepts an arbitrary catalog URL from a user.
-6. Generation history should persist original prompt, compiled prompt, style ID,
-   provider/model, output asset ID, and cost/usage metadata when available.
+6. Original and compiled prompts remain separately auditable.
 7. Provider-specific features belong in adapters, not in the style catalog.
 
 ## Next implementation gates
 
-- Feed compiled prompts into Brand Forge and AI Films generation packets.
 - Persist catalog/generation records and resulting asset references in Supabase.
-- Add quality scoring / regeneration policy after generation.
+- Connect a future Brand Forge backend executor to the same compilation helper.
+- Add quality scoring and controlled regeneration policy after generation.
