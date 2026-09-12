@@ -76,7 +76,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
     try {
       const next = await fetchProviderIntelligence(project?.id, window);
       setSnapshot(next);
-      setMessage(`${next.sampledJobs} video jobs analyzed in the last ${window} days versus ${next.previousSampledJobs} in the prior ${window}-day period. ${next.routingDecisions.length} persisted routing decisions are correlated with their current job outcomes.`);
+      setMessage(`${next.sampledJobs} video jobs analyzed in the last ${window} days versus ${next.previousSampledJobs} in the prior ${window}-day period. ${next.routingDecisions.length} recent routing decisions are available for drill-down; ${next.decisionQuality.overall.judged} audited choices have enough terminal evidence to judge individually.`);
     } catch (error) {
       setSnapshot(null);
       setMessage(error instanceof Error ? error.message : 'Provider intelligence is unavailable.');
@@ -93,6 +93,7 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
   const approvedShots = snapshot?.providers.reduce((sum, provider) => sum + provider.approvedShots, 0) || 0;
   const totalCostSamples = snapshot?.providers.reduce((sum, provider) => sum + provider.reportedCostSamples, 0) || 0;
   const aggregateCostPerApproved = reportedCost > 0 && approvedShots > 0 ? reportedCost / approvedShots : null;
+  const decisionQuality = snapshot?.decisionQuality;
 
   return (
     <section aria-labelledby="provider-intelligence-heading" className="space-y-5">
@@ -121,6 +122,62 @@ const ProviderIntelligenceWorkspace = ({ project }: Props) => {
       </div>
 
       <Card className="border-primary/20 p-4 text-sm text-muted-foreground" role="status" aria-live="polite">{message}</Card>
+
+      {decisionQuality && (
+        <section aria-labelledby="decision-quality-heading" className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">Decision Quality</p>
+            <h3 id="decision-quality-heading" className="mt-2 text-2xl font-bold">Did the top-ranked choice actually work?</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">Rollups use only Gate 11 audited choices and their Gate 13 same-job outcomes. A provider/style group needs at least {decisionQuality.minimumJudgedSamples} judged outcomes before it is labeled evidence-sufficient. These rollups are observational and do not change routing.</p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <Card className="p-4"><p className="text-xs text-muted-foreground">Audited choices</p><p className="mt-1 text-2xl font-bold">{decisionQuality.overall.audited}</p></Card>
+            <Card className="p-4"><p className="text-xs text-muted-foreground">Judged coverage</p><p className="mt-1 text-2xl font-bold">{pct(decisionQuality.overall.evidenceCoverageRate)}</p></Card>
+            <Card className="p-4"><p className="text-xs text-muted-foreground">Top-choice pass</p><p className="mt-1 text-2xl font-bold">{decisionQuality.overall.judged ? pct(decisionQuality.overall.passRate) : '—'}</p></Card>
+            <Card className="p-4"><p className="text-xs text-muted-foreground">Mean latency</p><p className="mt-1 text-2xl font-bold">{seconds(decisionQuality.overall.meanLatencySeconds)}</p></Card>
+            <Card className="p-4"><p className="text-xs text-muted-foreground">Mean reported cost</p><p className="mt-1 text-2xl font-bold">{money(decisionQuality.overall.reportedCostUsdMean)}</p><p className="mt-1 text-[11px] text-muted-foreground">coverage {pct(decisionQuality.overall.reportedCostCoverageRate)}</p></Card>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            {decisionQuality.providers.map((rollup) => (
+              <Card key={rollup.key} className="space-y-4 p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div><h4 className="text-lg font-bold capitalize">{rollup.provider}</h4><p className="mt-1 text-xs text-muted-foreground">{rollup.judged}/{rollup.audited} judged · {rollup.pending} pending</p></div>
+                  <Badge variant={rollup.evidenceSufficient ? 'default' : 'outline'}>{rollup.evidenceSufficient ? 'evidence sufficient' : 'sparse evidence'}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div><p className="text-xs text-muted-foreground">Pass</p><p className="font-bold">{rollup.judged ? pct(rollup.passRate) : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Revise</p><p className="font-bold">{rollup.judged ? pct(rollup.reviseRate) : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Block</p><p className="font-bold">{rollup.judged ? pct(rollup.blockRate) : '—'}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Failure</p><p className="font-bold">{rollup.judged ? pct(rollup.failureRate) : '—'}</p></div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-border/70 p-3"><p className="text-xs text-muted-foreground">Outcome coverage</p><p className="mt-1 font-semibold">{pct(rollup.evidenceCoverageRate)}</p></div>
+                  <div className="rounded-xl border border-border/70 p-3"><p className="text-xs text-muted-foreground">Mean latency</p><p className="mt-1 font-semibold">{seconds(rollup.meanLatencySeconds)}</p></div>
+                  <div className="rounded-xl border border-border/70 p-3"><p className="text-xs text-muted-foreground">Mean reported cost</p><p className="mt-1 font-semibold">{money(rollup.reportedCostUsdMean)}</p><p className="mt-1 text-[11px] text-muted-foreground">coverage {pct(rollup.reportedCostCoverageRate)}</p></div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {decisionQuality.providerStyles.length > 0 && (
+            <Card className="p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Provider × style evidence</p>
+              <div className="mt-3 space-y-2">
+                {decisionQuality.providerStyles.slice(0, 12).map((rollup) => (
+                  <div key={rollup.key} className="grid gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[2fr_1fr_1fr_1fr] sm:items-center">
+                    <div><span className="font-semibold capitalize">{rollup.provider}</span><span className="ml-2 text-xs text-muted-foreground">{rollup.styleId}</span><p className="mt-1 text-xs text-muted-foreground">{rollup.judged}/{rollup.audited} judged · {rollup.evidenceSufficient ? 'sufficient' : 'sparse'}</p></div>
+                    <div className="text-sm"><span className="text-muted-foreground">pass </span>{rollup.judged ? pct(rollup.passRate) : '—'}</div>
+                    <div className="text-sm"><span className="text-muted-foreground">latency </span>{seconds(rollup.meanLatencySeconds)}</div>
+                    <div className="text-sm"><span className="text-muted-foreground">cost </span>{money(rollup.reportedCostUsdMean)}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-5 xl:grid-cols-2">
         {(snapshot?.providers || []).map((provider) => (
