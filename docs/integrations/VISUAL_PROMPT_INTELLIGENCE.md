@@ -17,7 +17,8 @@ The implementation lives under `backend/visual_intelligence/` and provides:
 - a pinned upstream catalog importer;
 - authenticated FastAPI endpoints for catalog status, style search, catalog loading,
   and prompt compilation;
-- runtime generation integration for AI Films.
+- runtime generation integration for AI Films;
+- Supabase persistence of visual-generation provenance on the active render ledger.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -50,7 +51,7 @@ The router is registered beneath `/api/visual` and uses the existing Supabase JW
 
 ## AI Films runtime integration
 
-`backend/ai_films/shot_compiler.py` now resolves optional visual policy from
+`backend/ai_films/shot_compiler.py` resolves optional visual policy from
 `ProductionBible.generation_policy.visual_intelligence` before provider routing.
 
 Example:
@@ -75,9 +76,36 @@ adds a `visual_intelligence` provenance block. Provider ordering is not changed 
 visual compiler. Unknown style IDs degrade safely to the original prompt and emit a QA
 warning rather than blocking the render pipeline.
 
+## Supabase generation persistence
+
+The active multimodel startup dispatcher persists executable jobs in
+`public.ai_film_render_jobs`. Gate 4 extends that existing owner-scoped ledger rather
+than dual-writing the older `film_generation_jobs` stack.
+
+Migration: `supabase/migrations/20260912184000_visual_generation_persistence.sql`
+
+Added fields:
+
+- `visual_context jsonb` — original prompt, compiled prompt, negative prompt, style ID,
+  style source, compiler metadata, warnings, selected model, and packet schema;
+- `cost_metadata jsonb` — provider usage and cost metadata without credentials;
+- `quality_metadata jsonb` — quality scores and controlled-regeneration decisions;
+- `parent_job_id uuid` — lineage pointer for regenerated or edited descendants;
+- `source_subsystem text` — source namespace such as `ai_films`.
+
+`backend/ai_films/generation_dispatch_startup.py` now populates `visual_context` when a
+real render job is queued. The complete generation packet remains in `input` for worker
+compatibility, while the structured provenance fields make audit, analytics, quality
+scoring, and lineage queries practical.
+
+The table retains its existing owner RLS policy. Anonymous access is explicitly revoked;
+`authenticated` keeps reviewed CRUD grants and `service_role` retains backend access.
+The migration was applied to the connected staging Supabase project before production
+promotion. Provider secrets are never written to the ledger.
+
 ## Brand Forge contract
 
-Brand Forge's visual-generation stage now explicitly requires approved intent to pass
+Brand Forge's visual-generation stage explicitly requires approved intent to pass
 through D3VONN Visual Prompt Intelligence before its image provider executes. The stage
 records the compiled prompt and compiler metadata alongside generated asset provenance.
 The current Brand Forge layer is a workflow/marketplace contract; a dedicated backend
@@ -93,9 +121,10 @@ hook was added.
 5. The runtime never accepts an arbitrary catalog URL from a user.
 6. Original and compiled prompts remain separately auditable.
 7. Provider-specific features belong in adapters, not in the style catalog.
+8. Generation lineage, cost, quality, and source metadata persist on the active render ledger.
 
 ## Next implementation gates
 
-- Persist catalog/generation records and resulting asset references in Supabase.
-- Connect a future Brand Forge backend executor to the same compilation helper.
+- Populate cost metadata from provider callbacks/workers and resulting asset references from render outputs.
 - Add quality scoring and controlled regeneration policy after generation.
+- Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
