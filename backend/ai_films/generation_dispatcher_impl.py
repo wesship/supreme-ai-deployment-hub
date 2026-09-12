@@ -5,6 +5,10 @@ import os
 from dataclasses import dataclass
 from typing import Any, Mapping
 
+from backend.ai_films.provider_activation import (
+    activation_status,
+    certified_executable_video_providers,
+)
 from backend.ai_films.provider_performance import routing_adjustment
 from backend.ai_films.providers import PROVIDER_SPECS
 from backend.ai_films.production_bible import ProductionBible, ShotManifestItem
@@ -49,9 +53,8 @@ _BASE_SCORE = {
 
 
 def _executable_video_providers(source: Mapping[str, str]) -> set[str]:
-    """Return provider routes backed by running workers in this deployment."""
-    configured = str(source.get("AI_FILM_EXECUTABLE_VIDEO_PROVIDERS", "pollo"))
-    return {_normalize_provider(value) for value in configured.split(",") if value.strip()}
+    """Return only requested providers with a worker and certified canary state."""
+    return certified_executable_video_providers(source)
 
 
 def _video_specs() -> dict[str, Any]:
@@ -84,10 +87,12 @@ def rank_video_routes(
         configured = spec.configured(source)
         score = _BASE_SCORE.get(provider, 50)
         reasons: list[str] = []
+        activation = activation_status(provider, source)
         if provider not in executable:
             configured = False
             score -= 1000
             reasons.append("no_running_worker")
+            reasons.extend(f"activation:{reason}" for reason in activation.reasons)
         if preferred:
             if provider in preferred:
                 score += max(4, 24 - preferred.index(provider) * 4)
@@ -121,6 +126,8 @@ def rank_video_routes(
                 reasons.append("not_configured:" + ",".join(missing))
         else:
             reasons.append("configured")
+            if activation.executable:
+                reasons.append("activation_certified")
         model_env = _VIDEO_MODEL_ENV.get(provider)
         model = str(source.get(model_env, "")).strip() if model_env else ""
         if provider == "pollo" and not model:
