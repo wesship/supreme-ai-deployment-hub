@@ -57,7 +57,6 @@ class LiquidityPoolSnapshot:
 def score_liquidity_risk(snapshot: LiquidityPoolSnapshot) -> dict[str, Any]:
     """Return explainable 0..100 safety scores. Higher is safer."""
 
-    # Liquidity depth: scale from thin (<$250k) to deep (>= $50m).
     if snapshot.tvl_usd <= 0:
         liquidity = 10.0
     elif snapshot.tvl_usd >= 50_000_000:
@@ -65,15 +64,10 @@ def score_liquidity_risk(snapshot: LiquidityPoolSnapshot) -> dict[str, Any]:
     else:
         liquidity = 20.0 + 80.0 * (snapshot.tvl_usd / 50_000_000)
 
-    # Volatility penalty becomes severe above 100% annualized-style input.
     volatility = _clamp(100.0 - snapshot.volatility_30d_pct * 0.75)
-
-    # Depeg is intentionally harsh: a 2% deviation is already meaningful.
     depeg = _clamp(100.0 - snapshot.peg_deviation_pct * 25.0)
-
-    age_score = _clamp(snapshot.protocol_age_days / 10.95)  # ~100 at 3 years
+    age_score = _clamp(snapshot.protocol_age_days / 10.95)
     smart_contract = _clamp(age_score * 0.55 + (100.0 if snapshot.audited else 35.0) * 0.45)
-
     bridge = 35.0 if snapshot.bridge_exposed else 100.0
 
     components = {
@@ -85,7 +79,6 @@ def score_liquidity_risk(snapshot: LiquidityPoolSnapshot) -> dict[str, Any]:
         "bridge_score": bridge,
         "depeg_score": depeg,
     }
-
     weights = {
         "smart_contract_score": 0.22,
         "liquidity_score": 0.18,
@@ -95,7 +88,6 @@ def score_liquidity_risk(snapshot: LiquidityPoolSnapshot) -> dict[str, Any]:
         "bridge_score": 0.08,
         "depeg_score": 0.08,
     }
-
     overall = sum(components[name] * weights[name] for name in weights)
 
     reasons: list[str] = []
@@ -136,34 +128,35 @@ def score_liquidity_opportunity(
     if snapshot.tvl_usd > 0:
         volume_efficiency = _clamp((snapshot.volume_24h_usd / snapshot.tvl_usd) * 100.0)
 
-    yield_score = _clamp(snapshot.apy_pct * 2.0)
     net_apy = snapshot.apy_pct - gas_drag_pct
+    eligible = net_apy > 0
+    yield_score = _clamp(max(net_apy, 0.0) * 2.0)
 
-    # Risk dominates raw yield by design. Extreme APY cannot compensate for a bad safety score.
     opportunity = (
         _clamp(risk_score) * 0.55
         + yield_score * 0.25
         + volume_efficiency * 0.20
     )
-
-    # Avoid surfacing obviously negative net opportunities as attractive.
-    if net_apy <= 0:
-        opportunity *= 0.35
+    if not eligible:
+        opportunity = 0.0
 
     monthly_income = allocation * (net_apy / 100.0) / 12.0
 
     rationale: list[str] = []
     if risk_score >= 80:
         rationale.append("strong_risk_profile")
-    if snapshot.apy_pct >= 10:
-        rationale.append("meaningful_yield")
+    if net_apy >= 10:
+        rationale.append("meaningful_net_yield")
     if volume_efficiency >= 25:
         rationale.append("healthy_volume_efficiency")
     if gas_drag_pct >= 1:
         rationale.append("gas_drag_material")
+    if not eligible:
+        rationale.append("non_positive_net_apy")
 
     return {
         "opportunity_score": round(_clamp(opportunity), 2),
+        "eligible": eligible,
         "expected_net_apy_pct": round(net_apy, 4),
         "estimated_monthly_income_usd": round(monthly_income, 2),
         "volume_efficiency_score": round(volume_efficiency, 2),
@@ -199,6 +192,9 @@ def rank_liquidity_opportunities(
 
     return sorted(
         ranked,
-        key=lambda row: row["opportunity"]["opportunity_score"],
+        key=lambda row: (
+            row["opportunity"]["eligible"],
+            row["opportunity"]["opportunity_score"],
+        ),
         reverse=True,
     )
