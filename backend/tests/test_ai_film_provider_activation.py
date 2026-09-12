@@ -17,13 +17,25 @@ def test_pollo_is_certified_baseline_when_requested():
 
 def test_unimplemented_provider_cannot_be_enabled_by_env_alone():
     env = {
-        "AI_FILM_EXECUTABLE_VIDEO_PROVIDERS": "xai,replicate",
+        "AI_FILM_EXECUTABLE_VIDEO_PROVIDERS": "xai",
         "AI_FILM_PROVIDER_CANARY_XAI": "pass",
-        "AI_FILM_PROVIDER_CANARY_REPLICATE": "pass",
     }
     assert activation_status("xai", env).worker_available is False
-    assert activation_status("replicate", env).worker_available is False
     assert certified_executable_video_providers(env) == set()
+
+
+def test_replicate_worker_exists_but_requires_explicit_canary():
+    env = {"AI_FILM_EXECUTABLE_VIDEO_PROVIDERS": "replicate"}
+    blocked = activation_status("replicate", env)
+    assert blocked.worker_available is True
+    assert blocked.canary_passed is False
+    assert blocked.executable is False
+
+    env["AI_FILM_PROVIDER_CANARY_REPLICATE"] = "pass"
+    allowed = activation_status("replicate", env)
+    assert allowed.canary_passed is True
+    assert allowed.executable is True
+    assert certified_executable_video_providers(env) == {"replicate"}
 
 
 def test_openai_worker_requires_explicit_canary_before_reactivation():
@@ -51,5 +63,5 @@ def test_worker_registry_is_explicit():
     workers = known_video_workers()
     assert workers["pollo"].endswith("pollo_video_worker")
     assert workers["openai"].endswith("openai_video_worker")
+    assert workers["replicate"].endswith("replicate_video_worker")
     assert "xai" not in workers
-    assert "replicate" not in workers
