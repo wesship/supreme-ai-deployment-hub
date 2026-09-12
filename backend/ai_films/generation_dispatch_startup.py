@@ -39,6 +39,23 @@ def _review_decisions(metadata: Mapping[str, Any]) -> dict[str, str]:
     return out
 
 
+def _visual_context(packet: Mapping[str, Any], *, selected_model: str | None) -> dict[str, Any]:
+    visual = packet.get("visual_intelligence")
+    visual_data = dict(visual) if isinstance(visual, Mapping) else {}
+    return {
+        "original_prompt": packet.get("original_generation_prompt"),
+        "compiled_prompt": packet.get("generation_prompt"),
+        "negative_prompt": packet.get("negative_prompt"),
+        "style_id": visual_data.get("style_id"),
+        "style_source": visual_data.get("source"),
+        "compiler": visual_data.get("compiler"),
+        "compiler_metadata": visual_data.get("metadata") or {},
+        "warnings": visual_data.get("warnings") or [],
+        "selected_model": selected_model,
+        "packet_schema": packet.get("schema"),
+    }
+
+
 async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     source = environ or os.environ
     if str(source.get("RAILWAY_ENVIRONMENT_NAME", "")).strip().lower() != "production":
@@ -90,6 +107,9 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
         for shot_id, plan in plans.items():
             if plan.get("action") != "queue" or shot_id in existing_shots:
                 continue
+            packet = plan.get("generation_packet")
+            packet_data = dict(packet) if isinstance(packet, Mapping) else {}
+            selected_model = plan.get("selected_model")
             payload = {
                 "project_id": PROJECT_ID,
                 "owner_id": row.get("owner_id"),
@@ -100,11 +120,15 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
                 "progress": 0,
                 "input": {
                     "shot_id": shot_id,
-                    "generation_packet": plan.get("generation_packet"),
-                    "selected_model": plan.get("selected_model"),
+                    "generation_packet": packet_data,
+                    "selected_model": selected_model,
                     "dispatcher": "multimodel-v1",
                 },
                 "output": {},
+                "visual_context": _visual_context(packet_data, selected_model=selected_model),
+                "cost_metadata": {},
+                "quality_metadata": {},
+                "source_subsystem": "ai_films",
             }
             created = await db._request("POST", "ai_film_render_jobs", payload=payload, representation=True)
             if created:
