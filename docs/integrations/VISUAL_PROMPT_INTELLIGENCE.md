@@ -21,7 +21,9 @@ The implementation lives under `backend/visual_intelligence/` and the AI Films l
 - provider-result, asset, QA, and bounded-regeneration lifecycle persistence;
 - bounded provider/style performance feedback for video routing;
 - fail-closed provider activation certification;
-- an owner-scoped Provider Intelligence workspace in AI Film Studio.
+- an owner-scoped Provider Intelligence workspace in AI Film Studio;
+- first-class Replicate general-video worker support behind explicit certification;
+- matched-window trend and provider-reported approval-cost analytics.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -62,10 +64,10 @@ regeneration depth. Existing owner-scoped RLS remains authoritative.
 
 ## Provider lifecycle
 
-Pollo and OpenAI completion paths normalize result assets and provider-reported usage/cost.
-Generated video is stored privately, linked to `ai_film_assets`, and then enters the
-TwelveLabs/Jockey QA path. QA records pass/revise/block, confidence, reasons, canon violations,
-and revision prompts. Automatic regeneration stays opt-in and depth-bounded.
+Pollo, OpenAI, and the Gate 9 Replicate general-video worker normalize result assets and
+provider-reported usage/cost. Generated video is stored privately, linked to `ai_film_assets`,
+and then enters the TwelveLabs/Jockey QA path. QA records pass/revise/block, confidence,
+reasons, canon violations, and revision prompts. Automatic regeneration stays opt-in and depth-bounded.
 
 ## Observed performance routing
 
@@ -78,10 +80,36 @@ Observed evidence can only reorder already admitted providers; it never activate
 
 `backend/ai_films/provider_activation.py` requires explicit provider request, a concrete
 worker implementation, and production canary certification. Pollo is the certified baseline.
-OpenAI requires an explicit canary-pass flag for reactivation. xAI, Replicate, Higgsfield,
-Runway, and Movieflow remain non-executable for general video until a worker and canary are certified.
+OpenAI requires an explicit canary-pass flag for reactivation. Replicate now has a first-class
+general-video worker but remains non-executable until `AI_FILM_PROVIDER_CANARY_REPLICATE=pass`
+and `replicate` is explicitly included in `AI_FILM_EXECUTABLE_VIDEO_PROVIDERS`. xAI,
+Higgsfield, Runway, and Movieflow remain non-executable until their own worker and canary are certified.
 
-## Gate 8 Provider Intelligence workspace
+## Gate 9 Replicate general-video certification
+
+`backend/ai_films/replicate_video_worker.py` promotes the existing Replicate Seedance capability
+from fallback-only execution into a first-class general-video worker. The worker reuses the
+existing private storage and asset registration path, records provider-reported cost metadata,
+and hands completed assets into `pending_generated_qa`.
+
+The normal queue runner remains fail-closed through `activation_status("replicate", source)`.
+A provider token, model name, routing preference, or performance score alone cannot make the
+worker claim jobs.
+
+Certification is intentionally separate from runtime activation:
+
+- `.github/workflows/ai-films-replicate-video-canary.yml` is manual-only;
+- it requires the literal confirmation `RUN_REPLICATE_VIDEO_CANARY`;
+- it runs in the protected production environment;
+- it creates exactly one five-second neutral test render;
+- automatic regeneration and normal generation execution are disabled for the canary job;
+- the script verifies completed ledger state, private project storage, result-asset linkage, and QA handoff;
+- a successful canary does not change routing flags automatically.
+
+The paid certification canary must be run and reviewed separately before protected runtime configuration
+is changed to admit Replicate.
+
+## Gate 8–10 Provider Intelligence workspace
 
 `src/features/ai-films/providerIntelligenceService.ts` reads the signed-in owner's
 `ai_film_render_jobs` through the existing Supabase browser client and RLS. No service-role key
@@ -94,10 +122,15 @@ is exposed to the browser and no new schema is required.
 - mean render latency when timestamps exist;
 - provider-reported cost totals only when a provider actually reports cost;
 - observed visual styles and style/provider QA evidence;
-- the bounded routing nudge derived from the same scoring contract used by routing.
+- the bounded routing nudge derived from the same scoring contract used by routing;
+- selectable 7/30/90-day windows;
+- matched previous-period pass/failure deltas;
+- provider-reported cost per QA-approved shot;
+- explicit cost-reporting coverage so incomplete billing data is visible rather than silently extrapolated.
 
 The workspace is read-only. It does not mutate provider configuration, canary state, routing,
 credentials, jobs, or assets. Fewer than three QA outcomes always produce a zero routing adjustment.
+Missing provider billing data is never estimated.
 
 ## Brand Forge contract
 
@@ -118,9 +151,11 @@ A dedicated backend Brand Forge executor still does not exist, so no fictitious 
 9. Automatic regeneration is opt-in, execution-gated, and depth-bounded.
 10. Observed performance may nudge routing only within explicit worker/configuration/canary gates.
 11. Provider Intelligence is read-only and owner-scoped by existing RLS.
+12. New video providers remain non-executable until a bounded production canary is separately reviewed and activated.
+13. Cost-efficiency analytics use reported costs only and expose data coverage.
 
 ## Next implementation gates
 
-- Add a certified general-video worker for one additional provider before admitting it.
-- Add trend windows and cost-per-approved-shot analytics once enough historical samples exist.
+- Run and review the protected Replicate general-video certification canary before any activation change.
+- Add routing-decision audit snapshots so every selected provider records the alternatives and evidence considered at dispatch time.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
