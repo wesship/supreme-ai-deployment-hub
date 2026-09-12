@@ -3,96 +3,136 @@ import { rateLimit, rateLimitKey, rateLimitResponse } from "../_shared/rateLimit
 
 // 60 req/min sustained, burst 60 — MCP proxy is per-session chatty.
 const RL_CFG = { capacity: 60, refillPerSec: 1 };
+const REQUEST_TIMEOUT_MS = 10_000;
+const ALLOWED_ORIGIN = Deno.env.get("MCP_GATEWAY_ALLOWED_ORIGIN") ?? "https://d3vonn.io";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-mcp-gateway-url",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  Vary: "Origin",
 };
 
 interface McpProxyRequest {
   method: string;
   params?: Record<string, unknown>;
-  gatewayUrl?: string;
+}
+
+function isPrivateOrLocalHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local") ||
+    host.startsWith("fe80:") ||
+    host.startsWith("fc") ||
+    host.startsWith("fd")
+  ) {
+    return true;
+  }
+
+  const octets = host.split(".").map(Number);
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) {
+    return false;
+  }
+
+  const [first, second] = octets;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 198 && (second === 18 || second === 19))
+  );
+}
+
+function configuredGatewayUrl(): URL {
+  const configured = Deno.env.get("MCP_GATEWAY_URL");
+  if (!configured) {
+    throw new Error("MCP gateway is not configured");
+  }
+
+  let target: URL;
+  try {
+    target = new URL(configured);
+  } catch {
+    throw new Error("MCP gateway configuration is invalid");
+  }
+
+  if (target.protocol !== "https:" || isPrivateOrLocalHostname(target.hostname)) {
+    throw new Error("MCP gateway configuration must use a public HTTPS endpoint");
+  }
+  return target;
+}
+
+function rpcError(id: number | null, code: number, message: string): Response {
+  return new Response(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id,
+      error: { code, message },
+    }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return rpcError(null, -32600, "POST is required");
   }
 
   const rl = rateLimit(rateLimitKey(req), RL_CFG);
   if (!rl.allowed) return rateLimitResponse(rl, corsHeaders);
 
+  let requestId: number | null = null;
   try {
     const body: McpProxyRequest = await req.json();
-    
-    // Get gateway URL from header or body
-    const gatewayUrl = req.headers.get("x-mcp-gateway-url") 
-      ?? body.gatewayUrl 
-      ?? Deno.env.get("MCP_GATEWAY_URL")
-      ?? "http://gateway-remote:8080/mcp";
+    if (!body || typeof body.method !== "string" || !body.method.trim()) {
+      return rpcError(null, -32600, "A JSON-RPC method is required");
+    }
 
-    console.log(`[mcp-gateway] Proxying ${body.method} to ${gatewayUrl}`);
-
-    // Build JSON-RPC request
+    const target = configuredGatewayUrl();
+    requestId = Date.now();
     const rpcRequest = {
       jsonrpc: "2.0",
-      id: Date.now(),
+      id: requestId,
       method: body.method,
       params: body.params ?? {},
     };
 
-    // Forward to MCP Gateway
-    const response = await fetch(gatewayUrl, {
+    const response = await fetch(target, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      redirect: "error",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(rpcRequest),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[mcp-gateway] Gateway error: ${response.status} - ${errorText}`);
-      return new Response(
-        JSON.stringify({
-          jsonrpc: "2.0",
-          id: rpcRequest.id,
-          error: {
-            code: response.status,
-            message: `Gateway error: ${errorText}`,
-          },
-        }),
-        {
-          status: 200, // Return 200 with JSON-RPC error
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      console.error(`[mcp-gateway] Configured gateway returned HTTP ${response.status}`);
+      return rpcError(requestId, -32000, "Configured gateway request failed");
     }
 
     const result = await response.json();
-    console.log(`[mcp-gateway] Response:`, JSON.stringify(result).slice(0, 200));
-
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("[mcp-gateway] Error:", error);
-    return new Response(
-      JSON.stringify({
-        jsonrpc: "2.0",
-        id: null,
-        error: {
-          code: -32603,
-          message: error instanceof Error ? error.message : "Internal error",
-        },
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    const message = error instanceof DOMException && error.name === "TimeoutError"
+      ? "Configured gateway request timed out"
+      : "MCP gateway request failed";
+    console.error("[mcp-gateway]", message);
+    return rpcError(requestId, -32603, message);
   }
 });

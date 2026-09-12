@@ -112,6 +112,37 @@ except ImportError as exc:
         raise RuntimeError("Required PRIMETIME Release 1 router unavailable") from exc
     logger.warning("PRIMETIME Release 1 router unavailable — skipping in %s only. (%s)", _environment, exc)
 
+
+def _feature_enabled(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+# Releases 2–7 write governed records through the service-role backend. They
+# remain closed until their migrations, RLS policies, audit triggers, staging
+# validation, compliance sign-off, and rollback plans are explicitly verified.
+if _feature_enabled("PRIMETIME_RELEASES_ENABLED"):
+    try:
+        from backend.app.routers.primetime_release2_scheduling import router as primetime_release2_scheduling_router
+        from backend.app.routers.primetime_release3_communications import router as primetime_release3_communications_router
+        from backend.app.routers.primetime_release4_ai_assistance import router as primetime_release4_ai_assistance_router
+        from backend.app.routers.primetime_release5_analytics import router as primetime_release5_analytics_router
+        from backend.app.routers.primetime_release7_observability import router as primetime_release7_observability_router
+
+        app.include_router(primetime_release2_scheduling_router)
+        logger.info("PRIMETIME Release 2 scheduling router registered at /primetime/v1")
+        app.include_router(primetime_release3_communications_router)
+        logger.info("PRIMETIME Release 3 communications router registered at /primetime/v1")
+        app.include_router(primetime_release4_ai_assistance_router)
+        logger.info("PRIMETIME Release 4 AI assistance router registered at /primetime/v1")
+        app.include_router(primetime_release5_analytics_router)
+        logger.info("PRIMETIME Release 5 analytics router registered at /primetime/v1")
+        app.include_router(primetime_release7_observability_router)
+        logger.info("PRIMETIME Release 7 observability router registered at /primetime/v1")
+    except ImportError as exc:
+        raise RuntimeError("Enabled PRIMETIME release router is unavailable") from exc
+else:
+    logger.info("PRIMETIME Releases 2–7 remain disabled pending explicit production-readiness enablement.")
+
 try:
     from backend.optimization.api import router as optimization_router
     app.include_router(optimization_router)

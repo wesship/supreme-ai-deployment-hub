@@ -12,6 +12,12 @@ on:
       - 'supabase/functions/**'
       - '.github/workflows/supabase-edge-functions.yml'
   workflow_dispatch:
+    inputs:
+      confirm_production_deploy:
+        description: 'Type true only after approving the Production deployment plan.'
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: supabase-edge-${{ github.ref }}
@@ -30,7 +36,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Setup Deno
-        uses: denoland/setup-deno@v2
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.x
 
@@ -39,19 +45,25 @@ jobs:
           set -euo pipefail
           test -f supabase/functions/generate-screenplay/index.ts
           test -f supabase/functions/generate-film/index.ts
+          test -f supabase/functions/ai-router/index.ts
+          test -f supabase/functions/mcp-gateway/index.ts
 
       - name: Typecheck film edge functions
         run: |
           set -euo pipefail
           deno check supabase/functions/generate-screenplay/index.ts
           deno check supabase/functions/generate-film/index.ts
+          deno check supabase/functions/ai-router/index.ts
+          deno check supabase/functions/mcp-gateway/index.ts
 
   deploy:
     name: Deploy Edge Functions
     runs-on: ubuntu-latest
     needs: typecheck
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm_production_deploy
     timeout-minutes: 15
+    environment:
+      name: Production
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -66,9 +78,9 @@ jobs:
           test -n "$SUPABASE_PROJECT_ID" || { echo '::error::SUPABASE_PROJECT_ID is missing'; exit 1; }
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf # v2.1.1
         with:
-          version: latest
+          version: 2.109.1
 
       - name: Deploy film edge functions
         env:
@@ -76,8 +88,10 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
         run: |
           set -euo pipefail
-          supabase functions deploy generate-screenplay --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
-          supabase functions deploy generate-film --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+          supabase functions deploy ai-router --project-ref "$SUPABASE_PROJECT_ID"
+          supabase functions deploy mcp-gateway --project-ref "$SUPABASE_PROJECT_ID"
+          supabase functions deploy generate-screenplay --project-ref "$SUPABASE_PROJECT_ID"
+          supabase functions deploy generate-film --project-ref "$SUPABASE_PROJECT_ID"
 
       - name: Smoke test film functions
         env:

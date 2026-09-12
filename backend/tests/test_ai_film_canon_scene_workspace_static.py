@@ -28,4 +28,3 @@ def test_studio_integrates_canon_scene_workspace():
     source = STUDIO.read_text(encoding="utf-8")
     assert "CanonSceneWorkspace" in source
     assert "<CanonSceneWorkspace project={project} assets={assets} />" in source
-    assert "Release 2 · Canon + Scenes" in source

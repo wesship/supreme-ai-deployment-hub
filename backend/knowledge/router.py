@@ -138,7 +138,7 @@ class KnowledgeStore:
         results: list[dict[str, Any]] = []
 
         for doc in self.documents:
-            searchable = " ".join(
+            metadata_searchable = " ".join(
                 str(part or "")
                 for part in [
                     doc.get("id"),
@@ -148,10 +148,12 @@ class KnowledgeStore:
                     " ".join(doc.get("tags") or []),
                     " ".join(doc.get("related") or []),
                     doc.get("summary"),
-                    doc.get("content"),
                 ]
             )
-            overlap = query_terms & self._tokens(searchable)
+            content = str(doc.get("content") or "")
+            metadata_overlap = query_terms & self._tokens(metadata_searchable)
+            content_overlap = query_terms & self._tokens(content)
+            overlap = metadata_overlap | content_overlap
             if overlap:
                 results.append(
                     {
@@ -160,12 +162,14 @@ class KnowledgeStore:
                         "title": doc.get("title"),
                         "category": doc.get("category"),
                         "tags": doc.get("tags", []),
-                        "score": len(overlap),
+                        # Structured metadata expresses a document's intended
+                        # scope, so it breaks content-token ties deterministically.
+                        "score": len(content_overlap) + (2 * len(metadata_overlap)),
                         "matches": sorted(overlap),
                     }
                 )
 
-        results.sort(key=lambda item: item["score"], reverse=True)
+        results.sort(key=lambda item: (-item["score"], str(item["path"]), str(item["id"])))
         return results[:limit]
 
     def entity(self, identifier: str) -> dict[str, Any] | None:

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
+from uuid import uuid4
 
 from backend.app.security.action_governance import DESTRUCTIVE_ACTIONS
 
@@ -124,7 +125,45 @@ class ApprovalExecutionService:
             }
 
         started_at = datetime.now(timezone.utc).isoformat()
-        result = await executor(action)
+        execution_id = str(uuid4())
+        claim = (
+            self.db.table("hermes_security_actions")
+            .update({
+                "status": "executing",
+                "details": {
+                    **(action.get("details") or {}),
+                    "execution": {
+                        "execution_id": execution_id,
+                        "started_at": started_at,
+                    },
+                },
+            })
+            .eq("id", action_id)
+            .eq("status", "approved")
+            .execute()
+        )
+        claimed_rows = claim.data or []
+        if not claimed_rows:
+            raise RuntimeError("execution state changed concurrently")
+
+        claimed_action = claimed_rows[0]
+        try:
+            result = await executor(claimed_action)
+        except Exception as exc:
+            completed_at = datetime.now(timezone.utc).isoformat()
+            self.db.table("hermes_security_actions").update({
+                "status": "execution_failed",
+                "details": {
+                    **(claimed_action.get("details") or {}),
+                    "execution": {
+                        **((claimed_action.get("details") or {}).get("execution") or {}),
+                        "completed_at": completed_at,
+                        "error": "Executor failed before returning a result.",
+                    },
+                },
+            }).eq("id", action_id).eq("status", "executing").execute()
+            raise RuntimeError("security action executor failed") from exc
+
         result_status = result.get("status")
         if result_status == "success":
             final_status = "executed"
@@ -137,8 +176,9 @@ class ApprovalExecutionService:
         update = {
             "status": final_status,
             "details": {
-                **(action.get("details") or {}),
+                **(claimed_action.get("details") or {}),
                 "execution": {
+                    **((claimed_action.get("details") or {}).get("execution") or {}),
                     "started_at": started_at,
                     "completed_at": completed_at,
                     "result": result,
@@ -149,7 +189,7 @@ class ApprovalExecutionService:
             self.db.table("hermes_security_actions")
             .update(update)
             .eq("id", action_id)
-            .eq("status", "approved")
+            .eq("status", "executing")
             .execute()
         )
         if not (resp.data or []):

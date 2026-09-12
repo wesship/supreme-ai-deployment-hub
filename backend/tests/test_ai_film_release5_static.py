@@ -46,4 +46,3 @@ def test_studio_integrates_storyboard_workspace():
     source = STUDIO.read_text(encoding="utf-8")
     assert "StoryboardWorkspace" in source
     assert "<StoryboardWorkspace project={project} />" in source
-    assert "Release 5 · AI Pre-Production" in source

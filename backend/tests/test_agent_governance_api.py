@@ -82,7 +82,7 @@ def test_platform_admin_does_not_gain_workspace_agent_permissions():
 
 
 def test_router_exposes_canonical_paths_and_legacy_aliases():
-    paths = {route.path for route in router.routes}
+    paths = {route.path for route in router.routes if getattr(route, "path", None)}
     assert "/governance/dry-run" in paths
     assert "/dispatch" in paths
     assert "/capability" in paths

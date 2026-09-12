@@ -5,8 +5,10 @@ Run with: pytest backend/tests/test_auth.py -v
 
 import pytest
 import jwt as pyjwt
-from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
+from fastapi import HTTPException
+
+from backend.auth.jwt import verify_jwt
 
 
 def make_token(payload: dict, secret: str = "test-secret", algorithm: str = "HS256") -> str:
@@ -14,38 +16,27 @@ def make_token(payload: dict, secret: str = "test-secret", algorithm: str = "HS2
 
 
 class TestVerifyJWT:
-    def test_valid_token_returns_payload(self):
-        try:
-            from auth.jwt import verify_jwt
-        except ImportError:
-            pytest.skip("auth.jwt not available")
-
+    def test_valid_token_returns_payload(self, monkeypatch):
+        monkeypatch.setenv("JWT_SECRET", "test-secret")
         payload = {
             "sub": "user-123",
             "email": "test@d3vonn.io",
             "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
         }
-        with patch("auth.jwt.JWT_SECRET", "test-secret"):
-            with patch("auth.jwt.JWT_ALGORITHM", "HS256"):
-                token = make_token(payload, "test-secret")
-                result = verify_jwt(f"Bearer {token}")
+        token = make_token(payload, "test-secret")
+        result = verify_jwt(f"Bearer {token}")
         assert result["sub"] == "user-123"
 
-    def test_expired_token_raises(self):
-        try:
-            from auth.jwt import verify_jwt
-        except ImportError:
-            pytest.skip("auth.jwt not available")
-
+    def test_expired_token_raises(self, monkeypatch):
+        monkeypatch.setenv("JWT_SECRET", "test-secret")
         payload = {
             "sub": "user-123",
             "exp": int((datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()),
         }
-        with patch("auth.jwt.JWT_SECRET", "test-secret"):
-            with patch("auth.jwt.JWT_ALGORITHM", "HS256"):
-                token = make_token(payload, "test-secret")
-                with pytest.raises(Exception):
-                    verify_jwt(f"Bearer {token}")
+        token = make_token(payload, "test-secret")
+        with pytest.raises(HTTPException) as exc:
+            verify_jwt(f"Bearer {token}")
+        assert exc.value.status_code == 401
 
     def test_missing_bearer_prefix_raises(self):
         try:

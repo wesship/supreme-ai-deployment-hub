@@ -42,6 +42,7 @@ secrets.json
 *.crt
 *.cer
 .vault-token
+.devonn/
 *.kubeconfig
 .vercel
 

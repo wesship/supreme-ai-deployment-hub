@@ -28,7 +28,7 @@ def test_market_intelligence_defaults_to_read_only(monkeypatch):
     assert response.routing.execution_allowed is False
     assert response.routing.signing_allowed is False
     assert response.routing.broadcast_allowed is False
-    assert "research_os_persist_dkos" in response.routing.workflow
+    assert "research_os_persist_dkos" not in response.routing.workflow
     assert all(provider.execution_enabled is False for provider in response.providers)
     assert response.signals == []
 
@@ -172,7 +172,12 @@ def test_live_query_runs_research_os_ranker_and_dkos_writer(monkeypatch):
     service.dkos_writer = fake_writer
     response = asyncio.run(
         service.query(
-            MarketIntelligenceQuery(query="ethereum protocol activity", asset_class="crypto", providers=["messari"])
+            MarketIntelligenceQuery(
+                query="ethereum protocol activity",
+                asset_class="crypto",
+                providers=["messari"],
+                save_to_dkos=True,
+            )
         )
     )
     assert fake_writer.calls == 1

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.auth.supabase_jwt import OCCPrincipal, require_occ_access
 from backend.hermes.market_analysis import create_ion_market_analysis_task
@@ -26,7 +26,23 @@ def market_intelligence_health():
 
 @router.post("/query", response_model=MarketIntelligenceResponse)
 async def market_intelligence_query(payload: MarketIntelligenceQuery) -> MarketIntelligenceResponse:
-    """Run the existing read-only market-intelligence query without agent dispatch."""
+    """Run a public, non-persisting market-intelligence query."""
+    if payload.save_to_dkos:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="DKOS persistence requires OCC operator access.",
+        )
+    return await _service.query(payload)
+
+
+@router.post("/query/persist", response_model=MarketIntelligenceResponse)
+async def market_intelligence_query_persist(
+    payload: MarketIntelligenceQuery,
+    _: OCCPrincipal = Depends(require_occ_access),
+) -> MarketIntelligenceResponse:
+    """Run research and persist only when an authorized operator opts in."""
+    if not payload.save_to_dkos:
+        payload = payload.model_copy(update={"save_to_dkos": True})
     return await _service.query(payload)
 
 

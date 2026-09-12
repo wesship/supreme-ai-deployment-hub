@@ -48,6 +48,15 @@ vector_port = 54328
 [functions.ai-router]
 verify_jwt = true
 
+[functions.mcp-gateway]
+verify_jwt = true
+
+[functions.generate-screenplay]
+verify_jwt = true
+
+[functions.generate-film]
+verify_jwt = true
+
 [functions.tars-plan]
 verify_jwt = true
 
@@ -57,8 +66,8 @@ verify_jwt = true
 [functions.tars-followup]
 verify_jwt = true
 
-# enqueue-task intentionally bypasses platform JWT verification because it is
-# an external integration webhook that authenticates every request with
-# HERMES_WEBHOOK_SECRET using HMAC-SHA256 before any privileged write.
+# The tracked source does not contain the claimed external webhook verifier.
+# Keep platform JWT verification enabled until a reviewed, fail-closed webhook
+# implementation (including replay protection) is versioned with its tests.
 [functions.enqueue-task]
-verify_jwt = false
+verify_jwt = true
