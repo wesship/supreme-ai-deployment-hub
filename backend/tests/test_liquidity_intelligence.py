@@ -67,6 +67,46 @@ def test_opportunity_is_non_executing_and_accounts_for_gas_drag():
     assert cheap["expected_net_apy_pct"] > expensive["expected_net_apy_pct"]
 
 
+def test_non_positive_net_apy_is_ineligible_and_cannot_outrank_profit():
+    loss = LiquidityPoolSnapshot(
+        protocol="loss",
+        chain="ethereum",
+        symbol="LOSS/USDC",
+        tvl_usd=100_000_000,
+        volume_24h_usd=50_000_000,
+        apy_pct=2.0,
+        protocol_age_days=1500,
+        audited=True,
+        oracle_quality=100,
+        asset_quality=100,
+    )
+    profit = LiquidityPoolSnapshot(
+        protocol="profit",
+        chain="ethereum",
+        symbol="PROFIT/USDC",
+        tvl_usd=2_000_000,
+        volume_24h_usd=100_000,
+        apy_pct=4.0,
+        protocol_age_days=300,
+        audited=True,
+        oracle_quality=70,
+        asset_quality=70,
+    )
+
+    ranked = rank_liquidity_opportunities(
+        [loss, profit],
+        gas_cost_usd=300,
+        allocation_usd=10_000,
+    )
+
+    assert ranked[0]["protocol"] == "profit"
+    assert ranked[0]["opportunity"]["eligible"] is True
+    assert ranked[1]["protocol"] == "loss"
+    assert ranked[1]["opportunity"]["eligible"] is False
+    assert ranked[1]["opportunity"]["opportunity_score"] == 0
+    assert "non_positive_net_apy" in ranked[1]["opportunity"]["rationale"]
+
+
 def test_ranking_prioritizes_risk_adjusted_opportunity_not_raw_apy():
     safe = LiquidityPoolSnapshot(
         protocol="safe",
