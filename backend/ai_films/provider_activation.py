@@ -26,6 +26,7 @@ class ProviderActivation:
 _VIDEO_WORKERS = {
     "pollo": "backend.ai_films.pollo_video_worker",
     "openai": "backend.ai_films.openai_video_worker",
+    "replicate": "backend.ai_films.replicate_video_worker",
 }
 
 # Pollo has already completed the guarded production canary path. Other
