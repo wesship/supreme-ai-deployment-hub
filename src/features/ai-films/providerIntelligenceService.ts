@@ -57,6 +57,37 @@ export type RoutingDecisionAudit = {
   outcome: RoutingOutcomeEvidence;
 };
 
+export type DecisionQualityRollup = {
+  key: string;
+  provider: string | null;
+  styleId: string | null;
+  audited: number;
+  judged: number;
+  pending: number;
+  passes: number;
+  revises: number;
+  blocks: number;
+  failures: number;
+  passRate: number;
+  reviseRate: number;
+  blockRate: number;
+  failureRate: number;
+  evidenceCoverageRate: number;
+  evidenceSufficient: boolean;
+  meanLatencySeconds: number | null;
+  reportedCostUsdMean: number | null;
+  reportedCostSamples: number;
+  reportedCostCoverageRate: number;
+  meanQaConfidence: number | null;
+};
+
+export type DecisionQualitySnapshot = {
+  minimumJudgedSamples: number;
+  overall: DecisionQualityRollup;
+  providers: DecisionQualityRollup[];
+  providerStyles: DecisionQualityRollup[];
+};
+
 export type ProviderIntelligence = {
   provider: string;
   jobs: number;
@@ -88,7 +119,10 @@ export type ProviderIntelligenceSnapshot = {
   providers: ProviderIntelligence[];
   stylePerformance: Array<{ key: string } & ProviderQuality>;
   routingDecisions: RoutingDecisionAudit[];
+  decisionQuality: DecisionQualitySnapshot;
 };
+
+const MIN_DECISION_QUALITY_SAMPLES = 3;
 
 const asObject = (value: unknown): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {};
@@ -266,6 +300,116 @@ const routingDecisionFromRow = (row: any): RoutingDecisionAudit | null => {
   };
 };
 
+type DecisionQualityBucket = {
+  key: string;
+  provider: string | null;
+  styleId: string | null;
+  audited: number;
+  passes: number;
+  revises: number;
+  blocks: number;
+  failures: number;
+  pending: number;
+  latencies: number[];
+  costs: number[];
+  confidences: number[];
+};
+
+const decisionOutcomeClass = (decision: RoutingDecisionAudit): 'pass' | 'revise' | 'block' | 'failure' | 'pending' => {
+  if (['failed', 'error'].includes(decision.outcome.status)) return 'failure';
+  if (decision.outcome.qaDecision === 'pass') return 'pass';
+  if (decision.outcome.qaDecision === 'revise') return 'revise';
+  if (decision.outcome.qaDecision === 'block') return 'block';
+  return 'pending';
+};
+
+const summarizeDecisionQuality = (
+  decisions: RoutingDecisionAudit[],
+  key: string,
+  provider: string | null,
+  styleId: string | null,
+): DecisionQualityRollup => {
+  const bucket: DecisionQualityBucket = {
+    key,
+    provider,
+    styleId,
+    audited: decisions.length,
+    passes: 0,
+    revises: 0,
+    blocks: 0,
+    failures: 0,
+    pending: 0,
+    latencies: [],
+    costs: [],
+    confidences: [],
+  };
+  decisions.forEach((decision) => {
+    const outcomeClass = decisionOutcomeClass(decision);
+    if (outcomeClass === 'pass') bucket.passes += 1;
+    if (outcomeClass === 'revise') bucket.revises += 1;
+    if (outcomeClass === 'block') bucket.blocks += 1;
+    if (outcomeClass === 'failure') bucket.failures += 1;
+    if (outcomeClass === 'pending') bucket.pending += 1;
+    if (decision.outcome.latencySeconds !== null) bucket.latencies.push(decision.outcome.latencySeconds);
+    if (decision.outcome.reportedCostUsd !== null) bucket.costs.push(decision.outcome.reportedCostUsd);
+    if (decision.outcome.qaConfidence !== null) bucket.confidences.push(decision.outcome.qaConfidence);
+  });
+  const judged = bucket.passes + bucket.revises + bucket.blocks + bucket.failures;
+  return {
+    key,
+    provider,
+    styleId,
+    audited: bucket.audited,
+    judged,
+    pending: bucket.pending,
+    passes: bucket.passes,
+    revises: bucket.revises,
+    blocks: bucket.blocks,
+    failures: bucket.failures,
+    passRate: judged ? bucket.passes / judged : 0,
+    reviseRate: judged ? bucket.revises / judged : 0,
+    blockRate: judged ? bucket.blocks / judged : 0,
+    failureRate: judged ? bucket.failures / judged : 0,
+    evidenceCoverageRate: bucket.audited ? judged / bucket.audited : 0,
+    evidenceSufficient: judged >= MIN_DECISION_QUALITY_SAMPLES,
+    meanLatencySeconds: bucket.latencies.length ? bucket.latencies.reduce((a, b) => a + b, 0) / bucket.latencies.length : null,
+    reportedCostUsdMean: bucket.costs.length ? bucket.costs.reduce((a, b) => a + b, 0) / bucket.costs.length : null,
+    reportedCostSamples: bucket.costs.length,
+    reportedCostCoverageRate: bucket.audited ? bucket.costs.length / bucket.audited : 0,
+    meanQaConfidence: bucket.confidences.length ? bucket.confidences.reduce((a, b) => a + b, 0) / bucket.confidences.length : null,
+  };
+};
+
+const decisionQualitySnapshot = (decisions: RoutingDecisionAudit[]): DecisionQualitySnapshot => {
+  const byProvider = new Map<string, RoutingDecisionAudit[]>();
+  const byProviderStyle = new Map<string, RoutingDecisionAudit[]>();
+  decisions.forEach((decision) => {
+    const provider = String(decision.selectedProvider || decision.provider || 'unknown').toLowerCase();
+    if (!byProvider.has(provider)) byProvider.set(provider, []);
+    byProvider.get(provider)!.push(decision);
+    if (decision.styleId) {
+      const key = `${provider}|${decision.styleId}`;
+      if (!byProviderStyle.has(key)) byProviderStyle.set(key, []);
+      byProviderStyle.get(key)!.push(decision);
+    }
+  });
+  const providers = [...byProvider.entries()]
+    .map(([provider, rows]) => summarizeDecisionQuality(rows, provider, provider, null))
+    .sort((a, b) => b.judged - a.judged || b.passRate - a.passRate || a.key.localeCompare(b.key));
+  const providerStyles = [...byProviderStyle.entries()]
+    .map(([key, rows]) => {
+      const [provider, ...styleParts] = key.split('|');
+      return summarizeDecisionQuality(rows, key, provider, styleParts.join('|') || null);
+    })
+    .sort((a, b) => b.judged - a.judged || b.passRate - a.passRate || a.key.localeCompare(b.key));
+  return {
+    minimumJudgedSamples: MIN_DECISION_QUALITY_SAMPLES,
+    overall: summarizeDecisionQuality(decisions, 'overall', null, null),
+    providers,
+    providerStyles,
+  };
+};
+
 export const fetchProviderIntelligence = async (
   projectId?: string,
   windowDays: 7 | 30 | 90 = 30,
@@ -341,10 +485,10 @@ export const fetchProviderIntelligence = async (
     .filter(([key]) => key.includes('|'))
     .map(([key, value]) => ({ key, ...value }));
 
-  const routingDecisions = currentRows
+  const allRoutingDecisions = currentRows
     .map(routingDecisionFromRow)
-    .filter((decision): decision is RoutingDecisionAudit => Boolean(decision))
-    .slice(0, 20);
+    .filter((decision): decision is RoutingDecisionAudit => Boolean(decision));
+  const routingDecisions = allRoutingDecisions.slice(0, 20);
 
   return {
     windowDays,
@@ -355,5 +499,6 @@ export const fetchProviderIntelligence = async (
     providers: summaries,
     stylePerformance,
     routingDecisions,
+    decisionQuality: decisionQualitySnapshot(allRoutingDecisions),
   };
 };
