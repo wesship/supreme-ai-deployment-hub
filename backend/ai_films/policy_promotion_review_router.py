@@ -13,6 +13,7 @@ from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.ai_films.orchestration import OrchestrationError, SupabaseRLSClient
+from backend.ai_films.provider_activation import activation_status
 
 router = APIRouter(prefix="/ai-films/policy-promotions", tags=["ai-films", "policy-governance"])
 
@@ -73,12 +74,18 @@ async def _service_insert(table: str, payload: dict[str, Any]) -> dict[str, Any]
 def _canary_state(change_request: dict[str, Any], decision: str) -> str:
     if decision == "rejected":
         return "not_checked"
+
     required = str(change_request.get("required_canary_state") or "not_required")
+    provider = str(change_request.get("required_canary_provider") or "").strip().lower()
     if required == "not_required":
         return "not_required"
-    if required == "passed":
-        return "passed"
-    raise HTTPException(status_code=409, detail="Required provider canary has not passed")
+    if required != "passed" or not provider:
+        raise HTTPException(status_code=409, detail="Required provider canary has not passed")
+
+    certification = activation_status(provider, os.environ)
+    if not certification.canary_passed:
+        raise HTTPException(status_code=409, detail="Required provider canary has not passed")
+    return "passed"
 
 
 @router.post("/{change_request_id}/reviews", status_code=status.HTTP_201_CREATED)
