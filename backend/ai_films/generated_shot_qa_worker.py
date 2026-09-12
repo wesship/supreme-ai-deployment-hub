@@ -40,7 +40,6 @@ async def _claim(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
         "GET", "ai_film_render_jobs",
         params={
             "job_type": "eq.video",
-            "provider": "eq.openai",
             "status": "eq.completed",
             "output->qa->>state": "eq.pending_generated_qa",
             "select": "*",
