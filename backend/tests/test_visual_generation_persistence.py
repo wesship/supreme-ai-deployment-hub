@@ -5,6 +5,7 @@ from backend.ai_films.generation_lifecycle import (
     regeneration_allowed,
     regeneration_packet,
 )
+from backend.ai_films.provider_performance import routing_adjustment, summarize_provider_performance
 
 
 def test_visual_context_preserves_original_and_compiled_prompts():
@@ -118,3 +119,24 @@ def test_regeneration_respects_depth_and_preserves_lineage():
     assert packet["negative_prompt"] == "visual clutter"
     assert packet["parent_render_job_id"] == "job-parent"
     assert packet["regeneration_count"] == 1
+
+
+def test_provider_performance_requires_samples_and_is_bounded():
+    rows = [
+        {"provider": "pollo", "quality_metadata": {"decision": "pass", "confidence": 0.9}, "visual_context": {"style_id": "cinematic-storyboard"}},
+        {"provider": "pollo", "quality_metadata": {"decision": "pass", "confidence": 0.8}, "visual_context": {"style_id": "cinematic-storyboard"}},
+        {"provider": "pollo", "quality_metadata": {"decision": "revise", "confidence": 0.7}, "visual_context": {"style_id": "cinematic-storyboard"}},
+    ]
+    performance = summarize_provider_performance(rows)
+    adjustment, reasons = routing_adjustment(performance, provider="pollo", style_id="cinematic-storyboard")
+    assert performance["pollo"]["samples"] == 3
+    assert performance["pollo|cinematic-storyboard"]["samples"] == 3
+    assert -15 <= adjustment <= 15
+    assert reasons and reasons[0].startswith("observed_style_performance:3:")
+
+
+def test_provider_performance_does_not_nudge_with_insufficient_history():
+    performance = summarize_provider_performance([
+        {"provider": "pollo", "quality_metadata": {"decision": "pass", "confidence": 1.0}, "visual_context": {}}
+    ])
+    assert routing_adjustment(performance, provider="pollo") == (0, ())
