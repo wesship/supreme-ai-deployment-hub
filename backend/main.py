@@ -83,6 +83,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.hermes.recency_router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),
     ("backend.visual_intelligence.router", "router", "/api"),
+    ("backend.ai_films.policy_promotion_review_router", "router", "/api"),
     ("backend.rag.router", "router", None),
     ("backend.knowledge.router", "router", None),
     ("backend.research_os.router", "router", None),
