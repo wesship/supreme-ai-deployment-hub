@@ -6,6 +6,9 @@ name: Release
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/workflows/**'
+      - '.github/scripts/certify_messari_production.py'
 
 concurrency:
   group: release-${{ github.ref }}
