@@ -22,4 +22,4 @@ def test_deployment_diagnostics_report_api_health_route_and_environment():
     assert '"api_health": "/api/health" in paths' in text
     assert '"railway_environment": os.getenv("RAILWAY_ENVIRONMENT_NAME", "unknown")' in text
     assert '"railway_deployment_id": os.getenv("RAILWAY_DEPLOYMENT_ID")' in text
-    assert 'DEPLOYMENT_REVISION = "railway-ai-films-openmontage-production-2026-08-18"' in text
+    assert 'DEPLOYMENT_REVISION = "railway-ai-films-pollo-replicate-failover-2026-09-06"' in text

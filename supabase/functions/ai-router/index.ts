@@ -44,6 +44,15 @@ function getUserId(req: Request) {
   }
 }
 
+function isAuthorizedSmsOperator(userId: string | null): boolean {
+  if (!userId) return false;
+  const allowedSubjects = (Deno.env.get("AI_ROUTER_SMS_APPROVER_SUBJECTS") ?? "")
+    .split(",")
+    .map((subject) => subject.trim())
+    .filter(Boolean);
+  return allowedSubjects.includes(userId);
+}
+
 async function readJson(req: Request): Promise<RequestBody> {
   const ct = req.headers.get("content-type") || "";
   if (!ct.includes("application/json")) {
@@ -295,6 +304,13 @@ Deno.serve(async (req: Request) => {
       result = await embedText(input);
     } else if (body.task === "sms") {
       if (provider !== "twilio") return json({ error: "Twilio provider required for task=sms", requestId }, 400);
+      if (!isAuthorizedSmsOperator(userId)) {
+        return json({
+          error: "SMS_NOT_AUTHORIZED",
+          message: "SMS delivery requires an authorized operator subject.",
+          requestId,
+        }, 403);
+      }
       result = await handleTwilioSMS(body.input || {});
     } else if (body.task === "rag") {
       if (provider !== "pinecone") return json({ error: "Pinecone provider required for task=rag", requestId }, 400);

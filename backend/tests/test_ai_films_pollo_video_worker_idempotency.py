@@ -6,6 +6,7 @@ from backend.ai_films import pollo_video_worker as worker
 class FakeDB:
     def __init__(self):
         self.updates = []
+        self.bucket = "ai-film-renders"
 
     async def update_job(self, job_id, payload):
         self.updates.append((job_id, payload))

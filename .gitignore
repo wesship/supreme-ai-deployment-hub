@@ -23,6 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 coverage/
+.coverage
 
 # Environment files — never commit secrets
 .env
@@ -42,6 +43,7 @@ secrets.json
 *.crt
 *.cer
 .vault-token
+.devonn/
 *.kubeconfig
 .vercel
 

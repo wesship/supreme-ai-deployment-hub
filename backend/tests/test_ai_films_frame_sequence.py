@@ -46,10 +46,7 @@ def test_missing_source_fails_before_ffmpeg(tmp_path: Path) -> None:
 def test_missing_ffmpeg_is_typed(tmp_path: Path) -> None:
     source = tmp_path / "clip.mov"
     source.write_bytes(b"media")
-    with (
-        patch("backend.ai_films.frame_sequence.shutil.which", return_value=None),
-        patch("backend.ai_films.frame_sequence.Path.is_file", return_value=False),
-    ):
+    with patch("backend.ai_films.frame_sequence._resolve_media_binary", return_value=None):
         with pytest.raises(FrameDecoderUnavailableError, match="ffmpeg executable not found"):
             decode_to_acescg_exr_sequence(source, tmp_path / "frames", metadata=_metadata(source))
 

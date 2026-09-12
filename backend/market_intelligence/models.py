@@ -14,7 +14,9 @@ class MarketIntelligenceQuery(BaseModel):
     asset_class: AssetClass = "mixed"
     symbols: list[str] = Field(default_factory=list, max_length=50)
     providers: list[ProviderName] = Field(default_factory=list, max_length=4)
-    save_to_dkos: bool = True
+    # Persistence is deliberately opt-in and may only be requested through an
+    # OCC-protected route. The public query route remains read-only.
+    save_to_dkos: bool = False
     max_results_per_source: int = Field(default=5, ge=1, le=25)
 
 

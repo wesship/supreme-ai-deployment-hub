@@ -124,15 +124,12 @@ async def test_registration_failure_removes_uploaded_objects(tmp_path: Path):
     assert len(cleanup_payloads[0]["prefixes"]) == 4
 
 
-def test_too_large_artifact_is_rejected_before_upload(tmp_path: Path, monkeypatch):
+def test_too_large_artifact_is_rejected_before_upload(tmp_path: Path):
     from backend.ai_films import artifact_store
 
     path = tmp_path / "frame.exr"
-    path.write_bytes(b"x")
+    with path.open("wb") as stream:
+        stream.truncate(MAX_OBJECT_BYTES + 1)
 
-    class FakeStat:
-        st_size = MAX_OBJECT_BYTES + 1
-
-    monkeypatch.setattr(Path, "stat", lambda self: FakeStat())
     with pytest.raises(ArtifactTooLargeError):
         artifact_store._require_file(path)

@@ -74,6 +74,7 @@ async def test_repair_creates_store_and_reuses_index_assets(monkeypatch):
     client = FakeClient()
     db = FakeDB()
     monkeypatch.delenv("TWELVELABS_KNOWLEDGE_STORE_ID", raising=False)
+    monkeypatch.delenv("TWELVELABS_INDEX_ID", raising=False)
 
     store = await repair.ensure_jockey_store_from_index(client, db, {})
 
@@ -92,6 +93,7 @@ async def test_repair_reuses_persisted_ready_store(monkeypatch):
 
     client = ReadyClient()
     db = FakeDB()
+    monkeypatch.delenv("TWELVELABS_INDEX_ID", raising=False)
     store = await repair.ensure_jockey_store_from_index(
         client,
         db,
@@ -122,6 +124,7 @@ async def test_source_index_discovery_uses_unique_named_default(monkeypatch):
 
     client = DiscoveryClient()
     db = FakeDB()
+    monkeypatch.delenv("TWELVELABS_INDEX_ID", raising=False)
     chosen = await repair._resolve_source_index(client, db, {})
     assert chosen == "idx-default"
     assert any(update.get("jockey_source_index_visibility") == "discovered" for update in db.updates)

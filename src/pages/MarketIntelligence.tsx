@@ -66,7 +66,6 @@ export default function MarketIntelligence() {
     "finviz",
     "messari",
   ]);
-  const [saveToDkos, setSaveToDkos] = useState(true);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [result, setResult] = useState<MarketResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -105,7 +104,7 @@ export default function MarketIntelligence() {
             .map((symbol) => symbol.trim().toUpperCase())
             .filter(Boolean),
           providers: selected,
-          save_to_dkos: saveToDkos,
+          save_to_dkos: false,
           max_results_per_source: 5,
         }),
       });
@@ -196,10 +195,9 @@ export default function MarketIntelligence() {
             </div>
 
             <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <label className="flex items-center gap-3 text-sm text-slate-300">
-                <input type="checkbox" checked={saveToDkos} onChange={(event) => setSaveToDkos(event.target.checked)} />
-                Persist ranked evidence to DKOS
-              </label>
+              <p className="text-sm text-slate-400">
+                This public research surface is read-only. DKOS persistence requires an authorized OCC workflow.
+              </p>
               <button
                 type="button"
                 onClick={runMarketIntelligence}

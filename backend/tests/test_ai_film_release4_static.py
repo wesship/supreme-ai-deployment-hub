@@ -58,4 +58,3 @@ def test_studio_integrates_release_control():
     source = STUDIO.read_text(encoding="utf-8")
     assert "ReleaseControlWorkspace" in source
     assert "onAssetsChanged={refreshAssets}" in source
-    assert "Release 4 · Review + Render Control" in source

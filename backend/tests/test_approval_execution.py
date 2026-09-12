@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from backend.app.security.approval_execution import ApprovalExecutionService
@@ -106,6 +108,21 @@ async def test_registered_executor_result_is_audited():
     assert result["status"] == "executed"
     assert row["status"] == "executed"
     assert row["details"]["execution"]["result"]["provider_ref"] == "provider-123"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_executor_releases_claim_for_human_follow_up():
+    row = make_action(status="approved")
+
+    async def executor(_action):
+        raise asyncio.CancelledError()
+
+    service = ApprovalExecutionService(FakeDB([row]), {"block_ip": executor})
+    with pytest.raises(asyncio.CancelledError):
+        await service.execute_approved("a1")
+
+    assert row["status"] == "execution_failed"
+    assert row["details"]["execution"]["error"] == "Executor was cancelled before returning a result."
 
 
 @pytest.mark.asyncio

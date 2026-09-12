@@ -96,17 +96,16 @@ async def run_local_mastering_canary() -> CanaryResult:
     """
     previous = _provider_guard()
     try:
-        from backend.ai_films.frame_sequence import decode_media_to_openexr_sequence
+        from backend.ai_films.frame_sequence import decode_to_acescg_exr_sequence
 
         with tempfile.TemporaryDirectory(prefix="ai-films-canary-") as tmp:
             root = Path(tmp)
             source = make_synthetic_clip(root / "source.mp4")
             out_dir = root / "master"
             result: Any = await asyncio.to_thread(
-                decode_media_to_openexr_sequence,
+                decode_to_acescg_exr_sequence,
                 source,
                 out_dir,
-                source_color_space="Utility - sRGB - Texture",
             )
 
             conform_path = out_dir / "editorial_conform.json"
@@ -115,7 +114,9 @@ async def run_local_mastering_canary() -> CanaryResult:
                 raise RuntimeError("canary did not emit editorial conform artifacts")
 
             conform = json.loads(conform_path.read_text(encoding="utf-8"))
-            frame_count = int(conform.get("frame_count") or 0)
+            frame_count = len(result.frames)
+            if len(conform.get("frames") or []) != frame_count:
+                raise RuntimeError("canary editorial conform frame count did not match mastered output")
             if frame_count <= 0:
                 raise RuntimeError("canary produced no mastered frames")
 

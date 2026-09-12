@@ -91,9 +91,20 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
                 detail = body["message"]
         except ValueError:
             pass
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail)
+        upstream_status = (
+            status.HTTP_422_UNPROCESSABLE_ENTITY
+            if response.status_code in {400, 409, 422}
+            else status.HTTP_502_BAD_GATEWAY
+        )
+        raise HTTPException(status_code=upstream_status, detail=detail)
 
-    data = response.json()
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="MoneyHub ledger returned an invalid response.",
+        ) from exc
     if not isinstance(data, dict):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

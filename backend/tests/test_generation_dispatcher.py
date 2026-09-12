@@ -73,6 +73,12 @@ def test_sora_alias_ranks_as_openai_when_configured():
         "anchor_frame_asset_ids": [],
         "audio": {},
     }
-    routes = rank_video_routes(packet, {"OPENAI_API_KEY": "configured"})
+    routes = rank_video_routes(
+        packet,
+        {
+            "OPENAI_API_KEY": "configured",
+            "AI_FILM_EXECUTABLE_VIDEO_PROVIDERS": "openai",
+        },
+    )
     assert routes[0].provider == "openai"
     assert routes[0].configured is True

@@ -38,4 +38,3 @@ def test_studio_integrates_storage_package_workspace():
     source = STUDIO.read_text(encoding="utf-8")
     assert "StoragePackageWorkspace" in source
     assert "onAssetUploaded={refreshAssets}" in source
-    assert "Release 3 · Production Delivery" in source

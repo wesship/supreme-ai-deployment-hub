@@ -34,10 +34,8 @@ def client() -> TestClient:
     return TestClient(_load_app())
 
 
-# Origins that MUST be allowed (static allow-list in backend/main.py)
+# Origins that MUST be allowed by the production static allow-list.
 ALLOWED_STATIC_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:3000",
     "https://d3vonn.io",
     "https://www.d3vonn.io",
     "https://app.d3vonn.io",
@@ -47,9 +45,7 @@ ALLOWED_STATIC_ORIGINS = [
 
 # Origins that MUST be allowed via `allow_origin_regex`
 ALLOWED_REGEX_ORIGINS = [
-    "https://id-preview--b5eb8a4d-3709-4e3f-930c-ab5ab4b96560.lovable.app",
-    "https://feature-branch-preview.lovable.app",
-    "https://something.lovableproject.com",
+    "https://id-preview--supreme-ai-deployment-hub.lovable.app",
     "https://supreme-ai-deployment-hub-git-main-acme.vercel.app",
 ]
 
@@ -58,6 +54,10 @@ DISALLOWED_ORIGINS = [
     "https://evil.example.com",
     "http://d3vonn.io.attacker.com",
     "https://lovable.app.evil.com",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://feature-branch-preview.lovable.app",
+    "https://something.lovableproject.com",
 ]
 
 
@@ -99,3 +99,15 @@ def test_preflight_rejects_unknown_origin(client: TestClient, origin: str):
     assert allow_origin != origin, (
         f"Origin {origin!r} should not be allowed but server echoed it back"
     )
+
+
+def test_preflight_allows_explicitly_configured_development_origin(monkeypatch):
+    monkeypatch.setenv("ALLOWED_ORIGINS", "http://localhost:5173")
+    configured_client = TestClient(_load_app())
+    try:
+        response = _preflight(configured_client, "http://localhost:5173")
+        assert response.status_code == 200
+        assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    finally:
+        monkeypatch.delenv("ALLOWED_ORIGINS", raising=False)
+        _load_app()

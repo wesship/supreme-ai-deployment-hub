@@ -69,4 +69,4 @@ def test_completed_dump_taxonomy_is_seeded() -> None:
     for source_file in source_files:
         assert source_file in taxonomy
 
-    assert taxonomy.count("sourceFilename:") == 16
+    assert taxonomy.count("sourceFilename: '") == 16

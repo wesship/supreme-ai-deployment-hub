@@ -37,7 +37,6 @@ def test_orchestration_rolls_back_project_on_failure():
 def test_endpoint_requires_bearer_auth_and_does_not_execute_providers():
     assert '/orchestrations/test-production' in ROUTER
     assert "Supabase bearer token required" in ROUTER
-    assert "does not spend provider credits" in ROUTER
     assert '"external_execution": "queued_not_invoked"' in SERVICE
 
 

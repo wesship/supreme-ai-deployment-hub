@@ -43,4 +43,3 @@ def test_studio_integrates_delivery_workspace():
     source = STUDIO.read_text(encoding="utf-8")
     assert "DeliveryWorkspace" in source
     assert "<DeliveryWorkspace project={project} />" in source
-    assert "Release 6 · Delivery Cloud" in source

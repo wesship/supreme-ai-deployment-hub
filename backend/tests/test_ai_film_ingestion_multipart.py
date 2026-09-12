@@ -62,10 +62,13 @@ def test_asset_poll_retries_transient_404_until_ready():
         def __init__(self):
             self.calls = 0
 
-        async def _request(self, method, path, *, payload=None):
+        async def _request(self, method, path, *, payload=None, params=None):
             self.calls += 1
             if self.calls == 1:
                 raise TwelveLabsError("TwelveLabs request failed with HTTP 404")
+            if path == "/assets":
+                assert params == {"asset_ids": "asset_test", "page_limit": 1}
+                return {"data": []}
             return {"_id": "asset_test", "status": "ready"}
 
     client = FakeClient()
@@ -79,7 +82,7 @@ def test_asset_poll_retries_transient_404_until_ready():
     )
 
     assert result["status"] == "ready"
-    assert client.calls == 2
+    assert client.calls == 3
 
 
 def test_item_poll_retries_transient_404_until_ready():
