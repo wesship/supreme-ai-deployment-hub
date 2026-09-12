@@ -6,7 +6,7 @@ negative constraints, and metadata without coupling orchestration to a single ve
 
 ## Runtime flow
 
-`Hermes / Brand Forge / AI Films -> VisualStyleLibrary -> provider activation gate -> provider router -> generator -> asset store -> QA -> provider intelligence`
+`Hermes / Brand Forge / AI Films -> VisualStyleLibrary -> provider activation gate -> provider router -> routing audit snapshot -> generator -> asset store -> QA -> provider intelligence`
 
 The implementation lives under `backend/visual_intelligence/` and the AI Films lifecycle modules. It provides:
 
@@ -24,7 +24,7 @@ The implementation lives under `backend/visual_intelligence/` and the AI Films l
 - an owner-scoped Provider Intelligence workspace in AI Film Studio;
 - first-class Replicate general-video worker support behind explicit certification;
 - matched-window trend and provider-reported approval-cost analytics;
-- per-job routing-decision audit snapshots.
+- per-job routing-decision audit snapshots and operator drill-down.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -155,6 +155,25 @@ No provider credentials, API keys, tokens, auth headers, or signed asset URLs ar
 audit snapshot. Gate 11 uses the existing render-job `input` JSON and therefore requires no schema change.
 The snapshot is audit evidence only; it does not alter provider ranking or execution eligibility.
 
+## Gate 12 routing audit drill-down
+
+Provider Intelligence now reads the persisted `input.routing_decision` snapshot from the same
+owner-scoped render-job query and exposes up to the 20 most recent audited decisions in the selected
+7/30/90-day window.
+
+Each expandable decision shows:
+
+- selected provider/model and shot ID;
+- decision timestamp, reason, dispatcher version, and style provenance;
+- selected route base score, observed-performance adjustment, final score, and configuration state;
+- requested/worker/canary/executable activation evidence;
+- the exact winning reason strings;
+- every ranked alternative with its historical base/performance/final scores and reasons.
+
+The drill-down never recomputes an old decision with current routing rules. Jobs created before Gate 11
+remain valid but display no reconstructed routing history. This prevents false historical explanations.
+The UI is read-only and uses existing owner RLS; no schema or privileged browser access is added.
+
 ## Brand Forge contract
 
 Brand Forge's visual-generation stage requires approved intent to pass through Visual Prompt
@@ -177,9 +196,10 @@ A dedicated backend Brand Forge executor still does not exist, so no fictitious 
 12. New video providers remain non-executable until a bounded production canary is separately reviewed and activated.
 13. Cost-efficiency analytics use reported costs only and expose data coverage.
 14. Every queued generation job preserves the routing evidence that selected its provider without copying secrets.
+15. Historical routing explanations come only from persisted decision snapshots and are never reconstructed from current rules.
 
 ## Next implementation gates
 
 - Run and review the protected Replicate general-video certification canary before any activation change.
-- Surface per-job routing decisions in Provider Intelligence so operators can inspect why a provider won.
+- Add dispatch-to-outcome correlation so operators can compare the original routing evidence with final QA/cost/latency outcomes for the same job.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
