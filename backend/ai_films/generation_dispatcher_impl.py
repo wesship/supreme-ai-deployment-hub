@@ -22,6 +22,12 @@ class VideoRoute:
     score: int
     reasons: tuple[str, ...]
     model: str | None = None
+    base_score: int = 0
+    performance_adjustment: int = 0
+    activation_requested: bool = False
+    worker_available: bool = False
+    canary_passed: bool = False
+    activation_certified: bool = False
 
 
 _VIDEO_MODEL_ENV = {
@@ -66,6 +72,25 @@ def _normalize_provider(value: str) -> str:
     return _PROVIDER_ALIASES.get(cleaned, cleaned)
 
 
+def route_snapshot(route: VideoRoute) -> dict[str, Any]:
+    """Return provider evidence in a stable, secret-free audit shape."""
+    return {
+        "provider": route.provider,
+        "model": route.model,
+        "configured": route.configured,
+        "base_score": route.base_score,
+        "performance_adjustment": route.performance_adjustment,
+        "final_score": route.score,
+        "activation": {
+            "requested": route.activation_requested,
+            "worker_available": route.worker_available,
+            "canary_passed": route.canary_passed,
+            "certified": route.activation_certified,
+        },
+        "reasons": list(route.reasons),
+    }
+
+
 def rank_video_routes(
     packet: Mapping[str, Any],
     environ: Mapping[str, str] | None = None,
@@ -85,7 +110,8 @@ def rank_video_routes(
     routes: list[VideoRoute] = []
     for provider, spec in specs.items():
         configured = spec.configured(source)
-        score = _BASE_SCORE.get(provider, 50)
+        base_score = _BASE_SCORE.get(provider, 50)
+        score = base_score
         reasons: list[str] = []
         activation = activation_status(provider, source)
         if provider not in executable:
@@ -132,7 +158,21 @@ def rank_video_routes(
         model = str(source.get(model_env, "")).strip() if model_env else ""
         if provider == "pollo" and not model:
             model = "pollo-v2-5"
-        routes.append(VideoRoute(provider, configured, score, tuple(reasons), model or None))
+        routes.append(
+            VideoRoute(
+                provider=provider,
+                configured=configured,
+                score=score,
+                reasons=tuple(reasons),
+                model=model or None,
+                base_score=base_score,
+                performance_adjustment=adjustment,
+                activation_requested=activation.requested,
+                worker_available=activation.worker_available,
+                canary_passed=activation.canary_passed,
+                activation_certified=activation.executable,
+            )
+        )
     return sorted(routes, key=lambda route: (-route.score, route.provider))
 
 
@@ -166,6 +206,7 @@ def dispatch_plan(
         return {"shot_id": shot.shot_id, "action": "hold", "reason": f"conform_decision:{conform_decision}", "routes": []}
     packet = build_generation_packet(shot, bible)
     routes = rank_video_routes(packet, environ, performance)
+    route_evidence = [route_snapshot(route) for route in routes]
     block_reason, missing_anchors = _anchor_block(packet, bible)
     if block_reason:
         return {
@@ -176,7 +217,7 @@ def dispatch_plan(
             "selected_provider": None,
             "selected_model": None,
             "generation_packet": packet,
-            "routes": [{"provider": r.provider, "configured": r.configured, "score": r.score, "model": r.model, "reasons": list(r.reasons)} for r in routes],
+            "routes": route_evidence,
         }
     configured = [route for route in routes if route.configured]
     selected = configured[0] if configured else None
@@ -187,5 +228,5 @@ def dispatch_plan(
         "selected_provider": selected.provider if selected else None,
         "selected_model": selected.model if selected else None,
         "generation_packet": packet,
-        "routes": [{"provider": r.provider, "configured": r.configured, "score": r.score, "model": r.model, "reasons": list(r.reasons)} for r in routes],
+        "routes": route_evidence,
     }
