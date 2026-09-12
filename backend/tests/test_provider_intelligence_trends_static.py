@@ -58,3 +58,27 @@ def test_routing_outcome_keeps_missing_cost_and_pending_qa_explicit():
     assert "money(outcome.reportedCostUsd)" in workspace
     assert "outcome.qaDecision || 'pending'" in workspace
     assert "outcome.resultAssetId || 'not linked yet'" in workspace
+
+
+def test_decision_quality_rollups_require_terminal_evidence_and_minimum_samples():
+    service = SERVICE.read_text()
+    assert "MIN_DECISION_QUALITY_SAMPLES = 3" in service
+    assert "decisionOutcomeClass" in service
+    assert "['failed', 'error'].includes(decision.outcome.status)" in service
+    assert "return 'pending'" in service
+    assert "evidenceSufficient: judged >= MIN_DECISION_QUALITY_SAMPLES" in service
+    assert "evidenceCoverageRate" in service
+    assert "reportedCostCoverageRate" in service
+
+
+def test_decision_quality_segments_provider_and_style_without_changing_routing():
+    service = SERVICE.read_text()
+    workspace = WORKSPACE.read_text()
+    assert "decisionQualitySnapshot(allRoutingDecisions)" in service
+    assert "byProviderStyle" in service
+    assert "providerStyles" in service
+    assert "Did the top-ranked choice actually work?" in workspace
+    assert "evidence sufficient" in workspace
+    assert "sparse evidence" in workspace
+    assert "Provider × style evidence" in workspace
+    assert "These rollups are observational and do not change routing" in workspace
