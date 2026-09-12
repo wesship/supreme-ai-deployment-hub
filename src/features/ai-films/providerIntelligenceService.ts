@@ -27,6 +27,18 @@ export type RoutingAlternative = {
   activation: RoutingActivationEvidence | null;
 };
 
+export type RoutingOutcomeEvidence = {
+  status: string;
+  completedAt: string | null;
+  qaDecision: 'pass' | 'revise' | 'block' | null;
+  qaConfidence: number | null;
+  latencySeconds: number | null;
+  regenerationCount: number;
+  regenerated: boolean;
+  reportedCostUsd: number | null;
+  resultAssetId: string | null;
+};
+
 export type RoutingDecisionAudit = {
   jobId: string;
   provider: string;
@@ -42,6 +54,7 @@ export type RoutingDecisionAudit = {
   styleSource: string | null;
   selectedRoute: RoutingAlternative | null;
   routes: RoutingAlternative[];
+  outcome: RoutingOutcomeEvidence;
 };
 
 export type ProviderIntelligence = {
@@ -207,6 +220,27 @@ const parseRoute = (value: unknown): RoutingAlternative | null => {
   };
 };
 
+const routingOutcomeFromRow = (row: any): RoutingOutcomeEvidence => {
+  const quality = asObject(row.quality_metadata);
+  const rawDecision = String(quality.decision || '').toLowerCase();
+  const qaDecision = ['pass', 'revise', 'block'].includes(rawDecision)
+    ? rawDecision as RoutingOutcomeEvidence['qaDecision']
+    : null;
+  const confidence = toNumber(quality.confidence);
+  const regenerationCount = Math.max(0, Number(row.regeneration_count || 0));
+  return {
+    status: String(row.status || 'unknown').toLowerCase(),
+    completedAt: row.completed_at ? String(row.completed_at) : null,
+    qaDecision,
+    qaConfidence: confidence === null ? null : Math.max(0, Math.min(1, confidence)),
+    latencySeconds: secondsBetween(row.started_at, row.completed_at),
+    regenerationCount,
+    regenerated: Boolean(row.parent_job_id) || regenerationCount > 0,
+    reportedCostUsd: reportedCost(asObject(row.cost_metadata)),
+    resultAssetId: row.result_asset_id ? String(row.result_asset_id) : null,
+  };
+};
+
 const routingDecisionFromRow = (row: any): RoutingDecisionAudit | null => {
   const input = asObject(row.input);
   const decision = asObject(input.routing_decision);
@@ -228,6 +262,7 @@ const routingDecisionFromRow = (row: any): RoutingDecisionAudit | null => {
     styleSource: visual.style_source ? String(visual.style_source) : null,
     selectedRoute: parseRoute(decision.selected_route),
     routes,
+    outcome: routingOutcomeFromRow(row),
   };
 };
 
@@ -246,7 +281,7 @@ export const fetchProviderIntelligence = async (
 
   let query = (supabase as any)
     .from('ai_film_render_jobs')
-    .select('id,project_id,provider,status,created_at,started_at,completed_at,input,cost_metadata,quality_metadata,visual_context,parent_job_id,regeneration_count')
+    .select('id,project_id,provider,status,created_at,started_at,completed_at,input,cost_metadata,quality_metadata,visual_context,parent_job_id,regeneration_count,result_asset_id')
     .eq('owner_id', authData.user.id)
     .eq('job_type', 'video')
     .gte('created_at', previousWindowStart)
