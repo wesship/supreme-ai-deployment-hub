@@ -18,7 +18,8 @@ The implementation lives under `backend/visual_intelligence/` and provides:
 - authenticated FastAPI endpoints for catalog status, style search, catalog loading,
   and prompt compilation;
 - runtime generation integration for AI Films;
-- Supabase persistence of visual-generation provenance on the active render ledger.
+- Supabase persistence of visual-generation provenance on the active render ledger;
+- provider-result, asset, QA, and bounded-regeneration lifecycle persistence.
 
 ## awesome-gpt-image-2 upstream pin
 
@@ -54,22 +55,6 @@ The router is registered beneath `/api/visual` and uses the existing Supabase JW
 `backend/ai_films/shot_compiler.py` resolves optional visual policy from
 `ProductionBible.generation_policy.visual_intelligence` before provider routing.
 
-Example:
-
-```json
-{
-  "visual_intelligence": {
-    "enabled": true,
-    "style_id": "cinematic-storyboard",
-    "constraints": ["restrained prestige science fiction"],
-    "negative_constraints": ["overly saturated neon"],
-    "shot_overrides": {
-      "SEQ01-SC01-SH004": {"style_id": "technical-infographic"}
-    }
-  }
-}
-```
-
 Every generated packet keeps `original_generation_prompt`, replaces `generation_prompt`
 with the compiled provider-neutral prompt when enabled, merges negative constraints, and
 adds a `visual_intelligence` provenance block. Provider ordering is not changed by the
@@ -84,24 +69,36 @@ than dual-writing the older `film_generation_jobs` stack.
 
 Migration: `supabase/migrations/20260912184000_visual_generation_persistence.sql`
 
-Added fields:
+Core provenance fields:
 
 - `visual_context jsonb` — original prompt, compiled prompt, negative prompt, style ID,
   style source, compiler metadata, warnings, selected model, and packet schema;
-- `cost_metadata jsonb` — provider usage and cost metadata without credentials;
-- `quality_metadata jsonb` — quality scores and controlled-regeneration decisions;
+- `cost_metadata jsonb` — provider-reported usage/cost metadata without credentials;
+- `quality_metadata jsonb` — QA evidence and controlled-regeneration decisions;
 - `parent_job_id uuid` — lineage pointer for regenerated or edited descendants;
 - `source_subsystem text` — source namespace such as `ai_films`.
 
-`backend/ai_films/generation_dispatch_startup.py` now populates `visual_context` when a
-real render job is queued. The complete generation packet remains in `input` for worker
-compatibility, while the structured provenance fields make audit, analytics, quality
-scoring, and lineage queries practical.
+Gate 5 adds explicit result and regeneration fields with
+`supabase/migrations/20260912190000_visual_generation_lifecycle.sql`:
 
-The table retains its existing owner RLS policy. Anonymous access is explicitly revoked;
+- `result_asset_id uuid` — generated `ai_film_assets` record;
+- `result_storage_path text` — private storage object path, never a signed URL;
+- `regeneration_count integer` — bounded regeneration depth.
+
+`backend/ai_films/openai_video_worker.py` writes the generated asset reference, private
+storage path, and provider-reported usage/cost fields when a render completes. It never
+invents a price when the provider response omits one.
+
+`backend/ai_films/generated_shot_qa_worker.py` writes structured TwelveLabs/Jockey QA
+metadata. A `revise` decision can create a child render job linked by `parent_job_id`,
+but only when both `AI_FILM_AUTO_REGEN_ENABLED=true` and
+`AI_FILM_GENERATION_EXECUTION_ENABLED=true`. `AI_FILM_AUTO_REGEN_MAX` bounds the chain
+and defaults to one regeneration. `pass` and `block` never auto-regenerate.
+
+The table retains its existing owner RLS policy. Anonymous access remains revoked;
 `authenticated` keeps reviewed CRUD grants and `service_role` retains backend access.
-The migration was applied to the connected staging Supabase project before production
-promotion. Provider secrets are never written to the ledger.
+Gate 4 and Gate 5 migrations were applied to the connected staging Supabase project
+before production promotion. Provider secrets are never written to the ledger.
 
 ## Brand Forge contract
 
@@ -121,10 +118,11 @@ hook was added.
 5. The runtime never accepts an arbitrary catalog URL from a user.
 6. Original and compiled prompts remain separately auditable.
 7. Provider-specific features belong in adapters, not in the style catalog.
-8. Generation lineage, cost, quality, and source metadata persist on the active render ledger.
+8. Generation lineage, result assets, cost/usage, quality, and source metadata persist on the active render ledger.
+9. Automatic regeneration is opt-in, execution-gated, and depth-bounded.
 
 ## Next implementation gates
 
-- Populate cost metadata from provider callbacks/workers and resulting asset references from render outputs.
-- Add quality scoring and controlled regeneration policy after generation.
+- Normalize equivalent result/cost lifecycle writes for non-OpenAI video providers.
+- Feed quality outcomes into provider/style performance analytics and routing policy.
 - Connect a future Brand Forge backend executor to the same compilation and persistence helpers.
