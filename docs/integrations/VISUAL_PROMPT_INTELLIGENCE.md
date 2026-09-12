@@ -87,13 +87,15 @@ Gate 5 adds explicit result and regeneration fields with
 
 `backend/ai_films/openai_video_worker.py` writes the generated asset reference, private
 storage path, and provider-reported usage/cost fields when a render completes. It never
-invents a price when the provider response omits one.
+invents a price when the provider response omits one. The worker also enforces the
+existing `AI_FILM_GENERATION_EXECUTION_ENABLED` switch before claiming queued work.
 
 `backend/ai_films/generated_shot_qa_worker.py` writes structured TwelveLabs/Jockey QA
 metadata. A `revise` decision can create a child render job linked by `parent_job_id`,
 but only when both `AI_FILM_AUTO_REGEN_ENABLED=true` and
 `AI_FILM_GENERATION_EXECUTION_ENABLED=true`. `AI_FILM_AUTO_REGEN_MAX` bounds the chain
-and defaults to one regeneration. `pass` and `block` never auto-regenerate.
+and defaults to one regeneration. `pass` and `block` never auto-regenerate. Automatic
+regeneration remains off unless explicitly enabled.
 
 The table retains its existing owner RLS policy. Anonymous access remains revoked;
 `authenticated` keeps reviewed CRUD grants and `service_role` retains backend access.
