@@ -75,11 +75,17 @@ create table if not exists public.liquidity_opportunities (
   expires_at timestamptz
 );
 
+-- Composite uniqueness is required so proposal references cannot cross tenant boundaries.
+create unique index if not exists ux_money_agents_id_user_id
+  on public.money_agents(id, user_id);
+create unique index if not exists ux_liquidity_opportunities_id_user_id
+  on public.liquidity_opportunities(id, user_id);
+
 create table if not exists public.liquidity_proposals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  money_agent_id uuid references public.money_agents(id) on delete set null,
-  opportunity_id uuid references public.liquidity_opportunities(id) on delete set null,
+  money_agent_id uuid,
+  opportunity_id uuid,
   action text not null check (action in ('ADD_LIQUIDITY','SUPPLY','REMOVE_LIQUIDITY','WITHDRAW','REBALANCE','HOLD')),
   amount_usd numeric(30,8),
   proposal_payload jsonb not null default '{}'::jsonb,
@@ -88,7 +94,15 @@ create table if not exists public.liquidity_proposals (
   state text not null default 'draft' check (state in ('draft','ready_for_approval','approved','rejected','expired')),
   requires_approval boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint liquidity_proposals_money_agent_owner_fk
+    foreign key (money_agent_id, user_id)
+    references public.money_agents(id, user_id)
+    on delete restrict,
+  constraint liquidity_proposals_opportunity_owner_fk
+    foreign key (opportunity_id, user_id)
+    references public.liquidity_opportunities(id, user_id)
+    on delete restrict
 );
 
 create index if not exists idx_liquidity_pools_observed_at on public.liquidity_pools(observed_at desc);
