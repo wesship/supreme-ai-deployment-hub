@@ -1,8 +1,7 @@
 """Audited human-approval state machine for security containment actions.
 
-This module does not expose an HTTP route and does not implement provider-side
-containment. It provides the fail-closed control layer that a future authenticated
-admin endpoint and audited executors must use.
+This module does not expose an HTTP route. It provides the fail-closed control
+layer used by authenticated admin endpoints and explicitly registered executors.
 """
 
 from __future__ import annotations
@@ -126,8 +125,13 @@ class ApprovalExecutionService:
 
         started_at = datetime.now(timezone.utc).isoformat()
         result = await executor(action)
-        succeeded = result.get("status") == "success"
-        final_status = "executed" if succeeded else "execution_failed"
+        result_status = result.get("status")
+        if result_status == "success":
+            final_status = "executed"
+        elif result_status == "dry_run":
+            final_status = "dry_run"
+        else:
+            final_status = "execution_failed"
         completed_at = datetime.now(timezone.utc).isoformat()
 
         update = {
