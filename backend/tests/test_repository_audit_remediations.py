@@ -211,3 +211,11 @@ def test_market_intelligence_ui_keeps_public_queries_non_persisting():
     assert "useState(true)" not in source
     assert "save_to_dkos: false" in source
     assert "OCC workflow" in source
+
+
+def test_python_coverage_workflow_runs_backend_suite_without_masking_errors():
+    workflow = (ROOT / ".github" / "workflows" / "testing.yml").read_text(encoding="utf-8")
+    assert "python -m pytest backend/tests" in workflow
+    assert "--cov=backend" in workflow
+    assert "--cov-omit" not in workflow
+    assert '|| echo "No Python tests found - skipping"' not in workflow

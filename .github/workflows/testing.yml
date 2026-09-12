@@ -117,12 +117,11 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          pytest tests/ \
-            --cov=src \
+          python -m pytest backend/tests \
+            --cov=backend \
             --cov-report=xml:python-coverage.xml \
             --cov-report=term-missing \
-            --cov-omit="tests/*,*/__pycache__/*" \
-            -v || echo "No Python tests found - skipping"
+            -q
       - name: Upload Python coverage to Codecov
         if: always()
         uses: codecov/codecov-action@v4
