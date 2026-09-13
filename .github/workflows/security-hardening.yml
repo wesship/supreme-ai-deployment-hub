@@ -176,8 +176,8 @@ jobs:
           # protection instead of rulesets.
           PROTECTION=$(gh api "repos/$REPO/branches/$BRANCH/protection" 2>/dev/null || echo '{}')
           if echo "$PROTECTION" | jq -e '.url' > /dev/null 2>&1; then
-            FORCE_PUSH=$(echo "$PROTECTION" | jq -r '.allow_force_pushes.enabled // true')
-            DELETIONS=$(echo "$PROTECTION" | jq -r '.allow_deletions.enabled // true')
+            FORCE_PUSH=$(echo "$PROTECTION" | jq -r 'if .allow_force_pushes.enabled == null then true else .allow_force_pushes.enabled end')
+            DELETIONS=$(echo "$PROTECTION" | jq -r 'if .allow_deletions.enabled == null then true else .allow_deletions.enabled end')
             REQUIRED_REVIEWS=$(echo "$PROTECTION" | jq -r '.required_pull_request_reviews.required_approving_review_count // 0')
             echo "Classic branch protection is active on '$BRANCH'"
             echo "  Force pushes allowed: $FORCE_PUSH"
