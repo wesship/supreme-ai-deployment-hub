@@ -17,6 +17,7 @@
     "kill_switch_verified": true
   },
   "evidence": {
+    "transcript_count": null,
     "transcript_corpus_sha256": null,
     "model_revision": null,
     "needle_version": null,
