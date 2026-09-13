@@ -1,0 +1,101 @@
+name: AI Therapy Support Context Staging Rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preview or apply the exact support-context migrations
+        required: true
+        default: preview
+        type: choice
+        options: [preview, apply]
+      confirmation:
+        description: Type APPLY_SUPPORT_CONTEXT for apply mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-therapy-support-context-staging
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    name: ${{ inputs.mode }} support context on staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      MIGRATION_ONE: supabase/migrations/20260913190000_support_context_storage.sql
+      MIGRATION_ONE_SHA: df95b39c6da53cdad63eda46f34f9615c4835a69
+      MIGRATION_TWO: supabase/migrations/20260913190500_support_context_audit_and_portability.sql
+      MIGRATION_TWO_SHA: a4cba05277d0e96f93e5d71a676c2c19b202c65c
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate protected staging operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo "::error::SUPABASE_ACCESS_TOKEN is missing"; exit 1; }
+          test -n "${SUPABASE_PROJECT_ID:-}" || { echo "::error::SUPABASE_PROJECT_ID is missing"; exit 1; }
+          test "$SUPABASE_PROJECT_ID" = "ypomzwhtaamxdmcwtpyf" || { echo "::error::Refusing non-staging Supabase project"; exit 1; }
+          if [[ "${{ inputs.mode }}" == "apply" && "${{ inputs.confirmation }}" != "APPLY_SUPPORT_CONTEXT" ]]; then
+            echo "::error::Apply mode requires confirmation APPLY_SUPPORT_CONTEXT"
+            exit 1
+          fi
+
+      - name: Verify exact migration artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object "$MIGRATION_ONE")" = "$MIGRATION_ONE_SHA"
+          test "$(git hash-object "$MIGRATION_TWO")" = "$MIGRATION_TWO_SHA"
+
+      - name: Validate security contract
+        run: node scripts/validate-support-context-security.mjs
+
+      - name: Preview exact SQL
+        if: inputs.mode == 'preview'
+        run: |
+          echo "Verified support-context migrations; no database changes applied."
+          echo "$MIGRATION_ONE $MIGRATION_ONE_SHA"
+          echo "$MIGRATION_TWO $MIGRATION_TWO_SHA"
+
+      - name: Apply exact SQL to staging only
+        if: inputs.mode == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in "$MIGRATION_ONE" "$MIGRATION_TWO"; do
+            payload="$(jq -Rs '{query: .}' < "$file")"
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              --header "Content-Type: application/json" \
+              --data "$payload" \
+              "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/database/query" \
+              > /tmp/support-context-result.json
+            jq -e '.' /tmp/support-context-result.json >/dev/null
+          done
+
+      - name: Write rollout summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## AI Therapy Support Context Staging Rollout"
+            echo ""
+            echo "- Mode: \`${{ inputs.mode }}\`"
+            echo "- Target: \`staging\`"
+            echo "- Project ref: \`ypomzwhtaamxdmcwtpyf\`"
+            echo "- Production activation: \`disabled\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
