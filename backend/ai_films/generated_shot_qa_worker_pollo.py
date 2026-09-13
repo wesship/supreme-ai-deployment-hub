@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
@@ -15,7 +16,15 @@ def _enabled(source: Mapping[str, str]) -> bool:
     }
 
 
-async def _claim(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
+def _stale_cutoff(source: Mapping[str, str]) -> str:
+    stale_seconds = max(
+        3600.0,
+        float(source.get("AI_FILM_GENERATED_SHOT_QA_STALE_SECONDS", "3600") or 3600),
+    )
+    return (datetime.now(timezone.utc) - timedelta(seconds=stale_seconds)).isoformat()
+
+
+async def _claim_pending(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
     rows = await db._request(
         "GET",
         "ai_film_render_jobs",
@@ -46,6 +55,62 @@ async def _claim(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
     return claimed[0] if claimed else None
 
 
+async def _claim_stale(
+    db: SupabaseAssemblyClient,
+    source: Mapping[str, str],
+) -> dict[str, Any] | None:
+    cutoff = _stale_cutoff(source)
+    rows = await db._request(
+        "GET",
+        "ai_film_render_jobs",
+        params={
+            "job_type": "eq.video",
+            "provider": "in.(pollo,replicate)",
+            "status": "eq.completed",
+            "output->qa->>state": "eq.in_progress",
+            "updated_at": f"lt.{cutoff}",
+            "select": "*",
+            "order": "updated_at.asc",
+            "limit": "1",
+        },
+    )
+    if not rows:
+        return None
+    job = rows[0]
+    output = dict(job.get("output") or {})
+    qa = dict(output.get("qa") or {})
+    recovered_at = _now()
+    qa.update(
+        {
+            "state": "in_progress",
+            "started_at": recovered_at,
+            "recovered_at": recovered_at,
+            "recovery_count": int(qa.get("recovery_count") or 0) + 1,
+            "recovery_reason": "stale_worker_claim",
+        }
+    )
+    output["qa"] = qa
+    claimed = await db._request(
+        "PATCH",
+        "ai_film_render_jobs",
+        params={
+            "id": f"eq.{job['id']}",
+            "output->qa->>state": "eq.in_progress",
+            "updated_at": f"lt.{cutoff}",
+        },
+        payload={"output": output, "updated_at": recovered_at},
+        representation=True,
+    )
+    return claimed[0] if claimed else None
+
+
+async def _claim(
+    db: SupabaseAssemblyClient,
+    source: Mapping[str, str],
+) -> dict[str, Any] | None:
+    return await _claim_pending(db) or await _claim_stale(db, source)
+
+
 async def run_pollo_generated_shot_qa_worker(
     *, environ: Mapping[str, str] | None = None, once: bool = False
 ) -> None:
@@ -58,7 +123,7 @@ async def run_pollo_generated_shot_qa_worker(
     db = SupabaseAssemblyClient(source)
     poll = max(5.0, float(source.get("AI_FILM_GENERATED_SHOT_QA_POLL_SECONDS", "15") or 15))
     while True:
-        job = await _claim(db)
+        job = await _claim(db, source)
         if not job:
             if once:
                 return
