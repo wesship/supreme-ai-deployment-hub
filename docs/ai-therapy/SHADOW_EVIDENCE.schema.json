@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "D3VONN AI Therapy Shadow Evidence",
+  "type": "object",
+  "required": [
+    "framework_version",
+    "policy_version",
+    "corpus_version",
+    "evaluation_version",
+    "model_provider_versions",
+    "artifact_hashes",
+    "results",
+    "certification_state",
+    "human_review",
+    "production_enabled"
+  ],
+  "properties": {
+    "framework_version": {"type": "string", "minLength": 1},
+    "policy_version": {"type": "string", "minLength": 1},
+    "corpus_version": {"type": "string", "minLength": 1},
+    "evaluation_version": {"type": "string", "minLength": 1},
+    "model_provider_versions": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "artifact_hashes": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}},
+    "results": {
+      "type": "object",
+      "required": ["total", "passed", "failed", "p0_failures"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 0},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "p0_failures": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "certification_state": {"enum": ["BLOCKED", "SHADOW_PASS", "REVIEW_REQUIRED", "CERTIFIED"]},
+    "human_review": {
+      "type": "object",
+      "required": ["clinical_safety", "security_privacy", "red_team"],
+      "properties": {
+        "clinical_safety": {"enum": ["REQUIRED", "APPROVED", "REJECTED"]},
+        "security_privacy": {"enum": ["REQUIRED", "APPROVED", "REJECTED"]},
+        "red_team": {"enum": ["REQUIRED", "APPROVED", "REJECTED"]}
+      },
+      "additionalProperties": false
+    },
+    "production_enabled": {"const": false},
+    "commit_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{40}$"},
+    "behavioral_evidence": {
+      "type": "object",
+      "properties": {
+        "multi_turn_passed": {"type": "boolean"},
+        "provider_outage_fail_closed": {"type": "boolean"},
+        "voice_parity_passed": {"type": "boolean"},
+        "tenant_isolation_passed": {"type": "boolean"},
+        "kill_switch_verified": {"type": "boolean"},
+        "sensitive_logging_check_passed": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"certification_state": {"const": "CERTIFIED"}}},
+      "then": {
+        "required": ["behavioral_evidence", "commit_sha"],
+        "properties": {
+          "human_review": {
+            "properties": {
+              "clinical_safety": {"const": "APPROVED"},
+              "security_privacy": {"const": "APPROVED"},
+              "red_team": {"const": "APPROVED"}
+            }
+          },
+          "results": {"properties": {"p0_failures": {"const": 0}}}
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
