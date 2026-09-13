@@ -1,0 +1,22 @@
+{
+  "providers": [
+    {
+      "id": "ace-step-1.5",
+      "source_repository": "https://github.com/ace-step/ACE-Step-1.5",
+      "source_revision": "UNPINNED",
+      "model_revision": "UNPINNED",
+      "weights_sha256": "UNPINNED",
+      "deployment_mode": "hosted",
+      "hosted_allowed": false,
+      "commercial_generation_allowed": false,
+      "commercial_output_allowed": false,
+      "attribution_required": true,
+      "provenance_required": true,
+      "approval": {
+        "status": "pending",
+        "reviewer": null,
+        "reviewed_at": null
+      }
+    }
+  ]
+}
