@@ -2,8 +2,10 @@ import fs from 'node:fs';
 
 const storagePath = 'supabase/migrations/20260913190000_support_context_storage.sql';
 const auditPath = 'supabase/migrations/20260913190500_support_context_audit_and_portability.sql';
+const harnessPath = 'scripts/certify-ai-therapy-tenant-isolation.mjs';
 const storage = fs.readFileSync(storagePath, 'utf8');
 const audit = fs.readFileSync(auditPath, 'utf8');
+const harness = fs.readFileSync(harnessPath, 'utf8');
 const all = `${storage}\n${audit}`;
 
 const failures = [];
@@ -27,10 +29,23 @@ requireText(storage.includes('payload_ciphertext'), 'journal persistence must us
 requireText(!/\bcontent\s+text\b/i.test(storage), 'plaintext journal content column is prohibited');
 requireText(storage.includes('retention_policy_version') && storage.includes('retention_expires_at'), 'retention metadata is required');
 
+for (const marker of [
+  'synthetic_only: true',
+  'production_enabled: false',
+  'cross_tenant_read_hidden',
+  'cross_tenant_insert_blocked',
+  'export_is_tenant_scoped',
+  'cross_tenant_audit_hidden',
+  'delete_does_not_cross_tenant',
+]) {
+  requireText(harness.includes(marker), `tenant certification harness missing ${marker}`);
+}
+requireText(!harness.includes('service_role'), 'tenant certification harness must not use service role credentials');
+
 if (failures.length) {
   console.error('Support-context security validation failed:');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
 
-console.log('Support-context security migration contract: PASS');
+console.log('Support-context security migration + tenant certification contract: PASS');
