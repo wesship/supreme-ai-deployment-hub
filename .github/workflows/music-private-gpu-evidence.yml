@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout qualification controls
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Fail closed on moving or missing inputs
         shell: bash
@@ -129,7 +129,7 @@ if (cert.status !== 'PENDING_EXTERNAL_EVIDENCE' || cert.production_enabled !== f
 NODE
 
       - name: Upload review evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ace-step-1.5-private-gpu-evidence-${{ github.run_id }}
           path: |
