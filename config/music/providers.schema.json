@@ -28,9 +28,15 @@
           "tier": { "enum": ["default", "premium", "secondary"] },
           "source_repository": { "type": "string", "format": "uri" },
           "model_repository": { "type": "string", "minLength": 1 },
-          "source_revision": { "type": "string", "minLength": 1 },
-          "model_revision": { "type": "string", "minLength": 1 },
-          "weights_sha256": { "type": "string", "minLength": 1 },
+          "source_revision": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+          "model_revision": { "type": "string", "pattern": "^[0-9a-fA-F]{40}$" },
+          "weights_sha256": {
+            "type": "string",
+            "anyOf": [
+              { "const": "UNPINNED" },
+              { "pattern": "^(sha256:)?[0-9a-fA-F]{64}$" }
+            ]
+          },
           "license": { "type": "string", "minLength": 1 },
           "deployment_mode": { "const": "hosted-private" },
           "hosted_allowed": { "type": "boolean" },
