@@ -20,16 +20,34 @@ async function main() {
   if (!evidencePath) fail('usage: node scripts/validate-music-generation-evidence.mjs <evidence.json>');
 
   const evidence = JSON.parse(await readFile(path.resolve(evidencePath), 'utf8'));
+  const schema = JSON.parse(await readFile('config/music/generation-certification-evidence.schema.json', 'utf8'));
   const registry = JSON.parse(await readFile('config/music/providers.json', 'utf8'));
   const certification = JSON.parse(await readFile('config/music/ace-step-1.5.production-certification.json', 'utf8'));
   const provider = registry.providers?.find((candidate) => candidate.id === 'ace-step-1.5');
 
   if (!provider) fail('ACE-Step 1.5 provider is missing from registry');
-  if (provider.enabled !== false || provider.hosted_allowed !== false || provider.commercial_generation_allowed !== false) {
-    fail('ACE-Step must remain disabled while evidence is pending review');
+  if (
+    provider.enabled !== false ||
+    provider.hosted_allowed !== false ||
+    provider.commercial_generation_allowed !== false ||
+    provider.commercial_output_allowed !== false ||
+    provider.approval?.status !== 'pending' ||
+    provider.approval?.reviewer !== null ||
+    provider.approval?.reviewed_at !== null
+  ) {
+    fail('ACE-Step must remain fully disabled and unapproved while evidence is pending review');
   }
   if (certification.status !== 'PENDING_EXTERNAL_EVIDENCE' || certification.production_enabled !== false) {
     fail('production certification must remain fail closed while collecting evidence');
+  }
+
+  const allowedKeys = new Set(Object.keys(schema.properties ?? {}));
+  const requiredKeys = new Set(schema.required ?? []);
+  for (const key of Object.keys(evidence)) {
+    if (!allowedKeys.has(key)) fail(`unknown evidence field: ${key}`);
+  }
+  for (const key of requiredKeys) {
+    if (!(key in evidence)) fail(`required evidence field missing: ${key}`);
   }
 
   if (evidence.schema_version !== 1) fail('schema_version must be 1');
@@ -44,13 +62,28 @@ async function main() {
     if (typeof evidence[field] !== 'string' || evidence[field].trim() === '') fail(`${field} is required`);
   }
 
+  if (!Number.isInteger(evidence.total_generations) || evidence.total_generations < certification.requirements.minimum_successful_generations) {
+    fail(`total_generations must be >= ${certification.requirements.minimum_successful_generations}`);
+  }
   if (!Number.isInteger(evidence.successful_generations) || evidence.successful_generations < certification.requirements.minimum_successful_generations) {
     fail(`successful_generations must be >= ${certification.requirements.minimum_successful_generations}`);
   }
+  if (!Number.isInteger(evidence.failed_generations) || evidence.failed_generations < 0) {
+    fail('failed_generations must be a non-negative integer');
+  }
+  if (evidence.successful_generations + evidence.failed_generations !== evidence.total_generations) {
+    fail('total_generations must equal successful_generations + failed_generations');
+  }
+
   const errorRate = finiteNumber(evidence.generation_error_rate, 'generation_error_rate');
+  const derivedErrorRate = evidence.failed_generations / evidence.total_generations;
+  if (Math.abs(errorRate - derivedErrorRate) > Number.EPSILON * 8) {
+    fail('generation_error_rate must equal failed_generations / total_generations');
+  }
   if (errorRate < 0 || errorRate > certification.requirements.maximum_generation_error_rate) {
     fail(`generation_error_rate must be between 0 and ${certification.requirements.maximum_generation_error_rate}`);
   }
+
   const p50 = finiteNumber(evidence.p50_generation_seconds, 'p50_generation_seconds');
   const p95 = finiteNumber(evidence.p95_generation_seconds, 'p95_generation_seconds');
   if (p50 <= 0 || p95 <= 0 || p50 > p95) fail('generation latency percentiles must be positive and p50 <= p95');
@@ -62,7 +95,7 @@ async function main() {
   if (evidence.audio_qa_passed !== true) fail('audio_qa_passed must be true');
   if (evidence.review_status !== 'PENDING_REVIEW') fail('review_status must remain PENDING_REVIEW');
 
-  console.log('PASS: ACE-Step generation certification evidence is structurally complete and remains pending human review.');
+  console.log('PASS: ACE-Step generation certification evidence is complete, internally auditable, and remains pending human review.');
 }
 
 main().catch((error) => {
