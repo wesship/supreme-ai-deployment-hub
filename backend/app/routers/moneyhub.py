@@ -15,6 +15,7 @@ router = APIRouter(prefix="/moneyhub")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+ECONOMIC_EVENT_RPC_PATH = "/rest/v1/rpc/moneyhub_record_economic_event"
 
 
 class EconomicEventIn(BaseModel):
@@ -124,7 +125,6 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
     }
     if payload.occurred_at is not None:
         rpc_payload["p_occurred_at"] = payload.occurred_at.isoformat()
-    # Keep the governed RPC name explicit for auditability and static contract tests.
     return await _call_moneyhub_rpc("moneyhub_record_economic_event", rpc_payload)
 
 
