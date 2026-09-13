@@ -1,0 +1,34 @@
+name: AI Therapy Support Context Security
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/ai-therapy/**'
+      - 'supabase/migrations/20260913190000_support_context_storage.sql'
+      - 'supabase/migrations/20260913190500_support_context_audit_and_portability.sql'
+      - 'scripts/validate-support-context-security.mjs'
+      - '.github/workflows/ai-therapy-support-context-security.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/lib/ai-therapy/**'
+      - 'supabase/migrations/20260913190000_support_context_storage.sql'
+      - 'supabase/migrations/20260913190500_support_context_audit_and_portability.sql'
+      - 'scripts/validate-support-context-security.mjs'
+      - '.github/workflows/ai-therapy-support-context-security.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  support-context-security:
+    name: Support context security contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/validate-support-context-security.mjs
