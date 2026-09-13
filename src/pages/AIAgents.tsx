@@ -14,8 +14,8 @@ import {
   Workflow,
   Zap,
 } from 'lucide-react';
-import Footer from '@/components/Footer';
 import SmartLaunchLink from '@/components/SmartLaunchLink';
+import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
 
 const capabilities = [
   {
@@ -89,7 +89,7 @@ const faqs = [
 
 const AIAgents: React.FC = () => {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#010611] text-white">
+    <ReaddyMarketingShell atmosphere={false} className="min-h-screen">
       <Helmet>
         <title>AI Workforce — Deploy Governed AI Agents | D3VONN.IO</title>
         <meta
@@ -116,7 +116,7 @@ const AIAgents: React.FC = () => {
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_8%,rgba(37,126,255,0.18),transparent_31%),radial-gradient(circle_at_78%_22%,rgba(0,212,255,0.10),transparent_28%)]" />
 
-      <section className="relative px-4 pb-20 pt-28 sm:px-6 lg:px-8 lg:pb-28 lg:pt-36">
+      <section className="relative px-4 pb-20 pt-12 sm:px-6 lg:px-8 lg:pb-28 lg:pt-18">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-300/20 bg-blue-400/[0.07] px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-blue-200">
@@ -301,9 +301,7 @@ const AIAgents: React.FC = () => {
           </div>
         </div>
       </section>
-
-      <Footer />
-    </div>
+    </ReaddyMarketingShell>
   );
 };
 
