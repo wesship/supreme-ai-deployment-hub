@@ -116,23 +116,15 @@ jobs:
             echo "model_revision=$EXPECTED_MODEL_REVISION"
             echo "runner_os=$RUNNER_OS"
             echo "node=$(node --version)"
-            if command -v nvidia-smi >/dev/null 2>&1; then
-              echo "nvidia_smi_present=true"
-              nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
-            else
-              echo "nvidia_smi_present=false"
-              echo "NVIDIA GPU tooling is required for the subsequent smoke-test gate" >&2
-              exit 1
-            fi
-            if command -v python3 >/dev/null 2>&1; then
-              python3 -c 'import torch; print(f"python_torch_version={torch.__version__}"); print(f"python_cuda_version={torch.version.cuda}"); print(f"cuda_available={torch.cuda.is_available()}")' || echo "torch_probe_error=true"
-            fi
+            command -v nvidia-smi >/dev/null 2>&1 || { echo "NVIDIA GPU tooling is required" >&2; exit 1; }
+            echo "nvidia_smi_present=true"
+            nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+            command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }
+            python3 -c 'import torch, sys; print(f"python_torch_version={torch.__version__}"); print(f"python_cuda_version={torch.version.cuda}"); print(f"cuda_available={torch.cuda.is_available()}"); sys.exit(0 if torch.cuda.is_available() else 1)'
           } | tee "$RUNNER_TEMP/ace-step-1.5-runtime-metadata.txt"
 
       - name: Assert review-only state and build redacted evidence bundle
         shell: bash
-        env:
-          RUNTIME_IMAGE_REF: ${{ inputs.runtime_image_ref }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ace-step-review"
