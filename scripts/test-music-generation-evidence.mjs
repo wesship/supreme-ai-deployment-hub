@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -19,8 +19,10 @@ const base = {
   gpu_driver: 'synthetic-driver',
   cuda_version: 'synthetic-cuda',
   torch_version: 'synthetic-torch',
+  total_generations: 25,
   successful_generations: 25,
-  generation_error_rate: 0.02,
+  failed_generations: 0,
+  generation_error_rate: 0,
   p50_generation_seconds: 30,
   p95_generation_seconds: 120,
   peak_vram_gb: 8,
@@ -43,21 +45,48 @@ function run(expectedSuccess) {
   }
 }
 
-await writeFile(evidencePath, JSON.stringify(base));
-run(true);
+async function check(candidate, expectedSuccess) {
+  await writeFile(evidencePath, JSON.stringify(candidate));
+  run(expectedSuccess);
+}
+
+await check(base, true);
+
+const boundary = {
+  ...base,
+  total_generations: 50,
+  successful_generations: 49,
+  failed_generations: 1,
+  generation_error_rate: 0.02
+};
+await check(boundary, true);
 
 for (const mutation of [
-  { successful_generations: 24 },
-  { generation_error_rate: 0.021 },
+  { successful_generations: 24, total_generations: 24 },
+  { total_generations: 26, successful_generations: 25, failed_generations: 0 },
+  { total_generations: 26, successful_generations: 25, failed_generations: 1, generation_error_rate: 0 },
+  { total_generations: 50, successful_generations: 48, failed_generations: 2, generation_error_rate: 0.04 },
   { p95_generation_seconds: 121 },
   { deterministic_seed_match: false },
   { audio_qa_passed: false },
   { review_status: 'PASS' },
   { weights_manifest_sha256: 'UNPINNED' },
-  { model_revision: 'main' }
+  { model_revision: 'main' },
+  { unexpected_activation_state: true }
 ]) {
-  await writeFile(evidencePath, JSON.stringify({ ...base, ...mutation }));
-  run(false);
+  await check({ ...base, ...mutation }, false);
 }
 
-console.log('PASS: generation evidence validator accepts only complete, threshold-compliant, review-pending evidence.');
+const validatorSource = await readFile('scripts/validate-music-generation-evidence.mjs', 'utf8');
+for (const requiredGuard of [
+  'commercial_output_allowed',
+  "provider.approval?.status !== 'pending'",
+  'provider.approval?.reviewer !== null',
+  'provider.approval?.reviewed_at !== null'
+]) {
+  if (!validatorSource.includes(requiredGuard)) {
+    throw new Error(`missing fail-closed provider guard: ${requiredGuard}`);
+  }
+}
+
+console.log('PASS: generation evidence validator rejects unauditable counts, unknown fields, activation state, and threshold violations.');
