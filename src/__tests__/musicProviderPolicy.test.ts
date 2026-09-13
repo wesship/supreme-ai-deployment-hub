@@ -20,15 +20,28 @@ describe('music provider policy', () => {
     const result = evaluateProviderPolicy(pendingProvider);
     expect(result.allowed).toBe(false);
     expect(result.reasons).toContain('source_revision_unpinned');
+    expect(result.reasons).toContain('weights_hash_unpinned');
     expect(result.reasons).toContain('provider_disabled');
+  });
+
+  it('rejects non-immutable revision and weight placeholders', () => {
+    const result = evaluateProviderPolicy({
+      ...pendingProvider,
+      source_revision: 'main',
+      model_revision: 'latest',
+      weights_sha256: 'abc123',
+    });
+    expect(result.reasons).toContain('source_revision_unpinned');
+    expect(result.reasons).toContain('model_revision_unpinned');
+    expect(result.reasons).toContain('weights_hash_unpinned');
   });
 
   it('allows a fully qualified and explicitly enabled provider', () => {
     const result = evaluateProviderPolicy({
       ...pendingProvider,
-      source_revision: '0123456789abcdef',
-      model_revision: 'fedcba9876543210',
-      weights_sha256: 'abc123',
+      source_revision: '0123456789abcdef0123456789abcdef01234567',
+      model_revision: 'fedcba9876543210fedcba9876543210fedcba98',
+      weights_sha256: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       hosted_allowed: true,
       commercial_generation_allowed: true,
       commercial_output_allowed: true,
@@ -40,6 +53,21 @@ describe('music provider policy', () => {
       },
     });
     expect(result).toEqual({ allowed: true, reasons: [] });
+  });
+
+  it('rejects malformed approval timestamps', () => {
+    const result = evaluateProviderPolicy({
+      ...pendingProvider,
+      source_revision: '0123456789abcdef0123456789abcdef01234567',
+      model_revision: 'fedcba9876543210fedcba9876543210fedcba98',
+      weights_sha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      approval: {
+        status: 'approved',
+        reviewer: 'music-provider-reviewer',
+        reviewed_at: 'not-a-date',
+      },
+    });
+    expect(result.reasons).toContain('approval_metadata_missing');
   });
 
   it('captures an immutable per-job policy snapshot', () => {
