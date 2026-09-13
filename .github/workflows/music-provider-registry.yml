@@ -1,0 +1,36 @@
+name: Music Provider Registry
+
+on:
+  pull_request:
+    paths:
+      - 'config/music/**'
+      - 'src/music/**'
+      - 'src/__tests__/musicProviderRouter.test.ts'
+      - 'docs/music/**'
+      - '.github/workflows/music-provider-registry.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/music/**'
+      - 'src/music/**'
+      - 'src/__tests__/musicProviderRouter.test.ts'
+      - 'docs/music/**'
+      - '.github/workflows/music-provider-registry.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate registry JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('config/music/providers.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/providers.schema.json','utf8'));"
+      - name: Run Music Hub routing tests
+        run: npx vitest run src/__tests__/musicProviderRouter.test.ts
