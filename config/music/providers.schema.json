@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "D3VONN Music Provider Registry",
+  "type": "object",
+  "required": ["schema_version", "routing", "providers"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "routing": {
+      "type": "object",
+      "required": ["default_provider", "premium_provider", "lyrics_provider", "auto_routing_enabled"],
+      "properties": {
+        "default_provider": { "type": "string" },
+        "premium_provider": { "type": "string" },
+        "lyrics_provider": { "type": "string" },
+        "auto_routing_enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "display_name", "tier", "source_repository", "model_repository", "source_revision", "model_revision", "weights_sha256", "license", "deployment_mode", "hosted_allowed", "commercial_generation_allowed", "commercial_output_allowed", "enabled", "capabilities", "routing_tags", "hardware", "provenance_required", "approval"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "display_name": { "type": "string", "minLength": 1 },
+          "tier": { "enum": ["default", "premium", "secondary"] },
+          "source_repository": { "type": "string", "format": "uri" },
+          "model_repository": { "type": "string", "minLength": 1 },
+          "source_revision": { "type": "string", "minLength": 1 },
+          "model_revision": { "type": "string", "minLength": 1 },
+          "weights_sha256": { "type": "string", "minLength": 1 },
+          "license": { "type": "string", "minLength": 1 },
+          "deployment_mode": { "const": "hosted-private" },
+          "hosted_allowed": { "type": "boolean" },
+          "commercial_generation_allowed": { "type": "boolean" },
+          "commercial_output_allowed": { "type": "boolean" },
+          "enabled": { "type": "boolean" },
+          "capabilities": { "type": "array", "minItems": 1, "items": { "type": "string" }, "uniqueItems": true },
+          "routing_tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "hardware": { "type": "object" },
+          "provenance_required": { "const": true },
+          "approval": {
+            "type": "object",
+            "required": ["status", "reviewer", "reviewed_at"],
+            "properties": {
+              "status": { "enum": ["pending", "approved", "rejected"] },
+              "reviewer": { "type": ["string", "null"] },
+              "reviewed_at": { "type": ["string", "null"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
