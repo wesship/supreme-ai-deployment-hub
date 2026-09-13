@@ -1,0 +1,44 @@
+name: Music Provider Registry
+
+on:
+  pull_request:
+    paths:
+      - 'config/music/**'
+      - 'scripts/validate-music-qualification.mjs'
+      - 'src/music/**'
+      - 'src/__tests__/musicProviderRouter.test.ts'
+      - 'src/__tests__/musicProviderPolicy.test.ts'
+      - 'docs/music/**'
+      - '.github/workflows/music-provider-registry.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/music/**'
+      - 'scripts/validate-music-qualification.mjs'
+      - 'src/music/**'
+      - 'src/__tests__/musicProviderRouter.test.ts'
+      - 'src/__tests__/musicProviderPolicy.test.ts'
+      - 'docs/music/**'
+      - '.github/workflows/music-provider-registry.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate registry JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('config/music/providers.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/providers.schema.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/qualification.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/smoke-tests/ace-step-1.5.json','utf8'));"
+      - name: Validate qualification gate
+        run: node scripts/validate-music-qualification.mjs
+      - name: Run Music Hub provider tests
+        run: pnpm exec vitest run src/__tests__/musicProviderRouter.test.ts src/__tests__/musicProviderPolicy.test.ts

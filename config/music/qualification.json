@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "gate": "provider-qualification-private-gpu",
+  "providers": {
+    "ace-step-1.5": {
+      "source_revision": "ca1e85fe9430179831e6bc6be790c332190a3866",
+      "model_revision": "19671f406d603126926c1b7e2adc169acbcade22",
+      "license": "MIT",
+      "artifact_hash_status": "pending",
+      "dependency_license_review": "pending",
+      "gpu_smoke_test": "pending",
+      "audio_qa_test": "pending",
+      "activation_status": "blocked"
+    },
+    "ace-step-1.5-xl-turbo": {
+      "source_revision": "ca1e85fe9430179831e6bc6be790c332190a3866",
+      "model_revision": "200ba991ae448051e14b0183157e35c2d27c9fb0",
+      "license": "MIT",
+      "artifact_hash_status": "pending",
+      "dependency_license_review": "pending",
+      "gpu_smoke_test": "pending",
+      "audio_qa_test": "pending",
+      "activation_status": "blocked"
+    },
+    "heartmula-oss-3b": {
+      "source_revision": "3783bdb8441f2c298b1e64c8651173aac200361c",
+      "model_revision": "d12ac79c6b3387d5c9eee456323495d8f08bb09d",
+      "license": "Apache-2.0",
+      "artifact_hash_status": "pending",
+      "dependency_license_review": "pending",
+      "gpu_smoke_test": "pending",
+      "audio_qa_test": "pending",
+      "activation_status": "blocked"
+    }
+  },
+  "exit_requirements": [
+    "artifact_hash_verified",
+    "dependency_licenses_verified",
+    "private_gpu_smoke_test_passed",
+    "audio_qa_passed",
+    "reviewer_approval_recorded",
+    "provider_enabled_explicitly"
+  ]
+}

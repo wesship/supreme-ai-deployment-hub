@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "provider_id": "ace-step-1.5",
+  "purpose": "deterministic-private-gpu-qualification",
+  "source_revision": "ca1e85fe9430179831e6bc6be790c332190a3866",
+  "model_revision": "19671f406d603126926c1b7e2adc169acbcade22",
+  "artifact_requirements": {
+    "weights_sha256_required": true,
+    "all_loaded_weight_files_must_be_hashed": true,
+    "hash_algorithm": "sha256",
+    "manifest_status": "pending"
+  },
+  "generation": {
+    "prompt": "uplifting cinematic electronic instrumental, warm analog synths, crisp drums, hopeful chord progression, no vocals",
+    "negative_prompt": "vocals, speech, clipping, distortion, silence",
+    "seed": 424242,
+    "duration_seconds": 20,
+    "sample_rate_hz": 44100,
+    "channels": 2,
+    "output_format": "wav"
+  },
+  "environment_capture": {
+    "gpu_model": "required",
+    "gpu_vram_total_mb": "required",
+    "gpu_vram_peak_mb": "required",
+    "driver_version": "required",
+    "cuda_or_accelerator_version": "required",
+    "runtime_revision": "required"
+  },
+  "benchmark_capture": {
+    "cold_start_seconds": "required",
+    "generation_seconds": "required",
+    "real_time_factor": "required"
+  },
+  "audio_qa": {
+    "required": true,
+    "endpoint": "/api/music/audio-qa",
+    "must_pass": true,
+    "max_silence_ratio": 0.6,
+    "minimum_peak_db": -45,
+    "target_lufs": -14,
+    "true_peak_dbtp": -1
+  },
+  "activation_rule": "provider remains disabled until artifact hashes are verified, dependency licenses are verified, GPU smoke test passes, audio QA passes, and reviewer approval is recorded"
+}
