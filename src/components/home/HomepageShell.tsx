@@ -1,5 +1,5 @@
 import React from 'react';
-import PublicPageShell from '@/components/shell/PublicPageShell';
+import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
 
 interface HomepageShellProps {
   children: React.ReactNode;
@@ -9,18 +9,17 @@ interface HomepageShellProps {
 /**
  * Canonical public shell for the D3VONN.IO homepage.
  *
- * The homepage intentionally suppresses breadcrumbs while preserving the
- * shared enterprise header, footer, skip link, main landmark, keyboard
- * navigation, and reduced-motion behavior established for RC1.
+ * The homepage keeps its existing section-level cinematic backgrounds while
+ * sharing the same Readdy marketing boundary, footer, keyboard behavior, and
+ * application shell as the other certified public marketing routes.
  */
 const HomepageShell = ({ children, className }: HomepageShellProps) => (
-  <PublicPageShell
-    breadcrumbs={false}
-    transparentHeader
+  <ReaddyMarketingShell
+    atmosphere={false}
     className={`d3-homepage-world ${className ?? ''}`.trim()}
   >
     {children}
-  </PublicPageShell>
+  </ReaddyMarketingShell>
 );
 
 export default HomepageShell;
