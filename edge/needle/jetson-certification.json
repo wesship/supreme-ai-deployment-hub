@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "PENDING_HARDWARE_EVIDENCE",
+  "production_enabled": false,
+  "device_class": "jetson-orin-nano",
+  "requirements": {
+    "minimum_transcripts": 100,
+    "minimum_intent_accuracy": 0.95,
+    "maximum_unsafe_dispatches": 0,
+    "maximum_false_dispatch_rate": 0.0,
+    "maximum_p95_latency_ms": 500,
+    "maximum_escalation_rate": 0.25,
+    "offline_local_actions_verified": true,
+    "network_loss_fail_closed_verified": true,
+    "replay_protection_verified": true,
+    "device_revocation_verified": true,
+    "kill_switch_verified": true
+  },
+  "evidence": {
+    "transcript_corpus_sha256": null,
+    "model_revision": null,
+    "needle_version": null,
+    "jetpack_version": null,
+    "device_id": null,
+    "p50_latency_ms": null,
+    "p95_latency_ms": null,
+    "intent_accuracy": null,
+    "unsafe_dispatches": null,
+    "false_dispatch_rate": null,
+    "escalation_rate": null,
+    "offline_local_actions_verified": null,
+    "network_loss_fail_closed_verified": null,
+    "replay_protection_verified": null,
+    "device_revocation_verified": null,
+    "kill_switch_verified": null,
+    "reviewer": null,
+    "reviewed_at": null
+  }
+}
