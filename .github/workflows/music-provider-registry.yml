@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Validate registry JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('config/music/providers.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/providers.schema.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/qualification.json','utf8'));"
+        run: node -e "JSON.parse(require('fs').readFileSync('config/music/providers.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/providers.schema.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/qualification.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/smoke-tests/ace-step-1.5.json','utf8'));"
       - name: Validate qualification gate
         run: node scripts/validate-music-qualification.mjs
       - name: Run Music Hub provider tests
