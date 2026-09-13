@@ -98,6 +98,32 @@ async def _update_manifest_shot(db: SupabaseAssemblyClient, manifest_row: Mappin
     )
 
 
+async def _persist_qa_stage(
+    db: SupabaseAssemblyClient,
+    job_id: str,
+    output: dict[str, Any],
+    stage: str,
+    **details: Any,
+) -> None:
+    qa = dict(output.get("qa") or {})
+    qa.update({
+        "state": "in_progress",
+        "stage": stage,
+        "stage_started_at": _now(),
+        **details,
+    })
+    output["qa"] = qa
+    await db.update_job(job_id, {"output": output})
+    print(f"[ai-films-qa] job={job_id} stage={stage}", flush=True)
+
+
+async def _bounded(label: str, awaitable: Any, timeout_seconds: float) -> Any:
+    try:
+        return await asyncio.wait_for(awaitable, timeout=timeout_seconds)
+    except asyncio.TimeoutError as exc:
+        raise TimeoutError(f"Generated-shot QA stage '{label}' exceeded {int(timeout_seconds)}s") from exc
+
+
 async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) -> dict[str, Any]:
     output = dict(job.get("output") or {})
     input_payload = job.get("input") if isinstance(job.get("input"), dict) else {}
@@ -108,40 +134,75 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
     if not shot_id or not asset_id or not object_path:
         raise RuntimeError("Generated shot QA is missing shot/asset/storage identifiers")
 
+    job_id = str(job["id"])
     project_id = str(job.get("project_id") or "")
     if not project_id:
         raise RuntimeError("Generated shot QA is missing project_id")
+
+    await _persist_qa_stage(db, job_id, output, "load_canon")
     bible, manifest_row, project_meta = await _load_bible_manifest(db, project_id)
     store_id = str(project_meta.get("jockey_store_id") or "").strip()
     if store_id:
         os.environ["TWELVELABS_KNOWLEDGE_STORE_ID"] = store_id
 
-    signed_url = await _sign_master(db, object_path)
+    await _persist_qa_stage(db, job_id, output, "sign_storage_url")
+    signed_url = await _bounded("sign_storage_url", _sign_master(db, object_path), 60.0)
     client = TwelveLabsClient()
     runner = TwelveLabsIngestionRunner(client)
-    created = await runner._create_asset(
-        url=signed_url,
-        filename=f"generated-{shot_id}.mp4",
-        user_metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+
+    await _persist_qa_stage(db, job_id, output, "twelvelabs_create_asset")
+    created = await _bounded(
+        "twelvelabs_create_asset",
+        runner._create_asset(
+            url=signed_url,
+            filename=f"generated-{shot_id}.mp4",
+            user_metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+        ),
+        120.0,
     )
     tl_asset_id = str(created.get("_id") or created.get("id") or "")
     if not tl_asset_id:
         raise RuntimeError("TwelveLabs generated-shot asset creation returned no id")
-    await runner._wait_for_asset(tl_asset_id, timeout_seconds=900.0, poll_interval_seconds=5.0)
 
-    analyzed = await TwelveLabsAnalyzeClient().analyze_asset(
-        tl_asset_id, ANALYZE_PROMPT, model_name="pegasus1.5", temperature=0.1, max_tokens=4096
+    await _persist_qa_stage(db, job_id, output, "twelvelabs_wait_asset", twelvelabs_asset_id=tl_asset_id)
+    await _bounded(
+        "twelvelabs_wait_asset",
+        runner._wait_for_asset(tl_asset_id, timeout_seconds=900.0, poll_interval_seconds=5.0),
+        930.0,
+    )
+
+    await _persist_qa_stage(db, job_id, output, "twelvelabs_analyze", twelvelabs_asset_id=tl_asset_id)
+    analyzed = await _bounded(
+        "twelvelabs_analyze",
+        TwelveLabsAnalyzeClient().analyze_asset(
+            tl_asset_id, ANALYZE_PROMPT, model_name="pegasus1.5", temperature=0.1, max_tokens=4096
+        ),
+        360.0,
     )
     analyze_text = _response_text(analyzed)
 
-    item = await runner._create_item(
-        tl_asset_id,
-        metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+    await _persist_qa_stage(db, job_id, output, "twelvelabs_create_item", twelvelabs_asset_id=tl_asset_id)
+    item = await _bounded(
+        "twelvelabs_create_item",
+        runner._create_item(
+            tl_asset_id,
+            metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+        ),
+        120.0,
     )
     tl_item_id = str(item.get("_id") or item.get("id") or "")
     if not tl_item_id:
         raise RuntimeError("TwelveLabs generated-shot knowledge-store item returned no id")
-    await runner._wait_for_item(tl_item_id, timeout_seconds=1200.0, poll_interval_seconds=5.0)
+
+    await _persist_qa_stage(
+        db, job_id, output, "twelvelabs_wait_item",
+        twelvelabs_asset_id=tl_asset_id, twelvelabs_item_id=tl_item_id,
+    )
+    await _bounded(
+        "twelvelabs_wait_item",
+        runner._wait_for_item(tl_item_id, timeout_seconds=1200.0, poll_interval_seconds=5.0),
+        1230.0,
+    )
 
     reason_payload = {
         "task": "Canon and continuity acceptance review for a newly generated shot.",
@@ -162,7 +223,15 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
             "revision_prompt": "string|null",
         },
     }
-    jockey = await client.reason(json.dumps(reason_payload, separators=(",", ":")), instructions=JOCKEY_INSTRUCTIONS)
+    await _persist_qa_stage(
+        db, job_id, output, "jockey_reason",
+        twelvelabs_asset_id=tl_asset_id, twelvelabs_item_id=tl_item_id,
+    )
+    jockey = await _bounded(
+        "jockey_reason",
+        client.reason(json.dumps(reason_payload, separators=(",", ":")), instructions=JOCKEY_INSTRUCTIONS),
+        360.0,
+    )
     text = _response_text(jockey)
     parsed = _extract_json(text) or {}
     decision = str(parsed.get("decision") or "revise").lower()
@@ -172,9 +241,12 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
     violations = [str(v) for v in parsed.get("canon_violations", []) if isinstance(v, (str, int, float))]
     notes = (reasons + violations)[:50]
 
+    prior_qa = dict(output.get("qa") or {})
     qa = {
+        **{k: v for k, v in prior_qa.items() if k.startswith("recovery_") or k in {"recovered_at"}},
         "state": "passed" if decision == "pass" else decision,
         "decision": decision,
+        "stage": "completed",
         "completed_at": _now(),
         "twelvelabs_asset_id": tl_asset_id,
         "twelvelabs_item_id": tl_item_id,
@@ -185,7 +257,7 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
         "jockey_review": parsed if parsed else {"raw": text[:12000]},
     }
     output["qa"] = qa
-    await db.update_job(str(job["id"]), {"output": output})
+    await db.update_job(job_id, {"output": output})
 
     asset_rows = await db._request("GET", "ai_film_assets", params={"id": f"eq.{asset_id}", "select": "metadata", "limit": "1"})
     if asset_rows:
@@ -196,6 +268,7 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
             payload={"metadata": meta, "status": "approved" if decision == "pass" else "selected", "updated_at": _now()},
         )
     await _update_manifest_shot(db, manifest_row, shot_id, asset_id, decision, notes)
+    print(f"[ai-films-qa] job={job_id} stage=completed decision={decision}", flush=True)
     return qa
 
 
@@ -220,5 +293,6 @@ async def run_generated_shot_qa_worker(*, environ: Mapping[str, str] | None = No
             qa.update({"state": "failed", "failed_at": _now(), "error": f"{type(exc).__name__}: {exc}"[:2000], "retryable": True})
             output["qa"] = qa
             await db.update_job(str(job["id"]), {"output": output})
+            print(f"[ai-films-qa] job={job['id']} failed={type(exc).__name__}: {exc}", flush=True)
         if once:
             return
