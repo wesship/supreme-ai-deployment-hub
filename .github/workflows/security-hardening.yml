@@ -131,20 +131,63 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
           BRANCH="main"
-          echo "Checking branch protection for $REPO/$BRANCH..."
+          echo "Checking active rules for $REPO/$BRANCH..."
+
+          # This endpoint returns every active rule that applies to the branch,
+          # including repository and organization rulesets. It needs only
+          # metadata read access, so a normal GITHUB_TOKEN can query it.
+          RULES=$(gh api "repos/$REPO/rules/branches/$BRANCH?per_page=100" 2>/dev/null || echo '[]')
+          if echo "$RULES" | jq -e 'type == "array" and length > 0' > /dev/null 2>&1; then
+            RULE_TYPES=$(echo "$RULES" | jq -r '.[].type' | sort -u | paste -sd, -)
+            REQUIRED_REVIEWS=$(echo "$RULES" | jq '[.[] | select(.type == "pull_request") | .parameters.required_approving_review_count // 0] | max // 0')
+            CODE_OWNER_REVIEW=$(echo "$RULES" | jq -r '[.[] | select(.type == "pull_request") | .parameters.require_code_owner_review // false] | any')
+            STATUS_CHECKS=$(echo "$RULES" | jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[]?] | length')
+
+            echo "Active branch rules: $RULE_TYPES"
+            echo "  Required reviews: $REQUIRED_REVIEWS"
+            echo "  Code-owner review required: $CODE_OWNER_REVIEW"
+            echo "  Required status checks: $STATUS_CHECKS"
+
+            FAILED=0
+            echo "$RULES" | jq -e 'any(.[]; .type == "deletion")' > /dev/null || {
+              echo "::error::main is not protected from deletion"
+              FAILED=1
+            }
+            echo "$RULES" | jq -e 'any(.[]; .type == "non_fast_forward")' > /dev/null || {
+              echo "::error::main is not protected from force pushes"
+              FAILED=1
+            }
+            if [ "$REQUIRED_REVIEWS" -lt 1 ]; then
+              echo "::error::main does not require an approving review"
+              FAILED=1
+            fi
+            if [ "$CODE_OWNER_REVIEW" != "true" ]; then
+              echo "::error::main does not require code-owner review"
+              FAILED=1
+            fi
+            if [ "$STATUS_CHECKS" -lt 1 ]; then
+              echo "::error::main does not require status checks"
+              FAILED=1
+            fi
+            exit "$FAILED"
+          fi
+
+          # Compatibility fallback for repositories using only classic branch
+          # protection instead of rulesets.
           PROTECTION=$(gh api "repos/$REPO/branches/$BRANCH/protection" 2>/dev/null || echo '{}')
           if echo "$PROTECTION" | jq -e '.url' > /dev/null 2>&1; then
-            echo "Branch protection is active on '$BRANCH'"
             FORCE_PUSH=$(echo "$PROTECTION" | jq -r '.allow_force_pushes.enabled // true')
             DELETIONS=$(echo "$PROTECTION" | jq -r '.allow_deletions.enabled // true')
             REQUIRED_REVIEWS=$(echo "$PROTECTION" | jq -r '.required_pull_request_reviews.required_approving_review_count // 0')
+            echo "Classic branch protection is active on '$BRANCH'"
             echo "  Force pushes allowed: $FORCE_PUSH"
             echo "  Deletions allowed: $DELETIONS"
             echo "  Required reviews: $REQUIRED_REVIEWS"
-            if [ "$FORCE_PUSH" = "true" ]; then
-              echo "::warning::Force pushes are allowed on main - consider disabling"
+            if [ "$FORCE_PUSH" = "true" ] || [ "$DELETIONS" = "true" ] || [ "$REQUIRED_REVIEWS" -lt 1 ]; then
+              echo "::error::Classic branch protection is incomplete"
+              exit 1
             fi
           else
-            echo "::error::Branch 'main' has NO protection rules configured!"
+            echo "::error::Branch 'main' has no active ruleset or classic protection"
             exit 1
           fi
