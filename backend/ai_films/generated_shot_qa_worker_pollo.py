@@ -111,6 +111,17 @@ async def _claim(
     return await _claim_pending(db) or await _claim_stale(db, source)
 
 
+async def _latest_output(db: SupabaseAssemblyClient, job_id: str, fallback: Mapping[str, Any]) -> dict[str, Any]:
+    rows = await db._request(
+        "GET",
+        "ai_film_render_jobs",
+        params={"id": f"eq.{job_id}", "select": "output", "limit": "1"},
+    )
+    if rows:
+        return dict(rows[0].get("output") or {})
+    return dict(fallback.get("output") or {})
+
+
 async def run_pollo_generated_shot_qa_worker(
     *, environ: Mapping[str, str] | None = None, once: bool = False
 ) -> None:
@@ -132,7 +143,7 @@ async def run_pollo_generated_shot_qa_worker(
         try:
             await qa_generated_shot(job, db)
         except Exception as exc:
-            output = dict(job.get("output") or {})
+            output = await _latest_output(db, str(job["id"]), job)
             qa = dict(output.get("qa") or {})
             qa.update({
                 "state": "failed",
@@ -142,5 +153,6 @@ async def run_pollo_generated_shot_qa_worker(
             })
             output["qa"] = qa
             await db.update_job(str(job["id"]), {"output": output})
+            print(f"[ai-films-qa] job={job['id']} failed={type(exc).__name__}: {exc}", flush=True)
         if once:
             return
