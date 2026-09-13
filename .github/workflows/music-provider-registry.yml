@@ -6,6 +6,8 @@ on:
       - 'config/music/**'
       - 'scripts/validate-music-qualification.mjs'
       - 'scripts/validate-ace-step-production-certification.mjs'
+      - 'scripts/music-provider-artifact-manifest.mjs'
+      - 'scripts/test-music-provider-artifact-manifest.mjs'
       - 'src/music/**'
       - 'src/__tests__/musicProviderRouter.test.ts'
       - 'src/__tests__/musicProviderPolicy.test.ts'
@@ -17,6 +19,8 @@ on:
       - 'config/music/**'
       - 'scripts/validate-music-qualification.mjs'
       - 'scripts/validate-ace-step-production-certification.mjs'
+      - 'scripts/music-provider-artifact-manifest.mjs'
+      - 'scripts/test-music-provider-artifact-manifest.mjs'
       - 'src/music/**'
       - 'src/__tests__/musicProviderRouter.test.ts'
       - 'src/__tests__/musicProviderPolicy.test.ts'
@@ -44,5 +48,7 @@ jobs:
         run: node scripts/validate-music-qualification.mjs
       - name: Validate ACE-Step production certification contract
         run: node scripts/validate-ace-step-production-certification.mjs
+      - name: Test deterministic artifact manifest gate
+        run: node scripts/test-music-provider-artifact-manifest.mjs
       - name: Run Music Hub provider tests
         run: pnpm exec vitest run src/__tests__/musicProviderRouter.test.ts src/__tests__/musicProviderPolicy.test.ts
