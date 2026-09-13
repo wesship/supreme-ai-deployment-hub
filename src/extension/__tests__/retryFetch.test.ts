@@ -140,10 +140,11 @@ describe('fetchWithRetry', () => {
       },
     );
 
+    const rejection = expect(resultPromise).rejects.toMatchObject({ name: 'AbortError' });
     callerController.abort();
     await vi.runAllTimersAsync();
 
-    await expect(resultPromise).rejects.toMatchObject({ name: 'AbortError' });
+    await rejection;
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
