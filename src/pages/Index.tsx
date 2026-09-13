@@ -101,15 +101,17 @@ const HeroLogoMark: React.FC = () => (
 const BinaryRain: React.FC = () => (
   <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-35" aria-hidden="true">
     {Array.from({ length: 18 }).map((_, i) => (
-      <motion.div
+      <div
         key={i}
-        className="absolute top-[-40%] whitespace-pre text-[10px] leading-5 tracking-[0.38em] text-blue-200/60"
-        style={{ left: `${i * 6.1}%` }}
-        animate={{ y: ['0%', '160%'] }}
-        transition={{ duration: 16 + (i % 6), repeat: Infinity, ease: 'linear', delay: i * 0.45 }}
+        className="d3-binary-rain-column absolute top-[-40%] whitespace-pre text-[10px] leading-5 tracking-[0.38em] text-blue-200/60"
+        style={{
+          left: `${i * 6.1}%`,
+          animationDuration: `${16 + (i % 6)}s`,
+          animationDelay: `-${i * 0.45}s`,
+        }}
       >
         {'01 10 11 00 01 11 10 01 00 11 01 10\n'.repeat(18)}
-      </motion.div>
+      </div>
     ))}
   </div>
 );
