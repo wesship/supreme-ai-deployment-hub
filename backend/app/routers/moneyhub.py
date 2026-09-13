@@ -15,6 +15,7 @@ router = APIRouter(prefix="/moneyhub")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+ECONOMIC_EVENT_RPC_PATH = "/rest/v1/rpc/moneyhub_record_economic_event"
 
 
 class EconomicEventIn(BaseModel):
@@ -40,29 +41,33 @@ class EconomicEventIn(BaseModel):
         return normalized
 
 
-async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[str, Any]:
+class AgentRunStartIn(BaseModel):
+    agent_id: str
+    correlation_id: str = Field(min_length=1, max_length=200)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentRunFinishIn(BaseModel):
+    status: Literal["completed", "failed", "cancelled"]
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+async def _call_moneyhub_rpc(
+    rpc_name: str,
+    rpc_payload: dict[str, Any],
+    *,
+    error_scope: Literal["server operation", "ledger"] = "server operation",
+) -> dict[str, Any]:
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        detail = (
+            "MoneyHub economic ingestion is not configured."
+            if error_scope == "ledger"
+            else "MoneyHub server operations are not configured."
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="MoneyHub economic ingestion is not configured.",
+            detail=detail,
         )
-
-    rpc_payload: dict[str, Any] = {
-        "p_kind": payload.kind,
-        "p_user_id": principal.user_id,
-        "p_agent_id": payload.agent_id,
-        "p_provider": payload.provider,
-        "p_provider_event_id": payload.provider_event_id,
-        "p_source": payload.source,
-        "p_amount": str(payload.amount),
-        "p_currency": payload.currency,
-        "p_status": payload.status,
-        "p_description": payload.description,
-        "p_run_id": payload.run_id,
-        "p_metadata": payload.metadata,
-    }
-    if payload.occurred_at is not None:
-        rpc_payload["p_occurred_at"] = payload.occurred_at.isoformat()
 
     headers = {
         "apikey": SUPABASE_SERVICE_ROLE_KEY,
@@ -73,18 +78,27 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             response = await client.post(
-                f"{SUPABASE_URL}/rest/v1/rpc/moneyhub_record_economic_event",
+                f"{SUPABASE_URL}/rest/v1/rpc/{rpc_name}",
                 headers=headers,
                 json=rpc_payload,
             )
     except httpx.RequestError as exc:
+        detail = (
+            "MoneyHub ledger is unavailable."
+            if error_scope == "ledger"
+            else "MoneyHub server operation is unavailable."
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="MoneyHub ledger is unavailable.",
+            detail=detail,
         ) from exc
 
     if response.status_code >= 400:
-        detail = "MoneyHub economic event was rejected."
+        detail = (
+            "MoneyHub economic event was rejected."
+            if error_scope == "ledger"
+            else "MoneyHub server operation was rejected."
+        )
         try:
             body = response.json()
             if isinstance(body, dict) and isinstance(body.get("message"), str):
@@ -101,16 +115,50 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
     try:
         data = response.json()
     except ValueError as exc:
+        detail = (
+            "MoneyHub ledger returned an invalid response."
+            if error_scope == "ledger"
+            else "MoneyHub server operation returned an invalid response."
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="MoneyHub ledger returned an invalid response.",
+            detail=detail,
         ) from exc
     if not isinstance(data, dict):
+        detail = (
+            "MoneyHub ledger returned an invalid response."
+            if error_scope == "ledger"
+            else "MoneyHub server operation returned an invalid response."
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="MoneyHub ledger returned an invalid response.",
+            detail=detail,
         )
     return data
+
+
+async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[str, Any]:
+    rpc_payload: dict[str, Any] = {
+        "p_kind": payload.kind,
+        "p_user_id": principal.user_id,
+        "p_agent_id": payload.agent_id,
+        "p_provider": payload.provider,
+        "p_provider_event_id": payload.provider_event_id,
+        "p_source": payload.source,
+        "p_amount": str(payload.amount),
+        "p_currency": payload.currency,
+        "p_status": payload.status,
+        "p_description": payload.description,
+        "p_run_id": payload.run_id,
+        "p_metadata": payload.metadata,
+    }
+    if payload.occurred_at is not None:
+        rpc_payload["p_occurred_at"] = payload.occurred_at.isoformat()
+    return await _call_moneyhub_rpc(
+        "moneyhub_record_economic_event",
+        rpc_payload,
+        error_scope="ledger",
+    )
 
 
 @router.post("/economic-events", status_code=status.HTTP_201_CREATED)
@@ -119,4 +167,42 @@ async def record_economic_event(payload: EconomicEventIn, principal: OCCAccess) 
     return {
         "status": "recorded" if result.get("inserted") else "duplicate",
         "event": result,
+    }
+
+
+@router.post("/runs", status_code=status.HTTP_201_CREATED)
+async def start_agent_run(payload: AgentRunStartIn, principal: OCCAccess) -> dict[str, Any]:
+    result = await _call_moneyhub_rpc(
+        "moneyhub_start_agent_run",
+        {
+            "p_user_id": principal.user_id,
+            "p_agent_id": payload.agent_id,
+            "p_correlation_id": payload.correlation_id,
+            "p_metadata": payload.metadata,
+        },
+    )
+    return {
+        "status": "started" if result.get("inserted") else "duplicate",
+        "run": result,
+    }
+
+
+@router.post("/runs/{run_id}/finish")
+async def finish_agent_run(
+    run_id: str,
+    payload: AgentRunFinishIn,
+    principal: OCCAccess,
+) -> dict[str, Any]:
+    result = await _call_moneyhub_rpc(
+        "moneyhub_finish_agent_run",
+        {
+            "p_user_id": principal.user_id,
+            "p_run_id": run_id,
+            "p_status": payload.status,
+            "p_metadata": payload.metadata,
+        },
+    )
+    return {
+        "status": "finished" if result.get("finished") else "already_finished",
+        "run": result,
     }
