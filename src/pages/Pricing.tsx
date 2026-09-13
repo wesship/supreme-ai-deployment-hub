@@ -2,11 +2,38 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
+import ReaddyMarketingHero from '@/components/marketing/ReaddyMarketingHero';
+import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
 
 const plans = [
-  { name: 'Starter', price: '$0', period: 'forever', desc: 'Explore AI agents and basic workflows.', features: ['3 active agents', 'Community marketplace', 'Basic observability', 'Starter workflow templates'], cta: 'Start free', href: '/login' },
-  { name: 'Operator', price: '$49', period: 'per month', desc: 'Run a practical AI workforce for real business tasks.', features: ['Unlimited agents', 'Hermes mesh access', 'RAG knowledge vault', 'Priority support', 'Production workflow runs'], cta: 'Launch Operator', href: '/login', featured: true },
-  { name: 'Enterprise', price: 'Custom', period: 'annual contract', desc: 'For teams needing governance, custom integrations, and deployment flexibility.', features: ['SSO/RBAC roadmap', 'Security review support', 'Dedicated implementation', 'Private/VPC deployment path', 'Custom agent bundles'], cta: 'Schedule demo', href: '/contact?inquiry=enterprise-demo' },
+  {
+    name: 'Starter',
+    price: '$0',
+    period: 'forever',
+    desc: 'Explore AI agents and basic workflows.',
+    features: ['3 active agents', 'Community marketplace', 'Basic observability', 'Starter workflow templates'],
+    cta: 'Start free',
+    href: '/login',
+  },
+  {
+    name: 'Operator',
+    price: '$49',
+    period: 'per month',
+    desc: 'Run a practical AI workforce for real business tasks.',
+    features: ['Unlimited agents', 'Hermes mesh access', 'RAG knowledge vault', 'Priority support', 'Production workflow runs'],
+    cta: 'Launch Operator',
+    href: '/login',
+    featured: true,
+  },
+  {
+    name: 'Enterprise',
+    price: 'Custom',
+    period: 'annual contract',
+    desc: 'For teams needing governance, custom integrations, and deployment flexibility.',
+    features: ['SSO/RBAC roadmap', 'Security review support', 'Dedicated implementation', 'Private/VPC deployment path', 'Custom agent bundles'],
+    cta: 'Schedule demo',
+    href: '/contact?inquiry=enterprise-demo',
+  },
 ];
 
 const Pricing: React.FC = () => {
@@ -14,7 +41,7 @@ const Pricing: React.FC = () => {
   const description = 'D3VONN.IO pricing for Starter, Operator, and Enterprise AI workforce orchestration plans.';
 
   return (
-    <div className="min-h-screen bg-[#020817] text-white">
+    <ReaddyMarketingShell>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -24,60 +51,103 @@ const Pricing: React.FC = () => {
         <meta property="og:type" content="website" />
       </Helmet>
 
-      <main className="container mx-auto px-6 py-24">
-        <section className="mx-auto max-w-4xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">Pricing</p>
-          <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-6xl">
-            Clear pricing for building your <span className="text-blue-400">AI workforce</span>.
-          </h1>
-          <p className="mt-6 text-lg text-white/70">
-            Start small, prove one workflow, then scale into a governed AI operating layer for your business.
-          </p>
+      <main>
+        <ReaddyMarketingHero
+          eyebrow="Pricing"
+          title={
+            <>
+              Clear pricing for building your{' '}
+              <span className="bg-gradient-to-r from-blue-100 via-blue-300 to-cyan-300 bg-clip-text text-transparent">
+                AI workforce.
+              </span>
+            </>
+          }
+          description="Start small, prove one workflow, then scale into a governed AI operating layer for your business."
+        />
+
+        <section className="px-4 pb-20 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-3">
+            {plans.map((plan) => (
+              <article
+                key={plan.name}
+                className={`relative rounded-[28px] border p-7 transition hover:-translate-y-1 ${
+                  plan.featured
+                    ? 'border-blue-300/35 bg-blue-400/[0.065] shadow-[0_24px_90px_rgba(37,126,255,0.18)]'
+                    : 'border-white/[0.08] bg-white/[0.025] hover:border-blue-300/22 hover:bg-blue-400/[0.04]'
+                }`}
+              >
+                {plan.featured ? (
+                  <div className="absolute -top-3 left-6 rounded-full border border-blue-200/20 bg-blue-700 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[0_0_24px_rgba(37,126,255,0.35)]">
+                    Most popular
+                  </div>
+                ) : null}
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-200/55">{plan.name}</p>
+                <p className="mt-5 text-sm leading-6 text-white/48">{plan.desc}</p>
+                <div className="mt-7 flex items-end gap-2">
+                  <span className="text-5xl font-black tracking-[-0.04em] text-white">{plan.price}</span>
+                  <span className="pb-1 text-xs uppercase tracking-[0.12em] text-white/35">{plan.period}</span>
+                </div>
+                <div className="my-7 h-px bg-white/[0.08]" />
+                <ul className="space-y-3">
+                  {plan.features.map((feature) => (
+                    <li key={feature} className="flex gap-3 text-sm text-white/60">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-300" aria-hidden="true" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to={plan.href}
+                  className={`mt-8 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition ${
+                    plan.featured
+                      ? 'bg-blue-700 text-white hover:bg-blue-600'
+                      : 'border border-blue-200/20 bg-white/[0.035] text-blue-50 hover:border-blue-200/35 hover:bg-blue-300/[0.07]'
+                  }`}
+                >
+                  {plan.cta} <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </article>
+            ))}
+          </div>
         </section>
 
-        <section className="mt-16 grid gap-6 lg:grid-cols-3">
-          {plans.map((plan) => (
-            <article key={plan.name} className={`relative rounded-2xl border bg-white/[0.03] p-6 shadow-[0_0_40px_-12px_rgba(56,136,255,0.25)] ${plan.featured ? 'border-blue-500/50' : 'border-white/10'}`}>
-              {plan.featured && <div className="absolute -top-3 left-6 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest">Most popular</div>}
-              <h2 className="text-2xl font-black">{plan.name}</h2>
-              <p className="mt-3 text-sm text-white/65">{plan.desc}</p>
-              <div className="mt-6 flex items-baseline gap-2">
-                <span className="text-5xl font-black">{plan.price}</span>
-                <span className="text-sm text-white/50">{plan.period}</span>
-              </div>
-              <ul className="mt-6 space-y-3">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex gap-3 text-sm text-white/75">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Link to={plan.href} className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition ${plan.featured ? 'bg-blue-600 text-white hover:bg-blue-500' : 'border border-white/20 bg-white/5 text-white hover:bg-white/10'}`}>
-                {plan.cta} <ArrowRight className="h-4 w-4" />
-              </Link>
-            </article>
-          ))}
+        <section className="border-y border-white/[0.07] bg-white/[0.018] px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-3">
+              <img
+                src="/illustrations/agent-orchestration.svg"
+                alt="What every plan runs on: the Hermes-orchestrated D3VONN.IO agent swarm with memory, safety, workflows, and knowledge"
+                className="h-auto w-full rounded-[20px]"
+                loading="lazy"
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Every plan runs on D3VONN</p>
+              <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">One operating model from first agent to enterprise workforce.</h2>
+              <p className="mt-5 text-base leading-7 text-white/50">
+                Plans scale access and support, not the core control model. Hermes orchestration, governed workflows, knowledge grounding, and human oversight remain the architectural foundation.
+              </p>
+            </div>
+          </div>
         </section>
 
-        <section className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02]">
-          <img
-            src="/illustrations/agent-orchestration.svg"
-            alt="What every plan runs on: the Hermes-orchestrated D3VONN.IO agent swarm with memory, safety, workflows, and knowledge"
-            className="h-auto w-full"
-            loading="lazy"
-          />
-        </section>
-
-        <section className="mt-12 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-8 text-center">
-          <ShieldCheck className="mx-auto h-10 w-10 text-blue-300" />
-          <h2 className="mt-4 text-3xl font-black">Enterprise pilots should start with one measurable workflow.</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-white/70">
-            The highest-value first pilot is usually a repeatable workflow with clear time savings, visible output quality, and measurable human approval points.
-          </p>
+        <section className="px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-5xl rounded-[32px] border border-blue-300/15 bg-blue-400/[0.035] p-8 text-center sm:p-10">
+            <ShieldCheck className="mx-auto h-10 w-10 text-blue-200" aria-hidden="true" />
+            <h2 className="mt-5 text-3xl font-black tracking-tight sm:text-4xl">Enterprise pilots should start with one measurable workflow.</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
+              Choose a repeatable workflow with clear time savings, visible output quality, and measurable human approval points. Prove the operating model before expanding scope.
+            </p>
+            <Link
+              to="/contact?inquiry=enterprise-demo"
+              className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white transition hover:bg-blue-600"
+            >
+              Plan an enterprise pilot <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
         </section>
       </main>
-    </div>
+    </ReaddyMarketingShell>
   );
 };
 

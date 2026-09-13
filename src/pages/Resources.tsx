@@ -1,14 +1,49 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { BookOpen, ShieldCheck, Activity, Network, Store, ArrowRight, FileText, Download } from 'lucide-react';
+import {
+  Activity,
+  ArrowRight,
+  BookOpen,
+  Download,
+  Network,
+  ShieldCheck,
+  Store,
+} from 'lucide-react';
+import ReaddyMarketingHero from '@/components/marketing/ReaddyMarketingHero';
+import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
 
 const resources = [
-  { icon: BookOpen, title: 'Documentation', body: 'Product docs, platform concepts, workflow setup, and implementation guidance.', href: '/documentation' },
-  { icon: ShieldCheck, title: 'Security & Trust', body: 'Enterprise trust posture, control model, data boundaries, and compliance roadmap.', href: '/security' },
-  { icon: Activity, title: 'System Status', body: 'Production status, health views, and operational readiness signals.', href: '/status' },
-  { icon: Network, title: 'Architecture', body: 'How Hermes, agents, workflow engine, RAG, and Command Center fit together.', href: '/#architecture' },
-  { icon: Store, title: 'Marketplace', body: 'Agent categories, reusable workforce templates, and deployment-ready AI workers.', href: '/marketplace' },
+  {
+    icon: BookOpen,
+    title: 'Documentation',
+    body: 'Product docs, platform concepts, workflow setup, and implementation guidance.',
+    href: '/documentation',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Security & Trust',
+    body: 'Enterprise trust posture, control model, data boundaries, and compliance roadmap.',
+    href: '/security',
+  },
+  {
+    icon: Activity,
+    title: 'System Status',
+    body: 'Production status, health views, and operational readiness signals.',
+    href: '/status',
+  },
+  {
+    icon: Network,
+    title: 'Architecture',
+    body: 'How Hermes, agents, workflow engine, RAG, and Command Center fit together.',
+    href: '/#architecture',
+  },
+  {
+    icon: Store,
+    title: 'Marketplace',
+    body: 'Agent categories, reusable workforce templates, and deployment-ready AI workers.',
+    href: '/marketplace',
+  },
 ];
 
 const videoLearning = [
@@ -28,10 +63,11 @@ const videoLearning = [
 
 const Resources: React.FC = () => {
   const title = 'Resources — D3VONN.IO';
-  const description = 'D3VONN.IO resources for documentation, security, status, architecture, marketplace, and enterprise AI workforce pilots.';
+  const description =
+    'D3VONN.IO resources for documentation, security, status, architecture, marketplace, and enterprise AI workforce pilots.';
 
   return (
-    <div className="min-h-screen bg-[#020817] text-white">
+    <ReaddyMarketingShell>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -41,92 +77,118 @@ const Resources: React.FC = () => {
         <meta property="og:type" content="website" />
       </Helmet>
 
-      <main className="container mx-auto px-6 py-24">
-        <section className="mx-auto max-w-4xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">Resources</p>
-          <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-6xl">
-            The buyer, builder, and operator hub for <span className="text-blue-400">D3VONN.IO</span>.
-          </h1>
-          <p className="mt-6 text-lg text-white/70">
-            Everything needed to understand, evaluate, pilot, and operate the AI Business Operating System.
-          </p>
-        </section>
-
-        <section className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {resources.map((item) => (
-            <Link key={item.title} to={item.href} className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_0_40px_-12px_rgba(56,136,255,0.25)] transition hover:-translate-y-0.5 hover:border-blue-500/40">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-blue-500/25 bg-blue-950/50 text-blue-300">
-                <item.icon className="h-6 w-6" />
-              </div>
-              <h2 className="mt-5 text-xl font-bold">{item.title}</h2>
-              <p className="mt-3 text-sm leading-6 text-white/65">{item.body}</p>
-              <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-300">
-                Open resource <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+      <main>
+        <ReaddyMarketingHero
+          eyebrow="Resources"
+          title={
+            <>
+              The buyer, builder, and operator hub for{' '}
+              <span className="bg-gradient-to-r from-blue-100 via-blue-300 to-cyan-300 bg-clip-text text-transparent">
+                D3VONN.IO.
               </span>
-            </Link>
-          ))}
-        </section>
+            </>
+          }
+          description="Everything needed to understand, evaluate, pilot, and operate the AI Business Operating System."
+        />
 
-        <section className="mt-24" aria-labelledby="video-learning-heading">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">Video Learning Center</p>
-            <h2 id="video-learning-heading" className="mt-4 text-3xl font-black sm:text-4xl">
-              Learn the concepts behind the <span className="text-blue-400">AI Business Operating System</span>.
-            </h2>
-            <p className="mt-4 text-white/70">
-              Curated external explainers for the foundations D3VONN.IO builds on. Original D3VONN product
-              demos and tutorials are in production and will appear here as they ship.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {videoLearning.map((item) => (
-              <a
-                key={item.title}
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:-translate-y-0.5 hover:border-blue-500/40"
+        <section className="px-4 pb-20 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {resources.map(({ icon: Icon, title: itemTitle, body, href }) => (
+              <Link
+                key={itemTitle}
+                to={href}
+                className="group rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-6 transition hover:-translate-y-0.5 hover:border-blue-300/22 hover:bg-blue-400/[0.04]"
               >
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full border border-blue-500/30 bg-blue-950/40 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-blue-300">
-                    {item.category}
-                  </span>
-                  <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                    {item.kind}
-                  </span>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-blue-300/20 bg-blue-400/[0.08] text-blue-200">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <h3 className="mt-4 text-lg font-bold">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">{item.body}</p>
-                <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-300">
-                  {item.source} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                <h2 className="mt-5 text-lg font-bold text-white">{itemTitle}</h2>
+                <p className="mt-3 text-sm leading-6 text-white/46">{body}</p>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-200 transition group-hover:text-white">
+                  Open resource <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
                 </span>
-              </a>
+              </Link>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02]">
-          <img
-            src="/illustrations/workflow-pipeline.svg"
-            alt="D3VONN.IO pilot workflow: goal, Hermes plan, governed execution, measured outcome"
-            className="h-auto w-full"
-            loading="lazy"
-          />
+        <section className="border-y border-white/[0.07] bg-white/[0.018] px-4 py-20 sm:px-6 lg:px-8" aria-labelledby="video-learning-heading">
+          <div className="mx-auto max-w-7xl">
+            <div className="mx-auto max-w-4xl text-center">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Video Learning Center</p>
+              <h2 id="video-learning-heading" className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">
+                Learn the concepts behind the <span className="text-blue-300">AI Business Operating System.</span>
+              </h2>
+              <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-white/50">
+                Curated explainers for the foundations D3VONN.IO builds on. Original D3VONN product demos and tutorials can land here as they ship.
+              </p>
+            </div>
+
+            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {videoLearning.map((item) => (
+                <a
+                  key={item.title}
+                  href={item.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-6 transition hover:-translate-y-0.5 hover:border-blue-300/22 hover:bg-blue-400/[0.04]"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="rounded-full border border-blue-300/20 bg-blue-400/[0.07] px-3 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-blue-200">
+                      {item.category}
+                    </span>
+                    <span className="rounded-full border border-white/[0.08] bg-white/[0.025] px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-white/38">
+                      {item.kind}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold text-white">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-white/46">{item.body}</p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-200 transition group-hover:text-white">
+                    {item.source} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" aria-hidden="true" />
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section className="mt-12 rounded-3xl border border-blue-500/20 bg-blue-950/20 p-8 text-center">
-          <Download className="mx-auto h-10 w-10 text-blue-300" />
-          <h2 className="mt-4 text-3xl font-black">Pilot checklist</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-white/70">
-            Use the enterprise pilot checklist to turn D3VONN.IO into a measurable buyer conversation with one workflow, one outcome, and one repeatable demo.
-          </p>
-          <a href="/pilot-checklist.md" className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500">
-            Open checklist <ArrowRight className="h-4 w-4" />
-          </a>
+        <section className="px-4 py-20 sm:px-6 lg:px-8">
+          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+            <div className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.025] p-3">
+              <img
+                src="/illustrations/workflow-pipeline.svg"
+                alt="D3VONN.IO pilot workflow: goal, Hermes plan, governed execution, measured outcome"
+                className="h-auto w-full rounded-[20px]"
+                loading="lazy"
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/60">Pilot operating model</p>
+              <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-5xl">One workflow. One measurable outcome. One repeatable demo.</h2>
+              <p className="mt-5 text-base leading-7 text-white/50">
+                Use the resource hub to move from platform understanding to an operational pilot with visible inputs, governed execution, and a result the buyer can evaluate.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="px-4 pb-24 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-5xl rounded-[32px] border border-blue-300/15 bg-blue-400/[0.035] p-8 text-center sm:p-10">
+            <Download className="mx-auto h-10 w-10 text-blue-200" aria-hidden="true" />
+            <h2 className="mt-5 text-3xl font-black tracking-tight sm:text-4xl">Pilot checklist</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-white/50 sm:text-base">
+              Turn D3VONN.IO into a measurable buyer conversation with one workflow, one outcome, and one repeatable demo.
+            </p>
+            <a
+              href="/pilot-checklist.md"
+              className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white transition hover:bg-blue-600"
+            >
+              Open checklist <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </a>
+          </div>
         </section>
       </main>
-    </div>
+    </ReaddyMarketingShell>
   );
 };
 
