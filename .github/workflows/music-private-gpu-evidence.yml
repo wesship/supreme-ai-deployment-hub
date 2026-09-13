@@ -103,14 +103,14 @@ jobs:
             fi
             if command -v python3 >/dev/null 2>&1; then
               python3 - <<'PY'
-try:
-    import torch
-    print(f"python_torch_version={torch.__version__}")
-    print(f"python_cuda_version={torch.version.cuda}")
-    print(f"cuda_available={torch.cuda.is_available()}")
-except Exception as exc:
-    print(f"torch_probe_error={type(exc).__name__}:{exc}")
-PY
+              try:
+                  import torch
+                  print(f"python_torch_version={torch.__version__}")
+                  print(f"python_cuda_version={torch.version.cuda}")
+                  print(f"cuda_available={torch.cuda.is_available()}")
+              except Exception as exc:
+                  print(f"torch_probe_error={type(exc).__name__}:{exc}")
+              PY
             fi
           } | tee "$RUNNER_TEMP/ace-step-1.5-runtime-metadata.txt"
 
@@ -119,14 +119,14 @@ PY
         run: |
           set -euo pipefail
           node - <<'NODE'
-const fs = require('fs');
-const sbom = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/ace-step-1.5-runtime-sbom-evidence.json', 'utf8'));
-if (sbom.review_status !== 'PENDING_REVIEW') throw new Error('SBOM evidence must remain PENDING_REVIEW');
-const cert = JSON.parse(fs.readFileSync('config/music/ace-step-1.5.production-certification.json', 'utf8'));
-if (cert.status !== 'PENDING_EXTERNAL_EVIDENCE' || cert.production_enabled !== false) {
-  throw new Error('qualification workflow must not activate ACE-Step');
-}
-NODE
+          const fs = require('fs');
+          const sbom = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/ace-step-1.5-runtime-sbom-evidence.json', 'utf8'));
+          if (sbom.review_status !== 'PENDING_REVIEW') throw new Error('SBOM evidence must remain PENDING_REVIEW');
+          const cert = JSON.parse(fs.readFileSync('config/music/ace-step-1.5.production-certification.json', 'utf8'));
+          if (cert.status !== 'PENDING_EXTERNAL_EVIDENCE' || cert.production_enabled !== false) {
+            throw new Error('qualification workflow must not activate ACE-Step');
+          }
+          NODE
 
       - name: Upload review evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
