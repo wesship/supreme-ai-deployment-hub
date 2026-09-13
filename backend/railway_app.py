@@ -34,6 +34,11 @@ def _sovereign_signal_bootstrap_enabled() -> bool:
     return value in {"1", "true", "yes", "on"}
 
 
+def _video_workers_enabled() -> bool:
+    value = os.getenv("AI_FILM_VIDEO_WORKERS_IN_API_ENABLED", "true").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def _task_state(app_instance, name: str) -> str:
     task = getattr(app_instance.state, name, None)
     if task is None:
@@ -104,25 +109,28 @@ async def railway_lifespan(app_instance):
         except Exception as exc:
             logger.warning("Could not schedule AI Films anchor candidate extraction: %s: %s", type(exc).__name__, exc)
 
-        try:
-            from backend.ai_films.resilient_video_worker import run_resilient_video_worker
-            from backend.ai_films.generated_shot_qa_worker_pollo import run_pollo_generated_shot_qa_worker
-            from backend.ai_films.legacy_video_route_migrator import run_legacy_video_route_migrator
-            legacy_video_route_migrator_task = asyncio.create_task(
-                run_legacy_video_route_migrator(), name="ai-films-legacy-sora-to-pollo-migrator"
-            )
-            pollo_video_worker_task = asyncio.create_task(
-                run_resilient_video_worker(), name="ai-films-resilient-video-worker"
-            )
-            generated_shot_qa_task = asyncio.create_task(
-                run_pollo_generated_shot_qa_worker(), name="ai-films-generated-shot-qa-worker"
-            )
-            app_instance.state.ai_films_legacy_video_route_migrator_task = legacy_video_route_migrator_task
-            app_instance.state.ai_films_pollo_video_worker_task = pollo_video_worker_task
-            app_instance.state.ai_films_generated_shot_qa_task = generated_shot_qa_task
-            logger.info("Scheduled AI Films Pollo-primary/Replicate-fallback video execution and generated-shot QA workers.")
-        except Exception as exc:
-            logger.warning("Could not schedule AI Films resilient video generation workers: %s: %s", type(exc).__name__, exc)
+        if _video_workers_enabled():
+            try:
+                from backend.ai_films.resilient_video_worker import run_resilient_video_worker
+                from backend.ai_films.generated_shot_qa_worker_pollo import run_pollo_generated_shot_qa_worker
+                from backend.ai_films.legacy_video_route_migrator import run_legacy_video_route_migrator
+                legacy_video_route_migrator_task = asyncio.create_task(
+                    run_legacy_video_route_migrator(), name="ai-films-legacy-sora-to-pollo-migrator"
+                )
+                pollo_video_worker_task = asyncio.create_task(
+                    run_resilient_video_worker(), name="ai-films-resilient-video-worker"
+                )
+                generated_shot_qa_task = asyncio.create_task(
+                    run_pollo_generated_shot_qa_worker(), name="ai-films-generated-shot-qa-worker"
+                )
+                app_instance.state.ai_films_legacy_video_route_migrator_task = legacy_video_route_migrator_task
+                app_instance.state.ai_films_pollo_video_worker_task = pollo_video_worker_task
+                app_instance.state.ai_films_generated_shot_qa_task = generated_shot_qa_task
+                logger.info("Scheduled AI Films Pollo-primary/Replicate-fallback video execution and generated-shot QA workers.")
+            except Exception as exc:
+                logger.warning("Could not schedule AI Films resilient video generation workers: %s: %s", type(exc).__name__, exc)
+        else:
+            logger.info("AI Films video/shot-QA workers disabled in API process; dedicated Railway worker owns execution.")
 
         try:
             from backend.ai_films.performance_transfer_worker import run_performance_transfer_worker
