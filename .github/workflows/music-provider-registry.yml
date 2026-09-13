@@ -8,6 +8,8 @@ on:
       - 'scripts/validate-ace-step-production-certification.mjs'
       - 'scripts/music-provider-artifact-manifest.mjs'
       - 'scripts/test-music-provider-artifact-manifest.mjs'
+      - 'scripts/music-runtime-sbom-evidence.mjs'
+      - 'scripts/test-music-runtime-sbom-evidence.mjs'
       - 'src/music/**'
       - 'src/__tests__/musicProviderRouter.test.ts'
       - 'src/__tests__/musicProviderPolicy.test.ts'
@@ -21,6 +23,8 @@ on:
       - 'scripts/validate-ace-step-production-certification.mjs'
       - 'scripts/music-provider-artifact-manifest.mjs'
       - 'scripts/test-music-provider-artifact-manifest.mjs'
+      - 'scripts/music-runtime-sbom-evidence.mjs'
+      - 'scripts/test-music-runtime-sbom-evidence.mjs'
       - 'src/music/**'
       - 'src/__tests__/musicProviderRouter.test.ts'
       - 'src/__tests__/musicProviderPolicy.test.ts'
@@ -43,12 +47,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Validate registry JSON
-        run: node -e "const fs=require('fs'); ['config/music/providers.json','config/music/providers.schema.json','config/music/qualification.json','config/music/smoke-tests/ace-step-1.5.json','config/music/ace-step-1.5.production-certification.json'].forEach(p=>JSON.parse(fs.readFileSync(p,'utf8')));"
+        run: node -e "const fs=require('fs'); ['config/music/providers.json','config/music/providers.schema.json','config/music/qualification.json','config/music/smoke-tests/ace-step-1.5.json','config/music/ace-step-1.5.production-certification.json','config/music/runtime-sbom-evidence.schema.json'].forEach(p=>JSON.parse(fs.readFileSync(p,'utf8')));"
       - name: Validate qualification gate
         run: node scripts/validate-music-qualification.mjs
       - name: Validate ACE-Step production certification contract
         run: node scripts/validate-ace-step-production-certification.mjs
       - name: Test deterministic artifact manifest gate
         run: node scripts/test-music-provider-artifact-manifest.mjs
+      - name: Test exact-runtime SBOM evidence gate
+        run: node scripts/test-music-runtime-sbom-evidence.mjs
       - name: Run Music Hub provider tests
         run: pnpm exec vitest run src/__tests__/musicProviderRouter.test.ts src/__tests__/musicProviderPolicy.test.ts

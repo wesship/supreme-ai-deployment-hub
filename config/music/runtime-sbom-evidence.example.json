@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "provider_id": "EXAMPLE_ONLY",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "model_revision": "0000000000000000000000000000000000000000",
+  "runtime_image_ref": "example.invalid/music@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "runtime_image_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "sbom_format": "CycloneDX",
+  "sbom_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "component_count": 1,
+  "unresolved_license_count": 1,
+  "unresolved_license_components": [{"name":"example","version":"0","purl":null}],
+  "components": [{"type":"library","name":"example","version":"0","purl":null,"licenses":[]}],
+  "review_status": "PENDING_REVIEW"
+}
