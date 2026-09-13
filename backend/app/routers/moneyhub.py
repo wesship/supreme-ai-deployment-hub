@@ -52,11 +52,21 @@ class AgentRunFinishIn(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-async def _call_moneyhub_rpc(rpc_name: str, rpc_payload: dict[str, Any]) -> dict[str, Any]:
+async def _call_moneyhub_rpc(
+    rpc_name: str,
+    rpc_payload: dict[str, Any],
+    *,
+    error_scope: Literal["server operation", "ledger"] = "server operation",
+) -> dict[str, Any]:
     if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        detail = (
+            "MoneyHub economic ingestion is not configured."
+            if error_scope == "ledger"
+            else "MoneyHub server operations are not configured."
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="MoneyHub server operations are not configured.",
+            detail=detail,
         )
 
     headers = {
@@ -73,13 +83,22 @@ async def _call_moneyhub_rpc(rpc_name: str, rpc_payload: dict[str, Any]) -> dict
                 json=rpc_payload,
             )
     except httpx.RequestError as exc:
+        detail = (
+            "MoneyHub ledger is unavailable."
+            if error_scope == "ledger"
+            else "MoneyHub server operation is unavailable."
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="MoneyHub server operation is unavailable.",
+            detail=detail,
         ) from exc
 
     if response.status_code >= 400:
-        detail = "MoneyHub server operation was rejected."
+        detail = (
+            "MoneyHub economic event was rejected."
+            if error_scope == "ledger"
+            else "MoneyHub server operation was rejected."
+        )
         try:
             body = response.json()
             if isinstance(body, dict) and isinstance(body.get("message"), str):
@@ -96,14 +115,24 @@ async def _call_moneyhub_rpc(rpc_name: str, rpc_payload: dict[str, Any]) -> dict
     try:
         data = response.json()
     except ValueError as exc:
+        detail = (
+            "MoneyHub ledger returned an invalid response."
+            if error_scope == "ledger"
+            else "MoneyHub server operation returned an invalid response."
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="MoneyHub server operation returned an invalid response.",
+            detail=detail,
         ) from exc
     if not isinstance(data, dict):
+        detail = (
+            "MoneyHub ledger returned an invalid response."
+            if error_scope == "ledger"
+            else "MoneyHub server operation returned an invalid response."
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="MoneyHub server operation returned an invalid response.",
+            detail=detail,
         )
     return data
 
@@ -125,7 +154,11 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
     }
     if payload.occurred_at is not None:
         rpc_payload["p_occurred_at"] = payload.occurred_at.isoformat()
-    return await _call_moneyhub_rpc("moneyhub_record_economic_event", rpc_payload)
+    return await _call_moneyhub_rpc(
+        "moneyhub_record_economic_event",
+        rpc_payload,
+        error_scope="ledger",
+    )
 
 
 @router.post("/economic-events", status_code=status.HTTP_201_CREATED)
