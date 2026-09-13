@@ -1,0 +1,140 @@
+name: Music Private GPU Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider ID to qualify
+        required: true
+        default: ace-step-1.5
+        type: choice
+        options:
+          - ace-step-1.5
+      model_root:
+        description: Absolute path to the already-downloaded pinned model artifacts on the trusted runner
+        required: true
+        type: string
+      runtime_image_ref:
+        description: Exact runtime image reference ending in @sha256:<64-hex>
+        required: true
+        type: string
+      sbom_path:
+        description: Absolute path to the CycloneDX JSON generated from that exact runtime image
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_SOURCE_REVISION: ca1e85fe9430179831e6bc6be790c332190a3866
+  EXPECTED_MODEL_REVISION: 19671f406d603126926c1b7e2adc169acbcade22
+
+jobs:
+  evidence:
+    name: Collect ACE-Step private GPU evidence
+    runs-on: [self-hosted, linux, d3vonn-gpu]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout qualification controls
+        uses: actions/checkout@v4
+
+      - name: Fail closed on moving or missing inputs
+        shell: bash
+        env:
+          MODEL_ROOT: ${{ inputs.model_root }}
+          RUNTIME_IMAGE_REF: ${{ inputs.runtime_image_ref }}
+          SBOM_PATH: ${{ inputs.sbom_path }}
+        run: |
+          set -euo pipefail
+          [[ "$MODEL_ROOT" = /* ]] || { echo "model_root must be absolute" >&2; exit 1; }
+          [[ "$SBOM_PATH" = /* ]] || { echo "sbom_path must be absolute" >&2; exit 1; }
+          [[ -d "$MODEL_ROOT" ]] || { echo "model_root does not exist" >&2; exit 1; }
+          [[ -f "$SBOM_PATH" ]] || { echo "sbom_path does not exist" >&2; exit 1; }
+          [[ "$RUNTIME_IMAGE_REF" =~ @sha256:[0-9a-fA-F]{64}$ ]] || { echo "runtime image must be digest pinned" >&2; exit 1; }
+
+      - name: Verify registry remains fail closed
+        run: |
+          node scripts/validate-music-qualification.mjs
+          node scripts/validate-ace-step-production-certification.mjs
+
+      - name: Generate deterministic model artifact manifest
+        shell: bash
+        env:
+          MODEL_ROOT: ${{ inputs.model_root }}
+        run: |
+          set -euo pipefail
+          node scripts/music-provider-artifact-manifest.mjs \
+            --provider ace-step-1.5 \
+            --root "$MODEL_ROOT" \
+            --out "$RUNNER_TEMP/ace-step-1.5-artifact-manifest.json"
+
+      - name: Normalize exact-runtime CycloneDX evidence
+        shell: bash
+        env:
+          RUNTIME_IMAGE_REF: ${{ inputs.runtime_image_ref }}
+          SBOM_PATH: ${{ inputs.sbom_path }}
+        run: |
+          set -euo pipefail
+          node scripts/music-runtime-sbom-evidence.mjs \
+            --provider ace-step-1.5 \
+            --image-ref "$RUNTIME_IMAGE_REF" \
+            --sbom "$SBOM_PATH" \
+            --out "$RUNNER_TEMP/ace-step-1.5-runtime-sbom-evidence.json"
+
+      - name: Capture GPU and runtime metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "source_revision=$EXPECTED_SOURCE_REVISION"
+            echo "model_revision=$EXPECTED_MODEL_REVISION"
+            echo "runner_name=$RUNNER_NAME"
+            echo "runner_os=$RUNNER_OS"
+            echo "node=$(node --version)"
+            if command -v nvidia-smi >/dev/null 2>&1; then
+              echo "nvidia_smi_present=true"
+              nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+            else
+              echo "nvidia_smi_present=false"
+              echo "NVIDIA GPU tooling is required for the subsequent smoke-test gate" >&2
+              exit 1
+            fi
+            if command -v python3 >/dev/null 2>&1; then
+              python3 - <<'PY'
+try:
+    import torch
+    print(f"python_torch_version={torch.__version__}")
+    print(f"python_cuda_version={torch.version.cuda}")
+    print(f"cuda_available={torch.cuda.is_available()}")
+except Exception as exc:
+    print(f"torch_probe_error={type(exc).__name__}:{exc}")
+PY
+            fi
+          } | tee "$RUNNER_TEMP/ace-step-1.5-runtime-metadata.txt"
+
+      - name: Assert evidence remains review-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+const fs = require('fs');
+const sbom = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/ace-step-1.5-runtime-sbom-evidence.json', 'utf8'));
+if (sbom.review_status !== 'PENDING_REVIEW') throw new Error('SBOM evidence must remain PENDING_REVIEW');
+const cert = JSON.parse(fs.readFileSync('config/music/ace-step-1.5.production-certification.json', 'utf8'));
+if (cert.status !== 'PENDING_EXTERNAL_EVIDENCE' || cert.production_enabled !== false) {
+  throw new Error('qualification workflow must not activate ACE-Step');
+}
+NODE
+
+      - name: Upload review evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ace-step-1.5-private-gpu-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/ace-step-1.5-artifact-manifest.json
+            ${{ runner.temp }}/ace-step-1.5-runtime-sbom-evidence.json
+            ${{ runner.temp }}/ace-step-1.5-runtime-metadata.txt
+          if-no-files-found: error
+          retention-days: 90
