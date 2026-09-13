@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Validate registry JSON
-        run: node -e "const fs=require('fs'); ['config/music/providers.json','config/music/providers.schema.json','config/music/qualification.json','config/music/smoke-tests/ace-step-1.5.json','config/music/ace-step-1.5.production-certification.json'].forEach(p=>JSON.parse(fs.readFileSync(p,'utf8')));"
+        run: node -e "const fs=require('fs'); ['config/music/providers.json','config/music/providers.schema.json','config/music/qualification.json','config/music/smoke-tests/ace-step-1.5.json','config/music/ace-step-1.5.production-certification.json','config/music/runtime-sbom-evidence.schema.json'].forEach(p=>JSON.parse(fs.readFileSync(p,'utf8')));"
       - name: Validate qualification gate
         run: node scripts/validate-music-qualification.mjs
       - name: Validate ACE-Step production certification contract
