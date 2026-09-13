@@ -1,0 +1,176 @@
+name: Music Private GPU Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider ID to qualify
+        required: true
+        default: ace-step-1.5
+        type: choice
+        options:
+          - ace-step-1.5
+      model_root:
+        description: Absolute path to the already-downloaded pinned model artifacts under MUSIC_QUALIFICATION_ROOT
+        required: true
+        type: string
+      runtime_image_ref:
+        description: Exact immutable runtime image reference ending in @sha256:<64-hex>
+        required: true
+        type: string
+      sbom_path:
+        description: Absolute path to the CycloneDX JSON under MUSIC_QUALIFICATION_ROOT for that exact runtime image
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_SOURCE_REVISION: ca1e85fe9430179831e6bc6be790c332190a3866
+  EXPECTED_MODEL_REVISION: 19671f406d603126926c1b7e2adc169acbcade22
+
+jobs:
+  evidence:
+    name: Collect ACE-Step private GPU evidence
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: [self-hosted, linux, d3vonn-gpu]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout trusted qualification controls from main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Fail closed on actor, branch, paths, and immutable inputs
+        shell: bash
+        env:
+          MODEL_ROOT: ${{ inputs.model_root }}
+          RUNTIME_IMAGE_REF: ${{ inputs.runtime_image_ref }}
+          SBOM_PATH: ${{ inputs.sbom_path }}
+        run: |
+          set -euo pipefail
+          : "${MUSIC_QUALIFICATION_ROOT:?MUSIC_QUALIFICATION_ROOT must be configured on the trusted runner}"
+
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || { echo "workflow must run from main" >&2; exit 1; }
+          [[ "$GITHUB_ACTOR" == "$GITHUB_REPOSITORY_OWNER" ]] || { echo "workflow may only be dispatched by repository owner" >&2; exit 1; }
+          [[ "$MODEL_ROOT" = /* ]] || { echo "model_root must be absolute" >&2; exit 1; }
+          [[ "$SBOM_PATH" = /* ]] || { echo "sbom_path must be absolute" >&2; exit 1; }
+          [[ -d "$MODEL_ROOT" ]] || { echo "model_root does not exist" >&2; exit 1; }
+          [[ -f "$SBOM_PATH" ]] || { echo "sbom_path does not exist" >&2; exit 1; }
+          [[ "$RUNTIME_IMAGE_REF" =~ ^[^[:space:]@]+@sha256:[0-9a-fA-F]{64}$ ]] || { echo "runtime image must be an immutable name@sha256:<64-hex> reference" >&2; exit 1; }
+
+          QUAL_ROOT_REAL="$(realpath -e "$MUSIC_QUALIFICATION_ROOT")"
+          MODEL_ROOT_REAL="$(realpath -e "$MODEL_ROOT")"
+          SBOM_PATH_REAL="$(realpath -e "$SBOM_PATH")"
+          [[ "$QUAL_ROOT_REAL" != "/" ]] || { echo "qualification root may not be /" >&2; exit 1; }
+
+          case "$MODEL_ROOT_REAL" in
+            "$QUAL_ROOT_REAL"/*) ;;
+            *) echo "model_root escapes MUSIC_QUALIFICATION_ROOT" >&2; exit 1 ;;
+          esac
+          case "$SBOM_PATH_REAL" in
+            "$QUAL_ROOT_REAL"/*) ;;
+            *) echo "sbom_path escapes MUSIC_QUALIFICATION_ROOT" >&2; exit 1 ;;
+          esac
+
+          printf 'MODEL_ROOT_REAL=%s\n' "$MODEL_ROOT_REAL" >> "$GITHUB_ENV"
+          printf 'SBOM_PATH_REAL=%s\n' "$SBOM_PATH_REAL" >> "$GITHUB_ENV"
+
+      - name: Verify registry remains fail closed
+        run: |
+          set -euo pipefail
+          node scripts/validate-music-qualification.mjs
+          node scripts/validate-ace-step-production-certification.mjs
+
+      - name: Generate deterministic model artifact manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/music-provider-artifact-manifest.mjs \
+            --provider ace-step-1.5 \
+            --root "$MODEL_ROOT_REAL" \
+            --out "$RUNNER_TEMP/ace-step-1.5-artifact-manifest.json"
+
+      - name: Normalize exact-runtime CycloneDX evidence
+        shell: bash
+        env:
+          RUNTIME_IMAGE_REF: ${{ inputs.runtime_image_ref }}
+        run: |
+          set -euo pipefail
+          node scripts/music-runtime-sbom-evidence.mjs \
+            --provider ace-step-1.5 \
+            --image-ref "$RUNTIME_IMAGE_REF" \
+            --sbom "$SBOM_PATH_REAL" \
+            --out "$RUNNER_TEMP/ace-step-1.5-runtime-sbom-evidence.json"
+
+      - name: Capture non-sensitive GPU and runtime metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "source_revision=$EXPECTED_SOURCE_REVISION"
+            echo "model_revision=$EXPECTED_MODEL_REVISION"
+            echo "runner_os=$RUNNER_OS"
+            echo "node=$(node --version)"
+            command -v nvidia-smi >/dev/null 2>&1 || { echo "NVIDIA GPU tooling is required" >&2; exit 1; }
+            echo "nvidia_smi_present=true"
+            nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+            command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }
+            python3 -c 'import torch, sys; print(f"python_torch_version={torch.__version__}"); print(f"python_cuda_version={torch.version.cuda}"); print(f"cuda_available={torch.cuda.is_available()}"); sys.exit(0 if torch.cuda.is_available() else 1)'
+          } | tee "$RUNNER_TEMP/ace-step-1.5-runtime-metadata.txt"
+
+      - name: Assert review-only state and build redacted evidence bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ace-step-review"
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const temp = process.env.RUNNER_TEMP;
+          const manifest = JSON.parse(fs.readFileSync(path.join(temp, 'ace-step-1.5-artifact-manifest.json'), 'utf8'));
+          const sbom = JSON.parse(fs.readFileSync(path.join(temp, 'ace-step-1.5-runtime-sbom-evidence.json'), 'utf8'));
+          const cert = JSON.parse(fs.readFileSync('config/music/ace-step-1.5.production-certification.json', 'utf8'));
+          if (sbom.review_status !== 'PENDING_REVIEW') throw new Error('SBOM evidence must remain PENDING_REVIEW');
+          if (cert.status !== 'PENDING_EXTERNAL_EVIDENCE' || cert.production_enabled !== false) {
+            throw new Error('qualification workflow must not activate ACE-Step');
+          }
+          const manifestSummary = {
+            schema_version: manifest.schema_version,
+            provider_id: manifest.provider_id,
+            source_revision: manifest.source_revision,
+            model_revision: manifest.model_revision,
+            file_count: manifest.file_count,
+            aggregate_sha256: manifest.aggregate_sha256,
+            review_status: 'PENDING_REVIEW'
+          };
+          const sbomSummary = {
+            schema_version: sbom.schema_version,
+            provider_id: sbom.provider_id,
+            source_revision: sbom.source_revision,
+            model_revision: sbom.model_revision,
+            runtime_image_sha256: sbom.runtime_image_sha256,
+            sbom_format: sbom.sbom_format,
+            sbom_sha256: sbom.sbom_sha256,
+            component_count: sbom.component_count,
+            unresolved_license_count: sbom.unresolved_license_count,
+            unresolved_license_components: (sbom.unresolved_license_components ?? []).map(({ name, version }) => ({ name, version })),
+            components: (sbom.components ?? []).map(({ name, version, licenses }) => ({ name, version, licenses })),
+            review_status: 'PENDING_REVIEW'
+          };
+          fs.writeFileSync(path.join(temp, 'ace-step-review', 'artifact-manifest-summary.json'), JSON.stringify(manifestSummary, null, 2) + '\n');
+          fs.writeFileSync(path.join(temp, 'ace-step-review', 'runtime-sbom-summary.json'), JSON.stringify(sbomSummary, null, 2) + '\n');
+          NODE
+          cp "$RUNNER_TEMP/ace-step-1.5-runtime-metadata.txt" "$RUNNER_TEMP/ace-step-review/runtime-metadata.txt"
+
+      - name: Upload redacted review evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ace-step-1.5-private-gpu-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/ace-step-review/
+          if-no-files-found: error
+          retention-days: 90
