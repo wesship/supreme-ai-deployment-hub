@@ -32,11 +32,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Validate registry JSON
         run: node -e "JSON.parse(require('fs').readFileSync('config/music/providers.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/providers.schema.json','utf8')); JSON.parse(require('fs').readFileSync('config/music/qualification.json','utf8'));"
       - name: Validate qualification gate
         run: node scripts/validate-music-qualification.mjs
       - name: Run Music Hub provider tests
-        run: npx vitest run src/__tests__/musicProviderRouter.test.ts src/__tests__/musicProviderPolicy.test.ts
+        run: pnpm exec vitest run src/__tests__/musicProviderRouter.test.ts src/__tests__/musicProviderPolicy.test.ts
