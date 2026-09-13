@@ -51,7 +51,7 @@ const Pricing: React.FC = () => {
         <meta property="og:type" content="website" />
       </Helmet>
 
-      <main>
+      <div>
         <ReaddyMarketingHero
           eyebrow="Pricing"
           title={
@@ -146,7 +146,7 @@ const Pricing: React.FC = () => {
             </Link>
           </div>
         </section>
-      </main>
+      </div>
     </ReaddyMarketingShell>
   );
 };

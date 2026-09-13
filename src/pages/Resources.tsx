@@ -77,7 +77,7 @@ const Resources: React.FC = () => {
         <meta property="og:type" content="website" />
       </Helmet>
 
-      <main>
+      <div>
         <ReaddyMarketingHero
           eyebrow="Resources"
           title={
@@ -187,7 +187,7 @@ const Resources: React.FC = () => {
             </a>
           </div>
         </section>
-      </main>
+      </div>
     </ReaddyMarketingShell>
   );
 };

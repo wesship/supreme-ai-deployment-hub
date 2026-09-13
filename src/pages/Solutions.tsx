@@ -62,7 +62,7 @@ const Solutions: React.FC = () => {
         <meta property="og:type" content="website" />
       </Helmet>
 
-      <main>
+      <div>
         <ReaddyMarketingHero
           eyebrow="Solutions"
           title={
@@ -152,7 +152,7 @@ const Solutions: React.FC = () => {
             </Link>
           </div>
         </section>
-      </main>
+      </div>
     </ReaddyMarketingShell>
   );
 };
