@@ -2,7 +2,7 @@
 
 ## Gate status
 
-Control-plane implementation is complete. Immutable provider identities are now pinned. Production activation remains blocked pending artifact hashes, dependency-license review, GPU smoke tests, audio QA, and reviewer approval.
+Control-plane implementation is complete. Immutable provider identities are pinned and the pull request is mergeable. Production activation remains blocked pending artifact hashes, final dependency-license review, paid/private GPU smoke tests, audio QA, and reviewer approval.
 
 ## ACE-Step 1.5 — default
 
@@ -40,7 +40,7 @@ Control-plane implementation is complete. Immutable provider identities are now 
 
 1. Download each pinned model revision on the selected private GPU target.
 2. Generate and review the weight/checkpoint SHA-256 manifest.
-3. Complete dependency-license inventory.
+3. Complete dependency-license inventory against the final runtime image/SBOM.
 4. Execute deterministic instrumental and lyrics smoke tests.
 5. Pass outputs through Music Hub audio QA/mastering.
 6. Record latency, VRAM, duration, and QA evidence.
