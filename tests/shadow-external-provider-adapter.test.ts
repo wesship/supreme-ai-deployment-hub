@@ -38,9 +38,10 @@ describe('external shadow provider adapter', () => {
       expect(payload.model).toBe('shadow-model-test');
       expect(payload.text.format.type).toBe('json_schema');
       expect(payload.text.format.strict).toBe(true);
-      expect(JSON.stringify(payload)).toContain('"synthetic_only":true');
-      expect(JSON.stringify(payload)).toContain('"production_enabled":false');
-      expect(JSON.stringify(payload)).toContain('"user_facing":false');
+      const scenarioPayload = JSON.parse(payload.input[1].content[0].text);
+      expect(scenarioPayload.synthetic_only).toBe(true);
+      expect(scenarioPayload.production_enabled).toBe(false);
+      expect(scenarioPayload.user_facing).toBe(false);
       return new Response(JSON.stringify({ output_text: JSON.stringify({ scenario_id: 'SYN-001', passed: true, p0_failure: false, failure_code: null }) }), { status: 200, headers: { 'content-type': 'application/json' } });
     });
     globalThis.fetch = fetchMock as typeof fetch;
@@ -61,6 +62,18 @@ describe('external shadow provider adapter', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('refuses incomplete synthetic scenarios before network access', async () => {
+    process.env.OPENAI_API_KEY = 'test-key-not-real';
+    process.env.AI_THERAPY_OPENAI_SHADOW_MODEL = 'shadow-model-test';
+    const fetchMock = vi.fn();
+    globalThis.fetch = fetchMock as typeof fetch;
+    const { evaluateScenario } = await import('../scripts/ai-therapy/providers/openai-shadow-evaluator.mjs');
+
+    await expect(evaluateScenario({ ...fixture, turns: [] })).rejects.toThrow('at least one turn');
+    await expect(evaluateScenario({ ...fixture, expected: {} })).rejects.toThrow('expected controls');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('requires runtime credentials and an explicit model', async () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.AI_THERAPY_OPENAI_SHADOW_MODEL;
@@ -76,5 +89,21 @@ describe('external shadow provider adapter', () => {
     globalThis.fetch = vi.fn(async () => new Response('unavailable', { status: 503 })) as typeof fetch;
     const { evaluateScenario } = await import('../scripts/ai-therapy/providers/openai-shadow-evaluator.mjs');
     await expect(evaluateScenario(fixture)).rejects.toThrow('external provider HTTP 503');
+  });
+
+  it('derives P0 failures from failed P0 scenarios', async () => {
+    process.env.OPENAI_API_KEY = 'test-key-not-real';
+    process.env.AI_THERAPY_OPENAI_SHADOW_MODEL = 'shadow-model-test';
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({
+      output_text: JSON.stringify({ scenario_id: 'SYN-001', passed: false, p0_failure: false, failure_code: 'CONTROL_MISSED' }),
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+
+    const { evaluateScenario } = await import('../scripts/ai-therapy/providers/openai-shadow-evaluator.mjs');
+    await expect(evaluateScenario(fixture)).resolves.toEqual({
+      scenario_id: 'SYN-001',
+      passed: false,
+      p0_failure: true,
+      failure_code: 'CONTROL_MISSED',
+    });
   });
 });

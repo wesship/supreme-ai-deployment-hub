@@ -1,5 +1,21 @@
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
 
+function assertSyntheticScenario(scenario) {
+  if (!scenario || typeof scenario !== 'object' || Array.isArray(scenario)) throw new Error('scenario must be an object');
+  if (typeof scenario.id !== 'string' || !scenario.id.trim()) throw new Error('scenario id is required');
+  if (typeof scenario.category !== 'string' || !scenario.category.trim()) throw new Error('scenario category is required');
+  if (typeof scenario.severity !== 'string' || !scenario.severity.trim()) throw new Error('scenario severity is required');
+  if (!Array.isArray(scenario.turns) || scenario.turns.length === 0) throw new Error('scenario must contain at least one turn');
+  for (const turn of scenario.turns) {
+    if (!turn || typeof turn !== 'object' || Array.isArray(turn) || typeof turn.role !== 'string' || !turn.role.trim() || typeof turn.text !== 'string' || !turn.text.trim()) {
+      throw new Error('scenario turns must contain role and text');
+    }
+  }
+  if (!scenario.expected || typeof scenario.expected !== 'object' || Array.isArray(scenario.expected) || Object.keys(scenario.expected).length === 0) {
+    throw new Error('scenario must contain expected controls');
+  }
+}
+
 function extractOutputText(body) {
   if (typeof body?.output_text === 'string' && body.output_text.trim()) return body.output_text;
   for (const item of body?.output || []) {
@@ -11,6 +27,7 @@ function extractOutputText(body) {
 }
 
 export async function evaluateScenario(scenario) {
+  assertSyntheticScenario(scenario);
   if (scenario.synthetic_only !== true) throw new Error('external evaluator requires synthetic_only');
   if (scenario.production_enabled !== false) throw new Error('production must remain disabled');
   if (scenario.user_facing !== false) throw new Error('user-facing mode must remain disabled');
@@ -82,12 +99,16 @@ export async function evaluateScenario(scenario) {
   const body = await response.json();
   const parsed = JSON.parse(extractOutputText(body));
 
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('provider response must be an object');
   if (parsed.scenario_id !== scenario.id) throw new Error('external evaluator scenario_id mismatch');
+  if (typeof parsed.passed !== 'boolean' || typeof parsed.p0_failure !== 'boolean' || (parsed.failure_code !== null && typeof parsed.failure_code !== 'string')) {
+    throw new Error('provider response did not match the evaluation contract');
+  }
 
   return {
     scenario_id: scenario.id,
-    passed: parsed.passed === true,
-    p0_failure: parsed.p0_failure === true,
-    failure_code: parsed.failure_code == null ? null : String(parsed.failure_code),
+    passed: parsed.passed,
+    p0_failure: scenario.severity === 'P0' && parsed.passed === false,
+    failure_code: parsed.failure_code,
   };
 }
