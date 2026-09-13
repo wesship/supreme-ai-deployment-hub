@@ -13,8 +13,8 @@
       "tier": "default",
       "source_repository": "https://github.com/ace-step/ACE-Step-1.5",
       "model_repository": "ACE-Step/Ace-Step1.5",
-      "source_revision": "UNPINNED",
-      "model_revision": "UNPINNED",
+      "source_revision": "ca1e85fe9430179831e6bc6be790c332190a3866",
+      "model_revision": "19671f406d603126926c1b7e2adc169acbcade22",
       "weights_sha256": "UNPINNED",
       "license": "MIT",
       "deployment_mode": "hosted-private",
@@ -26,8 +26,8 @@
       "routing_tags": ["default", "fast", "instrumental", "edit"],
       "hardware": {
         "accelerators": ["cuda", "mps", "rocm", "xpu", "cpu"],
-        "minimum_vram_gb": null,
-        "recommended_vram_gb": null
+        "minimum_vram_gb": 4,
+        "recommended_vram_gb": 8
       },
       "attribution_required": true,
       "provenance_required": true,
@@ -43,8 +43,8 @@
       "tier": "premium",
       "source_repository": "https://github.com/ace-step/ACE-Step-1.5",
       "model_repository": "ACE-Step/acestep-v15-xl-turbo-diffusers",
-      "source_revision": "UNPINNED",
-      "model_revision": "UNPINNED",
+      "source_revision": "ca1e85fe9430179831e6bc6be790c332190a3866",
+      "model_revision": "200ba991ae448051e14b0183157e35c2d27c9fb0",
       "weights_sha256": "UNPINNED",
       "license": "MIT",
       "deployment_mode": "hosted-private",
@@ -56,8 +56,8 @@
       "routing_tags": ["premium", "highest_quality", "xl"],
       "hardware": {
         "accelerators": ["cuda"],
-        "minimum_vram_gb": null,
-        "recommended_vram_gb": null
+        "minimum_vram_gb": 12,
+        "recommended_vram_gb": 20
       },
       "attribution_required": true,
       "provenance_required": true,
@@ -73,8 +73,8 @@
       "tier": "secondary",
       "source_repository": "https://github.com/HeartMuLa/heartlib",
       "model_repository": "HeartMuLa/HeartMuLa-oss-3B",
-      "source_revision": "UNPINNED",
-      "model_revision": "UNPINNED",
+      "source_revision": "3783bdb8441f2c298b1e64c8651173aac200361c",
+      "model_revision": "d12ac79c6b3387d5c9eee456323495d8f08bb09d",
       "weights_sha256": "UNPINNED",
       "license": "Apache-2.0",
       "deployment_mode": "hosted-private",
