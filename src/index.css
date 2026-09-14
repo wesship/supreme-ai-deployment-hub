@@ -594,3 +594,28 @@
   .d3-ai-loader__ring { animation: none; }
   .d3-chrome-panel::before { display: none; }
 }
+/* Decorative homepage data rain stays on the compositor instead of creating
+   eighteen JavaScript animation controllers during the critical render path. */
+@keyframes d3-binary-rain-fall {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 160%, 0);
+  }
+}
+
+.d3-binary-rain-column {
+  animation-name: d3-binary-rain-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-binary-rain-column {
+    animation: none;
+    transform: translate3d(0, 40%, 0);
+  }
+}
