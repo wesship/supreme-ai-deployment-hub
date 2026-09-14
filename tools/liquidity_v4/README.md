@@ -1,10 +1,8 @@
 # D3VONN Uniswap V4 fork harness
 
-This Foundry project is **test-only**. It must never be used with `forge script --broadcast`, a production private key, or a production signer.
+This Foundry project is **test-only**. It must never be used with a production signer, a wallet secret, `cast send`, or a broadcast-capable Foundry script.
 
 ## Pinned upstream dependencies
-
-Install the reviewed upstream revisions into this directory:
 
 ```bash
 cd tools/liquidity_v4
@@ -13,68 +11,89 @@ forge install Uniswap/v4-core@46c6834698c48bc4a463a86d8420f4eb1d7f3b75 --no-comm
 forge install Uniswap/v4-periphery@dce236d4e2057422d0791d9a973a58765eb46f65 --no-commit
 ```
 
-The Base contract addresses in the harness are pinned to Uniswap's official `contracts/deployments/json/8453.json` manifest:
+The Base contract addresses remain pinned to Uniswap's official chain-8453 deployment manifest:
 
 - PoolManager: `0x498581ff718922c3f8e6a244956af099b2652b2b`
 - PositionManager: `0x7c5f5a4bbd8fd63184577525326123b519429bdc`
 - StateView: `0xa3c0c9b65bad0b08107aa264b0f3db444b867a71`
 - Permit2: `0x000000000022D473030F116dDEE9F6B43aC78BA3`
 
-## Required fork inputs
+## V0.5 certification path
 
-```bash
-export LIQUIDITY_BASE_RPC_URL='https://...'
-export D3VONN_V4_FORK_BLOCK='12345678'
-export D3VONN_V4_POOL_ID='0x<64 hex chars>'
-export D3VONN_V4_CURRENCY0='0x...'
-export D3VONN_V4_CURRENCY1='0x...'
-export D3VONN_V4_FEE='3000'
-export D3VONN_V4_TICK_SPACING='60'
-export D3VONN_V4_HOOKS='0x0000000000000000000000000000000000000000'
-export D3VONN_V4_TICK_LOWER='-600'
-export D3VONN_V4_TICK_UPPER='600'
+The trusted path is `.github/workflows/liquidity-v4-simulation-certification.yml`.
+
+Pull requests run only the preflight gate: pinned dependency installation, Solidity compilation, certificate-schema self-test, and a no-signing/no-broadcast policy scan. A real fork lifecycle can run only through explicit `workflow_dispatch` in the protected `production` environment.
+
+A dispatched certification supplies public chain identifiers plus existing Hermes ownership identifiers:
+
+- PoolId and complete sorted ERC-20/ERC-20 PoolKey
+- pinned Base fork block
+- simulation tick range
+- Safe smart-account address to impersonate **only inside the fork**
+- existing Hermes user UUID and goal UUID
+- deterministic limits such as gas ceiling and simulated liquidity size
+
+No private key, mnemonic, signature, or production transaction is an accepted input.
+
+The workflow sets a short proposal deadline, forks Base at the supplied block, funds the Safe address only with Foundry cheatcodes, grants approvals only in the fork, and runs:
+
+1. mint;
+2. increase liquidity;
+3. decrease liquidity;
+4. collect;
+5. complete exit.
+
+The harness requires the final position liquidity to return to zero and every operation to remain under the configured gas ceiling.
+
+## Machine-readable evidence
+
+A passing lifecycle writes `reports/raw-simulation-report.json`. `certify_report.py` normalizes that report and refuses certification unless the chain, PoolId shape, PoolKey ordering, Safe address, gas invariants, final exit, canonical PositionManager target, deadline, and execution locks all pass.
+
+It then emits:
+
+- `reports/certification-envelope.json`
+- `reports/safe-proposal-draft.json`
+
+The certificate contains the full simulation report, its canonical SHA-256 digest, immutable GitHub runner identity, and a non-submittable Safe draft. GitHub's provenance action attests the exact certificate file. `persist_checkpoint.py` verifies that attested file digest, verifies the Hermes goal/user pair, and writes the passing envelope idempotently to the existing `hermes_checkpoints` table.
+
+The backend re-checks the integrity chain before reconstructing a Safe draft:
+
+```text
+simulation report
+      ↓ SHA-256
+certificate envelope
+      ↓ canonical object SHA-256
+Hermes checkpoint
+      ↓ exact file SHA-256
+GitHub provenance attestation
+      ↓
+fresh StateView + PoolId + PoolKey validation
+      ↓
+non-submittable Safe proposal draft
 ```
 
-Read-only canonical verification runs without enabling mutation:
+A certificate is rejected if it is tampered, unpersisted, stale by Base block age, expired by proposal deadline, attached to the wrong PoolId or PoolKey, from the wrong GitHub run/repository, or targets anything other than the canonical Base V4 PositionManager.
 
-```bash
-forge test --root tools/liquidity_v4 --match-test test_readOnlyCanonicalState -vvv
+## API proposal reference
+
+After a passing certificate has been persisted, a V4 `propose_safe_transaction` request must include metadata identifying the exact Hermes checkpoint:
+
+```json
+{
+  "certificate_goal_id": "<uuid>",
+  "certificate_execution_id": "liquidity-v4-<run-id>",
+  "certificate_sequence": 1,
+  "max_certificate_block_age": 900
+}
 ```
 
-Mutation tests require an explicit opt-in and are still local-fork-only:
+The returned draft is preparation evidence only. It explicitly keeps:
 
-```bash
-export D3VONN_V4_MUTATION_TESTS=true
-forge test --root tools/liquidity_v4 --match-test test_forkOnlyPositionLifecycle -vvv
+```text
+submission_enabled = false
+signing_enabled = false
+broadcast_enabled = false
+production_execution_enabled = false
 ```
 
-Optional limits:
-
-```bash
-export D3VONN_V4_GAS_CEILING='3000000'
-export D3VONN_V4_SEED_AMOUNT='1000000000000000000000000'
-export D3VONN_V4_INITIAL_LIQUIDITY='1000000000000'
-export D3VONN_V4_DELTA_LIQUIDITY='100000000000'
-export D3VONN_V4_AMOUNT0_MAX='340282366920938463463374607431768211455'
-export D3VONN_V4_AMOUNT1_MAX='340282366920938463463374607431768211455'
-export D3VONN_V4_AMOUNT0_MIN='0'
-export D3VONN_V4_AMOUNT1_MIN='0'
-```
-
-## Safety invariants
-
-The harness:
-
-1. creates a Base fork at the supplied block;
-2. recomputes `PoolIdLibrary.toId(poolKey)` and requires it to equal the expected PoolId;
-3. verifies StateView and PositionManager both point at the canonical PoolManager;
-4. rejects native-currency mutation scenarios in V0.4;
-5. funds a disposable actor only with Foundry cheatcodes;
-6. approves ERC-20s only inside the local fork;
-7. exercises mint, increase, decrease, collect, and full-liquidity exit;
-8. checks position liquidity after each mutation;
-9. checks per-operation gas ceilings;
-10. allows unexpected reverts to fail the test;
-11. never accepts a production private key and never broadcasts.
-
-The backend emits a Hermes checkpoint payload for a simulation plan, but it marks that payload `persisted=false` until a trusted runner actually executes the harness and a later persistence gate records the signed/attested report. This prevents a plan from being mistaken for a completed simulation.
+It also marks allowance setup, fresh on-chain re-verification, and human/multisig approval as required before any later execution gate.
