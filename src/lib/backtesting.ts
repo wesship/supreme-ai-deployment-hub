@@ -65,7 +65,25 @@ export function runMonteCarlo(result: BacktestResult, iterations = 1000, seed = 
 }
 
 export function combineEquityCurves(results: BacktestResult[], initialCapital: number): EquityPoint[] {
-  if (!results.length) return []; const length = Math.min(...results.map((result) => result.equityCurve.length)); return Array.from({ length }, (_, index) => { const normalized = mean(results.map((result) => result.equityCurve[index].equity / result.equityCurve[0].equity)); const previous = index === 0 ? 1 : mean(results.map((result) => result.equityCurve[index - 1].equity / result.equityCurve[0].equity)); return { date: results[0].equityCurve[index].date, equity: initialCapital * normalized, dailyReturn: previous ? normalized / previous - 1 : 0 }; });
+  const usable = results.filter((result) => result.equityCurve.length > 0);
+  if (!usable.length) return [];
+  const startDate = usable.map((result) => result.equityCurve[0].date).sort().at(-1)!;
+  const dates = [...new Set(usable.flatMap((result) => result.equityCurve.map((point) => point.date).filter((date) => date >= startDate)))].sort();
+  const cursors = usable.map(() => 0);
+  const currentNormalized = usable.map(() => 1);
+  let previousPortfolio = 1;
+  return dates.map((date, dateIndex) => {
+    usable.forEach((result, resultIndex) => {
+      const curve = result.equityCurve;
+      while (cursors[resultIndex] + 1 < curve.length && curve[cursors[resultIndex] + 1].date <= date) cursors[resultIndex] += 1;
+      const baseEquity = curve[0].equity;
+      currentNormalized[resultIndex] = baseEquity ? curve[cursors[resultIndex]].equity / baseEquity : 1;
+    });
+    const portfolio = mean(currentNormalized);
+    const point = { date, equity: initialCapital * portfolio, dailyReturn: dateIndex === 0 || !previousPortfolio ? 0 : portfolio / previousPortfolio - 1 };
+    previousPortfolio = portfolio;
+    return point;
+  });
 }
 
 export function summarizeRisk(result: BacktestResult) { return { riskScore: clamp(100 - Math.abs(result.metrics.maxDrawdown) * 180 - result.metrics.volatility * 30, 0, 100), integrityChecks: ['Signals use only bars available at decision time.', 'Entry and exit fills include configured commission and slippage.', 'Walk-forward and Monte Carlo results are generated separately from the headline backtest.', 'Synthetic demo data is deterministic and must be replaced by governed historical data before investment use.'] }; }
