@@ -1,0 +1,91 @@
+name: MoneyHub Run Accounting Canary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/moneyhub-run-accounting-canary.yml'
+      - 'backend/app/routers/moneyhub.py'
+      - 'backend/tests/test_moneyhub_run_accounting.py'
+      - 'supabase/migrations/20260913103000_moneyhub_governed_run_accounting.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: moneyhub-run-accounting-canary
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    name: MoneyHub run-accounting canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+
+      - name: Run MoneyHub run-accounting contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          pytest -q backend/tests/test_moneyhub_run_accounting.py
+
+      - name: Verify production backend health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error --max-time 15 \
+            https://api.d3vonn.io/health >/tmp/d3vonn-health.json
+          test -s /tmp/d3vonn-health.json
+
+      - name: Verify MoneyHub route is registered and protected
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --max-time 15 \
+            --output /tmp/moneyhub-route.json \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{}' \
+            https://api.d3vonn.io/api/moneyhub/runs)"
+          echo "MoneyHub unauthenticated route status: $code"
+          if [[ "$code" == "404" || "$code" =~ ^5 ]]; then
+            echo "::error::MoneyHub production route is missing or unhealthy (HTTP $code)"
+            cat /tmp/moneyhub-route.json || true
+            exit 1
+          fi
+          case "$code" in
+            400|401|403|422)
+              echo "MoneyHub route is present and fail-closed without a verified principal."
+              ;;
+            *)
+              echo "::error::Unexpected unauthenticated MoneyHub route status: HTTP $code"
+              cat /tmp/moneyhub-route.json || true
+              exit 1
+              ;;
+          esac
+
+      - name: Summarize canary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## MoneyHub Run Accounting Canary'
+            echo ''
+            echo '- Static run-accounting contract tests executed.'
+            echo '- Production backend health probed.'
+            echo '- MoneyHub run route checked for registration and fail-closed auth behavior.'
+            echo '- This canary does not mutate the database or create a MoneyHub run.'
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
