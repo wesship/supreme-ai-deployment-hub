@@ -40,7 +40,7 @@ export function runBacktest(bars: HistoricalBar[], config: BacktestConfig): Back
   if (bars.length < 2) throw new Error('At least two historical bars are required.');
   const ordered = [...bars].sort((a, b) => a.date.localeCompare(b.date)); const closes = ordered.map((bar) => bar.close); let equity = config.initialCapital; let cash = equity; let units = 0; let entryPrice = 0; let entryDate = ''; const curve: EquityPoint[] = [{ date: ordered[0].date, equity, dailyReturn: 0 }]; const trades: Trade[] = []; const cost = costRate(config); let investedBars = 0;
   for (let i = 1; i < ordered.length; i += 1) {
-    const bar = ordered[i]; const prevEquity = equity; const enter = signalFor(config, closes, i); const exit = exitSignalFor(config, closes, i);
+    const bar = ordered[i]; const prevEquity = equity; const decisionIndex = i - 1; const enter = signalFor(config, closes, decisionIndex); const exit = exitSignalFor(config, closes, decisionIndex);
     if (units === 0 && enter) { const buyPrice = bar.open * (1 + cost); units = cash / buyPrice; cash = 0; entryPrice = buyPrice; entryDate = bar.date; }
     else if (units > 0 && exit) { const sellPrice = bar.open * (1 - cost); cash = units * sellPrice; const pnl = units * (sellPrice - entryPrice); trades.push({ symbol: bar.symbol, entryDate, exitDate: bar.date, entryPrice, exitPrice: sellPrice, returnPct: sellPrice / entryPrice - 1, pnl }); units = 0; entryPrice = 0; entryDate = ''; }
     equity = cash + units * bar.close; if (units > 0) investedBars += 1; curve.push({ date: bar.date, equity, dailyReturn: prevEquity ? equity / prevEquity - 1 : 0 });
@@ -53,8 +53,9 @@ export function runBacktest(bars: HistoricalBar[], config: BacktestConfig): Back
 }
 
 export function runWalkForward(bars: HistoricalBar[], config: BacktestConfig, folds = 4): WalkForwardFold[] {
-  const size = Math.floor(bars.length / folds);
-  return Array.from({ length: folds }, (_, index) => { const start = index * size; const end = index === folds - 1 ? bars.length : start + size; const segment = bars.slice(start, end); const result = runBacktest(segment, config); return { index: index + 1, startDate: segment[0]?.date ?? '', endDate: segment[segment.length - 1]?.date ?? '', returnPct: result.metrics.totalReturn, maxDrawdown: result.metrics.maxDrawdown, trades: result.metrics.trades }; });
+  const ordered = [...bars].sort((a, b) => a.date.localeCompare(b.date));
+  const size = Math.floor(ordered.length / folds);
+  return Array.from({ length: folds }, (_, index) => { const start = index * size; const end = index === folds - 1 ? ordered.length : start + size; const segment = ordered.slice(start, end); const result = runBacktest(segment, config); return { index: index + 1, startDate: segment[0]?.date ?? '', endDate: segment[segment.length - 1]?.date ?? '', returnPct: result.metrics.totalReturn, maxDrawdown: result.metrics.maxDrawdown, trades: result.metrics.trades }; });
 }
 
 export function runMonteCarlo(result: BacktestResult, iterations = 1000, seed = 7): MonteCarloResult {
