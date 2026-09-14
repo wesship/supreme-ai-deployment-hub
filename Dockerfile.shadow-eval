@@ -1,0 +1,16 @@
+FROM node:22-slim
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY scripts/run-ai-therapy-shadow-provider.mjs ./scripts/run-ai-therapy-shadow-provider.mjs
+COPY scripts/validate-ai-therapy-shadow-adapter-results.mjs ./scripts/validate-ai-therapy-shadow-adapter-results.mjs
+COPY scripts/build-ai-therapy-shadow-evidence.mjs ./scripts/build-ai-therapy-shadow-evidence.mjs
+COPY scripts/run-shadow-live-pipeline.mjs ./scripts/run-shadow-live-pipeline.mjs
+COPY scripts/ai-therapy/providers/openai-shadow-evaluator.mjs ./scripts/ai-therapy/providers/openai-shadow-evaluator.mjs
+COPY docs/ai-therapy/behavioral-shadow-fixtures.json ./docs/ai-therapy/behavioral-shadow-fixtures.json
+
+RUN useradd --uid 10001 --create-home shadow && chown -R shadow:shadow /app
+USER shadow
+
+CMD ["node", "scripts/run-shadow-live-pipeline.mjs"]
