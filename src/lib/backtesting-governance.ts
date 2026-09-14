@@ -2,6 +2,18 @@ import type { BacktestResult, BacktestConfig, HistoricalBar } from './backtestin
 
 export type ResearchStatus = 'engineering_verification' | 'research_inconclusive' | 'research_qualified';
 
+export interface ResearchCertificationEvidence {
+  datasetSnapshotSha256?: string;
+  licensedSourceVerified?: boolean;
+  pointInTimeUniverseVerified?: boolean;
+  delistedSecuritiesHandled?: boolean;
+  corporateActionsHandled?: boolean;
+  timestampIntegrityVerified?: boolean;
+  survivorshipBiasControlled?: boolean;
+  reproducibleManifestId?: string;
+  independentRegressionFixtureSha256?: string;
+}
+
 export interface ResearchGateInput {
   result: BacktestResult;
   config: BacktestConfig;
@@ -12,6 +24,7 @@ export interface ResearchGateInput {
   validationPassRate?: number;
   parameterSensitivity?: number;
   costSensitivity?: number;
+  certificationEvidence?: ResearchCertificationEvidence;
 }
 
 export interface ResearchGateResult {
@@ -25,10 +38,27 @@ export interface ResearchGateResult {
     validationSufficient: boolean;
     sensitivitySufficient: boolean;
     costSufficient: boolean;
+    certificationEvidenceSufficient: boolean;
   };
 }
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+const sha256 = /^(?:sha256:)?[0-9a-f]{64}$/i;
+
+function hasCompleteCertificationEvidence(evidence?: ResearchCertificationEvidence) {
+  if (!evidence) return false;
+  return Boolean(
+    sha256.test(evidence.datasetSnapshotSha256 ?? '') &&
+    evidence.licensedSourceVerified === true &&
+    evidence.pointInTimeUniverseVerified === true &&
+    evidence.delistedSecuritiesHandled === true &&
+    evidence.corporateActionsHandled === true &&
+    evidence.timestampIntegrityVerified === true &&
+    evidence.survivorshipBiasControlled === true &&
+    typeof evidence.reproducibleManifestId === 'string' && evidence.reproducibleManifestId.trim() !== '' &&
+    sha256.test(evidence.independentRegressionFixtureSha256 ?? '')
+  );
+}
 
 /** Research-only quality gate; it does not predict profitability. */
 export function evaluateResearchGate(input: ResearchGateInput): ResearchGateResult {
@@ -43,8 +73,9 @@ export function evaluateResearchGate(input: ResearchGateInput): ResearchGateResu
   const validationSufficient = validationPassRate >= 0.75;
   const sensitivitySufficient = parameterSensitivity >= 0.7;
   const costSufficient = costSensitivity >= 0.7;
-  const checks = { sufficientHistory, sufficientTrades, drawdownBounded, validationSufficient, sensitivitySufficient, costSufficient };
-  const score = Math.round(100 * (Number(sufficientHistory) * 0.2 + Number(sufficientTrades) * 0.2 + Number(drawdownBounded) * 0.1 + Number(validationSufficient) * 0.2 + Number(sensitivitySufficient) * 0.15 + Number(costSufficient) * 0.15));
+  const certificationEvidenceSufficient = hasCompleteCertificationEvidence(input.certificationEvidence);
+  const checks = { sufficientHistory, sufficientTrades, drawdownBounded, validationSufficient, sensitivitySufficient, costSufficient, certificationEvidenceSufficient };
+  const score = Math.round(100 * (Number(sufficientHistory) * 0.15 + Number(sufficientTrades) * 0.15 + Number(drawdownBounded) * 0.1 + Number(validationSufficient) * 0.15 + Number(sensitivitySufficient) * 0.1 + Number(costSufficient) * 0.1 + Number(certificationEvidenceSufficient) * 0.25));
   const reasons: string[] = [];
   if (!sufficientHistory) reasons.push(`At least ${minimumBars} bars are required.`);
   if (!sufficientTrades) reasons.push(`At least ${minimumTrades} completed trades are required.`);
@@ -53,7 +84,13 @@ export function evaluateResearchGate(input: ResearchGateInput): ResearchGateResu
   if (!sensitivitySufficient) reasons.push('Parameter sensitivity is below the robustness threshold.');
   if (!costSufficient) reasons.push('Transaction-cost sensitivity is below the robustness threshold.');
   if (input.dataProvenance !== 'governed_historical') reasons.push('Data provenance is not governed historical market data.');
-  return { status: input.dataProvenance !== 'governed_historical' ? 'engineering_verification' : (reasons.length ? 'research_inconclusive' : 'research_qualified'), score: clamp(score, 0, 100), reasons, checks };
+  if (!certificationEvidenceSufficient) reasons.push('Production-data certification evidence is incomplete or invalid.');
+
+  if (input.dataProvenance !== 'governed_historical') {
+    return { status: 'engineering_verification', score: clamp(score, 0, 100), reasons, checks };
+  }
+
+  return { status: reasons.length ? 'research_inconclusive' : 'research_qualified', score: clamp(score, 0, 100), reasons, checks };
 }
 
 export function calculateAdvancedMetrics(result: BacktestResult, riskFreeRate = 0.04, barsPerYear = 252) {
