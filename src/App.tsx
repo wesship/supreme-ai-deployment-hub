@@ -83,6 +83,7 @@ const AssuranceConsole = lazy(() => import("./pages/AssuranceConsole"));
 const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
+const NonprofitCommandCenter = lazy(() => import("./pages/NonprofitCommandCenter"));
 
 const AdminRouteWrapper = lazy(() =>
   import("./components/auth/AdminRoute").then(mod => {
@@ -249,6 +250,8 @@ function App() {
                 <Route path="/security/dashboard" element={<SecurityDashboard />} />
                 <Route path="/security/command-center" element={<SecurityCommandCenter />} />
                 <Route path="/security/secrets" element={<AdminRoute><SecretsVault /></AdminRoute>} />
+                <Route path="/nonprofit" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/nonprofit/grants" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/research-os" element={<ResearchOS />} />
                 <Route path="/market-intelligence" element={<MarketIntelligence />} />
