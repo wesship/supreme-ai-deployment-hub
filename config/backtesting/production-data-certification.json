@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "status": "PENDING_EXTERNAL_DATA_EVIDENCE",
+  "production_trading_enabled": false,
+  "research_qualification_enabled": false,
+  "requirements": {
+    "licensed_source": true,
+    "point_in_time_universe": true,
+    "delisted_securities_included": true,
+    "corporate_actions_normalized": true,
+    "exchange_calendar_normalized": true,
+    "immutable_dataset_sha256": true,
+    "no_lookahead_verified": true,
+    "survivorship_bias_verified": true,
+    "transaction_cost_sensitivity_verified": true,
+    "parameter_sensitivity_verified": true,
+    "walk_forward_validation_verified": true,
+    "independent_regression_fixture_verified": true
+  },
+  "evidence": {
+    "provider": null,
+    "license_reference": null,
+    "dataset_id": null,
+    "dataset_snapshot_sha256": null,
+    "universe_as_of": null,
+    "includes_delisted": null,
+    "corporate_action_policy": null,
+    "exchange_calendar": null,
+    "timezone_policy": null,
+    "no_lookahead_test": null,
+    "survivorship_test": null,
+    "transaction_cost_sensitivity": null,
+    "parameter_sensitivity": null,
+    "walk_forward_validation": null,
+    "independent_fixture_sha256": null,
+    "strategy_revision": null,
+    "config_sha256": null,
+    "reviewer": null,
+    "reviewed_at": null
+  }
+}
