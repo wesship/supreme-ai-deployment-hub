@@ -103,9 +103,10 @@ def test_routing_recommendations_are_advisory_and_expose_no_apply_control():
     workspace = RECOMMENDATION_WORKSPACE.read_text()
     studio = STUDIO.read_text()
     assert "buildRoutingRecommendations" in service
-    assert "Evidence-based proposals, never auto-applied" in workspace
-    assert "Human approval required" in workspace
-    assert "does not modify the dispatcher" in workspace
-    assert "No recommendation has been applied" in workspace
+    assert "Evidence-based proposals with durable human approval" in workspace
+    assert "Approval is audit evidence only" in workspace
+    assert "No approval changes runtime routing" in workspace
+    assert "Approval is a governance record, not an execution command" in workspace
+    assert "There is still no Apply action, provider activation, dispatcher mutation, or provider spend in this workspace" in workspace
     assert "Apply recommendation" not in workspace
     assert "RoutingRecommendationWorkspace" in studio
