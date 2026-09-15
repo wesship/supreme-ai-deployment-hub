@@ -1,9 +1,18 @@
 #include "AdinkraSymbolSubsystem.h"
+#include "AdinkraSaveGame.h"
+#include "Kismet/GameplayStatics.h"
+
+namespace
+{
+    const FString AdinkraSaveSlot = TEXT("TheDoor_Adinkra");
+    constexpr int32 AdinkraSaveUserIndex = 0;
+}
 
 void UAdinkraSymbolSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
     RegisterSeedSymbols();
+    LoadState();
 }
 
 bool UAdinkraSymbolSubsystem::ResolveSymbol(FName SymbolID, FAdinkraSymbolDefinition& OutDefinition) const
@@ -38,7 +47,8 @@ bool UAdinkraSymbolSubsystem::DiscoverSymbol(FName SymbolID, FName WorldID)
     {
         State.WorldIDs.AddUnique(WorldID);
     }
-    return true;
+
+    return SaveState();
 }
 
 bool UAdinkraSymbolSubsystem::GetDiscoveryState(FName SymbolID, FAdinkraDiscoveryState& OutState) const
@@ -55,6 +65,74 @@ bool UAdinkraSymbolSubsystem::IsSymbolVisibleAtGnosis(FName SymbolID, int32 Gnos
 {
     const FAdinkraSymbolDefinition* Found = Symbols.Find(SymbolID);
     return Found && Gnosis >= Found->GnosisRequired;
+}
+
+bool UAdinkraSymbolSubsystem::SaveState()
+{
+    UAdinkraSaveGame* SaveObject = Cast<UAdinkraSaveGame>(UGameplayStatics::CreateSaveGameObject(UAdinkraSaveGame::StaticClass()));
+    if (!SaveObject)
+    {
+        return false;
+    }
+
+    SaveObject->SchemaVersion = 1;
+    Discoveries.GenerateValueArray(SaveObject->Discoveries);
+    return UGameplayStatics::SaveGameToSlot(SaveObject, AdinkraSaveSlot, AdinkraSaveUserIndex);
+}
+
+bool UAdinkraSymbolSubsystem::LoadState()
+{
+    if (!UGameplayStatics::DoesSaveGameExist(AdinkraSaveSlot, AdinkraSaveUserIndex))
+    {
+        return true;
+    }
+
+    UAdinkraSaveGame* SaveObject = Cast<UAdinkraSaveGame>(UGameplayStatics::LoadGameFromSlot(AdinkraSaveSlot, AdinkraSaveUserIndex));
+    if (!SaveObject || SaveObject->SchemaVersion != 1)
+    {
+        return false;
+    }
+
+    Discoveries.Reset();
+    for (const FAdinkraDiscoveryState& State : SaveObject->Discoveries)
+    {
+        if (!State.SymbolID.IsNone() && Symbols.Contains(State.SymbolID))
+        {
+            Discoveries.Add(State.SymbolID, State);
+        }
+    }
+    return true;
+}
+
+TArray<FAdinkraGodEyeAnnotation> UAdinkraSymbolSubsystem::GetAnnotationsForWorld(FName WorldID, int32 Gnosis) const
+{
+    TArray<FAdinkraGodEyeAnnotation> Result;
+
+    for (const TPair<FName, FAdinkraDiscoveryState>& Pair : Discoveries)
+    {
+        const FAdinkraDiscoveryState& State = Pair.Value;
+        if (!State.bDiscovered || !State.WorldIDs.Contains(WorldID))
+        {
+            continue;
+        }
+
+        const FAdinkraSymbolDefinition* Definition = Symbols.Find(State.SymbolID);
+        if (!Definition || Gnosis < Definition->GnosisRequired)
+        {
+            continue;
+        }
+
+        FAdinkraGodEyeAnnotation Annotation;
+        Annotation.SymbolID = State.SymbolID;
+        Annotation.WorldID = WorldID;
+        Annotation.Label = Definition->Name;
+        Annotation.CulturalMeaning = Definition->CulturalMeaning;
+        Annotation.GnosisRequired = Definition->GnosisRequired;
+        Annotation.bDiscovered = true;
+        Result.Add(Annotation);
+    }
+
+    return Result;
 }
 
 void UAdinkraSymbolSubsystem::RegisterSeedSymbols()
