@@ -22,6 +22,11 @@ jobs:
       - name: Checkout exact commit
         uses: actions/checkout@v4
 
+      - name: Materialize exact Gate 107 project
+        shell: powershell
+        run: |
+          & '.\game\the-door\ue5\MaterializeGate107Project.ps1'
+
       - name: Verify UE 5.3 toolchain
         shell: powershell
         run: |
@@ -35,7 +40,7 @@ jobs:
         run: |
           $project = '${{ inputs.project_path }}'
           if (!(Test-Path $project)) {
-            throw "Gate 107 project not landed at $project. Do not treat this workflow as certification until the exact project source is committed."
+            throw "Gate 107 project not materialized at $project. Do not treat this workflow as certification."
           }
 
       - name: Run Gate 107 preflight
