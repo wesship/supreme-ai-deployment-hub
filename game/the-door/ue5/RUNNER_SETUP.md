@@ -13,10 +13,10 @@ Expected UE path by default:
 
 `C:\Program Files\Epic Games\UE_5.3`
 
-Before registering the runner, execute:
+Before registering the runner, execute the corrected readiness preflight:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\game\the-door\ue5\SetupGate107Runner.ps1
+powershell -ExecutionPolicy Bypass -File .\game\the-door\ue5\SetupGate107Runner.fixed.ps1
 ```
 
 Expected result:
