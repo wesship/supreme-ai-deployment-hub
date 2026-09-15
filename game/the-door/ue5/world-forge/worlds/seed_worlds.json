@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "worlds": [
+    {"worldId":"WORLD_NYC_2026","doorId":"DOOR_NYC_2026","locationId":"LOC_NYC_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_NYC_001/Present_2026"},
+    {"worldId":"WORLD_PHL_1977","doorId":"DOOR_PHL_1977","locationId":"LOC_PHL_001","body":"Earth","reality":"Historical","eraYear":1977,"map":"/Game/Worlds/LOC_PHL_001/Historical_1977"},
+    {"worldId":"WORLD_DEN_2026","doorId":"DOOR_DEN_2026","locationId":"LOC_DEN_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_DEN_001/Present_2026"},
+    {"worldId":"WORLD_ACC_2026","doorId":"DOOR_ACC_2026","locationId":"LOC_ACC_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_ACC_001/Present_2026"},
+    {"worldId":"WORLD_DXB_2026","doorId":"DOOR_DXB_2026","locationId":"LOC_DXB_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_DXB_001/Present_2026"},
+    {"worldId":"WORLD_MOON_TRANQUILITY_001","doorId":"DOOR_MOON_TRANQUILITY_001","locationId":"LOC_MOON_TRANQUILITY_001","body":"Moon","reality":"Planetary","eraYear":2026,"map":"/Game/Worlds/LOC_MOON_TRANQUILITY_001/Planetary_2026"},
+    {"worldId":"WORLD_MARS_VALLES_001","doorId":"DOOR_MARS_VALLES_001","locationId":"LOC_MARS_VALLES_001","body":"Mars","reality":"Planetary","eraYear":2026,"map":"/Game/Worlds/LOC_MARS_VALLES_001/Planetary_2026"},
+    {"worldId":"WORLD_EUROPA_001","doorId":"DOOR_EUROPA_001","locationId":"LOC_EUROPA_001","body":"Europa","reality":"Planetary","eraYear":2026,"map":"/Game/Worlds/LOC_EUROPA_001/Planetary_2026"},
+    {"worldId":"WORLD_DOOR_REALM_001","doorId":"DOOR_REALM_001","locationId":"LOC_DOOR_REALM_001","body":"DoorRealm","reality":"Anomaly","eraYear":2026,"map":"/Game/Worlds/LOC_DOOR_REALM_001/Anomaly_2026"}
+  ]
+}
