@@ -1,0 +1,60 @@
+name: The Door Gate 107 - Unreal 5.3 Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_path:
+        description: Relative path to DEVONN_AI.uproject
+        required: false
+        default: game/the-door/ue5/project/DEVONN_AI.uproject
+
+permissions:
+  contents: read
+
+jobs:
+  gate107:
+    name: UE5.3 compile and Retro evidence
+    runs-on: [self-hosted, Windows, X64, ue5-3]
+    timeout-minutes: 90
+    env:
+      UE_ROOT: C:\Program Files\Epic Games\UE_5.3
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Verify UE 5.3 toolchain
+        shell: powershell
+        run: |
+          $build = Join-Path $env:UE_ROOT 'Engine\Build\BatchFiles\Build.bat'
+          $editor = Join-Path $env:UE_ROOT 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+          if (!(Test-Path $build)) { throw "UE 5.3 Build.bat not found at $build" }
+          if (!(Test-Path $editor)) { throw "UE 5.3 UnrealEditor-Cmd.exe not found at $editor" }
+
+      - name: Verify Gate 107 project is present
+        shell: powershell
+        run: |
+          $project = '${{ inputs.project_path }}'
+          if (!(Test-Path $project)) {
+            throw "Gate 107 project not landed at $project. Do not treat this workflow as certification until the exact project source is committed."
+          }
+
+      - name: Run Gate 107 preflight
+        shell: powershell
+        run: |
+          $root = Split-Path -Parent '${{ inputs.project_path }}'
+          & (Join-Path $root 'PreflightGate107.ps1')
+
+      - name: Build and run Retro automation
+        shell: powershell
+        run: |
+          $root = Split-Path -Parent '${{ inputs.project_path }}'
+          & (Join-Path $root 'RunGate107.ps1')
+
+      - name: Upload Gate 107 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate107-evidence-${{ github.sha }}
+          path: game/the-door/ue5/project/Evidence/Gate107/**
+          if-no-files-found: warn
+          retention-days: 30
