@@ -7,6 +7,11 @@ on:
         description: Relative path to DEVONN_AI.uproject
         required: false
         default: game/the-door/ue5/project/DEVONN_AI.uproject
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/the-door-gate107.yml'
+      - 'game/the-door/ue5/**'
 
 permissions:
   contents: read
@@ -18,6 +23,7 @@ jobs:
     timeout-minutes: 90
     env:
       UE_ROOT: C:\Program Files\Epic Games\UE_5.3
+      PROJECT_PATH: ${{ inputs.project_path || 'game/the-door/ue5/project/DEVONN_AI.uproject' }}
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@v4
@@ -38,21 +44,20 @@ jobs:
       - name: Verify Gate 107 project is present
         shell: powershell
         run: |
-          $project = '${{ inputs.project_path }}'
-          if (!(Test-Path $project)) {
-            throw "Gate 107 project not materialized at $project. Do not treat this workflow as certification."
+          if (!(Test-Path $env:PROJECT_PATH)) {
+            throw "Gate 107 project not materialized at $env:PROJECT_PATH. Do not treat this workflow as certification."
           }
 
       - name: Run Gate 107 preflight
         shell: powershell
         run: |
-          $root = Split-Path -Parent '${{ inputs.project_path }}'
+          $root = Split-Path -Parent $env:PROJECT_PATH
           & (Join-Path $root 'PreflightGate107.ps1')
 
       - name: Build and run Retro automation
         shell: powershell
         run: |
-          $root = Split-Path -Parent '${{ inputs.project_path }}'
+          $root = Split-Path -Parent $env:PROJECT_PATH
           & (Join-Path $root 'RunGate107.ps1')
 
       - name: Upload Gate 107 evidence
