@@ -33,6 +33,24 @@ bool FWorldForgeBuildDefinitionTest::RunTest(const FString& Parameters)
     TestTrue(TEXT("External geodata is explicitly marked online-required until cooked"), World.bRequiresOnlineGeodata);
     TestTrue(TEXT("Map path generated"), !World.UnrealMap.IsEmpty());
 
+    FDoorLocationDefinition Giza;
+    Giza.LocationID = TEXT("LOC_GIZA_001");
+    Giza.DisplayName = TEXT("Giza Plateau");
+    Giza.Body = EDoorWorldBody::Earth;
+    Giza.Latitude = 29.9792;
+    Giza.Longitude = 31.1342;
+
+    FDoorWorldDefinition GizaHistorical;
+    TestTrue(TEXT("Build Ancient Threshold historical world"), Forge->BuildWorldDefinition(Giza, -2550, EDoorRealityClass::Historical, GizaHistorical));
+    TestEqual(TEXT("Ancient Threshold location preserved"), GizaHistorical.LocationID, Giza.LocationID);
+    TestEqual(TEXT("Ancient Threshold era preserved"), GizaHistorical.EraYear, -2550);
+    TestEqual(TEXT("Ancient Threshold historical class preserved"), GizaHistorical.RealityClass, EDoorRealityClass::Historical);
+
+    FDoorWorldDefinition GizaAnomaly;
+    TestTrue(TEXT("Build Ancient Threshold anomaly world"), Forge->BuildWorldDefinition(Giza, 2026, EDoorRealityClass::Anomaly, GizaAnomaly));
+    TestEqual(TEXT("Same location can branch into a second reality"), GizaAnomaly.LocationID, Giza.LocationID);
+    TestTrue(TEXT("Historical and anomaly map paths diverge"), GizaHistorical.UnrealMap != GizaAnomaly.UnrealMap);
+
     FDoorLocationDefinition Realm;
     Realm.LocationID = TEXT("LOC_DOOR_REALM_001");
     Realm.Body = EDoorWorldBody::DoorRealm;
