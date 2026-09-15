@@ -22,7 +22,8 @@ $Files = @(
     "AdinkraSymbolTypes.h",
     "AdinkraSymbolSubsystem.h",
     "AdinkraSymbolSubsystem.cpp",
-    "WorldForgeAutomationTests.cpp"
+    "WorldForgeAutomationTests.cpp",
+    "AdinkraAutomationTests.cpp"
 )
 
 foreach ($File in $Files) {
