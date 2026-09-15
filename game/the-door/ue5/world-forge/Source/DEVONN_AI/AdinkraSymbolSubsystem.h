@@ -28,21 +28,9 @@ public:
     UFUNCTION(BlueprintCallable, Category="The Door|Adinkra")
     bool IsSymbolVisibleAtGnosis(FName SymbolID, int32 Gnosis) const;
 
-    UFUNCTION(BlueprintCallable, Category="The Door|Adinkra")
-    bool SaveState();
-
-    UFUNCTION(BlueprintCallable, Category="The Door|Adinkra")
-    bool LoadState();
-
-    UFUNCTION(BlueprintCallable, Category="The Door|GodEye")
-    TArray<FAdinkraGodEyeAnnotation> GetAnnotationsForWorld(FName WorldID, int32 Gnosis) const;
-
 private:
     void RegisterSeedSymbols();
 
-    UPROPERTY()
     TMap<FName, FAdinkraSymbolDefinition> Symbols;
-
-    UPROPERTY()
     TMap<FName, FAdinkraDiscoveryState> Discoveries;
 };
