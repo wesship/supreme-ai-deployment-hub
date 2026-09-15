@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "encounterId": "ENCOUNTER_ADINKRA_SANKOFA_001",
+  "symbolId": "ADINKRA_SANKOFA",
+  "worldId": "WORLD_ACC_2026",
+  "placement": "DoorThreshold",
+  "requiredGnosis": 0,
+  "interaction": {
+    "prompt": "Inspect Sankofa",
+    "discoversSymbol": true,
+    "recordsWorld": true
+  },
+  "narrativeIntent": "Teach Sankofa first in a Ghana-grounded context before later Door-system echoes use the same symbol as a memory/retrieval motif.",
+  "futureEchoes": [
+    "WORLD_PHL_1977",
+    "WORLD_GIZA_DOORREALM_001",
+    "WORLD_DOOR_REALM_001"
+  ],
+  "authority": {
+    "gameplayStateOwner": "Unreal campaign/save systems",
+    "symbolMeaningSource": "Adinkra cultural definition",
+    "fictionalEchoesDoNotAssertHistoricalPresence": true
+  }
+}
