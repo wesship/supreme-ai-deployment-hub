@@ -22,6 +22,7 @@ $Files = @(
     "AdinkraSymbolTypes.h",
     "AdinkraSymbolSubsystem.h",
     "AdinkraSymbolSubsystem.cpp",
+    "AdinkraSaveGame.h",
     "AdinkraEncounterActor.h",
     "AdinkraEncounterActor.cpp",
     "WorldForgeAutomationTests.cpp",
