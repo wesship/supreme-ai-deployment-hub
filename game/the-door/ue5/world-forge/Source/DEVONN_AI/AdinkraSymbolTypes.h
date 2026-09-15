@@ -62,3 +62,27 @@ struct FAdinkraDiscoveryState
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
     TArray<FName> WorldIDs;
 };
+
+USTRUCT(BlueprintType)
+struct FAdinkraGodEyeAnnotation
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName SymbolID = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName WorldID = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString Label;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FString CulturalMeaning;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    int32 GnosisRequired = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bDiscovered = false;
+};
