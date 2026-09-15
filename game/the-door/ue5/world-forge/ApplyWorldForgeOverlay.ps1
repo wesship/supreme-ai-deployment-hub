@@ -19,6 +19,9 @@ $Files = @(
     "GodEyeLocationSubsystem.cpp",
     "GeoLibreWorldForgeSubsystem.h",
     "GeoLibreWorldForgeSubsystem.cpp",
+    "AdinkraSymbolTypes.h",
+    "AdinkraSymbolSubsystem.h",
+    "AdinkraSymbolSubsystem.cpp",
     "WorldForgeAutomationTests.cpp"
 )
 
