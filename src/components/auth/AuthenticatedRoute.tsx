@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import AuthNavButton from '../AuthNavButton';
 
 interface AuthenticatedRouteProps {
   children: React.ReactNode;
@@ -63,5 +64,10 @@ export default function AuthenticatedRoute({ children }: AuthenticatedRouteProps
     return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <AuthNavButton />
+      {children}
+    </>
+  );
 }
