@@ -79,4 +79,22 @@ test.describe('D3VONN.IO production authentication boundary', () => {
       await expect(page.locator('main')).toBeVisible();
     }
   });
+
+  test('sign out revokes the browser session and protected routes deny access afterward', async ({ page }) => {
+    test.skip(!authConfigured, 'E2E_TEST_EMAIL and E2E_TEST_PASSWORD are not configured');
+
+    await signIn(page);
+    await page.goto(`${baseUrl}/app`, { waitUntil: 'networkidle' });
+    await expect(page).toHaveURL(/\/app(?:\?|$)/);
+
+    const signOut = page.getByRole('button', { name: /sign out/i });
+    await expect(signOut).toBeVisible();
+    await signOut.click();
+    await expect(page).toHaveURL(new RegExp(`${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/?$`), { timeout: 15_000 });
+
+    await page.goto(`${baseUrl}/app`, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/login\?redirect=%2Fapp$/);
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+  });
 });
