@@ -31,22 +31,19 @@ def _client(monkeypatch) -> TestClient:
     return TestClient(app)
 
 
-def _envelope(*, route: str, action: str, nonce: str = "nonce-0001") -> dict:
+def _envelope(*, route: str, action: str, nonce: str = "nonce-0001", payload: dict | None = None) -> dict:
     return {
         "device_id": "glasses-01",
         "nonce": nonce,
         "correlation_id": "corr-01",
         "proposal": {"route": route, "call": {"name": action, "arguments": {}}},
-        "payload": {},
+        "payload": payload or {},
     }
 
 
 def test_device_key_is_required(monkeypatch):
     client = _client(monkeypatch)
-    response = client.post(
-        "/api/smart-glasses/v1/execute",
-        json=_envelope(route="local", action="capture_photo"),
-    )
+    response = client.post("/api/smart-glasses/v1/execute", json=_envelope(route="local", action="capture_photo"))
     assert response.status_code == 401
 
 
@@ -100,10 +97,45 @@ def test_unknown_action_fails_closed(monkeypatch):
     assert response.json()["detail"] == "unknown_or_unapproved_action"
 
 
-def test_health_does_not_expose_secrets(monkeypatch):
+def test_internal_vision_fallback_handles_describe_scene(monkeypatch):
+    client = _client(monkeypatch)
+    monkeypatch.delenv("SMART_GLASSES_VISION_URL", raising=False)
+
+    async def _fake_vision_action(*, action: str, payload: dict, correlation_id: str):
+        assert action == "describe_scene"
+        assert payload["image_data"].startswith("data:image/")
+        assert correlation_id == "corr-01"
+        return {"agent_used": "D3VONN Vision", "model_used": "test-model", "text": "A test scene."}
+
+    monkeypatch.setattr(smart_glasses, "run_vision_action", _fake_vision_action)
+    response = client.post(
+        "/api/smart-glasses/v1/execute",
+        json=_envelope(
+            route="d3vonn_gateway",
+            action="describe_scene",
+            nonce="nonce-vision",
+            payload={"image_data": "data:image/jpeg;base64,AA=="},
+        ),
+        headers={"X-D3VONN-Device-Key": "test-device-key"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["agent_used"] == "D3VONN Vision"
+    assert body["model_used"] == "test-model"
+    assert body["result"]["text"] == "A test scene."
+
+
+def test_health_does_not_expose_secrets_and_reports_internal_vision(monkeypatch):
     client = _client(monkeypatch)
     monkeypatch.setenv("REDIS_URL", "redis://example.invalid:6379")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.delenv("SMART_GLASSES_VISION_URL", raising=False)
     response = client.get("/api/smart-glasses/v1/health")
     assert response.status_code == 200
-    assert response.json()["device_auth_configured"] is True
+    body = response.json()
+    assert body["device_auth_configured"] is True
+    assert body["vision_configured"] is True
+    assert body["vision_mode"] == "internal"
     assert "test-device-key" not in response.text
+    assert "test-openai-key" not in response.text
