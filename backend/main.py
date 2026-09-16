@@ -73,6 +73,7 @@ for module_name, middleware_name in _REQUIRED_MIDDLEWARE:
 
 _OPTIONAL_ROUTERS = (
     ("backend.app.routers", "proxy_router", None),
+    ("backend.app.routers.smart_glasses", "router", "/api"),
     ("backend.api.v1.router", "router", "/api/v1"),
     ("backend.api.v2.router", "router", "/api/v2"),
     ("backend.agents.router", "router", "/api/agents"),
