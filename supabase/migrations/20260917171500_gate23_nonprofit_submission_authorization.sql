@@ -54,6 +54,7 @@ as $$
 declare
   v_user uuid := (select auth.uid());
   v_ready record;
+  v_policy nonprofit_security.policy_decisions%rowtype;
   v_id uuid := gen_random_uuid();
   v_expires timestamptz := now() + interval '24 hours';
 begin
@@ -83,10 +84,25 @@ begin
     raise exception 'WORKFLOW_NOT_SUBMISSION_READY' using errcode = '42501';
   end if;
 
+  select p.* into v_policy
+  from nonprofit_security.policy_decisions p
+  where p.organization_id = v_ready.organization_id
+    and p.resource_id is not distinct from p_workflow_id
+  order by p.evaluated_at desc
+  limit 1;
+
+  if not found then
+    raise exception 'POLICY_DECISION_REQUIRED' using errcode = '42501';
+  end if;
+
+  if v_policy.decision = 'RED' then
+    raise exception 'POLICY_BLOCKED_RED' using errcode = '42501';
+  end if;
+
   update nonprofit.submission_authorizations
   set status = 'EXPIRED', updated_at = now()
   where workflow_id = p_workflow_id
-    and status = 'PENDING'
+    and status in ('PENDING','APPROVED')
     and expires_at <= now();
 
   if exists (
@@ -153,6 +169,7 @@ declare
   v_aal text := (select auth.jwt() ->> 'aal');
   v_auth nonprofit.submission_authorizations%rowtype;
   v_ready record;
+  v_policy nonprofit_security.policy_decisions%rowtype;
   v_event_id uuid := gen_random_uuid();
   v_event_at timestamptz := now();
   v_prev_hash text;
@@ -214,6 +231,21 @@ begin
     raise exception 'READINESS_CHANGED_REAUTHORIZATION_REQUIRED' using errcode = '42501';
   end if;
 
+  select p.* into v_policy
+  from nonprofit_security.policy_decisions p
+  where p.organization_id = v_auth.organization_id
+    and p.resource_id is not distinct from v_auth.workflow_id
+  order by p.evaluated_at desc
+  limit 1;
+
+  if not found then
+    raise exception 'POLICY_DECISION_REQUIRED' using errcode = '42501';
+  end if;
+
+  if v_policy.decision = 'RED' then
+    raise exception 'POLICY_BLOCKED_RED' using errcode = '42501';
+  end if;
+
   update nonprofit.submission_authorizations
   set status = p_decision,
       decided_by = v_user,
@@ -245,11 +277,11 @@ begin
 
   insert into nonprofit_security.audit_events (
     id, organization_id, event_at, actor_type, actor_id, event_type,
-    resource_type, resource_id, action, result, previous_event_hash, event_hash
+    resource_type, resource_id, action, policy_decision_id, result, previous_event_hash, event_hash
   ) values (
     v_event_id, v_auth.organization_id, v_event_at, 'USER', v_user,
     'SUBMISSION_AUTHORIZATION_DECISION', 'submission_authorization', v_auth.id,
-    p_decision, p_decision, v_prev_hash, v_event_hash
+    p_decision, v_policy.id, p_decision, v_prev_hash, v_event_hash
   );
 
   return query select v_auth.id, p_decision, v_event_at, v_event_id;
