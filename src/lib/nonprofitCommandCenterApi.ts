@@ -100,6 +100,46 @@ export type NonprofitComplianceAlert = {
   evaluated_at: string;
 };
 
+export type NonprofitAttachmentComplianceRow = {
+  requirement_id: string;
+  organization_id: string;
+  workflow_id: string;
+  requirement_name: string;
+  required: boolean;
+  allowed_formats: string[];
+  max_file_size_mb: number | null;
+  max_pages: number | null;
+  must_be_signed: boolean;
+  must_be_current: boolean;
+  max_age_days: number | null;
+  source_requirement: string | null;
+  match_id: string | null;
+  document_reference: string | null;
+  document_name: string | null;
+  source_kind: 'VAULT' | 'UPLOAD' | 'GENERATED' | null;
+  mime_type: string | null;
+  file_size_mb: number | null;
+  page_count: number | null;
+  document_date: string | null;
+  expires_at: string | null;
+  signature_verified: boolean | null;
+  content_verified: boolean | null;
+  content_match_confidence: number | null;
+  validation_notes: string | null;
+  validation_status:
+    | 'VALID'
+    | 'OPTIONAL_MISSING'
+    | 'BLOCKED_MISSING'
+    | 'BLOCKED_UNVERIFIED_CONTENT'
+    | 'BLOCKED_UNSIGNED'
+    | 'BLOCKED_EXPIRED'
+    | 'BLOCKED_STALE'
+    | 'BLOCKED_FILE_SIZE'
+    | 'BLOCKED_PAGE_COUNT'
+    | 'BLOCKED_FILE_TYPE';
+  hard_blocker: boolean;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -117,16 +157,17 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
       listView<NonprofitApprovalRow>('nonprofit_pending_approvals_v1'),
       listView<NonprofitApprovalStepRow>('nonprofit_approval_steps_v1'),
       listView<NonprofitComplianceAlert>('nonprofit_compliance_alerts_v1'),
+      listView<NonprofitAttachmentComplianceRow>('nonprofit_attachment_compliance_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, audit };
   },
 
   async decideApprovalStep(stepId: string, decision: 'APPROVED' | 'REJECTED' | 'RECUSED', notes?: string) {
