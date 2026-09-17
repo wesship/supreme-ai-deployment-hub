@@ -4,6 +4,7 @@ import {
   nonprofitCommandCenterApi,
   type NonprofitApprovalRow,
   type NonprofitApprovalStepRow,
+  type NonprofitAttachmentComplianceRow,
   type NonprofitAuditSummary,
   type NonprofitComplianceAlert,
   type NonprofitGrantPipelineRow,
@@ -21,8 +22,8 @@ function money(value: number | null) {
 }
 
 function decisionClass(decision?: string) {
-  if (decision === 'RED' || decision === 'REJECTED') return 'border-red-500/40 bg-red-500/10 text-red-200';
-  if (decision === 'YELLOW' || decision === 'PENDING') return 'border-amber-500/40 bg-amber-500/10 text-amber-200';
+  if (decision === 'RED' || decision === 'REJECTED' || decision?.startsWith('BLOCKED')) return 'border-red-500/40 bg-red-500/10 text-red-200';
+  if (decision === 'YELLOW' || decision === 'PENDING' || decision === 'OPTIONAL_MISSING') return 'border-amber-500/40 bg-amber-500/10 text-amber-200';
   return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200';
 }
 
@@ -33,6 +34,7 @@ export default function NonprofitCommandCenter() {
   const [approvals, setApprovals] = useState<NonprofitApprovalRow[]>([]);
   const [approvalSteps, setApprovalSteps] = useState<NonprofitApprovalStepRow[]>([]);
   const [alerts, setAlerts] = useState<NonprofitComplianceAlert[]>([]);
+  const [attachmentCompliance, setAttachmentCompliance] = useState<NonprofitAttachmentComplianceRow[]>([]);
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingStep, setSubmittingStep] = useState('');
@@ -50,6 +52,7 @@ export default function NonprofitCommandCenter() {
       setApprovals(result.approvals);
       setApprovalSteps(result.approvalSteps);
       setAlerts(result.alerts);
+      setAttachmentCompliance(result.attachmentCompliance);
       setAudit(result.audit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load nonprofit command center');
@@ -78,6 +81,8 @@ export default function NonprofitCommandCenter() {
   const org = organizations[0];
   const latestAudit = audit[0];
   const redAlerts = useMemo(() => alerts.filter((row) => row.decision === 'RED').length, [alerts]);
+  const attachmentBlockers = useMemo(() => attachmentCompliance.filter((row) => row.hard_blocker).length, [attachmentCompliance]);
+  const attachmentValid = useMemo(() => attachmentCompliance.filter((row) => row.validation_status === 'VALID').length, [attachmentCompliance]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -86,7 +91,7 @@ export default function NonprofitCommandCenter() {
           <div>
             <div className="mb-2 flex items-center gap-2 text-cyan-300"><ShieldCheck className="h-5 w-5" /><span className="text-sm font-semibold uppercase tracking-[0.2em]">D3VONN Nonprofit OS</span></div>
             <h1 className="text-3xl font-semibold tracking-tight">Nonprofit Command Center</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-400">Role-scoped operating view for legal status, programs, GrantAssist/RIPE, approvals, compliance and audit evidence. Truth Vault and sensitive finance records remain outside this surface.</p>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">Role-scoped operating view for legal status, programs, GrantAssist/RIPE, approvals, attachment compliance and audit evidence. Truth Vault and sensitive finance records remain outside this surface.</p>
           </div>
           <button onClick={() => void refresh()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold hover:border-cyan-400 disabled:opacity-50">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -96,10 +101,11 @@ export default function NonprofitCommandCenter() {
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
           <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked program records</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE pipeline</p></div>
+          <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Attachments</p><p className="mt-2 text-3xl font-semibold">{attachmentBlockers}</p><p className="mt-2 text-sm text-slate-400">hard submission blockers</p></div>
           <div className={card}><AlertTriangle className="mb-3 h-5 w-5 text-amber-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Compliance</p><p className="mt-2 text-3xl font-semibold">{redAlerts}</p><p className="mt-2 text-sm text-slate-400">RED policy blocks</p></div>
         </section>
 
@@ -112,6 +118,18 @@ export default function NonprofitCommandCenter() {
             </div>
           </div>
 
+          <div className={card}>
+            <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Attachment compliance</h2><span className={`${badge} ${attachmentBlockers > 0 ? decisionClass('BLOCKED') : decisionClass('GREEN')}`}>{attachmentBlockers > 0 ? 'NOT SUBMISSION READY' : 'ATTACHMENTS READY'}</span></div>
+            <p className="mb-4 text-sm text-slate-400">Required files are matched against verified content, signature, freshness, size, page-count and format rules. Hard failures remain fail-closed.</p>
+            <div className="mb-4 grid grid-cols-3 gap-3 text-sm"><div><p className="text-slate-500">Requirements</p><p className="text-lg font-semibold">{attachmentCompliance.length}</p></div><div><p className="text-slate-500">Valid</p><p className="text-lg font-semibold">{attachmentValid}</p></div><div><p className="text-slate-500">Blockers</p><p className="text-lg font-semibold">{attachmentBlockers}</p></div></div>
+            <div className="space-y-3">
+              {attachmentCompliance.length === 0 && <p className="text-sm text-slate-500">No attachment requirements have been registered for visible workflows.</p>}
+              {attachmentCompliance.map((row) => <div key={row.requirement_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{row.requirement_name}</p><p className="text-sm text-slate-400">{row.document_name || 'No document matched'} · {row.source_kind || 'No source'}</p></div><span className={`${badge} ${decisionClass(row.validation_status)}`}>{row.validation_status.replaceAll('_', ' ')}</span></div><div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"><span>{row.required ? 'Required' : 'Optional'}</span>{row.must_be_signed && <span>Signature required</span>}{row.must_be_current && <span>Current version required</span>}{row.allowed_formats.length > 0 && <span>Formats: {row.allowed_formats.join(', ')}</span>}{row.max_file_size_mb && <span>Max {row.max_file_size_mb} MB</span>}</div>{row.source_requirement && <p className="mt-2 text-xs text-slate-500">Source: {row.source_requirement}</p>}</div>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-2">
           <div className={card}>
             <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">Approval inbox</h2><span className="text-xs text-slate-500">MFA + role + policy guarded</span></div>
             <div className="space-y-3">
@@ -128,14 +146,14 @@ export default function NonprofitCommandCenter() {
               </div>
             </div>
           </div>
+
+          <div className={card}><h2 className="mb-4 text-lg font-semibold">Compliance alerts</h2><div className="space-y-3">{alerts.length === 0 && <p className="text-sm text-slate-500">No YELLOW/RED policy alerts visible.</p>}{alerts.map((row) => <div key={row.policy_decision_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{row.action_type.replaceAll('_', ' ')}</p><p className="text-sm text-slate-400">{row.resource_type} · risk {row.risk_level}</p></div><span className={`${badge} ${decisionClass(row.decision)}`}>{row.decision}</span></div><p className="mt-3 text-xs text-slate-500">Policy {row.policy_version} · {new Date(row.evaluated_at).toLocaleString()}</p></div>)}</div></div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
           <div className={card}><h2 className="mb-4 text-lg font-semibold">Programs + evidence</h2><div className="space-y-3">{programs.map((row) => <div key={row.program_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-semibold">{row.name}</p><p className="text-sm text-slate-400">{row.country || 'Location not set'} · {row.status}</p></div><BadgeCheck className="h-5 w-5 text-emerald-300" /></div><div className="mt-3 grid grid-cols-3 gap-3 text-sm"><div><p className="text-slate-500">Verified</p><p>{row.verified_evidence_count}</p></div><div><p className="text-slate-500">Supported</p><p>{row.supported_evidence_count}</p></div><div><p className="text-slate-500">Unresolved</p><p>{row.unresolved_evidence_count}</p></div></div></div>)}</div></div>
-          <div className={card}><h2 className="mb-4 text-lg font-semibold">Compliance alerts</h2><div className="space-y-3">{alerts.length === 0 && <p className="text-sm text-slate-500">No YELLOW/RED policy alerts visible.</p>}{alerts.map((row) => <div key={row.policy_decision_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{row.action_type.replaceAll('_', ' ')}</p><p className="text-sm text-slate-400">{row.resource_type} · risk {row.risk_level}</p></div><span className={`${badge} ${decisionClass(row.decision)}`}>{row.decision}</span></div><p className="mt-3 text-xs text-slate-500">Policy {row.policy_version} · {new Date(row.evaluated_at).toLocaleString()}</p></div>)}</div></div>
+          <section className={card}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Audit evidence summary</h2><p className="text-sm text-slate-400">Aggregate-only view; raw audit hashes and payloads stay restricted.</p></div><div className="text-right"><p className="text-2xl font-semibold">{latestAudit?.total_events ?? 0}</p><p className="text-xs text-slate-500">latest summarized events</p></div></div></section>
         </section>
-
-        <section className={card}><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Audit evidence summary</h2><p className="text-sm text-slate-400">Aggregate-only view; raw audit hashes and payloads stay restricted.</p></div><div className="text-right"><p className="text-2xl font-semibold">{latestAudit?.total_events ?? 0}</p><p className="text-xs text-slate-500">latest summarized events</p></div></div></section>
       </div>
     </div>
   );
