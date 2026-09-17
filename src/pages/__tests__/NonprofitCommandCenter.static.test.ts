@@ -6,6 +6,7 @@ const page = readFileSync('src/pages/NonprofitCommandCenter.tsx', 'utf8');
 const api = readFileSync('src/lib/nonprofitCommandCenterApi.ts', 'utf8');
 const attachmentMigration = readFileSync('supabase/migrations/20260917112000_gate21_nonprofit_attachment_compliance.sql', 'utf8');
 const readinessMigration = readFileSync('supabase/migrations/20260917114500_gate22_nonprofit_final_submission_readiness.sql', 'utf8');
+const authorizationMigration = readFileSync('supabase/migrations/20260917171500_gate23_nonprofit_submission_authorization.sql', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -23,6 +24,7 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_compliance_alerts_v1');
     expect(api).toContain('nonprofit_attachment_compliance_v1');
     expect(api).toContain('nonprofit_submission_readiness_v1');
+    expect(api).toContain('nonprofit_submission_authorizations_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -91,5 +93,38 @@ describe('Gate 22 final application QA and submission readiness', () => {
     expect(page).toContain('This view does not submit anything.');
     expect(page).toContain('Blocker reasons:');
     expect(page).not.toContain('Submit application');
+  });
+});
+
+
+describe('Gate 23 submission authorization and human approval', () => {
+  it('allows authorization requests only after deterministic submission readiness', () => {
+    expect(authorizationMigration).toContain("v_ready.submission_status <> 'SUBMISSION_READY'");
+    expect(authorizationMigration).toContain('WORKFLOW_NOT_SUBMISSION_READY');
+    expect(authorizationMigration).toContain('LIVE_SUBMISSION_AUTHORIZATION_EXISTS');
+    expect(authorizationMigration).toContain("status in ('PENDING','APPROVED')");
+  });
+
+  it('requires MFA, approval authority, and separation of duties for approval', () => {
+    expect(authorizationMigration).toContain('MFA_AAL2_REQUIRED');
+    expect(authorizationMigration).toContain('can_approve');
+    expect(authorizationMigration).toContain('SEPARATION_OF_DUTIES_REQUIRED');
+    expect(authorizationMigration).toContain('READINESS_CHANGED_REAUTHORIZATION_REQUIRED');
+  });
+
+  it('does not execute an external grant submission', () => {
+    expect(authorizationMigration).not.toContain('http_request');
+    expect(authorizationMigration).not.toContain('net.http');
+    expect(authorizationMigration).not.toContain('submit_grant');
+    expect(page).toContain('This gate still does not execute or transmit a grant submission.');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires guarded authorization request and decision RPCs', () => {
+    expect(api).toContain("rpc('nonprofit_request_submission_authorization'");
+    expect(api).toContain("rpc('nonprofit_decide_submission_authorization'");
+    expect(page).toContain('Request human authorization');
+    expect(page).toContain('Approve authorization');
+    expect(page).toContain('A different authorized human must decide this request.');
   });
 });
