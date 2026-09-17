@@ -164,6 +164,25 @@ export type NonprofitSubmissionReadinessRow = {
   hard_blocker: boolean;
 };
 
+export type NonprofitSubmissionAuthorizationRow = {
+  authorization_id: string;
+  organization_id: string;
+  workflow_id: string;
+  funder_name: string;
+  title: string;
+  submission_status: string;
+  requested_by: string;
+  requested_at: string;
+  request_notes: string | null;
+  authorization_status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'REVOKED';
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_notes: string | null;
+  expires_at: string;
+  requested_by_current_user: boolean;
+  authorization_live: boolean;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -181,7 +200,7 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
@@ -190,9 +209,29 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitComplianceAlert>('nonprofit_compliance_alerts_v1'),
       listView<NonprofitAttachmentComplianceRow>('nonprofit_attachment_compliance_v1'),
       listView<NonprofitSubmissionReadinessRow>('nonprofit_submission_readiness_v1'),
+      listView<NonprofitSubmissionAuthorizationRow>('nonprofit_submission_authorizations_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, audit };
+  },
+
+  async requestSubmissionAuthorization(workflowId: string, notes?: string) {
+    const { data, error } = await (supabase as any).rpc('nonprofit_request_submission_authorization', {
+      p_workflow_id: workflowId,
+      p_notes: notes ?? null,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async decideSubmissionAuthorization(authorizationId: string, decision: 'APPROVED' | 'REJECTED', notes?: string) {
+    const { data, error } = await (supabase as any).rpc('nonprofit_decide_submission_authorization', {
+      p_authorization_id: authorizationId,
+      p_decision: decision,
+      p_notes: notes ?? null,
+    });
+    if (error) throw error;
+    return data;
   },
 
   async decideApprovalStep(stepId: string, decision: 'APPROVED' | 'REJECTED' | 'RECUSED', notes?: string) {
