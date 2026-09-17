@@ -1,9 +1,9 @@
-# DEVONN.AI Claude Code + Ruflo Operating Rules
+# D3VONN.IO Claude Code + Ruflo Operating Rules
 
 This repository is configured for Ruflo multi-agent orchestration through Claude Code MCP.
 
 ## Prime directive
-Build DEVONN.AI safely: read before writing, preserve production stability, never expose secrets, and keep every change traceable through tests or a clear validation path.
+Build D3VONN.IO safely: read before writing, preserve production stability, never expose secrets, and keep every change traceable through tests or a clear validation path.
 
 ## Agent routing
 Use Ruflo for parallel work, but keep authority layered:
@@ -14,6 +14,9 @@ Use Ruflo for parallel work, but keep authority layered:
 
 Prefer hierarchical swarms for production changes. Use mesh/adaptive swarms only for research, refactors, or non-production experiments.
 
+## Independent validation
+Builder agents must not be the sole authority certifying their own production-impacting changes. Greptile and existing CI/security checks act as independent validation layers; protected human approvals remain authoritative for sensitive production changes.
+
 ## Repository guardrails
 - Never commit `.env`, credentials, API keys, tokens, private keys, cookies, or production secrets.
 - Always read a file before editing it.
@@ -21,6 +24,7 @@ Prefer hierarchical swarms for production changes. Use mesh/adaptive swarms only
 - Do not create documentation just to create documentation; create it only when it supports setup, operations, or handoff.
 - Do not bypass CI, tests, security scans, or domain/deployment checks.
 - For Vercel, Railway, Supabase, Pinecone, AWS, and GitHub Actions changes, make the smallest safe change and document the validation result.
+- Authentication, secrets, database migrations, infrastructure, CI/CD, billing/financial operations, public APIs, and production agent actions require explicit human review even when automated validation is clean.
 
 ## Standard validation
 Before marking work complete, run the relevant subset:
@@ -54,8 +58,8 @@ npx ruflo@latest init
 claude mcp add ruflo -- npx ruflo@latest mcp start
 ```
 
-## First recommended DEVONN swarm prompt
+## First recommended D3VONN.IO swarm prompt
 
 ```text
-Use Ruflo in hierarchical mode. Audit DEVONN.AI for deployment blockers, domain/DNS issues, security regressions, failing tests, and agent-orchestration gaps. Read before writing, do not touch secrets, and produce a patch plan before edits.
+Use Ruflo in hierarchical mode. Audit D3VONN.IO for deployment blockers, domain/DNS issues, security regressions, failing tests, and agent-orchestration gaps. Read before writing, do not touch secrets, and produce a patch plan before edits.
 ```
