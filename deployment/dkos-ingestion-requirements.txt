@@ -1,7 +1,7 @@
 # Server-side DKOS ingestion worker requirements
 # Install these in the backend/worker runtime, not in the Vite frontend bundle.
 
-fastapi>=0.115.0
+fastapi>=0.141.1
 uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
 pydantic>=2.8.0
