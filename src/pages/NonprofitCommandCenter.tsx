@@ -11,6 +11,7 @@ import {
   type NonprofitOrgSummary,
   type NonprofitProgramSummary,
   type NonprofitSubmissionReadinessRow,
+  type NonprofitSubmissionAuthorizationRow,
 } from '@/lib/nonprofitCommandCenterApi';
 
 const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-lg shadow-black/20';
@@ -37,6 +38,8 @@ export default function NonprofitCommandCenter() {
   const [alerts, setAlerts] = useState<NonprofitComplianceAlert[]>([]);
   const [attachmentCompliance, setAttachmentCompliance] = useState<NonprofitAttachmentComplianceRow[]>([]);
   const [submissionReadiness, setSubmissionReadiness] = useState<NonprofitSubmissionReadinessRow[]>([]);
+  const [submissionAuthorizations, setSubmissionAuthorizations] = useState<NonprofitSubmissionAuthorizationRow[]>([]);
+  const [authorizationAction, setAuthorizationAction] = useState('');
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingStep, setSubmittingStep] = useState('');
@@ -56,6 +59,7 @@ export default function NonprofitCommandCenter() {
       setAlerts(result.alerts);
       setAttachmentCompliance(result.attachmentCompliance);
       setSubmissionReadiness(result.submissionReadiness);
+      setSubmissionAuthorizations(result.submissionAuthorizations);
       setAudit(result.audit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load nonprofit command center');
@@ -81,6 +85,36 @@ export default function NonprofitCommandCenter() {
     }
   }
 
+  async function requestAuthorization(workflowId: string) {
+    setAuthorizationAction(workflowId);
+    setError('');
+    setMessage('');
+    try {
+      await nonprofitCommandCenterApi.requestSubmissionAuthorization(workflowId);
+      setMessage('Submission authorization requested. A separate authorized human must approve it before any external submission can be enabled.');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Submission authorization request was blocked');
+    } finally {
+      setAuthorizationAction('');
+    }
+  }
+
+  async function decideAuthorization(authorizationId: string, decision: 'APPROVED' | 'REJECTED') {
+    setAuthorizationAction(authorizationId);
+    setError('');
+    setMessage('');
+    try {
+      await nonprofitCommandCenterApi.decideSubmissionAuthorization(authorizationId, decision);
+      setMessage(`Submission authorization decision recorded: ${decision}. No grant was submitted.`);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Submission authorization decision was blocked');
+    } finally {
+      setAuthorizationAction('');
+    }
+  }
+
   const org = organizations[0];
   const latestAudit = audit[0];
   const redAlerts = useMemo(() => alerts.filter((row) => row.decision === 'RED').length, [alerts]);
@@ -88,6 +122,8 @@ export default function NonprofitCommandCenter() {
   const attachmentValid = useMemo(() => attachmentCompliance.filter((row) => row.validation_status === 'VALID').length, [attachmentCompliance]);
   const submissionReady = useMemo(() => submissionReadiness.filter((row) => row.submission_status === 'SUBMISSION_READY').length, [submissionReadiness]);
   const submissionBlocked = useMemo(() => submissionReadiness.filter((row) => row.hard_blocker).length, [submissionReadiness]);
+  const liveAuthorizations = useMemo(() => submissionAuthorizations.filter((row) => row.authorization_live).length, [submissionAuthorizations]);
+  const pendingAuthorizations = useMemo(() => submissionAuthorizations.filter((row) => row.authorization_status === 'PENDING').length, [submissionAuthorizations]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -106,12 +142,13 @@ export default function NonprofitCommandCenter() {
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
           <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked records</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Attachments</p><p className="mt-2 text-3xl font-semibold">{attachmentBlockers}</p><p className="mt-2 text-sm text-slate-400">hard blockers</p></div>
           <div className={card}><BadgeCheck className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Submission ready</p><p className="mt-2 text-3xl font-semibold">{submissionReady}</p><p className="mt-2 text-sm text-slate-400">{submissionBlocked} blocked</p></div>
+          <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Human authorization</p><p className="mt-2 text-3xl font-semibold">{liveAuthorizations}</p><p className="mt-2 text-sm text-slate-400">{pendingAuthorizations} pending</p></div>
           <div className={card}><AlertTriangle className="mb-3 h-5 w-5 text-amber-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Compliance</p><p className="mt-2 text-3xl font-semibold">{redAlerts}</p><p className="mt-2 text-sm text-slate-400">RED policy blocks</p></div>
         </section>
 
@@ -123,6 +160,16 @@ export default function NonprofitCommandCenter() {
           </div>
         </section>
 
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Submission authorization</h2><p className="mt-1 text-sm text-slate-400">Human-in-the-loop control. A request is allowed only for a currently SUBMISSION READY workflow; approval requires AAL2 MFA, can_approve authority, and a different human from the requester.</p></div><span className={`${badge} ${liveAuthorizations > 0 ? decisionClass('GREEN') : decisionClass('PENDING')}`}>{liveAuthorizations > 0 ? `${liveAuthorizations} LIVE` : `${pendingAuthorizations} PENDING`}</span></div>
+          <div className="space-y-3">
+            {submissionReadiness.filter((row) => row.submission_status === 'SUBMISSION_READY').map((row) => {
+              const existing = submissionAuthorizations.find((auth) => auth.workflow_id === row.workflow_id && ['PENDING','APPROVED'].includes(auth.authorization_status));
+              return <div key={row.workflow_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{row.title}</p><p className="text-sm text-slate-400">{row.funder_name} · readiness verified</p></div>{existing ? <span className={`${badge} ${decisionClass(existing.authorization_status)}`}>{existing.authorization_status}</span> : <button className={actionButton} disabled={authorizationAction === row.workflow_id} onClick={() => void requestAuthorization(row.workflow_id)}>Request human authorization</button>}</div>{existing && <div className="mt-3 text-sm text-slate-400"><p>Expires: {new Date(existing.expires_at).toLocaleString()}</p>{existing.authorization_status === 'PENDING' && <div className="mt-3 flex flex-wrap gap-2">{existing.requested_by_current_user ? <span className="text-xs text-amber-300">A different authorized human must decide this request.</span> : <><button className={actionButton} disabled={authorizationAction === existing.authorization_id} onClick={() => void decideAuthorization(existing.authorization_id, 'APPROVED')}>Approve authorization</button><button className={actionButton} disabled={authorizationAction === existing.authorization_id} onClick={() => void decideAuthorization(existing.authorization_id, 'REJECTED')}>Reject authorization</button></>}</div>}{existing.authorization_status === 'APPROVED' && <p className="mt-2 text-xs text-emerald-300">Authorization is live. This gate still does not execute or transmit a grant submission.</p>}</div>}</div>;
+            })}
+            {submissionReadiness.filter((row) => row.submission_status === 'SUBMISSION_READY').length === 0 && <p className="text-sm text-slate-500">No workflows are eligible to request submission authorization.</p>}
+          </div>
+        </section>
         <section className="grid gap-6 lg:grid-cols-2">
           <div className={card}>
             <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold">GrantAssist / RIPE pipeline</h2><span className="text-xs text-slate-500">{grants.length} workflows</span></div>
