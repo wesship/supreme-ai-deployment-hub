@@ -52,6 +52,11 @@ jobs:
       - name: Run canonical D3VONN release gate
         env:
           VITE_API_URL: https://api.d3vonn.io
+          # The release gate validates the application without calling Supabase.
+          # These are intentionally non-secret, structurally valid CI defaults for
+          # the frontend's mandatory public configuration contract.
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-public-placeholder
           VITE_ENVIRONMENT: production
           REQUIRE_AUTH: "false"
           ALLOW_DEV_ADMIN_BYPASS: "false"
