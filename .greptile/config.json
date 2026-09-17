@@ -3,49 +3,117 @@
     {
       "id": "no-secret-exposure",
       "rule": "Never introduce, log, commit, echo, serialize, or expose credentials, API keys, access tokens, private keys, cookies, service-role secrets, or production environment values. Secret placeholders and variable names are allowed; real secret values are not.",
-      "scope": ["**/*"],
+      "scope": [
+        "**/*"
+      ],
       "severity": "high"
     },
     {
       "id": "auth-boundary-preservation",
       "rule": "Changes to authentication, authorization, admin routes, service-to-service trust, JWT/OAuth handling, or permission checks must preserve fail-closed behavior and must not weaken an existing access-control boundary without explicit security justification and tests.",
-      "scope": ["backend/**", "src/**", "api/**", "supabase/functions/**", "kernel-gateway/**", "deployment/**", "deploy/**", "**/*auth*", "**/*security*"],
+      "scope": [
+        "backend/**",
+        "src/**",
+        "api/**",
+        "supabase/functions/**",
+        "kernel-gateway/**",
+        "deployment/**",
+        "deploy/**",
+        "**/*auth*",
+        "**/*security*"
+      ],
       "severity": "high"
     },
     {
       "id": "migration-governance",
       "rule": "Database migrations must be additive or explicitly safe, preserve production data, avoid destructive or irreversible operations without a documented rollback/repair path, and must not bypass the repository's governed preview/apply process.",
-      "scope": ["supabase/migrations/**", "**/migrations/**"],
+      "scope": [
+        "supabase/migrations/**",
+        "**/migrations/**"
+      ],
       "severity": "high"
     },
     {
       "id": "protected-production-gates",
       "rule": "Do not bypass, weaken, remove, or silently short-circuit protected production approvals, environment gates, CodeQL/security checks, dependency checks, deployment verification, or required CI status checks.",
-      "scope": [".github/workflows/**", ".github/**", "scripts/**", "deploy/**", "deployment/**", "infra/**", "infrastructure/**", "terraform/**", "gitops/**", "k8s/**", "helm-values/**", "policy/**", "vercel.json", "railway.json", "Dockerfile*", "docker-compose*.yml", "docker-compose*.yaml"],
+      "scope": [
+        ".github/workflows/**",
+        ".github/**",
+        "scripts/**",
+        "deploy/**",
+        "deployment/**",
+        "infra/**",
+        "infrastructure/**",
+        "terraform/**",
+        "gitops/**",
+        "k8s/**",
+        "helm-values/**",
+        "policy/**",
+        "vercel.json",
+        "railway.json",
+        "Dockerfile*",
+        "docker-compose*.yml",
+        "docker-compose*.yaml"
+      ],
       "severity": "high"
     },
     {
       "id": "public-api-contracts",
       "rule": "Changes to public or cross-service API contracts must preserve backward compatibility unless the pull request explicitly documents a breaking change and updates all known callers, validation, and tests.",
-      "scope": ["backend/**", "src/**", "api/**", "sdk/**", "supabase/functions/**", "kernel-gateway/**", "deployment/**"],
+      "scope": [
+        "backend/**",
+        "src/**",
+        "api/**",
+        "sdk/**",
+        "supabase/functions/**",
+        "kernel-gateway/**",
+        "deployment/**",
+        "services/**"
+      ],
       "severity": "high"
     },
     {
       "id": "moneyhub-financial-safety",
       "rule": "MoneyHub, trading, liquidity, billing, payment, or accounting changes must not execute irreversible financial actions by default. Require explicit authorization boundaries, idempotency where applicable, auditability, and safe failure behavior.",
-      "scope": ["**/*moneyhub*", "**/*billing*", "**/*payment*", "**/*trade*", "**/*liquidity*", "**/*accounting*"],
+      "scope": [
+        "**/*moneyhub*",
+        "**/*billing*",
+        "**/*payment*",
+        "**/*trade*",
+        "**/*liquidity*",
+        "**/*accounting*"
+      ],
       "severity": "high"
     },
     {
       "id": "agent-action-governance",
       "rule": "Agent-orchestrated actions that mutate production systems, external services, user data, deployments, or infrastructure must have an explicit authorization boundary and must not silently escalate from read-only analysis to mutation.",
-      "scope": ["backend/**", "src/**", "agents/**", "hermes/**", "kernel-gateway/**", "supabase/functions/**", "scripts/**"],
+      "scope": [
+        "backend/**",
+        "src/**",
+        "agents/**",
+        "hermes/**",
+        "kernel-gateway/**",
+        "supabase/functions/**",
+        "scripts/**",
+        "edge/**"
+      ],
       "severity": "high"
     },
     {
       "id": "tests-for-behavior-change",
       "rule": "Material behavior changes should include or update focused tests. Flag changes that alter business logic, security behavior, API contracts, migration behavior, or orchestration without a credible validation path.",
-      "scope": ["backend/**", "src/**", "api/**", "sdk/**", "supabase/functions/**", "kernel-gateway/**", "deployment/**"],
+      "scope": [
+        "backend/**",
+        "src/**",
+        "api/**",
+        "sdk/**",
+        "supabase/functions/**",
+        "kernel-gateway/**",
+        "deployment/**",
+        "services/**",
+        "edge/**"
+      ],
       "severity": "medium"
     }
   ]
