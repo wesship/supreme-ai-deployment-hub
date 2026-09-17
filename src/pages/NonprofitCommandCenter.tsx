@@ -10,6 +10,7 @@ import {
   type NonprofitGrantPipelineRow,
   type NonprofitOrgSummary,
   type NonprofitProgramSummary,
+  type NonprofitSubmissionReadinessRow,
 } from '@/lib/nonprofitCommandCenterApi';
 
 const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-lg shadow-black/20';
@@ -35,6 +36,7 @@ export default function NonprofitCommandCenter() {
   const [approvalSteps, setApprovalSteps] = useState<NonprofitApprovalStepRow[]>([]);
   const [alerts, setAlerts] = useState<NonprofitComplianceAlert[]>([]);
   const [attachmentCompliance, setAttachmentCompliance] = useState<NonprofitAttachmentComplianceRow[]>([]);
+  const [submissionReadiness, setSubmissionReadiness] = useState<NonprofitSubmissionReadinessRow[]>([]);
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingStep, setSubmittingStep] = useState('');
@@ -53,6 +55,7 @@ export default function NonprofitCommandCenter() {
       setApprovalSteps(result.approvalSteps);
       setAlerts(result.alerts);
       setAttachmentCompliance(result.attachmentCompliance);
+      setSubmissionReadiness(result.submissionReadiness);
       setAudit(result.audit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load nonprofit command center');
@@ -83,6 +86,8 @@ export default function NonprofitCommandCenter() {
   const redAlerts = useMemo(() => alerts.filter((row) => row.decision === 'RED').length, [alerts]);
   const attachmentBlockers = useMemo(() => attachmentCompliance.filter((row) => row.hard_blocker).length, [attachmentCompliance]);
   const attachmentValid = useMemo(() => attachmentCompliance.filter((row) => row.validation_status === 'VALID').length, [attachmentCompliance]);
+  const submissionReady = useMemo(() => submissionReadiness.filter((row) => row.submission_status === 'SUBMISSION_READY').length, [submissionReadiness]);
+  const submissionBlocked = useMemo(() => submissionReadiness.filter((row) => row.hard_blocker).length, [submissionReadiness]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -91,7 +96,7 @@ export default function NonprofitCommandCenter() {
           <div>
             <div className="mb-2 flex items-center gap-2 text-cyan-300"><ShieldCheck className="h-5 w-5" /><span className="text-sm font-semibold uppercase tracking-[0.2em]">D3VONN Nonprofit OS</span></div>
             <h1 className="text-3xl font-semibold tracking-tight">Nonprofit Command Center</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-400">Role-scoped operating view for legal status, programs, GrantAssist/RIPE, approvals, attachment compliance and audit evidence. Truth Vault and sensitive finance records remain outside this surface.</p>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">Role-scoped operating view for legal status, programs, GrantAssist/RIPE, approvals, attachment compliance, final submission readiness and audit evidence. Truth Vault and sensitive finance records remain outside this surface.</p>
           </div>
           <button onClick={() => void refresh()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold hover:border-cyan-400 disabled:opacity-50">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
@@ -101,12 +106,21 @@ export default function NonprofitCommandCenter() {
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
-          <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked program records</p></div>
-          <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE pipeline</p></div>
-          <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Attachments</p><p className="mt-2 text-3xl font-semibold">{attachmentBlockers}</p><p className="mt-2 text-sm text-slate-400">hard submission blockers</p></div>
+          <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked records</p></div>
+          <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE</p></div>
+          <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Attachments</p><p className="mt-2 text-3xl font-semibold">{attachmentBlockers}</p><p className="mt-2 text-sm text-slate-400">hard blockers</p></div>
+          <div className={card}><BadgeCheck className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Submission ready</p><p className="mt-2 text-3xl font-semibold">{submissionReady}</p><p className="mt-2 text-sm text-slate-400">{submissionBlocked} blocked</p></div>
           <div className={card}><AlertTriangle className="mb-3 h-5 w-5 text-amber-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Compliance</p><p className="mt-2 text-3xl font-semibold">{redAlerts}</p><p className="mt-2 text-sm text-slate-400">RED policy blocks</p></div>
+        </section>
+
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Final application QA + submission readiness</h2><p className="mt-1 text-sm text-slate-400">One deterministic verdict across deadline, eligibility/go-no-go, readiness score, attachments, approvals and policy. This view does not submit anything.</p></div><span className={`${badge} ${submissionBlocked > 0 ? decisionClass('BLOCKED') : decisionClass('GREEN')}`}>{submissionBlocked > 0 ? 'BLOCKERS PRESENT' : 'NO HARD BLOCKERS'}</span></div>
+          <div className="space-y-3">
+            {submissionReadiness.length === 0 && <p className="text-sm text-slate-500">No visible grant workflows have a final readiness evaluation.</p>}
+            {submissionReadiness.map((row) => <div key={row.workflow_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{row.title}</p><p className="text-sm text-slate-400">{row.funder_name} · deadline {row.deadline || 'not set'}</p></div><span className={`${badge} ${decisionClass(row.submission_status)}`}>{row.submission_status.replaceAll('_', ' ')}</span></div><div className="mt-3 grid gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6"><div><p className="text-slate-500">Readiness</p><p>{row.readiness_score ?? '—'}%</p></div><div><p className="text-slate-500">Go/No-Go</p><p>{row.go_no_go || '—'}</p></div><div><p className="text-slate-500">Attachments</p><p>{row.valid_attachments}/{row.attachment_requirements}</p></div><div><p className="text-slate-500">Attachment blocks</p><p>{row.attachment_blockers}</p></div><div><p className="text-slate-500">Pending approvals</p><p>{row.pending_approvals}</p></div><div><p className="text-slate-500">RED policy</p><p>{row.red_policy_blocks}</p></div></div>{Object.keys(row.blocker_reasons || {}).length > 0 && <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-400">Blocker reasons: {Object.entries(row.blocker_reasons).map(([key, value]) => `${key}=${value}`).join(' · ')}</div>}</div>)}
+          </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
