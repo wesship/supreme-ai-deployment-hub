@@ -8,6 +8,7 @@ const attachmentMigration = readFileSync('supabase/migrations/20260917112000_gat
 const readinessMigration = readFileSync('supabase/migrations/20260917114500_gate22_nonprofit_final_submission_readiness.sql', 'utf8');
 const authorizationMigration = readFileSync('supabase/migrations/20260917171500_gate23_nonprofit_submission_authorization.sql', 'utf8');
 const previewMigration = readFileSync('supabase/migrations/20260918043000_gate24_nonprofit_submission_preview.sql', 'utf8');
+const certificationMigration = readFileSync('supabase/migrations/20260918050000_gate25_nonprofit_preview_certification.sql', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -27,6 +28,7 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_submission_readiness_v1');
     expect(api).toContain('nonprofit_submission_authorizations_v1');
     expect(api).toContain('nonprofit_submission_previews_v1');
+    expect(api).toContain('nonprofit_submission_preview_certifications_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -164,5 +166,48 @@ describe('Gate 24 controlled submission connector dry-run preview', () => {
     expect(page).toContain('Controlled submission preview');
     expect(page).toContain('Generate dry-run preview');
     expect(page).toContain('Payload hash');
+  });
+});
+
+
+describe('Gate 25 preview certification and payload freeze', () => {
+  it('binds certification to the exact expected SHA-256 payload hash', () => {
+    expect(certificationMigration).toContain('p_expected_payload_hash');
+    expect(certificationMigration).toContain('EXPECTED_PAYLOAD_HASH_MISMATCH');
+    expect(certificationMigration).toContain('certified_payload_hash');
+    expect(certificationMigration).toContain('frozen_payload');
+    expect(certificationMigration).toContain('frozen_attachment_manifest');
+  });
+
+  it('recomputes the current package fingerprint and invalidates changed state', () => {
+    expect(certificationMigration).toContain('nonprofit_submission_preview_fingerprints_v1');
+    expect(certificationMigration).toContain('current_payload_hash');
+    expect(certificationMigration).toContain('package_unchanged');
+    expect(certificationMigration).toContain('INVALID_PACKAGE_CHANGED');
+    expect(certificationMigration).toContain('INVALID_READINESS_CHANGED');
+    expect(certificationMigration).toContain('INVALID_AUTHORIZATION_EXPIRED');
+  });
+
+  it('requires AAL2, can_approve authority, and separation of duties', () => {
+    expect(certificationMigration).toContain('MFA_AAL2_REQUIRED');
+    expect(certificationMigration).toContain('can_approve');
+    expect(certificationMigration).toContain('SEPARATION_OF_DUTIES_REQUIRED');
+  });
+
+  it('keeps certification immutable and adds no external transmission path', () => {
+    expect(certificationMigration).toContain('revoke insert, update, delete on nonprofit.submission_preview_certifications from authenticated');
+    expect(certificationMigration).not.toContain('http_request');
+    expect(certificationMigration).not.toContain('net.http');
+    expect(page).toContain('Preview certification + payload freeze');
+    expect(page).toContain('Certify exact payload hash');
+    expect(page).toContain('Hash still matches:');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires certification RPC and view into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_certify_submission_preview'");
+    expect(api).toContain('nonprofit_submission_preview_certifications_v1');
+    expect(page).toContain('Certified freezes');
+    expect(page).toContain('Package unchanged:');
   });
 });
