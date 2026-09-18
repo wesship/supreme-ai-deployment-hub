@@ -75,58 +75,67 @@ def _assembly_input(jobs: list[Mapping[str, Any]]) -> dict[str, Any]:
 
 
 async def _next_ready_group(db: SupabaseAssemblyClient) -> list[dict[str, Any]] | None:
-    candidates = await db._request(
-        "GET",
-        "ai_film_render_jobs",
-        params={
-            "job_type": "eq.video",
-            "provider": "in.(pollo,replicate)",
-            "status": "eq.completed",
-            "select": "*",
-            "order": "completed_at.asc",
-            "limit": "50",
-        },
-    )
-    for candidate in candidates:
-        group_id = _group_id(candidate)
-        if not group_id or _qa_state(candidate) != "passed":
-            continue
-        project_id = str(candidate.get("project_id") or "")
-        project_jobs = await db._request(
+    page_size = 50
+    offset = 0
+    while offset < 1000:
+        candidates = await db._request(
             "GET",
             "ai_film_render_jobs",
             params={
-                "project_id": f"eq.{project_id}",
                 "job_type": "eq.video",
+                "provider": "in.(pollo,replicate)",
+                "status": "eq.completed",
                 "select": "*",
-                "order": "created_at.asc",
-                "limit": "20",
+                "order": "completed_at.asc",
+                "limit": str(page_size),
+                "offset": str(offset),
             },
         )
-        group = [row for row in project_jobs if _group_id(row) == group_id]
-        expected = max(
-            [int((row.get("input") or {}).get("openmontage_shot_count") or 1) for row in group] or [1]
-        )
-        if expected <= 1 or len(group) != expected:
-            continue
-        if any(str(row.get("status") or "") != "completed" or _qa_state(row) != "passed" for row in group):
-            continue
-        if any(not str((row.get("output") or {}).get("generated_asset_id") or "") for row in group):
-            continue
+        if not candidates:
+            return None
+        for candidate in candidates:
+            group_id = _group_id(candidate)
+            if not group_id or _qa_state(candidate) != "passed":
+                continue
+            project_id = str(candidate.get("project_id") or "")
+            project_jobs = await db._request(
+                "GET",
+                "ai_film_render_jobs",
+                params={
+                    "project_id": f"eq.{project_id}",
+                    "job_type": "eq.video",
+                    "select": "*",
+                    "order": "created_at.asc",
+                    "limit": "20",
+                },
+            )
+            group = [row for row in project_jobs if _group_id(row) == group_id]
+            expected = max(
+                [int((row.get("input") or {}).get("openmontage_shot_count") or 1) for row in group] or [1]
+            )
+            if expected <= 1 or len(group) != expected:
+                continue
+            if any(str(row.get("status") or "") != "completed" or _qa_state(row) != "passed" for row in group):
+                continue
+            if any(not str((row.get("output") or {}).get("generated_asset_id") or "") for row in group):
+                continue
 
-        assemblies = await db._request(
-            "GET",
-            "ai_film_render_jobs",
-            params={
-                "project_id": f"eq.{project_id}",
-                "job_type": "eq.assembly",
-                "select": "id,input,status",
-                "limit": "20",
-            },
-        )
-        if any(str((row.get("input") or {}).get("openmontage_job_id") or "") == group_id for row in assemblies):
-            continue
-        return group
+            assemblies = await db._request(
+                "GET",
+                "ai_film_render_jobs",
+                params={
+                    "project_id": f"eq.{project_id}",
+                    "job_type": "eq.assembly",
+                    "select": "id,input,status",
+                    "limit": "20",
+                },
+            )
+            if any(str((row.get("input") or {}).get("openmontage_job_id") or "") == group_id for row in assemblies):
+                continue
+            return group
+        if len(candidates) < page_size:
+            return None
+        offset += page_size
     return None
 
 
