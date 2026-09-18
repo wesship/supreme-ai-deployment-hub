@@ -95,7 +95,10 @@ def _segment_prompt(base_prompt: str, index: int, total: int) -> str:
         guidance = "Final segment: deliver proof, brand lockup, and the exact approved call to action."
     else:
         guidance = f"Segment {index + 1}: continue the approved narrative and product demonstration."
-    return f"{base_prompt}\n\nOpenMontage multishot direction: {guidance}"[:12000]
+    direction = f"OpenMontage multishot direction: {guidance}"
+    # Put segment intent first so the Pollo prompt budget cannot truncate it.
+    budget = max(0, 12000 - len(direction) - 2)
+    return f"{direction}\n\n{base_prompt[:budget]}"
 
 
 def _production_bible(title: str, screenplay: str) -> dict[str, Any]:
@@ -129,7 +132,7 @@ async def _select_owned_render_job(access_token: str, job_id: str) -> tuple[dict
             response = await client.get(
                 f"{base_url}/rest/v1/ai_film_render_jobs",
                 headers=headers,
-                params={"id": f"eq.{job_id}", "select": "id,project_id,provider,status,output,error_message" , "limit": "1"},
+                params={"id": f"eq.{job_id}", "select": "id,project_id,provider,status,input,output,error_message" , "limit": "1"},
             )
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="OpenMontage status service is unavailable") from exc
@@ -139,6 +142,53 @@ async def _select_owned_render_job(access_token: str, job_id: str) -> tuple[dict
     if not isinstance(rows, list) or not rows:
         raise HTTPException(status_code=404, detail="OpenMontage render job was not found")
     return rows[0], base_url
+
+
+async def _select_openmontage_group_jobs(
+    access_token: str,
+    base_url: str,
+    job: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    payload = job.get("input") if isinstance(job.get("input"), dict) else {}
+    group_id = str(payload.get("openmontage_job_id") or "").strip()
+    expected = int(payload.get("openmontage_shot_count") or 1)
+    if not group_id or expected <= 1:
+        return [dict(job)]
+
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    headers = {"apikey": anon_key, "Authorization": f"Bearer {access_token}"}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                f"{base_url}/rest/v1/ai_film_render_jobs",
+                headers=headers,
+                params={
+                    "project_id": f"eq.{job['project_id']}",
+                    "select": "id,project_id,job_type,provider,status,input,output,error_message,created_at",
+                    "order": "created_at.asc",
+                    "limit": "100",
+                },
+            )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail="OpenMontage aggregate status is unavailable") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail="OpenMontage aggregate status lookup failed")
+    rows = response.json()
+    if not isinstance(rows, list):
+        return [dict(job)]
+    grouped: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        row_input = row.get("input") if isinstance(row.get("input"), dict) else {}
+        if str(row_input.get("openmontage_job_id") or "").strip() == group_id:
+            grouped.append(row)
+    return grouped or [dict(job)]
+
+
+def _qa_state_from_output(output: Mapping[str, Any]) -> str:
+    qa = output.get("qa") if isinstance(output.get("qa"), dict) else {}
+    return str(qa.get("state") or "").strip().lower()
 
 
 @router.post("/dispatch", status_code=status.HTTP_202_ACCEPTED)
@@ -353,32 +403,75 @@ async def get_openmontage_job(
 ) -> OpenMontageStatusResponse:
     """Return owner-authorized render state and a short-lived playback URL when available."""
     token = _bearer_token(authorization)
-    job, _ = await _select_owned_render_job(token, render_job_id)
-    output = job.get("output") if isinstance(job.get("output"), dict) else {}
+    job, base_url = await _select_owned_render_job(token, render_job_id)
+    group = await _select_openmontage_group_jobs(token, base_url, job)
+    videos = [row for row in group if str(row.get("job_type") or "video") == "video"]
+    assemblies = [row for row in group if str(row.get("job_type") or "") == "assembly"]
+    assembly = assemblies[-1] if assemblies else None
+
+    selected = assembly or job
+    output = selected.get("output") if isinstance(selected.get("output"), dict) else {}
     qa = output.get("qa") if isinstance(output.get("qa"), dict) else {}
-    raw_status = str(job.get("status") or "queued")
     qa_state = str(qa.get("state") or "") or None
     provider_job_id = str(output.get("provider_job_id") or "") or None
     video_url: str | None = None
-    error = str(job.get("error_message") or "") or None
+    error = str(selected.get("error_message") or "") or None
 
-    if raw_status in {"failed", "cancelled", "blocked"}:
-        pipeline_status = "failed"
-        stages = _stages("render", failed=True)
-    elif raw_status in {"queued", "running", "processing"}:
-        pipeline_status = "render"
-        stages = _stages("render")
-    elif qa_state in {"pending_generated_qa", "in_progress"}:
-        pipeline_status = "review"
-        stages = _stages("review")
-    elif qa_state in {"revise", "block", "failed"}:
-        pipeline_status = "review"
-        stages = _stages("review", failed=qa_state == "failed")
+    if assembly is not None:
+        raw_status = str(assembly.get("status") or "queued")
+        if raw_status in {"failed", "cancelled", "blocked"}:
+            pipeline_status = "failed"
+            stages = _stages("render", failed=True)
+        elif raw_status in {"queued", "running", "processing"}:
+            pipeline_status = "render"
+            stages = _stages("render")
+        elif qa_state in {"pending_post_render_qa", "in_progress"}:
+            pipeline_status = "review"
+            stages = _stages("review")
+        elif qa_state == "failed":
+            pipeline_status = "review"
+            stages = _stages("review", failed=True)
+        elif qa_state == "passed":
+            pipeline_status = "completed"
+            stages = _stages("publish", terminal=True)
+        else:
+            pipeline_status = "review"
+            stages = _stages("review")
     else:
-        pipeline_status = "completed"
-        stages = _stages("publish", terminal=True)
+        terminal_segment = next(
+            (
+                row
+                for row in videos
+                if str(row.get("status") or "") in {"failed", "cancelled", "blocked"}
+            ),
+            None,
+        )
+        segment_qa_states = {
+            _qa_state_from_output(row.get("output") if isinstance(row.get("output"), dict) else {})
+            for row in videos
+        }
+        if terminal_segment is not None:
+            pipeline_status = "failed"
+            stages = _stages("render", failed=True)
+            error = str(terminal_segment.get("error_message") or "") or error
+        elif any(str(row.get("status") or "") in {"queued", "running", "processing"} for row in videos):
+            pipeline_status = "render"
+            stages = _stages("render")
+        elif segment_qa_states & {"revise", "block", "failed"}:
+            pipeline_status = "review"
+            stages = _stages("review", failed="failed" in segment_qa_states)
+            qa_state = "failed" if "failed" in segment_qa_states else "revise"
+        elif videos and all(_qa_state_from_output(row.get("output") or {}) == "passed" for row in videos):
+            # All segments passed; the coordinator will queue the aggregate master next.
+            pipeline_status = "render"
+            stages = _stages("render")
+            qa_state = "passed"
+        else:
+            pipeline_status = "review"
+            stages = _stages("review")
 
-    object_path = str(output.get("object_path") or "")
+    # Multishot requests expose playback only from the assembled master.
+    object_path = str(output.get("object_path") or "") if assembly is not None or len(videos) <= 1 else ""
     if object_path:
         try:
             video_url = await _sign_master(SupabaseAssemblyClient(), object_path, expires_in=900)
@@ -388,7 +481,7 @@ async def get_openmontage_job(
     return OpenMontageStatusResponse(
         render_job_id=str(job["id"]),
         project_id=str(job["project_id"]),
-        provider=str(job.get("provider") or "pollo"),
+        provider=str(selected.get("provider") or job.get("provider") or "pollo"),
         provider_job_id=provider_job_id,
         status=pipeline_status,
         stages=stages,
