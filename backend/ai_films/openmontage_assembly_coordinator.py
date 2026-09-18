@@ -107,7 +107,7 @@ async def _next_ready_group(db: SupabaseAssemblyClient) -> list[dict[str, Any]] 
         expected = max(
             [int((row.get("input") or {}).get("openmontage_shot_count") or 1) for row in group] or [1]
         )
-        if len(group) != expected:
+        if expected <= 1 or len(group) != expected:
             continue
         if any(str(row.get("status") or "") != "completed" or _qa_state(row) != "passed" for row in group):
             continue
