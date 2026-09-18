@@ -204,6 +204,31 @@ export type NonprofitSubmissionPreviewRow = {
   external_transmission_performed: false;
 };
 
+export type NonprofitSubmissionPreviewCertificationRow = {
+  certification_id: string;
+  organization_id: string;
+  workflow_id: string;
+  preview_id: string;
+  authorization_id: string;
+  connector_kind: 'MANUAL_PACKAGE' | 'GRANTS_GOV_PREVIEW' | 'FUNDER_PORTAL_PREVIEW';
+  preview_payload_hash: string;
+  current_payload_hash: string;
+  certified_payload_hash: string;
+  certified_by: string;
+  certified_at: string;
+  expires_at: string;
+  certification_notes: string | null;
+  authorization_still_live: boolean;
+  readiness_still_valid: boolean;
+  package_unchanged: boolean;
+  hash_still_matches: boolean;
+  certification_status: string;
+  certification_valid: boolean;
+  frozen_payload: Record<string, unknown>;
+  frozen_attachment_manifest: unknown[];
+  frozen_readiness_snapshot: Record<string, unknown>;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -221,7 +246,7 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
@@ -232,9 +257,20 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitSubmissionReadinessRow>('nonprofit_submission_readiness_v1'),
       listView<NonprofitSubmissionAuthorizationRow>('nonprofit_submission_authorizations_v1'),
       listView<NonprofitSubmissionPreviewRow>('nonprofit_submission_previews_v1'),
+      listView<NonprofitSubmissionPreviewCertificationRow>('nonprofit_submission_preview_certifications_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, audit };
+  },
+
+  async certifySubmissionPreview(previewId: string, expectedPayloadHash: string, notes?: string) {
+    const { data, error } = await (supabase as any).rpc('nonprofit_certify_submission_preview', {
+      p_preview_id: previewId,
+      p_expected_payload_hash: expectedPayloadHash,
+      p_notes: notes ?? null,
+    });
+    if (error) throw error;
+    return data;
   },
 
   async generateSubmissionPreview(workflowId: string, connectorKind: 'MANUAL_PACKAGE' | 'GRANTS_GOV_PREVIEW' | 'FUNDER_PORTAL_PREVIEW' = 'MANUAL_PACKAGE') {
