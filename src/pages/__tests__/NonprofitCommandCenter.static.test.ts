@@ -10,6 +10,8 @@ const authorizationMigration = readFileSync('supabase/migrations/20260917171500_
 const previewMigration = readFileSync('supabase/migrations/20260918043000_gate24_nonprofit_submission_preview.sql', 'utf8');
 const certificationMigration = readFileSync('supabase/migrations/20260918050000_gate25_nonprofit_preview_certification.sql', 'utf8');
 const canaryMigration = readFileSync('supabase/migrations/20260918054500_gate26_nonprofit_transmission_canary.sql', 'utf8');
+const externalSandboxMigration = readFileSync('supabase/migrations/20260918062000_gate27_nonprofit_external_sandbox_connector.sql', 'utf8');
+const externalSandboxFunction = readFileSync('supabase/functions/nonprofit-submission-sandbox/index.ts', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -31,6 +33,7 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_submission_previews_v1');
     expect(api).toContain('nonprofit_submission_preview_certifications_v1');
     expect(api).toContain('nonprofit_submission_canaries_v1');
+    expect(api).toContain('nonprofit_external_sandbox_transmissions_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -249,5 +252,47 @@ describe('Gate 26 certified payload transmission canary', () => {
     expect(page).toContain('Received hash:');
     expect(page).toContain('NON-PROD / NO NETWORK');
     expect(page).not.toContain('Submit application');
+  });
+});
+
+
+describe('Gate 27 external sandbox connector certification', () => {
+  it('requires a passed Gate 26 canary and current valid certification', () => {
+    expect(externalSandboxMigration).toContain('PASSED_INTERNAL_CANARY_REQUIRED');
+    expect(externalSandboxMigration).toContain('VALID_CERTIFICATION_REQUIRED');
+    expect(externalSandboxMigration).toContain('CERTIFIED_HASH_NO_LONGER_CURRENT');
+  });
+
+  it('enforces TLS, exact host allowlisting, and explicit production-domain blocking', () => {
+    expect(externalSandboxFunction).toContain('HTTPS_REQUIRED');
+    expect(externalSandboxFunction).toContain('SANDBOX_HOST_NOT_ALLOWLISTED');
+    expect(externalSandboxFunction).toContain('PRODUCTION_DOMAIN_BLOCKED');
+    expect(externalSandboxFunction).toContain('NON_PRODUCTION_HOST_MARKER_REQUIRED');
+    expect(externalSandboxFunction).toContain('grants.gov');
+    expect(externalSandboxFunction).toContain('sam.gov');
+  });
+
+  it('uses idempotency and requires a matching sandbox receipt hash', () => {
+    expect(externalSandboxMigration).toContain('idempotency_key text not null unique');
+    expect(externalSandboxFunction).toContain('Idempotency-Key');
+    expect(externalSandboxFunction).toContain('X-GrantAssist-Payload-SHA256');
+    expect(externalSandboxFunction).toContain('x-grantassist-received-sha256');
+    expect(externalSandboxFunction).toContain('hash_verified');
+  });
+
+  it('never marks the destination as production', () => {
+    expect(externalSandboxMigration).toContain('check (production_destination = false)');
+    expect(externalSandboxFunction).toContain('production_destination: false');
+    expect(page).toContain('External sandbox connector certification');
+    expect(page).toContain('Run external sandbox connector');
+    expect(page).toContain('Gate 26 internal canary must pass first.');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires the edge function and receipt view into the command center', () => {
+    expect(api).toContain("supabase.functions.invoke('nonprofit-submission-sandbox'");
+    expect(api).toContain('nonprofit_external_sandbox_transmissions_v1');
+    expect(page).toContain('External sandbox');
+    expect(page).toContain('allowlisted receipts');
   });
 });
