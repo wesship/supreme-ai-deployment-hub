@@ -61,6 +61,10 @@ declare
   v_readiness jsonb;
   v_hash text;
   v_preview_id uuid;
+  v_event_id uuid := gen_random_uuid();
+  v_event_at timestamptz := now();
+  v_prev_hash text;
+  v_event_hash text;
 begin
   if v_user is null then
     raise exception 'AUTH_REQUIRED' using errcode = '28000';
@@ -184,6 +188,37 @@ begin
         authorization_id = excluded.authorization_id,
         authorization_expires_at = excluded.authorization_expires_at
   returning id into v_preview_id;
+
+  select ae.event_hash into v_prev_hash
+  from nonprofit_security.audit_events ae
+  where ae.organization_id = v_ready.organization_id
+  order by ae.event_at desc, ae.id desc
+  limit 1;
+
+  v_event_hash := encode(extensions.digest(
+    concat_ws('|',
+      coalesce(v_prev_hash,''),
+      v_event_id::text,
+      v_ready.organization_id::text,
+      v_event_at::text,
+      'USER',
+      v_user::text,
+      'SUBMISSION_PREVIEW_GENERATED',
+      v_preview_id::text,
+      v_hash,
+      p_connector_kind
+    )::bytea,
+    'sha256'
+  ), 'hex');
+
+  insert into nonprofit_security.audit_events (
+    id, organization_id, event_at, actor_type, actor_id, event_type,
+    resource_type, resource_id, action, result, previous_event_hash, event_hash
+  ) values (
+    v_event_id, v_ready.organization_id, v_event_at, 'USER', v_user,
+    'SUBMISSION_PREVIEW_GENERATED', 'submission_preview', v_preview_id,
+    'DRY_RUN', v_hash, v_prev_hash, v_event_hash
+  );
 
   return query select v_preview_id, v_hash, 'PREVIEW'::text, v_auth.expires_at;
 end;
