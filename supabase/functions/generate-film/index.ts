@@ -254,12 +254,15 @@ Deno.serve(async (request) => {
         version: '2.0.0',
         projectId: dispatchPayload.project_id,
         renderJobId: dispatchPayload.render_job_id,
+        renderJobIds: dispatchPayload.render_job_ids || [dispatchPayload.render_job_id],
+        providerRoute: dispatchPayload.provider_route || ['pollo', 'replicate'],
       },
     });
 
     return json({
       jobId,
       renderJobId: dispatchPayload.render_job_id,
+      renderJobIds: dispatchPayload.render_job_ids || [dispatchPayload.render_job_id],
       projectId: dispatchPayload.project_id,
       prompt: videoPrompt,
       provider: dispatchPayload.provider || 'pollo',
