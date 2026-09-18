@@ -9,6 +9,7 @@ const readinessMigration = readFileSync('supabase/migrations/20260917114500_gate
 const authorizationMigration = readFileSync('supabase/migrations/20260917171500_gate23_nonprofit_submission_authorization.sql', 'utf8');
 const previewMigration = readFileSync('supabase/migrations/20260918043000_gate24_nonprofit_submission_preview.sql', 'utf8');
 const certificationMigration = readFileSync('supabase/migrations/20260918050000_gate25_nonprofit_preview_certification.sql', 'utf8');
+const canaryMigration = readFileSync('supabase/migrations/20260918054500_gate26_nonprofit_transmission_canary.sql', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -29,6 +30,7 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_submission_authorizations_v1');
     expect(api).toContain('nonprofit_submission_previews_v1');
     expect(api).toContain('nonprofit_submission_preview_certifications_v1');
+    expect(api).toContain('nonprofit_submission_canaries_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -209,5 +211,43 @@ describe('Gate 25 preview certification and payload freeze', () => {
     expect(api).toContain('nonprofit_submission_preview_certifications_v1');
     expect(page).toContain('Certified freezes');
     expect(page).toContain('Package unchanged:');
+  });
+});
+
+
+describe('Gate 26 certified payload transmission canary', () => {
+  it('requires a valid frozen certification and current exact hash', () => {
+    expect(canaryMigration).toContain('VALID_CERTIFICATION_REQUIRED');
+    expect(canaryMigration).toContain('CERTIFIED_HASH_NO_LONGER_CURRENT');
+    expect(canaryMigration).toContain('certified_payload_hash <> v_cert.current_payload_hash');
+    expect(canaryMigration).toContain('hash_still_matches');
+    expect(canaryMigration).toContain('package_unchanged');
+  });
+
+  it('requires AAL2, approval authority, and separation of duties', () => {
+    expect(canaryMigration).toContain('MFA_AAL2_REQUIRED');
+    expect(canaryMigration).toContain('can_approve');
+    expect(canaryMigration).toContain('SEPARATION_OF_DUTIES_REQUIRED');
+  });
+
+  it('crosses only the internal sandbox boundary and verifies the received hash', () => {
+    expect(canaryMigration).toContain("'INTERNAL_SANDBOX_CANARY'");
+    expect(canaryMigration).toContain('external_network_performed boolean not null default false');
+    expect(canaryMigration).toContain('production_destination boolean not null default false');
+    expect(canaryMigration).toContain('v_received_hash');
+    expect(canaryMigration).toContain('CANARY_HASH_MISMATCH');
+    expect(canaryMigration).toContain("'HASH_VERIFIED'");
+    expect(canaryMigration).not.toContain('http_request');
+    expect(canaryMigration).not.toContain('net.http');
+  });
+
+  it('wires the sandbox canary and receipt evidence into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_run_submission_canary'");
+    expect(api).toContain('nonprofit_submission_canaries_v1');
+    expect(page).toContain('Certified payload transmission canary');
+    expect(page).toContain('Run sandbox canary');
+    expect(page).toContain('Received hash:');
+    expect(page).toContain('NON-PROD / NO NETWORK');
+    expect(page).not.toContain('Submit application');
   });
 });
