@@ -252,6 +252,29 @@ export type NonprofitSubmissionCanaryRow = {
   canary_passed: boolean;
 };
 
+export type NonprofitExternalSandboxTransmissionRow = {
+  transmission_id: string;
+  organization_id: string;
+  workflow_id: string;
+  certification_id: string;
+  preview_id: string;
+  connector_kind: 'MANUAL_PACKAGE' | 'GRANTS_GOV_PREVIEW' | 'FUNDER_PORTAL_PREVIEW';
+  payload_hash: string;
+  idempotency_key: string;
+  requested_by: string;
+  requested_at: string;
+  endpoint_host: string | null;
+  request_status: 'REQUESTED' | 'SENT' | 'ACKNOWLEDGED' | 'FAILED' | 'BLOCKED';
+  response_status: number | null;
+  response_body_hash: string | null;
+  response_receipt: Record<string, unknown> | null;
+  completed_at: string | null;
+  production_destination: false;
+  certification_status: string;
+  certification_valid: boolean;
+  sandbox_connector_certified: boolean;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -269,7 +292,7 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
@@ -282,9 +305,18 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitSubmissionPreviewRow>('nonprofit_submission_previews_v1'),
       listView<NonprofitSubmissionPreviewCertificationRow>('nonprofit_submission_preview_certifications_v1'),
       listView<NonprofitSubmissionCanaryRow>('nonprofit_submission_canaries_v1'),
+      listView<NonprofitExternalSandboxTransmissionRow>('nonprofit_external_sandbox_transmissions_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, audit };
+  },
+
+  async runExternalSandboxTransmission(certificationId: string) {
+    const { data, error } = await supabase.functions.invoke('nonprofit-submission-sandbox', {
+      body: { certification_id: certificationId },
+    });
+    if (error) throw error;
+    return data;
   },
 
   async runSubmissionCanary(certificationId: string) {
