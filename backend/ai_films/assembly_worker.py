@@ -185,6 +185,52 @@ class SupabaseAssemblyClient:
         }
 
 
+async def resolve_asset_source_for_assembly(
+    db: SupabaseAssemblyClient,
+    row: Mapping[str, Any],
+) -> AssetSource:
+    """Resolve public media or issue a short-lived URL for a private Storage object."""
+    metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+    object_path = str(metadata.get("storage_object_path") or "").strip()
+    if not object_path:
+        return resolve_asset_source(row)
+
+    bucket = str(metadata.get("storage_bucket") or db.bucket).strip() or db.bucket
+    encoded_bucket = quote(bucket, safe="")
+    encoded_path = "/".join(quote(part, safe="") for part in object_path.split("/"))
+    headers = {
+        "apikey": db.service_key,
+        "Authorization": f"Bearer {db.service_key}",
+        "Content-Type": "application/json",
+    }
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0)) as client:
+        response = await client.post(
+            f"{db.base_url}/storage/v1/object/sign/{encoded_bucket}/{encoded_path}",
+            headers=headers,
+            json={"expiresIn": 1800},
+        )
+    if response.status_code >= 400:
+        raise AssemblyBlocked(
+            f"Private asset {row.get('id')} could not be signed",
+            reason="source_unavailable",
+        )
+    payload = response.json()
+    signed = str(payload.get("signedURL") or payload.get("signedUrl") or "").strip()
+    if not signed:
+        raise AssemblyBlocked(
+            f"Private asset {row.get('id')} returned no signed URL",
+            reason="source_unavailable",
+        )
+    media_url = signed if signed.startswith("http") else f"{db.base_url}/storage/v1{signed if signed.startswith('/') else '/' + signed}"
+    return AssetSource(
+        id=str(row.get("id") or ""),
+        title=str(row.get("title") or row.get("source_filename") or row.get("id") or "asset"),
+        source_filename=str(row.get("source_filename") or "asset.mp4"),
+        media_url=media_url,
+        source_type=str(metadata.get("source_type") or "private_storage"),
+    )
+
+
 def resolve_asset_source(row: Mapping[str, Any]) -> AssetSource:
     metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
     candidates = [
@@ -380,7 +426,7 @@ async def process_assembly_job(job: Mapping[str, Any], db: SupabaseAssemblyClien
             blocked.append({"asset_id": asset_id, "reason": "asset_not_registered"})
             continue
         try:
-            assets.append(resolve_asset_source(row))
+            assets.append(await resolve_asset_source_for_assembly(db, row))
         except AssemblyBlocked as exc:
             blocked.append({"asset_id": asset_id, "reason": exc.reason})
     if blocked:
