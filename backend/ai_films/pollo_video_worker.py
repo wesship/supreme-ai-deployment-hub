@@ -102,13 +102,20 @@ class PolloVideoClient:
         if not self.api_key:
             raise PolloVideoWorkerError("POLLO_API_KEY is not configured")
 
-    async def create(self, prompt: str, *, seconds: int, image_url: str | None = None) -> dict[str, Any]:
+    async def create(
+        self,
+        prompt: str,
+        *,
+        seconds: int,
+        image_url: str | None = None,
+        aspect_ratio: str = "16:9",
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "input": {
                 "prompt": prompt,
                 "duration": seconds,
                 "resolution": "720p",
-                "aspectRatio": "16:9",
+                "aspectRatio": aspect_ratio if aspect_ratio in {"16:9", "9:16", "4:5"} else "16:9",
                 "mode": "basic",
                 "generateAudio": False,
             }
@@ -245,6 +252,7 @@ async def process_pollo_video_job(
             _prompt(packet),
             seconds=_duration(packet.get("duration_target_seconds")),
             image_url=image_url,
+            aspect_ratio=str(packet.get("aspect_ratio") or "16:9"),
         )
         task_id = str(created.get("taskId"))
         output = {
