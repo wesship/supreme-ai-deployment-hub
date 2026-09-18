@@ -158,7 +158,7 @@ serve(async (req: Request) => {
       const requestStatus = acknowledged ? "ACKNOWLEDGED" : "FAILED";
 
       const { error: receiptError } = await serviceClient.rpc(
-        "record_external_sandbox_receipt",
+        "nonprofit_record_external_sandbox_receipt",
         {
           p_transmission_id: transmissionId,
           p_endpoint_host: endpoint.hostname,
@@ -209,7 +209,7 @@ serve(async (req: Request) => {
       const message = networkError instanceof Error ? networkError.message : "NETWORK_FAILURE";
 
       const { error: receiptError } = await serviceClient.rpc(
-        "record_external_sandbox_receipt",
+        "nonprofit_record_external_sandbox_receipt",
         {
           p_transmission_id: transmissionId,
           p_endpoint_host: endpoint.hostname,
