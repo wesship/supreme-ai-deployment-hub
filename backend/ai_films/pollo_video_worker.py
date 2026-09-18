@@ -37,19 +37,27 @@ def _duration(value: Any) -> int:
 
 
 def _prompt(packet: Mapping[str, Any]) -> str:
-    parts = [str(packet.get("generation_prompt") or "").strip()]
-    negative = str(packet.get("negative_prompt") or "").strip()
-    if negative:
-        parts.append(f"Avoid: {negative}")
+    generation = str(packet.get("generation_prompt") or "").strip()
+    support: list[str] = []
     locks = packet.get("continuity_locks")
     if isinstance(locks, list) and locks:
-        parts.append("Continuity locks: " + "; ".join(str(v) for v in locks))
+        support.append("Continuity locks: " + "; ".join(str(v) for v in locks))
     camera = packet.get("camera")
     if isinstance(camera, dict) and camera:
-        parts.append("Camera: " + "; ".join(f"{k}={v}" for k, v in camera.items()))
+        support.append("Camera: " + "; ".join(f"{k}={v}" for k, v in camera.items()))
     lighting = packet.get("lighting")
     if isinstance(lighting, dict) and lighting:
-        parts.append("Lighting: " + "; ".join(f"{k}={v}" for k, v in lighting.items()))
+        support.append("Lighting: " + "; ".join(f"{k}={v}" for k, v in lighting.items()))
+    negative = str(packet.get("negative_prompt") or "").strip()
+    if negative:
+        support.append(f"Avoid: {negative}")
+
+    support_text = "\n".join(support)
+    reserve = min(1400, len(support_text) + (1 if support_text else 0))
+    generation_budget = max(1000, 5000 - reserve)
+    parts = [generation[:generation_budget]]
+    if support_text:
+        parts.append(support_text[: max(0, 5000 - len(parts[0]) - 1)])
     return "\n".join(part for part in parts if part)[:5000]
 
 
@@ -102,13 +110,20 @@ class PolloVideoClient:
         if not self.api_key:
             raise PolloVideoWorkerError("POLLO_API_KEY is not configured")
 
-    async def create(self, prompt: str, *, seconds: int, image_url: str | None = None) -> dict[str, Any]:
+    async def create(
+        self,
+        prompt: str,
+        *,
+        seconds: int,
+        image_url: str | None = None,
+        aspect_ratio: str = "16:9",
+    ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "input": {
                 "prompt": prompt,
                 "duration": seconds,
                 "resolution": "720p",
-                "aspectRatio": "16:9",
+                "aspectRatio": aspect_ratio if aspect_ratio in {"16:9", "9:16", "4:5"} else "16:9",
                 "mode": "basic",
                 "generateAudio": False,
             }
@@ -245,6 +260,7 @@ async def process_pollo_video_job(
             _prompt(packet),
             seconds=_duration(packet.get("duration_target_seconds")),
             image_url=image_url,
+            aspect_ratio=str(packet.get("aspect_ratio") or "16:9"),
         )
         task_id = str(created.get("taskId"))
         output = {

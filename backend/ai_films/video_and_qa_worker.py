@@ -5,6 +5,7 @@ import asyncio
 import os
 
 from backend.ai_films.generated_shot_qa_worker_pollo import run_pollo_generated_shot_qa_worker
+from backend.ai_films.openmontage_assembly_coordinator import run_openmontage_assembly_coordinator
 from backend.ai_films.resilient_video_worker import run_resilient_video_worker
 from backend.ai_films.twelvelabs import TwelveLabsClient, TwelveLabsError
 
@@ -41,6 +42,7 @@ async def main() -> None:
     await asyncio.gather(
         run_resilient_video_worker(),
         run_pollo_generated_shot_qa_worker(),
+        run_openmontage_assembly_coordinator(),
     )
 
 

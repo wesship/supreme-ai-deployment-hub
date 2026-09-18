@@ -69,13 +69,20 @@ class ReplicateVideoClient:
             "Content-Type": "application/json",
         }
 
-    async def create(self, prompt: str, *, seconds: int, image_url: str | None = None) -> dict[str, Any]:
+    async def create(
+        self,
+        prompt: str,
+        *,
+        seconds: int,
+        image_url: str | None = None,
+        aspect_ratio: str = "16:9",
+    ) -> dict[str, Any]:
         owner, name = self.model.split("/", 1)
         input_payload: dict[str, Any] = {
             "prompt": prompt,
             "duration": max(4, min(12, int(seconds))),
             "resolution": "720p",
-            "aspect_ratio": "16:9",
+            "aspect_ratio": aspect_ratio if aspect_ratio in {"16:9", "9:16", "4:5"} else "16:9",
             "fps": 24,
             "camera_fixed": False,
         }
@@ -175,6 +182,7 @@ async def process_replicate_video_fallback(
         _prompt(packet),
         seconds=_duration(packet.get("duration_target_seconds")),
         image_url=image_url,
+        aspect_ratio=str(packet.get("aspect_ratio") or "16:9"),
     )
     prediction_id = str(created.get("id") or "")
     existing_output.update({

@@ -1,17 +1,17 @@
 """Authenticated OpenMontage bridge for real AI Films render execution.
 
 This router creates a small but complete, owner-scoped production package from an
-approved screenplay.  It intentionally queues only the OpenAI/Sora route because
-that is the provider with a production worker in this deployment.  Every job is
-backed by a production bible and shot manifest so post-render TwelveLabs/Jockey
-review can operate on the same project rather than a sample-video fallback.
+approved screenplay. Production video uses Pollo as the primary provider with
+Replicate failover. Requests longer than one provider shot are split into bounded
+segments so the dedicated worker can render and QA each shot before deterministic
+FFmpeg assembly.
 """
 from __future__ import annotations
 
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, status
@@ -32,6 +32,7 @@ class OpenMontageDispatchRequest(BaseModel):
     screenplay: str = Field(..., min_length=20, max_length=30000)
     video_prompt: str = Field(..., min_length=10, max_length=12000)
     duration_seconds: int = Field(default=8, ge=4, le=20)
+    aspect_ratio: Literal["16:9", "9:16", "4:5"] = "16:9"
 
 
 class OpenMontageStatusResponse(BaseModel):
@@ -72,6 +73,34 @@ def _stages(active: str, *, terminal: bool = False, failed: bool = False) -> lis
     return result
 
 
+def _shot_durations(total_seconds: int) -> list[int]:
+    """Split a requested runtime into provider-safe 5-10 second shots."""
+    total = max(5, min(20, int(total_seconds)))
+    if total <= 10:
+        return [total]
+    first = (total + 1) // 2
+    return [first, total - first]
+
+
+def _resolution_for_aspect(aspect_ratio: str) -> str:
+    return {"9:16": "1080x1920", "4:5": "1080x1350"}.get(aspect_ratio, "1920x1080")
+
+
+def _segment_prompt(base_prompt: str, index: int, total: int) -> str:
+    if total == 1:
+        return base_prompt
+    if index == 0:
+        guidance = "Segment 1: establish the hook, problem, and product demonstration."
+    elif index == total - 1:
+        guidance = "Final segment: deliver proof, brand lockup, and the exact approved call to action."
+    else:
+        guidance = f"Segment {index + 1}: continue the approved narrative and product demonstration."
+    direction = f"OpenMontage multishot direction: {guidance}"
+    # Put segment intent first so the Pollo prompt budget cannot truncate it.
+    budget = max(0, 12000 - len(direction) - 2)
+    return f"{direction}\n\n{base_prompt[:budget]}"
+
+
 def _production_bible(title: str, screenplay: str) -> dict[str, Any]:
     return {
         "version": 1,
@@ -86,7 +115,8 @@ def _production_bible(title: str, screenplay: str) -> dict[str, Any]:
         "generation_policy": {
             "require_anchor_frames": False,
             "review_before_publish": True,
-            "provider": "openai",
+            "provider": "pollo",
+            "provider_route": ["pollo", "replicate"],
         },
     }
 
@@ -102,7 +132,7 @@ async def _select_owned_render_job(access_token: str, job_id: str) -> tuple[dict
             response = await client.get(
                 f"{base_url}/rest/v1/ai_film_render_jobs",
                 headers=headers,
-                params={"id": f"eq.{job_id}", "select": "id,project_id,provider,status,output,error_message" , "limit": "1"},
+                params={"id": f"eq.{job_id}", "select": "id,project_id,provider,status,input,output,error_message" , "limit": "1"},
             )
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="OpenMontage status service is unavailable") from exc
@@ -114,12 +144,59 @@ async def _select_owned_render_job(access_token: str, job_id: str) -> tuple[dict
     return rows[0], base_url
 
 
+async def _select_openmontage_group_jobs(
+    access_token: str,
+    base_url: str,
+    job: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    payload = job.get("input") if isinstance(job.get("input"), dict) else {}
+    group_id = str(payload.get("openmontage_job_id") or "").strip()
+    expected = int(payload.get("openmontage_shot_count") or 1)
+    if not group_id or expected <= 1:
+        return [dict(job)]
+
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    headers = {"apikey": anon_key, "Authorization": f"Bearer {access_token}"}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                f"{base_url}/rest/v1/ai_film_render_jobs",
+                headers=headers,
+                params={
+                    "project_id": f"eq.{job['project_id']}",
+                    "select": "id,project_id,job_type,provider,status,input,output,error_message,created_at",
+                    "order": "created_at.asc",
+                    "limit": "100",
+                },
+            )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail="OpenMontage aggregate status is unavailable") from exc
+    if response.status_code >= 400:
+        raise HTTPException(status_code=502, detail="OpenMontage aggregate status lookup failed")
+    rows = response.json()
+    if not isinstance(rows, list):
+        return [dict(job)]
+    grouped: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        row_input = row.get("input") if isinstance(row.get("input"), dict) else {}
+        if str(row_input.get("openmontage_job_id") or "").strip() == group_id:
+            grouped.append(row)
+    return grouped or [dict(job)]
+
+
+def _qa_state_from_output(output: Mapping[str, Any]) -> str:
+    qa = output.get("qa") if isinstance(output.get("qa"), dict) else {}
+    return str(qa.get("state") or "").strip().lower()
+
+
 @router.post("/dispatch", status_code=status.HTTP_202_ACCEPTED)
 async def dispatch_openmontage(
     request: OpenMontageDispatchRequest,
     authorization: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    """Persist a governed production package and queue a real OpenAI video job."""
+    """Persist a governed package and queue Pollo-primary, Replicate-fallback shots."""
     token = _bearer_token(authorization)
     db = SupabaseRLSClient(token)
     try:
@@ -138,7 +215,10 @@ async def dispatch_openmontage(
                 "metadata": {
                     "openmontage_job_id": request.job_id,
                     "source": "openmontage-edge-dispatch",
-                    "render_provider": "openai",
+                    "render_provider": "pollo",
+                    "render_provider_route": ["pollo", "replicate"],
+                    "aspect_ratio": request.aspect_ratio,
+                    "target_duration_seconds": request.duration_seconds,
                     "created_at": _now(),
                 },
             },
@@ -168,32 +248,15 @@ async def dispatch_openmontage(
                 "title": "OpenMontage Storyboard",
                 "status": "approved",
                 "style_prompt": request.video_prompt[:4000],
-                "frame_count": 1,
+                "frame_count": len(_shot_durations(request.duration_seconds)),
                 "metadata": {"source": "openmontage"},
             },
         )
-        shot_id = f"om-{run_id}-001"
-        shot = await db.insert(
-            "ai_film_shots",
-            {
-                "storyboard_id": storyboard["id"],
-                "project_id": project_id,
-                "scene_id": scene["id"],
-                "owner_id": user.id,
-                "shot_number": 1,
-                "shot_type": "master",
-                "description": request.idea,
-                "camera_angle": "director-selected",
-                "camera_movement": "director-selected",
-                "lens": "cinematic",
-                "duration_seconds": float(request.duration_seconds),
-                "lighting": "as specified by generation prompt",
-                "blocking": "as specified by approved screenplay",
-                "image_prompt": request.video_prompt,
-                "status": "planned",
-                "metadata": {"openmontage_shot_id": shot_id},
-            },
-        )
+        durations = _shot_durations(request.duration_seconds)
+        resolution = _resolution_for_aspect(request.aspect_ratio)
+        manifest_shots: list[dict[str, Any]] = []
+        render_jobs: list[dict[str, Any]] = []
+
         bible = _production_bible(title, request.screenplay)
         await db.insert(
             "ai_film_production_bibles",
@@ -205,19 +268,98 @@ async def dispatch_openmontage(
                 "bible": bible,
             },
         )
-        packet = {
-            "shot_id": shot_id,
-            "generation_prompt": request.video_prompt,
-            "negative_prompt": "copyrighted characters, real people, unlicensed logos, unreadable text",
-            "duration_target_seconds": request.duration_seconds,
-            "provider_route": ["openai"],
-            "anchor_frame_asset_ids": [],
-            "character_locks": {},
-            "continuity_locks": ["Follow the approved screenplay and production bible."],
-            "camera": {"direction": "Follow the approved cinematic prompt"},
-            "lighting": {"direction": "Follow the approved cinematic prompt"},
-            "audio": {"dialogue": False},
-        }
+
+        for index, shot_seconds in enumerate(durations):
+            shot_id = f"om-{run_id}-{index + 1:03d}"
+            segment_prompt = _segment_prompt(request.video_prompt, index, len(durations))
+            shot = await db.insert(
+                "ai_film_shots",
+                {
+                    "storyboard_id": storyboard["id"],
+                    "project_id": project_id,
+                    "scene_id": scene["id"],
+                    "owner_id": user.id,
+                    "shot_number": index + 1,
+                    "shot_type": "master",
+                    "description": request.idea,
+                    "camera_angle": "director-selected",
+                    "camera_movement": "director-selected",
+                    "lens": "cinematic",
+                    "duration_seconds": float(shot_seconds),
+                    "lighting": "as specified by generation prompt",
+                    "blocking": "as specified by approved screenplay",
+                    "image_prompt": segment_prompt,
+                    "status": "planned",
+                    "metadata": {
+                        "openmontage_shot_id": shot_id,
+                        "openmontage_job_id": request.job_id,
+                        "aspect_ratio": request.aspect_ratio,
+                        "segment_index": index,
+                        "segment_count": len(durations),
+                    },
+                },
+            )
+            packet = {
+                "shot_id": shot_id,
+                "generation_prompt": segment_prompt,
+                "negative_prompt": "copyrighted characters, real people, unlicensed logos, unreadable text",
+                "duration_target_seconds": shot_seconds,
+                "aspect_ratio": request.aspect_ratio,
+                "resolution": "720p",
+                "provider_route": ["pollo", "replicate"],
+                "anchor_frame_asset_ids": [],
+                "character_locks": {},
+                "continuity_locks": [
+                    "Follow the approved screenplay and production bible.",
+                    f"Preserve {request.aspect_ratio} composition for this segment.",
+                    f"This is segment {index + 1} of {len(durations)}; maintain visual continuity across the ad.",
+                ],
+                "camera": {"direction": "Follow the approved cinematic prompt"},
+                "lighting": {"direction": "Follow the approved cinematic prompt"},
+                "audio": {"dialogue": False},
+            }
+            manifest_shots.append(
+                {
+                    "shot_id": shot_id,
+                    "scene_id": str(scene["id"]),
+                    "shot_db_id": str(shot["id"]),
+                    "qa_state": "pending",
+                    "generation_packet": packet,
+                }
+            )
+            render_job = await db.insert(
+                "ai_film_render_jobs",
+                {
+                    "project_id": project_id,
+                    "scene_id": scene["id"],
+                    "owner_id": user.id,
+                    "job_type": "video",
+                    "provider": "pollo",
+                    "status": "queued",
+                    "priority": 75,
+                    "progress": 0,
+                    "input": {
+                        "shot_id": shot_id,
+                        "generation_packet": packet,
+                        "openmontage_job_id": request.job_id,
+                        "openmontage_shot_index": index,
+                        "openmontage_shot_count": len(durations),
+                        "openmontage_target_duration_seconds": request.duration_seconds,
+                        "openmontage_aspect_ratio": request.aspect_ratio,
+                        "openmontage_resolution": resolution,
+                    },
+                    "output": {
+                        "openmontage": {
+                            "job_id": request.job_id,
+                            "segment_index": index,
+                            "segment_count": len(durations),
+                            "stages": _stages("render"),
+                        }
+                    },
+                },
+            )
+            render_jobs.append(render_job)
+
         await db.insert(
             "ai_film_shot_manifests",
             {
@@ -228,31 +370,27 @@ async def dispatch_openmontage(
                 "title": "OpenMontage Active Shot Manifest",
                 "structure": "scene",
                 "status": "active",
-                "manifest": {"version": 1, "shots": [{"shot_id": shot_id, "scene_id": str(scene["id"]), "shot_db_id": str(shot["id"]), "qa_state": "pending", "generation_packet": packet}]},
+                "manifest": {
+                    "version": 1,
+                    "openmontage_job_id": request.job_id,
+                    "target_duration_seconds": request.duration_seconds,
+                    "aspect_ratio": request.aspect_ratio,
+                    "shots": manifest_shots,
+                },
             },
         )
-        render_job = await db.insert(
-            "ai_film_render_jobs",
-            {
-                "project_id": project_id,
-                "scene_id": scene["id"],
-                "owner_id": user.id,
-                "job_type": "video",
-                "provider": "openai",
-                "status": "queued",
-                "priority": 75,
-                "progress": 0,
-                "input": {"shot_id": shot_id, "generation_packet": packet, "openmontage_job_id": request.job_id},
-                "output": {"openmontage": {"job_id": request.job_id, "stages": _stages("render")}},
-            },
-        )
+        render_job = render_jobs[0]
     except OrchestrationError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return {
         "project_id": project_id,
         "render_job_id": str(render_job["id"]),
-        "provider": "openai",
+        "provider": "pollo",
+        "provider_route": ["pollo", "replicate"],
+        "render_job_ids": [str(job["id"]) for job in render_jobs],
+        "shot_count": len(render_jobs),
+        "aspect_ratio": request.aspect_ratio,
         "status": "queued",
         "stages": _stages("render"),
     }
@@ -265,32 +403,75 @@ async def get_openmontage_job(
 ) -> OpenMontageStatusResponse:
     """Return owner-authorized render state and a short-lived playback URL when available."""
     token = _bearer_token(authorization)
-    job, _ = await _select_owned_render_job(token, render_job_id)
-    output = job.get("output") if isinstance(job.get("output"), dict) else {}
+    job, base_url = await _select_owned_render_job(token, render_job_id)
+    group = await _select_openmontage_group_jobs(token, base_url, job)
+    videos = [row for row in group if str(row.get("job_type") or "video") == "video"]
+    assemblies = [row for row in group if str(row.get("job_type") or "") == "assembly"]
+    assembly = assemblies[-1] if assemblies else None
+
+    selected = assembly or job
+    output = selected.get("output") if isinstance(selected.get("output"), dict) else {}
     qa = output.get("qa") if isinstance(output.get("qa"), dict) else {}
-    raw_status = str(job.get("status") or "queued")
     qa_state = str(qa.get("state") or "") or None
     provider_job_id = str(output.get("provider_job_id") or "") or None
     video_url: str | None = None
-    error = str(job.get("error_message") or "") or None
+    error = str(selected.get("error_message") or "") or None
 
-    if raw_status in {"failed", "cancelled", "blocked"}:
-        pipeline_status = "failed"
-        stages = _stages("render", failed=True)
-    elif raw_status in {"queued", "running", "processing"}:
-        pipeline_status = "render"
-        stages = _stages("render")
-    elif qa_state in {"pending_generated_qa", "in_progress"}:
-        pipeline_status = "review"
-        stages = _stages("review")
-    elif qa_state in {"revise", "block", "failed"}:
-        pipeline_status = "review"
-        stages = _stages("review", failed=qa_state == "failed")
+    if assembly is not None:
+        raw_status = str(assembly.get("status") or "queued")
+        if raw_status in {"failed", "cancelled", "blocked"}:
+            pipeline_status = "failed"
+            stages = _stages("render", failed=True)
+        elif raw_status in {"queued", "running", "processing"}:
+            pipeline_status = "render"
+            stages = _stages("render")
+        elif qa_state in {"pending_post_render_qa", "in_progress"}:
+            pipeline_status = "review"
+            stages = _stages("review")
+        elif qa_state == "failed":
+            pipeline_status = "review"
+            stages = _stages("review", failed=True)
+        elif qa_state == "passed":
+            pipeline_status = "completed"
+            stages = _stages("publish", terminal=True)
+        else:
+            pipeline_status = "review"
+            stages = _stages("review")
     else:
-        pipeline_status = "completed"
-        stages = _stages("publish", terminal=True)
+        terminal_segment = next(
+            (
+                row
+                for row in videos
+                if str(row.get("status") or "") in {"failed", "cancelled", "blocked"}
+            ),
+            None,
+        )
+        segment_qa_states = {
+            _qa_state_from_output(row.get("output") if isinstance(row.get("output"), dict) else {})
+            for row in videos
+        }
+        if terminal_segment is not None:
+            pipeline_status = "failed"
+            stages = _stages("render", failed=True)
+            error = str(terminal_segment.get("error_message") or "") or error
+        elif any(str(row.get("status") or "") in {"queued", "running", "processing"} for row in videos):
+            pipeline_status = "render"
+            stages = _stages("render")
+        elif segment_qa_states & {"revise", "block", "failed"}:
+            pipeline_status = "review"
+            stages = _stages("review", failed="failed" in segment_qa_states)
+            qa_state = "failed" if "failed" in segment_qa_states else "revise"
+        elif videos and all(_qa_state_from_output(row.get("output") or {}) == "passed" for row in videos):
+            # All segments passed; the coordinator will queue the aggregate master next.
+            pipeline_status = "render"
+            stages = _stages("render")
+            qa_state = "passed"
+        else:
+            pipeline_status = "review"
+            stages = _stages("review")
 
-    object_path = str(output.get("object_path") or "")
+    # Multishot requests expose playback only from the assembled master.
+    object_path = str(output.get("object_path") or "") if assembly is not None or len(videos) <= 1 else ""
     if object_path:
         try:
             video_url = await _sign_master(SupabaseAssemblyClient(), object_path, expires_in=900)
@@ -300,7 +481,7 @@ async def get_openmontage_job(
     return OpenMontageStatusResponse(
         render_job_id=str(job["id"]),
         project_id=str(job["project_id"]),
-        provider=str(job.get("provider") or "openai"),
+        provider=str(selected.get("provider") or job.get("provider") or "pollo"),
         provider_job_id=provider_job_id,
         status=pipeline_status,
         stages=stages,
