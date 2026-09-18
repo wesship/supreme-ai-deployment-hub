@@ -183,6 +183,27 @@ export type NonprofitSubmissionAuthorizationRow = {
   authorization_live: boolean;
 };
 
+export type NonprofitSubmissionPreviewRow = {
+  preview_id: string;
+  organization_id: string;
+  workflow_id: string;
+  funder_name: string;
+  title: string;
+  authorization_id: string;
+  connector_kind: 'MANUAL_PACKAGE' | 'GRANTS_GOV_PREVIEW' | 'FUNDER_PORTAL_PREVIEW';
+  payload_hash: string;
+  payload: Record<string, unknown>;
+  attachment_manifest: unknown[];
+  generated_by: string;
+  generated_at: string;
+  authorization_expires_at: string;
+  readiness_snapshot: Record<string, unknown>;
+  status: 'PREVIEW';
+  authorization_still_live: boolean;
+  readiness_still_valid: boolean;
+  external_transmission_performed: false;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -200,7 +221,7 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
@@ -210,9 +231,19 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitAttachmentComplianceRow>('nonprofit_attachment_compliance_v1'),
       listView<NonprofitSubmissionReadinessRow>('nonprofit_submission_readiness_v1'),
       listView<NonprofitSubmissionAuthorizationRow>('nonprofit_submission_authorizations_v1'),
+      listView<NonprofitSubmissionPreviewRow>('nonprofit_submission_previews_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, audit };
+  },
+
+  async generateSubmissionPreview(workflowId: string, connectorKind: 'MANUAL_PACKAGE' | 'GRANTS_GOV_PREVIEW' | 'FUNDER_PORTAL_PREVIEW' = 'MANUAL_PACKAGE') {
+    const { data, error } = await (supabase as any).rpc('nonprofit_generate_submission_preview', {
+      p_workflow_id: workflowId,
+      p_connector_kind: connectorKind,
+    });
+    if (error) throw error;
+    return data;
   },
 
   async requestSubmissionAuthorization(workflowId: string, notes?: string) {
