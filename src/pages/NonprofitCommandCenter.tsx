@@ -12,6 +12,7 @@ import {
   type NonprofitProgramSummary,
   type NonprofitSubmissionReadinessRow,
   type NonprofitSubmissionAuthorizationRow,
+  type NonprofitSubmissionPreviewRow,
 } from '@/lib/nonprofitCommandCenterApi';
 
 const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-lg shadow-black/20';
@@ -39,7 +40,9 @@ export default function NonprofitCommandCenter() {
   const [attachmentCompliance, setAttachmentCompliance] = useState<NonprofitAttachmentComplianceRow[]>([]);
   const [submissionReadiness, setSubmissionReadiness] = useState<NonprofitSubmissionReadinessRow[]>([]);
   const [submissionAuthorizations, setSubmissionAuthorizations] = useState<NonprofitSubmissionAuthorizationRow[]>([]);
+  const [submissionPreviews, setSubmissionPreviews] = useState<NonprofitSubmissionPreviewRow[]>([]);
   const [authorizationAction, setAuthorizationAction] = useState('');
+  const [previewAction, setPreviewAction] = useState('');
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingStep, setSubmittingStep] = useState('');
@@ -60,6 +63,7 @@ export default function NonprofitCommandCenter() {
       setAttachmentCompliance(result.attachmentCompliance);
       setSubmissionReadiness(result.submissionReadiness);
       setSubmissionAuthorizations(result.submissionAuthorizations);
+      setSubmissionPreviews(result.submissionPreviews);
       setAudit(result.audit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load nonprofit command center');
@@ -115,6 +119,21 @@ export default function NonprofitCommandCenter() {
     }
   }
 
+  async function generatePreview(workflowId: string, connectorKind: 'MANUAL_PACKAGE' | 'GRANTS_GOV_PREVIEW' | 'FUNDER_PORTAL_PREVIEW' = 'MANUAL_PACKAGE') {
+    setPreviewAction(workflowId);
+    setError('');
+    setMessage('');
+    try {
+      await nonprofitCommandCenterApi.generateSubmissionPreview(workflowId, connectorKind);
+      setMessage('Dry-run submission preview generated and hashed. No external transmission was performed.');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Submission preview generation was blocked');
+    } finally {
+      setPreviewAction('');
+    }
+  }
+
   const org = organizations[0];
   const latestAudit = audit[0];
   const redAlerts = useMemo(() => alerts.filter((row) => row.decision === 'RED').length, [alerts]);
@@ -124,6 +143,7 @@ export default function NonprofitCommandCenter() {
   const submissionBlocked = useMemo(() => submissionReadiness.filter((row) => row.hard_blocker).length, [submissionReadiness]);
   const liveAuthorizations = useMemo(() => submissionAuthorizations.filter((row) => row.authorization_live).length, [submissionAuthorizations]);
   const pendingAuthorizations = useMemo(() => submissionAuthorizations.filter((row) => row.authorization_status === 'PENDING').length, [submissionAuthorizations]);
+  const currentPreviews = useMemo(() => submissionPreviews.filter((row) => row.authorization_still_live && row.readiness_still_valid).length, [submissionPreviews]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -142,13 +162,14 @@ export default function NonprofitCommandCenter() {
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
           <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked records</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Attachments</p><p className="mt-2 text-3xl font-semibold">{attachmentBlockers}</p><p className="mt-2 text-sm text-slate-400">hard blockers</p></div>
           <div className={card}><BadgeCheck className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Submission ready</p><p className="mt-2 text-3xl font-semibold">{submissionReady}</p><p className="mt-2 text-sm text-slate-400">{submissionBlocked} blocked</p></div>
           <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Human authorization</p><p className="mt-2 text-3xl font-semibold">{liveAuthorizations}</p><p className="mt-2 text-sm text-slate-400">{pendingAuthorizations} pending</p></div>
+          <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Dry-run previews</p><p className="mt-2 text-3xl font-semibold">{currentPreviews}</p><p className="mt-2 text-sm text-slate-400">hashed, not transmitted</p></div>
           <div className={card}><AlertTriangle className="mb-3 h-5 w-5 text-amber-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Compliance</p><p className="mt-2 text-3xl font-semibold">{redAlerts}</p><p className="mt-2 text-sm text-slate-400">RED policy blocks</p></div>
         </section>
 
@@ -168,6 +189,17 @@ export default function NonprofitCommandCenter() {
               return <div key={row.workflow_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{row.title}</p><p className="text-sm text-slate-400">{row.funder_name} · readiness verified</p></div>{existing ? <span className={`${badge} ${decisionClass(existing.authorization_status)}`}>{existing.authorization_status}</span> : <button className={actionButton} disabled={authorizationAction === row.workflow_id} onClick={() => void requestAuthorization(row.workflow_id)}>Request human authorization</button>}</div>{existing && <div className="mt-3 text-sm text-slate-400"><p>Expires: {new Date(existing.expires_at).toLocaleString()}</p>{existing.authorization_status === 'PENDING' && <div className="mt-3 flex flex-wrap gap-2">{existing.requested_by_current_user ? <span className="text-xs text-amber-300">A different authorized human must decide this request.</span> : <><button className={actionButton} disabled={authorizationAction === existing.authorization_id} onClick={() => void decideAuthorization(existing.authorization_id, 'APPROVED')}>Approve authorization</button><button className={actionButton} disabled={authorizationAction === existing.authorization_id} onClick={() => void decideAuthorization(existing.authorization_id, 'REJECTED')}>Reject authorization</button></>}</div>}{existing.authorization_status === 'APPROVED' && <p className="mt-2 text-xs text-emerald-300">Authorization is live. This gate still does not execute or transmit a grant submission.</p>}</div>}</div>;
             })}
             {submissionReadiness.filter((row) => row.submission_status === 'SUBMISSION_READY').length === 0 && <p className="text-sm text-slate-500">No workflows are eligible to request submission authorization.</p>}
+          </div>
+        </section>
+
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Controlled submission preview</h2><p className="mt-1 text-sm text-slate-400">Dry-run only. The system assembles the exact authorized payload and attachment manifest, stores a SHA-256 hash, and performs no network transmission.</p></div><span className={`${badge} ${decisionClass('PENDING')}`}>PREVIEW ONLY</span></div>
+          <div className="space-y-3">
+            {submissionAuthorizations.filter((auth) => auth.authorization_live).map((auth) => {
+              const preview = submissionPreviews.find((row) => row.workflow_id === auth.workflow_id && row.authorization_id === auth.authorization_id);
+              return <div key={auth.authorization_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{auth.title}</p><p className="text-sm text-slate-400">{auth.funder_name} · authorization live until {new Date(auth.expires_at).toLocaleString()}</p></div>{preview ? <span className={`${badge} ${decisionClass('GREEN')}`}>PREVIEW GENERATED</span> : <button className={actionButton} disabled={previewAction === auth.workflow_id} onClick={() => void generatePreview(auth.workflow_id, 'MANUAL_PACKAGE')}>Generate dry-run preview</button>}</div>{preview && <div className="mt-3 grid gap-3 text-sm md:grid-cols-3"><div><p className="text-slate-500">Connector</p><p>{preview.connector_kind}</p></div><div><p className="text-slate-500">Payload hash</p><p className="break-all font-mono text-xs">{preview.payload_hash}</p></div><div><p className="text-slate-500">External transmission</p><p>{preview.external_transmission_performed ? 'YES' : 'NO'}</p></div></div>}</div>;
+            })}
+            {submissionAuthorizations.filter((auth) => auth.authorization_live).length === 0 && <p className="text-sm text-slate-500">No live human authorization is available for preview generation.</p>}
           </div>
         </section>
         <section className="grid gap-6 lg:grid-cols-2">
