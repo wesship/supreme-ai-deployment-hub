@@ -37,19 +37,27 @@ def _duration(value: Any) -> int:
 
 
 def _prompt(packet: Mapping[str, Any]) -> str:
-    parts = [str(packet.get("generation_prompt") or "").strip()]
-    negative = str(packet.get("negative_prompt") or "").strip()
-    if negative:
-        parts.append(f"Avoid: {negative}")
+    generation = str(packet.get("generation_prompt") or "").strip()
+    support: list[str] = []
     locks = packet.get("continuity_locks")
     if isinstance(locks, list) and locks:
-        parts.append("Continuity locks: " + "; ".join(str(v) for v in locks))
+        support.append("Continuity locks: " + "; ".join(str(v) for v in locks))
     camera = packet.get("camera")
     if isinstance(camera, dict) and camera:
-        parts.append("Camera: " + "; ".join(f"{k}={v}" for k, v in camera.items()))
+        support.append("Camera: " + "; ".join(f"{k}={v}" for k, v in camera.items()))
     lighting = packet.get("lighting")
     if isinstance(lighting, dict) and lighting:
-        parts.append("Lighting: " + "; ".join(f"{k}={v}" for k, v in lighting.items()))
+        support.append("Lighting: " + "; ".join(f"{k}={v}" for k, v in lighting.items()))
+    negative = str(packet.get("negative_prompt") or "").strip()
+    if negative:
+        support.append(f"Avoid: {negative}")
+
+    support_text = "\n".join(support)
+    reserve = min(1400, len(support_text) + (1 if support_text else 0))
+    generation_budget = max(1000, 5000 - reserve)
+    parts = [generation[:generation_budget]]
+    if support_text:
+        parts.append(support_text[: max(0, 5000 - len(parts[0]) - 1)])
     return "\n".join(part for part in parts if part)[:5000]
 
 
