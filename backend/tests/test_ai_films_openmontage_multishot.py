@@ -20,6 +20,7 @@ def test_openmontage_segment_prompt_preserves_base_and_final_cta_direction():
     prompt = _segment_prompt("D3VONN Command Beacon", 1, 2)
     assert "D3VONN Command Beacon" in prompt
     assert "exact approved call to action" in prompt
+    assert prompt.startswith("OpenMontage multishot direction:")
 
 
 def test_openmontage_assembly_input_orders_shots_and_preserves_vertical_contract():
@@ -58,3 +59,10 @@ def test_openmontage_assembly_input_orders_shots_and_preserves_vertical_contract
     assert payload["resolution"] == "1080x1920"
     assert payload["planned_runtime_seconds"] == 15
     assert [clip["asset_id"] for clip in payload["timeline"]] == ["asset-1", "asset-2"]
+
+
+def test_openmontage_long_prompt_keeps_segment_direction():
+    prompt = _segment_prompt("x" * 12000, 1, 2)
+    assert len(prompt) <= 12000
+    assert prompt.startswith("OpenMontage multishot direction:")
+    assert "exact approved call to action" in prompt[:500]
