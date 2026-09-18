@@ -275,6 +275,44 @@ export type NonprofitExternalSandboxTransmissionRow = {
   sandbox_connector_certified: boolean;
 };
 
+export type NonprofitSandboxReceiptCertificationRow = {
+  id: string;
+  organization_id: string;
+  connector_kind: string;
+  endpoint_host: string;
+  acknowledged_count: number;
+  distinct_workflow_count: number;
+  failed_or_blocked_count: number;
+  evidence_window_start: string;
+  evidence_window_end: string;
+  evidence_hash: string;
+  certified_by: string;
+  certified_at: string;
+  expires_at: string;
+  status: 'CERTIFIED';
+  certification_valid: boolean;
+};
+
+export type NonprofitProductionConnectorPromotionRow = {
+  promotion_id: string;
+  organization_id: string;
+  sandbox_certification_id: string;
+  connector_kind: string;
+  production_contract: Record<string, unknown>;
+  requested_by: string;
+  requested_at: string;
+  protected_environment_approval_required: boolean;
+  protected_environment_approval_ref: string | null;
+  protected_environment_approved_at: string | null;
+  protected_environment_approved_by: string | null;
+  promotion_status: 'PENDING_PROTECTED_ENVIRONMENT' | 'APPROVED_FOR_IMPLEMENTATION' | 'REJECTED' | 'EXPIRED';
+  production_execution_enabled: false;
+  evidence_hash: string;
+  sandbox_certification_valid: boolean;
+  promotion_prerequisites_met: boolean;
+  production_send_available: false;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -292,7 +330,7 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
@@ -306,9 +344,38 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitSubmissionPreviewCertificationRow>('nonprofit_submission_preview_certifications_v1'),
       listView<NonprofitSubmissionCanaryRow>('nonprofit_submission_canaries_v1'),
       listView<NonprofitExternalSandboxTransmissionRow>('nonprofit_external_sandbox_transmissions_v1'),
+      listView<NonprofitSandboxReceiptCertificationRow>('nonprofit_sandbox_receipt_certifications_v1'),
+      listView<NonprofitProductionConnectorPromotionRow>('nonprofit_production_connector_promotions_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, audit };
+  },
+
+  async requestProductionConnectorPromotion(sandboxCertificationId: string) {
+    const productionContract = {
+      contract_version: 'grantassist.production-connector.v1',
+      tls_required: true,
+      idempotency_required: true,
+      payload_hash_required: true,
+      receipt_hash_required: true,
+      method: 'POST',
+      execution_enabled: false,
+    };
+    const { data, error } = await (supabase as any).rpc('nonprofit_request_production_connector_promotion', {
+      p_sandbox_certification_id: sandboxCertificationId,
+      p_production_contract: productionContract,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  async certifySandboxReceipts(connectorKind: string, endpointHost: string) {
+    const { data, error } = await (supabase as any).rpc('nonprofit_certify_sandbox_receipts', {
+      p_connector_kind: connectorKind,
+      p_endpoint_host: endpointHost,
+    });
+    if (error) throw error;
+    return data;
   },
 
   async runExternalSandboxTransmission(certificationId: string) {

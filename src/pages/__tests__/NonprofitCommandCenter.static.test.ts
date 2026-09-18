@@ -12,6 +12,7 @@ const certificationMigration = readFileSync('supabase/migrations/20260918050000_
 const canaryMigration = readFileSync('supabase/migrations/20260918054500_gate26_nonprofit_transmission_canary.sql', 'utf8');
 const externalSandboxMigration = readFileSync('supabase/migrations/20260918062000_gate27_nonprofit_external_sandbox_connector.sql', 'utf8');
 const externalSandboxFunction = readFileSync('supabase/functions/nonprofit-submission-sandbox/index.ts', 'utf8');
+const promotionMigration = readFileSync('supabase/migrations/20260918070000_gate28_nonprofit_production_promotion.sql', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -34,6 +35,8 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_submission_preview_certifications_v1');
     expect(api).toContain('nonprofit_submission_canaries_v1');
     expect(api).toContain('nonprofit_external_sandbox_transmissions_v1');
+    expect(api).toContain('nonprofit_sandbox_receipt_certifications_v1');
+    expect(api).toContain('nonprofit_production_connector_promotions_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -294,5 +297,52 @@ describe('Gate 27 external sandbox connector certification', () => {
     expect(api).toContain('nonprofit_external_sandbox_transmissions_v1');
     expect(page).toContain('External sandbox');
     expect(page).toContain('allowlisted receipts');
+  });
+});
+
+
+describe('Gate 28 sandbox receipt certification and production promotion', () => {
+  it('requires three acknowledged receipts across two workflows with zero failures', () => {
+    expect(promotionMigration).toContain('THREE_ACKNOWLEDGED_SANDBOX_RECEIPTS_REQUIRED');
+    expect(promotionMigration).toContain('TWO_DISTINCT_WORKFLOWS_REQUIRED');
+    expect(promotionMigration).toContain('FAILED_OR_BLOCKED_SANDBOX_RECEIPTS_PRESENT');
+    expect(promotionMigration).toContain('acknowledged_count >= 3');
+    expect(promotionMigration).toContain('distinct_workflow_count >= 2');
+    expect(promotionMigration).toContain('failed_or_blocked_count = 0');
+  });
+
+  it('requires guarded production connector contract controls', () => {
+    expect(promotionMigration).toContain('PRODUCTION_CONTRACT_GUARDS_REQUIRED');
+    expect(promotionMigration).toContain("'tls_required'");
+    expect(promotionMigration).toContain("'idempotency_required'");
+    expect(promotionMigration).toContain("'payload_hash_required'");
+    expect(promotionMigration).toContain("'receipt_hash_required'");
+  });
+
+  it('requires a separate service-role protected-environment approval', () => {
+    expect(promotionMigration).toContain('PENDING_PROTECTED_ENVIRONMENT');
+    expect(promotionMigration).toContain('PROTECTED_ENVIRONMENT_APPROVAL_REF_REQUIRED');
+    expect(promotionMigration).toContain('SERVICE_ROLE_REQUIRED');
+    expect(promotionMigration).toContain('APPROVED_FOR_IMPLEMENTATION');
+  });
+
+  it('hard-disables production execution even after promotion approval', () => {
+    expect(promotionMigration).toContain('check (production_execution_enabled = false)');
+    expect(promotionMigration).toContain('production_execution_enabled = false');
+    expect(promotionMigration).toContain('false as production_send_available');
+    expect(page).toContain('Production send');
+    expect(page).toContain('DISABLED');
+    expect(page).toContain('production send available: NO');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires sandbox certification and promotion requests into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_certify_sandbox_receipts'");
+    expect(api).toContain("rpc('nonprofit_request_production_connector_promotion'");
+    expect(api).toContain('nonprofit_sandbox_receipt_certifications_v1');
+    expect(api).toContain('nonprofit_production_connector_promotions_v1');
+    expect(page).toContain('Sandbox receipt certification + production promotion');
+    expect(page).toContain('Certify sandbox receipts');
+    expect(page).toContain('Request production promotion');
   });
 });

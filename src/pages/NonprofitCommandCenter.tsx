@@ -16,6 +16,8 @@ import {
   type NonprofitSubmissionPreviewCertificationRow,
   type NonprofitSubmissionCanaryRow,
   type NonprofitExternalSandboxTransmissionRow,
+  type NonprofitSandboxReceiptCertificationRow,
+  type NonprofitProductionConnectorPromotionRow,
 } from '@/lib/nonprofitCommandCenterApi';
 
 const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-lg shadow-black/20';
@@ -47,11 +49,14 @@ export default function NonprofitCommandCenter() {
   const [submissionPreviewCertifications, setSubmissionPreviewCertifications] = useState<NonprofitSubmissionPreviewCertificationRow[]>([]);
   const [submissionCanaries, setSubmissionCanaries] = useState<NonprofitSubmissionCanaryRow[]>([]);
   const [externalSandboxTransmissions, setExternalSandboxTransmissions] = useState<NonprofitExternalSandboxTransmissionRow[]>([]);
+  const [sandboxReceiptCertifications, setSandboxReceiptCertifications] = useState<NonprofitSandboxReceiptCertificationRow[]>([]);
+  const [productionConnectorPromotions, setProductionConnectorPromotions] = useState<NonprofitProductionConnectorPromotionRow[]>([]);
   const [authorizationAction, setAuthorizationAction] = useState('');
   const [previewAction, setPreviewAction] = useState('');
   const [certificationAction, setCertificationAction] = useState('');
   const [canaryAction, setCanaryAction] = useState('');
   const [externalSandboxAction, setExternalSandboxAction] = useState('');
+  const [promotionAction, setPromotionAction] = useState('');
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingStep, setSubmittingStep] = useState('');
@@ -76,6 +81,8 @@ export default function NonprofitCommandCenter() {
       setSubmissionPreviewCertifications(result.submissionPreviewCertifications);
       setSubmissionCanaries(result.submissionCanaries);
       setExternalSandboxTransmissions(result.externalSandboxTransmissions);
+      setSandboxReceiptCertifications(result.sandboxReceiptCertifications);
+      setProductionConnectorPromotions(result.productionConnectorPromotions);
       setAudit(result.audit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load nonprofit command center');
@@ -191,6 +198,36 @@ export default function NonprofitCommandCenter() {
     }
   }
 
+  async function certifySandbox(connectorKind: string, endpointHost: string) {
+    setPromotionAction(`${connectorKind}:${endpointHost}`);
+    setError('');
+    setMessage('');
+    try {
+      await nonprofitCommandCenterApi.certifySandboxReceipts(connectorKind, endpointHost);
+      setMessage('Sandbox receipt evidence certified. Production execution remains disabled.');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sandbox receipt certification was blocked');
+    } finally {
+      setPromotionAction('');
+    }
+  }
+
+  async function requestPromotion(sandboxCertificationId: string) {
+    setPromotionAction(sandboxCertificationId);
+    setError('');
+    setMessage('');
+    try {
+      await nonprofitCommandCenterApi.requestProductionConnectorPromotion(sandboxCertificationId);
+      setMessage('Production connector promotion requested. A separate protected production-environment approval is still required, and production execution remains disabled.');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Production connector promotion request was blocked');
+    } finally {
+      setPromotionAction('');
+    }
+  }
+
   const org = organizations[0];
   const latestAudit = audit[0];
   const redAlerts = useMemo(() => alerts.filter((row) => row.decision === 'RED').length, [alerts]);
@@ -204,6 +241,8 @@ export default function NonprofitCommandCenter() {
   const validCertifications = useMemo(() => submissionPreviewCertifications.filter((row) => row.certification_valid).length, [submissionPreviewCertifications]);
   const passedCanaries = useMemo(() => submissionCanaries.filter((row) => row.canary_passed).length, [submissionCanaries]);
   const certifiedSandboxConnectors = useMemo(() => externalSandboxTransmissions.filter((row) => row.sandbox_connector_certified).length, [externalSandboxTransmissions]);
+  const validSandboxReceiptCertifications = useMemo(() => sandboxReceiptCertifications.filter((row) => row.certification_valid).length, [sandboxReceiptCertifications]);
+  const approvedPromotionPrereqs = useMemo(() => productionConnectorPromotions.filter((row) => row.promotion_prerequisites_met).length, [productionConnectorPromotions]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -222,7 +261,7 @@ export default function NonprofitCommandCenter() {
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-11">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-13">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
           <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked records</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE</p></div>
@@ -233,6 +272,8 @@ export default function NonprofitCommandCenter() {
           <div className={card}><BadgeCheck className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Certified freezes</p><p className="mt-2 text-3xl font-semibold">{validCertifications}</p><p className="mt-2 text-sm text-slate-400">exact hashes locked</p></div>
           <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Canary receipts</p><p className="mt-2 text-3xl font-semibold">{passedCanaries}</p><p className="mt-2 text-sm text-slate-400">sandbox hash verified</p></div>
           <div className={card}><BadgeCheck className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-xs uppercase tracking-wider text-slate-500">External sandbox</p><p className="mt-2 text-3xl font-semibold">{certifiedSandboxConnectors}</p><p className="mt-2 text-sm text-slate-400">allowlisted receipts</p></div>
+          <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Sandbox certified</p><p className="mt-2 text-3xl font-semibold">{validSandboxReceiptCertifications}</p><p className="mt-2 text-sm text-slate-400">3 receipts / 2 workflows</p></div>
+          <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Promotion prereqs</p><p className="mt-2 text-3xl font-semibold">{approvedPromotionPrereqs}</p><p className="mt-2 text-sm text-slate-400">send still disabled</p></div>
           <div className={card}><AlertTriangle className="mb-3 h-5 w-5 text-amber-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Compliance</p><p className="mt-2 text-3xl font-semibold">{redAlerts}</p><p className="mt-2 text-sm text-slate-400">RED policy blocks</p></div>
         </section>
 
@@ -293,6 +334,23 @@ export default function NonprofitCommandCenter() {
               const transmission = externalSandboxTransmissions.find((row) => row.certification_id === certification.certification_id);
               return <div key={certification.certification_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{certification.connector_kind}</p><p className="text-sm text-slate-400">Certified hash {certification.certified_payload_hash.slice(0, 16)}…</p></div>{transmission ? <span className={`${badge} ${decisionClass(transmission.sandbox_connector_certified ? 'GREEN' : 'BLOCKED')}`}>{transmission.request_status}</span> : <button className={actionButton} disabled={!canary || externalSandboxAction === certification.certification_id} onClick={() => void runExternalSandbox(certification.certification_id)}>Run external sandbox connector</button>}</div>{!canary && !transmission && <p className="mt-3 text-xs text-amber-300">Gate 26 internal canary must pass first.</p>}{transmission && <div className="mt-3 grid gap-3 text-sm md:grid-cols-4"><div><p className="text-slate-500">Host</p><p>{transmission.endpoint_host || '—'}</p></div><div><p className="text-slate-500">HTTP</p><p>{transmission.response_status ?? '—'}</p></div><div><p className="text-slate-500">Idempotency</p><p className="break-all text-xs">{transmission.idempotency_key}</p></div><div><p className="text-slate-500">Production</p><p>{transmission.production_destination ? 'YES' : 'NO'}</p></div></div>}</div>;
             })}
+          </div>
+        </section>
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Sandbox receipt certification + production promotion</h2><p className="mt-1 text-sm text-slate-400">Promotion requires at least 3 acknowledged sandbox receipts across 2 distinct workflows, with zero failed/blocked receipts in the 30-day evidence window. Even after protected-environment approval, production execution remains hard-disabled in this gate.</p></div><span className={`${badge} ${approvedPromotionPrereqs > 0 ? decisionClass('GREEN') : decisionClass('PENDING')}`}>{approvedPromotionPrereqs > 0 ? 'PROMOTION PREREQS MET' : 'PROMOTION NOT READY'}</span></div>
+          <div className="space-y-3">
+            {Array.from(new Map(externalSandboxTransmissions.filter((row) => row.endpoint_host).map((row) => [`${row.connector_kind}:${row.endpoint_host}`, row])).values()).map((sample) => {
+              const matching = externalSandboxTransmissions.filter((row) => row.connector_kind === sample.connector_kind && row.endpoint_host === sample.endpoint_host);
+              const acknowledged = matching.filter((row) => row.request_status === 'ACKNOWLEDGED' && row.sandbox_connector_certified);
+              const distinctWorkflows = new Set(acknowledged.map((row) => row.workflow_id)).size;
+              const failed = matching.filter((row) => ['FAILED','BLOCKED'].includes(row.request_status)).length;
+              const cert = sandboxReceiptCertifications.find((row) => row.connector_kind === sample.connector_kind && row.endpoint_host === sample.endpoint_host && row.certification_valid);
+              const promotion = cert ? productionConnectorPromotions.find((row) => row.sandbox_certification_id === cert.id) : undefined;
+              const key = `${sample.connector_kind}:${sample.endpoint_host}`;
+              const eligible = acknowledged.length >= 3 && distinctWorkflows >= 2 && failed === 0;
+              return <div key={key} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{sample.connector_kind}</p><p className="text-sm text-slate-400">{sample.endpoint_host}</p></div>{cert ? <span className={`${badge} ${decisionClass('GREEN')}`}>SANDBOX CERTIFIED</span> : <button className={actionButton} disabled={!eligible || promotionAction === key} onClick={() => void certifySandbox(sample.connector_kind, sample.endpoint_host || '')}>Certify sandbox receipts</button>}</div><div className="mt-3 grid gap-3 text-sm md:grid-cols-4"><div><p className="text-slate-500">Acknowledged</p><p>{acknowledged.length}/3</p></div><div><p className="text-slate-500">Distinct workflows</p><p>{distinctWorkflows}/2</p></div><div><p className="text-slate-500">Failed/blocked</p><p>{failed}</p></div><div><p className="text-slate-500">Production send</p><p>DISABLED</p></div></div>{cert && <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-400"><p>Evidence hash: <span className="font-mono">{cert.evidence_hash}</span></p><p className="mt-1">Expires: {new Date(cert.expires_at).toLocaleString()}</p>{promotion ? <p className="mt-1">Promotion: {promotion.promotion_status.replaceAll('_', ' ')} · protected approval: {promotion.protected_environment_approval_ref || 'pending'} · production send available: NO</p> : <button className={`${actionButton} mt-3`} disabled={promotionAction === cert.id} onClick={() => void requestPromotion(cert.id)}>Request production promotion</button>}</div>}</div>;
+            })}
+            {externalSandboxTransmissions.filter((row) => row.endpoint_host).length === 0 && <p className="text-sm text-slate-500">No external sandbox receipts exist yet, so promotion evidence cannot be certified.</p>}
           </div>
         </section>
         <section className="grid gap-6 lg:grid-cols-2">
