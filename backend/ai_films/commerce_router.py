@@ -224,7 +224,7 @@ async def render_commerce_campaign(
     request: CampaignRenderRequest,
     authorization: str | None = Header(default=None),
 ) -> dict[str, object]:
-    """Queue approved commerce variants on the deployed OpenAI/Sora worker.
+    """Queue approved commerce variants on the Pollo-primary production video route.
 
     This is intentionally limited to twelve variants per request: AI video
     renders consume external provider capacity, so a bounded batch preserves a
@@ -242,6 +242,7 @@ async def render_commerce_campaign(
                 screenplay=variant.prompt,
                 video_prompt=variant.prompt,
                 duration_seconds=min(20, variant.duration_seconds),
+                aspect_ratio=str(PLATFORM_SPECS[variant.platform]["aspect_ratio"]),
             ),
             authorization=authorization,
         )
@@ -254,7 +255,7 @@ async def render_commerce_campaign(
                 "status": dispatch["status"],
             }
         )
-    return {"status": "queued", "provider": "openai", "job_count": len(queued), "jobs": queued}
+    return {"status": "queued", "provider": "pollo", "provider_route": ["pollo", "replicate"], "job_count": len(queued), "jobs": queued}
 
 
 @router.get("/templates")
