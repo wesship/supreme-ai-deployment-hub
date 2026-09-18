@@ -7,6 +7,7 @@ const api = readFileSync('src/lib/nonprofitCommandCenterApi.ts', 'utf8');
 const attachmentMigration = readFileSync('supabase/migrations/20260917112000_gate21_nonprofit_attachment_compliance.sql', 'utf8');
 const readinessMigration = readFileSync('supabase/migrations/20260917114500_gate22_nonprofit_final_submission_readiness.sql', 'utf8');
 const authorizationMigration = readFileSync('supabase/migrations/20260917171500_gate23_nonprofit_submission_authorization.sql', 'utf8');
+const previewMigration = readFileSync('supabase/migrations/20260918043000_gate24_nonprofit_submission_preview.sql', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -25,6 +26,7 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_attachment_compliance_v1');
     expect(api).toContain('nonprofit_submission_readiness_v1');
     expect(api).toContain('nonprofit_submission_authorizations_v1');
+    expect(api).toContain('nonprofit_submission_previews_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -126,5 +128,41 @@ describe('Gate 23 submission authorization and human approval', () => {
     expect(page).toContain('Request human authorization');
     expect(page).toContain('Approve authorization');
     expect(page).toContain('A different authorized human must decide this request.');
+  });
+});
+
+
+describe('Gate 24 controlled submission connector dry-run preview', () => {
+  it('requires both live human authorization and current submission readiness', () => {
+    expect(previewMigration).toContain('LIVE_HUMAN_AUTHORIZATION_REQUIRED');
+    expect(previewMigration).toContain("v_ready.submission_status <> 'SUBMISSION_READY'");
+    expect(previewMigration).toContain('WORKFLOW_NOT_SUBMISSION_READY');
+    expect(previewMigration).toContain('ATTACHMENT_COMPLIANCE_CHANGED');
+  });
+
+  it('creates a deterministic preview package with a SHA-256 payload hash', () => {
+    expect(previewMigration).toContain("'grantassist.submission-preview.v1'");
+    expect(previewMigration).toContain("'DRY_RUN'");
+    expect(previewMigration).toContain('attachment_manifest');
+    expect(previewMigration).toContain("'sha256'");
+    expect(previewMigration).toContain('payload_hash');
+  });
+
+  it('does not transmit anything externally', () => {
+    expect(previewMigration).not.toContain('http_request');
+    expect(previewMigration).not.toContain('net.http');
+    expect(previewMigration).not.toContain('curl');
+    expect(previewMigration).toContain('false as external_transmission_performed');
+    expect(page).toContain('performs no network transmission');
+    expect(page).toContain('External transmission');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires preview generation into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_generate_submission_preview'");
+    expect(api).toContain('nonprofit_submission_previews_v1');
+    expect(page).toContain('Controlled submission preview');
+    expect(page).toContain('Generate dry-run preview');
+    expect(page).toContain('Payload hash');
   });
 });
