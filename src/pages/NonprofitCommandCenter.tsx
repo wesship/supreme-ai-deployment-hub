@@ -14,6 +14,7 @@ import {
   type NonprofitSubmissionAuthorizationRow,
   type NonprofitSubmissionPreviewRow,
   type NonprofitSubmissionPreviewCertificationRow,
+  type NonprofitSubmissionCanaryRow,
 } from '@/lib/nonprofitCommandCenterApi';
 
 const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-lg shadow-black/20';
@@ -43,9 +44,11 @@ export default function NonprofitCommandCenter() {
   const [submissionAuthorizations, setSubmissionAuthorizations] = useState<NonprofitSubmissionAuthorizationRow[]>([]);
   const [submissionPreviews, setSubmissionPreviews] = useState<NonprofitSubmissionPreviewRow[]>([]);
   const [submissionPreviewCertifications, setSubmissionPreviewCertifications] = useState<NonprofitSubmissionPreviewCertificationRow[]>([]);
+  const [submissionCanaries, setSubmissionCanaries] = useState<NonprofitSubmissionCanaryRow[]>([]);
   const [authorizationAction, setAuthorizationAction] = useState('');
   const [previewAction, setPreviewAction] = useState('');
   const [certificationAction, setCertificationAction] = useState('');
+  const [canaryAction, setCanaryAction] = useState('');
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingStep, setSubmittingStep] = useState('');
@@ -68,6 +71,7 @@ export default function NonprofitCommandCenter() {
       setSubmissionAuthorizations(result.submissionAuthorizations);
       setSubmissionPreviews(result.submissionPreviews);
       setSubmissionPreviewCertifications(result.submissionPreviewCertifications);
+      setSubmissionCanaries(result.submissionCanaries);
       setAudit(result.audit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load nonprofit command center');
@@ -153,6 +157,21 @@ export default function NonprofitCommandCenter() {
     }
   }
 
+  async function runCanary(certificationId: string) {
+    setCanaryAction(certificationId);
+    setError('');
+    setMessage('');
+    try {
+      await nonprofitCommandCenterApi.runSubmissionCanary(certificationId);
+      setMessage('Sandbox transmission canary completed with certified payload hash verification. No external network or production destination was used.');
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Submission canary was blocked');
+    } finally {
+      setCanaryAction('');
+    }
+  }
+
   const org = organizations[0];
   const latestAudit = audit[0];
   const redAlerts = useMemo(() => alerts.filter((row) => row.decision === 'RED').length, [alerts]);
@@ -164,6 +183,7 @@ export default function NonprofitCommandCenter() {
   const pendingAuthorizations = useMemo(() => submissionAuthorizations.filter((row) => row.authorization_status === 'PENDING').length, [submissionAuthorizations]);
   const currentPreviews = useMemo(() => submissionPreviews.filter((row) => row.authorization_still_live && row.readiness_still_valid).length, [submissionPreviews]);
   const validCertifications = useMemo(() => submissionPreviewCertifications.filter((row) => row.certification_valid).length, [submissionPreviewCertifications]);
+  const passedCanaries = useMemo(() => submissionCanaries.filter((row) => row.canary_passed).length, [submissionCanaries]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -182,7 +202,7 @@ export default function NonprofitCommandCenter() {
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-9">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-10">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
           <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked records</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE</p></div>
@@ -191,6 +211,7 @@ export default function NonprofitCommandCenter() {
           <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Human authorization</p><p className="mt-2 text-3xl font-semibold">{liveAuthorizations}</p><p className="mt-2 text-sm text-slate-400">{pendingAuthorizations} pending</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Dry-run previews</p><p className="mt-2 text-3xl font-semibold">{currentPreviews}</p><p className="mt-2 text-sm text-slate-400">hashed, not transmitted</p></div>
           <div className={card}><BadgeCheck className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Certified freezes</p><p className="mt-2 text-3xl font-semibold">{validCertifications}</p><p className="mt-2 text-sm text-slate-400">exact hashes locked</p></div>
+          <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Canary receipts</p><p className="mt-2 text-3xl font-semibold">{passedCanaries}</p><p className="mt-2 text-sm text-slate-400">sandbox hash verified</p></div>
           <div className={card}><AlertTriangle className="mb-3 h-5 w-5 text-amber-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Compliance</p><p className="mt-2 text-3xl font-semibold">{redAlerts}</p><p className="mt-2 text-sm text-slate-400">RED policy blocks</p></div>
         </section>
 
@@ -231,6 +252,16 @@ export default function NonprofitCommandCenter() {
               return <div key={preview.preview_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{preview.title}</p><p className="text-sm text-slate-400">{preview.funder_name} · {preview.connector_kind}</p></div>{certification ? <span className={`${badge} ${decisionClass(certification.certification_status.startsWith('INVALID') ? 'BLOCKED' : 'GREEN')}`}>{certification.certification_status.replaceAll('_', ' ')}</span> : <button className={actionButton} disabled={certificationAction === preview.preview_id || !preview.authorization_still_live || !preview.readiness_still_valid} onClick={() => void certifyPreview(preview.preview_id, preview.payload_hash)}>Certify exact payload hash</button>}</div><div className="mt-3 grid gap-3 text-sm md:grid-cols-3"><div><p className="text-slate-500">Preview hash</p><p className="break-all font-mono text-xs">{preview.payload_hash}</p></div><div><p className="text-slate-500">Authorization</p><p>{preview.authorization_still_live ? 'LIVE' : 'EXPIRED'}</p></div><div><p className="text-slate-500">Readiness</p><p>{preview.readiness_still_valid ? 'VALID' : 'CHANGED'}</p></div></div>{certification && <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-400"><p>Certified hash: <span className="font-mono">{certification.certified_payload_hash}</span></p><p className="mt-1">Hash still matches: {certification.hash_still_matches ? 'YES' : 'NO'} · Package unchanged: {certification.package_unchanged ? 'YES' : 'NO'} · Expires: {new Date(certification.expires_at).toLocaleString()}</p></div>}</div>;
             })}
             {submissionPreviews.length === 0 && <p className="text-sm text-slate-500">No dry-run preview exists to certify.</p>}
+          </div>
+        </section>
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Certified payload transmission canary</h2><p className="mt-1 text-sm text-slate-400">Sandbox-only execution boundary. A valid frozen certification is copied into an internal canary outbox, independently re-hashed at receipt, and accepted only when the received SHA-256 matches the certified hash. No external network or production destination is reachable in this gate.</p></div><span className={`${badge} ${passedCanaries > 0 ? decisionClass('GREEN') : decisionClass('PENDING')}`}>{passedCanaries > 0 ? `${passedCanaries} PASSED` : 'SANDBOX ONLY'}</span></div>
+          <div className="space-y-3">
+            {submissionPreviewCertifications.filter((certification) => certification.certification_valid).map((certification) => {
+              const canary = submissionCanaries.find((row) => row.certification_id === certification.certification_id);
+              return <div key={certification.certification_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">Certified payload</p><p className="text-sm text-slate-400">{certification.connector_kind} · exact hash frozen</p></div>{canary ? <span className={`${badge} ${decisionClass(canary.canary_passed ? 'GREEN' : 'BLOCKED')}`}>{canary.canary_passed ? 'CANARY PASSED' : 'CANARY FAILED'}</span> : <button className={actionButton} disabled={canaryAction === certification.certification_id} onClick={() => void runCanary(certification.certification_id)}>Run sandbox canary</button>}</div><div className="mt-3 grid gap-3 text-sm md:grid-cols-3"><div><p className="text-slate-500">Certified hash</p><p className="break-all font-mono text-xs">{certification.certified_payload_hash}</p></div><div><p className="text-slate-500">Destination</p><p>{canary?.destination_kind || 'INTERNAL_SANDBOX_CANARY'}</p></div><div><p className="text-slate-500">Production/network</p><p>{canary ? `${canary.production_destination ? 'PROD' : 'NON-PROD'} / ${canary.external_network_performed ? 'NETWORK' : 'NO NETWORK'}` : 'NON-PROD / NO NETWORK'}</p></div></div>{canary && <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-400"><p>Received hash: <span className="font-mono">{canary.received_payload_hash}</span></p><p className="mt-1">Hash verified: {canary.hash_verified ? 'YES' : 'NO'} · Receipt: {canary.receipt_status}</p></div>}</div>;
+            })}
+            {submissionPreviewCertifications.filter((certification) => certification.certification_valid).length === 0 && <p className="text-sm text-slate-500">No valid certified payload is available for a sandbox canary.</p>}
           </div>
         </section>
         <section className="grid gap-6 lg:grid-cols-2">
