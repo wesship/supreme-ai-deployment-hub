@@ -94,6 +94,15 @@ begin
     raise exception 'SEPARATION_OF_DUTIES_REQUIRED' using errcode = '42501';
   end if;
 
+  if not exists (
+    select 1
+    from public.nonprofit_submission_canaries_v1 canary
+    where canary.certification_id = v_cert.certification_id
+      and canary.canary_passed
+  ) then
+    raise exception 'PASSED_INTERNAL_CANARY_REQUIRED' using errcode = '42501';
+  end if;
+
   if v_cert.certified_payload_hash <> v_cert.current_payload_hash
      or not v_cert.hash_still_matches
      or not v_cert.package_unchanged then
@@ -276,3 +285,32 @@ join public.nonprofit_submission_preview_certifications_v1 c
 
 grant select on public.nonprofit_external_sandbox_transmissions_v1 to authenticated;
 revoke all on public.nonprofit_external_sandbox_transmissions_v1 from anon;
+
+
+create or replace function public.nonprofit_record_external_sandbox_receipt(
+  p_transmission_id uuid,
+  p_endpoint_host text,
+  p_request_status text,
+  p_response_status integer,
+  p_response_body_hash text,
+  p_response_receipt jsonb
+)
+returns void
+language sql
+security invoker
+set search_path = ''
+as $$
+  select nonprofit_api.record_external_sandbox_receipt(
+    p_transmission_id,
+    p_endpoint_host,
+    p_request_status,
+    p_response_status,
+    p_response_body_hash,
+    p_response_receipt
+  );
+$$;
+
+revoke all on function public.nonprofit_record_external_sandbox_receipt(uuid,text,text,integer,text,jsonb) from public;
+revoke all on function public.nonprofit_record_external_sandbox_receipt(uuid,text,text,integer,text,jsonb) from anon;
+revoke all on function public.nonprofit_record_external_sandbox_receipt(uuid,text,text,integer,text,jsonb) from authenticated;
+grant execute on function public.nonprofit_record_external_sandbox_receipt(uuid,text,text,integer,text,jsonb) to service_role;
