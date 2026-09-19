@@ -1,4 +1,5 @@
 """backend/main.py — D3VONN.IO FastAPI Application Entry Point."""
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -26,8 +27,32 @@ async def lifespan(app: FastAPI):
     logger.info("D3VONN.IO backend starting up…")
     if init_weave():
         logger.info("W&B Weave initialized successfully.")
-    yield
-    logger.info("D3VONN.IO backend shutting down…")
+
+    proactivity_task = None
+    proactivity_enabled = os.getenv(
+        "HERMES_PROACTIVITY_ENABLED", ""
+    ).strip().lower() in {"1", "true", "yes", "on"}
+    if proactivity_enabled:
+        from backend.hermes.proactivity import run_watchtower_loop
+
+        proactivity_task = asyncio.create_task(
+            run_watchtower_loop(),
+            name="hermes-proactivity-watchtower",
+        )
+        logger.info(
+            "Hermes Proactivity Watchtower started in proposal-only mode."
+        )
+
+    try:
+        yield
+    finally:
+        if proactivity_task is not None:
+            proactivity_task.cancel()
+            try:
+                await proactivity_task
+            except asyncio.CancelledError:
+                pass
+        logger.info("D3VONN.IO backend shutting down…")
 
 
 app = FastAPI(title="D3VONN.IO API", description="Multi-agent orchestration platform", version="2.0.0", docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json", lifespan=lifespan)
@@ -82,6 +107,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.occ_operator.market_intelligence_router", "router", "/api/operator"),
     ("backend.hermes.router", "router", None),
     ("backend.hermes.recency_router", "router", None),
+    ("backend.hermes.proactivity_router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),
     ("backend.rag.router", "router", None),
     ("backend.knowledge.router", "router", None),
