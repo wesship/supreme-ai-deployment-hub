@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "profile_id": "d3vonn-smart-glasses-needle",
+  "production_enabled": false,
+  "device_class": "smart-glasses",
+  "role": "human-edge-interface",
+  "inference_target": "jetson-orin-nano",
+  "control_plane": "d3vonn-gateway",
+  "capabilities": {
+    "camera": true,
+    "microphone": true,
+    "audio_output": true,
+    "display": true,
+    "battery_status": true,
+    "location_optional": true,
+    "vision_stream": true,
+    "voice_command": true
+  },
+  "routing": {
+    "local": [
+      "capture_photo",
+      "start_recording",
+      "stop_recording",
+      "get_battery",
+      "get_location"
+    ],
+    "d3vonn_gateway": [
+      "describe_scene",
+      "read_text",
+      "create_note",
+      "ask_d3vonn",
+      "recall_memory"
+    ],
+    "guardian_review": [
+      "delete_data",
+      "send_money"
+    ]
+  },
+  "offload": {
+    "vision": "jetson-orin-nano",
+    "reasoning": "d3vonn-gateway",
+    "memory": "d3vonn-gateway",
+    "privileged_actions": "guardian-review"
+  },
+  "security": {
+    "signed_device_envelope_required": true,
+    "replay_protection_required": true,
+    "revocation_required": true,
+    "audit_logging_required": true,
+    "kill_switch_required": true,
+    "secrets_in_image": false
+  },
+  "gates": {
+    "sg3_jetson_certification_required": true,
+    "sg4_controlled_canary_required": true
+  }
+}
