@@ -15,6 +15,7 @@ import re
 from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any
+from uuid import NAMESPACE_URL, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -153,7 +154,7 @@ def _candidate(
     ).hexdigest()
     return CandidateAction(
         fingerprint=digest,
-        correlation_id=f"hermes-proactivity:{digest[:48]}",
+        correlation_id=str(uuid5(NAMESPACE_URL, f"d3vonn:hermes-proactivity:{digest}")),
         kind=kind,
         title=title,
         risk=risk,
