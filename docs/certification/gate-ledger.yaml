@@ -1,0 +1,109 @@
+schema_version: 1
+program: D3VONN Gate 1-500 Implementation Certification
+repository: wesship/supreme-ai-deployment-hub
+baseline:
+  branch: main
+  commit: 3ae941379b101a55dbcdf027406fd95e1ae4ba87
+status_values:
+  - VERIFIED
+  - IMPLEMENTED
+  - PARTIAL
+  - MISSING
+  - BLOCKED
+  - NOT_APPLICABLE
+critical_failures:
+  - approval_bypass
+  - unauthorized_tool_execution
+  - cross_tenant_leak
+  - secret_leakage
+  - duplicate_protected_side_effect
+records:
+  - id: hermes-durable-state
+    gates: [14, 15, 18, 21, 31]
+    status: IMPLEMENTED
+    evidence:
+      repo:
+        - src/components/occ/OCCHermes.tsx
+        - src/integrations/supabase/types.ts
+        - supabase/migrations/20260530131757_284c8b75-4c2c-4469-9190-b5e19a35dd0f.sql
+    missing:
+      - live schema/version snapshot
+      - persistence and service-restart canary
+      - end-to-end runtime trace
+    priority: P1
+  - id: hermes-rls-hardening
+    gates: [24, 38, 40]
+    status: IMPLEMENTED
+    evidence:
+      repo:
+        - docs/runbooks/SUPABASE_RLS_HARDENING_PHASE1.md
+        - supabase/migrations/20260721190500_supabase_rls_hardening_phase1.sql
+        - supabase/migrations/20260723071000_optimize_remaining_auth_rls_initplans.sql
+    missing:
+      - production RLS snapshot
+      - negative-access canary
+    priority: P0
+  - id: smart-glasses-authenticated-ingress
+    gates: [26, 29, 66, 281]
+    status: IMPLEMENTED
+    evidence:
+      repo:
+        - backend/app/routers/smart_glasses.py
+        - backend/tests/test_smart_glasses_api.py
+    missing:
+      - production endpoint canary
+      - physical device session evidence
+    priority: P4
+  - id: needle-fail-closed-control-plane
+    gates: [26, 29, 66]
+    status: IMPLEMENTED
+    evidence:
+      repo:
+        - edge/needle/README.md
+    missing:
+      - deployed edge-gateway evidence
+      - physical glasses evidence
+    priority: P4
+  - id: jetson-smart-glasses-certification
+    gates: [65, 66, 132, 180, 300]
+    status: BLOCKED
+    evidence:
+      repo:
+        - edge/needle/validate_jetson_certification.py
+    blockers:
+      - current physical Jetson/glasses certification evidence not yet attached
+    priority: P4
+  - id: enterprise-sso-scim-expanded-rbac
+    gates: [38, 39]
+    status: PARTIAL
+    evidence:
+      repo:
+        - src/pages/EnterpriseReadiness.tsx
+    missing:
+      - SSO implementation
+      - SCIM provisioning and deprovisioning
+      - expanded RBAC policy enforcement
+      - enterprise IdP integration tests
+    priority: P5
+  - id: customer-audit-export-retention
+    gates: [40]
+    status: PARTIAL
+    evidence:
+      repo:
+        - src/pages/EnterpriseReadiness.tsx
+    missing:
+      - tenant-scoped export
+      - retention controls
+      - export authorization tests
+    priority: P5
+  - id: private-vpc-sovereign-deployment
+    gates: [25, 43, 89, 180]
+    status: PARTIAL
+    evidence:
+      repo:
+        - src/pages/EnterpriseReadiness.tsx
+    missing:
+      - deployment artifact
+      - health and recovery proof
+      - sovereign-mode certification
+    priority: P4
