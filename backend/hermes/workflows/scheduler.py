@@ -70,7 +70,12 @@ class WorkflowParallelScheduler:
     ) -> SchedulerPlan:
         ready = tuple(self._engine.ready_step_ids(definition, snapshot))
         tasks = await self._repository.list_rows("hermes_tasks", {})
-        active = [task for task in tasks if str(task.get("status")) in ACTIVE_TASK_STATUSES]
+        active = [
+            task
+            for task in tasks
+            if str(task.get("status")) in ACTIVE_TASK_STATUSES
+            and str(task.get("task_type", "")) != "proactive_proposal"
+        ]
         global_active = len(active)
         workflow_active = sum(
             1
