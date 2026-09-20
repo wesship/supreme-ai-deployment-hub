@@ -165,3 +165,41 @@ def test_occ_projection_reports_capacity_and_queue_depth() -> None:
     assert projection["ready_queue_depth"] == 5
     assert projection["scheduled_batch_size"] == 2
     assert projection["blocked_by_capacity"] == 3
+
+
+def test_watchtower_manual_review_proposals_do_not_consume_scheduler_capacity() -> None:
+    scheduler, repository, _, _, _, clock = build_runtime()
+    repository.tables["hermes_tasks"] = [
+        {
+            "id": f"proposal-{index}",
+            "status": "MANUAL_REVIEW",
+            "task_type": "proactive_proposal",
+            "agent_name": None,
+            "description": "watchtower proposal",
+        }
+        for index in range(8)
+    ] + [
+        {
+            "id": "real-active",
+            "status": "RUNNING",
+            "task_type": "generic",
+            "agent_name": "TARS",
+            "description": "other",
+        }
+    ]
+    defn = definition()
+    plan = run(
+        scheduler.plan(
+            defn,
+            snapshot(defn, clock),
+            policy=SchedulerPolicy(
+                global_limit=3,
+                workflow_limit=3,
+                default_agent_limit=2,
+            ),
+        )
+    )
+
+    assert plan.global_active == 1
+    assert plan.global_available == 2
+    assert len(plan.selected_step_ids) == 2
