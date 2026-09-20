@@ -1,0 +1,43 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:1-ffmpeg
+    container_name: hnftv-mediamtx
+    restart: unless-stopped
+    command: ["/mediamtx", "/config/mediamtx.yml"]
+    ports:
+      - "1935:1935"
+      - "8888:8888"
+    volumes:
+      - ./mediamtx.yml:/config/mediamtx.yml:ro
+      - ./recordings:/recordings
+
+  tunarr:
+    image: ghcr.io/chrisbenincasa/tunarr:1.3.15
+    container_name: hnftv-tunarr
+    restart: unless-stopped
+    environment:
+      TZ: America/Denver
+      TUNARR_LOG_LEVEL: INFO
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./tunarr-data:/config/tunarr
+      - ./media:/media:ro
+
+  caddy:
+    image: caddy:2
+    container_name: hnftv-caddy
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
