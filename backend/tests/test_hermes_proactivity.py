@@ -168,3 +168,98 @@ def test_a0_observe_mode_never_persists_even_when_requested():
         if row.get("task_type") == "proactive_proposal"
     ] == []
     assert dispatcher.calls == []
+
+
+def test_future_scheduled_pending_task_is_not_aged():
+    now = datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc)
+    tasks = [
+        {
+            "id": "future-task",
+            "title": "Future task",
+            "task_type": "generic",
+            "status": "PENDING",
+            "created_at": (now - timedelta(days=1)).isoformat(),
+            "scheduled_at": (now + timedelta(hours=2)).isoformat(),
+        }
+    ]
+    snapshot, candidates = analyze_tasks(
+        tasks,
+        now=now,
+        policy=ProactivityPolicy(aged_pending_seconds=3600),
+    )
+
+    assert snapshot.aged_pending == 0
+    assert all(
+        candidate.kind != "review_aged_pending_task" for candidate in candidates
+    )
+
+
+def test_cycle_scans_actionable_statuses_even_when_newer_completed_rows_dominate():
+    now = datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc)
+    dependencies, repository, _, _ = build_runtime(now)
+    repository.tables["hermes_tasks"] = [
+        {
+            "id": f"done-{index}",
+            "title": f"Completed {index}",
+            "task_type": "generic",
+            "status": "COMPLETED",
+            "created_at": (now - timedelta(minutes=index)).isoformat(),
+        }
+        for index in range(20)
+    ]
+    repository.tables["hermes_tasks"].append(
+        {
+            "id": "older-failed",
+            "title": "Older failed task",
+            "task_type": "generic",
+            "status": "FAILED",
+            "created_at": (now - timedelta(days=2)).isoformat(),
+        }
+    )
+    service = ProactivityService(
+        dependencies,
+        ProactivityPolicy(max_scan_tasks=10),
+    )
+
+    result = run(service.run_cycle(persist_proposals=False))
+
+    assert any(
+        candidate.kind == "review_failed_task"
+        and "older-failed" in candidate.target_task_ids
+        for candidate in result.candidates
+    )
+
+
+def test_proposal_cap_progresses_past_existing_candidates():
+    now = datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc)
+    dependencies, repository, dispatcher, _ = build_runtime(now)
+    repository.tables["hermes_tasks"] = [
+        {
+            "id": f"failed-{index}",
+            "title": f"Failed task {index}",
+            "task_type": "generic",
+            "status": "FAILED",
+            "created_at": (now - timedelta(minutes=index + 1)).isoformat(),
+        }
+        for index in range(3)
+    ]
+    service = ProactivityService(
+        dependencies,
+        ProactivityPolicy(
+            autonomy_level=AutonomyLevel.A1_RECOMMEND,
+            max_proposals_per_cycle=1,
+        ),
+    )
+
+    first = run(service.run_cycle(persist_proposals=True))
+    second = run(service.run_cycle(persist_proposals=True))
+
+    proposals = [
+        row
+        for row in repository.tables["hermes_tasks"]
+        if row.get("task_type") == "proactive_proposal"
+    ]
+    assert len(first.created_proposal_ids) == 1
+    assert len(second.created_proposal_ids) == 1
+    assert len(proposals) == 2
+    assert dispatcher.calls == []
