@@ -41,6 +41,16 @@ class RiskLevel(StrEnum):
     CRITICAL = "critical"
 
 
+WATCHTOWER_SCAN_STATUSES = (
+    TaskStatus.RUNNING.value,
+    TaskStatus.FAILED.value,
+    TaskStatus.PENDING.value,
+    TaskStatus.LOCKED.value,
+    TaskStatus.PAUSED.value,
+    TaskStatus.MANUAL_REVIEW.value,
+)
+
+
 class ProactivityPolicy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -235,7 +245,10 @@ def analyze_tasks(
             )
 
         if status == TaskStatus.PENDING.value:
-            age = _age_seconds(task, now, "created_at", "scheduled_at")
+            # A future scheduled_at is not yet actionable. Prefer the effective
+            # availability time over created_at so deliberately deferred work
+            # is not mislabeled as stale.
+            age = _age_seconds(task, now, "scheduled_at", "created_at")
             if age is not None and age >= policy.aged_pending_seconds:
                 aged_pending += 1
                 candidates.append(
@@ -352,16 +365,36 @@ class ProactivityService:
                 dry_run=True,
             )
 
-        rows = await repository.list_rows(
-            "hermes_tasks",
-            {"order": "created_at.desc", "limit": str(self.policy.max_scan_tasks)},
-        )
+        # Query actionable/active statuses independently so a busy ledger full
+        # of newer COMPLETED/CANCELLED/proposal rows cannot permanently hide
+        # older stalled or pending work behind one global newest-first limit.
+        # Each status query is independently bounded by max_scan_tasks.
+        rows_by_id: dict[str, dict[str, Any]] = {}
+        anonymous_rows: list[dict[str, Any]] = []
+        for status in WATCHTOWER_SCAN_STATUSES:
+            status_rows = await repository.list_rows(
+                "hermes_tasks",
+                {
+                    "status": f"eq.{status}",
+                    "order": "created_at.desc",
+                    "limit": str(self.policy.max_scan_tasks),
+                },
+            )
+            for row in status_rows:
+                if str(row.get("task_type", "")) == "proactive_proposal":
+                    continue
+                row_id = str(row.get("id", ""))
+                if row_id:
+                    rows_by_id[row_id] = row
+                else:
+                    anonymous_rows.append(row)
+
+        rows = [*rows_by_id.values(), *anonymous_rows]
         snapshot, candidates = analyze_tasks(
             rows,
             now=deps.clock.now(),
             policy=self.policy,
         )
-        candidates = candidates[: self.policy.max_proposals_per_cycle]
 
         should_persist = (
             persist_proposals
@@ -380,6 +413,9 @@ class ProactivityService:
                     if prior[0].get("id"):
                         existing.append(str(prior[0]["id"]))
                     continue
+
+                if len(created) >= self.policy.max_proposals_per_cycle:
+                    break
 
                 proposal = await repository.create_row(
                     "hermes_tasks",
