@@ -11,6 +11,7 @@ from backend.hermes.dependencies import get_dependencies
 from backend.hermes.proactivity import ProactivityService, policy_from_env
 
 router = APIRouter(prefix="/api/hermes/proactivity", tags=["hermes-proactivity"])
+_cycle_service = ProactivityService()
 
 
 class RunCycleRequest(BaseModel):
@@ -43,7 +44,7 @@ async def run_proactivity_cycle(
     body: RunCycleRequest,
     _: Any = Depends(require_occ_access),
 ):
-    result = await ProactivityService().run_cycle(
+    result = await _cycle_service.run_cycle(
         persist_proposals=not body.dry_run
     )
     return result.model_dump(mode="json")

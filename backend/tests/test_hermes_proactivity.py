@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import httpx
+
 from backend.hermes.dependencies import HermesDependencies
 from backend.hermes.proactivity import (
     AutonomyLevel,
@@ -263,3 +265,52 @@ def test_proposal_cap_progresses_past_existing_candidates():
     assert len(second.created_proposal_ids) == 1
     assert len(proposals) == 2
     assert dispatcher.calls == []
+
+
+def test_status_backlog_advances_across_cycles_without_dispatch():
+    now = datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc)
+    dependencies, repository, dispatcher, _ = build_runtime(now)
+    repository.tables["hermes_tasks"] = [
+        {
+            "id": f"failed-{index}",
+            "title": f"Failed task {index}",
+            "task_type": "generic",
+            "status": "FAILED",
+            "created_at": (now - timedelta(minutes=30 - index)).isoformat(),
+        }
+        for index in range(25)
+    ]
+    service = ProactivityService(dependencies, ProactivityPolicy(max_scan_tasks=10))
+
+    seen = set()
+    for _ in range(3):
+        result = run(service.run_cycle(persist_proposals=False))
+        seen.update(target for candidate in result.candidates for target in candidate.target_task_ids)
+
+    assert len(seen) == 25
+    assert dispatcher.calls == []
+
+
+def test_concurrent_correlation_conflict_recovers_existing_proposal():
+    now = datetime(2026, 9, 19, 20, 0, tzinfo=timezone.utc)
+    dependencies, repository, dispatcher, events = build_runtime(now)
+    repository.tables["hermes_tasks"] = [{
+        "id": "failed-task", "title": "Failed", "task_type": "generic",
+        "status": "FAILED", "created_at": now.isoformat(),
+    }]
+    original_create = repository.create_row
+
+    async def racing_create(table, payload):
+        await original_create(table, payload)
+        request = httpx.Request("POST", "https://example.test/rest/v1/hermes_tasks")
+        response = httpx.Response(409, json={"code": "23505"}, request=request)
+        raise httpx.HTTPStatusError("duplicate correlation", request=request, response=response)
+
+    repository.create_row = racing_create
+    result = run(ProactivityService(dependencies).run_cycle())
+
+    assert len(result.existing_proposal_ids) == 1
+    assert result.created_proposal_ids == []
+    assert len([row for row in repository.tables["hermes_tasks"] if row.get("task_type") == "proactive_proposal"]) == 1
+    assert dispatcher.calls == []
+    assert not any(event["event"] == "watchtower.proposal.created" for event in events.events)

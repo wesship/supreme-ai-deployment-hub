@@ -17,6 +17,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
+import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.hermes.contracts import TaskStatus
@@ -338,6 +339,7 @@ class ProactivityService:
     ) -> None:
         self._dependencies_override = dependencies
         self.policy = policy or policy_from_env()
+        self._scan_offsets = {status: 0 for status in WATCHTOWER_SCAN_STATUSES}
 
     @property
     def dependencies(self) -> HermesDependencies:
@@ -368,17 +370,24 @@ class ProactivityService:
         # Query actionable/active statuses independently so a busy ledger full
         # of newer COMPLETED/CANCELLED/proposal rows cannot permanently hide
         # older stalled or pending work behind one global newest-first limit.
-        # Each status query is independently bounded by max_scan_tasks.
+        # Each status query scans one bounded page and advances across cycles.
         rows_by_id: dict[str, dict[str, Any]] = {}
         anonymous_rows: list[dict[str, Any]] = []
         for status in WATCHTOWER_SCAN_STATUSES:
+            offset = self._scan_offsets[status]
             status_rows = await repository.list_rows(
                 "hermes_tasks",
                 {
                     "status": f"eq.{status}",
-                    "order": "created_at.desc",
+                    "order": "created_at.asc",
                     "limit": str(self.policy.max_scan_tasks),
+                    "offset": str(offset),
                 },
+            )
+            self._scan_offsets[status] = (
+                offset + len(status_rows)
+                if len(status_rows) == self.policy.max_scan_tasks
+                else 0
             )
             for row in status_rows:
                 if str(row.get("task_type", "")) == "proactive_proposal":
@@ -417,26 +426,42 @@ class ProactivityService:
                 if len(created) >= self.policy.max_proposals_per_cycle:
                     break
 
-                proposal = await repository.create_row(
-                    "hermes_tasks",
-                    {
-                        "title": candidate.title,
-                        "task_type": "proactive_proposal",
-                        "status": TaskStatus.MANUAL_REVIEW.value,
-                        "priority": 5,
-                        "source": "hermes_watchtower",
-                        "correlation_id": candidate.correlation_id,
-                        "input_data": {
-                            "candidate": candidate.model_dump(mode="json"),
-                            "execution_policy": "proposal_only_no_dispatch",
-                            "autonomy_level": self.policy.autonomy_level.value,
+                try:
+                    proposal = await repository.create_row(
+                        "hermes_tasks",
+                        {
+                            "title": candidate.title,
+                            "task_type": "proactive_proposal",
+                            "status": TaskStatus.MANUAL_REVIEW.value,
+                            "priority": 5,
+                            "source": "hermes_watchtower",
+                            "correlation_id": candidate.correlation_id,
+                            "input_data": {
+                                "candidate": candidate.model_dump(mode="json"),
+                                "execution_policy": "proposal_only_no_dispatch",
+                                "autonomy_level": self.policy.autonomy_level.value,
+                            },
+                            "description": (
+                                f"{candidate.rationale} Recommended next action: "
+                                f"{candidate.recommended_action}"
+                            ),
                         },
-                        "description": (
-                            f"{candidate.rationale} Recommended next action: "
-                            f"{candidate.recommended_action}"
-                        ),
-                    },
-                )
+                    )
+                except httpx.HTTPStatusError as exc:
+                    try:
+                        code = exc.response.json().get("code")
+                    except (ValueError, AttributeError):
+                        code = None
+                    if exc.response.status_code != 409 or code != "23505":
+                        raise
+                    concurrent = await repository.list_rows(
+                        "hermes_tasks",
+                        {"correlation_id": f"eq.{candidate.correlation_id}", "limit": "1"},
+                    )
+                    if not concurrent or not concurrent[0].get("id"):
+                        raise
+                    existing.append(str(concurrent[0]["id"]))
+                    continue
                 proposal_id = str(proposal.get("id", ""))
                 if proposal_id:
                     created.append(proposal_id)
@@ -496,9 +521,10 @@ async def run_watchtower_loop() -> None:
         interval,
         policy_from_env().autonomy_level.value,
     )
+    service = ProactivityService()
     while True:
         try:
-            await ProactivityService().run_cycle(persist_proposals=True)
+            await service.run_cycle(persist_proposals=True)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001
