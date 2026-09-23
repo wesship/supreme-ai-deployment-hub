@@ -6,12 +6,18 @@ from backend.ai_films.openmontage_router import (
     _shot_durations,
 )
 from backend.ai_films.assembly_worker import AssemblyWorkerError
-from backend.ai_films.openmontage_assembly_coordinator import _assembly_input, _next_ready_group, _queue_assembly
+from backend.ai_films.openmontage_assembly_coordinator import _assembly_input, _enabled, _next_ready_group, _queue_assembly
 
 
 def test_openmontage_splits_fifteen_second_ad_into_provider_safe_shots():
     assert _shot_durations(15) == [8, 7]
     assert all(5 <= value <= 10 for value in _shot_durations(20))
+
+
+def test_assembly_coordinator_requires_explicit_promotion():
+    assert _enabled({}) is False
+    assert _enabled({"AI_FILM_OPENMONTAGE_ASSEMBLY_ENABLED": "false"}) is False
+    assert _enabled({"AI_FILM_OPENMONTAGE_ASSEMBLY_ENABLED": "true"}) is True
 
 
 def test_openmontage_vertical_contract_maps_to_1080x1920():

@@ -13,8 +13,10 @@ from backend.ai_films.assembly_worker import AssemblyWorkerError, SupabaseAssemb
 
 
 def _enabled(source: Mapping[str, str]) -> bool:
-    return str(source.get("AI_FILM_OPENMONTAGE_ASSEMBLY_ENABLED", "true")).strip().lower() not in {
-        "0", "false", "no", "off"
+    # The unique assembly-group index must be deployed before multiple API
+    # workers can safely claim the same group. Require explicit promotion.
+    return str(source.get("AI_FILM_OPENMONTAGE_ASSEMBLY_ENABLED", "")).strip().lower() in {
+        "1", "true", "yes", "on"
     }
 
 

@@ -54,3 +54,24 @@ Pollo webhook notifications are authenticated with HMAC-SHA-256 using the Base64
 - Confirm `ai_films_commerce_handoff` reports `running` in `/health/deployment`.
 - Confirm the job transitions `queued -> processing -> completed` for `handoff_status`.
 - Confirm the completed row records TwelveLabs asset/item IDs and the configured Jockey knowledge-store ID.
+
+## OpenMontage multishot promotion
+
+The OpenMontage assembly coordinator is disabled until
+`AI_FILM_OPENMONTAGE_ASSEMBLY_ENABLED=true` is set in the backend worker
+environment. Keep it disabled while preparing the database.
+
+1. Apply `20260923090000_openmontage_unique_assembly_group.sql` to the target
+   database through the normal protected migration process. Check for duplicate
+   assembly rows in a project/group before applying; the unique index must
+   exist before more than one coordinator can run safely.
+2. Confirm the migration and the API/worker deployment both completed, then set
+   `AI_FILM_OPENMONTAGE_ASSEMBLY_ENABLED=true` on the process that owns video
+   workers. Never enable it simultaneously in a dedicated worker and the API
+   unless both use the same migrated database.
+3. Run a governed, approved multishot canary only after render credits are
+   authorized. Poll its original `render_job_id`; it must remain in render or
+   review until the assembled master passes QA. Confirm that no segment URL is
+   published as the completed film and only one assembly row exists.
+4. Set the flag to `false` to stop new assembly coordination if the canary fails.
+   Existing queued render/assembly jobs require separate review before retry.
