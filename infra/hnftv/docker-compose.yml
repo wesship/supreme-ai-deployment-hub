@@ -5,8 +5,8 @@ services:
     restart: unless-stopped
     command: ["/mediamtx", "/config/mediamtx.yml"]
     ports:
-      - "1935:1935"
-      - "8888:8888"
+      - "127.0.0.1:1935:1935"
+      - "127.0.0.1:8888:8888"
     volumes:
       - ./mediamtx.yml:/config/mediamtx.yml:ro
       - ./recordings:/recordings

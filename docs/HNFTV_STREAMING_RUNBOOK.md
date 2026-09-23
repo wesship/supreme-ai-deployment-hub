@@ -34,7 +34,8 @@ Before provisioning:
 1. Clear the DigitalOcean team Droplet quota.
 2. Create the host.
 3. Point `stream.hnfportal.one` to the host public IPv4 address.
-4. Allow TCP 80, 443, and 1935 only if live RTMP ingest is required externally.
+4. Allow TCP 80 and 443. Keep RTMP ingest on the host loopback interface;
+   do not expose TCP 1935 or MediaMTX HLS port 8888 publicly.
 5. Keep Tunarr admin bound to localhost and manage it through SSH tunneling.
 
 ## Bring-up
@@ -67,6 +68,17 @@ Each channel accepts a publisher on the matching RTMP path:
 - `rtmp://127.0.0.1:1935/hnftv`
 - `rtmp://127.0.0.1:1935/hiphop`
 - `rtmp://127.0.0.1:1935/chef`
+
+Publishers running off-host must use an authenticated SSH tunnel (or a
+private network connection) to the host loopback port. For example:
+
+```bash
+ssh -N -L 1935:127.0.0.1:1935 <user>@<host>
+```
+
+Then publish to `rtmp://127.0.0.1:1935/<channel>` on the publisher machine.
+Limit SSH access to authorized publishers; do not forward port 1935 from the
+host firewall. The public audience receives HLS only through Caddy on HTTPS.
 
 An FFmpeg bridge can pull a Tunarr channel stream and publish it to MediaMTX. The exact Tunarr channel URL is created after the channel is configured in Tunarr.
 
