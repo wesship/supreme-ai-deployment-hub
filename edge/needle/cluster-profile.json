@@ -19,10 +19,7 @@
   "routing": {
     "local": [
       "capture_photo",
-      "start_recording",
-      "stop_recording",
-      "get_battery",
-      "get_location"
+      "get_battery"
     ],
     "d3vonn_gateway": [
       "describe_scene",
@@ -32,6 +29,9 @@
       "recall_memory"
     ],
     "guardian_review": [
+      "start_recording",
+      "stop_recording",
+      "get_location",
       "delete_data",
       "send_money"
     ]

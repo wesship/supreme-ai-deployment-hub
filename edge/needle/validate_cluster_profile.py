@@ -10,9 +10,15 @@ from pathlib import Path
 
 PROFILE = Path(__file__).with_name("cluster-profile.json")
 
-EXPECTED_LOCAL = {"capture_photo", "start_recording", "stop_recording", "get_battery", "get_location"}
+EXPECTED_LOCAL = {"capture_photo", "get_battery"}
 EXPECTED_GATEWAY = {"describe_scene", "read_text", "create_note", "ask_d3vonn", "recall_memory"}
-EXPECTED_PRIVILEGED = {"delete_data", "send_money"}
+EXPECTED_PRIVILEGED = {"start_recording", "stop_recording", "get_location", "delete_data", "send_money"}
+EXPECTED_OFFLOAD = {
+    "vision": "jetson-orin-nano",
+    "reasoning": "d3vonn-gateway",
+    "memory": "d3vonn-gateway",
+    "privileged_actions": "guardian-review",
+}
 
 REQUIRED_CAPABILITIES = {
     "camera",
@@ -59,6 +65,10 @@ def validate(profile: dict) -> list[str]:
         failures.append("routing.d3vonn_gateway does not match Needle remote tools")
     if set(routing.get("guardian_review", [])) != EXPECTED_PRIVILEGED:
         failures.append("routing.guardian_review does not match Needle privileged tools")
+
+    offload = profile.get("offload")
+    if not isinstance(offload, dict) or offload != EXPECTED_OFFLOAD:
+        failures.append("offload must match approved cluster targets")
 
     security = profile.get("security", {})
     for key in sorted(REQUIRED_SECURITY):
