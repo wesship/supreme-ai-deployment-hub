@@ -405,6 +405,8 @@ async def get_openmontage_job(
     token = _bearer_token(authorization)
     job, base_url = await _select_owned_render_job(token, render_job_id)
     group = await _select_openmontage_group_jobs(token, base_url, job)
+    job_input = job.get("input") if isinstance(job.get("input"), dict) else {}
+    multishot = int(job_input.get("openmontage_shot_count") or 1) > 1
     videos = [row for row in group if str(row.get("job_type") or "video") == "video"]
     assemblies = [row for row in group if str(row.get("job_type") or "") == "assembly"]
     assembly = assemblies[-1] if assemblies else None
@@ -462,16 +464,20 @@ async def get_openmontage_job(
             stages = _stages("review", failed="failed" in segment_qa_states)
             qa_state = "failed" if "failed" in segment_qa_states else "revise"
         elif videos and all(_qa_state_from_output(row.get("output") or {}) == "passed" for row in videos):
-            # All segments passed; the coordinator will queue the aggregate master next.
-            pipeline_status = "render"
-            stages = _stages("render")
             qa_state = "passed"
+            if multishot:
+                # The assembled master is the only publishable multishot asset.
+                pipeline_status = "render"
+                stages = _stages("render")
+            else:
+                pipeline_status = "completed"
+                stages = _stages("publish", terminal=True)
         else:
             pipeline_status = "review"
             stages = _stages("review")
 
     # Multishot requests expose playback only from the assembled master.
-    object_path = str(output.get("object_path") or "") if assembly is not None or len(videos) <= 1 else ""
+    object_path = str(output.get("object_path") or "") if assembly is not None or not multishot else ""
     if object_path:
         try:
             video_url = await _sign_master(SupabaseAssemblyClient(), object_path, expires_in=900)

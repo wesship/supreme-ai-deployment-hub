@@ -1,9 +1,12 @@
+import asyncio
+
 from backend.ai_films.openmontage_router import (
     _resolution_for_aspect,
     _segment_prompt,
     _shot_durations,
 )
-from backend.ai_films.openmontage_assembly_coordinator import _assembly_input
+from backend.ai_films.assembly_worker import AssemblyWorkerError
+from backend.ai_films.openmontage_assembly_coordinator import _assembly_input, _next_ready_group, _queue_assembly
 
 
 def test_openmontage_splits_fifteen_second_ad_into_provider_safe_shots():
@@ -66,3 +69,45 @@ def test_openmontage_long_prompt_keeps_segment_direction():
     assert len(prompt) <= 12000
     assert prompt.startswith("OpenMontage multishot direction:")
     assert "exact approved call to action" in prompt[:500]
+
+
+def test_coordinator_reaches_ready_group_after_thousand_old_jobs():
+    older = [{"id": f"old-{i}", "input": {}} for i in range(1000)]
+    source = {
+        "id": "source-1", "project_id": "project-1", "status": "completed",
+        "input": {"openmontage_job_id": "group-1", "openmontage_shot_count": 2},
+        "output": {"generated_asset_id": "asset-1", "qa": {"state": "passed"}},
+    }
+    second = {
+        **source, "id": "source-2",
+        "output": {"generated_asset_id": "asset-2", "qa": {"state": "passed"}},
+    }
+
+    class FakeDB:
+        async def _request(self, method, table, *, params):
+            if params.get("job_type") == "eq.assembly":
+                return []
+            if params.get("project_id"):
+                return [source, second]
+            offset = int(params["offset"])
+            return (older + [source])[offset : offset + int(params["limit"])]
+
+    group = asyncio.run(_next_ready_group(FakeDB()))
+    assert [job["id"] for job in group] == ["source-1", "source-2"]
+
+
+def test_coordinator_reuses_winning_assembly_after_unique_conflict():
+    jobs = [{
+        "id": "source-1", "project_id": "project-1", "owner_id": "owner-1",
+        "input": {"openmontage_job_id": "group-1", "openmontage_shot_index": 0},
+        "output": {"generated_asset_id": "asset-1"},
+    }]
+
+    class FakeDB:
+        async def _request(self, method, table, *, params=None, payload=None, representation=False):
+            if method == "POST":
+                raise AssemblyWorkerError("Supabase assembly request failed with HTTP 409")
+            assert params["input->>openmontage_job_id"] == "eq.group-1"
+            return [{"id": "winner", "project_id": "project-1"}]
+
+    assert asyncio.run(_queue_assembly(FakeDB(), jobs))["id"] == "winner"

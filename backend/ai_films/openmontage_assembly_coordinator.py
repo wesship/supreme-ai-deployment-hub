@@ -9,7 +9,7 @@ import asyncio
 import os
 from typing import Any, Mapping
 
-from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
+from backend.ai_films.assembly_worker import AssemblyWorkerError, SupabaseAssemblyClient, _now
 
 
 def _enabled(source: Mapping[str, str]) -> bool:
@@ -77,7 +77,7 @@ def _assembly_input(jobs: list[Mapping[str, Any]]) -> dict[str, Any]:
 async def _next_ready_group(db: SupabaseAssemblyClient) -> list[dict[str, Any]] | None:
     page_size = 50
     offset = 0
-    while offset < 1000:
+    while True:
         candidates = await db._request(
             "GET",
             "ai_film_render_jobs",
@@ -142,31 +142,50 @@ async def _next_ready_group(db: SupabaseAssemblyClient) -> list[dict[str, Any]] 
 async def _queue_assembly(db: SupabaseAssemblyClient, jobs: list[Mapping[str, Any]]) -> dict[str, Any]:
     first = jobs[0]
     payload = _assembly_input(list(jobs))
-    rows = await db._request(
-        "POST",
-        "ai_film_render_jobs",
-        payload={
-            "project_id": first["project_id"],
-            "scene_id": first.get("scene_id"),
-            "owner_id": first["owner_id"],
-            "job_type": "assembly",
-            "provider": "ffmpeg",
-            "status": "queued",
-            "priority": 90,
-            "progress": 0,
-            "input": payload,
-            "output": {
-                "openmontage": {
-                    "job_id": payload["openmontage_job_id"],
-                    "source_render_job_ids": payload["source_render_job_ids"],
-                    "state": "queued_for_assembly",
-                }
+    try:
+        rows = await db._request(
+            "POST",
+            "ai_film_render_jobs",
+            payload={
+                "project_id": first["project_id"],
+                "scene_id": first.get("scene_id"),
+                "owner_id": first["owner_id"],
+                "job_type": "assembly",
+                "provider": "ffmpeg",
+                "status": "queued",
+                "priority": 90,
+                "progress": 0,
+                "input": payload,
+                "output": {
+                    "openmontage": {
+                        "job_id": payload["openmontage_job_id"],
+                        "source_render_job_ids": payload["source_render_job_ids"],
+                        "state": "queued_for_assembly",
+                    }
+                },
+                "created_at": _now(),
+                "updated_at": _now(),
             },
-            "created_at": _now(),
-            "updated_at": _now(),
-        },
-        representation=True,
-    )
+            representation=True,
+        )
+    except AssemblyWorkerError as exc:
+        # The unique group index is the atomic claim across API/worker processes.
+        # Only a concurrent winner for this exact group counts as success.
+        if "HTTP 409" not in str(exc):
+            raise
+        rows = await db._request(
+            "GET",
+            "ai_film_render_jobs",
+            params={
+                "project_id": f"eq.{first['project_id']}",
+                "job_type": "eq.assembly",
+                "input->>openmontage_job_id": f"eq.{payload['openmontage_job_id']}",
+                "select": "*",
+                "limit": "1",
+            },
+        )
+        if not rows:
+            raise
     if not rows:
         raise RuntimeError("OpenMontage assembly insert returned no job")
     return rows[0]
