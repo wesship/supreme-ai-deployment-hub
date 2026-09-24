@@ -12,7 +12,7 @@ from backend.ai_films.assembly_worker import AssemblyWorkerError, SupabaseAssemb
 from backend.ai_films.orchestration import OrchestrationError, SupabaseRLSClient
 from backend.ai_films.role_authoring import RoleAuthoring
 from backend.ai_films.role_policy_attestation import InvalidAttestation
-from backend.ai_films.role_runtime import RoleProfileUnavailable
+from backend.ai_films.role_runtime import ROLE_TOOLS, RoleProfileUnavailable
 from backend.ai_films.router import _bearer_token
 
 router = APIRouter(prefix="/ai-films/roles", tags=["ai-films-roles"])
@@ -70,6 +70,36 @@ async def _execute(action: str, project_id: UUID, role_id: str,
         return await service.transition(action, str(project_id), role_id, actor_id, request.revision)
     except (InvalidAttestation, RoleProfileUnavailable) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except AssemblyWorkerError as exc:
+        raise HTTPException(status_code=503, detail="Role authoring store unavailable") from exc
+
+
+@router.get("/{project_id}/{role_id}/draft")
+async def read_draft(project_id: UUID, role_id: str,
+                     authorization: str | None = Header(default=None)) -> dict:
+    service, actor_id = await _service(authorization)
+    if role_id not in ROLE_TOOLS:
+        raise HTTPException(status_code=404, detail="Role is unavailable")
+    db = service.store
+    try:
+        projects = await db._request("GET", "ai_film_projects", params={
+            "id": f"eq.{project_id}", "select": "owner_id", "limit": "1"})
+        if len(projects) != 1:
+            raise HTTPException(status_code=404, detail="Project is unavailable")
+        if projects[0]["owner_id"] != actor_id:
+            members = await db._request("GET", "ai_film_collaborators", params={
+                "project_id": f"eq.{project_id}", "user_id": f"eq.{actor_id}",
+                "status": "eq.active", "role": "in.(producer,director,writer,editor,reviewer)",
+                "select": "id", "limit": "1"})
+            if not members:
+                raise HTTPException(status_code=403, detail="Project collaborator access required")
+        drafts = await db._request("GET", "ai_film_role_drafts", params={
+            "project_id": f"eq.{project_id}", "role_id": f"eq.{role_id}",
+            "select": "revision,status,profile,profile_hash,tested_hash,editor_id,reviewer_id,published_version",
+            "limit": "1"})
+        if len(drafts) != 1:
+            raise HTTPException(status_code=404, detail="Role draft is unavailable")
+        return drafts[0]
     except AssemblyWorkerError as exc:
         raise HTTPException(status_code=503, detail="Role authoring store unavailable") from exc
 

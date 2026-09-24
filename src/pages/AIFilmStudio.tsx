@@ -13,6 +13,7 @@ import ReleaseControlWorkspace from '@/features/ai-films/ReleaseControlWorkspace
 import StoryboardWorkspace from '@/features/ai-films/StoryboardWorkspace';
 import DeliveryWorkspace from '@/features/ai-films/DeliveryWorkspace';
 import EnterpriseStudioWorkspace from '@/features/ai-films/EnterpriseStudioWorkspace';
+import RoleStudioWorkspace from '@/features/ai-films/RoleStudioWorkspace';
 import {
   ensureSovereignSignalProject,
   fetchProjectAssets,
@@ -130,6 +131,7 @@ const AIFilmStudio = () => {
           <ReleaseControlWorkspace project={project} assets={assets} onAssetsChanged={refreshAssets} />
           <DeliveryWorkspace project={project} />
           <EnterpriseStudioWorkspace project={project} assets={assets} />
+          {import.meta.env.VITE_AI_FILMS_ROLE_STUDIO_ENABLED === 'true' && <RoleStudioWorkspace project={project} />}
 
           <section aria-labelledby="asset-library-heading">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

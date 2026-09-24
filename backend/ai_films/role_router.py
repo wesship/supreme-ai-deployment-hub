@@ -21,7 +21,8 @@ class PolicyCheckRequest(BaseModel):
     profile: dict
 
 
-async def _owner_db(project_id: UUID, authorization: str | None) -> SupabaseAssemblyClient:
+async def _owner_db(project_id: UUID, authorization: str | None,
+                    *, allow_editor: bool = False) -> SupabaseAssemblyClient:
     if os.getenv("AI_FILMS_ROLE_STUDIO_ENABLED", "").lower() not in {"1", "true", "yes"}:
         raise HTTPException(status_code=404, detail="Role Studio is unavailable")
     try:
@@ -31,9 +32,18 @@ async def _owner_db(project_id: UUID, authorization: str | None) -> SupabaseAsse
     try:
         db = SupabaseAssemblyClient()
         projects = await db._request("GET", "ai_film_projects", params={
-            "id": f"eq.{project_id}", "owner_id": f"eq.{user.id}", "select": "id", "limit": "1"})
+            "id": f"eq.{project_id}", "select": "owner_id", "limit": "1"})
         if len(projects) != 1:
-            raise HTTPException(status_code=403, detail="AI Film project owner access required")
+            raise HTTPException(status_code=403, detail="AI Film project access required")
+        if projects[0]["owner_id"] != user.id:
+            if not allow_editor:
+                raise HTTPException(status_code=403, detail="AI Film project owner access required")
+            members = await db._request("GET", "ai_film_collaborators", params={
+                "project_id": f"eq.{project_id}", "user_id": f"eq.{user.id}",
+                "status": "eq.active", "role": "in.(producer,director,writer,editor)",
+                "select": "id", "limit": "1"})
+            if not members:
+                raise HTTPException(status_code=403, detail="AI Film role editor access required")
         return db
     except AssemblyWorkerError as exc:
         raise HTTPException(status_code=503, detail="Role store unavailable") from exc
@@ -53,7 +63,7 @@ async def get_published_role(project_id: UUID, role_id: str, authorization: str 
 @router.post("/{project_id}/{role_id}/policy-check")
 async def policy_check_role(project_id: UUID, role_id: str, request: PolicyCheckRequest,
                             authorization: str | None = Header(default=None)) -> dict:
-    await _owner_db(project_id, authorization)
+    await _owner_db(project_id, authorization, allow_editor=True)
     try:
         token = issue_policy_attestation(str(project_id), role_id, request.revision, request.profile)
     except (InvalidAttestation, RoleProfileUnavailable) as exc:
