@@ -271,6 +271,13 @@ except ImportError as exc:
     logger.warning("AI Films Anchor Frame router not registered: %s", exc)
 
 try:
+    from backend.ai_films.role_router import router as ai_film_role_router
+    proxy_router.include_router(ai_film_role_router)
+    logger.info("AI Films Role Studio read router registered at /api/ai-films/roles/*.")
+except ImportError as exc:
+    logger.warning("AI Films Role Studio read router not registered: %s", exc)
+
+try:
     from backend.app.routers.d3vonn_events import router as d3vonn_events_router
 
     proxy_router.include_router(d3vonn_events_router, tags=["platform-events"])
