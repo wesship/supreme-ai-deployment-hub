@@ -63,7 +63,8 @@ def verify_policy_attestation(token: str, project_id: str, role_id: str, revisio
     except UnicodeEncodeError as exc:
         raise InvalidAttestation("Malformed attestation") from exc
     expected = hmac.new(_secret(), encoded_body, hashlib.sha256).digest()
-    if not hmac.compare_digest(_decode(signature), expected):
+    decoded_signature = _decode(signature)
+    if _encode(decoded_signature) != signature or not hmac.compare_digest(decoded_signature, expected):
         raise InvalidAttestation("Invalid attestation signature")
     try:
         payload = json.loads(_decode(body))
