@@ -8,13 +8,17 @@ PROJECT = "fa6b7a0a-c3a8-4df5-bae3-079d03e64b0e"
 
 
 class Store:
-    def __init__(self, rows):
+    def __init__(self, rows, *, character_active=True):
         self.rows = rows
+        self.character_active = character_active
         self.params = None
 
     async def _request(self, method, table, *, params):
-        assert (method, table) == ("GET", "ai_film_role_releases")
+        if table == "ai_film_characters":
+            return [{"id": params["id"][3:]}] if self.character_active else []
+        assert method == "GET" and table in ("ai_film_role_releases", "ai_film_character_role_releases")
         self.params = params
+        self.table = table
         return self.rows
 
 
@@ -49,6 +53,18 @@ class RoleRuntimeTests(unittest.TestCase):
             run(Store([{"version": 1, "profile": p, "profile_hash": profile_hash(p)}]))
         with self.assertRaises(RoleProfileUnavailable):
             run(Store([]), "mental_health")
+
+    def test_character_release_is_selected_and_pinned_independently(self):
+        character_id = "b8c29442-1e7e-426a-b5e6-2d55bbcfb39d"
+        p = profile()
+        store = Store([{"version": 2, "profile": p, "profile_hash": profile_hash(p)}])
+        result = asyncio.run(load_published_role(store, PROJECT, "teacher", character_id=character_id))
+        self.assertEqual(store.table, "ai_film_character_role_releases")
+        self.assertEqual(store.params["character_id"], f"eq.{character_id}")
+        self.assertEqual(result["character_id"], character_id)
+        with self.assertRaises(RoleProfileUnavailable):
+            asyncio.run(load_published_role(Store(store.rows, character_active=False), PROJECT,
+                                            "teacher", character_id=character_id))
 
 
 if __name__ == "__main__":

@@ -40,12 +40,14 @@ def _decode(value: str) -> bytes:
 
 
 def issue_policy_attestation(project_id: str, role_id: str, revision: int,
-                             profile: dict[str, Any], *, at: int | None = None) -> str:
+                             profile: dict[str, Any], *, at: int | None = None,
+                             character_id: str | None = None) -> str:
     validate_profile(role_id, profile)
     if not project_id or type(revision) is not int or revision < 1:
         raise InvalidAttestation("Invalid draft identity")
     issued = int(time.time()) if at is None else at
     payload = {"project_id": project_id, "role_id": role_id, "revision": revision,
+               "character_id": character_id,
                "profile_hash": profile_hash(profile), "test_type": "policy_v1",
                "iat": issued, "exp": issued + 600, "nonce": secrets.token_hex(16)}
     body = _encode(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
@@ -54,7 +56,8 @@ def issue_policy_attestation(project_id: str, role_id: str, revision: int,
 
 
 def verify_policy_attestation(token: str, project_id: str, role_id: str, revision: int,
-                              profile: dict[str, Any], *, at: int | None = None) -> dict[str, Any]:
+                              profile: dict[str, Any], *, at: int | None = None,
+                              character_id: str | None = None) -> dict[str, Any]:
     if not isinstance(token, str) or len(token) > 2048 or token.count(".") != 1:
         raise InvalidAttestation("Malformed attestation")
     body, signature = token.split(".")
@@ -73,6 +76,7 @@ def verify_policy_attestation(token: str, project_id: str, role_id: str, revisio
     now = int(time.time()) if at is None else at
     if (not isinstance(payload, dict) or payload.get("test_type") != "policy_v1"
             or payload.get("project_id") != project_id or payload.get("role_id") != role_id
+            or payload.get("character_id") != character_id
             or type(payload.get("revision")) is not int or payload["revision"] != revision
             or payload.get("profile_hash") != profile_hash(profile)
             or type(payload.get("iat")) is not int or type(payload.get("exp")) is not int

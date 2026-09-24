@@ -33,8 +33,9 @@ class TestRequest(TransitionRequest):
 
 class Store(SupabaseAssemblyClient):
     async def role_rpc(self, payload: dict) -> dict:
+        function_name = "ai_film_character_role_advance" if "p_character_id" in payload else "ai_film_role_advance"
         async with httpx.AsyncClient(headers=self.headers, timeout=30, transport=self._transport) as client:
-            response = await client.post(f"{self.base_url}/rest/v1/rpc/ai_film_role_advance", json=payload)
+            response = await client.post(f"{self.base_url}/rest/v1/rpc/{function_name}", json=payload)
         if response.status_code == 403:
             raise HTTPException(status_code=403, detail="Role transition denied")
         if response.status_code in (400, 404, 409):

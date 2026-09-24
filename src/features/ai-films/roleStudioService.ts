@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { API_BASE_URL } from '@/services/config';
 
 export type FilmRole = 'teacher' | 'instructor' | 'radio_dj' | 'host' | 'support';
+export type FilmCharacter = { id: string; slug: string; name: string; description: string; avatar_version: string; status: 'active' | 'archived' };
 export type RoleProfile = {
   avatar_version: string;
   voice_version: string;
@@ -23,10 +24,10 @@ export type RoleDraft = {
 };
 type Transition = { status: string; revision: number; version?: number };
 
-async function roleApi<T>(projectId: string, role: FilmRole, suffix: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session?.access_token) throw new Error('Sign in to manage AI Films roles.');
-  const response = await fetch(`${API_BASE_URL}/api/ai-films/roles/${encodeURIComponent(projectId)}/${role}/${suffix}`, {
+  const response = await fetch(`${API_BASE_URL}/api/ai-films/${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${data.session.access_token}`, 'Content-Type': 'application/json' },
   });
@@ -38,32 +39,40 @@ async function roleApi<T>(projectId: string, role: FilmRole, suffix: string, ini
   return response.json() as Promise<T>;
 }
 
-export async function fetchRoleDraft(projectId: string, role: FilmRole): Promise<RoleDraft | null> {
+const characterPath = (projectId: string) => `projects/${encodeURIComponent(projectId)}/characters`;
+const rolePath = (projectId: string, characterId: string, role: FilmRole) =>
+  `${characterPath(projectId)}/${encodeURIComponent(characterId)}/roles/${role}`;
+
+export const fetchCharacters = (projectId: string) => request<FilmCharacter[]>(characterPath(projectId));
+export const createCharacter = (projectId: string, character: { name: string; slug: string; description: string; avatar_version: string }) =>
+  request<FilmCharacter>(characterPath(projectId), { method: 'POST', body: JSON.stringify(character) });
+
+export async function fetchRoleDraft(projectId: string, characterId: string, role: FilmRole): Promise<RoleDraft | null> {
   try {
-    return await roleApi<RoleDraft>(projectId, role, 'draft');
+    return await request<RoleDraft>(`${rolePath(projectId, characterId, role)}/draft`);
   } catch (error) {
     if (error instanceof Error && error.message === 'Role draft is unavailable') return null;
     throw error;
   }
 }
 
-export function saveRoleDraft(projectId: string, role: FilmRole, expectedRevision: number, profile: RoleProfile) {
-  return roleApi<Transition>(projectId, role, 'draft', {
+export function saveRoleDraft(projectId: string, characterId: string, role: FilmRole, expectedRevision: number, profile: RoleProfile) {
+  return request<Transition>(`${rolePath(projectId, characterId, role)}/draft`, {
     method: 'PUT', body: JSON.stringify({ expected_revision: expectedRevision, profile }),
   });
 }
 
-export async function policyTestRole(projectId: string, role: FilmRole, revision: number, profile: RoleProfile) {
-  const result = await roleApi<{ attestation: string }>(projectId, role, 'policy-check', {
-    method: 'POST', body: JSON.stringify({ revision, profile }),
+export async function policyTestRole(projectId: string, characterId: string, role: FilmRole, revision: number) {
+  const result = await request<{ attestation: string }>(`${rolePath(projectId, characterId, role)}/policy-check`, {
+    method: 'POST', body: JSON.stringify({ revision }),
   });
-  return roleApi<Transition>(projectId, role, 'test', {
+  return request<Transition>(`${rolePath(projectId, characterId, role)}/test`, {
     method: 'POST', body: JSON.stringify({ revision, attestation: result.attestation }),
   });
 }
 
-export function transitionRole(projectId: string, role: FilmRole, revision: number, action: 'submit-review' | 'approve' | 'publish') {
-  return roleApi<Transition>(projectId, role, action, {
+export function transitionRole(projectId: string, characterId: string, role: FilmRole, revision: number, action: 'submit-review' | 'approve' | 'publish') {
+  return request<Transition>(`${rolePath(projectId, characterId, role)}/${action}`, {
     method: 'POST', body: JSON.stringify({ revision }),
   });
 }

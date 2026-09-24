@@ -52,13 +52,22 @@ def validate_profile(role_id: str, profile: Any) -> dict[str, Any]:
     return profile
 
 
-async def load_published_role(store: RoleStore, project_id: str, role_id: str) -> dict[str, Any]:
+async def load_published_role(store: RoleStore, project_id: str, role_id: str,
+                              *, character_id: str | None = None) -> dict[str, Any]:
     """Load the latest non-revoked release; session callers pin its version and hash."""
-    if not re.fullmatch(r"[0-9a-fA-F-]{36}", project_id) or role_id not in ROLE_TOOLS:
+    if (not re.fullmatch(r"[0-9a-fA-F-]{36}", project_id) or role_id not in ROLE_TOOLS
+            or (character_id is not None and not re.fullmatch(r"[0-9a-fA-F-]{36}", character_id))):
         raise RoleProfileUnavailable("Role is not available")
+    if character_id is not None:
+        identities = await store._request("GET", "ai_film_characters", params={
+            "project_id": f"eq.{project_id}", "id": f"eq.{character_id}",
+            "status": "eq.active", "select": "id", "limit": "1"})
+        if len(identities) != 1:
+            raise RoleProfileUnavailable("Active character is unavailable")
     rows = await store._request(
-        "GET", "ai_film_role_releases",
+        "GET", "ai_film_character_role_releases" if character_id else "ai_film_role_releases",
         params={"project_id": f"eq.{project_id}", "role_id": f"eq.{role_id}",
+                **({"character_id": f"eq.{character_id}"} if character_id else {}),
                 "revoked_at": "is.null", "select": "version,profile,profile_hash",
                 "order": "version.desc", "limit": "1"},
     )
@@ -70,4 +79,5 @@ async def load_published_role(store: RoleStore, project_id: str, role_id: str) -
     digest = row.get("profile_hash")
     if type(version) is not int or version < 1 or not isinstance(digest, str) or profile_hash(profile) != digest:
         raise RoleProfileUnavailable("Released profile integrity check failed")
-    return {"role_id": role_id, "version": version, "profile_hash": digest, "profile": profile}
+    return {"role_id": role_id, "character_id": character_id, "version": version,
+            "profile_hash": digest, "profile": profile}

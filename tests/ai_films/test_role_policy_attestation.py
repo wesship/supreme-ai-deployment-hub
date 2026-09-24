@@ -49,6 +49,17 @@ class PolicyAttestationTests(unittest.TestCase):
         with self.assertRaises(RoleProfileUnavailable):
             issue_policy_attestation(PROJECT, "teacher", 1, {**PROFILE, "tools": ["cleared_catalog"]})
 
+    def test_character_attestation_is_bound_to_one_identity(self):
+        first = "b8c29442-1e7e-426a-b5e6-2d55bbcfb39d"
+        second = "0e0b77be-f840-46d1-a68e-781d489528c8"
+        token = issue_policy_attestation(PROJECT, "teacher", 1, PROFILE, at=1000, character_id=first)
+        self.assertEqual(verify_policy_attestation(token, PROJECT, "teacher", 1, PROFILE, at=1100,
+                                                   character_id=first)["character_id"], first)
+        for identity in (second, None):
+            with self.subTest(identity=identity), self.assertRaises(InvalidAttestation):
+                verify_policy_attestation(token, PROJECT, "teacher", 1, PROFILE, at=1100,
+                                          character_id=identity)
+
 
 if __name__ == "__main__":
     unittest.main()

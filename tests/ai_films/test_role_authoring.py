@@ -60,6 +60,26 @@ class RoleAuthoringTests(unittest.TestCase):
         with self.assertRaises(InvalidAttestation):
             asyncio.run(RoleAuthoring(Store(row)).mark_tested("different", "teacher", "editor-id", 2, token))
 
+    def test_character_drafts_use_independent_storage_and_policy(self):
+        first = "b8c29442-1e7e-426a-b5e6-2d55bbcfb39d"
+        second = "0e0b77be-f840-46d1-a68e-781d489528c8"
+        saved = Store(None)
+        asyncio.run(RoleAuthoring(saved).save(PROJECT, "teacher", "editor-id", 0, PROFILE, character_id=first))
+        self.assertEqual(saved.calls[0][1]["p_character_id"], first)
+        row = {"revision": 1, "profile": PROFILE, "profile_hash": profile_hash(PROFILE), "status": "draft"}
+        token = issue_policy_attestation(PROJECT, "teacher", 1, PROFILE, character_id=first)
+        store = Store(row)
+        asyncio.run(RoleAuthoring(store).mark_tested(PROJECT, "teacher", "editor-id", 1, token,
+                                                     character_id=first))
+        self.assertEqual(store.calls[0][2], "ai_film_character_role_drafts")
+        self.assertEqual(store.calls[0][3]["character_id"], f"eq.{first}")
+        self.assertEqual(store.calls[-1][1]["p_character_id"], first)
+        different = Store(row)
+        with self.assertRaises(InvalidAttestation):
+            asyncio.run(RoleAuthoring(different).mark_tested(PROJECT, "teacher", "editor-id", 1, token,
+                                                              character_id=second))
+        self.assertFalse(any(call[0] == "rpc" for call in different.calls))
+
 
 if __name__ == "__main__":
     unittest.main()
