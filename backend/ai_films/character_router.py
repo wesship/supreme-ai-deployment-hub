@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.ai_films.assembly_worker import AssemblyWorkerError
@@ -54,13 +54,15 @@ async def character(db: Store, project_id: UUID, character_id: UUID, *, active: 
 
 
 @router.get("")
-async def list_characters(project_id: UUID, authorization: str | None = Header(default=None)) -> list[dict]:
+async def list_characters(project_id: UUID, page: int = Query(default=0, ge=0),
+                          authorization: str | None = Header(default=None)) -> dict:
     service, actor = await _service(authorization)
     await access(service.store, project_id, actor)
     try:
-        return await service.store._request("GET", "ai_film_characters", params={
+        rows = await service.store._request("GET", "ai_film_characters", params={
             "project_id": f"eq.{project_id}", "status": "eq.active", "select": "id,name,slug,description,avatar_version,status",
-            "order": "created_at.asc,id.asc", "limit": "1000"})
+            "order": "created_at.asc,id.asc", "limit": "51", "offset": str(page * 50)})
+        return {"items": rows[:50], "has_more": len(rows) > 50}
     except AssemblyWorkerError as exc:
         raise HTTPException(status_code=503, detail="Character store unavailable") from exc
 

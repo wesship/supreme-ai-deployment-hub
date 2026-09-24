@@ -43,7 +43,8 @@ const characterPath = (projectId: string) => `projects/${encodeURIComponent(proj
 const rolePath = (projectId: string, characterId: string, role: FilmRole) =>
   `${characterPath(projectId)}/${encodeURIComponent(characterId)}/roles/${role}`;
 
-export const fetchCharacters = (projectId: string) => request<FilmCharacter[]>(characterPath(projectId));
+export const fetchCharacters = (projectId: string, page = 0) =>
+  request<{ items: FilmCharacter[]; has_more: boolean }>(`${characterPath(projectId)}?page=${page}`);
 export const createCharacter = (projectId: string, character: { name: string; slug: string; description: string; avatar_version: string }) =>
   request<FilmCharacter>(characterPath(projectId), { method: 'POST', body: JSON.stringify(character) });
 

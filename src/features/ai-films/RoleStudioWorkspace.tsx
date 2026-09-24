@@ -28,6 +28,8 @@ type Props = { project: AIFilmProject | null };
 export default function RoleStudioWorkspace({ project }: Props) {
   const [role, setRole] = useState<FilmRole>('teacher');
   const [characters, setCharacters] = useState<FilmCharacter[]>([]);
+  const [characterPage, setCharacterPage] = useState(0);
+  const [hasMoreCharacters, setHasMoreCharacters] = useState(false);
   const [characterId, setCharacterId] = useState('');
   const [characterName, setCharacterName] = useState('');
   const [characterSlug, setCharacterSlug] = useState('');
@@ -41,12 +43,14 @@ export default function RoleStudioWorkspace({ project }: Props) {
   const [message, setMessage] = useState('Connect a project to manage role profiles.');
 
   useEffect(() => {
-    if (!project) { setCharacters([]); setCharacterId(''); return; }
+    if (!project) { setCharacters([]); setCharacterId(''); setHasMoreCharacters(false); return; }
     let active = true;
     setCharacterId('');
-    fetchCharacters(project.id).then((items) => {
+    setCharacterPage(0);
+    fetchCharacters(project.id).then(({ items, has_more }) => {
       if (!active) return;
       setCharacters(items);
+      setHasMoreCharacters(has_more);
       setCharacterId(items[0]?.id ?? '');
       if (!items.length) setMessage('Create a character to start authoring its roles.');
     }).catch((error: unknown) => {
@@ -54,6 +58,20 @@ export default function RoleStudioWorkspace({ project }: Props) {
     });
     return () => { active = false; };
   }, [project?.id]);
+
+  const loadMoreCharacters = async () => {
+    if (!project || creating || !hasMoreCharacters) return;
+    setCreating(true);
+    try {
+      const next = characterPage + 1;
+      const result = await fetchCharacters(project.id, next);
+      setCharacters((previous) => [...previous, ...result.items]);
+      setCharacterPage(next);
+      setHasMoreCharacters(result.has_more);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'More characters could not be loaded.');
+    } finally { setCreating(false); }
+  };
 
   const addCharacter = async () => {
     if (!project || creating || !characterName.trim() || !characterSlug.trim() || !characterAvatar.trim()) return;
@@ -152,6 +170,7 @@ export default function RoleStudioWorkspace({ project }: Props) {
             {characters.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.slug})</option>)}
           </select>
         </label>
+        {hasMoreCharacters && <Button type="button" variant="outline" disabled={!project || busy || dirty || creating} onClick={() => void loadMoreCharacters()}>Load more characters</Button>}
         <div className="flex flex-wrap gap-2">
           <Input className="min-w-40 flex-1" aria-label="New character name" placeholder="Character name" value={characterName} disabled={!project || dirty || creating} onChange={(event) => setCharacterName(event.target.value)} />
           <Input className="min-w-40 flex-1" aria-label="New character slug" placeholder="unique-slug" value={characterSlug} disabled={!project || dirty || creating} onChange={(event) => setCharacterSlug(event.target.value)} />

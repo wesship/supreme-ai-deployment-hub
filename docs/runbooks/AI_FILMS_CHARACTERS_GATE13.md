@@ -10,6 +10,6 @@ This draft PR stacks on Gate 12. It adds a project-scoped character registry and
 4. Policy test character A. Verify the token cannot mark B tested. Use three distinct authorized users to submit, approve, and publish A, then B. Confirm owner-scoped published reads return the correct character ID, profile hash, version and immutable release. Cross-project reads, writes and a locked role must fail.
 5. Verify both UI widths and CI on the exact stacked commit. Confirm that archived identities, if set through an administrative process, cannot be written or loaded as active characters. Character creation currently accepts an asset version identifier as a reference; a human must verify ownership, likeness consent, and that the asset really exists. The UI does not render avatars or publish social content.
 
-The character list currently loads at most 1,000 active identities per project; pagination and search are required before that limit becomes an operational constraint. Neither flag changes in this PR. Keep gate YELLOW until staging database and browser evidence are captured.
+Character selection loads 50 active identities per page with a stable creation-time and ID order. Search and filtering remain future UI work. Neither flag changes in this PR. Keep gate YELLOW until staging database and browser evidence are captured.
 
 Rollback: disable both feature flags; preserve character records and release history for audit.
