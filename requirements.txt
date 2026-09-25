@@ -6,7 +6,7 @@ pydantic>=2.13.4
 cryptography>=46.0.5
 python-multipart>=0.0.31
 python-dotenv>=1.0.0
-sse-starlette>=2.1.0
+sse-starlette==3.4.11
 numpy>=1.26,<3
 OpenEXR>=3.3,<4
 opencolorio>=2.5.2,<3
