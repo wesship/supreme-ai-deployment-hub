@@ -16,6 +16,12 @@ if (typeof window !== 'undefined') {
     disconnect = vi.fn();
   };
 
+  Object.defineProperty(window, 'scrollTo', {
+    writable: true,
+    configurable: true,
+    value: vi.fn(),
+  });
+
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
