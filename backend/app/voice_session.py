@@ -8,6 +8,7 @@ import json
 import os
 import secrets
 import time
+from uuid import UUID
 from typing import Any
 
 _AUDIENCE = "d3vonn-voice-webhook"
@@ -40,14 +41,35 @@ def _signing_secret() -> str:
     return ""
 
 
-def issue_voice_session(user_id: str, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -> tuple[str, int]:
+def _character_binding(binding: dict[str, Any]) -> dict[str, Any]:
+    """Validate the exact immutable release identity carried by a preview token."""
+    required = {"project_id", "character_id", "role_id", "version", "profile_hash"}
+    if not isinstance(binding, dict) or set(binding) != required:
+        raise ValueError("Invalid character voice binding")
+    try:
+        for key in ("project_id", "character_id"):
+            if str(UUID(binding[key])) != binding[key]:
+                raise ValueError("Noncanonical identity")
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("Invalid character voice identity") from exc
+    if (binding["role_id"] not in {"teacher", "instructor", "radio_dj", "host", "support"}
+            or type(binding["version"]) is not int or binding["version"] < 1
+            or not isinstance(binding["profile_hash"], str)
+            or len(binding["profile_hash"]) != 64
+            or any(ch not in "0123456789abcdef" for ch in binding["profile_hash"])):
+        raise ValueError("Invalid character voice release")
+    return dict(binding)
+
+
+def issue_voice_session(user_id: str, ttl_seconds: int = _DEFAULT_TTL_SECONDS,
+                        *, character_binding: dict[str, Any] | None = None) -> tuple[str, int]:
     """Issue an HMAC-signed token scoped to one authenticated D3VONN user."""
     secret = _signing_secret()
     if not secret:
         raise RuntimeError("Voice session signing is not configured")
 
     now = int(time.time())
-    ttl = max(300, min(int(ttl_seconds), _MAX_TTL_SECONDS))
+    ttl = max(300, min(int(ttl_seconds), 600 if character_binding is not None else _MAX_TTL_SECONDS))
     expires_at = now + ttl
     payload = {
         "aud": _AUDIENCE,
@@ -56,6 +78,9 @@ def issue_voice_session(user_id: str, ttl_seconds: int = _DEFAULT_TTL_SECONDS) -
         "exp": expires_at,
         "jti": secrets.token_urlsafe(18),
     }
+    if character_binding is not None:
+        payload["scope"] = "character-preview"
+        payload["character"] = _character_binding(character_binding)
     encoded_payload = _b64encode(
         json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     )
@@ -97,6 +122,13 @@ def verify_voice_session(token: str | None) -> dict[str, Any] | None:
         if not isinstance(payload.get("iat"), int) or payload["iat"] > now + 60:
             return None
         if payload["exp"] - payload["iat"] > _MAX_TTL_SECONDS:
+            return None
+        if payload.get("scope") == "character-preview":
+            if _character_binding(payload.get("character")) != payload["character"]:
+                return None
+            if payload["exp"] - payload["iat"] > 600:
+                return None
+        elif "scope" in payload or "character" in payload:
             return None
         return payload
     except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError):

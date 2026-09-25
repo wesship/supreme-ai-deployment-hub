@@ -77,3 +77,9 @@ export function transitionRole(projectId: string, characterId: string, role: Fil
     method: 'POST', body: JSON.stringify({ revision }),
   });
 }
+
+export function previewCharacterVoice(projectId: string, characterId: string, role: FilmRole) {
+  return request<{ mode: 'character-voice-preview'; release_version: number; assistant: Record<string, unknown> }>(
+    `${rolePath(projectId, characterId, role)}/voice-preview`, { method: 'POST' },
+  );
+}

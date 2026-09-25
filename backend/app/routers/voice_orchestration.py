@@ -385,6 +385,7 @@ async def _handle_tool_calls(
     message: dict[str, Any],
     event_id: str,
     user_id: str | None,
+    *, character_preview: bool = False,
 ) -> dict[str, Any]:
     calls = _tool_calls(message)
     results: list[dict[str, Any]] = []
@@ -399,7 +400,9 @@ async def _handle_tool_calls(
         if not tool_call_id:
             continue
 
-        if name not in _ALLOWED_VOICE_TOOLS:
+        if character_preview:
+            result = {"status": "rejected", "message": "Character voice preview cannot execute tools."}
+        elif name not in _ALLOWED_VOICE_TOOLS:
             result: Any = {
                 "status": "rejected",
                 "message": f"Tool '{name or 'unknown'}' is not enabled for D3VONN voice.",
@@ -555,6 +558,9 @@ async def vapi_webhook(
         raise HTTPException(status_code=413, detail="Webhook payload too large")
 
     session_claims = verify_voice_session(request.query_params.get("session"))
+    if (session_claims and session_claims.get("scope") == "character-preview"
+            and os.getenv("AI_FILMS_CHARACTER_VOICE_PREVIEW_ENABLED", "").lower() not in {"1", "true", "yes"}):
+        raise HTTPException(status_code=403, detail="Character voice preview is unavailable")
     _verify_request(raw_body, authorization, x_vapi_signature, x_vapi_secret, session_claims)
     user_id = str(session_claims["sub"]) if session_claims else None
 
@@ -566,7 +572,7 @@ async def vapi_webhook(
         raise HTTPException(status_code=400, detail="Webhook payload must be an object")
 
     event_id = _event_id(payload, raw_body)
-    cache_key = f"{user_id or 'provider'}:{event_id}"
+    cache_key = f"{session_claims['jti'] if session_claims else 'provider'}:{event_id}"
     cached = _cached_response(cache_key)
     if cached is not None:
         cached["duplicate"] = True
@@ -578,7 +584,8 @@ async def vapi_webhook(
     if event_type == "assistant-request":
         response = {"assistantId": effective_assistant_id()}
     elif event_type == "tool-calls":
-        response = await _handle_tool_calls(message, event_id, user_id)
+        response = await _handle_tool_calls(message, event_id, user_id,
+                                             character_preview=bool(session_claims and session_claims.get("character")))
     else:
         internal_recorded = await _record_internal_event(event_type, event_id, payload, user_id)
         external_relay = await _relay_external(event_type, event_id, payload)

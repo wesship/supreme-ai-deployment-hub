@@ -1,15 +1,20 @@
 """Project-scoped character identities with independent role revisions and releases."""
 from __future__ import annotations
 
+import os
+import re
+from urllib.parse import urlencode
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.ai_films.assembly_worker import AssemblyWorkerError
 from backend.ai_films.role_authoring_router import DraftRequest, Store, TestRequest, TransitionRequest, _service
 from backend.ai_films.role_policy_attestation import InvalidAttestation, issue_policy_attestation
 from backend.ai_films.role_runtime import ROLE_TOOLS, RoleProfileUnavailable, load_published_role
+from backend.app.routers.voice_orchestration import _inline_assistant, _public_api_url
+from backend.app.voice_session import issue_voice_session
 
 router = APIRouter(prefix="/ai-films/projects/{project_id}/characters", tags=["ai-films-characters"])
 
@@ -193,3 +198,54 @@ async def published_role(project_id: UUID, character_id: UUID, role_id: str,
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except AssemblyWorkerError as exc:
         raise HTTPException(status_code=503, detail="Character role store unavailable") from exc
+
+
+@router.post("/{character_id}/roles/{role_id}/voice-preview")
+async def preview_voice(project_id: UUID, character_id: UUID, role_id: str,
+                        request: Request, response: Response,
+                        authorization: str | None = Header(default=None)) -> dict:
+    """Start a voice-only rehearsal of an exact approved release, without action tools."""
+    if os.getenv("AI_FILMS_CHARACTER_VOICE_PREVIEW_ENABLED", "").lower() not in {"1", "true", "yes"}:
+        raise HTTPException(status_code=404, detail="Character voice preview is unavailable")
+    service, actor = await _service(authorization)
+    await access(service.store, project_id, actor, owner=True)
+    identity = await character(service.store, project_id, character_id)
+    try:
+        released = await load_published_role(service.store, str(project_id), role_id,
+                                             character_id=str(character_id))
+    except RoleProfileUnavailable as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AssemblyWorkerError as exc:
+        raise HTTPException(status_code=503, detail="Character release store unavailable") from exc
+
+    voice_id = released["profile"]["voice_version"]
+    approved = {value.strip() for value in os.getenv("AI_FILMS_APPROVED_ELEVENLABS_VOICES", "").split(",") if value.strip()}
+    if not re.fullmatch(r"[A-Za-z0-9]{20,64}", voice_id) or voice_id not in approved:
+        raise HTTPException(status_code=409, detail="Release voice is not approved for preview")
+    if len(released["profile"]["introduction"]) > 500:
+        raise HTTPException(status_code=409, detail="Release introduction is too long for voice preview")
+
+    binding = {"project_id": str(project_id), "character_id": str(character_id),
+               "role_id": role_id, "version": released["version"],
+               "profile_hash": released["profile_hash"]}
+    try:
+        token, expires_at = issue_voice_session(actor, ttl_seconds=600, character_binding=binding)
+    except (RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="Character voice preview service unavailable") from exc
+    server_url = f"{_public_api_url(request)}/api/voice/vapi/webhook?{urlencode({'session': token})}"
+    assistant = _inline_assistant(server_url)
+    assistant["name"] = f"{identity['name']} · {role_id} preview"
+    assistant["firstMessage"] = f"This is an AI character preview. {released['profile']['introduction']}"
+    assistant["model"]["messages"] = [{"role": "system", "content": (
+        f"You are an AI character preview for {identity['name']} in the {role_id} role. "
+        "You may demonstrate the voice and introduction. Do not claim to have retrieved any "
+        "approved source content or provide substantive instruction, advice, broadcasts, or support. "
+        "If asked for source-specific answers or actions, explain that the grounded role agent is not connected in this preview."
+    )}]
+    assistant["model"]["tools"] = []
+    assistant["voice"]["voiceId"] = voice_id
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Pragma"] = "no-cache"
+    return {"mode": "character-voice-preview", "expires_at": expires_at,
+            "character_id": str(character_id), "role_id": role_id,
+            "release_version": released["version"], "assistant": assistant}
