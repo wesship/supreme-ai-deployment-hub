@@ -36,6 +36,8 @@ PRODUCTION_ORIGINS = [
     "https://d3vonn.io",
     "https://www.d3vonn.io",
     "https://app.d3vonn.io",
+    "https://hnfportal.one",
+    "https://www.hnfportal.one",
     "https://supreme-ai-deployment-hub.vercel.app",
     "https://supreme-ai-deployment-hub.lovable.app",
 ]
@@ -52,7 +54,7 @@ app.add_middleware(
     allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID", "X-HNF-Service-Key", "X-Telegram-Bot-Api-Secret-Token"],
 )
 
 _REQUIRED_MIDDLEWARE = (
@@ -82,6 +84,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.occ_operator.market_intelligence_router", "router", "/api/operator"),
     ("backend.hermes.router", "router", None),
     ("backend.hermes.recency_router", "router", None),
+    ("backend.hnf.router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),
     ("backend.rag.router", "router", None),
     ("backend.knowledge.router", "router", None),
