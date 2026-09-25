@@ -111,14 +111,19 @@ BUILTIN_MANIFESTS = (
             "workflow.resume",
             "approval.request",
             "market.read",
+            "skills.route",
         ],
         permissions=[
             "tasks.read",
             "tasks.write",
             "events.write",
             "agents.dispatch",
+            "tools.invoke",
+            "memory.read",
+            "memory.write",
             "market.read",
         ],
+        skills=["superpowers-dev", "browser-execution", "knowledge-writeback", "release-gate"],
         tools=[
             ToolContract(
                 name="agent-dispatch",
@@ -136,7 +141,8 @@ BUILTIN_MANIFESTS = (
         role=AgentRole.EXECUTION,
         description="Execution agent for plans, summaries, follow-up, and research tasks.",
         capabilities=["task.execute", "tool.invoke", "market.read"],
-        permissions=["tasks.read", "tasks.transition", "tools.invoke", "market.read"],
+        permissions=["tasks.read", "tasks.write", "tasks.transition", "tools.invoke", "events.write", "market.read"],
+        skills=["superpowers-dev", "browser-execution", "release-gate"],
         tools=MARKET_READ_TOOLS,
     ),
     AgentManifest(
@@ -156,6 +162,7 @@ BUILTIN_MANIFESTS = (
         description="Memory, retrieval, and knowledge-context agent.",
         capabilities=["memory.read", "memory.write", "context.retrieve"],
         permissions=["memory.read", "memory.write", "events.write"],
+        skills=["knowledge-writeback"],
     ),
     AgentManifest(
         id="guardian",
@@ -165,6 +172,7 @@ BUILTIN_MANIFESTS = (
         description="Safety, policy, and destructive-action approval agent.",
         capabilities=["policy.evaluate", "approval.enforce", "risk.classify"],
         permissions=["tasks.read", "interrupts.write", "events.write"],
+        skills=["release-gate"],
     ),
 )
 

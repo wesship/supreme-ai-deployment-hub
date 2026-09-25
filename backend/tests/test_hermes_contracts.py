@@ -7,11 +7,14 @@ from backend.hermes.contracts import (
     AgentManifest,
     AgentRole,
     HermesEvent,
+    SkillManifest,
+    SkillRisk,
     TaskStatus,
     TaskTransition,
     can_transition,
 )
 from backend.hermes.registry import AgentRegistry, BUILTIN_AGENT_REGISTRY
+from backend.hermes.skills import BUILTIN_SKILL_REGISTRY, SkillRegistry
 
 
 def test_builtin_registry_contains_canonical_agents() -> None:
@@ -105,3 +108,45 @@ def test_event_envelope_is_versioned_and_strict() -> None:
 
     with pytest.raises(ValidationError):
         HermesEvent(event_type="Task Created", source="hermes")
+
+
+def test_builtin_skill_registry_contains_governed_capabilities() -> None:
+    assert [skill.id for skill in BUILTIN_SKILL_REGISTRY.list()] == [
+        "browser-execution",
+        "knowledge-writeback",
+        "release-gate",
+        "superpowers-dev",
+    ]
+    superpowers = BUILTIN_SKILL_REGISTRY.get("superpowers-dev")
+    assert superpowers.risk is SkillRisk.MEDIUM
+    assert superpowers.metadata["pinned_ref"] == "5bf4e78011075bcfc0dc295f0724994cd123ee71"
+
+
+def test_skill_registry_fails_closed_for_unknown_or_unauthorized_skill() -> None:
+    registry = SkillRegistry(
+        [
+            SkillManifest(
+                id="deploy",
+                name="Deploy",
+                version="1.0.0",
+                required_permissions=["deploy.write"],
+                allowed_agents=["hermes"],
+            )
+        ]
+    )
+    with pytest.raises(KeyError, match="unknown skill"):
+        registry.authorize("missing", agent_id="hermes", agent_permissions=set())
+    with pytest.raises(PermissionError, match="lacks permissions"):
+        registry.authorize("deploy", agent_id="hermes", agent_permissions=set())
+    with pytest.raises(PermissionError, match="not allowed"):
+        registry.authorize("deploy", agent_id="tars", agent_permissions={"deploy.write"})
+
+
+def test_canonical_agents_have_expected_skill_assignments() -> None:
+    assert BUILTIN_AGENT_REGISTRY.get("hermes").skills == [
+        "superpowers-dev",
+        "browser-execution",
+        "knowledge-writeback",
+        "release-gate",
+    ]
+    assert BUILTIN_AGENT_REGISTRY.get("sapphire").skills == ["knowledge-writeback"]

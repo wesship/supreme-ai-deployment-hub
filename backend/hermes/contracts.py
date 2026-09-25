@@ -52,6 +52,13 @@ class ApprovalMode(str, Enum):
     ALWAYS = "always"
 
 
+class SkillRisk(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 TASK_TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
     TaskStatus.PENDING: frozenset({TaskStatus.LOCKED, TaskStatus.PAUSED, TaskStatus.CANCELLED}),
     TaskStatus.LOCKED: frozenset({TaskStatus.RUNNING, TaskStatus.PENDING, TaskStatus.FAILED, TaskStatus.CANCELLED}),
@@ -102,6 +109,30 @@ class ToolContract(StrictContract):
     output_schema: dict[str, Any] = Field(default_factory=dict)
 
 
+class SkillManifest(StrictContract):
+    contract_version: str = CONTRACT_VERSION
+    id: str = Field(..., min_length=2, max_length=80, pattern=r"^[a-z][a-z0-9_-]*$")
+    name: str = Field(..., min_length=2, max_length=120)
+    version: str = Field(..., min_length=1, max_length=50)
+    description: str = Field(default="", max_length=1200)
+    capabilities: list[str] = Field(default_factory=list)
+    required_permissions: list[str] = Field(default_factory=list)
+    allowed_agents: list[str] = Field(default_factory=list)
+    approval_mode: ApprovalMode = ApprovalMode.POLICY
+    risk: SkillRisk = SkillRisk.LOW
+    destructive: bool = False
+    enabled: bool = True
+    source: str = Field(default="d3vonn", max_length=255)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("capabilities", "required_permissions", "allowed_agents")
+    @classmethod
+    def skill_values_must_be_unique(cls, values: list[str]) -> list[str]:
+        if len(values) != len(set(values)):
+            raise ValueError("values must be unique")
+        return values
+
+
 class AgentManifest(StrictContract):
     contract_version: str = CONTRACT_VERSION
     id: str = Field(..., min_length=2, max_length=64, pattern=r"^[a-z][a-z0-9_-]*$")
@@ -112,12 +143,13 @@ class AgentManifest(StrictContract):
     capabilities: list[str] = Field(default_factory=list)
     permissions: list[str] = Field(default_factory=list)
     tools: list[ToolContract] = Field(default_factory=list)
+    skills: list[str] = Field(default_factory=list)
     models: list[str] = Field(default_factory=list)
     children: list[str] = Field(default_factory=list)
     enabled: bool = True
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("capabilities", "permissions", "models", "children")
+    @field_validator("capabilities", "permissions", "skills", "models", "children")
     @classmethod
     def values_must_be_unique(cls, values: list[str]) -> list[str]:
         if len(values) != len(set(values)):
