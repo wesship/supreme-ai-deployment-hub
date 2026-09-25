@@ -285,8 +285,9 @@ except ImportError as exc:
     logger.warning("AI Films Role Studio authoring router not registered: %s", exc)
 
 try:
-    from backend.ai_films.character_router import router as ai_film_character_router
+    from backend.ai_films.character_router import router as ai_film_character_router, source_router as ai_film_character_source_router
     proxy_router.include_router(ai_film_character_router)
+    proxy_router.include_router(ai_film_character_source_router)
     logger.info("AI Films character router registered at /api/ai-films/projects/*/characters/*.")
 except ImportError as exc:
     logger.warning("AI Films character router not registered: %s", exc)
