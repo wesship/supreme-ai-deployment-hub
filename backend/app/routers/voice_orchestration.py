@@ -582,7 +582,9 @@ async def vapi_webhook(
     event_type = str(message.get("type") or payload.get("type") or "unknown")
 
     if event_type == "assistant-request":
-        response = {"assistantId": effective_assistant_id()}
+        response = ({"error": "Character preview requires its pinned inline assistant"}
+                    if session_claims and session_claims.get("scope") == "character-preview"
+                    else {"assistantId": effective_assistant_id()})
     elif event_type == "tool-calls":
         response = await _handle_tool_calls(message, event_id, user_id,
                                              character_preview=bool(session_claims and session_claims.get("character")))
