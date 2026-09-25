@@ -16,7 +16,7 @@ from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from backend.hnf.registry import PERSONAS, WORKFLOWS, list_capabilities
-from backend.hnf.service import submit_hnf_workflow
+from backend.hnf.service import decide_hnf_request, get_hnf_request, submit_hnf_workflow
 
 router = APIRouter(prefix="/api/hnf/v1", tags=["hnf-hermes"])
 
@@ -29,6 +29,12 @@ class WorkflowRequest(BaseModel):
     persona_id: str | None = Field(default=None, max_length=100)
     budget_max_usd: float | None = Field(default=None, ge=0, le=1000)
     priority: int | None = Field(default=None, ge=1, le=10)
+
+
+class ApprovalDecision(BaseModel):
+    approved: bool
+    actor_id: str = Field(min_length=1, max_length=200)
+    note: str | None = Field(default=None, max_length=1000)
 
 
 class MCPRequest(BaseModel):
@@ -107,6 +113,39 @@ async def run_workflow(
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"accepted": True, "duplicate": duplicate, "task": task}
+
+
+@router.get("/requests/{request_id}")
+async def get_request_status(
+    request_id: str,
+    x_hnf_service_key: str | None = Header(default=None, alias="X-HNF-Service-Key"),
+) -> dict[str, Any]:
+    _require_service_key(x_hnf_service_key)
+    task = await get_hnf_request(request_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="HNF request not found")
+    return {"request_id": request_id, "task": task}
+
+
+@router.post("/requests/{request_id}/decision")
+async def decide_request(
+    request_id: str,
+    body: ApprovalDecision,
+    x_hnf_service_key: str | None = Header(default=None, alias="X-HNF-Service-Key"),
+) -> dict[str, Any]:
+    _require_service_key(x_hnf_service_key)
+    try:
+        task = await decide_hnf_request(
+            request_id=request_id,
+            approved=body.approved,
+            actor_id=body.actor_id,
+            note=body.note,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"request_id": request_id, "approved": body.approved, "task": task}
 
 
 @router.post("/mcp")
@@ -197,10 +236,28 @@ async def telegram_webhook(
         raise HTTPException(status_code=403, detail="Telegram chat is not allowlisted")
 
     text = str(message.get("text") or "").strip()
-    # Syntax: /hnf run hnf.radio.dj.generate optional free-form context
+    # Syntax: /hnf run <workflow> [context] OR /hnf approve|reject <request_id> [note]
     parts = text.split(maxsplit=3)
-    if len(parts) < 3 or parts[0].lower() not in {"/hnf", "/hnf@d3vonn"} or parts[1].lower() != "run":
-        return {"accepted": False, "help": "/hnf run <workflow> [context]"}
+    if len(parts) < 3 or parts[0].lower() not in {"/hnf", "/hnf@d3vonn"}:
+        return {"accepted": False, "help": "/hnf run <workflow> [context] | /hnf approve|reject <request_id> [note]"}
+
+    action = parts[1].lower()
+    if action in {"approve", "reject"}:
+        request_id = parts[2].strip()
+        note = parts[3].strip() if len(parts) == 4 else None
+        try:
+            task = await decide_hnf_request(
+                request_id=request_id,
+                approved=action == "approve",
+                actor_id=f"telegram:{chat_id}",
+                note=note,
+            )
+        except (KeyError, ValueError) as exc:
+            return {"accepted": False, "error": str(exc)}
+        return {"accepted": True, "decision": action, "request_id": request_id, "task_id": task.get("id")}
+
+    if action != "run":
+        return {"accepted": False, "help": "/hnf run <workflow> [context] | /hnf approve|reject <request_id> [note]"}
 
     workflow_name = parts[2].strip().lower()
     context_text = parts[3].strip() if len(parts) == 4 else ""
