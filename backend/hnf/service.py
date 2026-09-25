@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.hermes.task_engine import create_task, get_task_by_correlation_id, log_event
+from backend.hermes.contracts import TaskStatus
+from backend.hermes.task_engine import create_task, get_task_by_correlation_id, log_event, transition_task
 from backend.hnf.registry import get_workflow
 
 
@@ -48,6 +49,7 @@ async def submit_hnf_workflow(
         priority=priority or workflow.default_priority,
         source=f"hnfportal:{transport}",
         correlation_id=correlation_id,
+        initial_status=TaskStatus.PAUSED if workflow.requires_approval else TaskStatus.PENDING,
     )
     await log_event(
         event="hnf.workflow.accepted",
@@ -64,3 +66,34 @@ async def submit_hnf_workflow(
         correlation_id=correlation_id,
     )
     return task, False
+
+
+async def get_hnf_request(request_id: str) -> dict[str, Any] | None:
+    return await get_task_by_correlation_id(f"hnfportal:{request_id.strip()}")
+
+
+async def decide_hnf_request(*, request_id: str, approved: bool, actor_id: str, note: str | None = None) -> dict[str, Any]:
+    task = await get_hnf_request(request_id)
+    if not task:
+        raise KeyError(f"unknown HNF request: {request_id}")
+    current = str(task.get("status") or "")
+    if current != TaskStatus.PAUSED.value:
+        raise ValueError(f"HNF request is not awaiting approval (status={current})")
+    target = TaskStatus.PENDING if approved else TaskStatus.CANCELLED
+    updated = await transition_task(
+        str(task["id"]),
+        target,
+        output_data={"approval": {"approved": approved, "actor_id": actor_id, "note": note}} if not approved else None,
+        error_message=None if approved else (note or "HNF workflow rejected"),
+        agent_name="HERMES",
+        expected_status=TaskStatus.PAUSED,
+    )
+    await log_event(
+        event="hnf.workflow.approved" if approved else "hnf.workflow.rejected",
+        message=f"HNF workflow {'approved' if approved else 'rejected'} by {actor_id}",
+        task_id=str(task["id"]),
+        agent_name="HERMES",
+        data={"tenant_id": "hnfportal", "actor_id": actor_id, "note": note},
+        correlation_id=str(task.get("correlation_id") or ""),
+    )
+    return updated
