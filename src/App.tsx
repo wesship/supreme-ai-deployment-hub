@@ -50,6 +50,7 @@ const GitHubConnectorDiagnostic = lazy(() => import("./pages/GitHubConnectorDiag
 const ChatPage = lazy(() => import("./pages/Chat"));
 const VoiceStudio = lazy(() => import("./pages/VoiceStudio"));
 const AdminPage = lazy(() => import("./pages/Admin"));
+const OperatorCommandCenter = lazy(() => import("./pages/OperatorCommandCenterRC1"));
 const DemoControlCenter = lazy(() => import("./pages/DemoControlCenter"));
 const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 const MoneyHub = lazy(() => import("./pages/MoneyHub"));
@@ -84,14 +85,6 @@ const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
 
-const AdminRouteWrapper = lazy(() =>
-  import("./components/auth/AdminRoute").then(mod => {
-    const AdminRoute = mod.default;
-    return import("./pages/OperatorCommandCenterRC1").then(occMod => ({
-      default: () => <AdminRoute><occMod.default /></AdminRoute>
-    }));
-  })
-);
 
 const PageLoader = () => (
   <div className="d3-ai-loader" role="status" aria-live="polite" aria-label="D3VONN.IO is preparing your workspace">
@@ -224,7 +217,7 @@ function App() {
                 <Route path="/voice-studio" element={<VoiceStudio />} />
                 <Route path="/admin" element={<AdminPage />} />
                 <Route path="/admin/demo-control" element={<AdminRoute><DemoControlCenter /></AdminRoute>} />
-                <Route path="/occ" element={<AdminRouteWrapper />} />
+                <Route path="/occ" element={<AdminRoute><OperatorCommandCenter /></AdminRoute>} />
                 <Route path="/unauthorized" element={<Unauthorized />} />
                 <Route path="/moneyhub" element={<MoneyHub />} />
                 <Route path="/ai-therapy" element={<AITherapy />} />
