@@ -1,4 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/env', () => ({
+  env: {
+    hnfRadioStreamUrl: '',
+    hnfRadioNowPlayingUrl: '',
+    isProduction: false,
+  },
+}));
+
 import { parseAzuraCastNowPlaying } from './hnfRadio';
 
 describe('parseAzuraCastNowPlaying', () => {
