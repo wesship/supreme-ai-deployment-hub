@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// The parser is pure; avoid booting deployment-only configuration in this test.
+vi.mock('@/lib/env', () => ({ env: { isProduction: true } }));
 import { parseAzuraCastNowPlaying } from './hnfRadio';
 
 describe('parseAzuraCastNowPlaying', () => {
