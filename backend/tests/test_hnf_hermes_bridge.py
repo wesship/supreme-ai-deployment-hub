@@ -24,3 +24,12 @@ def test_capabilities_shape():
     assert capabilities["workflows"]
     assert capabilities["personas"]
     assert {"name", "surface", "description", "requires_approval", "default_priority"} <= set(capabilities["workflows"][0])
+
+
+def test_approval_workflows_fail_closed_in_registry():
+    protected = {name for name, item in WORKFLOWS.items() if item.requires_approval}
+    assert {
+        "hnf.radio.broadcast.publish",
+        "hnf.support.escalate",
+        "hnf.admin.operation",
+    } <= protected
