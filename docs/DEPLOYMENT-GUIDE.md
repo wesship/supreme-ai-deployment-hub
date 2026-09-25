@@ -80,7 +80,7 @@ cp .env.example .env
 
 # Run development servers
 npm run dev              # Frontend
-uvicorn src.main:app --reload  # Backend
+uvicorn backend.main:app --reload  # Backend
 ```
 
 ### Environment Variables
