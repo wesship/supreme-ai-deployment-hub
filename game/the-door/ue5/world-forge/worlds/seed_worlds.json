@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 2,
+  "worlds": [
+    {"worldId":"WORLD_NYC_2026","doorId":"DOOR_NYC_2026","locationId":"LOC_NYC_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_NYC_001/Present_2026"},
+    {"worldId":"WORLD_PHL_1977","doorId":"DOOR_PHL_1977","locationId":"LOC_PHL_001","body":"Earth","reality":"Historical","eraYear":1977,"map":"/Game/Worlds/LOC_PHL_001/Historical_1977"},
+    {"worldId":"WORLD_DEN_2026","doorId":"DOOR_DEN_2026","locationId":"LOC_DEN_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_DEN_001/Present_2026"},
+    {"worldId":"WORLD_ACC_2026","doorId":"DOOR_ACC_2026","locationId":"LOC_ACC_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_ACC_001/Present_2026"},
+    {"worldId":"WORLD_DXB_2026","doorId":"DOOR_DXB_2026","locationId":"LOC_DXB_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_DXB_001/Present_2026"},
+
+    {"worldId":"WORLD_GIZA_PRESENT_001","doorId":"DOOR_GIZA_PRESENT_001","locationId":"LOC_GIZA_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_GIZA_001/Present_2026","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_GIZA_OLDKINGDOM_001","doorId":"DOOR_GIZA_OLDKINGDOM_001","locationId":"LOC_GIZA_001","body":"Earth","reality":"Historical","eraYear":-2550,"map":"/Game/Worlds/LOC_GIZA_001/Historical_-2550","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_GIZA_DOORREALM_001","doorId":"DOOR_GIZA_DOORREALM_001","locationId":"LOC_GIZA_001","body":"Earth","reality":"Anomaly","eraYear":2026,"map":"/Game/Worlds/LOC_GIZA_001/Anomaly_2026","arc":"ANCIENT_THRESHOLD"},
+
+    {"worldId":"WORLD_NAZCA_PRESENT_001","doorId":"DOOR_NAZCA_PRESENT_001","locationId":"LOC_NAZCA_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_NAZCA_001/Present_2026","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_NAZCA_RITUAL_001","doorId":"DOOR_NAZCA_RITUAL_001","locationId":"LOC_NAZCA_001","body":"Earth","reality":"Historical","eraYear":500,"map":"/Game/Worlds/LOC_NAZCA_001/Historical_500","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_NAZCA_SKYMAP_001","doorId":"DOOR_NAZCA_SKYMAP_001","locationId":"LOC_NAZCA_001","body":"Earth","reality":"Alternate","eraYear":2026,"map":"/Game/Worlds/LOC_NAZCA_001/Alternate_2026","arc":"ANCIENT_THRESHOLD"},
+
+    {"worldId":"WORLD_PUMAPUNKU_PRESENT_001","doorId":"DOOR_PUMAPUNKU_PRESENT_001","locationId":"LOC_PUMAPUNKU_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_PUMAPUNKU_001/Present_2026","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_PUMAPUNKU_TIWANAKU_001","doorId":"DOOR_PUMAPUNKU_TIWANAKU_001","locationId":"LOC_PUMAPUNKU_001","body":"Earth","reality":"Historical","eraYear":900,"map":"/Game/Worlds/LOC_PUMAPUNKU_001/Historical_900","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_PUMAPUNKU_PRECISION_001","doorId":"DOOR_PUMAPUNKU_PRECISION_001","locationId":"LOC_PUMAPUNKU_001","body":"Earth","reality":"Anomaly","eraYear":2026,"map":"/Game/Worlds/LOC_PUMAPUNKU_001/Anomaly_2026","arc":"ANCIENT_THRESHOLD"},
+
+    {"worldId":"WORLD_STONEHENGE_PRESENT_001","doorId":"DOOR_STONEHENGE_PRESENT_001","locationId":"LOC_STONEHENGE_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_STONEHENGE_001/Present_2026","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_STONEHENGE_NEOLITHIC_001","doorId":"DOOR_STONEHENGE_NEOLITHIC_001","locationId":"LOC_STONEHENGE_001","body":"Earth","reality":"Historical","eraYear":-2500,"map":"/Game/Worlds/LOC_STONEHENGE_001/Historical_-2500","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_STONEHENGE_CALENDAR_001","doorId":"DOOR_STONEHENGE_CALENDAR_001","locationId":"LOC_STONEHENGE_001","body":"Earth","reality":"Alternate","eraYear":2026,"map":"/Game/Worlds/LOC_STONEHENGE_001/Alternate_2026","arc":"ANCIENT_THRESHOLD"},
+
+    {"worldId":"WORLD_RAPANUI_PRESENT_001","doorId":"DOOR_RAPANUI_PRESENT_001","locationId":"LOC_RAPANUI_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_RAPANUI_001/Present_2026","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_RAPANUI_MOAI_001","doorId":"DOOR_RAPANUI_MOAI_001","locationId":"LOC_RAPANUI_001","body":"Earth","reality":"Historical","eraYear":1500,"map":"/Game/Worlds/LOC_RAPANUI_001/Historical_1500","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_RAPANUI_MEMORY_001","doorId":"DOOR_RAPANUI_MEMORY_001","locationId":"LOC_RAPANUI_001","body":"Earth","reality":"Anomaly","eraYear":2026,"map":"/Game/Worlds/LOC_RAPANUI_001/Anomaly_2026","arc":"ANCIENT_THRESHOLD"},
+
+    {"worldId":"WORLD_BAALBEK_PRESENT_001","doorId":"DOOR_BAALBEK_PRESENT_001","locationId":"LOC_BAALBEK_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_BAALBEK_001/Present_2026","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_BAALBEK_ROMAN_001","doorId":"DOOR_BAALBEK_ROMAN_001","locationId":"LOC_BAALBEK_001","body":"Earth","reality":"Historical","eraYear":100,"map":"/Game/Worlds/LOC_BAALBEK_001/Historical_100","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_BAALBEK_FOUNDATION_001","doorId":"DOOR_BAALBEK_FOUNDATION_001","locationId":"LOC_BAALBEK_001","body":"Earth","reality":"Anomaly","eraYear":2026,"map":"/Game/Worlds/LOC_BAALBEK_001/Anomaly_2026","arc":"ANCIENT_THRESHOLD"},
+
+    {"worldId":"WORLD_TEOTIHUACAN_PRESENT_001","doorId":"DOOR_TEOTIHUACAN_PRESENT_001","locationId":"LOC_TEOTIHUACAN_001","body":"Earth","reality":"Present","eraYear":2026,"map":"/Game/Worlds/LOC_TEOTIHUACAN_001/Present_2026","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_TEOTIHUACAN_CLASSIC_001","doorId":"DOOR_TEOTIHUACAN_CLASSIC_001","locationId":"LOC_TEOTIHUACAN_001","body":"Earth","reality":"Historical","eraYear":450,"map":"/Game/Worlds/LOC_TEOTIHUACAN_001/Historical_450","arc":"ANCIENT_THRESHOLD"},
+    {"worldId":"WORLD_TEOTIHUACAN_PATHS_001","doorId":"DOOR_TEOTIHUACAN_PATHS_001","locationId":"LOC_TEOTIHUACAN_001","body":"Earth","reality":"Alternate","eraYear":2026,"map":"/Game/Worlds/LOC_TEOTIHUACAN_001/Alternate_2026","arc":"ANCIENT_THRESHOLD"},
+
+    {"worldId":"WORLD_MOON_TRANQUILITY_001","doorId":"DOOR_MOON_TRANQUILITY_001","locationId":"LOC_MOON_TRANQUILITY_001","body":"Moon","reality":"Planetary","eraYear":2026,"map":"/Game/Worlds/LOC_MOON_TRANQUILITY_001/Planetary_2026"},
+    {"worldId":"WORLD_MARS_VALLES_001","doorId":"DOOR_MARS_VALLES_001","locationId":"LOC_MARS_VALLES_001","body":"Mars","reality":"Planetary","eraYear":2026,"map":"/Game/Worlds/LOC_MARS_VALLES_001/Planetary_2026"},
+    {"worldId":"WORLD_EUROPA_001","doorId":"DOOR_EUROPA_001","locationId":"LOC_EUROPA_001","body":"Europa","reality":"Planetary","eraYear":2026,"map":"/Game/Worlds/LOC_EUROPA_001/Planetary_2026"},
+    {"worldId":"WORLD_DOOR_REALM_001","doorId":"DOOR_REALM_001","locationId":"LOC_DOOR_REALM_001","body":"DoorRealm","reality":"Anomaly","eraYear":2026,"map":"/Game/Worlds/LOC_DOOR_REALM_001/Anomaly_2026"}
+  ]
+}
