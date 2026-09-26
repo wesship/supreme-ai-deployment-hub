@@ -98,10 +98,10 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
     type: 'knowledge',
     position: { x: 0, y: 220 },
     data: {
-      label: 'User Intent',
+      label: 'People',
       kind: 'core',
       route: '/app',
-      description: 'Entry point for goals, requests, and operator-directed work.',
+      description: 'Users, teams, partners, and operator-directed intent entering the D3VONN fabric.',
       state: 'governed',
     },
   },
@@ -122,7 +122,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
     type: 'knowledge',
     position: { x: 560, y: 45 },
     data: {
-      label: 'AI Workforce',
+      label: 'Agents',
       kind: 'agent',
       route: '/agents',
       description: 'Reusable specialist agents selected by Hermes for governed tasks.',
@@ -182,11 +182,23 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
     type: 'knowledge',
     position: { x: 1130, y: 175 },
     data: {
-      label: 'HNF Radio',
+      label: 'HNF Ecosystem',
       kind: 'product',
       route: '/music',
-      description: 'Media orchestration surface for voice, scheduling, and broadcast workflows.',
+      description: 'Radio, TV, Academy, culture, publishing, and media orchestration surfaces.',
       state: 'adapter',
+    },
+  },
+  {
+    id: 'models',
+    type: 'knowledge',
+    position: { x: 860, y: 255 },
+    data: {
+      label: 'Models',
+      kind: 'tool',
+      route: '/app',
+      description: 'LLM, VLM, multimodal, routing, and model-provider intelligence.',
+      state: 'governed',
     },
   },
   {
@@ -199,6 +211,18 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
       route: '/security/command-center',
       description: 'Policy, secrets, approvals, observability, and operating boundaries.',
       state: 'governed',
+    },
+  },
+  {
+    id: 'infrastructure',
+    type: 'knowledge',
+    position: { x: 1090, y: 420 },
+    data: {
+      label: 'Infrastructure',
+      kind: 'tool',
+      route: '/command-center',
+      description: 'GPU, servers, storage, databases, cloud, and edge runtime resources.',
+      state: 'ready',
     },
   },
   {
@@ -220,6 +244,8 @@ const initialEdges: Edge[] = [
   { id: 'hermes-agents', source: 'hermes', target: 'agents' },
   { id: 'hermes-knowledge', source: 'hermes', target: 'knowledge' },
   { id: 'hermes-tools', source: 'hermes', target: 'tools' },
+  { id: 'hermes-models', source: 'hermes', target: 'models' },
+  { id: 'hermes-infrastructure', source: 'hermes', target: 'infrastructure' },
   { id: 'agents-workflow', source: 'agents', target: 'workflow' },
   { id: 'knowledge-workflow', source: 'knowledge', target: 'workflow' },
   { id: 'tools-security', source: 'tools', target: 'security' },
@@ -428,7 +454,7 @@ function KnowledgeNode({ id, data, selected }: NodeProps<Node<KnowledgeNodeData>
 
 const nodeTypes = { knowledge: KnowledgeNode };
 const edgeTypes = { cinematic: CinematicEdge };
-const majorClusterNodeIds = new Set(['agents', 'knowledge', 'tools', 'films', 'radio', 'security', 'analytics']);
+const majorClusterNodeIds = new Set(['intent', 'agents', 'knowledge', 'models', 'tools', 'films', 'radio', 'workflow', 'infrastructure', 'security', 'analytics']);
 
 
 const nexusNavItems = [
@@ -970,8 +996,8 @@ const KnowledgeGraphOS: React.FC = () => {
               <div className="grid gap-6 lg:grid-cols-3">
                 {[
                   { title: 'Intent + Orchestration', ids: ['intent', 'hermes'] },
-                  { title: 'Intelligence Fabric', ids: ['agents', 'knowledge', 'tools', 'workflow'] },
-                  { title: 'Platform Surfaces', ids: ['films', 'radio', 'security', 'analytics'] },
+                  { title: 'Intelligence Fabric', ids: ['agents', 'knowledge', 'models', 'tools', 'workflow'] },
+                  { title: 'Platform Surfaces', ids: ['films', 'radio', 'infrastructure', 'security', 'analytics'] },
                 ].map((cluster) => (
                   <section key={cluster.title} className="border border-[#2d2c28] bg-[#0d0d0b] p-4">
                     <div className="flex items-center gap-2 border-b border-[#25241f] pb-3">
