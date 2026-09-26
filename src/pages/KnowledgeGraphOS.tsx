@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Background,
@@ -407,6 +407,7 @@ const KnowledgeGraphOS: React.FC = () => {
   const [taskLogs, setTaskLogs] = useState<HermesLogRow[]>([]);
   const [parentTask, setParentTask] = useState<HermesTaskRow | null>(null);
   const [childTasks, setChildTasks] = useState<HermesTaskRow[]>([]);
+  const timelineRequestRef = useRef(0);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -466,6 +467,7 @@ const KnowledgeGraphOS: React.FC = () => {
   }, []);
 
   const refreshTaskTimeline = async (task: HermesTaskRow | null) => {
+    const requestId = ++timelineRequestRef.current;
     if (!task?.id) {
       setTimeline([]);
       setPendingInterrupt(null);
@@ -475,6 +477,12 @@ const KnowledgeGraphOS: React.FC = () => {
       setChildTasks([]);
       return;
     }
+    setTimeline([]);
+    setPendingInterrupt(null);
+    setRuns([]);
+    setTaskLogs([]);
+    setParentTask(null);
+    setChildTasks([]);
     setTimelineLoading(true);
     try {
       const eventQuery = supabase
@@ -555,6 +563,7 @@ const KnowledgeGraphOS: React.FC = () => {
       const children = (childrenRes.data ?? []) as unknown as HermesTaskRow[];
       const parent = (parentRes.data ?? null) as unknown as HermesTaskRow | null;
 
+      if (requestId !== timelineRequestRef.current) return;
       setRuns(nextRuns);
       setTaskLogs(nextLogs);
       setChildTasks(children);
@@ -588,10 +597,11 @@ const KnowledgeGraphOS: React.FC = () => {
         ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
       );
     } catch (error) {
+      if (requestId !== timelineRequestRef.current) return;
       const message = error instanceof Error ? error.message : 'Timeline load failed';
       setActivity((items) => [`Timeline error: ${message}`, ...items].slice(0, 5));
     } finally {
-      setTimelineLoading(false);
+      if (requestId === timelineRequestRef.current) setTimelineLoading(false);
     }
   };
 
@@ -768,10 +778,10 @@ const KnowledgeGraphOS: React.FC = () => {
   const toolSignals = Array.from(new Set(
     taskLogs.flatMap((log) => {
       const data = log.data ?? {};
-      const candidates = [data.tool, data.tool_name, data.mcp, data.connector, log.event];
-      return candidates
-        .filter((value): value is string => typeof value === 'string')
-        .filter((value) => /tool|mcp|connector/i.test(value));
+      const structured = [data.tool, data.tool_name, data.mcp, data.connector]
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+      const eventFallback = /tool|mcp|connector/i.test(log.event) ? [log.event] : [];
+      return [...structured, ...eventFallback];
     }),
   )).slice(0, 8);
 
