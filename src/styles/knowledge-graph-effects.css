@@ -844,3 +844,164 @@
     opacity: .58;
   }
 }
+
+
+/* Neural Nexus sharpness pass — preserve composition, reduce haze. */
+.d3-nexus-topbar,
+.d3-nexus-left-rail,
+.d3-nexus-right-rail,
+.d3-nexus-actionbar,
+.d3-ops-overlay {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.d3-nexus-topbar {
+  background: rgba(9, 9, 7, .985) !important;
+  backdrop-filter: none;
+  box-shadow:
+    0 1px 0 rgba(254,243,199,.07),
+    0 8px 22px rgba(0,0,0,.34);
+}
+
+.d3-nexus-left-rail,
+.d3-nexus-right-rail,
+.d3-ops-overlay {
+  border-color: rgba(120,113,108,.34) !important;
+  background: rgba(12,12,10,.985) !important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.018),
+    0 12px 28px rgba(0,0,0,.3) !important;
+}
+
+.d3-nexus-stat-card {
+  border-color: rgba(120,113,108,.28) !important;
+  background: #0a0a08 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+}
+
+.d3-neural-stage {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(252,211,77,.035), transparent 30%),
+    linear-gradient(180deg, rgba(255,255,255,.006), transparent 24%),
+    #080806;
+}
+
+.d3-nexus-globe {
+  opacity: .63;
+  border-color: rgba(252,211,77,.2);
+  box-shadow:
+    0 0 42px rgba(252,211,77,.055),
+    inset 0 0 48px rgba(252,211,77,.025);
+}
+
+.d3-kg-node {
+  border-color: rgba(120,113,108,.42) !important;
+  background: #11110f !important;
+  box-shadow:
+    0 8px 18px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.02) !important;
+}
+
+.d3-kg-node--active {
+  border-color: rgba(253,230,138,.78) !important;
+  background: #17150f !important;
+  box-shadow:
+    inset 3px 0 0 #fcd34d,
+    0 0 14px rgba(252,211,77,.12),
+    0 9px 20px rgba(0,0,0,.4) !important;
+}
+
+.d3-kg-node svg,
+.d3-hermes-glyph {
+  shape-rendering: geometricPrecision;
+}
+
+.d3-hermes-core {
+  border-color: rgba(254,243,199,.62);
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255,255,255,.74) 0 1.5%, rgba(254,243,199,.42) 2.5%, transparent 8%),
+    radial-gradient(circle at 50% 50%, rgba(252,211,77,.34), rgba(120,83,18,.24) 38%, rgba(17,17,15,.985) 72%);
+  box-shadow:
+    0 0 18px rgba(252,211,77,.18),
+    inset 0 0 20px rgba(252,211,77,.09),
+    inset 0 0 0 1px rgba(255,255,255,.035);
+}
+
+.d3-hermes-plasma {
+  filter: blur(2.5px);
+  opacity: .8;
+}
+
+.d3-hermes-title {
+  text-shadow: 0 0 7px rgba(254,243,199,.36);
+}
+
+.react-flow__edge path {
+  shape-rendering: geometricPrecision;
+  vector-effect: non-scaling-stroke;
+}
+
+.react-flow__edge.d3-kg-edge--active path,
+.react-flow__edge.d3-kg-edge--cluster path,
+.react-flow__edge.d3-kg-edge--corridor path,
+.react-flow__edge.d3-kg-edge--executing path {
+  filter: drop-shadow(0 0 2px rgba(254,243,199,.34));
+}
+
+.d3-edge-particle {
+  filter:
+    drop-shadow(0 0 2px rgba(255,255,255,.82))
+    drop-shadow(0 0 4px rgba(252,211,77,.42));
+}
+
+.d3-nexus-action {
+  border-color: rgba(120,113,108,.44);
+  background: #10100e;
+  color: #e7e5e4;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+}
+
+.d3-nexus-action--primary {
+  border-color: rgba(252,211,77,.68);
+  background: #17140d;
+  color: #fff7d6;
+  box-shadow:
+    inset 0 0 0 1px rgba(252,211,77,.06),
+    0 0 10px rgba(252,211,77,.07);
+}
+
+.d3-nexus-action:hover,
+.d3-nexus-action:focus-visible {
+  border-color: rgba(254,243,199,.62);
+  box-shadow: 0 0 8px rgba(252,211,77,.08);
+}
+
+.d3-nexus-left-rail a,
+.d3-nexus-topbar a,
+.d3-nexus-right-rail button,
+.d3-nexus-action {
+  letter-spacing: .005em;
+}
+
+.d3-neural-stage::after {
+  opacity: .2;
+}
+
+.d3-neural-stage--focused::after {
+  opacity: .26;
+}
+
+.d3-neural-stage--corridor::after {
+  opacity: .32;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-nexus-topbar,
+  .d3-nexus-left-rail,
+  .d3-nexus-right-rail,
+  .d3-kg-node,
+  .d3-hermes-core {
+    transition: none !important;
+  }
+}
