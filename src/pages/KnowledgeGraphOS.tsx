@@ -1343,7 +1343,7 @@ const KnowledgeGraphOS: React.FC = () => {
         </aside>
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-5 pb-8 lg:px-8">
+      <div className="mx-auto max-w-[1920px] px-3 pb-4 xl:px-4">
         <div className="grid gap-4 lg:grid-cols-4">
           <section className={`${overlayClass('execution')} border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]`}>
             <div className="flex items-center gap-2">
