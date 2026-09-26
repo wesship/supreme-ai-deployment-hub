@@ -36,6 +36,9 @@ import {
   Gauge,
   Coins,
   Clock3,
+  LayoutGrid,
+  List,
+  Rows3,
   ShieldCheck,
   Sparkles,
   Workflow,
@@ -340,6 +343,7 @@ const KnowledgeGraphOS: React.FC = () => {
   const [activity, setActivity] = useState<string[]>(['Graph surface initialized. No live mutations have been issued.']);
   const [executionPath, setExecutionPath] = useState<string[]>([]);
   const [executionStep, setExecutionStep] = useState(-1);
+  const [viewMode, setViewMode] = useState<'graph' | 'map' | 'list'>('graph');
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -349,6 +353,7 @@ const KnowledgeGraphOS: React.FC = () => {
     node_label: selected.data.label,
     node_kind: selected.data.kind,
     canonical_route: selected.data.route,
+    view_mode: viewMode,
   };
 
   useEffect(() => {
@@ -536,6 +541,12 @@ const KnowledgeGraphOS: React.FC = () => {
         setSelectedId(nodeId);
         setActivity((items) => [`VOICE · ask Hermes about ${node.data.label}: ${request.query || 'current context'}`, ...items].slice(0, 5));
         break;
+      case 'view':
+        if (request.view) {
+          setViewMode(request.view);
+          setActivity((items) => [`${request.source.toUpperCase()} · switched to ${request.view} view`, ...items].slice(0, 5));
+        }
+        break;
       case 'stop':
         setExecutionPath([]);
         setExecutionStep(-1);
@@ -589,31 +600,138 @@ const KnowledgeGraphOS: React.FC = () => {
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+            <div className="flex border border-[#34332f] bg-[#11110f] p-1" role="group" aria-label="Knowledge graph view">
+              {([
+                ['graph', Network, 'Graph'],
+                ['map', LayoutGrid, 'Map'],
+                ['list', List, 'List'],
+              ] as const).map(([mode, Icon, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => executeGraphAction({ action: 'view', view: mode, source: 'click' })}
+                  aria-pressed={viewMode === mode}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition ${
+                    viewMode === mode
+                      ? 'bg-amber-200 text-stone-950'
+                      : 'text-stone-400 hover:text-white'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="h-[680px]">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              onNodeClick={(_, node) => setSelectedId(node.id)}
-              fitView
-              fitViewOptions={{ padding: 0.16 }}
-              minZoom={0.45}
-              maxZoom={1.45}
-              proOptions={{ hideAttribution: true }}
-            >
-              <Background color="#2f2e29" gap={24} size={1} />
-              <Controls className="!border-[#34332f] !bg-[#11110f] !text-stone-100 !shadow-lg" />
-              <MiniMap
-                pannable
-                zoomable
-                nodeColor="#a8a29e"
-                maskColor="rgba(8,8,6,0.72)"
-                className="!border !border-[#34332f] !bg-[#0e0e0c] !shadow-lg"
-              />
-            </ReactFlow>
-          </div>
+          {viewMode === 'graph' && (
+            <div className="h-[680px]">
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodeClick={(_, node) => setSelectedId(node.id)}
+                fitView
+                fitViewOptions={{ padding: 0.16 }}
+                minZoom={0.45}
+                maxZoom={1.45}
+                proOptions={{ hideAttribution: true }}
+              >
+                <Background color="#2f2e29" gap={24} size={1} />
+                <Controls className="!border-[#34332f] !bg-[#11110f] !text-stone-100 !shadow-lg" />
+                <MiniMap
+                  pannable
+                  zoomable
+                  nodeColor="#a8a29e"
+                  maskColor="rgba(8,8,6,0.72)"
+                  className="!border !border-[#34332f] !bg-[#0e0e0c] !shadow-lg"
+                />
+              </ReactFlow>
+            </div>
+          )}
+
+          {viewMode === 'map' && (
+            <div className="min-h-[680px] bg-[radial-gradient(circle_at_center,rgba(252,211,77,0.06),transparent_42%)] p-6">
+              <div className="grid gap-6 lg:grid-cols-3">
+                {[
+                  { title: 'Intent + Orchestration', ids: ['intent', 'hermes'] },
+                  { title: 'Intelligence Fabric', ids: ['agents', 'knowledge', 'tools', 'workflow'] },
+                  { title: 'Platform Surfaces', ids: ['films', 'radio', 'security', 'analytics'] },
+                ].map((cluster) => (
+                  <section key={cluster.title} className="border border-[#2d2c28] bg-[#0d0d0b] p-4">
+                    <div className="flex items-center gap-2 border-b border-[#25241f] pb-3">
+                      <Rows3 className="h-4 w-4 text-amber-200" />
+                      <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-stone-300">{cluster.title}</h2>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {cluster.ids.map((id) => {
+                        const node = nodes.find((item) => item.id === id);
+                        if (!node || node.hidden) return null;
+                        const active = executionNodeIds.has(id);
+                        return (
+                          <button
+                            type="button"
+                            key={id}
+                            onClick={() => setSelectedId(id)}
+                            className={`w-full border p-3 text-left transition ${
+                              selectedId === id
+                                ? 'border-amber-300/60 bg-amber-200/[0.08]'
+                                : active
+                                  ? 'border-amber-300/30 bg-amber-200/[0.04]'
+                                  : 'border-[#2d2c28] bg-[#11110f] hover:border-[#5b5540]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-sm font-bold text-white">{node.data.label}</span>
+                              <span className="text-[9px] uppercase tracking-[0.12em] text-stone-500">{kindLabel[node.data.kind]}</span>
+                            </div>
+                            <p className="mt-2 text-[11px] leading-5 text-stone-500">{node.data.description}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {viewMode === 'list' && (
+            <div className="min-h-[680px] overflow-x-auto p-4">
+              <table className="w-full min-w-[760px] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-[#34332f] text-[10px] uppercase tracking-[0.14em] text-stone-500">
+                    <th className="px-3 py-3">Name</th>
+                    <th className="px-3 py-3">Type</th>
+                    <th className="px-3 py-3">State</th>
+                    <th className="px-3 py-3">Execution</th>
+                    <th className="px-3 py-3">Route</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {nodes.filter((node) => !node.hidden).map((node) => (
+                    <tr
+                      key={node.id}
+                      onClick={() => setSelectedId(node.id)}
+                      className={`cursor-pointer border-b border-[#25241f] text-sm transition ${
+                        selectedId === node.id ? 'bg-amber-200/[0.07]' : 'hover:bg-white/[0.02]'
+                      }`}
+                    >
+                      <td className="px-3 py-4 font-semibold text-white">{node.data.label}</td>
+                      <td className="px-3 py-4 text-stone-400">{kindLabel[node.data.kind]}</td>
+                      <td className="px-3 py-4 text-stone-400">{stateLabel[node.data.state]}</td>
+                      <td className="px-3 py-4">
+                        <span className={executionNodeIds.has(node.id) ? 'text-amber-200' : 'text-stone-600'}>
+                          {executionNodeIds.has(node.id) ? 'Active path' : 'Idle'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 font-mono text-xs text-stone-500">{node.data.route}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <aside className="space-y-5">
@@ -632,6 +750,8 @@ const KnowledgeGraphOS: React.FC = () => {
                 '“Open AI Films.”',
                 '“Monitor this agent.”',
                 '“Find a bridge between Academy and AI Films.”',
+                '“Switch to list view.”',
+                '“Show the infrastructure map.”',
               ].map((example) => (
                 <div key={example} className="border border-[#2d2c28] bg-[#0c0c0a] px-3 py-2">
                   {example}
