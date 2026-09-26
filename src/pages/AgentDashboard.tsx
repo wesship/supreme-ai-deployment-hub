@@ -37,7 +37,7 @@ const AgentDashboard: React.FC = () => {
                 description="Deploy specialized agents, connect them to memory and knowledge, govern execution, and inspect operational state from one enterprise workspace."
               />
 
-              <D3Surface variant="titanium" glow={2} className="p-5 sm:p-6">
+              <D3Surface material="titanium" glow={2} className="p-5 sm:p-6">
                 <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-blue-200/50">Workforce control plane</p>

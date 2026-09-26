@@ -16,7 +16,7 @@ type ClientStartupWatchdogOptions = {
 export function createClientStartupWatchdog({
   onTimeout,
   timeoutMs = CLIENT_STARTUP_TIMEOUT_MS,
-  schedule = (handler, delay) => window.setTimeout(handler, delay),
+  schedule = (handler, delay) => window.setTimeout(handler, delay) as unknown as TimerHandle,
   cancel = (handle) => window.clearTimeout(handle),
 }: ClientStartupWatchdogOptions) {
   let settled = false;
