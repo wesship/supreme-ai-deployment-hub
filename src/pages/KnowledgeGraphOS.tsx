@@ -1157,20 +1157,36 @@ const KnowledgeGraphOS: React.FC = () => {
               </span>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <div className="border border-[#2d2c28] bg-[#0c0c0a] p-3">
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Events</p>
-                <p className="mt-1 text-lg font-black text-white">{liveEvents.length}</p>
+              <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Active Agents</p>
+                <p className="mt-1 text-lg font-black text-white">{livePanels.agents.length || '—'}</p>
+                <p className="mt-1 text-[9px] text-stone-600">{livePanels.agents.length ? 'current execution' : 'not reported'}</p>
               </div>
-              <div className="border border-[#2d2c28] bg-[#0c0c0a] p-3">
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Current stage</p>
-                <p className="mt-1 truncate text-xs font-bold text-white">
-                  {executionPath.length ? initialNodes.find((node) => node.id === executionPath[executionPath.length - 1])?.data.label ?? 'Hermes' : 'Standby'}
-                </p>
+              <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Running Tasks</p>
+                <p className="mt-1 text-lg font-black text-white">{liveCorrelationId ? (livePanels.status === 'running' ? 1 : 0) : '—'}</p>
+                <p className="mt-1 text-[9px] text-stone-600">{liveCorrelationId ? 'tracked stream' : 'not reported'}</p>
+              </div>
+              <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Success Rate</p>
+                <p className="mt-1 text-lg font-black text-white">—</p>
+                <p className="mt-1 text-[9px] text-stone-600">not reported</p>
+              </div>
+              <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Uptime</p>
+                <p className="mt-1 text-lg font-black text-white">—</p>
+                <p className="mt-1 text-[9px] text-stone-600">not reported</p>
               </div>
             </div>
-            <p className="mt-3 text-[10px] text-stone-600">
-              {livePanels.asOf ? `As of ${new Date(livePanels.asOf).toLocaleTimeString()}` : 'No live execution timestamp reported'}
-            </p>
+            <div className="mt-3 border-t border-[#25241f] pt-3">
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-stone-600">Current stage</p>
+              <p className="mt-1 truncate text-xs font-bold text-stone-300">
+                {executionPath.length ? initialNodes.find((node) => node.id === executionPath[executionPath.length - 1])?.data.label ?? 'Hermes' : 'Standby'}
+              </p>
+              <p className="mt-2 text-[9px] text-stone-600">
+                {livePanels.asOf ? `As of ${new Date(livePanels.asOf).toLocaleTimeString()}` : 'No live execution timestamp reported'}
+              </p>
+            </div>
           </section>
 
           <section className="hidden border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
