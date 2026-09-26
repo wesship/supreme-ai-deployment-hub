@@ -69,3 +69,168 @@ create policy "owners read hermes adaptive change audit"
 on public.hermes_adaptive_change_audit
 for select to authenticated
 using ((select auth.uid()) = user_id);
+
+
+-- Atomic service-role-only transitions. Both state and audit commit in one transaction.
+create or replace function public.hermes_decide_adaptive_change_request(
+  p_request_id uuid,
+  p_user_id uuid,
+  p_actor_id uuid,
+  p_decision text,
+  p_rationale text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_row public.hermes_adaptive_change_requests%rowtype;
+begin
+  if p_decision not in ('approved','rejected') then
+    raise exception 'invalid adaptive decision';
+  end if;
+  if char_length(coalesce(p_rationale,'')) < 3 then
+    raise exception 'review rationale is required';
+  end if;
+
+  update public.hermes_adaptive_change_requests
+     set status = p_decision,
+         reviewer_id = p_actor_id,
+         review_rationale = p_rationale,
+         reviewed_at = now(),
+         updated_at = now()
+   where id = p_request_id
+     and user_id = p_user_id
+     and status = 'pending_review'
+  returning * into v_row;
+
+  if not found then
+    raise exception 'adaptive change request is not pending review';
+  end if;
+
+  insert into public.hermes_adaptive_change_audit(
+    user_id, change_request_id, actor_id, event_type, event_data
+  ) values (
+    p_user_id,
+    p_request_id,
+    p_actor_id,
+    'change_request.' || p_decision,
+    jsonb_build_object('rationale', p_rationale)
+  );
+
+  return to_jsonb(v_row);
+end;
+$$;
+
+revoke all on function public.hermes_decide_adaptive_change_request(uuid,uuid,uuid,text,text) from public, anon, authenticated;
+grant execute on function public.hermes_decide_adaptive_change_request(uuid,uuid,uuid,text,text) to service_role;
+
+
+create or replace function public.hermes_queue_adaptive_canary(
+  p_request_id uuid,
+  p_user_id uuid,
+  p_actor_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_request public.hermes_adaptive_change_requests%rowtype;
+  v_task_id uuid;
+begin
+  select *
+    into v_request
+    from public.hermes_adaptive_change_requests
+   where id = p_request_id
+     and user_id = p_user_id
+   for update;
+
+  if not found then
+    raise exception 'adaptive change request not found';
+  end if;
+
+  if v_request.status = 'canary_queued' and v_request.canary_task_id is not null then
+    return jsonb_build_object(
+      'status','canary_queued',
+      'task_id',v_request.canary_task_id,
+      'request_id',p_request_id
+    );
+  end if;
+
+  if v_request.status <> 'approved' then
+    raise exception 'only approved adaptive change requests may queue a canary';
+  end if;
+
+  insert into public.hermes_tasks(
+    user_id,
+    title,
+    description,
+    task_type,
+    kind,
+    status,
+    priority,
+    source,
+    retry_count,
+    agent_name,
+    input_data,
+    payload
+  ) values (
+    p_user_id,
+    'Adaptive canary: ' || v_request.target,
+    'Governed evaluation-only canary. This task must not apply production config.',
+    'adaptive_canary',
+    'adaptive.canary',
+    'PENDING',
+    2,
+    'knowledge_graph_change_request',
+    0,
+    'TARS',
+    jsonb_build_object(
+      'change_request_id', p_request_id,
+      'proposal_id', v_request.proposal_id,
+      'category', v_request.category,
+      'target', v_request.target,
+      'evidence_hash', v_request.evidence_hash,
+      'proposed_change', v_request.proposed_change,
+      'guardrail', v_request.guardrail,
+      'rollback_plan', v_request.rollback_plan,
+      'mode', 'evaluation_only',
+      'apply_production_change', false
+    ),
+    jsonb_build_object(
+      'change_request_id', p_request_id,
+      'mode', 'evaluation_only',
+      'apply_production_change', false
+    )
+  )
+  returning id into v_task_id;
+
+  update public.hermes_adaptive_change_requests
+     set status = 'canary_queued',
+         canary_task_id = v_task_id,
+         updated_at = now()
+   where id = p_request_id;
+
+  insert into public.hermes_adaptive_change_audit(
+    user_id, change_request_id, actor_id, event_type, event_data
+  ) values (
+    p_user_id,
+    p_request_id,
+    p_actor_id,
+    'change_request.canary_queued',
+    jsonb_build_object('task_id',v_task_id,'agent_name','TARS','mode','evaluation_only')
+  );
+
+  return jsonb_build_object(
+    'status','canary_queued',
+    'task_id',v_task_id,
+    'request_id',p_request_id
+  );
+end;
+$$;
+
+revoke all on function public.hermes_queue_adaptive_canary(uuid,uuid,uuid) from public, anon, authenticated;
+grant execute on function public.hermes_queue_adaptive_canary(uuid,uuid,uuid) to service_role;
