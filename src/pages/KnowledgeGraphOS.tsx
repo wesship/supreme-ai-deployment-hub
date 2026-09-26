@@ -25,6 +25,7 @@ import type { D3GraphActionRequest } from '@/features/knowledge-graph/lib/graphA
 import { deriveClusterActivation } from '@/features/knowledge-graph/lib/clusterActivation';
 import { deriveMultiClusterCorridor } from '@/features/knowledge-graph/lib/multiClusterCorridor';
 import { deriveCameraTarget } from '@/features/knowledge-graph/lib/cameraChoreography';
+import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
 import {
   Activity,
   Bot,
@@ -531,6 +532,28 @@ const KnowledgeGraphOS: React.FC = () => {
     [multiClusterCorridor],
   );
 
+  const overlayEmphasis = useMemo(
+    () => deriveOverlayEmphasis({
+      selectedNodeId: selectedId,
+      executionPath,
+      hasLiveEvents: liveEvents.length > 0,
+      hasCostTelemetry:
+        livePanels.costUsd !== null ||
+        livePanels.tokensUsed !== null ||
+        livePanels.durationMs !== null,
+      hasAgentTelemetry: livePanels.agents.length > 0,
+      hasInfrastructureTelemetry: livePanels.infrastructure.length > 0,
+      corridorNodeIds: multiClusterCorridor?.nodeIds ?? [],
+    }),
+    [executionPath, liveEvents.length, livePanels, multiClusterCorridor, selectedId],
+  );
+
+  const overlayClass = (panel: 'system' | 'activity' | 'execution' | 'agents' | 'infrastructure' | 'cost') =>
+    [
+      'd3-ops-overlay',
+      overlayEmphasis.has(panel) ? 'd3-ops-overlay--active' : '',
+      multiClusterCorridor ? 'd3-ops-overlay--corridor' : '',
+    ].filter(Boolean).join(' ');
 
   const cameraFocusNodeIds = useMemo(() => {
     if (multiClusterCorridor?.nodeIds.length) return multiClusterCorridor.nodeIds;
@@ -971,7 +994,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+          <section className={`${overlayClass('system')} border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Gauge className="h-4 w-4 text-amber-200" />
@@ -1133,7 +1156,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+          <section className={`${overlayClass('activity')} border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]`}>
             <div className="flex items-center gap-2">
               <Radio className="h-4 w-4 text-stone-400" />
               <h2 className="text-sm font-bold text-white">Recent activity</h2>
@@ -1162,7 +1185,7 @@ const KnowledgeGraphOS: React.FC = () => {
 
       <div className="mx-auto max-w-[1600px] px-5 pb-8 lg:px-8">
         <div className="grid gap-4 lg:grid-cols-4">
-          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+          <section className={`${overlayClass('execution')} border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]`}>
             <div className="flex items-center gap-2">
               <Workflow className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Execution flow</h2>
@@ -1181,7 +1204,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+          <section className={`${overlayClass('agents')} border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]`}>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Top agents</h2>
@@ -1201,7 +1224,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+          <section className={`${overlayClass('infrastructure')} border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]`}>
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Infrastructure</h2>
@@ -1218,7 +1241,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+          <section className={`${overlayClass('cost')} border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]`}>
             <div className="flex items-center gap-2">
               <Coins className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Cost & usage</h2>
