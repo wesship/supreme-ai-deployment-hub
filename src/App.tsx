@@ -87,6 +87,7 @@ const AssuranceConsole = lazy(() => import("./pages/AssuranceConsole"));
 const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
+const AquaGov = lazy(() => import("./pages/AquaGov"));
 
 
 const PageLoader = () => (
@@ -194,6 +195,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/mile-high-golden-elevation" element={<MileHighGoldenElevation />} />
+                <Route path="/aquagov" element={<AquaGov />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/auth" element={<AuthCallback />} />
