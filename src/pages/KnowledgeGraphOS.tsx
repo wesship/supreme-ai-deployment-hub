@@ -51,7 +51,9 @@ type HermesEventRow = {
 
 type HermesTaskRow = {
   id: string;
+  parent_task_id?: string | null;
   goal_id?: string | null;
+  agent_name?: string | null;
   kind: string;
   title: string | null;
   status: string;
@@ -85,6 +87,32 @@ type TimelineItem = {
   detail: string;
   created_at: string;
   status?: string;
+};
+
+type HermesRunRow = {
+  id: string;
+  task_id: string;
+  agent_name: string;
+  run_number: number;
+  status: string;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  tokens_used: number | null;
+  cost_usd: number | string | null;
+  error_detail: string | null;
+  output_snapshot?: Record<string, unknown> | null;
+};
+
+type HermesLogRow = {
+  id: string;
+  task_id: string | null;
+  run_id: string | null;
+  agent_name: string | null;
+  event: string;
+  message: string | null;
+  data: Record<string, unknown> | null;
+  created_at: string;
 };
 
 type KnowledgeNodeData = {
@@ -375,6 +403,10 @@ const KnowledgeGraphOS: React.FC = () => {
   const [pendingInterrupt, setPendingInterrupt] = useState<HermesInterruptRow | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [runs, setRuns] = useState<HermesRunRow[]>([]);
+  const [taskLogs, setTaskLogs] = useState<HermesLogRow[]>([]);
+  const [parentTask, setParentTask] = useState<HermesTaskRow | null>(null);
+  const [childTasks, setChildTasks] = useState<HermesTaskRow[]>([]);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -437,6 +469,10 @@ const KnowledgeGraphOS: React.FC = () => {
     if (!task?.id) {
       setTimeline([]);
       setPendingInterrupt(null);
+      setRuns([]);
+      setTaskLogs([]);
+      setParentTask(null);
+      setChildTasks([]);
       return;
     }
     setTimelineLoading(true);
@@ -464,19 +500,65 @@ const KnowledgeGraphOS: React.FC = () => {
             .limit(20)
         : Promise.resolve({ data: [], error: null });
 
-      const [eventsRes, interruptsRes, checkpointsRes] = await Promise.all([
+      const runQuery = supabase
+        .from('hermes_runs')
+        .select('id,task_id,agent_name,run_number,status,started_at,finished_at,duration_ms,tokens_used,cost_usd,error_detail,output_snapshot')
+        .eq('task_id', task.id)
+        .order('run_number', { ascending: false })
+        .limit(20);
+
+      const logQuery = supabase
+        .from('hermes_logs')
+        .select('id,task_id,run_id,agent_name,event,message,data,created_at')
+        .eq('task_id', task.id)
+        .order('created_at', { ascending: false })
+        .limit(60);
+
+      const childQuery = supabase
+        .from('hermes_tasks')
+        .select('id,parent_task_id,goal_id,kind,title,status,depth,created_at,completed_at,error_message,agent_name')
+        .eq('parent_task_id', task.id)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      const parentQuery = task.parent_task_id
+        ? supabase
+            .from('hermes_tasks')
+            .select('id,parent_task_id,goal_id,kind,title,status,depth,created_at,completed_at,error_message,agent_name')
+            .eq('id', task.parent_task_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null });
+
+      const [eventsRes, interruptsRes, checkpointsRes, runsRes, logsRes, childrenRes, parentRes] = await Promise.all([
         eventQuery,
         interruptQuery,
         checkpointQuery,
+        runQuery,
+        logQuery,
+        childQuery,
+        parentQuery,
       ]);
 
       if (eventsRes.error) throw eventsRes.error;
       if (interruptsRes.error) throw interruptsRes.error;
       if (checkpointsRes.error) throw checkpointsRes.error;
+      if (runsRes.error) throw runsRes.error;
+      if (logsRes.error) throw logsRes.error;
+      if (childrenRes.error) throw childrenRes.error;
+      if (parentRes.error) throw parentRes.error;
 
       const events = (eventsRes.data ?? []) as unknown as HermesEventRow[];
       const interrupts = (interruptsRes.data ?? []) as unknown as HermesInterruptRow[];
       const checkpoints = (checkpointsRes.data ?? []) as unknown as HermesCheckpointRow[];
+      const nextRuns = (runsRes.data ?? []) as unknown as HermesRunRow[];
+      const nextLogs = (logsRes.data ?? []) as unknown as HermesLogRow[];
+      const children = (childrenRes.data ?? []) as unknown as HermesTaskRow[];
+      const parent = (parentRes.data ?? null) as unknown as HermesTaskRow | null;
+
+      setRuns(nextRuns);
+      setTaskLogs(nextLogs);
+      setChildTasks(children);
+      setParentTask(parent);
 
       setPendingInterrupt(interrupts.find((item) => item.status === 'pending') ?? null);
       setTimeline(
@@ -679,6 +761,19 @@ const KnowledgeGraphOS: React.FC = () => {
 
   const liveCorrelation = extractCorrelation(liveEvent?.payload ?? null);
   const liveTaskMatchesEvent = Boolean(liveTask && liveEvent?.task_id && liveTask.id === liveEvent.task_id);
+  const totalRunTokens = runs.reduce((sum, run) => sum + (run.tokens_used ?? 0), 0);
+  const totalRunCost = runs.reduce((sum, run) => sum + Number(run.cost_usd ?? 0), 0);
+  const totalRunDuration = runs.reduce((sum, run) => sum + (run.duration_ms ?? 0), 0);
+  const latestRun = runs[0] ?? null;
+  const toolSignals = Array.from(new Set(
+    taskLogs.flatMap((log) => {
+      const data = log.data ?? {};
+      const candidates = [data.tool, data.tool_name, data.mcp, data.connector, log.event];
+      return candidates
+        .filter((value): value is string => typeof value === 'string')
+        .filter((value) => /tool|mcp|connector/i.test(value));
+    }),
+  )).slice(0, 8);
 
   return (
     <div className="min-h-screen bg-[#080806] text-stone-100">
@@ -971,6 +1066,100 @@ const KnowledgeGraphOS: React.FC = () => {
                 ))}
               </div>
             </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center gap-2">
+              <Network className="h-4 w-4 text-amber-200" />
+              <h2 className="text-sm font-bold text-white">Swarm drill-down</h2>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Agent/run attribution, runtime metrics, tool signals, and parent/child execution lineage for the active Hermes task.
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-[10px]">
+              <div className="border border-[#25241f] bg-[#090907] p-3">
+                <p className="uppercase tracking-[0.14em] text-stone-600">Agent</p>
+                <p className="mt-1 truncate font-semibold text-stone-300">{latestRun?.agent_name ?? liveTask?.agent_name ?? '—'}</p>
+              </div>
+              <div className="border border-[#25241f] bg-[#090907] p-3">
+                <p className="uppercase tracking-[0.14em] text-stone-600">Run</p>
+                <p className="mt-1 font-mono text-stone-300">{latestRun ? `#${latestRun.run_number} · ${latestRun.id.slice(0, 8)}` : '—'}</p>
+              </div>
+              <div className="border border-[#25241f] bg-[#090907] p-3">
+                <p className="uppercase tracking-[0.14em] text-stone-600">Tokens</p>
+                <p className="mt-1 font-semibold text-stone-300">{totalRunTokens.toLocaleString()}</p>
+              </div>
+              <div className="border border-[#25241f] bg-[#090907] p-3">
+                <p className="uppercase tracking-[0.14em] text-stone-600">Cost</p>
+                <p className="mt-1 font-semibold text-stone-300">${totalRunCost.toFixed(4)}</p>
+              </div>
+              <div className="border border-[#25241f] bg-[#090907] p-3">
+                <p className="uppercase tracking-[0.14em] text-stone-600">Run time</p>
+                <p className="mt-1 font-semibold text-stone-300">{totalRunDuration ? `${(totalRunDuration / 1000).toFixed(1)} s` : '—'}</p>
+              </div>
+              <div className="border border-[#25241f] bg-[#090907] p-3">
+                <p className="uppercase tracking-[0.14em] text-stone-600">Attempts</p>
+                <p className="mt-1 font-semibold text-stone-300">{runs.length}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500">Tool / MCP attribution</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {toolSignals.length ? toolSignals.map((signal) => (
+                  <span key={signal} className="border border-[#2d2c28] bg-[#0c0c0a] px-2 py-1 text-[10px] text-stone-400">{signal}</span>
+                )) : (
+                  <span className="text-[10px] text-stone-600">No task-linked tool signal recorded yet.</span>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 border-t border-[#25241f] pt-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500">Execution lineage</p>
+              <div className="mt-3 space-y-2">
+                {parentTask && (
+                  <button onClick={() => setLiveTask(parentTask)} className="w-full border border-[#2d2c28] bg-[#0c0c0a] px-3 py-2 text-left hover:border-amber-200/30">
+                    <span className="text-[9px] uppercase tracking-[0.12em] text-stone-600">Parent</span>
+                    <span className="ml-2 text-[10px] font-semibold text-stone-300">{parentTask.title ?? parentTask.kind}</span>
+                  </button>
+                )}
+                {liveTask && (
+                  <div className="border border-amber-300/25 bg-amber-300/[0.04] px-3 py-2">
+                    <span className="text-[9px] uppercase tracking-[0.12em] text-amber-200">Current</span>
+                    <span className="ml-2 text-[10px] font-semibold text-stone-200">{liveTask.title ?? liveTask.kind}</span>
+                  </div>
+                )}
+                {childTasks.map((child) => (
+                  <button key={child.id} onClick={() => setLiveTask(child)} className="w-full border border-[#2d2c28] bg-[#0c0c0a] px-3 py-2 text-left hover:border-amber-200/30">
+                    <span className="text-[9px] uppercase tracking-[0.12em] text-stone-600">Child · {child.status}</span>
+                    <span className="ml-2 text-[10px] font-semibold text-stone-300">{child.title ?? child.kind}</span>
+                  </button>
+                ))}
+                {!parentTask && childTasks.length === 0 && (
+                  <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">No parent/child task lineage recorded.</div>
+                )}
+              </div>
+            </div>
+
+            <details className="mt-4 border border-[#25241f] bg-[#090907] p-3">
+              <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500">Run ledger</summary>
+              <div className="mt-3 space-y-2">
+                {runs.map((run) => (
+                  <div key={run.id} className="border border-[#25241f] px-3 py-2 text-[10px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-stone-300">run #{run.run_number} · {run.id.slice(0, 8)}</span>
+                      <span className="uppercase text-stone-600">{run.status}</span>
+                    </div>
+                    <p className="mt-1 text-stone-600">
+                      {run.agent_name} · {run.tokens_used ?? 0} tokens · ${Number(run.cost_usd ?? 0).toFixed(4)} · {run.duration_ms ?? 0} ms
+                    </p>
+                    {run.error_detail && <p className="mt-1 text-red-300">{run.error_detail}</p>}
+                  </div>
+                ))}
+                {!runs.length && <p className="text-[10px] text-stone-600">No Hermes run rows yet.</p>}
+              </div>
+            </details>
           </section>
 
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
