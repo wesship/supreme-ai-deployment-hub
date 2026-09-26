@@ -1,16 +1,35 @@
 # Wearable Event Ledger Gate
 
-The reconciled wearable runtime intentionally does not register its API router or ship a database migration until the staging schema and access model are certified.
+The staging ledger gate is now closed for `Supreme_ai_deployment_hub_staging`.
 
-Required before activation:
+## Certified staging state
 
-- create `public.wearable_events` in staging through a reviewed migration
-- keep raw media out of the ledger; persist references/derived metadata only
-- enable RLS
-- explicitly classify Data API grants for `anon`, `authenticated`, and `service_role`
-- preserve authenticated ownership semantics and service-role-only persistence unless a narrower client use case is approved
-- verify duplicate `event_id` handling and payload hashing
-- run Supabase security advisor and access tests in staging
-- only then register the wearable router and promote through the protected production migration workflow
+Migration `20260926195220_wearable_event_ledger_staging` created `public.wearable_events` with:
 
-The feature remains disabled/inert until this gate is closed.
+- globally unique `event_id` for idempotent retry handling
+- canonical event/source/privacy/audit fields used by the FastAPI ingress
+- JSON-object payload storage with SHA-256 payload hashing
+- bounded capability count and field-length constraints
+- forced RLS
+- no table privileges for `PUBLIC`, `anon`, or `authenticated`
+- explicit `service_role` authority and service-role-only policy
+- indexes for user/time, device/time, correlation, and trace lookup
+- explicit table/column documentation prohibiting raw media persistence
+
+A transaction-scoped duplicate smoke test inserted the same `event_id` twice with `ON CONFLICT DO NOTHING`; the ledger contained exactly one row before rollback.
+
+The Supabase security advisor does not report `wearable_events` as an RLS or access finding. Existing advisor findings are on unrelated pre-existing tables/functions and are outside this wearable gate.
+
+## Activation sequence
+
+With the staging schema/access gate certified, the API v1 composition root may now register the wearable router. Production promotion is still blocked until:
+
+1. fresh CI passes for router registration and ingress tests
+2. authenticated staging HTTP smoke test succeeds against `POST /api/v1/vision/events`
+3. duplicate retry returns `already_processed`
+4. consent denial and malformed capability paths are verified over HTTP
+5. no raw-media persistence is observed
+6. the migration is promoted through the protected production migration workflow
+7. XREAL physical-device transport remains disabled until hardware-in-the-loop certification
+
+Production is not implied by staging certification.
