@@ -440,3 +440,91 @@
     box-shadow: 0 0 18px rgba(254,243,199,.28);
   }
 }
+
+
+@keyframes d3-corridor-node {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(254,243,199,.28));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 18px rgba(255,255,255,.62))
+      drop-shadow(0 0 30px rgba(252,211,77,.34));
+  }
+}
+
+@keyframes d3-corridor-edge {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 5px rgba(254,243,199,.5))
+      drop-shadow(0 0 10px rgba(251,191,36,.22));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 9px rgba(255,255,255,.92))
+      drop-shadow(0 0 18px rgba(252,211,77,.5));
+  }
+}
+
+.react-flow__node.d3-kg-corridor-node .d3-kg-node {
+  border-color: rgba(255,247,214,.72);
+  box-shadow:
+    inset 0 0 18px rgba(254,243,199,.05),
+    0 0 18px rgba(252,211,77,.18);
+  animation: d3-corridor-node 1.6s ease-in-out infinite;
+}
+
+.react-flow__node.d3-kg-secondary-selected .d3-kg-node {
+  border-color: rgba(255,255,255,.82);
+  box-shadow:
+    inset 3px 0 0 #fff7d6,
+    0 0 22px rgba(254,243,199,.24);
+}
+
+.react-flow__edge.d3-kg-edge--corridor path,
+.d3-cinematic-edge--corridor .react-flow__edge-path {
+  stroke-dasharray: 20 7;
+  animation:
+    d3-edge-flow .9s linear infinite,
+    d3-corridor-edge 1.05s ease-in-out infinite;
+}
+
+.d3-cinematic-edge--corridor .d3-edge-particle {
+  fill: #ffffff;
+  stroke: #fcd34d;
+  opacity: .98;
+  filter:
+    drop-shadow(0 0 5px rgba(255,255,255,1))
+    drop-shadow(0 0 12px rgba(252,211,77,.72));
+}
+
+.react-flow__node.d3-kg-multicluster-hermes .d3-hermes-core {
+  border-color: rgba(255,247,214,.78);
+  animation:
+    d3-hermes-breathe 1.5s ease-in-out infinite,
+    d3-hermes-routing 1s ease-in-out infinite;
+  box-shadow:
+    0 0 40px rgba(254,243,199,.34),
+    0 0 72px rgba(252,211,77,.14),
+    inset 0 0 34px rgba(252,211,77,.16);
+}
+
+.react-flow__node.d3-kg-multicluster-hermes .d3-hermes-orbit--outer {
+  border-color: rgba(255,247,214,.58);
+  animation-duration: 7s;
+}
+
+.react-flow__node.d3-kg-multicluster-hermes .d3-hermes-orbit--inner {
+  border-color: rgba(251,191,36,.48);
+  animation-duration: 5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__node.d3-kg-corridor-node .d3-kg-node,
+  .react-flow__edge.d3-kg-edge--corridor path,
+  .d3-cinematic-edge--corridor .react-flow__edge-path,
+  .react-flow__node.d3-kg-multicluster-hermes .d3-hermes-core,
+  .react-flow__node.d3-kg-multicluster-hermes .d3-hermes-orbit {
+    animation: none !important;
+  }
+}
