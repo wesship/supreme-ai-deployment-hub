@@ -10,7 +10,7 @@ from backend.ai_films.assembly_qa_worker import _sign_master
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
 from backend.ai_films.ingestion import TwelveLabsIngestionRunner
 from backend.ai_films.manifest_conform_review import _extract_json, _response_text
-from backend.ai_films.twelvelabs import TwelveLabsClient
+from backend.ai_films.twelvelabs import TwelveLabsClient, TwelveLabsError
 from backend.ai_films.twelvelabs_analyze import TwelveLabsAnalyzeClient
 
 ANALYZE_PROMPT = (
@@ -124,6 +124,46 @@ async def _bounded(label: str, awaitable: Any, timeout_seconds: float) -> Any:
         raise TimeoutError(f"Generated-shot QA stage '{label}' exceeded {int(timeout_seconds)}s") from exc
 
 
+def _prior_twelvelabs_ids(output: Mapping[str, Any], asset_meta: Mapping[str, Any]) -> tuple[str, str]:
+    """Return (asset_id, item_id) already recorded for this shot by an earlier QA attempt.
+
+    Stale-claim recovery and manual re-QA re-run this worker for the same shot; without
+    this lookup every run uploaded a fresh TwelveLabs asset and knowledge-store item,
+    duplicating the shot in Jockey and burning indexing minutes.
+    """
+    qa = output.get("qa") if isinstance(output.get("qa"), Mapping) else {}
+    asset_id = str(qa.get("twelvelabs_asset_id") or asset_meta.get("twelvelabs_asset_id") or "").strip()
+    item_id = str(qa.get("twelvelabs_item_id") or asset_meta.get("twelvelabs_item_id") or "").strip()
+    return asset_id, item_id
+
+
+async def _reusable_asset(runner: TwelveLabsIngestionRunner, asset_id: str) -> bool:
+    if not asset_id:
+        return False
+    try:
+        asset = await _bounded("twelvelabs_reuse_asset", runner._retrieve_asset(asset_id), 60.0)
+    except (TwelveLabsError, TimeoutError):
+        return False
+    return str(asset.get("status", "")).lower() != "failed"
+
+
+async def _reusable_item(client: TwelveLabsClient, item_id: str, asset_id: str) -> bool:
+    if not item_id or not client.knowledge_store_id:
+        return False
+    try:
+        item = await _bounded(
+            "twelvelabs_reuse_item",
+            client._request("GET", f"/knowledge-stores/{client.knowledge_store_id}/items/{item_id}"),
+            60.0,
+        )
+    except (TwelveLabsError, TimeoutError):
+        return False
+    if str(item.get("status", "")).lower() == "failed":
+        return False
+    item_asset = str(item.get("asset_id") or "")
+    return not item_asset or item_asset == asset_id
+
+
 async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) -> dict[str, Any]:
     output = dict(job.get("output") or {})
     input_payload = job.get("input") if isinstance(job.get("input"), dict) else {}
@@ -150,19 +190,28 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
     client = TwelveLabsClient()
     runner = TwelveLabsIngestionRunner(client)
 
-    await _persist_qa_stage(db, job_id, output, "twelvelabs_create_asset")
-    created = await _bounded(
-        "twelvelabs_create_asset",
-        runner._create_asset(
-            url=signed_url,
-            filename=f"generated-{shot_id}.mp4",
-            user_metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
-        ),
-        120.0,
-    )
-    tl_asset_id = str(created.get("_id") or created.get("id") or "")
-    if not tl_asset_id:
-        raise RuntimeError("TwelveLabs generated-shot asset creation returned no id")
+    asset_rows = await db._request("GET", "ai_film_assets", params={"id": f"eq.{asset_id}", "select": "metadata", "limit": "1"})
+    asset_meta = dict((asset_rows[0].get("metadata") if asset_rows else {}) or {})
+    prior_asset_id, prior_item_id = _prior_twelvelabs_ids(output, asset_meta)
+
+    if await _reusable_asset(runner, prior_asset_id):
+        tl_asset_id = prior_asset_id
+        print(f"[ai-films-qa] job={job_id} reusing twelvelabs_asset={tl_asset_id}", flush=True)
+    else:
+        prior_item_id = ""  # an item for a missing asset is not reusable
+        await _persist_qa_stage(db, job_id, output, "twelvelabs_create_asset")
+        created = await _bounded(
+            "twelvelabs_create_asset",
+            runner._create_asset(
+                url=signed_url,
+                filename=f"generated-{shot_id}.mp4",
+                user_metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+            ),
+            120.0,
+        )
+        tl_asset_id = str(created.get("_id") or created.get("id") or "")
+        if not tl_asset_id:
+            raise RuntimeError("TwelveLabs generated-shot asset creation returned no id")
 
     await _persist_qa_stage(db, job_id, output, "twelvelabs_wait_asset", twelvelabs_asset_id=tl_asset_id)
     await _bounded(
@@ -181,18 +230,22 @@ async def qa_generated_shot(job: Mapping[str, Any], db: SupabaseAssemblyClient) 
     )
     analyze_text = _response_text(analyzed)
 
-    await _persist_qa_stage(db, job_id, output, "twelvelabs_create_item", twelvelabs_asset_id=tl_asset_id)
-    item = await _bounded(
-        "twelvelabs_create_item",
-        runner._create_item(
-            tl_asset_id,
-            metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
-        ),
-        120.0,
-    )
-    tl_item_id = str(item.get("_id") or item.get("id") or "")
-    if not tl_item_id:
-        raise RuntimeError("TwelveLabs generated-shot knowledge-store item returned no id")
+    if await _reusable_item(client, prior_item_id, tl_asset_id):
+        tl_item_id = prior_item_id
+        print(f"[ai-films-qa] job={job_id} reusing twelvelabs_item={tl_item_id}", flush=True)
+    else:
+        await _persist_qa_stage(db, job_id, output, "twelvelabs_create_item", twelvelabs_asset_id=tl_asset_id)
+        item = await _bounded(
+            "twelvelabs_create_item",
+            runner._create_item(
+                tl_asset_id,
+                metadata={"d3vonn_project_id": project_id, "shot_id": shot_id, "ai_film_asset_id": asset_id, "asset_role": "generated_shot"},
+            ),
+            120.0,
+        )
+        tl_item_id = str(item.get("_id") or item.get("id") or "")
+        if not tl_item_id:
+            raise RuntimeError("TwelveLabs generated-shot knowledge-store item returned no id")
 
     await _persist_qa_stage(
         db, job_id, output, "twelvelabs_wait_item",
