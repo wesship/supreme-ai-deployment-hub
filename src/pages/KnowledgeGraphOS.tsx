@@ -2,13 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Background,
+  BaseEdge,
   Controls,
   Handle,
   MarkerType,
   MiniMap,
   Position,
   ReactFlow,
+  getBezierPath,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from '@xyflow/react';
@@ -48,12 +51,15 @@ import {
 
 type NodeKind = 'core' | 'agent' | 'tool' | 'memory' | 'product' | 'security';
 
+type HermesRuntimeState = 'idle' | 'connecting' | 'running' | 'complete' | 'failed';
+
 type KnowledgeNodeData = {
   label: string;
   kind: NodeKind;
   route: string;
   description: string;
   state: 'ready' | 'governed' | 'adapter';
+  runtimeState?: HermesRuntimeState;
 };
 
 const kindLabel: Record<NodeKind, string> = {
@@ -217,6 +223,7 @@ const initialEdges: Edge[] = [
   { id: 'security-analytics', source: 'security', target: 'analytics' },
 ].map((edge) => ({
   ...edge,
+  type: 'cinematic',
   markerEnd: { type: MarkerType.ArrowClosed },
   animated: edge.source === 'hermes',
   style: { strokeWidth: 1.5 },
@@ -294,8 +301,79 @@ const livePathFromEvents = (events: HermesStreamEvent[], selectedId: string): st
   return path;
 };
 
-function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
+
+type CinematicEdgeData = {
+  executing?: boolean;
+};
+
+function CinematicEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  data,
+}: EdgeProps) {
+  const [edgePath] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+  const executing = Boolean((data as CinematicEdgeData | undefined)?.executing);
+
+  return (
+    <g className={executing ? 'd3-cinematic-edge d3-cinematic-edge--executing' : 'd3-cinematic-edge'}>
+      <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
+      {executing && [0, 1, 2].map((index) => (
+        <circle
+          key={index}
+          className="d3-edge-particle"
+          r={index === 0 ? 3.2 : 2.2}
+        >
+          <animateMotion
+            dur={index === 0 ? '1.25s' : '1.75s'}
+            begin={`${index * -0.42}s`}
+            repeatCount="indefinite"
+            path={edgePath}
+          />
+        </circle>
+      ))}
+    </g>
+  );
+}
+
+function KnowledgeNode({ id, data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
   const Icon = kindIcon[data.kind];
+
+  if (id === 'hermes') {
+    const runtimeState = data.runtimeState ?? 'idle';
+    return (
+      <div
+        className={`d3-hermes-shell d3-hermes--${runtimeState} ${selected ? 'd3-hermes--selected' : ''}`}
+        aria-label={`Hermes AI Orchestration · ${runtimeState}`}
+      >
+        <Handle type="target" position={Position.Left} className="d3-kg-handle !h-2.5 !w-2.5 !border-0 !bg-amber-100" />
+        <div className="d3-hermes-orbit d3-hermes-orbit--outer" aria-hidden="true" />
+        <div className="d3-hermes-orbit d3-hermes-orbit--inner" aria-hidden="true" />
+        <div className="d3-hermes-core">
+          <div className="d3-hermes-plasma" aria-hidden="true" />
+          <BrainCircuit className="d3-hermes-glyph h-8 w-8" />
+          <p className="d3-hermes-title">HERMES</p>
+          <p className="d3-hermes-subtitle">AI ORCHESTRATION</p>
+          <span className="d3-hermes-state">{runtimeState}</span>
+        </div>
+        <Handle type="source" position={Position.Right} className="d3-kg-handle !h-2.5 !w-2.5 !border-0 !bg-amber-100" />
+      </div>
+    );
+  }
+
   return (
     <div
       className={[
@@ -325,6 +403,7 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
 }
 
 const nodeTypes = { knowledge: KnowledgeNode };
+const edgeTypes = { cinematic: CinematicEdge };
 
 const KnowledgeGraphOS: React.FC = () => {
   const navigate = useNavigate();
@@ -407,12 +486,15 @@ const KnowledgeGraphOS: React.FC = () => {
     return initialNodes.map((node) => ({
       ...node,
       selected: node.id === selectedId,
+      data: node.id === 'hermes'
+        ? { ...node.data, runtimeState: livePanels.status }
+        : node.data,
       className: executionNodeIds.has(node.id) ? 'd3-kg-runtime-node' : undefined,
       hidden:
         (kind !== 'all' && node.data.kind !== kind) ||
         Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
     }));
-  }, [executionNodeIds, kind, query, selectedId]);
+  }, [executionNodeIds, kind, livePanels.status, query, selectedId]);
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
@@ -429,6 +511,7 @@ const KnowledgeGraphOS: React.FC = () => {
         executing ? 'd3-kg-edge--executing' : '',
       ].filter(Boolean).join(' '),
       animated: edge.source === 'hermes' || active || executing,
+      data: { executing },
       hidden: !visibleIds.has(edge.source) || !visibleIds.has(edge.target),
       style: {
         stroke: executing ? '#fef3c7' : active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
