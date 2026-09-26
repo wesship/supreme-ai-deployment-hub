@@ -161,9 +161,9 @@ function App() {
         <ScrollToTop />
         <LegacyFilmPathRepair />
         <SkipToContent />
-        <Suspense fallback={null}><Navbar /></Suspense>
+        <ShellChrome />
         <DeferredProviders>
-          <main id="main-content" tabIndex={-1} className="min-h-screen pt-16 focus:outline-none">
+          <MainRegion>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<Index />} />
