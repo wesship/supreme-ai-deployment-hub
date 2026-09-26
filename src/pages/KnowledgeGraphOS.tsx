@@ -13,6 +13,7 @@ import {
   type Edge,
   type EdgeProps,
   type Node,
+  type ReactFlowInstance,
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -23,6 +24,7 @@ import { deriveLiveExecutionPanels } from '@/features/knowledge-graph/lib/livePa
 import type { D3GraphActionRequest } from '@/features/knowledge-graph/lib/graphActions';
 import { deriveClusterActivation } from '@/features/knowledge-graph/lib/clusterActivation';
 import { deriveMultiClusterCorridor } from '@/features/knowledge-graph/lib/multiClusterCorridor';
+import { deriveCameraTarget } from '@/features/knowledge-graph/lib/cameraChoreography';
 import {
   Activity,
   Bot,
@@ -43,6 +45,7 @@ import {
   LayoutGrid,
   List,
   Rows3,
+  Focus,
   ShieldCheck,
   Sparkles,
   Workflow,
@@ -444,6 +447,8 @@ const KnowledgeGraphOS: React.FC = () => {
   const [executionStep, setExecutionStep] = useState(-1);
   const [viewMode, setViewMode] = useState<'graph' | 'map' | 'list'>('graph');
   const [secondaryClusterId, setSecondaryClusterId] = useState<string | null>(null);
+  const [cameraFollow, setCameraFollow] = useState(true);
+  const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -525,6 +530,27 @@ const KnowledgeGraphOS: React.FC = () => {
     () => new Set(multiClusterCorridor?.edgeIds ?? []),
     [multiClusterCorridor],
   );
+
+
+  const cameraFocusNodeIds = useMemo(() => {
+    if (multiClusterCorridor?.nodeIds.length) return multiClusterCorridor.nodeIds;
+    if (clusterActivation.primaryNodeId) return [clusterActivation.primaryNodeId];
+    if (executionPath.length) return [executionPath[executionPath.length - 1]];
+    return [];
+  }, [clusterActivation.primaryNodeId, executionPath, multiClusterCorridor]);
+
+  useEffect(() => {
+    if (!cameraFollow || viewMode !== 'graph' || !flowInstance || !cameraFocusNodeIds.length) return;
+
+    const target = deriveCameraTarget(initialNodes, cameraFocusNodeIds);
+    if (!target) return;
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    void flowInstance.setCenter(target.x, target.y, {
+      zoom: target.zoom,
+      duration: reducedMotion ? 0 : 850,
+    });
+  }, [cameraFocusNodeIds, cameraFollow, flowInstance, viewMode]);
 
   const nodes = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -752,6 +778,20 @@ const KnowledgeGraphOS: React.FC = () => {
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => setCameraFollow((value) => !value)}
+              aria-pressed={cameraFollow}
+              className={`flex items-center gap-1.5 border border-[#34332f] px-3 py-2 text-xs font-semibold transition ${
+                cameraFollow
+                  ? 'bg-amber-200/[0.08] text-amber-100'
+                  : 'bg-[#11110f] text-stone-500 hover:text-white'
+              }`}
+              title="Automatically focus the active execution region"
+            >
+              <Focus className="h-3.5 w-3.5" />
+              Camera follow
+            </button>
             <div className="flex border border-[#34332f] bg-[#11110f] p-1" role="group" aria-label="Knowledge graph view">
               {([
                 ['graph', Network, 'Graph'],
@@ -777,7 +817,7 @@ const KnowledgeGraphOS: React.FC = () => {
           </div>
 
           {viewMode === 'graph' && (
-            <div className="d3-neural-stage h-[680px]">
+            <div className={`d3-neural-stage h-[680px] ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''}`}>
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
