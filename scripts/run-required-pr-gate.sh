@@ -24,6 +24,7 @@ run_group "Backend import check" python -c "from backend.main import app; assert
 run_group "Focused backend tests" python -m pytest \
   backend/tests/test_proxy_routes.py \
   backend/tests/test_ai_film_provider_adapters.py \
+  backend/tests/test_hermes_proactivity.py \
   tests/test_readiness.py \
   -q
 
