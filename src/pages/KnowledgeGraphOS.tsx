@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Background,
@@ -269,6 +269,8 @@ const KnowledgeGraphOS: React.FC = () => {
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<NodeKind | 'all'>('all');
   const [activity, setActivity] = useState<string[]>(['Graph surface initialized. No live mutations have been issued.']);
+  const [executionPath, setExecutionPath] = useState<string[]>([]);
+  const [executionStep, setExecutionStep] = useState(-1);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -280,38 +282,90 @@ const KnowledgeGraphOS: React.FC = () => {
     canonical_route: selected.data.route,
   };
 
+  useEffect(() => {
+    if (!executionPath.length) return;
+    setExecutionStep(0);
+    const timer = window.setInterval(() => {
+      setExecutionStep((step) => {
+        if (step >= executionPath.length - 1) {
+          window.clearInterval(timer);
+          return step;
+        }
+        return step + 1;
+      });
+    }, 650);
+    return () => window.clearInterval(timer);
+  }, [executionPath]);
+
+  const executionEdgeIds = useMemo(() => {
+    if (executionStep < 1) return new Set<string>();
+    const ids = new Set<string>();
+    for (let index = 0; index < executionStep; index += 1) {
+      const source = executionPath[index];
+      const target = executionPath[index + 1];
+      const match = initialEdges.find((edge) => edge.source === source && edge.target === target);
+      if (match) ids.add(match.id);
+    }
+    return ids;
+  }, [executionPath, executionStep]);
+
+  const executionNodeIds = useMemo(
+    () => new Set(executionPath.slice(0, Math.max(0, executionStep + 1))),
+    [executionPath, executionStep],
+  );
+
   const nodes = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return initialNodes.map((node) => ({
       ...node,
       selected: node.id === selectedId,
+      className: executionNodeIds.has(node.id) ? 'd3-kg-runtime-node' : undefined,
       hidden:
         (kind !== 'all' && node.data.kind !== kind) ||
         Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
     }));
-  }, [kind, query, selectedId]);
+  }, [executionNodeIds, kind, query, selectedId]);
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
     return initialEdges.map((edge) => {
       const active = edge.source === selectedId || edge.target === selectedId;
       const platformEdge = ['films', 'radio', 'analytics', 'security'].includes(edge.target);
+      const executing = executionEdgeIds.has(edge.id);
       return {
       ...edge,
-      className: ['d3-kg-edge', active ? 'd3-kg-edge--active' : '', platformEdge ? 'd3-kg-edge--platform' : ''].filter(Boolean).join(' '),
-      animated: edge.source === 'hermes' || active,
+      className: [
+        'd3-kg-edge',
+        active ? 'd3-kg-edge--active' : '',
+        platformEdge ? 'd3-kg-edge--platform' : '',
+        executing ? 'd3-kg-edge--executing' : '',
+      ].filter(Boolean).join(' '),
+      animated: edge.source === 'hermes' || active || executing,
       hidden: !visibleIds.has(edge.source) || !visibleIds.has(edge.target),
       style: {
-        stroke: active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
-        strokeWidth: active ? 2.4 : platformEdge ? 1.7 : 1.3,
-        opacity: active ? 0.98 : platformEdge ? 0.62 : 0.42,
+        stroke: executing ? '#fef3c7' : active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
+        strokeWidth: executing ? 3.2 : active ? 2.4 : platformEdge ? 1.7 : 1.3,
+        opacity: executing ? 1 : active ? 0.98 : platformEdge ? 0.62 : 0.42,
       },
     };
     });
-  }, [nodes, selectedId]);
+  }, [executionEdgeIds, nodes, selectedId]);
 
   const recordAction = (action: string) => {
     setActivity((items) => [`${action}: ${selected.data.label}`, ...items].slice(0, 5));
+  };
+
+  const startExecutionPreview = () => {
+    const targetPath =
+      selected.id === 'films'
+        ? ['intent', 'hermes', 'agents', 'workflow', 'films']
+        : selected.id === 'radio'
+          ? ['intent', 'hermes', 'agents', 'workflow', 'radio']
+          : selected.id === 'security'
+            ? ['intent', 'hermes', 'tools', 'security']
+            : ['intent', 'hermes', 'knowledge', 'workflow', 'analytics'];
+    setExecutionPath(targetPath);
+    setActivity((items) => [`Execution trace started: ${targetPath.join(' → ')}`, ...items].slice(0, 5));
   };
 
   return (
@@ -428,8 +482,8 @@ const KnowledgeGraphOS: React.FC = () => {
               <button onClick={() => recordAction('Trace requested')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Eye className="h-4 w-4" /> Trace
               </button>
-              <button onClick={() => recordAction('Run staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
-                <Play className="h-4 w-4" /> Run
+              <button onClick={startExecutionPreview} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+                <Play className="h-4 w-4" /> Run trace
               </button>
               <button onClick={() => recordAction('Monitor staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Activity className="h-4 w-4" /> Monitor
@@ -468,6 +522,30 @@ const KnowledgeGraphOS: React.FC = () => {
                   </div>
                 </button>
               ))}
+            </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center gap-2">
+              <Workflow className="h-4 w-4 text-amber-200" />
+              <h2 className="text-sm font-bold text-white">Execution propagation</h2>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Runtime-style visualization for Hermes event propagation. Live event subscription is the next adapter step.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {(executionPath.length ? executionPath : ['intent', 'hermes', 'agents', 'workflow', 'platform']).map((id, index) => {
+                const node = initialNodes.find((item) => item.id === id);
+                const active = executionPath.length > 0 && index <= executionStep;
+                return (
+                  <span
+                    key={`${id}-${index}`}
+                    className={`border px-2 py-1 text-[10px] font-semibold transition ${active ? 'border-amber-300/50 bg-amber-200/10 text-amber-100' : 'border-[#2d2c28] bg-[#0c0c0a] text-stone-500'}`}
+                  >
+                    {node?.data.label ?? id}
+                  </span>
+                );
+              })}
             </div>
           </section>
 
