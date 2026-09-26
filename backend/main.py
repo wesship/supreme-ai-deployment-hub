@@ -120,6 +120,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.app.security.admin_approval_router", "router", None),
     ("backend.app.security.tool_registry_router", "router", "/api/security"),
     ("backend.app.assurance.router", "router", None),
+    ("backend.aquagov.jobs", "router", None),
     ("backend.opensource_integrations.router", "router", None),
     ("backend.liquidity_agent.router", "router", None),
 )
