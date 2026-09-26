@@ -1,8 +1,8 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { BrainCircuit, Eye, Network, ShieldCheck } from 'lucide-react';
-import ReaddyMarketingHero from '@/components/marketing/ReaddyMarketingHero';
-import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
+import D3VONNMarketingHero from '@/components/marketing/D3VONNMarketingHero';
+import D3VONNMarketingShell from '@/components/marketing/D3VONNMarketingShell';
 
 const principles = [
   {
@@ -33,7 +33,7 @@ const About: React.FC = () => {
     'Learn why D3VONN.IO is being built as a governed AI Business Operating System for supervised agent execution.';
 
   return (
-    <ReaddyMarketingShell>
+    <D3VONNMarketingShell>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -44,7 +44,7 @@ const About: React.FC = () => {
       </Helmet>
 
       <div>
-        <ReaddyMarketingHero
+        <D3VONNMarketingHero
           eyebrow="About D3VONN.IO"
           title={
             <>
@@ -120,7 +120,7 @@ const About: React.FC = () => {
           </div>
         </section>
       </div>
-    </ReaddyMarketingShell>
+    </D3VONNMarketingShell>
   );
 };
 
