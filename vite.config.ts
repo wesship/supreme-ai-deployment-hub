@@ -56,8 +56,7 @@ export default defineConfig(({ mode }) => {
       },
       // Target modern browsers for smaller output
       target: "es2020",
-      // Enable CSS code splitting
-      cssCodeSplit: true,
+      // Keep application CSS in a single build asset. The root application is loaded\n      // through a guarded dynamic import; async CSS chunks can otherwise reject that\n      // import during stylesheet preload even when the asset itself is healthy.\n      cssCodeSplit: false,
       // Split vendor chunks to reduce the main bundle size
       rollupOptions: {
         output: {
