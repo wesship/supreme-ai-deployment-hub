@@ -16,12 +16,21 @@ from backend.ai_films.twelvelabs import (
     TwelveLabsConfigurationError,
     TwelveLabsError,
 )
+from backend.ai_films.vfx_assets import catalog as makebigfilms_catalog
+from backend.ai_films.vfx_assets import resolve_vfx_assets
 
 router = APIRouter(prefix="/ai-films", tags=["ai-films"])
 
 
 class TestProductionRequest(BaseModel):
     title: str = Field(default="Sovereign Signal — E2E Acceptance", min_length=3, max_length=160)
+
+
+class VFXResolveRequest(BaseModel):
+    scene_description: str = Field(default="", max_length=8000)
+    requested_effects: list[str] = Field(default_factory=list, max_length=24)
+    camera_direction: str | None = Field(default=None, max_length=80)
+    limit: int = Field(default=6, ge=1, le=12)
 
 
 class TwelveLabsSearchRequest(BaseModel):
@@ -94,6 +103,26 @@ def validate_provider_configuration(capability: str, provider: str) -> dict[str,
         "provider": spec.provider,
         "status": "configured",
     }
+
+
+@router.get("/vfx/makebigfilms/catalog")
+def get_makebigfilms_vfx_catalog() -> dict[str, object]:
+    """Expose the governed MakeBIGFILMS catalog-routing surface."""
+    return makebigfilms_catalog()
+
+
+@router.post("/vfx/makebigfilms/resolve")
+def resolve_makebigfilms_vfx(request: VFXResolveRequest) -> dict[str, object]:
+    """Rank MakeBIGFILMS collections for a shot without downloading assets."""
+    try:
+        return resolve_vfx_assets(
+            request.scene_description,
+            requested_effects=tuple(request.requested_effects),
+            camera_direction=request.camera_direction,
+            limit=request.limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/intelligence/twelvelabs/status")
