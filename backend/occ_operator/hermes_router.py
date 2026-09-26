@@ -105,6 +105,18 @@ class AdaptiveChangeDecision(BaseModel):
     rationale: str = Field(min_length=3, max_length=4000)
 
 
+class AdaptiveCanaryMetrics(BaseModel):
+    success_rate: float = Field(ge=0.0, le=1.0)
+    error_rate: float = Field(ge=0.0, le=1.0)
+    latency_ms: float = Field(ge=0.0)
+    cost_usd: float = Field(ge=0.0)
+
+
+class AdaptiveCanaryCertificationRequest(BaseModel):
+    baseline: AdaptiveCanaryMetrics
+    candidate: AdaptiveCanaryMetrics
+
+
 def _require_internal_execution_key(
     provided: str = Header(default="", alias="X-Hermes-Internal-Key"),
 ) -> None:
@@ -432,6 +444,44 @@ async def queue_adaptive_change_canary(
             raise HTTPException(status_code=409, detail="Adaptive canary request is not eligible or has already been claimed.") from exc
         raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
     return result
+
+
+@router.post("/adaptive-change-requests/{request_id}/certify")
+async def certify_adaptive_change_canary(
+    request_id: str,
+    body: AdaptiveCanaryCertificationRequest,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    try:
+        return await _SUPABASE.rpc(
+            "hermes_certify_adaptive_canary",
+            {
+                "p_request_id": request_id,
+                "p_user_id": principal.user_id,
+                "p_actor_id": principal.user_id,
+                "p_baseline": body.baseline.model_dump(),
+                "p_candidate": body.candidate.model_dump(),
+            },
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 409):
+            raise HTTPException(status_code=409, detail="Adaptive canary is not eligible for certification.") from exc
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+
+
+@router.get("/adaptive-promotion-candidates")
+async def list_adaptive_promotion_candidates(
+    limit: int = 50,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    return await _get_rows(
+        "hermes_adaptive_promotion_candidates",
+        {
+            "user_id": f"eq.{principal.user_id}",
+            "order": "created_at.desc",
+            "limit": limit,
+        },
+    )
 
 
 @router.post("/enqueue")
