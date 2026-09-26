@@ -139,3 +139,52 @@ def test_health_does_not_expose_secrets_and_reports_internal_vision(monkeypatch)
     assert body["vision_mode"] == "internal"
     assert "test-device-key" not in response.text
     assert "test-openai-key" not in response.text
+
+
+def test_hermes_result_is_shaped_for_display_hud(monkeypatch):
+    client = _client(monkeypatch)
+    monkeypatch.setenv("SMART_GLASSES_HERMES_URL", "https://hermes.example.test/execute")
+
+    class _Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "agent_used": "HERMES",
+                "summary": "Workflow completed successfully.",
+            }
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, *args, **kwargs):
+            return _Response()
+
+    monkeypatch.setattr(smart_glasses.httpx, "AsyncClient", lambda *args, **kwargs: _Client())
+
+    response = client.post(
+        "/api/smart-glasses/v1/execute",
+        json=_envelope(
+            route="d3vonn_gateway",
+            action="ask_d3vonn",
+            nonce="nonce-hermes-hud",
+            payload={"query": "status"},
+        ),
+        headers={"X-D3VONN-Device-Key": "test-device-key"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["agent_used"] == "HERMES"
+    assert body["hud"] == {
+        "action": "display.hud.render",
+        "surface": "primary",
+        "text": "Workflow completed successfully.",
+        "ttl_ms": 8000,
+        "priority": "normal",
+    }
