@@ -586,3 +586,117 @@
     transition: none;
   }
 }
+
+
+@keyframes d3-overlay-scan {
+  0% { transform: translateX(-130%); opacity: 0; }
+  18% { opacity: .18; }
+  52% { opacity: .08; }
+  100% { transform: translateX(230%); opacity: 0; }
+}
+
+@keyframes d3-overlay-active {
+  0%, 100% {
+    box-shadow:
+      0 14px 34px rgba(0,0,0,.3),
+      inset 0 0 0 1px rgba(255,255,255,.015);
+  }
+  50% {
+    box-shadow:
+      0 18px 42px rgba(0,0,0,.34),
+      0 0 18px rgba(252,211,77,.08),
+      inset 0 0 0 1px rgba(254,243,199,.045);
+  }
+}
+
+.d3-ops-overlay {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transform: translateZ(0);
+  transition:
+    border-color .35s ease,
+    box-shadow .35s ease,
+    transform .35s ease,
+    background-color .35s ease;
+}
+
+.d3-ops-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .26;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.018), transparent 24%),
+    linear-gradient(180deg, rgba(254,243,199,.016), transparent 42%);
+}
+
+.d3-ops-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -35%;
+  width: 28%;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(254,243,199,.11),
+    rgba(255,255,255,.07),
+    transparent
+  );
+  transform: skewX(-15deg);
+}
+
+.d3-ops-overlay--active {
+  border-color: rgba(252,211,77,.34) !important;
+  background:
+    linear-gradient(180deg, rgba(252,211,77,.025), transparent 34%),
+    #10100d !important;
+  transform: translateY(-2px);
+  animation: d3-overlay-active 3.2s ease-in-out infinite;
+}
+
+.d3-ops-overlay--active::after {
+  animation: d3-overlay-scan 4.6s ease-in-out infinite;
+}
+
+.d3-ops-overlay--active h2 {
+  text-shadow: 0 0 10px rgba(254,243,199,.16);
+}
+
+.d3-ops-overlay--corridor {
+  box-shadow:
+    0 16px 38px rgba(0,0,0,.32),
+    inset 1px 0 0 rgba(254,243,199,.035);
+}
+
+.d3-ops-overlay--corridor.d3-ops-overlay--active {
+  border-color: rgba(255,247,214,.44) !important;
+  box-shadow:
+    0 20px 48px rgba(0,0,0,.36),
+    0 0 22px rgba(254,243,199,.09),
+    inset 2px 0 0 rgba(255,247,214,.16);
+}
+
+.d3-ops-overlay > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-ops-overlay,
+  .d3-ops-overlay--active {
+    animation: none !important;
+    transition: none;
+    transform: none;
+  }
+
+  .d3-ops-overlay::after {
+    display: none;
+  }
+}
