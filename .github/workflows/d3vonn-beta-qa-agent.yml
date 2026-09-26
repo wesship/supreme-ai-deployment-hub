@@ -14,6 +14,10 @@ on:
         default: true
   schedule:
     - cron: '23 11 * * *'
+  workflow_run:
+    workflows: ['Devonn.AI Deploy']
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -26,6 +30,7 @@ concurrency:
 jobs:
   beta-qa-agent:
     name: Beta user journey and AI platform canary
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 35
@@ -35,9 +40,12 @@ jobs:
       E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
       E2E_DISABLE_CREDENTIAL_TRACING: '1'
       CI: 'true'
+      CERTIFIED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.CERTIFIED_SHA }}
 
       - name: Validate protected beta inputs
         run: |
@@ -96,7 +104,7 @@ jobs:
           # D3VONN Beta QA Agent Result
 
           - Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          - Commit: ${GITHUB_SHA}
+          - Commit: ${CERTIFIED_SHA}
           - Target: ${PLAYWRIGHT_BASE_URL}
           - Public health canaries: ${{ steps.health.outcome }}
           - Authenticated user journeys: ${{ steps.journeys.outcome }}
@@ -105,7 +113,7 @@ jobs:
           cat beta-qa-results/summary.md >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Open or update beta QA failure issue
-        if: ${{ always() && (steps.health.outcome == 'failure' || steps.journeys.outcome == 'failure') && (github.event_name == 'schedule' || inputs.create_issue_on_failure) }}
+        if: ${{ always() && (steps.health.outcome == 'failure' || steps.journeys.outcome == 'failure') && (github.event_name == 'schedule' || github.event_name == 'workflow_run' || inputs.create_issue_on_failure) }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -115,7 +123,7 @@ jobs:
           The D3VONN Beta QA Agent detected a production beta-canary failure.
 
           - Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          - Commit: ${GITHUB_SHA}
+          - Commit: ${CERTIFIED_SHA}
           - Target: ${PLAYWRIGHT_BASE_URL}
           - Public health: ${{ steps.health.outcome }}
           - Authenticated journeys: ${{ steps.journeys.outcome }}
