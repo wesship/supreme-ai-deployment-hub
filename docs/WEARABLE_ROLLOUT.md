@@ -35,6 +35,17 @@
 
 Add adapters without changing the coordinator contract. Candidate classes include display-capable glasses, Android XR devices, and future wearable SDKs.
 
+### XREAL One-family staged gate
+
+- host-bridge adapter and fail-closed event normalization
+- `display.hud.render` action contract
+- Hermes response-to-HUD path
+- optional Needle intent proposal before Hermes dispatch
+- physical hardware/host compatibility certification
+- reconnect, latency, privacy, power, rollback, and kill-switch tests
+
+See `docs/wearables/XREAL_ONE.md`.
+
 ## Production gates
 
 A wearable integration is production-ready only after successful tests for authorization, capture, normalization, response delivery, policy rejection, human approval, disconnect/reconnect, duplicate events, privacy handling, observability, and rollback.

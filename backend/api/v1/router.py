@@ -18,7 +18,10 @@ import httpx
 from fastapi import APIRouter, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from backend.api.v1.wearable_router import router as wearable_router
+
 router = APIRouter()
+router.include_router(wearable_router)
 
 
 class AgentStatus(BaseModel):
