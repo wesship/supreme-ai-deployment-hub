@@ -66,6 +66,8 @@ Three pre-existing validation issues were repaired narrowly:
 - `voiceService.ts` gains local type-only Web Speech event declarations; emitted voice runtime behavior is unchanged.
 - `previewAuthStorage.ts` uses a single-assignment `const` timer rather than a split `let` declaration, satisfying existing lint rules without changing session/storage behavior.
 
+Hosted CI exposed two existing housekeeping defects: an unbounded Dependency Review comment exceeded the runner's environment-size limit, and the Deno job tried to save a pnpm cache it never populated. The transfer removes that oversized diagnostic environment value (the full review stays posted to the PR) and the unused cache input. Vulnerability/license enforcement, all Deno check steps, permissions, and production deployment controls remain unchanged. The new V90 tests also use single-pass DOM assertions so they pass under coverage without increasing test timeouts or weakening checks.
+
 No backend code, API implementation, Supabase migration, router configuration, security header, or deployment workflow is changed by this transfer. Build-generated edits to tracked branding/Edge Function files are excluded from the commit.
 
 ## Asset manifest

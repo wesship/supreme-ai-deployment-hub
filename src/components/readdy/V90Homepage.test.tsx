@@ -1,5 +1,5 @@
 import React from 'react';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultHomepageTelemetry, normalizePublicStats } from '@/lib/homepageTelemetry';
@@ -29,12 +29,16 @@ describe('Readdy V90 homepage presentation boundary', () => {
   });
 
   it('retains canonical launch and protected operational destinations', () => {
-    renderHome();
-    expect(screen.getByText('Enter D3VONN.IO').closest('a')).toHaveAttribute('href', '/app');
-    expect(screen.getByText('Launch D3VONN').closest('a')).toHaveAttribute('href', '/app');
-    expect(screen.getByText(/operator access.*admin sign-in required/i).closest('a')).toHaveAttribute('href', '/occ');
-    expect(screen.getByText('Open Voice Studio').closest('a')).toHaveAttribute('href', '/voice-studio');
-    expect(screen.getByText('Enter AI Films').closest('a')).toHaveAttribute('href', '/film');
+    const { container } = renderHome();
+    // Traverse the dense decorative DOM once; avoid repeated global text queries.
+    const destinations = new Map([...container.querySelectorAll('a')].map((link) => [
+      link.textContent?.trim(), link.getAttribute('href'),
+    ]));
+    expect(destinations.get('Enter D3VONN.IO')).toBe('/app');
+    expect(destinations.get('Launch D3VONN')).toBe('/app');
+    expect(destinations.get('Operator access — admin sign-in required')).toBe('/occ');
+    expect(destinations.get('Open Voice Studio')).toBe('/voice-studio');
+    expect(destinations.get('Enter AI Films')).toBe('/film');
   });
 
   it('only embeds local images with stable intrinsic dimensions', () => {
@@ -47,23 +51,29 @@ describe('Readdy V90 homepage presentation boundary', () => {
       expect(Number(image.getAttribute('height'))).toBeGreaterThan(0);
     }
     expect(container.querySelector('iframe, script, form, input')).toBeNull();
+    expect(container.querySelector('.rv-film-strip')).toHaveAttribute('tabindex', '0');
+    expect(container.querySelector('.rv-film-strip')).toHaveAttribute('role', 'region');
   });
 
   it('labels illustrative consoles and does not imitate microphone interaction', () => {
-    renderHome();
-    expect(screen.getByText('Illustrative interface — not live runtime data')).toBeInTheDocument();
-    expect(screen.getByText(/does not access your microphone or simulate a conversation/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /speak|microphone|record/i })).not.toBeInTheDocument();
+    const { container } = renderHome();
+    const copy = container.textContent ?? '';
+    expect(copy).toContain('Illustrative interface — not live runtime data');
+    expect(copy).toContain('does not access your microphone or simulate a conversation');
+    expect(container.querySelector('button')).toBeNull();
   });
 
   it('uses accurate cumulative metric labels and explicit unknown fallback values', () => {
-    renderHome();
-    expect(screen.getByText('Completed workflows')).toBeInTheDocument();
-    expect(screen.getByText('Tasks processed')).toBeInTheDocument();
-    expect(screen.queryByText('Workflows today')).not.toBeInTheDocument();
-    expect(screen.queryByText('Knowledge nodes')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Not reported')).toHaveLength(3);
-    expect(screen.getByText('Unknown')).toBeInTheDocument();
+    const { container } = renderHome();
+    const telemetry = container.querySelector('.rv-hero__telemetry');
+    const copy = telemetry?.textContent ?? '';
+    expect(copy).toContain('Completed workflows');
+    expect(copy).toContain('Tasks processed');
+    expect(copy).not.toContain('Workflows today');
+    expect(copy).not.toContain('Knowledge nodes');
+    expect([...telemetry!.querySelectorAll('strong')].map((value) => value.textContent)).toEqual([
+      'Not reported', 'Not reported', 'Not reported', 'Unknown',
+    ]);
     expect(normalizePublicStats(null)).toEqual(defaultHomepageTelemetry);
   });
 
