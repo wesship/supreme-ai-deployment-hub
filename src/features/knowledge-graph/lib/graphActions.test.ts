@@ -8,7 +8,7 @@ describe('graph action contract', () => {
   it('accepts the canonical action vocabulary', () => {
     for (const action of [
       'open', 'select', 'trace', 'run', 'monitor', 'connect',
-      'expand', 'filter', 'search', 'ask', 'stop',
+      'expand', 'filter', 'search', 'ask', 'stop', 'view',
     ]) {
       expect(isD3GraphAction(action)).toBe(true);
     }
@@ -28,6 +28,17 @@ describe('graph action contract', () => {
       targetNodeId: 'knowledge',
       query: 'Link reusable character intelligence',
       filter: 'product',
+      source: 'voice',
+    });
+  });
+
+  it('normalizes synchronized view actions', () => {
+    expect(normalizeGraphActionRequest({
+      action: 'view',
+      view: 'list',
+    }, 'voice')).toEqual({
+      action: 'view',
+      view: 'list',
       source: 'voice',
     });
   });
