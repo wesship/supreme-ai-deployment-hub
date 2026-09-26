@@ -13,6 +13,7 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import '@/styles/knowledge-graph-effects.css';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
 import {
   Activity,
@@ -236,13 +237,13 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
   return (
     <div
       className={[
-        'min-w-[210px] border border-[#34332f] bg-[#141411] px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition',
+        'd3-kg-node min-w-[210px] border border-[#34332f] bg-[#141411] px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition',
         selected
-          ? 'border-amber-300 bg-[#1b1913] shadow-[inset_3px_0_0_#fcd34d,0_10px_28px_rgba(0,0,0,0.35)]'
-          : 'border-[#34332f] bg-[#141411] hover:border-[#665f46]',
+          ? 'd3-kg-node--active border-amber-300 bg-[#1b1913] shadow-[inset_3px_0_0_#fcd34d,0_10px_28px_rgba(0,0,0,0.35)]'
+          : 'd3-kg-node--idle border-[#34332f] bg-[#141411] hover:border-[#665f46]',
       ].join(' ')}
     >
-      <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-0 !bg-amber-200/70" />
+      <Handle type="target" position={Position.Left} className="d3-kg-handle !h-2 !w-2 !border-0 !bg-amber-200/70" />
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center border border-[#34332f] bg-[#0c0c0a]">
           <Icon className="h-5 w-5 text-amber-100" />
@@ -256,7 +257,7 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
         {stateLabel[data.state]}
       </div>
-      <Handle type="source" position={Position.Right} className="!h-2 !w-2 !border-0 !bg-amber-200/70" />
+      <Handle type="source" position={Position.Right} className="d3-kg-handle !h-2 !w-2 !border-0 !bg-amber-200/70" />
     </div>
   );
 }
@@ -292,15 +293,21 @@ const KnowledgeGraphOS: React.FC = () => {
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
-    return initialEdges.map((edge) => ({
+    return initialEdges.map((edge) => {
+      const active = edge.source === selectedId || edge.target === selectedId;
+      const platformEdge = ['films', 'radio', 'analytics', 'security'].includes(edge.target);
+      return {
       ...edge,
+      className: ['d3-kg-edge', active ? 'd3-kg-edge--active' : '', platformEdge ? 'd3-kg-edge--platform' : ''].filter(Boolean).join(' '),
+      animated: edge.source === 'hermes' || active,
       hidden: !visibleIds.has(edge.source) || !visibleIds.has(edge.target),
       style: {
-        stroke: edge.source === selectedId || edge.target === selectedId ? '#fde68a' : '#78716c',
-        strokeWidth: edge.source === selectedId || edge.target === selectedId ? 2.4 : 1.3,
-        opacity: edge.source === selectedId || edge.target === selectedId ? 0.95 : 0.45,
+        stroke: active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
+        strokeWidth: active ? 2.4 : platformEdge ? 1.7 : 1.3,
+        opacity: active ? 0.98 : platformEdge ? 0.62 : 0.42,
       },
-    }));
+    };
+    });
   }, [nodes, selectedId]);
 
   const recordAction = (action: string) => {
