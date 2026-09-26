@@ -318,7 +318,9 @@ const nodeTypes = { knowledge: KnowledgeNode };
 
 const KnowledgeGraphOS: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const liveCorrelationId = searchParams.get('execution') || searchParams.get('correlation_id');
+  const routeCorrelationId = searchParams.get('execution') || searchParams.get('correlation_id');
+  const [voiceCorrelationId, setVoiceCorrelationId] = useState<string | null>(null);
+  const liveCorrelationId = voiceCorrelationId || routeCorrelationId;
   const { events: liveEvents, state: liveStreamState, error: liveStreamError } = useHermesEvents(liveCorrelationId);
   const [selectedId, setSelectedId] = useState('hermes');
   const [query, setQuery] = useState('');
@@ -540,7 +542,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">Production voice</p>
                 <p className="mt-1 text-xs text-stone-300">Vapi orchestration · ElevenLabs voice · Hermes tools</p>
               </div>
-              <ConversationalVoiceControls context={voiceContext} />
+              <ConversationalVoiceControls context={voiceContext} onExecutionStarted={setVoiceCorrelationId} />
             </div>
           </section>
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
