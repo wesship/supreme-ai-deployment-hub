@@ -22,6 +22,7 @@ import { useHermesEvents, type HermesStreamEvent } from '@/features/knowledge-gr
 import { deriveLiveExecutionPanels } from '@/features/knowledge-graph/lib/livePanels';
 import type { D3GraphActionRequest } from '@/features/knowledge-graph/lib/graphActions';
 import { deriveClusterActivation } from '@/features/knowledge-graph/lib/clusterActivation';
+import { deriveMultiClusterCorridor } from '@/features/knowledge-graph/lib/multiClusterCorridor';
 import {
   Activity,
   Bot,
@@ -433,6 +434,7 @@ const KnowledgeGraphOS: React.FC = () => {
   const [executionPath, setExecutionPath] = useState<string[]>([]);
   const [executionStep, setExecutionStep] = useState(-1);
   const [viewMode, setViewMode] = useState<'graph' | 'map' | 'list'>('graph');
+  const [secondaryClusterId, setSecondaryClusterId] = useState<string | null>(null);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -496,6 +498,25 @@ const KnowledgeGraphOS: React.FC = () => {
     [executionPath, selectedId],
   );
 
+  const multiClusterCorridor = useMemo(
+    () => deriveMultiClusterCorridor(
+      majorClusterNodeIds.has(selectedId) ? selectedId : null,
+      secondaryClusterId,
+      initialEdges,
+    ),
+    [secondaryClusterId, selectedId],
+  );
+
+  const corridorNodeIds = useMemo(
+    () => new Set(multiClusterCorridor?.nodeIds ?? []),
+    [multiClusterCorridor],
+  );
+
+  const corridorEdgeIds = useMemo(
+    () => new Set(multiClusterCorridor?.edgeIds ?? []),
+    [multiClusterCorridor],
+  );
+
   const nodes = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return initialNodes.map((node) => ({
@@ -508,12 +529,14 @@ const KnowledgeGraphOS: React.FC = () => {
         executionNodeIds.has(node.id) ? 'd3-kg-runtime-node' : '',
         clusterActivation.primaryNodeId === node.id ? 'd3-kg-cluster-primary' : '',
         clusterActivation.sympatheticNodeIds.has(node.id) ? 'd3-kg-cluster-sympathetic' : '',
+        corridorNodeIds.has(node.id) ? 'd3-kg-corridor-node' : '',
+        secondaryClusterId === node.id ? 'd3-kg-secondary-selected' : '',
       ].filter(Boolean).join(' ') || undefined,
       hidden:
         (kind !== 'all' && node.data.kind !== kind) ||
         Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
     }));
-  }, [clusterActivation, executionNodeIds, kind, livePanels.status, query, selectedId]);
+  }, [clusterActivation, corridorNodeIds, executionNodeIds, kind, livePanels.status, query, secondaryClusterId, selectedId]);
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
@@ -522,6 +545,7 @@ const KnowledgeGraphOS: React.FC = () => {
       const platformEdge = ['films', 'radio', 'analytics', 'security'].includes(edge.target);
       const executing = executionEdgeIds.has(edge.id);
       const clusterActive = clusterActivation.clusterEdgeIds.has(edge.id);
+      const corridorActive = corridorEdgeIds.has(edge.id);
       return {
       ...edge,
       className: [
@@ -530,18 +554,19 @@ const KnowledgeGraphOS: React.FC = () => {
         platformEdge ? 'd3-kg-edge--platform' : '',
         executing ? 'd3-kg-edge--executing' : '',
         clusterActive ? 'd3-kg-edge--cluster' : '',
+        corridorActive ? 'd3-kg-edge--corridor' : '',
       ].filter(Boolean).join(' '),
-      animated: edge.source === 'hermes' || active || executing || clusterActive,
-      data: { executing, clusterActive },
+      animated: edge.source === 'hermes' || active || executing || clusterActive || corridorActive,
+      data: { executing, clusterActive: clusterActive || corridorActive },
       hidden: !visibleIds.has(edge.source) || !visibleIds.has(edge.target),
       style: {
-        stroke: executing ? '#fef3c7' : clusterActive ? '#fcd34d' : active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
-        strokeWidth: executing ? 3.2 : clusterActive ? 2.1 : active ? 2.4 : platformEdge ? 1.7 : 1.3,
-        opacity: executing ? 1 : clusterActive ? 0.86 : active ? 0.98 : platformEdge ? 0.62 : 0.42,
+        stroke: executing ? '#fef3c7' : corridorActive ? '#fff7d6' : clusterActive ? '#fcd34d' : active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
+        strokeWidth: executing ? 3.2 : corridorActive ? 3 : clusterActive ? 2.1 : active ? 2.4 : platformEdge ? 1.7 : 1.3,
+        opacity: executing ? 1 : corridorActive ? 1 : clusterActive ? 0.86 : active ? 0.98 : platformEdge ? 0.62 : 0.42,
       },
     };
     });
-  }, [clusterActivation, executionEdgeIds, nodes, selectedId]);
+  }, [clusterActivation, corridorEdgeIds, executionEdgeIds, nodes, selectedId]);
 
   const recordAction = (action: string) => {
     setActivity((items) => [`${action}: ${selected.data.label}`, ...items].slice(0, 5));
@@ -584,14 +609,17 @@ const KnowledgeGraphOS: React.FC = () => {
 
     switch (request.action) {
       case 'select':
+        setSecondaryClusterId(null);
         setSelectedId(nodeId);
         setActivity((items) => [`${request.source.toUpperCase()} · selected ${node.data.label}`, ...items].slice(0, 5));
         break;
       case 'open':
+        setSecondaryClusterId(null);
         setSelectedId(nodeId);
         navigate(node.data.route);
         break;
       case 'trace':
+        setSecondaryClusterId(null);
         setSelectedId(nodeId);
         startExecutionPreview(nodeId);
         break;
@@ -607,10 +635,15 @@ const KnowledgeGraphOS: React.FC = () => {
         setSelectedId(nodeId);
         setActivity((items) => [`${request.source.toUpperCase()} · monitoring ${node.data.label}`, ...items].slice(0, 5));
         break;
-      case 'connect':
+      case 'connect': {
         setSelectedId(nodeId);
+        const targetNodeId = resolveNodeId(request.targetNodeId);
+        if (request.targetNodeId && majorClusterNodeIds.has(targetNodeId) && targetNodeId !== nodeId) {
+          setSecondaryClusterId(targetNodeId);
+        }
         setActivity((items) => [`${request.source.toUpperCase()} · connection request staged for approval`, ...items].slice(0, 5));
         break;
+      }
       case 'expand':
         setSelectedId(nodeId);
         setKind('all');
@@ -654,6 +687,7 @@ const KnowledgeGraphOS: React.FC = () => {
       case 'stop':
         setExecutionPath([]);
         setExecutionStep(-1);
+        setSecondaryClusterId(null);
         setVoiceCorrelationId(null);
         setActivity((items) => [`${request.source.toUpperCase()} · graph execution view stopped`, ...items].slice(0, 5));
         break;
@@ -734,7 +768,15 @@ const KnowledgeGraphOS: React.FC = () => {
                 nodes={nodes}
                 edges={edges}
                 nodeTypes={nodeTypes}
-                onNodeClick={(_, node) => setSelectedId(node.id)}
+                onNodeClick={(event, node) => {
+                  if ((event.shiftKey || event.ctrlKey || event.metaKey) && majorClusterNodeIds.has(node.id) && node.id !== selectedId) {
+                    setSecondaryClusterId(node.id);
+                    setActivity((items) => [`MULTI · corridor target: ${node.data.label}`, ...items].slice(0, 5));
+                  } else {
+                    setSelectedId(node.id);
+                    setSecondaryClusterId(null);
+                  }
+                }}
                 fitView
                 fitViewOptions={{ padding: 0.16 }}
                 minZoom={0.45}
@@ -845,7 +887,7 @@ const KnowledgeGraphOS: React.FC = () => {
               <h2 className="text-sm font-bold text-white">Voice command layer</h2>
             </div>
             <p className="mt-2 text-xs leading-5 text-stone-400">
-              Speak naturally to Hermes. Voice and clicks share the same governed execution boundary.
+              Speak naturally to Hermes. Voice and clicks share the same governed execution boundary. Shift/Ctrl/⌘-click a second major node to reveal a shared corridor.
             </p>
             <div className="mt-4 space-y-2 text-[11px] text-stone-400">
               {[
@@ -941,6 +983,43 @@ const KnowledgeGraphOS: React.FC = () => {
               Open canonical surface <ChevronRight className="h-4 w-4" />
             </Link>
           </section>
+
+
+          {multiClusterCorridor && (
+            <section className="border border-amber-300/30 bg-[#15130d] p-5 shadow-[inset_3px_0_0_rgba(254,243,199,.8),0_12px_28px_rgba(0,0,0,.24)]">
+              <div className="flex items-center gap-2">
+                <Network className="h-4 w-4 text-amber-100" />
+                <h2 className="text-sm font-bold text-white">Multi-cluster corridor</h2>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-stone-400">
+                Shared route between the two active clusters. Hermes coordinates the corridor without merging their governance boundaries.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {multiClusterCorridor.nodeIds.map((id, index) => {
+                  const node = initialNodes.find((item) => item.id === id);
+                  return (
+                    <React.Fragment key={id}>
+                      {index > 0 && <span className="self-center text-amber-300/50">→</span>}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(id)}
+                        className="border border-amber-300/25 bg-amber-200/[0.06] px-2 py-1 text-[10px] font-semibold text-amber-100"
+                      >
+                        {node?.data.label ?? id}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSecondaryClusterId(null)}
+                className="mt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500 hover:text-white"
+              >
+                Clear second cluster
+              </button>
+            </section>
+          )}
 
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
