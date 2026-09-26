@@ -17,6 +17,7 @@ import httpx
 
 from backend.ai_films.assembly_qa_worker import _sign_master
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient, _now
+from backend.ai_films.generation_lifecycle import provider_cost_metadata
 
 
 class OpenAIVideoWorkerError(RuntimeError):
@@ -198,18 +199,37 @@ async def process_openai_video_job(job: Mapping[str, Any], db: SupabaseAssemblyC
         object_path = f"{job['project_id']}/generated/{job['id']}/{shot_id}.mp4"
         stored = await db.upload_master(master, object_path)
 
+    provider_model = completed.get("model") or created.get("model") or client.model
+    provider_seconds = completed.get("seconds") or seconds
+    provider_size = completed.get("size") or "1280x720"
     asset_payload = {
         "project_id": job["project_id"], "owner_id": job["owner_id"], "asset_type": "video",
         "title": f"{shot_id} — generated", "description": "AI Films generated shot awaiting TwelveLabs/Jockey canon QA.",
         "storage_path": object_path, "source_filename": f"{shot_id}.mp4", "category": "generated", "subcategory": "shot",
         "status": "selected", "version": 1, "tags": ["ai-films", "generated", shot_id, "openai"],
-        "metadata": {"source_type": "generated", "provider": "openai", "provider_video_id": provider_job_id, "provider_model": completed.get("model") or client.model, "shot_id": shot_id, "render_job_id": str(job["id"]), "storage_bucket": db.bucket, "storage_object_path": object_path, "input_reference_asset_id": reference_id, "qa_state": "pending_generated_qa"},
+        "metadata": {"source_type": "generated", "provider": "openai", "provider_video_id": provider_job_id, "provider_model": provider_model, "shot_id": shot_id, "render_job_id": str(job["id"]), "storage_bucket": db.bucket, "storage_object_path": object_path, "input_reference_asset_id": reference_id, "qa_state": "pending_generated_qa"},
         "checksum": stored.get("sha256"),
     }
     assets = await db._request("POST", "ai_film_assets", payload=asset_payload, representation=True)
     asset_id = str(assets[0]["id"]) if assets else ""
-    output = {**stored, "provider_job_id": provider_job_id, "provider_model": completed.get("model") or client.model, "provider_status": "completed", "input_reference_asset_id": reference_id, "generated_asset_id": asset_id, "shot_id": shot_id, "seconds": completed.get("seconds") or seconds, "size": completed.get("size") or "1280x720", "qa": {"state": "pending_generated_qa"}}
-    await db.update_job(str(job["id"]), {"status": "completed", "progress": 100, "completed_at": _now(), "output": output})
+    output = {**stored, "provider_job_id": provider_job_id, "provider_model": provider_model, "provider_status": "completed", "input_reference_asset_id": reference_id, "generated_asset_id": asset_id, "shot_id": shot_id, "seconds": provider_seconds, "size": provider_size, "qa": {"state": "pending_generated_qa"}}
+    lifecycle = {
+        "status": "completed",
+        "progress": 100,
+        "completed_at": _now(),
+        "output": output,
+        "result_asset_id": asset_id or None,
+        "result_storage_path": object_path,
+        "cost_metadata": provider_cost_metadata(
+            created,
+            completed,
+            provider="openai",
+            model=str(provider_model) if provider_model else None,
+            seconds=provider_seconds,
+            size=provider_size,
+        ),
+    }
+    await db.update_job(str(job["id"]), lifecycle)
     return output
 
 

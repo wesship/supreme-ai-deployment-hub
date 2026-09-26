@@ -40,9 +40,9 @@ export const brandForgeWorkflowStages: BrandForgeWorkflowStage[] = [
     id: 'visual-generation',
     name: 'Visual Generation',
     ownerAgent: 'Nano Banana Visual Agent',
-    description: 'Generates branded hero visuals, social images, thumbnails, product mockups, and image transitions based on approved creative direction.',
-    inputs: ['approved creative direction', 'logo assets', 'style constraints'],
-    outputs: ['hero visuals', 'brand graphics', 'thumbnail concepts', 'image prompt history']
+    description: 'Compiles approved brand intent through D3VONN Visual Prompt Intelligence, then generates branded hero visuals, social images, thumbnails, product mockups, and image transitions with provider-neutral prompt provenance.',
+    inputs: ['approved creative direction', 'logo assets', 'style constraints', 'visual style id or search intent'],
+    outputs: ['compiled visual prompt', 'visual compiler metadata', 'hero visuals', 'brand graphics', 'thumbnail concepts', 'image prompt history']
   },
   {
     id: 'motion-generation',
@@ -93,7 +93,8 @@ Workflow:
 - Crawl approved brand URLs with Firecrawl-style extraction
 - Build a structured brand kit with voice, colors, typography direction, CTAs, offers, and proof points
 - Generate visual directions for Claude Code and image/video models
-- Generate hero visuals, thumbnails, and branded imagery
+- Compile approved image intent through D3VONN Visual Prompt Intelligence
+- Generate hero visuals, thumbnails, and branded imagery with prompt provenance
 - Build or improve responsive React landing pages
 - Use OpenMontage for motion/video assets
 - Create GitHub PRs and Vercel preview deployments after approval`,
@@ -102,14 +103,14 @@ Workflow:
     pricing: { model: 'subscription', amount: 199, currency: 'USD', interval: 'monthly' },
     author: { id: 'devonn', name: 'D3VONN.IO', verified: true, agentCount: 14 },
     status: 'published',
-    version: '1.0.0',
+    version: '1.1.0',
     icon: '🏗️',
-    tags: ['brandforge', 'firecrawl', 'claude-code', 'nano-banana', 'openmontage', 'vercel', 'github', 'landing-page'],
+    tags: ['brandforge', 'visual-intelligence', 'firecrawl', 'claude-code', 'nano-banana', 'openmontage', 'vercel', 'github', 'landing-page'],
     requirements: ['Approved source URLs', 'Brand asset usage rights', 'GitHub repository access', 'Vercel project access'],
-    integrations: ['Firecrawl', 'Claude Code', 'Nano Banana', 'OpenMontage', 'GitHub', 'Vercel', 'Figma'],
-    stats: { downloads: 0, activeInstalls: 0, avgRating: 5.0, reviewCount: 0, lastUpdated: '2026-06-26' },
+    integrations: ['D3VONN Visual Prompt Intelligence', 'Firecrawl', 'Claude Code', 'Nano Banana', 'OpenMontage', 'GitHub', 'Vercel', 'Figma'],
+    stats: { downloads: 0, activeInstalls: 0, avgRating: 5.0, reviewCount: 0, lastUpdated: '2026-09-12' },
     createdAt: '2026-06-26',
-    updatedAt: '2026-06-26',
+    updatedAt: '2026-09-12',
     featured: true
   },
   {
@@ -142,7 +143,8 @@ export const brandForgeSummary = {
   guardrails: [
     'Do not scrape or reuse brand assets without authorization.',
     'Require human approval before creative direction, video rendering, and production deployment.',
-    'Store prompt history and generated asset provenance for brand safety.',
+    'Compile approved image intent through D3VONN Visual Prompt Intelligence before provider execution.',
+    'Store original prompt, compiled prompt, visual style id, compiler metadata, and generated asset provenance for brand safety.',
     'Run accessibility, SEO, responsive layout, and link QA before deployment.',
     'Keep generated websites from becoming generic by requiring positioning and visual direction before code generation.'
   ]

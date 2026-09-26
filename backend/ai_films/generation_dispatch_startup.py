@@ -12,6 +12,7 @@ from typing import Any, Mapping
 
 from backend.ai_films.assembly_worker import SupabaseAssemblyClient
 from backend.ai_films.generation_dispatcher import dispatch_plan
+from backend.ai_films.provider_performance import summarize_provider_performance
 from backend.ai_films.production_bible import ProductionBible, ShotManifest
 
 PROJECT_ID = "b2979e7c-1d28-4024-bf4f-8db90c174d5a"
@@ -39,6 +40,55 @@ def _review_decisions(metadata: Mapping[str, Any]) -> dict[str, str]:
     return out
 
 
+def _visual_context(packet: Mapping[str, Any], *, selected_model: str | None) -> dict[str, Any]:
+    visual = packet.get("visual_intelligence")
+    visual_data = dict(visual) if isinstance(visual, Mapping) else {}
+    return {
+        "original_prompt": packet.get("original_generation_prompt"),
+        "compiled_prompt": packet.get("generation_prompt"),
+        "negative_prompt": packet.get("negative_prompt"),
+        "style_id": visual_data.get("style_id"),
+        "style_source": visual_data.get("source"),
+        "compiler": visual_data.get("compiler"),
+        "compiler_metadata": visual_data.get("metadata") or {},
+        "warnings": visual_data.get("warnings") or [],
+        "selected_model": selected_model,
+        "packet_schema": packet.get("schema"),
+    }
+
+
+def _routing_decision_snapshot(
+    plan: Mapping[str, Any],
+    packet: Mapping[str, Any],
+    *,
+    decided_at: str,
+) -> dict[str, Any]:
+    """Capture the exact secret-free route evidence used when a job is queued."""
+    routes = plan.get("routes") if isinstance(plan.get("routes"), list) else []
+    route_rows = [dict(route) for route in routes if isinstance(route, Mapping)]
+    selected_provider = str(plan.get("selected_provider") or "").strip() or None
+    selected = next(
+        (route for route in route_rows if route.get("provider") == selected_provider),
+        None,
+    )
+    visual = packet.get("visual_intelligence")
+    visual_data = dict(visual) if isinstance(visual, Mapping) else {}
+    return {
+        "schema": "d3vonn.ai-films.routing-decision/v1",
+        "decided_at": decided_at,
+        "decision": plan.get("reason"),
+        "selected_provider": selected_provider,
+        "selected_model": plan.get("selected_model"),
+        "selected_route": selected,
+        "ranked_routes": route_rows,
+        "style_evidence": {
+            "style_id": visual_data.get("style_id"),
+            "style_source": visual_data.get("source"),
+        },
+        "dispatcher": "multimodel-v1",
+    }
+
+
 async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     source = environ or os.environ
     if str(source.get("RAILWAY_ENVIRONMENT_NAME", "")).strip().lower() != "production":
@@ -58,6 +108,19 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
     if not manifests or not bibles:
         return {"status": "skipped", "reason": "missing_active_bible_or_manifest"}
 
+    performance_rows = await db._request(
+        "GET", "ai_film_render_jobs",
+        params={
+            "project_id": f"eq.{PROJECT_ID}",
+            "job_type": "eq.video",
+            "status": "eq.completed",
+            "select": "provider,quality_metadata,visual_context,completed_at",
+            "order": "completed_at.desc",
+            "limit": "200",
+        },
+    )
+    performance = summarize_provider_performance(performance_rows)
+
     row = manifests[0]
     manifest_data = dict(row.get("manifest") or {})
     metadata = dict(manifest_data.get("metadata") or {})
@@ -73,6 +136,7 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
             shot, bible,
             conform_decision=decisions.get(shot.shot_id, "manual_review"),
             environ=source,
+            performance=performance,
         )
 
     execution_enabled = _enabled(source, "AI_FILM_GENERATION_EXECUTION_ENABLED", "false")
@@ -90,6 +154,15 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
         for shot_id, plan in plans.items():
             if plan.get("action") != "queue" or shot_id in existing_shots:
                 continue
+            packet = plan.get("generation_packet")
+            packet_data = dict(packet) if isinstance(packet, Mapping) else {}
+            selected_model = plan.get("selected_model")
+            decided_at = _now()
+            routing_decision = _routing_decision_snapshot(
+                plan,
+                packet_data,
+                decided_at=decided_at,
+            )
             payload = {
                 "project_id": PROJECT_ID,
                 "owner_id": row.get("owner_id"),
@@ -100,11 +173,16 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
                 "progress": 0,
                 "input": {
                     "shot_id": shot_id,
-                    "generation_packet": plan.get("generation_packet"),
-                    "selected_model": plan.get("selected_model"),
+                    "generation_packet": packet_data,
+                    "selected_model": selected_model,
                     "dispatcher": "multimodel-v1",
+                    "routing_decision": routing_decision,
                 },
                 "output": {},
+                "visual_context": _visual_context(packet_data, selected_model=selected_model),
+                "cost_metadata": {},
+                "quality_metadata": {},
+                "source_subsystem": "ai_films",
             }
             created = await db._request("POST", "ai_film_render_jobs", payload=payload, representation=True)
             if created:
@@ -115,6 +193,7 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
         "generation_dispatch_completed_at": _now(),
         "generation_execution_enabled": execution_enabled,
         "generation_dispatch_plans": plans,
+        "generation_provider_performance": performance,
         "generation_queued_job_ids": queued_job_ids,
     })
     manifest_data["metadata"] = metadata
@@ -126,6 +205,7 @@ async def plan_generation_on_startup(environ: Mapping[str, str] | None = None) -
     return {
         "status": "completed",
         "execution_enabled": execution_enabled,
+        "provider_performance": performance,
         "generate_shots": [sid for sid, p in plans.items() if p.get("action") in {"queue", "blocked"}],
         "queued_job_ids": queued_job_ids,
     }
