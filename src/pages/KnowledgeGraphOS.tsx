@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css';
 import '@/styles/knowledge-graph-effects.css';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
 import { useHermesEvents, type HermesStreamEvent } from '@/features/knowledge-graph/hooks/useHermesEvents';
+import { deriveLiveExecutionPanels } from '@/features/knowledge-graph/lib/livePanels';
 import {
   Activity,
   Bot,
@@ -29,6 +30,11 @@ import {
   Radio,
   Search,
   Mic,
+  Server,
+  Users,
+  Gauge,
+  Coins,
+  Clock3,
   ShieldCheck,
   Sparkles,
   Workflow,
@@ -322,6 +328,10 @@ const KnowledgeGraphOS: React.FC = () => {
   const [voiceCorrelationId, setVoiceCorrelationId] = useState<string | null>(null);
   const liveCorrelationId = voiceCorrelationId || routeCorrelationId;
   const { events: liveEvents, state: liveStreamState, error: liveStreamError } = useHermesEvents(liveCorrelationId);
+  const livePanels = useMemo(
+    () => deriveLiveExecutionPanels(liveEvents, liveStreamState),
+    [liveEvents, liveStreamState],
+  );
   const [selectedId, setSelectedId] = useState('hermes');
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<NodeKind | 'all'>('all');
@@ -545,6 +555,42 @@ const KnowledgeGraphOS: React.FC = () => {
               <ConversationalVoiceControls context={voiceContext} onExecutionStarted={setVoiceCorrelationId} />
             </div>
           </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Gauge className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">System status</h2>
+              </div>
+              <span className={`border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                livePanels.status === 'failed'
+                  ? 'border-red-400/30 bg-red-500/[0.08] text-red-200'
+                  : livePanels.status === 'complete'
+                    ? 'border-emerald-300/25 bg-emerald-300/[0.06] text-emerald-200'
+                    : livePanels.status === 'running'
+                      ? 'border-amber-300/25 bg-amber-300/[0.06] text-amber-100'
+                      : 'border-[#34332f] bg-[#0c0c0a] text-stone-400'
+              }`}>
+                {livePanels.status}
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="border border-[#2d2c28] bg-[#0c0c0a] p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Events</p>
+                <p className="mt-1 text-lg font-black text-white">{liveEvents.length}</p>
+              </div>
+              <div className="border border-[#2d2c28] bg-[#0c0c0a] p-3">
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Current stage</p>
+                <p className="mt-1 truncate text-xs font-bold text-white">
+                  {executionPath.length ? initialNodes.find((node) => node.id === executionPath[executionPath.length - 1])?.data.label ?? 'Hermes' : 'Standby'}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-[10px] text-stone-600">
+              {livePanels.asOf ? `As of ${new Date(livePanels.asOf).toLocaleTimeString()}` : 'No live execution timestamp reported'}
+            </p>
+          </section>
+
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -638,12 +684,23 @@ const KnowledgeGraphOS: React.FC = () => {
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Radio className="h-4 w-4 text-stone-400" />
-              <h2 className="text-sm font-bold text-white">Session activity</h2>
+              <h2 className="text-sm font-bold text-white">Recent activity</h2>
             </div>
             <div className="mt-3 space-y-2">
-              {activity.map((item, index) => (
-                <div key={`${item}-${index}`} className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px] leading-5 text-stone-500">
-                  {item}
+              {(livePanels.latestActivity.length ? livePanels.latestActivity : activity.map((message, index) => ({
+                id: `preview-${index}`,
+                type: 'preview',
+                message,
+                level: 'info',
+              }))).map((item) => (
+                <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px] leading-5 text-stone-500">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-semibold text-stone-300">{item.type}</span>
+                    {'timestamp' in item && item.timestamp ? (
+                      <span className="text-[9px] text-stone-600">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1">{item.message || item.type}</p>
                 </div>
               ))}
             </div>
@@ -652,19 +709,83 @@ const KnowledgeGraphOS: React.FC = () => {
       </div>
 
       <div className="mx-auto max-w-[1600px] px-5 pb-8 lg:px-8">
-        <div className="grid gap-3 border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)] sm:grid-cols-3">
-          <div className="flex items-start gap-3">
-            <Workflow className="mt-0.5 h-4 w-4 text-amber-200" />
-            <div><p className="text-xs font-bold text-white">Traceable execution</p><p className="mt-1 text-[11px] leading-5 text-stone-500">Relationships make the path from intent to result inspectable.</p></div>
-          </div>
-          <div className="flex items-start gap-3">
-            <Film className="mt-0.5 h-4 w-4 text-amber-200" />
-            <div><p className="text-xs font-bold text-white">Cross-product intelligence</p><p className="mt-1 text-[11px] leading-5 text-stone-500">Products can share governed capabilities without collapsing their boundaries.</p></div>
-          </div>
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 h-4 w-4 text-amber-200" />
-            <div><p className="text-xs font-bold text-white">Human-governed actions</p><p className="mt-1 text-[11px] leading-5 text-stone-500">Discovery can be automatic; consequential mutations stay behind policy and approval gates.</p></div>
-          </div>
+        <div className="grid gap-4 lg:grid-cols-4">
+          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+            <div className="flex items-center gap-2">
+              <Workflow className="h-4 w-4 text-amber-200" />
+              <h2 className="text-sm font-bold text-white">Execution flow</h2>
+            </div>
+            <div className="mt-4 space-y-2">
+              {(executionPath.length ? executionPath : ['intent', 'hermes']).map((id, index) => {
+                const node = initialNodes.find((item) => item.id === id);
+                const complete = index <= executionStep;
+                return (
+                  <div key={id} className="flex items-center gap-2 text-[11px]">
+                    <span className={`h-2 w-2 rounded-full ${complete ? 'bg-amber-200 shadow-[0_0_8px_rgba(252,211,77,.5)]' : 'bg-stone-700'}`} />
+                    <span className={complete ? 'text-stone-200' : 'text-stone-600'}>{node?.data.label ?? id}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-amber-200" />
+              <h2 className="text-sm font-bold text-white">Top agents</h2>
+            </div>
+            <div className="mt-4 space-y-2">
+              {livePanels.agents.length ? livePanels.agents.map((agent) => (
+                <div key={agent.name} className="border border-[#25241f] bg-[#090907] px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-xs font-semibold text-stone-200">{agent.name}</span>
+                    <span className="text-[10px] text-amber-200">{agent.events}</span>
+                  </div>
+                  <p className="mt-1 truncate text-[10px] text-stone-600">{agent.lastEvent}</p>
+                </div>
+              )) : (
+                <p className="text-[11px] leading-5 text-stone-600">No agent identity has been reported by this execution.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+            <div className="flex items-center gap-2">
+              <Server className="h-4 w-4 text-amber-200" />
+              <h2 className="text-sm font-bold text-white">Infrastructure</h2>
+            </div>
+            <div className="mt-4 space-y-2">
+              {livePanels.infrastructure.length ? livePanels.infrastructure.map((item) => (
+                <div key={item.name} className="flex items-center justify-between border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px]">
+                  <span className="text-stone-300">{item.name}</span>
+                  <span className="text-emerald-200">{item.state}</span>
+                </div>
+              )) : (
+                <p className="text-[11px] leading-5 text-stone-600">No infrastructure dependency has been reported by this execution.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
+            <div className="flex items-center gap-2">
+              <Coins className="h-4 w-4 text-amber-200" />
+              <h2 className="text-sm font-bold text-white">Cost & usage</h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              <div className="border border-[#25241f] bg-[#090907] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-[0.14em] text-stone-600">Cost</p>
+                <p className="mt-1 text-sm font-bold text-white">{livePanels.costUsd === null ? 'Not reported' : `${livePanels.costUsd.toFixed(4)}`}</p>
+              </div>
+              <div className="border border-[#25241f] bg-[#090907] px-3 py-2">
+                <p className="text-[9px] uppercase tracking-[0.14em] text-stone-600">Tokens</p>
+                <p className="mt-1 text-sm font-bold text-white">{livePanels.tokensUsed === null ? 'Not reported' : livePanels.tokensUsed.toLocaleString()}</p>
+              </div>
+              <div className="border border-[#25241f] bg-[#090907] px-3 py-2">
+                <p className="flex items-center gap-1 text-[9px] uppercase tracking-[0.14em] text-stone-600"><Clock3 className="h-3 w-3" /> Runtime</p>
+                <p className="mt-1 text-sm font-bold text-white">{livePanels.durationMs === null ? 'Not reported' : `${(livePanels.durationMs / 1000).toFixed(2)}s`}</p>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
