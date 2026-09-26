@@ -99,21 +99,6 @@ export const depthVisualConfig = (
   };
 };
 
-const runtimeTint = (state: DepthState): [number, number, number] => {
-  switch (state) {
-    case 'complete':
-      return [0.74, 0.95, 0.78];
-    case 'failed':
-      return [0.96, 0.43, 0.42];
-    case 'connecting':
-      return [1.0, 0.82, 0.42];
-    case 'running':
-      return [1.0, 0.9, 0.64];
-    default:
-      return [0.96, 0.72, 0.28];
-  }
-};
-
 const compileShader = (
   gl: WebGLRenderingContext,
   type: number,
