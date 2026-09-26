@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "certification_state": "RESEARCH_REVIEW_REQUIRED",
+  "trading_enabled": false,
+  "research_only": true,
+  "data": {
+    "provider": null,
+    "license_verified": false,
+    "snapshot_id": null,
+    "snapshot_sha256": null,
+    "corporate_actions_normalized": false,
+    "survivorship_controls_verified": false,
+    "point_in_time_controls_verified": false,
+    "timestamp_validation_verified": false
+  },
+  "execution_model": {
+    "spread_verified": false,
+    "slippage_verified": false,
+    "commissions_verified": false,
+    "partial_fills_verified": false,
+    "liquidity_verified": false,
+    "market_hours_verified": false,
+    "independent_review": null
+  },
+  "validation": {
+    "lookahead_tests_passed": false,
+    "train_validation_test_separation_verified": false,
+    "parameter_sensitivity_verified": false,
+    "transaction_cost_sensitivity_verified": false,
+    "monte_carlo_variants_verified": false,
+    "independent_regression_fixtures_passed": false
+  },
+  "manifest": {
+    "strategy_sha256": null,
+    "engine_version": null,
+    "code_commit": null,
+    "configuration_sha256": null,
+    "result_sha256": null,
+    "random_seeds": [],
+    "run_started_at": null,
+    "run_completed_at": null
+  },
+  "approvals": {
+    "research_reviewer": null,
+    "security_reviewer": null,
+    "production_owner": null
+  }
+}
