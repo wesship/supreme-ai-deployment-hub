@@ -35,12 +35,13 @@ export default function OAuthConsent() {
         setError(error.message);
         return;
       }
-      const immediate = data?.redirect_url ?? data?.redirect_to;
-      if (immediate && !data?.client) {
+      const details = data as unknown as AuthorizationDetails | null;
+      const immediate = details?.redirect_url ?? details?.redirect_to;
+      if (immediate && !details?.client) {
         window.location.href = immediate;
         return;
       }
-      setDetails(data as AuthorizationDetails);
+      setDetails(details);
     })();
     return () => {
       active = false;
