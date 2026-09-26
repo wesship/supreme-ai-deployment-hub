@@ -114,6 +114,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.hermes.proactivity_router", "router", None),
     ("backend.hnf.router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),
+    ("backend.intelligence.worldmonitor.router", "router", None),
     ("backend.rag.router", "router", None),
     ("backend.knowledge.router", "router", None),
     ("backend.research_os.router", "router", None),
