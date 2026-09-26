@@ -4,6 +4,10 @@ import Vapi from '@vapi-ai/web';
 import { toast } from 'sonner';
 import { getVapiAssistantId, getVapiPublicKey } from '@/config/voice';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  normalizeGraphActionRequest,
+  type D3GraphActionRequest,
+} from '@/features/knowledge-graph/lib/graphActions';
 
 export interface VoiceUiContext {
   surface?: string;
@@ -19,6 +23,7 @@ interface ConversationalVoiceControlsProps {
   disabled?: boolean;
   context?: VoiceUiContext;
   onExecutionStarted?: (correlationId: string) => void;
+  onGraphAction?: (action: D3GraphActionRequest) => void;
 }
 
 type InlineVapiAssistant = Record<string, unknown>;
@@ -90,6 +95,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
   disabled = false,
   context,
   onExecutionStarted,
+  onGraphAction,
 }) => {
   const vapiPublicKey = getVapiPublicKey();
   const vapiAssistantId = getVapiAssistantId();
@@ -157,6 +163,42 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
     [stopExecutionPolling],
   );
 
+
+  const handleVapiMessage = useCallback((message: unknown) => {
+    if (!message || typeof message !== 'object') return;
+    const root = message as Record<string, unknown>;
+    const nested =
+      root.message && typeof root.message === 'object'
+        ? (root.message as Record<string, unknown>)
+        : root;
+
+    const rawCalls = Array.isArray(nested.toolCallList)
+      ? nested.toolCallList
+      : Array.isArray(nested.toolWithToolCallList)
+        ? nested.toolWithToolCallList
+        : [];
+
+    for (const rawCall of rawCalls) {
+      if (!rawCall || typeof rawCall !== 'object') continue;
+      const call = rawCall as Record<string, unknown>;
+      const wrapped =
+        call.toolCall && typeof call.toolCall === 'object'
+          ? (call.toolCall as Record<string, unknown>)
+          : call;
+      const name = String(call.name ?? wrapped.name ?? '');
+      if (name !== 'graph_action') continue;
+
+      const parameters =
+        wrapped.parameters && typeof wrapped.parameters === 'object'
+          ? wrapped.parameters
+          : call.parameters && typeof call.parameters === 'object'
+            ? call.parameters
+            : null;
+      const action = normalizeGraphActionRequest(parameters, 'voice');
+      if (action) onGraphAction?.(action);
+    }
+  }, [onGraphAction]);
+
   const ensureVapi = useCallback((): Vapi => {
     if (!vapiPublicKey) {
       throw new Error('Voice is not configured. Set VITE_VAPI_PUBLIC_KEY in the Vercel production environment.');
@@ -179,6 +221,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
     });
     instance.on('speech-start', () => setSpeaking(true));
     instance.on('speech-end', () => setSpeaking(false));
+    instance.on('message', handleVapiMessage);
     instance.on('call-start-failed', (event) => {
       stopExecutionPolling();
       setConnected(false);
@@ -196,7 +239,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
 
     vapiRef.current = instance;
     return instance;
-  }, [stopExecutionPolling, vapiPublicKey]);
+  }, [handleVapiMessage, stopExecutionPolling, vapiPublicKey]);
 
   const start = useCallback(async () => {
     setConnecting(true);
