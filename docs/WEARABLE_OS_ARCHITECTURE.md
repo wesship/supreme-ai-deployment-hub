@@ -8,7 +8,7 @@ D3VONN Wearable OS is the vendor-neutral intelligence layer for AI glasses and o
 
 ```text
 Wearable Device
-  -> Vendor Adapter (Meta DAT / VisionClaw / future SDKs)
+  -> Vendor Adapter (Meta DAT / VisionClaw / XREAL host bridge / future SDKs)
   -> Wearable Gateway
   -> Event Normalizer
   -> D3VONN Coordinator
@@ -69,6 +69,10 @@ Examples requiring approval by default:
 ## Meta/VisionClaw strategy
 
 Meta DAT and VisionClaw are adapters, not the core product. The first production target is Meta-compatible camera/audio wearables, followed by display-capable glasses and additional vendors. VisionClaw may provide multimodal ingress and agent handoff while D3VONN owns policy, routing, memory, audit, and action governance.
+
+## XREAL spatial-display strategy
+
+XREAL is treated as a display-first adapter behind a host bridge. D3VONN sends canonical HUD actions such as `display.hud.render` through the host integration rather than coupling Hermes to a vendor SDK. Camera or spatial-tracking capabilities are enabled only when the exact hardware, accessory, host, and SDK combination has been validated. The staged implementation is documented in `docs/wearables/XREAL_ONE.md`.
 
 ## End-to-end success criteria
 
