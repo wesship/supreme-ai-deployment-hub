@@ -153,6 +153,30 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The homepage ships its own full-width operating-system chrome (OsNav/OsFooter),
+ * so the shared app navbar is suppressed there. Every other route is unchanged.
+ */
+function ShellChrome() {
+  const { pathname } = useLocation();
+  if (pathname === '/') return null;
+  return <Suspense fallback={null}><Navbar /></Suspense>;
+}
+
+function MainRegion({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  const isHome = pathname === '/';
+  return (
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className={`min-h-screen focus:outline-none${isHome ? '' : ' pt-16'}`}
+    >
+      {children}
+    </main>
+  );
+}
+
 function App() {
   useEffect(() => { startRumCollection(); }, []);
   return (
