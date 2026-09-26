@@ -76,6 +76,7 @@ async def railway_lifespan(app_instance):
     jockey_canary_task = assembly_worker_task = assembly_qa_task = None
     manifest_conform_task = manifest_review_task = generation_dispatch_task = None
     pollo_video_worker_task = generated_shot_qa_task = anchor_candidate_task = None
+    openmontage_coordinator_task = None
     legacy_video_route_migrator_task = None
     performance_transfer_task = performance_transfer_qa_task = None
     commerce_handoff_task = None
@@ -113,6 +114,7 @@ async def railway_lifespan(app_instance):
             try:
                 from backend.ai_films.resilient_video_worker import run_resilient_video_worker
                 from backend.ai_films.generated_shot_qa_worker_pollo import run_pollo_generated_shot_qa_worker
+                from backend.ai_films.openmontage_assembly_coordinator import run_openmontage_assembly_coordinator
                 from backend.ai_films.legacy_video_route_migrator import run_legacy_video_route_migrator
                 legacy_video_route_migrator_task = asyncio.create_task(
                     run_legacy_video_route_migrator(), name="ai-films-legacy-sora-to-pollo-migrator"
@@ -123,9 +125,13 @@ async def railway_lifespan(app_instance):
                 generated_shot_qa_task = asyncio.create_task(
                     run_pollo_generated_shot_qa_worker(), name="ai-films-generated-shot-qa-worker"
                 )
+                openmontage_coordinator_task = asyncio.create_task(
+                    run_openmontage_assembly_coordinator(), name="ai-films-openmontage-assembly-coordinator"
+                )
                 app_instance.state.ai_films_legacy_video_route_migrator_task = legacy_video_route_migrator_task
                 app_instance.state.ai_films_pollo_video_worker_task = pollo_video_worker_task
                 app_instance.state.ai_films_generated_shot_qa_task = generated_shot_qa_task
+                app_instance.state.ai_films_openmontage_coordinator_task = openmontage_coordinator_task
                 logger.info("Scheduled AI Films Pollo-primary/Replicate-fallback video execution and generated-shot QA workers.")
             except Exception as exc:
                 logger.warning("Could not schedule AI Films resilient video generation workers: %s: %s", type(exc).__name__, exc)
@@ -206,6 +212,7 @@ async def railway_lifespan(app_instance):
                 legacy_video_route_migrator_task,
                 pollo_video_worker_task,
                 generated_shot_qa_task,
+                openmontage_coordinator_task,
                 performance_transfer_task,
                 performance_transfer_qa_task,
                 commerce_handoff_task,

@@ -213,7 +213,7 @@ def build_campaign_plan(request: CampaignPlanRequest) -> dict[str, object]:
                     "selling_point": selling_point,
                     "beats": blueprint["beats"],
                     "prompt": prompt,
-                    "provider_route": {"provider": "pollo", "model": "pollo-v2-5", "fallback": "openai"},
+                    "provider_route": {"provider": "pollo", "model": "pollo-v2-5", "fallback": "replicate"},
                     "jockey_index_after_render": request.index_with_jockey,
                 })
     return {"product": request.product.name, "brand": request.brand.name, "status": "planned", "variant_count": len(variants), "credit_spend": False, "variants": variants}
@@ -224,13 +224,12 @@ async def render_commerce_campaign(
     request: CampaignRenderRequest,
     authorization: str | None = Header(default=None),
 ) -> dict[str, object]:
-    """Queue approved commerce variants on the deployed OpenAI/Sora worker.
+    """Queue approved commerce variants on the Pollo-primary production video route.
 
     This is intentionally limited to twelve variants per request: AI video
     renders consume external provider capacity, so a bounded batch preserves a
     clear approval point while still supporting practical campaign production.
-    Pollo dispatch remains available on its dedicated route when its server-side
-    entitlement and callback configuration are provisioned.
+    The same governed route preserves Replicate as the one-shot provider fallback.
     """
     await _require_user(authorization)
     queued: list[dict[str, object]] = []
@@ -242,6 +241,7 @@ async def render_commerce_campaign(
                 screenplay=variant.prompt,
                 video_prompt=variant.prompt,
                 duration_seconds=min(20, variant.duration_seconds),
+                aspect_ratio=str(PLATFORM_SPECS[variant.platform]["aspect_ratio"]),
             ),
             authorization=authorization,
         )
@@ -254,7 +254,7 @@ async def render_commerce_campaign(
                 "status": dispatch["status"],
             }
         )
-    return {"status": "queued", "provider": "openai", "job_count": len(queued), "jobs": queued}
+    return {"status": "queued", "provider": "pollo", "provider_route": ["pollo", "replicate"], "job_count": len(queued), "jobs": queued}
 
 
 @router.get("/templates")
