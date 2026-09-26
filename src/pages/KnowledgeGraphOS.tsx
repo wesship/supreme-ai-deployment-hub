@@ -13,6 +13,7 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
 import {
   Activity,
   Bot,
@@ -25,6 +26,7 @@ import {
   Play,
   Radio,
   Search,
+  Mic,
   ShieldCheck,
   Sparkles,
   Workflow,
@@ -366,6 +368,35 @@ const KnowledgeGraphOS: React.FC = () => {
         </section>
 
         <aside className="space-y-5">
+          <section className="border border-[#4b4633] bg-[#15140f] p-5 shadow-[inset_3px_0_0_#fcd34d,0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center gap-2">
+              <Mic className="h-4 w-4 text-amber-200" />
+              <h2 className="text-sm font-bold text-white">Voice command layer</h2>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-400">
+              Speak naturally to Hermes. Voice and clicks share the same governed execution boundary.
+            </p>
+            <div className="mt-4 space-y-2 text-[11px] text-stone-400">
+              {[
+                '“Hermes, show infrastructure.”',
+                '“Trace HNF Radio.”',
+                '“Open AI Films.”',
+                '“Monitor this agent.”',
+                '“Find a bridge between Academy and AI Films.”',
+              ].map((example) => (
+                <div key={example} className="border border-[#2d2c28] bg-[#0c0c0a] px-3 py-2">
+                  {example}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-between border-t border-[#2d2c28] pt-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">Production voice</p>
+                <p className="mt-1 text-xs text-stone-300">Vapi orchestration · ElevenLabs voice · Hermes tools</p>
+              </div>
+              <ConversationalVoiceControls />
+            </div>
+          </section>
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center justify-between gap-3">
               <div>
