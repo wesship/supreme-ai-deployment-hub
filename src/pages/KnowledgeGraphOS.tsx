@@ -145,6 +145,31 @@ type AdaptiveProposal = {
   severity: 'info' | 'warning' | 'critical';
 };
 
+type AdaptiveChangeRequestRow = {
+  id: string;
+  proposal_id: string;
+  category: AdaptiveProposal['category'];
+  target: string;
+  severity: AdaptiveProposal['severity'];
+  risk_classification: 'low' | 'medium' | 'high' | 'critical';
+  evidence_hash: string;
+  proposed_change: Record<string, unknown>;
+  guardrail: string;
+  rollback_plan: string;
+  status: 'pending_review' | 'approved' | 'rejected' | 'canary_queued' | 'canary_completed' | 'canary_failed';
+  review_rationale: string | null;
+  canary_task_id: string | null;
+  created_at: string;
+};
+
+type AdaptiveAuditRow = {
+  id: string;
+  change_request_id: string;
+  event_type: string;
+  event_data: Record<string, unknown>;
+  created_at: string;
+};
+
 type KnowledgeNodeData = {
   label: string;
   kind: NodeKind;
@@ -440,6 +465,10 @@ const KnowledgeGraphOS: React.FC = () => {
   const [systemHealth, setSystemHealth] = useState<SystemHealthRow[]>([]);
   const [systemHealthLoading, setSystemHealthLoading] = useState(false);
   const [systemHealthUpdatedAt, setSystemHealthUpdatedAt] = useState<Date | null>(null);
+  const [changeRequests, setChangeRequests] = useState<AdaptiveChangeRequestRow[]>([]);
+  const [changeAudit, setChangeAudit] = useState<AdaptiveAuditRow[]>([]);
+  const [reviewNote, setReviewNote] = useState('Reviewed against current evidence and rollback guardrails.');
+  const [changeBusy, setChangeBusy] = useState<string | null>(null);
   const timelineRequestRef = useRef(0);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -888,6 +917,135 @@ const KnowledgeGraphOS: React.FC = () => {
       return [...structured, ...eventFallback];
     }),
   )).slice(0, 8);
+  const proposalRuntimeDiff = (item: AdaptiveProposal): Record<string, unknown> => {
+    if (item.category === 'concurrency') {
+      return { scope: 'worker-runtime', target: item.target, env: 'HERMES_MAX_CONCURRENT_TASKS', operation: 'canary_reduce_percent', percent: 25 };
+    }
+    if (item.category === 'routing') {
+      return { scope: 'router', target: item.target, operation: 'canary_fallback', traffic_percent: 10 };
+    }
+    if (item.category === 'agent') {
+      return { scope: 'agent-profile', target: item.target, operation: 'evaluation_canary', traffic_percent: 10 };
+    }
+    if (item.category === 'tool') {
+      return { scope: 'tool-policy', target: item.target, operation: 'read_only_fallback_canary' };
+    }
+    return { scope: 'workflow-policy', target: item.target, operation: 'preflight_gate' };
+  };
+
+  const refreshAdaptiveChangeRequests = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests?limit=30`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const rows = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(typeof rows?.detail === 'string' ? rows.detail : 'Change request load failed');
+      const typedRows = (Array.isArray(rows) ? rows : []) as AdaptiveChangeRequestRow[];
+      setChangeRequests(typedRows);
+
+      if (typedRows.length) {
+        const ids = typedRows.map((row) => row.id);
+        const auditRes = await supabase
+          .from('hermes_adaptive_change_audit')
+          .select('id,change_request_id,event_type,event_data,created_at')
+          .in('change_request_id', ids)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (!auditRes.error) setChangeAudit((auditRes.data ?? []) as unknown as AdaptiveAuditRow[]);
+      } else {
+        setChangeAudit([]);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Change request load failed';
+      setActivity((items) => [`Governance ledger error: ${message}`, ...items].slice(0, 5));
+    }
+  };
+
+  useEffect(() => {
+    refreshAdaptiveChangeRequests();
+  }, []);
+
+  const stageAdaptiveProposal = async (item: AdaptiveProposal) => {
+    setChangeBusy(item.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to stage a governed change request.');
+      const rollbackPlan = `Abort the canary and retain the current production ${item.category} policy for ${item.target}; do not promote the proposed change.`;
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposal_id: item.id,
+          category: item.category,
+          target: item.target,
+          severity: item.severity,
+          evidence: {
+            reason: item.reason,
+            system_health_updated_at: systemHealthUpdatedAt?.toISOString() ?? null,
+            system_health: systemHealth,
+          },
+          proposed_change: proposalRuntimeDiff(item),
+          guardrail: item.guardrail,
+          rollback_plan: rollbackPlan,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Change request staging failed');
+      setActivity((items) => [`Governed review staged: ${item.target}`, ...items].slice(0, 5));
+      await refreshAdaptiveChangeRequests();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Change request staging failed';
+      setActivity((items) => [`Governed review blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const decideAdaptiveChange = async (requestId: string, decision: 'approved' | 'rejected') => {
+    setChangeBusy(requestId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to review a change request.');
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests/${encodeURIComponent(requestId)}/decision`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, rationale: reviewNote.trim() || 'Operator review completed.' }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : `Change request ${decision} failed`);
+      setActivity((items) => [`Change request ${decision}: ${requestId}`, ...items].slice(0, 5));
+      await refreshAdaptiveChangeRequests();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Change request review failed';
+      setActivity((items) => [`Review blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const queueAdaptiveCanary = async (requestId: string) => {
+    setChangeBusy(requestId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to queue a canary.');
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests/${encodeURIComponent(requestId)}/canary`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Canary queue failed');
+      setActivity((items) => [`Evaluation-only canary queued: ${payload.task_id ?? requestId}`, ...items].slice(0, 5));
+      await refreshAdaptiveChangeRequests();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Canary queue failed';
+      setActivity((items) => [`Canary blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
   const adaptiveProposals = useMemo<AdaptiveProposal[]>(() => {
     const proposals: AdaptiveProposal[] = [];
 
@@ -1415,12 +1573,102 @@ const KnowledgeGraphOS: React.FC = () => {
                   <p className="mt-2 border-l border-[#34332f] pl-2 text-[9px] leading-4 text-stone-600">
                     <span className="font-bold">Guardrail:</span> {item.guardrail}
                   </p>
+                  <button
+                    onClick={() => stageAdaptiveProposal(item)}
+                    disabled={changeBusy !== null || item.id === 'stable-system'}
+                    className="mt-3 w-full border border-amber-300/20 bg-amber-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Stage governed review
+                  </button>
                 </div>
               ))}
             </div>
 
             <div className="mt-3 border border-[#25241f] bg-[#0c0c0a] px-3 py-2 text-[9px] leading-4 text-stone-600">
               Recommendations are staged only. Applying routing, model, worker-concurrency, tool-fallback, or workflow-policy changes requires a separate governed action and production validation.
+            </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Governed change requests</h2>
+              </div>
+              <button onClick={refreshAdaptiveChangeRequests} className="text-[10px] font-semibold text-amber-100/70">Refresh</button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Immutable evidence snapshot → risk classification → human decision → evaluation-only canary. Approval never equals production apply.
+            </p>
+
+            <textarea
+              value={reviewNote}
+              onChange={(event) => setReviewNote(event.target.value)}
+              className="mt-3 min-h-16 w-full border border-[#2d2c28] bg-[#090907] px-3 py-2 text-[10px] text-stone-300 outline-none focus:border-amber-200/30"
+              aria-label="Change request review rationale"
+              placeholder="Reviewer rationale"
+            />
+
+            <div className="mt-3 space-y-2">
+              {changeRequests.map((request) => {
+                const auditRows = changeAudit.filter((item) => item.change_request_id === request.id).slice(0, 4);
+                return (
+                  <div key={request.id} className="border border-[#2d2c28] bg-[#090907] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-bold text-stone-200">{request.target}</p>
+                        <p className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-stone-600">{request.category} · risk {request.risk_classification}</p>
+                      </div>
+                      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-amber-200">{request.status}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-[86px_1fr] gap-2 text-[9px]">
+                      <span className="text-stone-600">Evidence</span>
+                      <span className="truncate font-mono text-stone-400" title={request.evidence_hash}>{request.evidence_hash.slice(0, 16)}…</span>
+                      <span className="text-stone-600">Diff</span>
+                      <span className="break-all text-stone-400">{JSON.stringify(request.proposed_change)}</span>
+                      <span className="text-stone-600">Rollback</span>
+                      <span className="text-stone-400">{request.rollback_plan}</span>
+                    </div>
+
+                    {request.status === 'pending_review' && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button disabled={changeBusy !== null} onClick={() => decideAdaptiveChange(request.id, 'approved')} className="border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">Approve</button>
+                        <button disabled={changeBusy !== null} onClick={() => decideAdaptiveChange(request.id, 'rejected')} className="border border-red-300/25 bg-red-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-red-200 disabled:opacity-40">Reject</button>
+                      </div>
+                    )}
+
+                    {request.status === 'approved' && (
+                      <button disabled={changeBusy !== null} onClick={() => queueAdaptiveCanary(request.id)} className="mt-3 w-full border border-amber-300/25 bg-amber-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100 disabled:opacity-40">
+                        Queue evaluation-only canary
+                      </button>
+                    )}
+
+                    {request.canary_task_id && (
+                      <button onClick={() => setLiveTask({ id: request.canary_task_id!, kind: 'adaptive.canary', title: `Canary: ${request.target}`, status: 'PENDING' })} className="mt-2 w-full border border-[#34332f] bg-[#0c0c0a] px-3 py-2 text-[10px] text-stone-400">
+                        Inspect canary task · {request.canary_task_id.slice(0, 8)}
+                      </button>
+                    )}
+
+                    {auditRows.length > 0 && (
+                      <details className="mt-3 border-t border-[#25241f] pt-2">
+                        <summary className="cursor-pointer text-[9px] font-bold uppercase tracking-[0.12em] text-stone-600">Audit trail</summary>
+                        <div className="mt-2 space-y-1">
+                          {auditRows.map((audit) => (
+                            <p key={audit.id} className="text-[9px] text-stone-600">
+                              {new Date(audit.created_at).toLocaleString()} · {audit.event_type}
+                            </p>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                );
+              })}
+              {!changeRequests.length && (
+                <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">
+                  No governed adaptive change requests staged yet.
+                </div>
+              )}
             </div>
           </section>
 
