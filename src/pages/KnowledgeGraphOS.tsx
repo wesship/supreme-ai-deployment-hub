@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Background,
   Controls,
@@ -17,6 +17,7 @@ import '@/styles/knowledge-graph-effects.css';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
 import { useHermesEvents, type HermesStreamEvent } from '@/features/knowledge-graph/hooks/useHermesEvents';
 import { deriveLiveExecutionPanels } from '@/features/knowledge-graph/lib/livePanels';
+import type { D3GraphActionRequest } from '@/features/knowledge-graph/lib/graphActions';
 import {
   Activity,
   Bot,
@@ -323,6 +324,7 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
 const nodeTypes = { knowledge: KnowledgeNode };
 
 const KnowledgeGraphOS: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const routeCorrelationId = searchParams.get('execution') || searchParams.get('correlation_id');
   const [voiceCorrelationId, setVoiceCorrelationId] = useState<string | null>(null);
@@ -436,7 +438,7 @@ const KnowledgeGraphOS: React.FC = () => {
     setActivity((items) => [`${action}: ${selected.data.label}`, ...items].slice(0, 5));
   };
 
-  const startExecutionPreview = () => {
+  const pathForNode = (nodeId: string): string[] => {
     const paths: Record<string, string[]> = {
       intent: ['intent'],
       hermes: ['intent', 'hermes'],
@@ -449,9 +451,98 @@ const KnowledgeGraphOS: React.FC = () => {
       security: ['intent', 'hermes', 'tools', 'security'],
       analytics: ['intent', 'hermes', 'knowledge', 'workflow', 'analytics'],
     };
-    const targetPath = paths[selected.id] ?? ['intent', 'hermes'];
+    return paths[nodeId] ?? ['intent', 'hermes'];
+  };
+
+  const resolveNodeId = (candidate?: string): string => {
+    if (!candidate) return selected.id;
+    const normalized = candidate.trim().toLowerCase();
+    const byId = initialNodes.find((node) => node.id.toLowerCase() === normalized);
+    if (byId) return byId.id;
+    const byLabel = initialNodes.find((node) => node.data.label.toLowerCase() === normalized);
+    return byLabel?.id ?? selected.id;
+  };
+
+  const startExecutionPreview = (nodeId = selected.id) => {
+    const targetPath = pathForNode(nodeId);
     setExecutionPath(targetPath);
     setActivity((items) => [`Execution trace started: ${targetPath.join(' → ')}`, ...items].slice(0, 5));
+  };
+
+  const executeGraphAction = (request: D3GraphActionRequest) => {
+    const nodeId = resolveNodeId(request.nodeId);
+    const node = initialNodes.find((item) => item.id === nodeId) ?? selected;
+
+    switch (request.action) {
+      case 'select':
+        setSelectedId(nodeId);
+        setActivity((items) => [`${request.source.toUpperCase()} · selected ${node.data.label}`, ...items].slice(0, 5));
+        break;
+      case 'open':
+        setSelectedId(nodeId);
+        navigate(node.data.route);
+        break;
+      case 'trace':
+        setSelectedId(nodeId);
+        startExecutionPreview(nodeId);
+        break;
+      case 'run':
+        setSelectedId(nodeId);
+        if (request.source === 'click') {
+          startExecutionPreview(nodeId);
+        } else {
+          setActivity((items) => [`VOICE · Hermes run requested for ${node.data.label}; awaiting governed execution`, ...items].slice(0, 5));
+        }
+        break;
+      case 'monitor':
+        setSelectedId(nodeId);
+        setActivity((items) => [`${request.source.toUpperCase()} · monitoring ${node.data.label}`, ...items].slice(0, 5));
+        break;
+      case 'connect':
+        setSelectedId(nodeId);
+        setActivity((items) => [`${request.source.toUpperCase()} · connection request staged for approval`, ...items].slice(0, 5));
+        break;
+      case 'expand':
+        setSelectedId(nodeId);
+        setKind('all');
+        setActivity((items) => [`${request.source.toUpperCase()} · expanded ${node.data.label} relationships`, ...items].slice(0, 5));
+        break;
+      case 'filter': {
+        const value = request.filter?.toLowerCase().trim() ?? '';
+        const aliases: Record<string, NodeKind> = {
+          agents: 'agent',
+          agent: 'agent',
+          tools: 'tool',
+          tool: 'tool',
+          mcp: 'tool',
+          memory: 'memory',
+          knowledge: 'memory',
+          products: 'product',
+          product: 'product',
+          security: 'security',
+          governance: 'security',
+          core: 'core',
+          orchestration: 'core',
+        };
+        setKind(aliases[value] ?? 'all');
+        setActivity((items) => [`VOICE · filter: ${value || 'all'}`, ...items].slice(0, 5));
+        break;
+      }
+      case 'search':
+        setQuery(request.query ?? '');
+        setActivity((items) => [`${request.source.toUpperCase()} · search: ${request.query || 'cleared'}`, ...items].slice(0, 5));
+        break;
+      case 'ask':
+        setSelectedId(nodeId);
+        setActivity((items) => [`VOICE · ask Hermes about ${node.data.label}: ${request.query || 'current context'}`, ...items].slice(0, 5));
+        break;
+      case 'stop':
+        setExecutionPath([]);
+        setExecutionStep(-1);
+        setVoiceCorrelationId(null);
+        setActivity((items) => [`${request.source.toUpperCase()} · graph execution view stopped`, ...items].slice(0, 5));
+        break;
+    }
   };
 
   return (
@@ -552,7 +643,11 @@ const KnowledgeGraphOS: React.FC = () => {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">Production voice</p>
                 <p className="mt-1 text-xs text-stone-300">Vapi orchestration · ElevenLabs voice · Hermes tools</p>
               </div>
-              <ConversationalVoiceControls context={voiceContext} onExecutionStarted={setVoiceCorrelationId} />
+              <ConversationalVoiceControls
+                context={voiceContext}
+                onExecutionStarted={setVoiceCorrelationId}
+                onGraphAction={executeGraphAction}
+              />
             </div>
           </section>
 
@@ -604,13 +699,13 @@ const KnowledgeGraphOS: React.FC = () => {
             <p className="mt-4 text-sm leading-6 text-stone-400">{selected.data.description}</p>
 
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={() => recordAction('Trace requested')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={() => executeGraphAction({ action: 'trace', nodeId: selected.id, source: 'click' })} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Eye className="h-4 w-4" /> Trace
               </button>
-              <button onClick={startExecutionPreview} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={() => executeGraphAction({ action: 'run', nodeId: selected.id, source: 'click' })} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Play className="h-4 w-4" /> Run trace
               </button>
-              <button onClick={() => recordAction('Monitor staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={() => executeGraphAction({ action: 'monitor', nodeId: selected.id, source: 'click' })} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Activity className="h-4 w-4" /> Monitor
               </button>
               <button onClick={() => recordAction('Bridge analysis staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
