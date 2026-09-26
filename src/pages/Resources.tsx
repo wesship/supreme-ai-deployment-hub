@@ -10,8 +10,8 @@ import {
   ShieldCheck,
   Store,
 } from 'lucide-react';
-import ReaddyMarketingHero from '@/components/marketing/ReaddyMarketingHero';
-import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
+import D3VONNMarketingHero from '@/components/marketing/D3VONNMarketingHero';
+import D3VONNMarketingShell from '@/components/marketing/D3VONNMarketingShell';
 
 const resources = [
   {
@@ -67,7 +67,7 @@ const Resources: React.FC = () => {
     'D3VONN.IO resources for documentation, security, status, architecture, marketplace, and enterprise AI workforce pilots.';
 
   return (
-    <ReaddyMarketingShell>
+    <D3VONNMarketingShell>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -78,7 +78,7 @@ const Resources: React.FC = () => {
       </Helmet>
 
       <div>
-        <ReaddyMarketingHero
+        <D3VONNMarketingHero
           eyebrow="Resources"
           title={
             <>
@@ -188,7 +188,7 @@ const Resources: React.FC = () => {
           </div>
         </section>
       </div>
-    </ReaddyMarketingShell>
+    </D3VONNMarketingShell>
   );
 };
 
