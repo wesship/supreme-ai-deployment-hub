@@ -70,6 +70,35 @@ void main() {
 }
 `;
 
+export const depthVisualConfig = (
+  state: DepthState,
+  active: boolean,
+  corridor: boolean,
+): { tint: [number, number, number]; intensity: number; corridor: number } => {
+  let tint: [number, number, number];
+  switch (state) {
+    case 'complete':
+      tint = [0.74, 0.95, 0.78];
+      break;
+    case 'failed':
+      tint = [0.96, 0.43, 0.42];
+      break;
+    case 'connecting':
+      tint = [1.0, 0.82, 0.42];
+      break;
+    case 'running':
+      tint = [1.0, 0.9, 0.64];
+      break;
+    default:
+      tint = [0.96, 0.72, 0.28];
+  }
+  return {
+    tint,
+    intensity: active ? 1.0 : 0.42,
+    corridor: corridor ? 1.0 : 0.0,
+  };
+};
+
 const runtimeTint = (state: DepthState): [number, number, number] => {
   switch (state) {
     case 'complete':
@@ -151,7 +180,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     const intensity = gl.getUniformLocation(program, 'u_intensity');
     const corridorUniform = gl.getUniformLocation(program, 'u_corridor');
     const tint = gl.getUniformLocation(program, 'u_tint');
-    const [r, g, b] = runtimeTint(runtimeState);
+    const visual = depthVisualConfig(runtimeState, active, corridor);
+    const [r, g, b] = visual.tint;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -169,13 +199,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     observer.observe(canvas);
     resize();
 
-    let frame = 0;
     let raf = 0;
-    let visible = document.visibilityState !== 'hidden';
-    const onVisibility = () => {
-      visible = document.visibilityState !== 'hidden';
-    };
-    document.addEventListener('visibilitychange', onVisibility);
 
     const draw = (now: number) => {
       resize();
@@ -184,13 +208,12 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       gl.useProgram(program);
       gl.uniform2f(resolution, canvas.width, canvas.height);
       gl.uniform1f(time, reducedMotion ? 0 : now / 1000);
-      gl.uniform1f(intensity, active ? 1.0 : 0.42);
-      gl.uniform1f(corridorUniform, corridor ? 1.0 : 0.0);
+      gl.uniform1f(intensity, visual.intensity);
+      gl.uniform1f(corridorUniform, visual.corridor);
       gl.uniform3f(tint, r, g, b);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      frame += 1;
-      if (!reducedMotion && visible) raf = requestAnimationFrame(draw);
+      if (!reducedMotion) raf = requestAnimationFrame(draw);
     };
 
     draw(0);
@@ -198,7 +221,6 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
-      document.removeEventListener('visibilitychange', onVisibility);
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
       gl.deleteShader(vertex);
@@ -212,6 +234,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       className="d3-webgl-depth"
       aria-hidden="true"
       data-runtime-state={runtimeState}
+      style={{ pointerEvents: 'none' }}
     />
   );
 };
