@@ -306,6 +306,7 @@ const livePathFromEvents = (events: HermesStreamEvent[], selectedId: string): st
 type CinematicEdgeData = {
   executing?: boolean;
   clusterActive?: boolean;
+  corridorActive?: boolean;
 };
 
 function CinematicEdge({
@@ -331,6 +332,7 @@ function CinematicEdge({
   const edgeData = data as CinematicEdgeData | undefined;
   const executing = Boolean(edgeData?.executing);
   const clusterActive = Boolean(edgeData?.clusterActive);
+  const corridorActive = Boolean(edgeData?.corridorActive);
 
   return (
     <g
@@ -338,17 +340,24 @@ function CinematicEdge({
         'd3-cinematic-edge',
         executing ? 'd3-cinematic-edge--executing' : '',
         clusterActive ? 'd3-cinematic-edge--cluster' : '',
+        corridorActive ? 'd3-cinematic-edge--corridor' : '',
       ].filter(Boolean).join(' ')}
     >
       <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
-      {(executing ? [0, 1, 2] : clusterActive ? [0] : []).map((index) => (
+      {(executing ? [0, 1, 2] : corridorActive ? [0, 1] : clusterActive ? [0] : []).map((index) => (
         <circle
           key={index}
           className="d3-edge-particle"
           r={index === 0 ? 3.2 : 2.2}
         >
           <animateMotion
-            dur={executing ? (index === 0 ? '1.25s' : '1.75s') : '2.4s'}
+            dur={
+              executing
+                ? (index === 0 ? '1.25s' : '1.75s')
+                : corridorActive
+                  ? (index === 0 ? '1.45s' : '2s')
+                  : '2.4s'
+            }
             begin={`${index * -0.42}s`}
             repeatCount="indefinite"
             path={edgePath}
@@ -530,13 +539,14 @@ const KnowledgeGraphOS: React.FC = () => {
         clusterActivation.primaryNodeId === node.id ? 'd3-kg-cluster-primary' : '',
         clusterActivation.sympatheticNodeIds.has(node.id) ? 'd3-kg-cluster-sympathetic' : '',
         corridorNodeIds.has(node.id) ? 'd3-kg-corridor-node' : '',
+        multiClusterCorridor && node.id === 'hermes' ? 'd3-kg-multicluster-hermes' : '',
         secondaryClusterId === node.id ? 'd3-kg-secondary-selected' : '',
       ].filter(Boolean).join(' ') || undefined,
       hidden:
         (kind !== 'all' && node.data.kind !== kind) ||
         Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
     }));
-  }, [clusterActivation, corridorNodeIds, executionNodeIds, kind, livePanels.status, query, secondaryClusterId, selectedId]);
+  }, [clusterActivation, corridorNodeIds, executionNodeIds, kind, livePanels.status, multiClusterCorridor, query, secondaryClusterId, selectedId]);
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
@@ -557,7 +567,11 @@ const KnowledgeGraphOS: React.FC = () => {
         corridorActive ? 'd3-kg-edge--corridor' : '',
       ].filter(Boolean).join(' '),
       animated: edge.source === 'hermes' || active || executing || clusterActive || corridorActive,
-      data: { executing, clusterActive: clusterActive || corridorActive },
+      data: {
+        executing,
+        clusterActive: clusterActive || corridorActive,
+        corridorActive,
+      },
       hidden: !visibleIds.has(edge.source) || !visibleIds.has(edge.target),
       style: {
         stroke: executing ? '#fef3c7' : corridorActive ? '#fff7d6' : clusterActive ? '#fcd34d' : active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
