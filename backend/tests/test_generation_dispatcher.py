@@ -66,7 +66,7 @@ def test_manual_review_never_routes_to_paid_generation():
     }
 
 
-def test_sora_alias_ranks_as_openai_when_configured():
+def test_sora_alias_ranks_as_openai_when_configured_and_certified():
     packet = {
         "provider_route": ["sora", "higgsfield"],
         "character_locks": {},
@@ -78,6 +78,7 @@ def test_sora_alias_ranks_as_openai_when_configured():
         {
             "OPENAI_API_KEY": "configured",
             "AI_FILM_EXECUTABLE_VIDEO_PROVIDERS": "openai",
+            "AI_FILM_PROVIDER_CANARY_OPENAI": "pass",
         },
     )
     assert routes[0].provider == "openai"

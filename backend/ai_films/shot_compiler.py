@@ -4,6 +4,10 @@ from __future__ import annotations
 from typing import Any
 
 from backend.ai_films.production_bible import ProductionBible, ShotManifestItem
+from backend.visual_intelligence.generation_integration import (
+    compile_for_generation,
+    resolve_visual_policy,
+)
 
 
 class CanonViolation(ValueError):
@@ -79,6 +83,19 @@ def build_generation_packet(shot: ShotManifestItem, bible: ProductionBible) -> d
         for cid in shot.characters
         if cid in character_map
     }
+    visual_policy = resolve_visual_policy(bible.generation_policy, shot_id=shot.shot_id)
+    compiled_visual = compile_for_generation(
+        shot.generation_prompt,
+        existing_negative_prompt=shot.negative_prompt,
+        policy=visual_policy,
+        metadata={
+            "project_id": bible.project_id,
+            "shot_id": shot.shot_id,
+            "bible_version": bible.version,
+        },
+    )
+    warnings.extend(compiled_visual["visual_intelligence"].get("warnings", []))
+
     return {
         "schema": "d3vonn.ai-films.generation-packet/v1",
         "project_id": bible.project_id,
@@ -88,8 +105,10 @@ def build_generation_packet(shot: ShotManifestItem, bible: ProductionBible) -> d
         "scene_id": shot.scene_id,
         "purpose": shot.purpose,
         "duration_target_seconds": shot.duration_target_seconds,
-        "generation_prompt": shot.generation_prompt,
-        "negative_prompt": shot.negative_prompt,
+        "original_generation_prompt": shot.generation_prompt,
+        "generation_prompt": compiled_visual["generation_prompt"],
+        "negative_prompt": compiled_visual["negative_prompt"],
+        "visual_intelligence": compiled_visual["visual_intelligence"],
         "anchor_frame_asset_ids": shot.anchor_frame_asset_ids,
         "character_locks": character_locks,
         "location_id": shot.location_id,
