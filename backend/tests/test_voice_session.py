@@ -420,7 +420,7 @@ def test_inline_assistant_exposes_first_class_graph_action_tool(monkeypatch):
     enum = graph_tool["function"]["parameters"]["properties"]["action"]["enum"]
     assert enum == [
         "open", "select", "trace", "run", "monitor", "connect",
-        "expand", "filter", "search", "ask", "stop",
+        "expand", "filter", "search", "ask", "stop", "view",
     ]
 
 
@@ -568,3 +568,46 @@ def test_connect_graph_action_is_paused_for_approval(monkeypatch):
     assert result["target_node_id"] == "knowledge"
     assert captured["task_type"] == "voice.graph.connect"
     assert captured["initial_status"] == "PAUSED"
+
+
+def test_voice_session_accepts_signed_view_mode(monkeypatch):
+    configure_signing(monkeypatch)
+    response = make_client().post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={
+            "context": {
+                "surface": "knowledge-graph",
+                "route": "/knowledge-graph",
+                "node_id": "hermes",
+                "node_label": "Hermes",
+                "node_kind": "core",
+                "canonical_route": "/workflows",
+                "view_mode": "list",
+            }
+        },
+    )
+    assert response.status_code == 200
+    token = parse_qs(
+        urlparse(response.json()["assistant"]["server"]["url"]).query
+    )["session"][0]
+    claims = verify_voice_session(token)
+    assert claims is not None
+    assert claims["context"]["view_mode"] == "list"
+
+
+def test_voice_session_rejects_unknown_view_mode(monkeypatch):
+    configure_signing(monkeypatch)
+    response = make_client().post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={
+            "context": {
+                "surface": "knowledge-graph",
+                "route": "/knowledge-graph",
+                "view_mode": "cinematic-chaos",
+            }
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid voice context"
