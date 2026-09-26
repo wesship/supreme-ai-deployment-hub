@@ -1,48 +1,86 @@
-"""In-process defensive rate limiter for D3VONN.IO API.
+"""Redis-backed fixed-window HTTP rate limiting.
 
-This provides a fail-safe per-instance limit. Distributed edge/Redis limits may be
-layered on top without removing this protection.
+Production and staging fail closed if the shared limiter is unavailable. Local
+and test environments may continue without Redis so developer workflows remain
+usable.
 """
 from __future__ import annotations
 
+import hashlib
+import logging
 import os
 import time
-from collections import defaultdict, deque
-from threading import Lock
 
+from redis.asyncio import Redis
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
+logger = logging.getLogger(__name__)
+
+_SKIP_PATHS = frozenset({"/health", "/health/live", "/health/ready", "/ready"})
+
+
+def _strict_environment() -> bool:
+    configured = os.getenv("ENVIRONMENT") or os.getenv("APP_ENV")
+    if configured:
+        return configured.lower() not in {"dev", "development", "local", "test", "testing"}
+    # Pytest processes without an explicit environment are test execution, not
+    # production. Explicit staging/production above still fail closed.
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    return True
+
+
+def _client_identity(request: Request) -> str:
+    authorization = request.headers.get("authorization", "")
+    if authorization.lower().startswith("bearer "):
+        digest = hashlib.sha256(authorization[7:].encode("utf-8")).hexdigest()
+        return f"token:{digest[:24]}"
+    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    host = forwarded or (request.client.host if request.client else "unknown")
+    return f"ip:{host}"
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, requests_per_minute: int | None = None):
         super().__init__(app)
-        self.limit = requests_per_minute or int(os.getenv("API_RATE_LIMIT_PER_MINUTE", "120"))
-        self._hits: dict[str, deque[float]] = defaultdict(deque)
-        self._lock = Lock()
-
-    def _key(self, request: Request) -> str:
-        forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-        client = forwarded or (request.client.host if request.client else "unknown")
-        return f"{client}:{request.url.path}"
+        configured = os.getenv("RATE_LIMIT_REQUESTS_PER_MINUTE") or os.getenv("API_RATE_LIMIT_PER_MINUTE") or "120"
+        self.limit = max(1, requests_per_minute or int(configured))
+        self.redis_url = os.getenv("REDIS_URL", "").strip()
+        self._redis: Redis | None = Redis.from_url(self.redis_url, decode_responses=True) if self.redis_url else None
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        if request.method == "OPTIONS" or request.url.path in {"/health", "/health/live", "/ready", "/health/ready"}:
+        if request.method == "OPTIONS" or request.url.path in _SKIP_PATHS:
             return await call_next(request)
 
-        now = time.monotonic()
-        cutoff = now - 60.0
-        key = self._key(request)
-        with self._lock:
-            hits = self._hits[key]
-            while hits and hits[0] < cutoff:
-                hits.popleft()
-            if len(hits) >= self.limit:
-                return JSONResponse(
-                    status_code=429,
-                    content={"detail": "rate limit exceeded"},
-                    headers={"Retry-After": "60"},
-                )
-            hits.append(now)
-        return await call_next(request)
+        if self._redis is None:
+            if _strict_environment():
+                return JSONResponse(status_code=503, content={"detail": "Rate limiter unavailable"})
+            return await call_next(request)
+
+        window = int(time.time() // 60)
+        identity = _client_identity(request)
+        key = f"d3vonn:ratelimit:{identity}:{window}"
+        try:
+            count = await self._redis.incr(key)
+            if count == 1:
+                await self._redis.expire(key, 61)
+        except Exception as exc:
+            logger.error("Rate limiter Redis failure: %s", exc)
+            if _strict_environment():
+                return JSONResponse(status_code=503, content={"detail": "Rate limiter unavailable"})
+            return await call_next(request)
+
+        if count > self.limit:
+            retry_after = 60 - int(time.time() % 60)
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded"},
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        response: Response = await call_next(request)
+        response.headers["X-RateLimit-Limit"] = str(self.limit)
+        response.headers["X-RateLimit-Remaining"] = str(max(0, self.limit - count))
+        return response
