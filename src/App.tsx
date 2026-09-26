@@ -258,7 +258,7 @@ function App() {
                 <Route path="*" element={<CanonicalPathFallback />} />
               </Routes>
             </Suspense>
-          </main>
+          </MainRegion>
           <Suspense fallback={null}><FloatingChatWidget /></Suspense>
         </DeferredProviders>
         <Suspense fallback={null}><Toaster /><Analytics /></Suspense>
