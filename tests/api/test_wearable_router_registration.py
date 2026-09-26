@@ -1,6 +1,17 @@
 from backend.api.v1.router import router
 
 
+def _collect_paths(routes):
+    paths = set()
+    for route in routes:
+        path = getattr(route, "path", None)
+        if path:
+            paths.add(path)
+        nested = getattr(route, "routes", None)
+        if nested:
+            paths.update(_collect_paths(nested))
+    return paths
+
+
 def test_wearable_ingress_is_registered_under_v1_router():
-    paths = {route.path for route in router.routes}
-    assert "/vision/events" in paths
+    assert "/vision/events" in _collect_paths(router.routes)
