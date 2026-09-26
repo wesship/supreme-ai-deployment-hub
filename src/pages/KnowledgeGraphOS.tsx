@@ -400,6 +400,7 @@ const KnowledgeGraphOS: React.FC = () => {
               />
             </label>
             <select
+              aria-label="Filter knowledge graph by node type"
               value={kind}
               onChange={(event) => setKind(event.target.value as NodeKind | 'all')}
               className="border border-[#34332f] bg-[#11110f] px-3 py-2 text-sm text-stone-200 outline-none"
