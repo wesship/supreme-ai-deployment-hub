@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Background,
   Controls,
@@ -15,6 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import '@/styles/knowledge-graph-effects.css';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
+import { useHermesEvents, type HermesStreamEvent } from '@/features/knowledge-graph/hooks/useHermesEvents';
 import {
   Activity,
   Bot,
@@ -232,6 +233,57 @@ const bridgeIdeas = [
   },
 ];
 
+
+const explicitEventNode = (event: HermesStreamEvent): string | null => {
+  const data = event.data ?? {};
+  const candidates = [
+    data.target_node_id,
+    data.targetNodeId,
+    data.source_node_id,
+    data.sourceNodeId,
+    data.node_id,
+    data.nodeId,
+  ];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && initialNodes.some((node) => node.id === candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
+const inferEventNode = (event: HermesStreamEvent, selectedId: string): string => {
+  const explicit = explicitEventNode(event);
+  if (explicit) return explicit;
+
+  const type = event.type.toLowerCase();
+  const message = event.message.toLowerCase();
+  const combined = `${type} ${message}`;
+
+  if (combined.includes('memory') || combined.includes('rag') || combined.includes('retriev')) return 'knowledge';
+  if (combined.includes('tool') || combined.includes('mcp') || combined.includes('connector')) return 'tools';
+  if (combined.includes('security') || combined.includes('verify') || combined.includes('policy')) return 'security';
+  if (combined.includes('agent') || combined.includes('dispatch') || combined.includes('worker')) return 'agents';
+  if (combined.includes('workflow') || combined.includes('plan')) return 'workflow';
+  if (combined.includes('complete') || combined.includes('result')) {
+    return ['films', 'radio', 'security', 'analytics'].includes(selectedId) ? selectedId : 'analytics';
+  }
+  if (combined.includes('task.created') || combined.includes('request')) return 'intent';
+  if (combined.includes('running') || combined.includes('start')) return 'hermes';
+  return 'hermes';
+};
+
+const livePathFromEvents = (events: HermesStreamEvent[], selectedId: string): string[] => {
+  const path: string[] = [];
+  const push = (id: string) => {
+    if (!path.includes(id)) path.push(id);
+  };
+  for (const event of events) {
+    push(inferEventNode(event, selectedId));
+  }
+  return path;
+};
+
 function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
   const Icon = kindIcon[data.kind];
   return (
@@ -265,6 +317,9 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
 const nodeTypes = { knowledge: KnowledgeNode };
 
 const KnowledgeGraphOS: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const liveCorrelationId = searchParams.get('execution') || searchParams.get('correlation_id');
+  const { events: liveEvents, state: liveStreamState, error: liveStreamError } = useHermesEvents(liveCorrelationId);
   const [selectedId, setSelectedId] = useState('hermes');
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<NodeKind | 'all'>('all');
@@ -283,7 +338,7 @@ const KnowledgeGraphOS: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!executionPath.length) return;
+    if (liveCorrelationId || !executionPath.length) return;
     setExecutionStep(0);
     const timer = window.setInterval(() => {
       setExecutionStep((step) => {
@@ -295,7 +350,21 @@ const KnowledgeGraphOS: React.FC = () => {
       });
     }, 650);
     return () => window.clearInterval(timer);
-  }, [executionPath]);
+  }, [executionPath, liveCorrelationId]);
+
+
+  useEffect(() => {
+    if (!liveCorrelationId || !liveEvents.length) return;
+    const path = livePathFromEvents(liveEvents, selectedId);
+    if (!path.length) return;
+    setExecutionPath(path);
+    setExecutionStep(path.length - 1);
+    const latest = liveEvents[liveEvents.length - 1];
+    setActivity((items) => [
+      `LIVE · ${latest.type}: ${latest.message || latest.type}`,
+      ...items.filter((item) => !item.startsWith('LIVE ·')),
+    ].slice(0, 5));
+  }, [liveCorrelationId, liveEvents, selectedId]);
 
   const executionEdgeIds = useMemo(() => {
     if (executionStep < 1) return new Set<string>();
@@ -383,7 +452,9 @@ const KnowledgeGraphOS: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <span className="border border-[#4b4633] bg-[#15140f] px-3 py-1.5 text-xs text-amber-100/75">
-              Governed UI model · adapters attach to live data
+              {liveCorrelationId
+                ? `Hermes stream · ${liveStreamState}`
+                : 'Governed graph · preview propagation available'}
             </span>
             <Link to="/command-center" className="border border-[#34332f] bg-[#0c0c0a] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-100/30 hover:text-white">
               Command Center
@@ -537,8 +608,15 @@ const KnowledgeGraphOS: React.FC = () => {
               <h2 className="text-sm font-bold text-white">Execution propagation</h2>
             </div>
             <p className="mt-2 text-xs leading-5 text-stone-500">
-              Runtime-style visualization for Hermes event propagation. Live event subscription is the next adapter step.
+              {liveCorrelationId
+                ? 'Bound to an authenticated Hermes execution. Graph state follows persisted lifecycle events.'
+                : 'Preview mode. Attach ?execution=<correlation-id> to follow a real authenticated Hermes execution.'}
             </p>
+            {liveStreamError && (
+              <div className="mt-3 border border-red-400/20 bg-red-500/[0.06] px-3 py-2 text-[11px] text-red-200">
+                {liveStreamError}
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap gap-1.5">
               {(executionPath.length ? executionPath : ['intent', 'hermes', 'agents', 'workflow', 'platform']).map((id, index) => {
                 const node = initialNodes.find((item) => item.id === id);
