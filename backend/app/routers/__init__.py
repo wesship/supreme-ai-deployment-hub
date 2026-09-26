@@ -300,6 +300,14 @@ except ImportError as exc:
     logger.warning("AI Films character router not registered: %s", exc)
 
 try:
+    from backend.app.routers.hermes_event_stream import router as hermes_event_stream_router
+
+    proxy_router.include_router(hermes_event_stream_router)
+    logger.info("Hermes authenticated event stream registered at /api/hermes/events/stream.")
+except ImportError as exc:
+    logger.warning("Hermes event stream router not registered: %s", exc)
+
+try:
     from backend.app.routers.d3vonn_events import router as d3vonn_events_router
 
     proxy_router.include_router(d3vonn_events_router, tags=["platform-events"])
