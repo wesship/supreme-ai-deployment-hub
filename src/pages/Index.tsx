@@ -44,7 +44,7 @@ import {
 } from '@/lib/homepageTelemetry';
 
 const MASTER_LOGO_SRC = '/d3vonn-logo-clean.png?v=20260801-clean';
-const ENTERPRISE_CORE_SRC = '/core-01-helmet.svg?v=20260725-core-fix';
+const ENTERPRISE_CORE_SRC = '/d3vonn-logo-clean.png?v=20260926-core-crest';
 const ENTERPRISE_CORE_FALLBACK_SRC = '/d3vonn-logo.webp?v=20260724-official';
 
 const useHomepageTelemetry = () => {
