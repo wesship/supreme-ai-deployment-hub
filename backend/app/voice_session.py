@@ -63,7 +63,7 @@ def _character_binding(binding: dict[str, Any]) -> dict[str, Any]:
 
 def _context_binding(binding: dict[str, Any]) -> dict[str, Any]:
     """Validate browser-selected context carried by a signed voice session."""
-    allowed = {"surface", "route", "node_id", "node_label", "node_kind", "canonical_route", "ui_session_id"}
+    allowed = {"surface", "route", "node_id", "node_label", "node_kind", "canonical_route", "ui_session_id", "view_mode"}
     if not isinstance(binding, dict) or not binding or not set(binding).issubset(allowed):
         raise ValueError("Invalid voice context binding")
     normalized: dict[str, Any] = {}
@@ -75,6 +75,8 @@ def _context_binding(binding: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("Invalid voice context value")
         if key in {"route", "canonical_route"} and not cleaned.startswith("/"):
             raise ValueError("Invalid voice context route")
+        if key == "view_mode" and cleaned not in {"graph", "map", "list"}:
+            raise ValueError("Invalid voice view mode")
         if key == "ui_session_id":
             try:
                 if str(UUID(cleaned)) != cleaned:
