@@ -30,6 +30,11 @@ def test_config_from_env_and_urls(monkeypatch):
     assert config.internal_dispatch_configured is True
     assert config.internal_api_url == "http://internal-api.railway.internal"
     assert config.internal_execute_url == "http://internal-api.railway.internal/api/hermes/internal/execute"
+
+    monkeypatch.setenv("HERMES_INTERNAL_API_URL", "api.d3vonn.io")
+    public_config = HermesInfrastructureConfig.from_env()
+    assert public_config.internal_api_url == "https://api.d3vonn.io"
+    assert public_config.internal_execute_url == "https://api.d3vonn.io/api/hermes/internal/execute"
     assert config.rest_url("hermes_tasks").endswith("/rest/v1/hermes_tasks")
     assert config.enqueue_url.endswith("/functions/v1/enqueue-task")
 
