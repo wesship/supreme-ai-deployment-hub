@@ -234,15 +234,15 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
   return (
     <div
       className={[
-        'min-w-[210px] rounded-2xl border px-4 py-3 shadow-2xl backdrop-blur-xl transition',
+        'min-w-[210px] border border-[#34332f] bg-[#141411] px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition',
         selected
-          ? 'border-amber-200/70 bg-amber-100/[0.12] shadow-amber-200/10'
-          : 'border-white/15 bg-[#10100f]/92 hover:border-amber-100/35',
+          ? 'border-amber-300 bg-[#1b1913] shadow-[inset_3px_0_0_#fcd34d,0_10px_28px_rgba(0,0,0,0.35)]'
+          : 'border-[#34332f] bg-[#141411] hover:border-[#665f46]',
       ].join(' ')}
     >
       <Handle type="target" position={Position.Left} className="!h-2 !w-2 !border-0 !bg-amber-200/70" />
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04]">
+        <span className="flex h-10 w-10 items-center justify-center border border-[#34332f] bg-[#0c0c0a]">
           <Icon className="h-5 w-5 text-amber-100" />
         </span>
         <div className="min-w-0">
@@ -299,17 +299,17 @@ const KnowledgeGraphOS: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#080806] text-stone-100">
-      <div className="border-b border-white/10 bg-[#0d0d0b]/95">
+      <div className="border-b border-[#2d2c28] bg-[#0c0c0a] shadow-[0_6px_24px_rgba(0,0,0,0.28)]">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-5 py-5 lg:px-8">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-amber-200/70">D3VONN.IO Intelligence Fabric</p>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">Operational Knowledge Graph</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="rounded-full border border-amber-100/15 bg-amber-100/[0.05] px-3 py-1.5 text-xs text-amber-100/75">
+            <span className="border border-[#4b4633] bg-[#15140f] px-3 py-1.5 text-xs text-amber-100/75">
               Governed UI model · adapters attach to live data
             </span>
-            <Link to="/command-center" className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-100/30 hover:text-white">
+            <Link to="/command-center" className="border border-[#34332f] bg-[#0c0c0a] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-100/30 hover:text-white">
               Command Center
             </Link>
           </div>
@@ -317,9 +317,9 @@ const KnowledgeGraphOS: React.FC = () => {
       </div>
 
       <div className="mx-auto grid max-w-[1600px] gap-5 px-5 py-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8">
-        <section className="overflow-hidden rounded-3xl border border-white/10 bg-[#0b0b09]">
-          <div className="flex flex-wrap items-center gap-3 border-b border-white/10 p-4">
-            <label className="flex min-w-[260px] flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2">
+        <section className="overflow-hidden border border-[#2d2c28] bg-[#0b0b09] shadow-[0_16px_40px_rgba(0,0,0,0.32)]">
+          <div className="flex flex-wrap items-center gap-3 border-b border-[#2d2c28] bg-[#10100d] p-4 shadow-[inset_0_-1px_0_rgba(255,255,255,0.02)]">
+            <label className="flex min-w-[260px] flex-1 items-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2">
               <Search className="h-4 w-4 text-stone-500" />
               <input
                 value={query}
@@ -331,7 +331,7 @@ const KnowledgeGraphOS: React.FC = () => {
             <select
               value={kind}
               onChange={(event) => setKind(event.target.value as NodeKind | 'all')}
-              className="rounded-xl border border-white/10 bg-[#141411] px-3 py-2 text-sm text-stone-200 outline-none"
+              className="border border-[#34332f] bg-[#11110f] px-3 py-2 text-sm text-stone-200 outline-none"
             >
               <option value="all">All node types</option>
               {Object.entries(kindLabel).map(([value, label]) => (
@@ -352,53 +352,53 @@ const KnowledgeGraphOS: React.FC = () => {
               maxZoom={1.45}
               proOptions={{ hideAttribution: true }}
             >
-              <Background color="#292524" gap={28} size={1} />
-              <Controls className="!border-white/10 !bg-[#171714] !text-stone-100" />
+              <Background color="#2f2e29" gap={24} size={1} />
+              <Controls className="!border-[#34332f] !bg-[#11110f] !text-stone-100 !shadow-lg" />
               <MiniMap
                 pannable
                 zoomable
                 nodeColor="#a8a29e"
                 maskColor="rgba(8,8,6,0.72)"
-                className="!border !border-white/10 !bg-[#11110e]"
+                className="!border !border-[#34332f] !bg-[#0e0e0c] !shadow-lg"
               />
             </ReactFlow>
           </div>
         </section>
 
         <aside className="space-y-5">
-          <section className="rounded-3xl border border-white/10 bg-[#10100d] p-5">
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-500">Selected node</p>
                 <h2 className="mt-1 text-xl font-black text-white">{selected.data.label}</h2>
               </div>
-              <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] px-2.5 py-1 text-[10px] font-semibold text-emerald-200">
+              <span className="border border-emerald-300/20 bg-[#101713] px-2.5 py-1 text-[10px] font-semibold text-emerald-200">
                 {stateLabel[selected.data.state]}
               </span>
             </div>
             <p className="mt-4 text-sm leading-6 text-stone-400">{selected.data.description}</p>
 
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={() => recordAction('Trace requested')} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={() => recordAction('Trace requested')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Eye className="h-4 w-4" /> Trace
               </button>
-              <button onClick={() => recordAction('Run staged')} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={() => recordAction('Run staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Play className="h-4 w-4" /> Run
               </button>
-              <button onClick={() => recordAction('Monitor staged')} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={() => recordAction('Monitor staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Activity className="h-4 w-4" /> Monitor
               </button>
-              <button onClick={() => recordAction('Bridge analysis staged')} className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={() => recordAction('Bridge analysis staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Zap className="h-4 w-4" /> Bridge
               </button>
             </div>
 
-            <Link to={selected.data.route} className="mt-3 flex items-center justify-between rounded-xl bg-amber-100 px-3 py-2.5 text-sm font-bold text-stone-950 transition hover:bg-amber-50">
+            <Link to={selected.data.route} className="mt-3 flex items-center justify-between bg-amber-200 px-3 py-2.5 text-sm font-bold text-stone-950 transition hover:bg-amber-50">
               Open canonical surface <ChevronRight className="h-4 w-4" />
             </Link>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-[#10100d] p-5">
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Network className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Blind-spot bridges</h2>
@@ -411,13 +411,13 @@ const KnowledgeGraphOS: React.FC = () => {
                 <button
                   key={idea.id}
                   onClick={() => setActivity((items) => [`Bridge inspected: ${idea.title}`, ...items].slice(0, 5))}
-                  className="w-full rounded-2xl border border-white/10 bg-white/[0.025] p-3 text-left transition hover:border-amber-100/25 hover:bg-amber-100/[0.035]"
+                  className="w-full border border-[#2f2e2a] bg-[#0c0c0a] p-3 text-left transition hover:border-amber-100/25 hover:bg-amber-100/[0.035]"
                 >
                   <p className="text-xs font-bold text-stone-100">{idea.title}</p>
                   <p className="mt-1.5 text-[11px] leading-5 text-stone-500">{idea.reason}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {idea.path.map((step) => (
-                      <span key={step} className="rounded-md bg-white/[0.045] px-1.5 py-1 text-[9px] font-medium text-stone-400">{step}</span>
+                      <span key={step} className="border border-[#2d2c28] bg-[#141411] px-1.5 py-1 text-[9px] font-medium text-stone-400">{step}</span>
                     ))}
                   </div>
                 </button>
@@ -425,14 +425,14 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-[#10100d] p-5">
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Radio className="h-4 w-4 text-stone-400" />
               <h2 className="text-sm font-bold text-white">Session activity</h2>
             </div>
             <div className="mt-3 space-y-2">
               {activity.map((item, index) => (
-                <div key={`${item}-${index}`} className="rounded-xl border border-white/5 bg-black/20 px-3 py-2 text-[11px] leading-5 text-stone-500">
+                <div key={`${item}-${index}`} className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px] leading-5 text-stone-500">
                   {item}
                 </div>
               ))}
@@ -442,7 +442,7 @@ const KnowledgeGraphOS: React.FC = () => {
       </div>
 
       <div className="mx-auto max-w-[1600px] px-5 pb-8 lg:px-8">
-        <div className="grid gap-3 rounded-3xl border border-white/10 bg-[#0d0d0b] p-5 sm:grid-cols-3">
+        <div className="grid gap-3 border border-[#2d2c28] bg-[#0d0d0b] p-5 shadow-[0_14px_34px_rgba(0,0,0,0.28)] sm:grid-cols-3">
           <div className="flex items-start gap-3">
             <Workflow className="mt-0.5 h-4 w-4 text-amber-200" />
             <div><p className="text-xs font-bold text-white">Traceable execution</p><p className="mt-1 text-[11px] leading-5 text-stone-500">Relationships make the path from intent to result inspectable.</p></div>
