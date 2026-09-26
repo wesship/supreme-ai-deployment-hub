@@ -61,6 +61,7 @@ type HermesTaskRow = {
   created_at?: string | null;
   completed_at?: string | null;
   error_message?: string | null;
+  retry_count?: number | null;
 };
 
 type HermesInterruptRow = {
@@ -113,6 +114,14 @@ type HermesLogRow = {
   message: string | null;
   data: Record<string, unknown> | null;
   created_at: string;
+};
+
+type GraphFinding = {
+  id: string;
+  severity: 'info' | 'warning' | 'critical';
+  label: string;
+  evidence: string;
+  recommendation: string;
 };
 
 type KnowledgeNodeData = {
@@ -524,7 +533,7 @@ const KnowledgeGraphOS: React.FC = () => {
 
       const childQuery = supabase
         .from('hermes_tasks')
-        .select('id,parent_task_id,goal_id,kind,title,status,depth,created_at,completed_at,error_message,agent_name')
+        .select('id,parent_task_id,goal_id,kind,title,status,depth,created_at,completed_at,error_message,agent_name,retry_count')
         .eq('parent_task_id', task.id)
         .order('created_at', { ascending: true })
         .limit(50);
@@ -532,7 +541,7 @@ const KnowledgeGraphOS: React.FC = () => {
       const parentQuery = task.parent_task_id
         ? supabase
             .from('hermes_tasks')
-            .select('id,parent_task_id,goal_id,kind,title,status,depth,created_at,completed_at,error_message,agent_name')
+            .select('id,parent_task_id,goal_id,kind,title,status,depth,created_at,completed_at,error_message,agent_name,retry_count')
             .eq('id', task.parent_task_id)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null });
@@ -784,6 +793,96 @@ const KnowledgeGraphOS: React.FC = () => {
       return [...structured, ...eventFallback];
     }),
   )).slice(0, 8);
+  const graphFindings = useMemo<GraphFinding[]>(() => {
+    if (!liveTask) return [];
+    const findings: GraphFinding[] = [];
+    const failedRuns = runs.filter((run) => run.status.toUpperCase() === 'FAILED');
+    const failedChildren = childTasks.filter((task) => task.status.toUpperCase() === 'FAILED');
+    const longestRun = runs.reduce((max, run) => Math.max(max, run.duration_ms ?? 0), 0);
+    const retryCount = liveTask.retry_count ?? Math.max(0, runs.length - 1);
+    const toolExpected = /tool|mcp|connector|integration/i.test(`${liveTask.kind} ${liveTask.title ?? ''}`);
+
+    if (liveTask.status.toUpperCase() === 'FAILED' || failedRuns.length > 0) {
+      findings.push({
+        id: 'failure',
+        severity: 'critical',
+        label: 'Execution failure detected',
+        evidence: `${failedRuns.length || 1} failed run signal(s) on the active task.`,
+        recommendation: 'Inspect the failing run and error detail before retrying; preserve the same correlation trail for comparison.',
+      });
+    }
+
+    if (failedChildren.length >= 2) {
+      findings.push({
+        id: 'failure-cluster',
+        severity: 'critical',
+        label: 'Failed child-task cluster',
+        evidence: `${failedChildren.length} child tasks in this lineage are failed.`,
+        recommendation: 'Check for a shared upstream dependency, agent, tool, or policy boundary before retrying children independently.',
+      });
+    }
+
+    if (retryCount >= 2 || runs.length >= 3) {
+      findings.push({
+        id: 'retry-loop',
+        severity: 'warning',
+        label: 'Repeated execution attempts',
+        evidence: `${Math.max(retryCount, runs.length - 1)} retry/extra-attempt signal(s) detected.`,
+        recommendation: 'Compare run errors and inputs across attempts; stop blind retries if the failure signature is unchanged.',
+      });
+    }
+
+    if (longestRun >= 30_000 || totalRunDuration >= 60_000) {
+      findings.push({
+        id: 'slow',
+        severity: 'warning',
+        label: 'Slow execution path',
+        evidence: `Longest run ${(longestRun / 1000).toFixed(1)}s; cumulative runtime ${(totalRunDuration / 1000).toFixed(1)}s.`,
+        recommendation: 'Inspect the slowest agent/tool boundary and consider splitting long work or moving it to an asynchronous worker.',
+      });
+    }
+
+    if (totalRunCost >= 0.10) {
+      findings.push({
+        id: 'cost',
+        severity: 'warning',
+        label: 'Elevated execution cost',
+        evidence: `Observed run ledger cost is ${totalRunCost.toFixed(4)} for the active task.`,
+        recommendation: 'Review model/tool choice and repeated attempts; compare cost against successful runs of the same task kind.',
+      });
+    }
+
+    if ((liveTask.depth ?? 0) > 0 && !liveTask.parent_task_id) {
+      findings.push({
+        id: 'orphan',
+        severity: 'warning',
+        label: 'Possible orphaned task',
+        evidence: `Task depth is ${liveTask.depth} but no parent_task_id is present.`,
+        recommendation: 'Verify lineage persistence before relying on ancestry-based monitoring or cancellation.',
+      });
+    }
+
+    if (toolExpected && toolSignals.length === 0) {
+      findings.push({
+        id: 'missing-tool-attribution',
+        severity: 'warning',
+        label: 'Expected tool attribution is missing',
+        evidence: 'Task naming suggests a tool/MCP/connector path, but no structured tool signal is linked to this task.',
+        recommendation: 'Emit tool_name or connector attribution into the Hermes log data at the execution boundary.',
+      });
+    }
+
+    if (!findings.length) {
+      findings.push({
+        id: 'no-anomaly',
+        severity: 'info',
+        label: 'No active heuristic anomaly',
+        evidence: 'The current task and loaded lineage do not cross the configured warning thresholds.',
+        recommendation: 'Continue monitoring; these findings are advisory and scoped to the records currently loaded in this view.',
+      });
+    }
+    return findings;
+  }, [childTasks, liveTask, runs, toolSignals, totalRunCost, totalRunDuration]);
 
   return (
     <div className="min-h-screen bg-[#080806] text-stone-100">
@@ -1076,6 +1175,56 @@ const KnowledgeGraphOS: React.FC = () => {
                 ))}
               </div>
             </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <BrainCircuit className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Operational intelligence</h2>
+              </div>
+              <span className="border border-[#34332f] bg-[#0c0c0a] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-500">advisory only</span>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Deterministic heuristics over the active Hermes task, run ledger, and loaded lineage. Findings never mutate tasks or workflows automatically.
+            </p>
+
+            <div className="mt-4 space-y-2">
+              {graphFindings.map((finding) => (
+                <div
+                  key={finding.id}
+                  className={`border p-3 ${
+                    finding.severity === 'critical'
+                      ? 'border-red-300/25 bg-red-300/[0.035]'
+                      : finding.severity === 'warning'
+                        ? 'border-amber-300/20 bg-amber-300/[0.03]'
+                        : 'border-[#2d2c28] bg-[#090907]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-bold text-stone-200">{finding.label}</p>
+                    <span className={`text-[9px] font-bold uppercase tracking-[0.12em] ${
+                      finding.severity === 'critical' ? 'text-red-200' : finding.severity === 'warning' ? 'text-amber-200' : 'text-stone-600'
+                    }`}>{finding.severity}</span>
+                  </div>
+                  <p className="mt-1 text-[10px] leading-4 text-stone-500">{finding.evidence}</p>
+                  <p className="mt-2 text-[10px] leading-4 text-stone-400">
+                    <span className="font-bold text-stone-500">Hermes recommendation:</span> {finding.recommendation}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <details className="mt-3 border border-[#25241f] bg-[#090907] p-3">
+              <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500">Heuristic thresholds</summary>
+              <div className="mt-2 space-y-1 text-[10px] leading-4 text-stone-600">
+                <p>Slow: any run ≥30s or cumulative task runtime ≥60s.</p>
+                <p>Elevated cost: loaded task run ledger ≥$0.10.</p>
+                <p>Repeated attempts: retry count ≥2 or at least 3 run rows.</p>
+                <p>Failure cluster: at least 2 failed child tasks in the loaded lineage.</p>
+                <p>Orphan: depth &gt; 0 without a parent task reference.</p>
+              </div>
+            </details>
           </section>
 
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
