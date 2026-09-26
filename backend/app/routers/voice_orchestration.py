@@ -36,7 +36,7 @@ _ALLOWED_HERMES_TOOLS = {"create_hermes_task", "enqueue_hermes_task", "hermes_ta
 _ALLOWED_FILM_TOOLS = {"query_film_intelligence"}
 _ALLOWED_GRAPH_TOOLS = {"graph_action"}
 _ALLOWED_VOICE_TOOLS = _ALLOWED_HERMES_TOOLS | _ALLOWED_FILM_TOOLS | _ALLOWED_GRAPH_TOOLS
-_GRAPH_ACTIONS = {"open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop"}
+_GRAPH_ACTIONS = {"open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop", "view"}
 _event_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
 _SENSITIVE_KEY = re.compile(r"api[_-]?key|authorization|token|secret|password|credential", re.I)
 
@@ -116,7 +116,7 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                         "Jockey corpus-level analysis. For longer research or execution work, call "
                         "create_hermes_task with a clear title and description. Never claim a task was completed "
                         "unless the tool result confirms it. For direct Knowledge Graph UI commands use graph_action "
-                        "with one of: open, select, trace, run, monitor, connect, expand, filter, search, ask, stop. "
+                        "with one of: open, select, trace, run, monitor, connect, expand, filter, search, ask, stop, view. "
                         "Use graph_action instead of create_hermes_task when the user is clearly manipulating the current graph UI. "
                         "Run and connect are governed execution intents; never describe them as completed unless Hermes confirms execution."
                         + context_instruction
@@ -160,7 +160,7 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                             "properties": {
                                 "action": {
                                     "type": "string",
-                                    "enum": ["open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop"],
+                                    "enum": ["open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop", "view"],
                                 },
                                 "node_id": {
                                     "type": "string",
@@ -177,6 +177,11 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                                 "filter": {
                                     "type": "string",
                                     "description": "Optional node-type or state filter.",
+                                },
+                                "view": {
+                                    "type": "string",
+                                    "enum": ["graph", "map", "list"],
+                                    "description": "Target Knowledge Graph representation for the view action.",
                                 },
                             },
                             "required": ["action"],
@@ -482,6 +487,7 @@ async def _handle_tool_calls(
                 target_node_id = str(parameters.get("target_node_id") or "")
                 query = str(parameters.get("query") or "")
                 filter_value = str(parameters.get("filter") or "")
+                view_mode = str(parameters.get("view") or "")
 
                 if action in {"run", "connect"}:
                     try:
@@ -535,6 +541,7 @@ async def _handle_tool_calls(
                         "target_node_id": target_node_id,
                         "query": query,
                         "filter": filter_value,
+                        "view": view_mode,
                         "governed_execution": False,
                     }
         else:
