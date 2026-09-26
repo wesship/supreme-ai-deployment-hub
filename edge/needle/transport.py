@@ -18,7 +18,7 @@ import json
 import struct
 from dataclasses import dataclass
 from typing import Callable, Iterable
-from urllib import request
+from urllib import error, request
 
 DEFAULT_ENDPOINT = "https://api.d3vonn.io/api/smart-glasses/v1/execute"
 
@@ -56,6 +56,16 @@ def decode_envelope(payload: bytes) -> dict:
         raise TransportError("invalid_envelope") from exc
     if not isinstance(decoded, dict):
         raise TransportError("invalid_envelope")
+    return decoded
+
+
+def _decode_gateway_response(raw: bytes) -> dict:
+    try:
+        decoded = json.loads(raw.decode("utf-8")) if raw else {}
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise TransportError("invalid_gateway_response") from exc
+    if not isinstance(decoded, dict):
+        raise TransportError("invalid_gateway_response")
     return decoded
 
 
@@ -135,16 +145,15 @@ class WifiHttpsTransport:
             with self.opener(req, timeout=self.timeout_seconds) as response:
                 status = int(getattr(response, "status", response.getcode()))
                 raw = response.read()
-        except Exception as exc:  # network/platform exceptions are normalized at boundary
+        except error.HTTPError as exc:
+            # 4xx/5xx are policy/application responses, not connectivity failures.
+            # Returning them prevents AutoTransport from bypassing a denial via BLE.
+            status = int(exc.code)
+            raw = exc.read()
+        except (error.URLError, TimeoutError, OSError) as exc:
             raise TransportError("wifi_transport_failed") from exc
 
-        try:
-            decoded = json.loads(raw.decode("utf-8")) if raw else {}
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise TransportError("invalid_gateway_response") from exc
-        if not isinstance(decoded, dict):
-            raise TransportError("invalid_gateway_response")
-        return TransportResult("wifi", status, decoded)
+        return TransportResult("wifi", status, _decode_gateway_response(raw))
 
 
 class BluetoothRelayTransport:
@@ -179,7 +188,7 @@ class BluetoothRelayTransport:
 
 
 class AutoTransport:
-    """Prefer Wi-Fi; fail over to the paired BLE relay only on transport failure."""
+    """Prefer Wi-Fi; fall back to BLE only on an actual Wi-Fi transport failure."""
 
     def __init__(
         self,
