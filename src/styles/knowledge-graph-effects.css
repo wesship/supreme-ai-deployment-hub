@@ -311,3 +311,33 @@
     display: none;
   }
 }
+
+
+.d3-neural-stage {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 31% 46%, rgba(252,211,77,.055), transparent 18%),
+    radial-gradient(circle at 68% 42%, rgba(251,146,60,.035), transparent 24%),
+    linear-gradient(180deg, rgba(255,255,255,.008), transparent 26%);
+}
+
+.d3-neural-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .42;
+  background-image:
+    radial-gradient(circle, rgba(254,243,199,.25) 0 1px, transparent 1.2px),
+    radial-gradient(circle, rgba(251,191,36,.16) 0 1px, transparent 1.1px);
+  background-size: 83px 83px, 137px 137px;
+  background-position: 13px 19px, 41px 57px;
+  mask-image: linear-gradient(to bottom, transparent, #000 12%, #000 88%, transparent);
+}
+
+.d3-neural-stage .react-flow {
+  position: relative;
+  z-index: 1;
+}
