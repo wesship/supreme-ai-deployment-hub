@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const GROUPS = [
+const GROUPS: Array<{ title: string; links: Array<[string, string]> }> = [
   {
     title: 'Platform',
     links: [
@@ -32,7 +32,7 @@ const GROUPS = [
       ['Terms', '/terms'],
     ],
   },
-] as const;
+];
 
 /** Footer sits on its own light tone, distinct from the page background. */
 const OsFooter: React.FC = () => (
