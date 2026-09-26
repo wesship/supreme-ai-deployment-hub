@@ -170,6 +170,16 @@ type AdaptiveAuditRow = {
   created_at: string;
 };
 
+type AdaptivePromotionCandidateRow = {
+  id: string;
+  change_request_id: string;
+  certification_id: string;
+  proposed_change: Record<string, unknown>;
+  evidence_hash: string;
+  status: 'pending_promotion_review' | 'approved' | 'rejected' | 'promoted';
+  created_at: string;
+};
+
 type KnowledgeNodeData = {
   label: string;
   kind: NodeKind;
@@ -469,6 +479,9 @@ const KnowledgeGraphOS: React.FC = () => {
   const [changeAudit, setChangeAudit] = useState<AdaptiveAuditRow[]>([]);
   const [reviewNote, setReviewNote] = useState('Reviewed against current evidence and rollback guardrails.');
   const [changeBusy, setChangeBusy] = useState<string | null>(null);
+  const [promotionCandidates, setPromotionCandidates] = useState<AdaptivePromotionCandidateRow[]>([]);
+  const [baselineMetrics, setBaselineMetrics] = useState({ success_rate: '0.98', error_rate: '0.02', latency_ms: '1000', cost_usd: '0.01' });
+  const [candidateMetrics, setCandidateMetrics] = useState({ success_rate: '0.98', error_rate: '0.02', latency_ms: '1000', cost_usd: '0.01' });
   const timelineRequestRef = useRef(0);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -1041,6 +1054,62 @@ const KnowledgeGraphOS: React.FC = () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Canary queue failed';
       setActivity((items) => [`Canary blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const refreshPromotionCandidates = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-promotion-candidates?limit=30`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Promotion candidate load failed');
+      setPromotionCandidates((Array.isArray(payload) ? payload : []) as AdaptivePromotionCandidateRow[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Promotion candidate load failed';
+      setActivity((items) => [`Promotion candidate error: ${message}`, ...items].slice(0, 5));
+    }
+  };
+
+  useEffect(() => {
+    refreshPromotionCandidates();
+  }, []);
+
+  const certifyAdaptiveCanary = async (requestId: string) => {
+    setChangeBusy(requestId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to certify a canary.');
+      const asNumber = (value: string) => Number(value);
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests/${encodeURIComponent(requestId)}/certify`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          baseline: {
+            success_rate: asNumber(baselineMetrics.success_rate),
+            error_rate: asNumber(baselineMetrics.error_rate),
+            latency_ms: asNumber(baselineMetrics.latency_ms),
+            cost_usd: asNumber(baselineMetrics.cost_usd),
+          },
+          candidate: {
+            success_rate: asNumber(candidateMetrics.success_rate),
+            error_rate: asNumber(candidateMetrics.error_rate),
+            latency_ms: asNumber(candidateMetrics.latency_ms),
+            cost_usd: asNumber(candidateMetrics.cost_usd),
+          },
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Canary certification failed');
+      setActivity((items) => [`Canary certification ${String(payload.decision ?? '').toUpperCase()}: ${requestId}`, ...items].slice(0, 5));
+      await Promise.all([refreshAdaptiveChangeRequests(), refreshPromotionCandidates()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Canary certification failed';
+      setActivity((items) => [`Certification blocked: ${message}`, ...items].slice(0, 5));
     } finally {
       setChangeBusy(null);
     }
@@ -1649,6 +1718,26 @@ const KnowledgeGraphOS: React.FC = () => {
                       </button>
                     )}
 
+                    {request.status === 'canary_queued' && (
+                      <div className="mt-3 border border-[#25241f] bg-[#0c0c0a] p-3">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">Canary certification metrics</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-[9px]">
+                          {(['success_rate','error_rate','latency_ms','cost_usd'] as const).map((key) => (
+                            <React.Fragment key={key}>
+                              <label className="text-stone-600">Baseline {key}</label>
+                              <input value={baselineMetrics[key]} onChange={(e) => setBaselineMetrics((m) => ({ ...m, [key]: e.target.value }))} className="border border-[#2d2c28] bg-[#090907] px-2 py-1 text-stone-300" />
+                              <label className="text-stone-600">Candidate {key}</label>
+                              <input value={candidateMetrics[key]} onChange={(e) => setCandidateMetrics((m) => ({ ...m, [key]: e.target.value }))} className="border border-[#2d2c28] bg-[#090907] px-2 py-1 text-stone-300" />
+                            </React.Fragment>
+                          ))}
+                        </div>
+                        <button disabled={changeBusy !== null} onClick={() => certifyAdaptiveCanary(request.id)} className="mt-3 w-full border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">
+                          Certify canary
+                        </button>
+                        <p className="mt-2 text-[9px] leading-4 text-stone-600">PASS requires no more than 2pp success/error regression and no more than 20% latency/cost regression. FAIL retains production.</p>
+                      </div>
+                    )}
+
                     {auditRows.length > 0 && (
                       <details className="mt-3 border-t border-[#25241f] pt-2">
                         <summary className="cursor-pointer text-[9px] font-bold uppercase tracking-[0.12em] text-stone-600">Audit trail</summary>
@@ -1669,6 +1758,32 @@ const KnowledgeGraphOS: React.FC = () => {
                   No governed adaptive change requests staged yet.
                 </div>
               )}
+            </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Canary certification & promotion candidates</h2>
+              </div>
+              <button onClick={refreshPromotionCandidates} className="text-[10px] font-semibold text-amber-100/70">Refresh</button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Only passing canary certifications create a promotion candidate. Failed canaries explicitly retain current production policy.
+            </p>
+            <div className="mt-4 space-y-2">
+              {promotionCandidates.map((item) => (
+                <div key={item.id} className="border border-[#2d2c28] bg-[#090907] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-[10px] text-stone-300">{item.id.slice(0, 8)}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-200">{item.status}</span>
+                  </div>
+                  <p className="mt-2 break-all text-[10px] text-stone-500">{JSON.stringify(item.proposed_change)}</p>
+                  <p className="mt-2 truncate font-mono text-[9px] text-stone-700" title={item.evidence_hash}>evidence {item.evidence_hash}</p>
+                </div>
+              ))}
+              {!promotionCandidates.length && <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">No passing canary has produced a promotion candidate yet.</div>}
             </div>
           </section>
 
