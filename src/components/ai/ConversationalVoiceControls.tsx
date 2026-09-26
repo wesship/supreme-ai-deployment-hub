@@ -105,7 +105,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       window.clearInterval(executionPollRef.current);
       executionPollRef.current = null;
     }
-  }, [stopExecutionPolling]);
+  }, []);
 
   const startExecutionPolling = useCallback((uiSessionId: string) => {
     stopExecutionPolling();
@@ -168,7 +168,6 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
     instance.on('call-start', () => {
       setConnected(true);
       setConnecting(false);
-      if (inlineSession) startExecutionPolling(uiSessionId);
       toast.success('D3VONN voice assistant connected');
     });
     instance.on('call-end', () => {
@@ -218,6 +217,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       await vapi.start(target as Parameters<Vapi['start']>[0]);
       setConnected(true);
       setConnecting(false);
+      if (inlineSession) startExecutionPolling(uiSessionId);
       toast.success(
         inlineSession
           ? 'Authenticated Hermes voice session started'
@@ -245,7 +245,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
     } catch (error) {
       toast.error('Unable to end D3VONN voice', { description: readableError(error) });
     }
-  }, []);
+  }, [stopExecutionPolling]);
 
   const unavailable = disabled || connecting || !vapiPublicKey;
   const actionLabel = connected ? 'End D3VONN voice conversation' : 'Start D3VONN voice conversation';
