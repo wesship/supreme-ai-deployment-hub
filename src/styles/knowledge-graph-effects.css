@@ -108,3 +108,206 @@
     animation: none !important;
   }
 }
+
+
+@keyframes d3-hermes-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 12px rgba(252,211,77,.22));
+  }
+  50% {
+    transform: scale(1.025);
+    filter: drop-shadow(0 0 26px rgba(252,211,77,.5));
+  }
+}
+
+@keyframes d3-hermes-plasma {
+  0% { transform: rotate(0deg) scale(.96); opacity: .58; }
+  50% { transform: rotate(180deg) scale(1.04); opacity: .92; }
+  100% { transform: rotate(360deg) scale(.96); opacity: .58; }
+}
+
+@keyframes d3-hermes-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes d3-hermes-routing {
+  0%, 100% { box-shadow: 0 0 28px rgba(252,211,77,.18), inset 0 0 26px rgba(252,211,77,.08); }
+  50% { box-shadow: 0 0 56px rgba(254,243,199,.52), inset 0 0 34px rgba(252,211,77,.16); }
+}
+
+.d3-hermes-shell {
+  position: relative;
+  width: 190px;
+  height: 190px;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.d3-hermes-core {
+  position: relative;
+  width: 142px;
+  height: 142px;
+  border-radius: 999px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(254,243,199,.42);
+  background:
+    radial-gradient(circle at 36% 32%, rgba(255,255,255,.9) 0 2%, rgba(254,243,199,.72) 3%, transparent 11%),
+    radial-gradient(circle at 50% 50%, rgba(252,211,77,.42), rgba(120,83,18,.3) 38%, rgba(17,17,15,.96) 72%);
+  box-shadow:
+    0 0 24px rgba(252,211,77,.24),
+    inset 0 0 30px rgba(252,211,77,.12),
+    inset 0 0 0 1px rgba(255,255,255,.025);
+  animation: d3-hermes-breathe 4.8s ease-in-out infinite;
+}
+
+.d3-hermes-plasma {
+  position: absolute;
+  inset: 10px;
+  border-radius: inherit;
+  background:
+    conic-gradient(
+      from 45deg,
+      transparent,
+      rgba(254,243,199,.52),
+      rgba(251,191,36,.12),
+      transparent 31%,
+      rgba(255,255,255,.44) 49%,
+      transparent 64%,
+      rgba(251,146,60,.28),
+      transparent
+    );
+  filter: blur(5px);
+  mix-blend-mode: screen;
+  animation: d3-hermes-plasma 8s linear infinite;
+}
+
+.d3-hermes-glyph,
+.d3-hermes-title,
+.d3-hermes-subtitle,
+.d3-hermes-state {
+  position: relative;
+  z-index: 2;
+}
+
+.d3-hermes-glyph {
+  color: #fff7d6;
+  filter: drop-shadow(0 0 9px rgba(254,243,199,.75));
+}
+
+.d3-hermes-title {
+  margin-top: 7px;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  color: #fffdf3;
+  text-shadow: 0 0 12px rgba(254,243,199,.54);
+}
+
+.d3-hermes-subtitle {
+  margin-top: 2px;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: rgba(254,243,199,.7);
+}
+
+.d3-hermes-state {
+  margin-top: 7px;
+  border: 1px solid rgba(254,243,199,.22);
+  background: rgba(8,8,6,.52);
+  padding: 2px 6px;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(254,243,199,.76);
+}
+
+.d3-hermes-orbit {
+  position: absolute;
+  border-radius: 999px;
+  border: 1px solid rgba(252,211,77,.16);
+  pointer-events: none;
+}
+
+.d3-hermes-orbit::after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #fef3c7;
+  box-shadow: 0 0 9px rgba(254,243,199,.9);
+}
+
+.d3-hermes-orbit--outer {
+  inset: 4px;
+  border-style: dashed;
+  animation: d3-hermes-orbit 16s linear infinite;
+}
+
+.d3-hermes-orbit--outer::after {
+  top: -2px;
+  left: 52%;
+}
+
+.d3-hermes-orbit--inner {
+  inset: 18px;
+  border-color: rgba(251,146,60,.18);
+  animation: d3-hermes-orbit 10s linear infinite reverse;
+}
+
+.d3-hermes-orbit--inner::after {
+  bottom: 8px;
+  right: 7px;
+  background: #fb923c;
+}
+
+.d3-hermes--connecting .d3-hermes-core,
+.d3-hermes--running .d3-hermes-core {
+  animation: d3-hermes-breathe 1.8s ease-in-out infinite, d3-hermes-routing 1.35s ease-in-out infinite;
+}
+
+.d3-hermes--complete .d3-hermes-core {
+  border-color: rgba(167,243,208,.46);
+  box-shadow: 0 0 34px rgba(167,243,208,.22), inset 0 0 26px rgba(252,211,77,.12);
+}
+
+.d3-hermes--failed .d3-hermes-core {
+  border-color: rgba(251,113,133,.5);
+  box-shadow: 0 0 32px rgba(251,113,133,.2), inset 0 0 24px rgba(127,29,29,.12);
+}
+
+.d3-hermes--selected .d3-hermes-orbit {
+  border-color: rgba(254,243,199,.4);
+}
+
+.d3-edge-particle {
+  fill: #fff7d6;
+  stroke: rgba(251,191,36,.9);
+  stroke-width: .6;
+  filter: drop-shadow(0 0 4px rgba(254,243,199,.95)) drop-shadow(0 0 9px rgba(251,191,36,.58));
+  pointer-events: none;
+}
+
+.d3-cinematic-edge--executing .react-flow__edge-path {
+  filter: drop-shadow(0 0 6px rgba(254,243,199,.72));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-hermes-core,
+  .d3-hermes-plasma,
+  .d3-hermes-orbit {
+    animation: none !important;
+  }
+
+  .d3-edge-particle {
+    display: none;
+  }
+}
