@@ -1,0 +1,8 @@
+stream.hnfportal.one {
+  encode zstd gzip
+
+  @hls path /peewee/* /academy/* /hnftv/* /hiphop/* /chef/*
+  reverse_proxy @hls mediamtx:8888
+
+  respond /healthz 200
+}

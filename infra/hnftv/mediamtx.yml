@@ -1,0 +1,34 @@
+logLevel: info
+
+api: true
+apiAddress: :9997
+
+metrics: true
+metricsAddress: :9998
+
+rtmp: true
+rtmpAddress: :1935
+
+hls: true
+hlsAddress: :8888
+hlsAllowOrigins:
+  - https://hnfportal.one
+  - https://www.hnfportal.one
+hlsAlwaysRemux: true
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+
+record: false
+recordPath: /recordings/%path/%Y-%m-%d_%H-%M-%S-%f
+
+paths:
+  peewee:
+    source: publisher
+  academy:
+    source: publisher
+  hnftv:
+    source: publisher
+  hiphop:
+    source: publisher
+  chef:
+    source: publisher
