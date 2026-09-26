@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
 import ScrollToTop from "./components/ScrollToTop";
@@ -153,6 +153,30 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The homepage ships its own full-width operating-system chrome (OsNav/OsFooter),
+ * so the shared app navbar is suppressed there. Every other route is unchanged.
+ */
+function ShellChrome() {
+  const { pathname } = useLocation();
+  if (pathname === '/') return null;
+  return <Suspense fallback={null}><Navbar /></Suspense>;
+}
+
+function MainRegion({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const isHome = pathname === '/';
+  return (
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className={`min-h-screen focus:outline-none${isHome ? '' : ' pt-16'}`}
+    >
+      {children}
+    </main>
+  );
+}
+
 function App() {
   useEffect(() => { startRumCollection(); }, []);
   return (
@@ -161,9 +185,9 @@ function App() {
         <ScrollToTop />
         <LegacyFilmPathRepair />
         <SkipToContent />
-        <Suspense fallback={null}><Navbar /></Suspense>
+        <ShellChrome />
         <DeferredProviders>
-          <main id="main-content" tabIndex={-1} className="min-h-screen pt-16 focus:outline-none">
+          <MainRegion>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -258,7 +282,7 @@ function App() {
                 <Route path="*" element={<CanonicalPathFallback />} />
               </Routes>
             </Suspense>
-          </main>
+          </MainRegion>
           <Suspense fallback={null}><FloatingChatWidget /></Suspense>
         </DeferredProviders>
         <Suspense fallback={null}><Toaster /><Analytics /></Suspense>
