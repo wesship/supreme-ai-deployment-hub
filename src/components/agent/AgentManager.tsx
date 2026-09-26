@@ -66,7 +66,7 @@ steps:
   return (
     <div className="mx-auto w-full p-0">
       <div className="flex flex-col gap-6">
-        <D3Surface variant="chrome" glow={1} className="p-5 sm:p-6">
+        <D3Surface material="titanium" glow={1} className="p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="d3-system-status">Hermes orchestration active</div>
@@ -104,7 +104,7 @@ steps:
           </TabsList>
 
           <TabsContent value="create">
-            <D3Surface variant="glass" glow={1} className="p-3 sm:p-5">
+            <D3Surface material="glass" glow={1} className="p-3 sm:p-5">
               <CreateAgentTab
                 taskDescription={taskDescription}
                 setTaskDescription={setTaskDescription}
@@ -132,7 +132,7 @@ steps:
           </TabsContent>
 
           <TabsContent value="manage">
-            <D3Surface variant="glass" glow={1} className="p-3 sm:p-5">
+            <D3Surface material="glass" glow={1} className="p-3 sm:p-5">
               <ManageAgentsTab
                 agents={agents}
                 loading={loading}
@@ -157,7 +157,7 @@ steps:
           </TabsContent>
 
           <TabsContent value="workflow">
-            <D3Surface variant="glass" glow={1} className="p-3 sm:p-5">
+            <D3Surface material="glass" glow={1} className="p-3 sm:p-5">
               <WorkflowTab
                 yamlDAG={yamlDAG}
                 setYamlDAG={setYamlDAG}
