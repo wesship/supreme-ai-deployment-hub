@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Background,
   Controls,
@@ -254,7 +254,7 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
         </div>
       </div>
       <div className="mt-3 flex items-center gap-2 text-[10px] font-medium text-stone-400">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+        <span className={`h-1.5 w-1.5 rounded-full ${data.state === 'adapter' ? 'bg-amber-300' : 'bg-emerald-300'}`} />
         {stateLabel[data.state]}
       </div>
       <Handle type="source" position={Position.Right} className="d3-kg-handle !h-2 !w-2 !border-0 !bg-amber-200/70" />
@@ -265,9 +265,12 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
 const nodeTypes = { knowledge: KnowledgeNode };
 
 const KnowledgeGraphOS: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState('hermes');
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState<NodeKind | 'all'>('all');
+  const [traceActive, setTraceActive] = useState(false);
+  const [bridgeMode, setBridgeMode] = useState(false);
   const [activity, setActivity] = useState<string[]>(['Graph surface initialized. No live mutations have been issued.']);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -291,10 +294,32 @@ const KnowledgeGraphOS: React.FC = () => {
     }));
   }, [kind, query, selectedId]);
 
+  const tracedEdgeIds = useMemo(() => {
+    if (!traceActive || selectedId === 'intent') return new Set<string>();
+
+    const queue: Array<{ nodeId: string; edgeIds: string[] }> = [{ nodeId: 'intent', edgeIds: [] }];
+    const visited = new Set<string>(['intent']);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (current.nodeId === selectedId) return new Set(current.edgeIds);
+
+      for (const edge of initialEdges) {
+        if (edge.source !== current.nodeId || visited.has(edge.target)) continue;
+        visited.add(edge.target);
+        queue.push({ nodeId: edge.target, edgeIds: [...current.edgeIds, edge.id] });
+      }
+    }
+
+    return new Set<string>();
+  }, [selectedId, traceActive]);
+
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
     return initialEdges.map((edge) => {
-      const active = edge.source === selectedId || edge.target === selectedId;
+      const connectedToSelection = edge.source === selectedId || edge.target === selectedId;
+      const onTrace = traceActive && tracedEdgeIds.has(edge.id);
+      const active = connectedToSelection || onTrace;
       const platformEdge = ['films', 'radio', 'analytics', 'security'].includes(edge.target);
       return {
       ...edge,
@@ -308,10 +333,36 @@ const KnowledgeGraphOS: React.FC = () => {
       },
     };
     });
-  }, [nodes, selectedId]);
+  }, [nodes, selectedId, traceActive, tracedEdgeIds]);
 
   const recordAction = (action: string) => {
     setActivity((items) => [`${action}: ${selected.data.label}`, ...items].slice(0, 5));
+  };
+
+  const openRunSurface = () => {
+    recordAction('Opened governed run surface');
+    navigate(`/workflows?node=${encodeURIComponent(selected.id)}&intent=run`);
+  };
+
+  const openMonitorSurface = () => {
+    recordAction('Opened live monitor surface');
+    navigate(`/command-center?focus=${encodeURIComponent(selected.id)}`);
+  };
+
+  const openHermesAssist = () => {
+    recordAction('Opened Hermes assist');
+    navigate(`/chat?surface=knowledge-graph&node=${encodeURIComponent(selected.id)}`);
+  };
+
+  const toggleTrace = () => {
+    setTraceActive((current) => !current);
+    recordAction(traceActive ? 'Trace cleared' : 'Trace activated');
+  };
+
+  const inspectBridges = () => {
+    setBridgeMode(true);
+    recordAction('Bridge opportunities opened');
+    requestAnimationFrame(() => document.getElementById('bridge-opportunities')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
   };
 
   return (
@@ -425,26 +476,30 @@ const KnowledgeGraphOS: React.FC = () => {
             <p className="mt-4 text-sm leading-6 text-stone-400">{selected.data.description}</p>
 
             <div className="mt-5 grid grid-cols-2 gap-2">
-              <button onClick={() => recordAction('Trace requested')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
-                <Eye className="h-4 w-4" /> Trace
+              <button onClick={toggleTrace} aria-pressed={traceActive} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+                <Eye className="h-4 w-4" /> {traceActive ? 'Clear trace' : 'Trace'}
               </button>
-              <button onClick={() => recordAction('Run staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={openRunSurface} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Play className="h-4 w-4" /> Run
               </button>
-              <button onClick={() => recordAction('Monitor staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={openMonitorSurface} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Activity className="h-4 w-4" /> Monitor
               </button>
-              <button onClick={() => recordAction('Bridge analysis staged')} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
+              <button onClick={inspectBridges} className="flex items-center justify-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2.5 text-xs font-semibold hover:border-amber-100/30">
                 <Zap className="h-4 w-4" /> Bridge
               </button>
             </div>
 
-            <Link to={selected.data.route} className="mt-3 flex items-center justify-between bg-amber-200 px-3 py-2.5 text-sm font-bold text-stone-950 transition hover:bg-amber-50">
-              Open canonical surface <ChevronRight className="h-4 w-4" />
+            <button onClick={openHermesAssist} className="mt-2 flex w-full items-center justify-between border border-[#4b4633] bg-[#15140f] px-3 py-2.5 text-sm font-semibold text-amber-100 transition hover:border-amber-100/35">
+              Ask Hermes about this node <Sparkles className="h-4 w-4" />
+            </button>
+
+            <Link to={selected.data.route} className="mt-2 flex items-center justify-between bg-amber-200 px-3 py-2.5 text-sm font-bold text-stone-950 transition hover:bg-amber-50">
+              Explore canonical surface <ChevronRight className="h-4 w-4" />
             </Link>
           </section>
 
-          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+          <section id="bridge-opportunities" className={`border bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)] ${bridgeMode ? 'border-amber-200/40' : 'border-[#2f2e2a]'}`}>
             <div className="flex items-center gap-2">
               <Network className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Blind-spot bridges</h2>

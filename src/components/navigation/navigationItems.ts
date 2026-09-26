@@ -7,10 +7,14 @@ export type NavigationItem = {
 
 export const navigationItems: NavigationItem[] = [
   { name: 'Platform', path: '/platform' },
-  { name: 'Solutions', path: '/solutions' },
+  { name: 'Hermes', path: '/workflows', protected: true },
   { name: 'Agents', path: '/agents', protected: true },
-  { name: 'Institute', path: '/institute' },
-  { name: 'Resources', path: '/resources' },
+  { name: 'Knowledge Graph', path: '/knowledge-graph', protected: true },
+  { name: 'Workflows', path: '/workflows', protected: true },
+  { name: 'Integrations', path: '/mcp', protected: true },
+  { name: 'Solutions', path: '/solutions' },
+  { name: 'Marketplace', path: '/marketplace' },
   { name: 'Security', path: '/security' },
+  { name: 'Institute', path: '/institute' },
   { name: 'Pricing', path: '/pricing' },
 ];
