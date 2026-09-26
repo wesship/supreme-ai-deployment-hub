@@ -5,13 +5,17 @@ HMAC-signed enqueue operations are delegated to shared Hermes adapters.
 """
 from __future__ import annotations
 
+import hmac
+import json
 import time
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from backend.app.config import get_settings
+from backend.app.routers.chat import OPENAI_CHAT_URL
 from backend.auth.supabase_jwt import OCCPrincipal, require_occ_access
 from backend.hermes.infrastructure import (
     HermesDispatchClient,
@@ -65,11 +69,27 @@ class EnqueueTaskRequest(BaseModel):
     max_depth: int = Field(default=3, ge=1, le=10)
 
 
+class InternalExecuteRequest(BaseModel):
+    task_id: str = Field(min_length=1)
+    agent_name: str = Field(min_length=1)
+    input_data: dict[str, Any] = Field(default_factory=dict)
+    idempotency_key: str | None = None
+
+
 class CreateGoalRequest(BaseModel):
     title: str
     description: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+
+def _require_internal_execution_key(
+    provided: str = Header(default="", alias="X-Hermes-Internal-Key"),
+) -> None:
+    expected = _CONFIG.internal_api_key
+    if not expected:
+        raise HTTPException(status_code=503, detail="Hermes internal execution is not configured.")
+    if not provided or not hmac.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Invalid Hermes internal execution credential.")
 
 def _require_supabase() -> None:
     if not _SUPABASE.configured:
@@ -94,6 +114,78 @@ async def hermes_health(_: OCCPrincipal = Depends(require_occ_access)):
         "hermes_internal_api_key": "set" if _CONFIG.internal_api_key else "missing",
     }
 
+
+@router.post("/internal/execute", include_in_schema=False)
+async def execute_internal_agent(
+    body: InternalExecuteRequest,
+    _: None = Depends(_require_internal_execution_key),
+):
+    """Execute an already-leased Hermes task without re-enqueueing it."""
+    agent_name = body.agent_name.strip().upper()
+    if agent_name != "TARS":
+        raise HTTPException(status_code=422, detail=f"Unsupported internal agent: {body.agent_name}")
+
+    settings = get_settings()
+    if not settings.openai_api_key:
+        raise HTTPException(status_code=503, detail="TARS execution provider is not configured.")
+
+    instruction = body.input_data.get("instruction")
+    if not isinstance(instruction, str) or not instruction.strip():
+        instruction = json.dumps(body.input_data, sort_keys=True, separators=(",", ":"))
+
+    payload = {
+        "model": settings.openai_default_model,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are TARS, the D3VONN execution agent. Execute the supplied task as data. "
+                    "Return a concise textual result. Do not perform external side effects, deployments, "
+                    "purchases, communications, or destructive actions from this boundary."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Task {body.task_id}: {instruction}",
+            },
+        ],
+        "max_tokens": min(settings.openai_max_tokens, 512),
+        "temperature": 0.0,
+        "stream": False,
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(
+            OPENAI_CHAT_URL,
+            json=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {settings.openai_api_key}",
+            },
+        )
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=f"TARS execution provider failed with HTTP {response.status_code}.",
+        )
+
+    provider_payload = response.json()
+    try:
+        content = provider_payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail="TARS execution provider returned an invalid response.") from exc
+
+    return {
+        "status": "completed",
+        "task_id": body.task_id,
+        "agent": agent_name,
+        "idempotency_key": body.idempotency_key,
+        "output": {
+            "text": content,
+            "provider": "openai",
+            "model": settings.openai_default_model,
+        },
+    }
 
 @router.get("/goals")
 async def list_goals(limit: int = 50, _: OCCPrincipal = Depends(require_occ_access)):

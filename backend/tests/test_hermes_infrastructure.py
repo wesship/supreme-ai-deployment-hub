@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from backend.hermes.adapters import InternalApiAgentDispatcher
 from backend.hermes.infrastructure import (
     HermesDispatchClient,
     HermesInfrastructureConfig,
@@ -21,10 +22,14 @@ def test_config_from_env_and_urls(monkeypatch):
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "service-key")
     monkeypatch.setenv("HERMES_WEBHOOK_SECRET", "webhook-secret")
     monkeypatch.setenv("HERMES_INTERNAL_API_KEY", "internal-key")
+    monkeypatch.setenv("HERMES_INTERNAL_API_URL", "internal-api.railway.internal")
     config = HermesInfrastructureConfig.from_env()
     assert config.supabase_url == "https://example.supabase.co"
     assert config.supabase_configured is True
     assert config.dispatch_configured is True
+    assert config.internal_dispatch_configured is True
+    assert config.internal_api_url == "http://internal-api.railway.internal"
+    assert config.internal_execute_url == "http://internal-api.railway.internal/api/hermes/internal/execute"
     assert config.rest_url("hermes_tasks").endswith("/rest/v1/hermes_tasks")
     assert config.enqueue_url.endswith("/functions/v1/enqueue-task")
 
@@ -139,3 +144,36 @@ async def test_unconfigured_dispatch_degrades_without_network():
         "status": "skipped",
         "reason": "not_configured",
     }
+
+@pytest.mark.asyncio
+async def test_internal_agent_dispatch_uses_private_api_not_enqueue_endpoint():
+    config = HermesInfrastructureConfig(
+        supabase_url="https://example.supabase.co",
+        webhook_secret="webhook-secret",
+        internal_api_key="internal-key",
+        internal_api_url="http://devonn-api.railway.internal",
+    )
+    dispatcher = InternalApiAgentDispatcher(config)
+    response = MagicMock()
+    response.json.return_value = {"status": "completed", "task_id": "task-1"}
+    response.raise_for_status.return_value = None
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+    mock_client.post = AsyncMock(return_value=response)
+
+    with patch("backend.hermes.adapters.httpx.AsyncClient", return_value=mock_client):
+        result = await dispatcher.dispatch(
+            task_id="task-1",
+            agent_name="TARS",
+            input_data={"instruction": "acknowledge"},
+            idempotency_key="hermes-task:task-1",
+        )
+
+    assert result["status"] == "completed"
+    call = mock_client.post.await_args
+    assert call.args[0] == "http://devonn-api.railway.internal/api/hermes/internal/execute"
+    assert "enqueue-task" not in call.args[0]
+    assert call.kwargs["headers"]["X-Hermes-Internal-Key"] == "internal-key"
+    assert call.kwargs["json"]["task_id"] == "task-1"
+    assert call.kwargs["json"]["agent_name"] == "TARS"

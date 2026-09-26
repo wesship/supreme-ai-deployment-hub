@@ -5,12 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.hermes.adapters import (
-    EdgeFunctionAgentDispatcher,
+    InternalApiAgentDispatcher,
     RepositoryEventSink,
     SupabaseTaskRepository,
 )
 from backend.hermes.infrastructure import (
-    HermesDispatchClient,
     HermesInfrastructureConfig,
     SupabaseRestClient,
 )
@@ -29,7 +28,7 @@ class HermesDependencies:
 def build_default_dependencies() -> HermesDependencies:
     config = HermesInfrastructureConfig.from_env()
     repository = SupabaseTaskRepository(SupabaseRestClient(config))
-    fallback_dispatcher = EdgeFunctionAgentDispatcher(HermesDispatchClient(config))
+    fallback_dispatcher = InternalApiAgentDispatcher(config)
     from backend.ai_films.hermes_mastering_bridge import HermesMasteringDispatcher
 
     specialized_dispatcher = HermesMasteringDispatcher(repository, fallback_dispatcher)
