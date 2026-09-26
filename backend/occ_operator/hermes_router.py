@@ -117,6 +117,17 @@ class AdaptiveCanaryCertificationRequest(BaseModel):
     candidate: AdaptiveCanaryMetrics
 
 
+class AdaptivePromotionDecision(BaseModel):
+    decision: str = Field(pattern="^(approved|rejected)$")
+    rationale: str = Field(min_length=3, max_length=4000)
+
+
+class AdaptiveRolloutRequest(BaseModel):
+    environment: str = Field(pattern="^(staging|production)$")
+    production_authorization: str | None = Field(default=None, max_length=512)
+    pre_change_config: dict[str, Any] = Field(default_factory=dict)
+
+
 def _require_internal_execution_key(
     provided: str = Header(default="", alias="X-Hermes-Internal-Key"),
 ) -> None:
@@ -476,6 +487,75 @@ async def list_adaptive_promotion_candidates(
 ):
     return await _get_rows(
         "hermes_adaptive_promotion_candidates",
+        {
+            "user_id": f"eq.{principal.user_id}",
+            "order": "created_at.desc",
+            "limit": limit,
+        },
+    )
+
+
+@router.post("/adaptive-promotion-candidates/{candidate_id}/decision")
+async def decide_adaptive_promotion(
+    candidate_id: str,
+    body: AdaptivePromotionDecision,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    try:
+        return await _SUPABASE.rpc(
+            "hermes_review_adaptive_promotion",
+            {
+                "p_candidate_id": candidate_id,
+                "p_user_id": principal.user_id,
+                "p_reviewer_id": principal.user_id,
+                "p_decision": body.decision,
+                "p_rationale": body.rationale,
+            },
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 409):
+            raise HTTPException(status_code=409, detail="Promotion candidate is not eligible for review.") from exc
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+
+
+@router.post("/adaptive-promotion-candidates/{candidate_id}/rollout")
+async def validate_adaptive_rollout(
+    candidate_id: str,
+    body: AdaptiveRolloutRequest,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    if body.environment == "production" and not body.production_authorization:
+        raise HTTPException(status_code=403, detail="Explicit production authorization is required.")
+    auth_hash = (
+        hashlib.sha256(body.production_authorization.encode()).hexdigest()
+        if body.production_authorization
+        else ""
+    )
+    try:
+        return await _SUPABASE.rpc(
+            "hermes_validate_adaptive_rollout",
+            {
+                "p_candidate_id": candidate_id,
+                "p_user_id": principal.user_id,
+                "p_executor_id": principal.user_id,
+                "p_environment": body.environment,
+                "p_authorization_hash": auth_hash,
+                "p_pre_change": body.pre_change_config,
+            },
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 403, 409):
+            raise HTTPException(status_code=409, detail="Promotion rollout is not eligible for validation.") from exc
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+
+
+@router.get("/adaptive-rollouts")
+async def list_adaptive_rollouts(
+    limit: int = 50,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    return await _get_rows(
+        "hermes_adaptive_rollouts",
         {
             "user_id": f"eq.{principal.user_id}",
             "order": "created_at.desc",
