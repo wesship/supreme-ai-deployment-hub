@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timezone
 
+from backend.hermes.adapters import RepositoryEventSink
 from backend.hermes.dependencies import HermesDependencies
 from backend.hermes.ports import AgentDispatcher, Clock, EventSink, TaskRepository
 from backend.hermes.task_engine import (
@@ -143,3 +144,71 @@ def test_expected_status_transition_allows_only_one_claim():
         assert [event["event"] for event in event_sink.events].count("task.locked") == 1
     finally:
         reset_runtime()
+
+
+def test_repository_event_sink_normalizes_rich_events_for_fixed_log_schema():
+    class CaptureRepository:
+        def __init__(self):
+            self.calls = []
+
+        async def create_row(self, table, payload):
+            self.calls.append((table, payload))
+            return payload
+
+    repository = CaptureRepository()
+    sink = RepositoryEventSink(repository)  # type: ignore[arg-type]
+    event = {
+        "event": "model_council.shadow.started",
+        "execution_id": "staging-shadow-smoke",
+        "workflow_id": "staging-shadow-smoke",
+        "step_id": "synthetic-step",
+        "agent_name": "TARS",
+        "candidate_count": 2,
+        "task_id": "not-a-uuid",
+    }
+
+    run(sink.emit(event))
+
+    table, payload = repository.calls[0]
+    assert table == "hermes_logs"
+    assert payload["event"] == "model_council.shadow.started"
+    assert payload["message"] == "model_council.shadow.started"
+    assert payload["level"] == "info"
+    assert payload["agent_name"] == "TARS"
+    assert payload["data"] == event
+    assert "execution_id" not in payload
+    assert "workflow_id" not in payload
+    assert "step_id" not in payload
+    assert "candidate_count" not in payload
+    assert "task_id" not in payload
+
+
+def test_repository_event_sink_promotes_valid_uuid_columns():
+    class CaptureRepository:
+        def __init__(self):
+            self.calls = []
+
+        async def create_row(self, table, payload):
+            self.calls.append((table, payload))
+            return payload
+
+    repository = CaptureRepository()
+    sink = RepositoryEventSink(repository)  # type: ignore[arg-type]
+    task_id = "123e4567-e89b-12d3-a456-426614174000"
+    correlation_id = "123e4567-e89b-12d3-a456-426614174001"
+
+    run(
+        sink.emit(
+            {
+                "event": "task.completed",
+                "task_id": task_id,
+                "correlation_id": correlation_id,
+                "agent": "ION",
+            }
+        )
+    )
+
+    _, payload = repository.calls[0]
+    assert payload["task_id"] == task_id
+    assert payload["correlation_id"] == correlation_id
+    assert payload["agent_name"] == "ION"

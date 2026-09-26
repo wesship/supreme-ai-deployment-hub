@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from uuid import UUID
 
 import httpx
 
@@ -208,10 +209,33 @@ class EdgeFunctionAgentDispatcher:
 
 
 class RepositoryEventSink:
-    """EventSink implementation that persists lifecycle events to hermes_logs."""
+    """Persist rich Hermes lifecycle events without violating hermes_logs schema."""
 
     def __init__(self, repository: SupabaseTaskRepository) -> None:
         self._repository = repository
 
+    @staticmethod
+    def _uuid_or_none(value: Any) -> str | None:
+        if value is None:
+            return None
+        try:
+            return str(UUID(str(value)))
+        except (TypeError, ValueError, AttributeError):
+            return None
+
     async def emit(self, event: dict[str, Any]) -> None:
-        await self._repository.create_row("hermes_logs", event)
+        event_name = str(event.get("event") or "hermes.event")
+        payload: dict[str, Any] = {
+            "level": str(event.get("level") or "info"),
+            "event": event_name,
+            "message": str(event.get("message") or event_name),
+            "data": dict(event),
+        }
+        for key in ("task_id", "run_id", "correlation_id"):
+            value = self._uuid_or_none(event.get(key))
+            if value:
+                payload[key] = value
+        agent_name = event.get("agent_name") or event.get("agent")
+        if agent_name:
+            payload["agent_name"] = str(agent_name)
+        await self._repository.create_row("hermes_logs", payload)
