@@ -8,6 +8,8 @@ from backend.main import app
 
 required = {
     "/api/ai-films/providers/health",
+    "/api/ai-films/vfx/makebigfilms/catalog",
+    "/api/ai-films/vfx/makebigfilms/resolve",
     "/api/ai-films/openmontage/dispatch",
     "/api/ai-films/commerce/campaigns/render",
 }
