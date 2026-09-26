@@ -708,7 +708,7 @@ const KnowledgeGraphOS: React.FC = () => {
           </div>
 
           {viewMode === 'graph' && (
-            <div className="h-[680px]">
+            <div className="d3-neural-stage h-[680px]">
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
