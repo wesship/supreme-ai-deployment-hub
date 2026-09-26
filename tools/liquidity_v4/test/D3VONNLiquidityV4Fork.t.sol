@@ -23,9 +23,9 @@ contract D3VONNLiquidityV4ForkTest is Test {
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
 
-    address internal constant POOL_MANAGER = 0x498581ff718922c3f8e6a244956af099b2652b2b;
-    address internal constant POSITION_MANAGER = 0x7c5f5a4bbd8fd63184577525326123b519429bdc;
-    address internal constant STATE_VIEW = 0xa3c0c9b65bad0b08107aa264b0f3db444b867a71;
+    address internal constant POOL_MANAGER = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
+    address internal constant POSITION_MANAGER = 0x7C5f5A4bBd8fD63184577525326123B519429bDc;
+    address internal constant STATE_VIEW = 0xA3c0c9b65baD0b08107Aa264b0f3dB444b867A71;
     address internal constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     struct LifecycleConfig {
