@@ -528,3 +528,61 @@
     animation: none !important;
   }
 }
+
+
+@keyframes d3-depth-breathe {
+  0%, 100% {
+    opacity: .34;
+    transform: scale(1);
+  }
+  50% {
+    opacity: .5;
+    transform: scale(1.025);
+  }
+}
+
+.d3-neural-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .6s ease;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(254,243,199,.08), transparent 22%),
+    linear-gradient(90deg, rgba(0,0,0,.28), transparent 12%, transparent 88%, rgba(0,0,0,.3)),
+    linear-gradient(180deg, rgba(0,0,0,.18), transparent 16%, transparent 82%, rgba(0,0,0,.32));
+}
+
+.d3-neural-stage--focused::after {
+  opacity: .38;
+  animation: d3-depth-breathe 5.5s ease-in-out infinite;
+}
+
+.d3-neural-stage--corridor::after {
+  opacity: .52;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(255,247,214,.1), rgba(252,211,77,.045) 24%, transparent 48%),
+    linear-gradient(90deg, rgba(0,0,0,.34), transparent 14%, transparent 86%, rgba(0,0,0,.36)),
+    linear-gradient(180deg, rgba(0,0,0,.22), transparent 18%, transparent 80%, rgba(0,0,0,.36));
+}
+
+.d3-neural-stage--focused .react-flow__background {
+  opacity: .82;
+  transition: opacity .6s ease;
+}
+
+.d3-neural-stage--corridor .react-flow__background {
+  opacity: .68;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-neural-stage--focused::after {
+    animation: none !important;
+  }
+
+  .d3-neural-stage::after {
+    transition: none;
+  }
+}
