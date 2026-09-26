@@ -124,6 +124,17 @@ type GraphFinding = {
   recommendation: string;
 };
 
+type SystemHealthRow = {
+  key: string;
+  label: string;
+  tasks: number;
+  failed: number;
+  retries: number;
+  runs: number;
+  duration_ms: number;
+  cost_usd: number;
+};
+
 type KnowledgeNodeData = {
   label: string;
   kind: NodeKind;
@@ -416,6 +427,9 @@ const KnowledgeGraphOS: React.FC = () => {
   const [taskLogs, setTaskLogs] = useState<HermesLogRow[]>([]);
   const [parentTask, setParentTask] = useState<HermesTaskRow | null>(null);
   const [childTasks, setChildTasks] = useState<HermesTaskRow[]>([]);
+  const [systemHealth, setSystemHealth] = useState<SystemHealthRow[]>([]);
+  const [systemHealthLoading, setSystemHealthLoading] = useState(false);
+  const [systemHealthUpdatedAt, setSystemHealthUpdatedAt] = useState<Date | null>(null);
   const timelineRequestRef = useRef(0);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -473,6 +487,77 @@ const KnowledgeGraphOS: React.FC = () => {
       mounted = false;
       supabase.removeChannel(channel);
     };
+  }, []);
+
+  const refreshSystemHealth = async () => {
+    setSystemHealthLoading(true);
+    try {
+      const [tasksRes, runsRes] = await Promise.all([
+        supabase
+          .from('hermes_tasks')
+          .select('id,kind,title,status,agent_name,retry_count,created_at')
+          .order('created_at', { ascending: false })
+          .limit(250),
+        supabase
+          .from('hermes_runs')
+          .select('id,task_id,agent_name,status,duration_ms,cost_usd,created_at')
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
+      if (tasksRes.error) throw tasksRes.error;
+      if (runsRes.error) throw runsRes.error;
+
+      const recentTasks = (tasksRes.data ?? []) as unknown as HermesTaskRow[];
+      const recentRuns = (runsRes.data ?? []) as unknown as HermesRunRow[];
+      const taskById = new Map(recentTasks.map((task) => [task.id, task]));
+      const buckets = new Map<string, SystemHealthRow>();
+
+      const ensure = (key: string, label: string) => {
+        if (!buckets.has(key)) {
+          buckets.set(key, { key, label, tasks: 0, failed: 0, retries: 0, runs: 0, duration_ms: 0, cost_usd: 0 });
+        }
+        return buckets.get(key)!;
+      };
+
+      for (const task of recentTasks) {
+        const agent = task.agent_name?.trim() || 'Unassigned';
+        const row = ensure(`agent:${agent}`, agent);
+        row.tasks += 1;
+        if (task.status.toUpperCase() === 'FAILED') row.failed += 1;
+        row.retries += task.retry_count ?? 0;
+      }
+
+      for (const run of recentRuns) {
+        const task = taskById.get(run.task_id);
+        const agent = run.agent_name?.trim() || task?.agent_name?.trim() || 'Unassigned';
+        const row = ensure(`agent:${agent}`, agent);
+        row.runs += 1;
+        row.duration_ms += run.duration_ms ?? 0;
+        row.cost_usd += Number(run.cost_usd ?? 0);
+      }
+
+      setSystemHealth(
+        Array.from(buckets.values())
+          .sort((a, b) => {
+            const pressureA = a.failed * 5 + a.retries * 2 + a.duration_ms / 30_000 + a.cost_usd * 10;
+            const pressureB = b.failed * 5 + b.retries * 2 + b.duration_ms / 30_000 + b.cost_usd * 10;
+            return pressureB - pressureA;
+          })
+          .slice(0, 12),
+      );
+      setSystemHealthUpdatedAt(new Date());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'System health load failed';
+      setActivity((items) => [`System health error: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setSystemHealthLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshSystemHealth();
+    const timer = window.setInterval(refreshSystemHealth, 60_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const refreshTaskTimeline = async (task: HermesTaskRow | null) => {
@@ -1185,6 +1270,58 @@ const KnowledgeGraphOS: React.FC = () => {
                 ))}
               </div>
             </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">System-wide graph health</h2>
+              </div>
+              <button onClick={refreshSystemHealth} disabled={systemHealthLoading} className="text-[10px] font-semibold text-amber-100/70 disabled:opacity-40">
+                {systemHealthLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Aggregated pressure across the newest 250 Hermes tasks and 500 run records visible to this authenticated user.
+            </p>
+
+            <div className="mt-4 space-y-2">
+              {systemHealth.map((row) => {
+                const avgRunMs = row.runs ? row.duration_ms / row.runs : 0;
+                const failureRate = row.tasks ? (row.failed / row.tasks) * 100 : 0;
+                const pressure = row.failed * 5 + row.retries * 2 + row.duration_ms / 30_000 + row.cost_usd * 10;
+                const level = pressure >= 15 ? 'critical' : pressure >= 6 ? 'warning' : 'normal';
+                return (
+                  <div key={row.key} className="border border-[#2d2c28] bg-[#090907] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-[11px] font-bold text-stone-200">{row.label}</p>
+                      <span className={`text-[9px] font-bold uppercase tracking-[0.12em] ${level === 'critical' ? 'text-red-200' : level === 'warning' ? 'text-amber-200' : 'text-stone-600'}`}>
+                        {level}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-[9px]">
+                      <span className="text-stone-500">Tasks <b className="text-stone-300">{row.tasks}</b></span>
+                      <span className="text-stone-500">Fail <b className="text-stone-300">{failureRate.toFixed(0)}%</b></span>
+                      <span className="text-stone-500">Retries <b className="text-stone-300">{row.retries}</b></span>
+                      <span className="text-stone-500">Runs <b className="text-stone-300">{row.runs}</b></span>
+                      <span className="text-stone-500">Avg <b className="text-stone-300">{avgRunMs ? `${(avgRunMs / 1000).toFixed(1)}s` : '—'}</b></span>
+                      <span className="text-stone-500">Cost <b className="text-stone-300">${row.cost_usd.toFixed(3)}</b></span>
+                    </div>
+                  </div>
+                );
+              })}
+              {!systemHealth.length && (
+                <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">
+                  {systemHealthLoading ? 'Loading recent Hermes health…' : 'No recent system-health records available.'}
+                </div>
+              )}
+            </div>
+
+            <p className="mt-3 text-[9px] leading-4 text-stone-700">
+              Pressure ranking is heuristic: failures ×5 + retries ×2 + runtime/30s + cost ×10. It is an operator signal, not an automated routing decision.
+              {systemHealthUpdatedAt ? ` Updated ${systemHealthUpdatedAt.toLocaleTimeString()}.` : ''}
+            </p>
           </section>
 
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
