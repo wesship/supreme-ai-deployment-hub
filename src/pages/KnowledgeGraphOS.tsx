@@ -430,6 +430,24 @@ const nodeTypes = { knowledge: KnowledgeNode };
 const edgeTypes = { cinematic: CinematicEdge };
 const majorClusterNodeIds = new Set(['agents', 'knowledge', 'tools', 'films', 'radio', 'security', 'analytics']);
 
+
+const nexusNavItems = [
+  { label: 'Command Center', route: '/command-center', icon: Gauge },
+  { label: 'Knowledge Graph', route: '/knowledge-graph', icon: Network, active: true },
+  { label: 'Hermes Orchestration', route: '/workflows', icon: BrainCircuit },
+  { label: 'Agents', route: '/agents', icon: Bot },
+  { label: 'Tools & Integrations', route: '/mcp', icon: Wrench },
+  { label: 'Workflows', route: '/workflows', icon: Workflow },
+  { label: 'Knowledge & RAG', route: '/dkos-ingestion', icon: Database },
+  { label: 'AI Films', route: '/ai-films', icon: Sparkles },
+  { label: 'HNF Ecosystem', route: '/music', icon: Radio },
+  { label: 'Infrastructure', route: '/command-center', icon: Server },
+  { label: 'Operations', route: '/operations', icon: Activity },
+  { label: 'Security', route: '/security/command-center', icon: ShieldCheck },
+  { label: 'Analytics', route: '/app', icon: Gauge },
+  { label: 'D3VONN.IO Institute', route: '/institute', icon: Users },
+] as const;
+
 const KnowledgeGraphOS: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -761,20 +779,48 @@ const KnowledgeGraphOS: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#080806] text-stone-100">
-      <div className="border-b border-[#2d2c28] bg-[#0c0c0a] shadow-[0_6px_24px_rgba(0,0,0,0.28)]">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-4 px-5 py-5 lg:px-8">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-amber-200/70">D3VONN.IO Intelligence Fabric</p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">Operational Knowledge Graph</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="border border-[#4b4633] bg-[#15140f] px-3 py-1.5 text-xs text-amber-100/75">
-              {liveCorrelationId
-                ? `Hermes stream · ${liveStreamState}`
-                : 'Governed graph · preview propagation available'}
+      <header className="d3-nexus-topbar border-b border-[#2d2c28] bg-[#090907]/95 shadow-[0_6px_24px_rgba(0,0,0,0.32)]">
+        <div className="mx-auto flex max-w-[1920px] items-center gap-5 px-4 py-3 lg:px-5">
+          <Link to="/" className="min-w-[190px]">
+            <p className="text-xl font-black tracking-[0.22em] text-amber-100">D3VONN</p>
+            <p className="text-[8px] font-bold uppercase tracking-[0.34em] text-stone-500">AI Business Operating System</p>
+          </Link>
+          <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex" aria-label="Primary">
+            {[
+              ['Home', '/'],
+              ['Knowledge Graph', '/knowledge-graph'],
+              ['Hermes', '/workflows'],
+              ['Agents', '/agents'],
+              ['Workflows', '/workflows'],
+              ['Infrastructure', '/command-center'],
+              ['AI Films', '/ai-films'],
+              ['HNF', '/music'],
+              ['Marketplace', '/marketplace'],
+            ].map(([label, route]) => (
+              <Link
+                key={label}
+                to={route}
+                className={`border-b-2 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.08em] transition ${
+                  label === 'Knowledge Graph'
+                    ? 'border-amber-300 text-amber-100'
+                    : 'border-transparent text-stone-500 hover:text-white'
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <div className="ml-auto flex items-center gap-2">
+            <ConversationalVoiceControls
+              context={voiceContext}
+              onExecutionStarted={setVoiceCorrelationId}
+              onGraphAction={executeGraphAction}
+            />
+            <span className="hidden border border-[#4b4633] bg-[#15140f] px-3 py-1.5 text-[10px] text-amber-100/75 sm:inline">
+              {liveCorrelationId ? `Hermes · ${liveStreamState}` : 'Hermes · standby'}
             </span>
             <span
-              className={`border px-3 py-1.5 text-xs ${
+              className={`hidden border px-3 py-1.5 text-[10px] lg:inline ${
                 runtimeIdentityState === 'connected'
                   ? 'border-emerald-300/25 bg-emerald-300/[0.05] text-emerald-200'
                   : runtimeIdentityState === 'mismatch'
@@ -786,22 +832,47 @@ const KnowledgeGraphOS: React.FC = () => {
               {runtimeIdentityState === 'connected'
                 ? 'Backend · repo connected'
                 : runtimeIdentityState === 'mismatch'
-                  ? 'Backend · source mismatch'
+                  ? 'Backend · mismatch'
                   : runtimeIdentityState === 'unavailable'
                     ? 'Backend · unavailable'
                     : 'Backend · checking'}
             </span>
-
-            <Link to="/command-center" className="border border-[#34332f] bg-[#0c0c0a] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-100/30 hover:text-white">
-              Command Center
-            </Link>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="mx-auto grid max-w-[1600px] gap-5 px-5 py-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8">
+      <div className="mx-auto grid max-w-[1920px] gap-3 px-3 py-3 xl:grid-cols-[220px_minmax(0,1fr)_310px] xl:px-4">
+        <aside className="d3-nexus-left-rail hidden border border-[#2d2c28] bg-[#0c0c0a] p-2 xl:block">
+          <div className="mb-2 border-b border-[#25241f] px-3 py-3">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-600">Platform</p>
+            <p className="mt-1 text-xs font-semibold text-stone-300">Command surfaces</p>
+          </div>
+          <nav className="space-y-1" aria-label="D3VONN command surfaces">
+            {nexusNavItems.map(({ label, route, icon: Icon, active }) => (
+              <Link
+                key={label}
+                to={route}
+                className={`flex items-center gap-3 border px-3 py-2.5 text-[11px] font-semibold transition ${
+                  active
+                    ? 'border-amber-300/30 bg-amber-200/[0.08] text-amber-100 shadow-[inset_3px_0_0_#fcd34d]'
+                    : 'border-transparent text-stone-500 hover:border-[#34332f] hover:bg-white/[0.02] hover:text-stone-200'
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{label}</span>
+              </Link>
+            ))}
+          </nav>
+        </aside>
+
         <section className="overflow-hidden border border-[#2d2c28] bg-[#0b0b09] shadow-[0_16px_40px_rgba(0,0,0,0.32)]">
-          <div className="flex flex-wrap items-center gap-3 border-b border-[#2d2c28] bg-[#10100d] p-4 shadow-[inset_0_-1px_0_rgba(255,255,255,0.02)]">
+          <div className="border-b border-[#2d2c28] bg-[#10100d] px-4 py-4">
+            <div className="mb-3">
+              <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-amber-200/60">D3VONN Knowledge Universe</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">Connect Everything. Make It Work.</h1>
+              <p className="mt-1 text-[11px] text-stone-500">People · Agents · Data · Tools · Workflows · Memory · Infrastructure · Results</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
             <label className="flex min-w-[260px] flex-1 items-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2">
               <Search className="h-4 w-4 text-stone-500" />
               <input
@@ -976,10 +1047,31 @@ const KnowledgeGraphOS: React.FC = () => {
               </table>
             </div>
           )}
+
+          <div className="d3-nexus-actionbar flex flex-wrap items-center justify-center gap-2 border-t border-[#2d2c28] bg-[#0d0d0b] px-4 py-3">
+            <button type="button" onClick={() => recordAction('Explore')} className="d3-nexus-action d3-nexus-action--primary">
+              <Network className="h-4 w-4" /> Explore
+            </button>
+            <button type="button" onClick={() => executeGraphAction({ action: 'trace', nodeId: selected.id, source: 'click' })} className="d3-nexus-action">
+              <Eye className="h-4 w-4" /> Trace
+            </button>
+            <button type="button" onClick={() => executeGraphAction({ action: 'run', nodeId: selected.id, source: 'click' })} className="d3-nexus-action">
+              <Play className="h-4 w-4" /> Run
+            </button>
+            <button type="button" onClick={() => executeGraphAction({ action: 'connect', nodeId: selected.id, source: 'click' })} className="d3-nexus-action">
+              <Zap className="h-4 w-4" /> Connect
+            </button>
+            <button type="button" onClick={() => executeGraphAction({ action: 'monitor', nodeId: selected.id, source: 'click' })} className="d3-nexus-action">
+              <Activity className="h-4 w-4" /> Monitor
+            </button>
+            <button type="button" onClick={() => executeGraphAction({ action: 'ask', nodeId: selected.id, source: 'click' })} className="d3-nexus-action">
+              <BrainCircuit className="h-4 w-4" /> AI Assist
+            </button>
+          </div>
         </section>
 
-        <aside className="space-y-5">
-          <section className="border border-[#4b4633] bg-[#15140f] p-5 shadow-[inset_3px_0_0_#fcd34d,0_12px_28px_rgba(0,0,0,0.24)]">
+        <aside className="d3-nexus-right-rail space-y-3">
+          <section className="hidden border border-[#4b4633] bg-[#15140f] p-5 shadow-[inset_3px_0_0_#fcd34d,0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Mic className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Voice command layer</h2>
