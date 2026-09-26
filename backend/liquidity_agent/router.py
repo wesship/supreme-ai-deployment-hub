@@ -30,14 +30,19 @@ async def liquidity_health():
     )
     graph_configured = graph_url_configured or graph_gateway_configured
     rpc_configured = bool(os.getenv("LIQUIDITY_BASE_RPC_URL") or os.getenv("BASE_RPC_URL"))
+    hermes_configured = bool(os.getenv("SUPABASE_URL") and os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
     return {
         "status": "ok",
-        "version": "0.4",
+        "version": "0.5",
         "mode": "simulation_only",
         "read_only_intelligence": True,
         "canonical_pool_verification": ["uniswap-v3-base", "uniswap-v4-base-stateview"],
         "uniswap_v4_state_verifier": "enabled",
         "uniswap_v4_position_manager_harness": "fork_only",
+        "trusted_simulation_certification": "manual_workflow_dispatch",
+        "hermes_certificate_persistence": "configured" if hermes_configured else "not_configured",
+        "safe_proposal_preparation": "persisted_certificate_gated",
+        "safe_submission_enabled": False,
         "sources": {
             "defillama_yields": "enabled",
             "base_rpc": "configured" if rpc_configured else "not_configured",
