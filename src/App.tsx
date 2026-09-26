@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
 import ScrollToTop from "./components/ScrollToTop";
@@ -163,7 +163,7 @@ function ShellChrome() {
   return <Suspense fallback={null}><Navbar /></Suspense>;
 }
 
-function MainRegion({ children }: { children: React.ReactNode }) {
+function MainRegion({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const isHome = pathname === '/';
   return (

@@ -211,7 +211,7 @@ const Index: React.FC = () => (
     <BootSequence />
     <OsNav />
 
-    <main id="os-main">
+    <div id="os-main">
       <Hero />
 
       <Section id="surfaces">
@@ -373,7 +373,7 @@ const Index: React.FC = () => (
           </div>
         </div>
       </Section>
-    </main>
+    </div>
 
     <OsFooter />
   </div>
