@@ -1,16 +1,14 @@
 /**
- * Public provenance for the currently adopted D3VONN.IO UI source.
+ * Public provenance for the canonical D3VONN.IO UI source.
  *
- * Keep this file limited to non-sensitive identifiers that are safe to ship
- * in a browser bundle. Readdy user IDs, session IDs, and request IDs are
- * intentionally excluded.
+ * The frontend is built directly from the D3VONN repository. External UI
+ * builders are not runtime authorities for production.
  */
 export const UI_PROVENANCE = {
-  source: 'readdy',
-  projectId: 'dd3b402e-1da4-4fe4-954a-fad4fe9e7515',
-  projectVersionId: 14281026,
-  showId: 1,
-  projectUrl: 'https://readdy.ai/project/dd3b402e-1da4-4fe4-954a-fad4fe9e7515',
+  source: 'repository',
+  repository: 'wesship/supreme-ai-deployment-hub',
+  surface: 'neural-nexus',
+  route: '/',
 } as const;
 
 export type UiProvenance = typeof UI_PROVENANCE;
