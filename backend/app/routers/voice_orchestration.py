@@ -12,12 +12,14 @@ import time
 from collections import OrderedDict
 from typing import Any
 from urllib.parse import urlencode
+from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
 
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.voice_session import issue_voice_session, verify_voice_session
+from backend.hermes.dependencies import get_dependencies
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice-orchestration"])
@@ -430,6 +432,7 @@ async def _handle_tool_calls(
 
                 title = str(parameters.get("title") or parameters.get("task") or "Voice-requested Hermes task")
                 description = parameters.get("description")
+                correlation_id = str(uuid4())
                 task = await create_task(
                     title=title[:240],
                     task_type="voice.hermes",
@@ -439,11 +442,17 @@ async def _handle_tool_calls(
                         "authenticated_user_id": user_id,
                         "voice_session": "inline",
                         "voice_context": _redact(voice_context or {}),
+                        "vapi_event_id": event_id,
                     },
                     source="vapi-inline",
-                    correlation_id=event_id,
+                    correlation_id=correlation_id,
                 )
-                result = {"status": "queued", "task_id": task.get("id"), "title": task.get("title", title)}
+                result = {
+                    "status": "queued",
+                    "task_id": task.get("id"),
+                    "title": task.get("title", title),
+                    "correlation_id": correlation_id,
+                }
             except Exception:  # pragma: no cover - external database failures
                 logger.error("Hermes task creation failed")
                 result = {
@@ -564,6 +573,51 @@ async def create_voice_session(
         "mode": "inline-authenticated",
         "expires_at": expires_at,
         "assistant": _inline_assistant(webhook_url, voice_context),
+    }
+
+
+
+
+@router.get("/executions/latest")
+async def latest_voice_execution(
+    ui_session_id: str = Query(..., min_length=36, max_length=36),
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    """Return the newest Hermes execution created by one authenticated browser voice session."""
+    try:
+        safe_ui_session_id = str(UUID(ui_session_id))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid voice UI session") from exc
+    if safe_ui_session_id != ui_session_id:
+        raise HTTPException(status_code=400, detail="Invalid voice UI session")
+
+    repository = get_dependencies().repository
+    if not repository.configured:
+        raise HTTPException(status_code=503, detail="Hermes task persistence is unavailable")
+
+    rows = await repository.list_rows(
+        "hermes_tasks",
+        {
+            "select": "id,correlation_id,created_at,input_data",
+            "input_data->>authenticated_user_id": f"eq.{user_id}",
+            "input_data->voice_context->>ui_session_id": f"eq.{safe_ui_session_id}",
+            "order": "created_at.desc",
+            "limit": "1",
+        },
+    )
+    if not rows:
+        return {"execution": None}
+
+    task = rows[0]
+    correlation_id = task.get("correlation_id")
+    if not isinstance(correlation_id, str) or not correlation_id:
+        return {"execution": None}
+    return {
+        "execution": {
+            "task_id": task.get("id"),
+            "correlation_id": correlation_id,
+            "created_at": task.get("created_at"),
+        }
     }
 
 
