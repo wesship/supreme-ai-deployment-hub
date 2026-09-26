@@ -21,6 +21,7 @@ import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceCont
 import { useHermesEvents, type HermesStreamEvent } from '@/features/knowledge-graph/hooks/useHermesEvents';
 import { deriveLiveExecutionPanels } from '@/features/knowledge-graph/lib/livePanels';
 import type { D3GraphActionRequest } from '@/features/knowledge-graph/lib/graphActions';
+import { deriveClusterActivation } from '@/features/knowledge-graph/lib/clusterActivation';
 import {
   Activity,
   Bot,
@@ -303,6 +304,7 @@ const livePathFromEvents = (events: HermesStreamEvent[], selectedId: string): st
 
 type CinematicEdgeData = {
   executing?: boolean;
+  clusterActive?: boolean;
 };
 
 function CinematicEdge({
@@ -325,19 +327,27 @@ function CinematicEdge({
     targetY,
     targetPosition,
   });
-  const executing = Boolean((data as CinematicEdgeData | undefined)?.executing);
+  const edgeData = data as CinematicEdgeData | undefined;
+  const executing = Boolean(edgeData?.executing);
+  const clusterActive = Boolean(edgeData?.clusterActive);
 
   return (
-    <g className={executing ? 'd3-cinematic-edge d3-cinematic-edge--executing' : 'd3-cinematic-edge'}>
+    <g
+      className={[
+        'd3-cinematic-edge',
+        executing ? 'd3-cinematic-edge--executing' : '',
+        clusterActive ? 'd3-cinematic-edge--cluster' : '',
+      ].filter(Boolean).join(' ')}
+    >
       <BaseEdge id={id} path={edgePath} markerEnd={markerEnd} style={style} />
-      {executing && [0, 1, 2].map((index) => (
+      {(executing ? [0, 1, 2] : clusterActive ? [0] : []).map((index) => (
         <circle
           key={index}
           className="d3-edge-particle"
           r={index === 0 ? 3.2 : 2.2}
         >
           <animateMotion
-            dur={index === 0 ? '1.25s' : '1.75s'}
+            dur={executing ? (index === 0 ? '1.25s' : '1.75s') : '2.4s'}
             begin={`${index * -0.42}s`}
             repeatCount="indefinite"
             path={edgePath}
@@ -403,6 +413,7 @@ function KnowledgeNode({ id, data, selected }: NodeProps<Node<KnowledgeNodeData>
 
 const nodeTypes = { knowledge: KnowledgeNode };
 const edgeTypes = { cinematic: CinematicEdge };
+const majorClusterNodeIds = new Set(['agents', 'knowledge', 'tools', 'films', 'radio', 'security', 'analytics']);
 
 const KnowledgeGraphOS: React.FC = () => {
   const navigate = useNavigate();
@@ -480,6 +491,11 @@ const KnowledgeGraphOS: React.FC = () => {
     [executionPath, executionStep],
   );
 
+  const clusterActivation = useMemo(
+    () => deriveClusterActivation(selectedId, executionPath, initialEdges, majorClusterNodeIds),
+    [executionPath, selectedId],
+  );
+
   const nodes = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return initialNodes.map((node) => ({
@@ -488,12 +504,16 @@ const KnowledgeGraphOS: React.FC = () => {
       data: node.id === 'hermes'
         ? { ...node.data, runtimeState: livePanels.status }
         : node.data,
-      className: executionNodeIds.has(node.id) ? 'd3-kg-runtime-node' : undefined,
+      className: [
+        executionNodeIds.has(node.id) ? 'd3-kg-runtime-node' : '',
+        clusterActivation.primaryNodeId === node.id ? 'd3-kg-cluster-primary' : '',
+        clusterActivation.sympatheticNodeIds.has(node.id) ? 'd3-kg-cluster-sympathetic' : '',
+      ].filter(Boolean).join(' ') || undefined,
       hidden:
         (kind !== 'all' && node.data.kind !== kind) ||
         Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
     }));
-  }, [executionNodeIds, kind, livePanels.status, query, selectedId]);
+  }, [clusterActivation, executionNodeIds, kind, livePanels.status, query, selectedId]);
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
@@ -501,6 +521,7 @@ const KnowledgeGraphOS: React.FC = () => {
       const active = edge.source === selectedId || edge.target === selectedId;
       const platformEdge = ['films', 'radio', 'analytics', 'security'].includes(edge.target);
       const executing = executionEdgeIds.has(edge.id);
+      const clusterActive = clusterActivation.clusterEdgeIds.has(edge.id);
       return {
       ...edge,
       className: [
@@ -508,18 +529,19 @@ const KnowledgeGraphOS: React.FC = () => {
         active ? 'd3-kg-edge--active' : '',
         platformEdge ? 'd3-kg-edge--platform' : '',
         executing ? 'd3-kg-edge--executing' : '',
+        clusterActive ? 'd3-kg-edge--cluster' : '',
       ].filter(Boolean).join(' '),
-      animated: edge.source === 'hermes' || active || executing,
-      data: { executing },
+      animated: edge.source === 'hermes' || active || executing || clusterActive,
+      data: { executing, clusterActive },
       hidden: !visibleIds.has(edge.source) || !visibleIds.has(edge.target),
       style: {
-        stroke: executing ? '#fef3c7' : active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
-        strokeWidth: executing ? 3.2 : active ? 2.4 : platformEdge ? 1.7 : 1.3,
-        opacity: executing ? 1 : active ? 0.98 : platformEdge ? 0.62 : 0.42,
+        stroke: executing ? '#fef3c7' : clusterActive ? '#fcd34d' : active ? '#fde68a' : platformEdge ? '#fb923c' : '#78716c',
+        strokeWidth: executing ? 3.2 : clusterActive ? 2.1 : active ? 2.4 : platformEdge ? 1.7 : 1.3,
+        opacity: executing ? 1 : clusterActive ? 0.86 : active ? 0.98 : platformEdge ? 0.62 : 0.42,
       },
     };
     });
-  }, [executionEdgeIds, nodes, selectedId]);
+  }, [clusterActivation, executionEdgeIds, nodes, selectedId]);
 
   const recordAction = (action: string) => {
     setActivity((items) => [`${action}: ${selected.data.label}`, ...items].slice(0, 5));
