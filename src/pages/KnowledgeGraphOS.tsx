@@ -96,7 +96,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'intent',
     type: 'knowledge',
-    position: { x: 0, y: 220 },
+    position: { x: 210, y: 120 },
     data: {
       label: 'People',
       kind: 'core',
@@ -108,7 +108,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'hermes',
     type: 'knowledge',
-    position: { x: 270, y: 210 },
+    position: { x: 515, y: 245 },
     data: {
       label: 'Hermes',
       kind: 'core',
@@ -120,7 +120,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'agents',
     type: 'knowledge',
-    position: { x: 560, y: 45 },
+    position: { x: 260, y: 300 },
     data: {
       label: 'Agents',
       kind: 'agent',
@@ -132,7 +132,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'knowledge',
     type: 'knowledge',
-    position: { x: 560, y: 210 },
+    position: { x: 500, y: 55 },
     data: {
       label: 'Knowledge + RAG',
       kind: 'memory',
@@ -144,7 +144,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'tools',
     type: 'knowledge',
-    position: { x: 560, y: 375 },
+    position: { x: 820, y: 285 },
     data: {
       label: 'Tools + MCP',
       kind: 'tool',
@@ -156,7 +156,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'workflow',
     type: 'knowledge',
-    position: { x: 860, y: 95 },
+    position: { x: 455, y: 500 },
     data: {
       label: 'Workflow Engine',
       kind: 'core',
@@ -168,7 +168,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'films',
     type: 'knowledge',
-    position: { x: 1130, y: 15 },
+    position: { x: 65, y: 275 },
     data: {
       label: 'AI Films',
       kind: 'product',
@@ -180,7 +180,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'radio',
     type: 'knowledge',
-    position: { x: 1130, y: 175 },
+    position: { x: 90, y: 485 },
     data: {
       label: 'HNF Ecosystem',
       kind: 'product',
@@ -192,7 +192,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'models',
     type: 'knowledge',
-    position: { x: 860, y: 255 },
+    position: { x: 800, y: 110 },
     data: {
       label: 'Models',
       kind: 'tool',
@@ -204,7 +204,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'security',
     type: 'knowledge',
-    position: { x: 860, y: 345 },
+    position: { x: 790, y: 500 },
     data: {
       label: 'Security + Trust',
       kind: 'security',
@@ -216,7 +216,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'infrastructure',
     type: 'knowledge',
-    position: { x: 1090, y: 420 },
+    position: { x: 635, y: 525 },
     data: {
       label: 'Infrastructure',
       kind: 'tool',
@@ -228,7 +228,7 @@ const initialNodes: Array<Node<KnowledgeNodeData>> = [
   {
     id: 'analytics',
     type: 'knowledge',
-    position: { x: 1130, y: 340 },
+    position: { x: 990, y: 420 },
     data: {
       label: 'Operations',
       kind: 'core',
@@ -963,6 +963,7 @@ const KnowledgeGraphOS: React.FC = () => {
 
           {viewMode === 'graph' && (
             <div className={`d3-neural-stage h-[680px] ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''}`}>
+              <div className="d3-nexus-globe" aria-hidden="true" />
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
