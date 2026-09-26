@@ -552,7 +552,9 @@ async def create_voice_session(
 
     try:
         token, expires_at = issue_voice_session(user_id, context_binding=voice_context)
-    except (RuntimeError, ValueError) as exc:
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid voice context") from exc
+    except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="Voice session service unavailable") from exc
 
     webhook_url = f"{_public_api_url(request)}/api/voice/vapi/webhook?{urlencode({'session': token})}"
