@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from urllib.parse import parse_qs, urlparse
+from uuid import UUID
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -291,3 +292,106 @@ def test_invalid_voice_context_is_rejected(monkeypatch):
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid voice context"
+
+
+def test_voice_tool_returns_uuid_correlation_for_live_graph(monkeypatch):
+    configure_signing(monkeypatch)
+    captured: dict[str, object] = {}
+
+    async def fake_create_task(**kwargs):
+        captured.update(kwargs)
+        return {"id": "inline-task-live-graph", "title": kwargs["title"]}
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
+    client = make_client(user_id="user-live-graph")
+    ui_session_id = "11111111-1111-4111-8111-111111111111"
+    context = {
+        "surface": "knowledge-graph",
+        "route": "/knowledge-graph",
+        "node_id": "films",
+        "node_label": "AI Films",
+        "node_kind": "product",
+        "canonical_route": "/ai-films",
+        "ui_session_id": ui_session_id,
+    }
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={"context": context},
+    )
+    token = parse_qs(
+        urlparse(session_response.json()["assistant"]["server"]["url"]).query
+    )["session"][0]
+
+    response = client.post(
+        f"/api/voice/vapi/webhook?session={token}",
+        json={
+            "message": {
+                "id": "evt-live-graph-tool",
+                "type": "tool-calls",
+                "toolCallList": [
+                    {
+                        "id": "call-live-graph-1",
+                        "name": "create_hermes_task",
+                        "parameters": {"title": "Run this"},
+                    }
+                ],
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    result = json.loads(response.json()["results"][0]["result"])
+    correlation_id = result["correlation_id"]
+    assert str(UUID(correlation_id)) == correlation_id
+    assert captured["correlation_id"] == correlation_id
+    assert captured["input_data"]["voice_context"]["ui_session_id"] == ui_session_id
+    assert captured["input_data"]["vapi_event_id"] == "evt-live-graph-tool"
+
+
+def test_latest_voice_execution_is_user_and_ui_session_scoped(monkeypatch):
+    configure_signing(monkeypatch)
+    captured: dict[str, object] = {}
+    ui_session_id = "22222222-2222-4222-8222-222222222222"
+
+    class Repository:
+        configured = True
+
+        async def list_rows(self, table, params):
+            captured["table"] = table
+            captured["params"] = params
+            return [{
+                "id": "task-live-1",
+                "correlation_id": "33333333-3333-4333-8333-333333333333",
+                "created_at": "2026-09-26T22:00:00+00:00",
+                "input_data": {},
+            }]
+
+    class Dependencies:
+        repository = Repository()
+
+    monkeypatch.setattr(
+        "backend.app.routers.voice_orchestration.get_dependencies",
+        lambda: Dependencies(),
+    )
+
+    response = make_client(user_id="user-execution-owner").get(
+        "/api/voice/executions/latest",
+        params={"ui_session_id": ui_session_id},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["execution"]["correlation_id"] == "33333333-3333-4333-8333-333333333333"
+    assert captured["table"] == "hermes_tasks"
+    assert captured["params"]["input_data->>authenticated_user_id"] == "eq.user-execution-owner"
+    assert captured["params"]["input_data->voice_context->>ui_session_id"] == f"eq.{ui_session_id}"
+
+
+def test_latest_voice_execution_rejects_invalid_ui_session(monkeypatch):
+    configure_signing(monkeypatch)
+    response = make_client().get(
+        "/api/voice/executions/latest",
+        params={"ui_session_id": "not-a-valid-uuid"},
+    )
+    assert response.status_code == 422
