@@ -44,7 +44,8 @@ import {
 } from '@/lib/homepageTelemetry';
 
 const MASTER_LOGO_SRC = '/d3vonn-logo-clean.png?v=20260801-clean';
-const ENTERPRISE_CORE_SRC = '/d3vonn-enterprise-core.webp?v=20260904-perf';
+const ENTERPRISE_CORE_SRC = '/core-01-helmet.svg?v=20260725-core-fix';
+const ENTERPRISE_CORE_FALLBACK_SRC = '/d3vonn-logo.webp?v=20260724-official';
 
 const useHomepageTelemetry = () => {
   const [telemetry, setTelemetry] = useState<HomepageTelemetry>(defaultHomepageTelemetry);
@@ -150,6 +151,7 @@ const PanelLink: React.FC<{
 
 const Hero: React.FC = () => {
   const telemetry = useHomepageTelemetry();
+  const [coreSrc, setCoreSrc] = useState(ENTERPRISE_CORE_SRC);
 
   const coreModules = [
     { label: 'AI Workforce', value: telemetry.activeAgents, icon: Users, to: '/agents' },
@@ -227,11 +229,16 @@ const Hero: React.FC = () => {
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
                 <div className="relative aspect-[1376/768] w-full overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:aspect-auto sm:min-h-[430px]">
                   <img
-                    src={ENTERPRISE_CORE_SRC}
+                    src={coreSrc}
                     alt="D3VONN.IO Enterprise Intelligence Core — AI workforce, domain intelligence, and knowledge graph command center"
-                    className="absolute inset-0 h-full w-full object-contain object-center p-2 sm:p-3"
+                    className="absolute inset-0 h-full w-full bg-[#020b1c] object-contain object-center p-2 sm:p-3"
                     loading="eager"
                     decoding="async"
+                    onError={() => {
+                      if (coreSrc !== ENTERPRISE_CORE_FALLBACK_SRC) {
+                        setCoreSrc(ENTERPRISE_CORE_FALLBACK_SRC);
+                      }
+                    }}
                   />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#020b1c]/85 via-[#020b1c]/30 to-[#020b1c]/60" />
 
