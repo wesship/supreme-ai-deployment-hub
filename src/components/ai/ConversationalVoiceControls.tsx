@@ -17,6 +17,7 @@ export interface VoiceUiContext {
   node_kind?: string;
   canonical_route?: string;
   ui_session_id?: string;
+  view_mode?: 'graph' | 'map' | 'list';
 }
 
 interface ConversationalVoiceControlsProps {
