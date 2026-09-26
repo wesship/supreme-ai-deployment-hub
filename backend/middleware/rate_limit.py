@@ -22,8 +22,14 @@ _SKIP_PATHS = frozenset({"/health", "/health/live", "/health/ready", "/ready"})
 
 
 def _strict_environment() -> bool:
-    env = (os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or "production").lower()
-    return env not in {"dev", "development", "local", "test", "testing"}
+    configured = os.getenv("ENVIRONMENT") or os.getenv("APP_ENV")
+    if configured:
+        return configured.lower() not in {"dev", "development", "local", "test", "testing"}
+    # Pytest processes without an explicit environment are test execution, not
+    # production. Explicit staging/production above still fail closed.
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    return True
 
 
 def _client_identity(request: Request) -> str:
