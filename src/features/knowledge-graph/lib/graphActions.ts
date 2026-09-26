@@ -9,13 +9,15 @@ export type D3GraphAction =
   | 'filter'
   | 'search'
   | 'ask'
-  | 'stop';
+  | 'stop'
+  | 'view';
 
 export type D3GraphActionRequest = {
   action: D3GraphAction;
   nodeId?: string;
   query?: string;
   filter?: string;
+  view?: 'graph' | 'map' | 'list';
   targetNodeId?: string;
   confirmed?: boolean;
   source: 'click' | 'voice';
@@ -31,6 +33,7 @@ export const READ_ONLY_GRAPH_ACTIONS = new Set<D3GraphAction>([
   'ask',
   'stop',
   'monitor',
+  'view',
 ]);
 
 export const EXECUTION_GRAPH_ACTIONS = new Set<D3GraphAction>([
@@ -52,6 +55,7 @@ export const isD3GraphAction = (value: unknown): value is D3GraphAction =>
     'search',
     'ask',
     'stop',
+    'view',
   ].includes(value);
 
 export const normalizeGraphActionRequest = (
@@ -79,6 +83,9 @@ export const normalizeGraphActionRequest = (
     }
   }
 
+  if (typeof data.view === 'string' && ['graph', 'map', 'list'].includes(data.view)) {
+    request.view = data.view as 'graph' | 'map' | 'list';
+  }
   if (typeof data.confirmed === 'boolean') request.confirmed = data.confirmed;
   return request;
 };
