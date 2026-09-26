@@ -152,8 +152,33 @@ jobs:
           cd dist
           zip -r ../devonn-ai-${{ steps.env.outputs.name }}.zip .
 
-      - name: Upload to Chrome Web Store
+      - name: Detect Chrome Web Store publication readiness
+        id: chrome-publish
         if: steps.env.outputs.name == 'production'
+        shell: bash
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in CHROME_EXTENSION_ID CHROME_CLIENT_ID CHROME_CLIENT_SECRET CHROME_REFRESH_TOKEN; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Chrome Web Store publication credentials are configured."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Chrome Web Store publication is not configured; core production release will continue without extension publication. Missing credential names: ${missing[*]}"
+          fi
+
+      - name: Upload to Chrome Web Store
+        if: steps.env.outputs.name == 'production' && steps.chrome-publish.outputs.ready == 'true'
         run: node scripts/upload-to-chrome-webstore.cjs
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
@@ -162,6 +187,12 @@ jobs:
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
           ZIP_PATH: devonn-ai-${{ steps.env.outputs.name }}.zip
           PUBLISH_EXTENSION: 'true'
+
+      - name: Record Chrome Web Store publication skip
+        if: steps.env.outputs.name == 'production' && steps.chrome-publish.outputs.ready != 'true'
+        run: |
+          echo "Chrome Web Store publication: SKIPPED (credentials not provisioned)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Core web/API production release remains independently certified." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create GitHub Release
         if: steps.env.outputs.name == 'production'
