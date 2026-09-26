@@ -5,6 +5,7 @@ HMAC-signed enqueue operations are delegated to shared Hermes adapters.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import time
@@ -88,6 +89,22 @@ class TaskActionRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=1000)
 
 
+class AdaptiveChangeRequestCreate(BaseModel):
+    proposal_id: str = Field(min_length=1, max_length=200)
+    category: str = Field(pattern="^(routing|agent|tool|concurrency|workflow)$")
+    target: str = Field(min_length=1, max_length=200)
+    severity: str = Field(pattern="^(info|warning|critical)$")
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    proposed_change: dict[str, Any] = Field(default_factory=dict)
+    guardrail: str = Field(min_length=3, max_length=4000)
+    rollback_plan: str = Field(min_length=3, max_length=4000)
+
+
+class AdaptiveChangeDecision(BaseModel):
+    decision: str = Field(pattern="^(approved|rejected)$")
+    rationale: str = Field(min_length=3, max_length=4000)
+
+
 def _require_internal_execution_key(
     provided: str = Header(default="", alias="X-Hermes-Internal-Key"),
 ) -> None:
@@ -100,6 +117,34 @@ def _require_internal_execution_key(
 def _require_supabase() -> None:
     if not _SUPABASE.configured:
         raise HTTPException(status_code=503, detail="Supabase not configured.")
+
+
+def _adaptive_risk_classification(category: str, severity: str) -> str:
+    if severity == "critical" or category in {"concurrency", "routing"}:
+        return "high"
+    if severity == "warning" or category in {"agent", "tool"}:
+        return "medium"
+    return "low"
+
+
+async def _adaptive_audit(
+    *,
+    user_id: str,
+    change_request_id: str,
+    actor_id: str,
+    event_type: str,
+    event_data: dict[str, Any] | None = None,
+) -> None:
+    await _SUPABASE.post(
+        "hermes_adaptive_change_audit",
+        {
+            "user_id": user_id,
+            "change_request_id": change_request_id,
+            "actor_id": actor_id,
+            "event_type": event_type,
+            "event_data": event_data or {},
+        },
+    )
 
 
 async def _get_rows(table: str, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -255,6 +300,178 @@ async def mutate_task(
         "task": updated,
         "actor_user_id": principal.user_id,
     }
+
+
+@router.get("/adaptive-change-requests")
+async def list_adaptive_change_requests(
+    limit: int = 50,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    return await _get_rows(
+        "hermes_adaptive_change_requests",
+        {
+            "user_id": f"eq.{principal.user_id}",
+            "order": "created_at.desc",
+            "limit": limit,
+        },
+    )
+
+
+@router.post("/adaptive-change-requests", status_code=201)
+async def create_adaptive_change_request(
+    body: AdaptiveChangeRequestCreate,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    _require_supabase()
+    canonical_evidence = json.dumps(body.evidence, sort_keys=True, separators=(",", ":"))
+    evidence_hash = hashlib.sha256(canonical_evidence.encode()).hexdigest()
+    risk = _adaptive_risk_classification(body.category, body.severity)
+    payload = {
+        "user_id": principal.user_id,
+        "proposal_id": body.proposal_id,
+        "category": body.category,
+        "target": body.target,
+        "severity": body.severity,
+        "risk_classification": risk,
+        "evidence": body.evidence,
+        "evidence_hash": evidence_hash,
+        "proposed_change": body.proposed_change,
+        "guardrail": body.guardrail,
+        "rollback_plan": body.rollback_plan,
+        "status": "pending_review",
+    }
+    try:
+        request = await _SUPABASE.post("hermes_adaptive_change_requests", payload)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 409:
+            rows = await _get_rows(
+                "hermes_adaptive_change_requests",
+                {
+                    "user_id": f"eq.{principal.user_id}",
+                    "proposal_id": f"eq.{body.proposal_id}",
+                    "evidence_hash": f"eq.{evidence_hash}",
+                    "limit": 1,
+                },
+            )
+            if rows:
+                return rows[0]
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+
+    await _adaptive_audit(
+        user_id=principal.user_id,
+        change_request_id=str(request["id"]),
+        actor_id=principal.user_id,
+        event_type="change_request.created",
+        event_data={"proposal_id": body.proposal_id, "risk_classification": risk},
+    )
+    return request
+
+
+@router.post("/adaptive-change-requests/{request_id}/decision")
+async def decide_adaptive_change_request(
+    request_id: str,
+    body: AdaptiveChangeDecision,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    rows = await _get_rows(
+        "hermes_adaptive_change_requests",
+        {"id": f"eq.{request_id}", "user_id": f"eq.{principal.user_id}", "limit": 1},
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Adaptive change request not found.")
+    request = rows[0]
+    if request.get("status") != "pending_review":
+        raise HTTPException(status_code=409, detail="Adaptive change request has already been reviewed.")
+
+    patch = {
+        "status": body.decision,
+        "reviewer_id": principal.user_id,
+        "review_rationale": body.rationale,
+        "reviewed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    try:
+        updated = await _SUPABASE.patch("hermes_adaptive_change_requests", request_id, patch)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+
+    await _adaptive_audit(
+        user_id=principal.user_id,
+        change_request_id=request_id,
+        actor_id=principal.user_id,
+        event_type=f"change_request.{body.decision}",
+        event_data={"rationale": body.rationale},
+    )
+    return updated
+
+
+@router.post("/adaptive-change-requests/{request_id}/canary")
+async def queue_adaptive_change_canary(
+    request_id: str,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    rows = await _get_rows(
+        "hermes_adaptive_change_requests",
+        {"id": f"eq.{request_id}", "user_id": f"eq.{principal.user_id}", "limit": 1},
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Adaptive change request not found.")
+    request = rows[0]
+    if request.get("status") == "canary_queued" and request.get("canary_task_id"):
+        return {"status": "canary_queued", "task_id": request["canary_task_id"], "request_id": request_id}
+    if request.get("status") != "approved":
+        raise HTTPException(status_code=409, detail="Only approved adaptive change requests may queue a canary.")
+
+    canary_task = await _SUPABASE.post(
+        "hermes_tasks",
+        {
+            "user_id": principal.user_id,
+            "title": f"Adaptive canary: {request.get('target')}",
+            "description": "Governed canary for an approved Hermes adaptive recommendation. This task must not apply production config.",
+            "task_type": "adaptive_canary",
+            "kind": "adaptive.canary",
+            "status": "PENDING",
+            "priority": 2,
+            "source": "knowledge_graph_change_request",
+            "retry_count": 0,
+            "agent_name": "ION",
+            "input_data": {
+                "change_request_id": request_id,
+                "proposal_id": request.get("proposal_id"),
+                "category": request.get("category"),
+                "target": request.get("target"),
+                "evidence_hash": request.get("evidence_hash"),
+                "proposed_change": request.get("proposed_change"),
+                "guardrail": request.get("guardrail"),
+                "rollback_plan": request.get("rollback_plan"),
+                "mode": "evaluation_only",
+                "apply_production_change": False,
+            },
+            "payload": {
+                "change_request_id": request_id,
+                "mode": "evaluation_only",
+                "apply_production_change": False,
+            },
+        },
+    )
+    task_id = str(canary_task["id"])
+    await _SUPABASE.patch(
+        "hermes_adaptive_change_requests",
+        request_id,
+        {
+            "status": "canary_queued",
+            "canary_task_id": task_id,
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        },
+    )
+    await _adaptive_audit(
+        user_id=principal.user_id,
+        change_request_id=request_id,
+        actor_id=principal.user_id,
+        event_type="change_request.canary_queued",
+        event_data={"task_id": task_id, "agent_name": "ION", "mode": "evaluation_only"},
+    )
+    return {"status": "canary_queued", "task_id": task_id, "request_id": request_id}
 
 
 @router.post("/enqueue")
