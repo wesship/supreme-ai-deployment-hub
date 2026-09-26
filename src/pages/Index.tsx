@@ -227,11 +227,11 @@ const Hero: React.FC = () => {
               </div>
 
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
-                <div className="relative grid min-h-[320px] w-full place-items-center overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
+                <div className="relative min-h-[360px] w-full overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <img
                     src={MASTER_LOGO_SRC}
                     alt="Official D3VONN.IO winged warrior logo — One Platform Infinite Intelligence"
-                    className="relative z-10 w-full max-w-[95%] max-h-[260px] object-contain object-center drop-shadow-[0_0_32px_rgba(62,155,255,0.62)] sm:max-h-[320px]"
+                    className="absolute inset-0 z-10 w-full h-full object-cover object-center"
                     loading="eager"
                     decoding="async"
                     onError={() => {
