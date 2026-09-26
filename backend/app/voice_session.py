@@ -61,8 +61,27 @@ def _character_binding(binding: dict[str, Any]) -> dict[str, Any]:
     return dict(binding)
 
 
+def _context_binding(binding: dict[str, Any]) -> dict[str, Any]:
+    """Validate browser-selected context carried by a signed voice session."""
+    allowed = {"surface", "route", "node_id", "node_label", "node_kind", "canonical_route"}
+    if not isinstance(binding, dict) or not binding or not set(binding).issubset(allowed):
+        raise ValueError("Invalid voice context binding")
+    normalized: dict[str, Any] = {}
+    for key, value in binding.items():
+        if not isinstance(value, str):
+            raise ValueError("Invalid voice context value")
+        cleaned = value.strip()
+        if not cleaned or len(cleaned) > 160:
+            raise ValueError("Invalid voice context value")
+        if key in {"route", "canonical_route"} and not cleaned.startswith("/"):
+            raise ValueError("Invalid voice context route")
+        normalized[key] = cleaned
+    return normalized
+
+
 def issue_voice_session(user_id: str, ttl_seconds: int = _DEFAULT_TTL_SECONDS,
-                        *, character_binding: dict[str, Any] | None = None) -> tuple[str, int]:
+                        *, character_binding: dict[str, Any] | None = None,
+                        context_binding: dict[str, Any] | None = None) -> tuple[str, int]:
     """Issue an HMAC-signed token scoped to one authenticated D3VONN user."""
     secret = _signing_secret()
     if not secret:
@@ -81,6 +100,8 @@ def issue_voice_session(user_id: str, ttl_seconds: int = _DEFAULT_TTL_SECONDS,
     if character_binding is not None:
         payload["scope"] = "character-preview"
         payload["character"] = _character_binding(character_binding)
+    elif context_binding is not None:
+        payload["context"] = _context_binding(context_binding)
     encoded_payload = _b64encode(
         json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     )
@@ -130,6 +151,9 @@ def verify_voice_session(token: str | None) -> dict[str, Any] | None:
                 return None
         elif "scope" in payload or "character" in payload:
             return None
+        if "context" in payload:
+            if _context_binding(payload.get("context")) != payload["context"]:
+                return None
         return payload
     except (ValueError, TypeError, json.JSONDecodeError, UnicodeDecodeError):
         return None
