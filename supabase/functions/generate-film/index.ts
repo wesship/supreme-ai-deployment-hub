@@ -246,7 +246,7 @@ Deno.serve(async (request) => {
 
     await updateJob(authorization, jobId, {
       status: 'render',
-      provider: dispatchPayload.provider || 'openai',
+      provider: dispatchPayload.provider || 'pollo',
       provider_job_id: dispatchPayload.render_job_id,
       stages: dispatchPayload.stages || makeStages('render'),
       metadata: {
@@ -254,15 +254,18 @@ Deno.serve(async (request) => {
         version: '2.0.0',
         projectId: dispatchPayload.project_id,
         renderJobId: dispatchPayload.render_job_id,
+        renderJobIds: dispatchPayload.render_job_ids || [dispatchPayload.render_job_id],
+        providerRoute: dispatchPayload.provider_route || ['pollo', 'replicate'],
       },
     });
 
     return json({
       jobId,
       renderJobId: dispatchPayload.render_job_id,
+      renderJobIds: dispatchPayload.render_job_ids || [dispatchPayload.render_job_id],
       projectId: dispatchPayload.project_id,
       prompt: videoPrompt,
-      provider: dispatchPayload.provider || 'openai',
+      provider: dispatchPayload.provider || 'pollo',
       status: 'render',
       stages: dispatchPayload.stages || makeStages('render'),
       message: 'OpenMontage queued a real provider render and will continue through review and publish.',
