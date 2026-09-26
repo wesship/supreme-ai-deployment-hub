@@ -164,18 +164,18 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
  */
 function ShellChrome() {
   const { pathname } = useLocation();
-  if (pathname === '/') return null;
+  if (pathname === '/' || pathname === '/knowledge-graph') return null;
   return <Suspense fallback={null}><Navbar /></Suspense>;
 }
 
 function MainRegion({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const isHome = pathname === '/';
+  const ownsFullScreenChrome = pathname === '/' || pathname === '/knowledge-graph';
   return (
     <main
       id="main-content"
       tabIndex={-1}
-      className={`min-h-screen focus:outline-none${isHome ? '' : ' pt-16'}`}
+      className={`min-h-screen focus:outline-none${ownsFullScreenChrome ? '' : ' pt-16'}`}
     >
       {children}
     </main>
