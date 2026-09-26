@@ -7,11 +7,11 @@ export type HomepageTelemetry = {
 };
 
 export const defaultHomepageTelemetry: HomepageTelemetry = {
-  activeAgents: 'Live',
-  workflowsToday: 'Demo',
-  knowledgeNodes: 'Ready',
-  systemStatus: 'Operational',
-  hermesQueue: 'Standby',
+  activeAgents: 'Not reported',
+  workflowsToday: 'Not reported',
+  knowledgeNodes: 'Not reported',
+  systemStatus: 'Unknown',
+  hermesQueue: 'Not reported',
 };
 
 type PublicStatsResponse = {

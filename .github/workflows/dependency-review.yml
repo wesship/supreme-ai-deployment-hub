@@ -70,13 +70,14 @@ jobs:
         if: always() && steps.capability.outputs.supported == 'true'
         shell: bash
         env:
-          COMMENT_CONTENT: ${{ steps.review.outputs.comment-content }}
           VULNERABLE_CHANGES: ${{ steps.review.outputs.vulnerable-changes }}
           INVALID_LICENSE_CHANGES: ${{ steps.review.outputs.invalid-license-changes }}
           DENIED_CHANGES: ${{ steps.review.outputs.denied-changes }}
         run: |
           set -euo pipefail
-          printf '%s\n' "${COMMENT_CONTENT:-No summary returned.}" > dependency-review-summary.md
+          # The full report is posted to the PR by the review action. Passing its
+          # unbounded HTML comment through env can exceed the runner's ARG_MAX.
+          printf '%s\n' 'The full Dependency Review report is posted on this pull request. Structured policy results are archived below.' > dependency-review-summary.md
           printf '%s\n' "${VULNERABLE_CHANGES:-[]}" | jq . > dependency-review-vulnerable.json
           printf '%s\n' "${INVALID_LICENSE_CHANGES:-[]}" | jq . > dependency-review-invalid-licenses.json
           printf '%s\n' "${DENIED_CHANGES:-[]}" | jq . > dependency-review-denied.json
