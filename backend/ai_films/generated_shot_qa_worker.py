@@ -50,7 +50,6 @@ async def _claim(db: SupabaseAssemblyClient) -> dict[str, Any] | None:
     if not rows:
         return None
     job = rows[0]
-    source = environ or os.environ
     output = dict(job.get("output") or {})
     qa = dict(output.get("qa") or {})
     qa.update({"state": "in_progress", "started_at": _now()})
@@ -211,6 +210,7 @@ async def qa_generated_shot(
     db: SupabaseAssemblyClient,
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
+    source = environ or os.environ
     output = dict(job.get("output") or {})
     input_payload = job.get("input") if isinstance(job.get("input"), dict) else {}
     packet = input_payload.get("generation_packet") if isinstance(input_payload.get("generation_packet"), dict) else {}
