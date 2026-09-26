@@ -24,7 +24,8 @@ class HermesInfrastructureConfig:
             or "https://api.d3vonn.io"
         )
         if raw_internal_api_url and "://" not in raw_internal_api_url:
-            raw_internal_api_url = f"http://{raw_internal_api_url}"
+            scheme = "http" if raw_internal_api_url.endswith(".railway.internal") else "https"
+            raw_internal_api_url = f"{scheme}://{raw_internal_api_url}"
         return cls(
             supabase_url=os.getenv("SUPABASE_URL", "").rstrip("/"),
             service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
