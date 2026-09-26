@@ -56,8 +56,8 @@ const KnowledgeGraphPreview: React.FC = () => (
         </p>
       </div>
 
-      <div className="mt-14 hidden rounded-3xl border border-white/10 bg-white/[0.025] p-6 shadow-[0_0_70px_-24px_rgba(59,130,246,0.85)] backdrop-blur-xl lg:block">
-        <div className="relative mx-auto h-[620px] max-w-6xl overflow-hidden rounded-2xl border border-blue-200/10 bg-slate-950/30">
+      <div className="mt-14 hidden border border-[#2d2c28] bg-[#0d0d0b] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.34)] lg:block">
+        <div className="relative mx-auto h-[620px] max-w-6xl overflow-hidden border border-[#2d2c28] bg-[#090907]">
           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="kgLine" x1="0" x2="1" y1="0" y2="1">
@@ -90,11 +90,11 @@ const KnowledgeGraphPreview: React.FC = () => (
               <Link
                 key={node.id}
                 to={node.to}
-                className="group absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-blue-200/20 bg-[#031f4f]/85 px-4 py-3 text-center shadow-[0_0_34px_-12px_rgba(96,165,250,0.8)] backdrop-blur-xl transition hover:z-10 hover:scale-110 hover:border-blue-200/65 hover:bg-blue-500/20 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                className="group absolute -translate-x-1/2 -translate-y-1/2 border border-[#34332f] bg-[#141411] px-4 py-3 text-center shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition hover:z-10 hover:-translate-y-1 hover:border-amber-200/45 hover:bg-[#1a1812] focus:outline-none focus:ring-2 focus:ring-amber-100"
                 style={{ left: `${node.x}%`, top: `${node.y}%` }}
                 aria-label={`Open ${node.label}`}
               >
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-amber-100/20 bg-amber-100/[0.06] shadow-[0_0_22px_rgba(96,165,250,0.28)] transition group-hover:bg-blue-400/25">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center border border-[#3a382f] bg-[#0c0c0a] transition group-hover:border-amber-200/35 group-hover:bg-[#17150f]">
                   <Icon className="h-5 w-5 text-amber-100" />
                 </span>
                 <span className="mt-3 block whitespace-nowrap text-xs font-bold uppercase tracking-[0.14em] text-stone-100">
@@ -113,7 +113,7 @@ const KnowledgeGraphPreview: React.FC = () => (
             <Link
               key={node.id}
               to={node.to}
-              className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.025] p-4 backdrop-blur transition hover:border-amber-100/35 hover:bg-amber-100/[0.04] focus:outline-none focus:ring-2 focus:ring-amber-100"
+              className="flex items-center gap-3 border border-[#2d2c28] bg-[#11110f] p-4 transition hover:border-amber-100/35 hover:bg-amber-100/[0.04] focus:outline-none focus:ring-2 focus:ring-amber-100"
             >
               <span className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-100/20 bg-amber-100/[0.06]">
                 <Icon className="h-5 w-5 text-amber-100" />
