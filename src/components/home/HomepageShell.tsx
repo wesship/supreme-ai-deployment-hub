@@ -1,5 +1,6 @@
 import React from 'react';
 import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
+import InstitutePreviewSection from '@/components/home/InstitutePreviewSection';
 
 interface HomepageShellProps {
   children: React.ReactNode;
@@ -19,6 +20,7 @@ const HomepageShell = ({ children, className }: HomepageShellProps) => (
     className={`d3-homepage-world ${className ?? ''}`.trim()}
   >
     {children}
+    <InstitutePreviewSection />
   </ReaddyMarketingShell>
 );
 

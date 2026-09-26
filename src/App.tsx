@@ -65,6 +65,8 @@ const AIAgents = lazy(() => import("./pages/AIAgents"));
 const BusinessAutomation = lazy(() => import("./pages/BusinessAutomation"));
 const Solutions = lazy(() => import("./pages/Solutions"));
 const Resources = lazy(() => import("./pages/Resources"));
+const Institute = lazy(() => import("./pages/Institute"));
+const NonprofitCommandCenter = lazy(() => import("./pages/NonprofitCommandCenter"));
 const Security = lazy(() => import("./pages/Security"));
 const SecurityDashboard = lazy(() => import("./pages/security/SecurityDashboard"));
 const SecurityOps = lazy(() => import("./pages/security/SecurityOps"));
@@ -259,6 +261,9 @@ function App() {
                 <Route path="/business-automation" element={<BusinessAutomation />} />
                 <Route path="/solutions" element={<Solutions />} />
                 <Route path="/resources" element={<Resources />} />
+                <Route path="/institute" element={<Institute />} />
+                <Route path="/nonprofit" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
+                <Route path="/nonprofit/grants" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
                 <Route path="/security" element={<Security />} />
                 <Route path="/security/disclosure" element={<SecurityDisclosure />} />
                 <Route path="/enterprise" element={<Security />} />
