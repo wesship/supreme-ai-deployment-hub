@@ -135,6 +135,16 @@ type SystemHealthRow = {
   cost_usd: number;
 };
 
+type AdaptiveProposal = {
+  id: string;
+  category: 'routing' | 'agent' | 'tool' | 'concurrency' | 'workflow';
+  target: string;
+  reason: string;
+  proposal: string;
+  guardrail: string;
+  severity: 'info' | 'warning' | 'critical';
+};
+
 type KnowledgeNodeData = {
   label: string;
   kind: NodeKind;
@@ -878,6 +888,108 @@ const KnowledgeGraphOS: React.FC = () => {
       return [...structured, ...eventFallback];
     }),
   )).slice(0, 8);
+  const adaptiveProposals = useMemo<AdaptiveProposal[]>(() => {
+    const proposals: AdaptiveProposal[] = [];
+
+    for (const row of systemHealth) {
+      const failureRate = row.tasks ? row.failed / row.tasks : 0;
+      const avgRunMs = row.runs ? row.duration_ms / row.runs : 0;
+      const costPerTask = row.tasks ? row.cost_usd / row.tasks : 0;
+      const agent = row.label;
+
+      if (agent === 'Unassigned' && row.tasks > 0) {
+        proposals.push({
+          id: 'routing-unassigned',
+          category: 'routing',
+          target: 'Hermes router',
+          reason: `${row.tasks} recent task(s) are unassigned.`,
+          proposal: 'Require an explicit agent assignment before dispatch for non-system tasks; send unresolved assignments to MANUAL_REVIEW instead of silently executing.',
+          guardrail: 'Do not change existing in-flight tasks; apply only after an operator approves a routing-policy update.',
+          severity: row.tasks >= 5 ? 'critical' : 'warning',
+        });
+        continue;
+      }
+
+      if (failureRate >= 0.25 && row.tasks >= 4) {
+        proposals.push({
+          id: `route-${row.key}`,
+          category: 'routing',
+          target: agent,
+          reason: `${(failureRate * 100).toFixed(0)}% failure rate across ${row.tasks} recent task(s).`,
+          proposal: 'Place new non-critical assignments behind a 10% canary route to a capability-compatible fallback and compare success/error signatures before broader rerouting.',
+          guardrail: 'Fallback compatibility must be validated against the Hermes agent registry; safety/approval work must remain with GUARDIAN.',
+          severity: failureRate >= 0.5 ? 'critical' : 'warning',
+        });
+      }
+
+      if (row.retries >= 3) {
+        proposals.push({
+          id: `workflow-${row.key}`,
+          category: 'workflow',
+          target: agent,
+          reason: `${row.retries} retries are recorded in the recent task window.`,
+          proposal: 'Insert a deterministic preflight validation step before this agent and stop automatic retry after one unchanged failure signature.',
+          guardrail: 'Preflight may reject or pause work, but must not bypass human approval or mutate protected task inputs.',
+          severity: row.retries >= 6 ? 'critical' : 'warning',
+        });
+      }
+
+      if (avgRunMs >= 30_000 && row.runs >= 3) {
+        proposals.push({
+          id: `concurrency-${row.key}`,
+          category: 'concurrency',
+          target: agent,
+          reason: `Average loaded run duration is ${(avgRunMs / 1000).toFixed(1)}s across ${row.runs} run(s).`,
+          proposal: 'Canary a 25% lower worker lease/concurrency target for this workload class and compare queue depth, completion time, and failure rate before changing HERMES_MAX_CONCURRENT_TASKS.',
+          guardrail: 'No environment variable changes are applied from this screen; deployment/config approval remains required.',
+          severity: avgRunMs >= 60_000 ? 'critical' : 'warning',
+        });
+      }
+
+      if (costPerTask >= 0.05 && row.tasks >= 3) {
+        proposals.push({
+          id: `cost-${row.key}`,
+          category: 'agent',
+          target: agent,
+          reason: `Loaded run cost averages $${costPerTask.toFixed(3)} per recent task.`,
+          proposal: 'Run a 10% evaluation canary using a lower-cost compatible model/tool profile, preserving the same task inputs and acceptance criteria for side-by-side comparison.',
+          guardrail: 'Do not downgrade safety, approval, or accuracy requirements; promote only after measured equivalence.',
+          severity: costPerTask >= 0.15 ? 'critical' : 'warning',
+        });
+      }
+    }
+
+    if (liveTask && /tool|mcp|connector|integration/i.test(`${liveTask.kind} ${liveTask.title ?? ''}`)) {
+      proposals.push({
+        id: 'tool-fallback-active',
+        category: 'tool',
+        target: liveTask.title ?? liveTask.kind,
+        reason: toolSignals.length
+          ? `Active task exposes ${toolSignals.length} tool/MCP attribution signal(s).`
+          : 'No structured tool/MCP attribution appears in the newest 60 loaded logs for this tool-oriented task.',
+        proposal: toolSignals.length
+          ? 'Define an ordered fallback chain for the attributed connector/tool and test failover with a read-only canary before allowing mutation-capable fallback.'
+          : 'Add structured tool attribution first, then define a fail-closed fallback chain so Hermes can distinguish provider failure from missing instrumentation.',
+        guardrail: 'Fallbacks must inherit the original tool permissions, approval mode, and destructive-action policy.',
+        severity: toolSignals.length ? 'info' : 'warning',
+      });
+    }
+
+    if (!proposals.length) {
+      proposals.push({
+        id: 'stable-system',
+        category: 'workflow',
+        target: 'Hermes',
+        reason: 'No aggregate signal currently crosses the adaptive recommendation thresholds.',
+        proposal: 'Keep the current routing topology and continue collecting task/run evidence before changing worker, agent, or tool policy.',
+        guardrail: 'Absence of a recommendation is not a production certification; deployment smoke tests remain separate.',
+        severity: 'info',
+      });
+    }
+
+    return proposals.slice(0, 10);
+  }, [liveTask, systemHealth, toolSignals]);
+
   const graphFindings = useMemo<GraphFinding[]>(() => {
     if (!liveTask) return [];
     const findings: GraphFinding[] = [];
@@ -1269,6 +1381,46 @@ const KnowledgeGraphOS: React.FC = () => {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Adaptive recommendations</h2>
+              </div>
+              <span className="border border-[#34332f] bg-[#0c0c0a] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-500">approval-gated</span>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Evidence-derived proposals for routing, agent/model selection, tool fallback, concurrency, and workflow structure. Nothing here changes runtime state automatically.
+            </p>
+
+            <div className="mt-4 space-y-2">
+              {adaptiveProposals.map((item) => (
+                <div key={item.id} className="border border-[#2d2c28] bg-[#090907] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-bold text-stone-200">{item.target}</p>
+                      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-600">{item.category}</p>
+                    </div>
+                    <span className={`text-[9px] font-bold uppercase tracking-[0.12em] ${item.severity === 'critical' ? 'text-red-200' : item.severity === 'warning' ? 'text-amber-200' : 'text-stone-600'}`}>
+                      {item.severity}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[10px] leading-4 text-stone-500">{item.reason}</p>
+                  <p className="mt-2 text-[10px] leading-4 text-stone-300">
+                    <span className="font-bold text-stone-500">Proposed change:</span> {item.proposal}
+                  </p>
+                  <p className="mt-2 border-l border-[#34332f] pl-2 text-[9px] leading-4 text-stone-600">
+                    <span className="font-bold">Guardrail:</span> {item.guardrail}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 border border-[#25241f] bg-[#0c0c0a] px-3 py-2 text-[9px] leading-4 text-stone-600">
+              Recommendations are staged only. Applying routing, model, worker-concurrency, tool-fallback, or workflow-policy changes requires a separate governed action and production validation.
             </div>
           </section>
 
