@@ -79,3 +79,32 @@
     animation: none !important;
   }
 }
+
+
+@keyframes d3-runtime-edge {
+  0% { filter: drop-shadow(0 0 2px rgba(254,243,199,.2)); }
+  50% { filter: drop-shadow(0 0 9px rgba(254,243,199,.85)); }
+  100% { filter: drop-shadow(0 0 2px rgba(254,243,199,.2)); }
+}
+
+@keyframes d3-runtime-node {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(252,211,77,0)); }
+  50% { filter: drop-shadow(0 0 12px rgba(252,211,77,.48)); }
+}
+
+.react-flow__edge.d3-kg-edge--executing path {
+  stroke-dasharray: 18 8;
+  animation: d3-edge-flow .78s linear infinite, d3-runtime-edge 1.1s ease-in-out infinite;
+}
+
+.react-flow__node.d3-kg-runtime-node .d3-kg-node {
+  border-color: rgba(253,224,71,.75);
+  animation: d3-runtime-node 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__edge.d3-kg-edge--executing path,
+  .react-flow__node.d3-kg-runtime-node .d3-kg-node {
+    animation: none !important;
+  }
+}
