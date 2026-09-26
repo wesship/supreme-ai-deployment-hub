@@ -797,18 +797,28 @@ const KnowledgeGraphOS: React.FC = () => {
     if (!liveTask) return [];
     const findings: GraphFinding[] = [];
     const failedRuns = runs.filter((run) => run.status.toUpperCase() === 'FAILED');
+    const latestRunStatus = (runs[0]?.status ?? '').toUpperCase();
+    const activeFailure = liveTask.status.toUpperCase() === 'FAILED' || latestRunStatus === 'FAILED';
     const failedChildren = childTasks.filter((task) => task.status.toUpperCase() === 'FAILED');
     const longestRun = runs.reduce((max, run) => Math.max(max, run.duration_ms ?? 0), 0);
     const retryCount = liveTask.retry_count ?? Math.max(0, runs.length - 1);
     const toolExpected = /tool|mcp|connector|integration/i.test(`${liveTask.kind} ${liveTask.title ?? ''}`);
 
-    if (liveTask.status.toUpperCase() === 'FAILED' || failedRuns.length > 0) {
+    if (activeFailure) {
       findings.push({
         id: 'failure',
         severity: 'critical',
-        label: 'Execution failure detected',
-        evidence: `${failedRuns.length || 1} failed run signal(s) on the active task.`,
-        recommendation: 'Inspect the failing run and error detail before retrying; preserve the same correlation trail for comparison.',
+        label: 'Active execution failure',
+        evidence: `Current task/latest run is failed; ${failedRuns.length || 1} failed run signal(s) exist in the loaded ledger.`,
+        recommendation: 'Inspect the latest failing run and error detail before retrying; preserve the same correlation trail for comparison.',
+      });
+    } else if (failedRuns.length > 0) {
+      findings.push({
+        id: 'historical-failure',
+        severity: 'info',
+        label: 'Recovered after earlier failure',
+        evidence: `${failedRuns.length} historical failed run(s) are present, but the current task/latest run is no longer failed.`,
+        recommendation: 'Treat these as recovery history; compare the successful attempt with the failed attempts before changing policy.',
       });
     }
 
@@ -867,8 +877,8 @@ const KnowledgeGraphOS: React.FC = () => {
         id: 'missing-tool-attribution',
         severity: 'warning',
         label: 'Expected tool attribution is missing',
-        evidence: 'Task naming suggests a tool/MCP/connector path, but no structured tool signal is linked to this task.',
-        recommendation: 'Emit tool_name or connector attribution into the Hermes log data at the execution boundary.',
+        evidence: 'Task naming suggests a tool/MCP/connector path, but no structured attribution appears in the newest 60 task logs loaded in this view.',
+        recommendation: 'Check the full task log history before adding instrumentation; if attribution is truly absent, emit tool_name or connector data at the execution boundary.',
       });
     }
 
