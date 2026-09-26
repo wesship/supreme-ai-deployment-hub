@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css';
 import '@/styles/knowledge-graph-effects.css';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
 import { supabase } from '@/integrations/supabase/client';
+import { API_BASE_URL } from '@/services/config';
 import {
   Activity,
   Bot,
@@ -53,11 +54,37 @@ type HermesTaskRow = {
   goal_id?: string | null;
   kind: string;
   title: string | null;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  status: string;
   depth?: number | null;
   created_at?: string | null;
   completed_at?: string | null;
   error_message?: string | null;
+};
+
+type HermesInterruptRow = {
+  id: string;
+  task_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  prompt: string;
+  created_at: string;
+};
+
+type HermesCheckpointRow = {
+  id: string;
+  task_id?: string | null;
+  goal_id?: string | null;
+  title: string;
+  content: string;
+  created_at: string;
+};
+
+type TimelineItem = {
+  id: string;
+  kind: 'event' | 'checkpoint' | 'interrupt';
+  title: string;
+  detail: string;
+  created_at: string;
+  status?: string;
 };
 
 type KnowledgeNodeData = {
@@ -344,6 +371,10 @@ const KnowledgeGraphOS: React.FC = () => {
   const [lastLiveEvent, setLastLiveEvent] = useState<string>('Waiting for Hermes event…');
   const [liveTask, setLiveTask] = useState<HermesTaskRow | null>(null);
   const [liveEvent, setLiveEvent] = useState<HermesEventRow | null>(null);
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [pendingInterrupt, setPendingInterrupt] = useState<HermesInterruptRow | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -401,6 +432,159 @@ const KnowledgeGraphOS: React.FC = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const refreshTaskTimeline = async (task: HermesTaskRow | null) => {
+    if (!task?.id) {
+      setTimeline([]);
+      setPendingInterrupt(null);
+      return;
+    }
+    setTimelineLoading(true);
+    try {
+      const eventQuery = supabase
+        .from('hermes_events')
+        .select('id,task_id,event_type,payload,created_at')
+        .eq('task_id', task.id)
+        .order('created_at', { ascending: false })
+        .limit(40);
+
+      const interruptQuery = supabase
+        .from('hermes_interrupts')
+        .select('id,task_id,status,prompt,created_at')
+        .eq('task_id', task.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const checkpointQuery = task.goal_id
+        ? supabase
+            .from('hermes_checkpoints')
+            .select('id,goal_id,title,content,created_at')
+            .eq('goal_id', task.goal_id)
+            .order('created_at', { ascending: false })
+            .limit(20)
+        : Promise.resolve({ data: [], error: null });
+
+      const [eventsRes, interruptsRes, checkpointsRes] = await Promise.all([
+        eventQuery,
+        interruptQuery,
+        checkpointQuery,
+      ]);
+
+      if (eventsRes.error) throw eventsRes.error;
+      if (interruptsRes.error) throw interruptsRes.error;
+      if (checkpointsRes.error) throw checkpointsRes.error;
+
+      const events = (eventsRes.data ?? []) as unknown as HermesEventRow[];
+      const interrupts = (interruptsRes.data ?? []) as unknown as HermesInterruptRow[];
+      const checkpoints = (checkpointsRes.data ?? []) as unknown as HermesCheckpointRow[];
+
+      setPendingInterrupt(interrupts.find((item) => item.status === 'pending') ?? null);
+      setTimeline(
+        [
+          ...events.map((item): TimelineItem => ({
+            id: `event-${item.id}`,
+            kind: 'event',
+            title: item.event_type,
+            detail: JSON.stringify(item.payload ?? {}),
+            created_at: item.created_at,
+          })),
+          ...interrupts.map((item): TimelineItem => ({
+            id: `interrupt-${item.id}`,
+            kind: 'interrupt',
+            title: 'Human approval',
+            detail: item.prompt,
+            created_at: item.created_at,
+            status: item.status,
+          })),
+          ...checkpoints.map((item): TimelineItem => ({
+            id: `checkpoint-${item.id}`,
+            kind: 'checkpoint',
+            title: item.title,
+            detail: item.content,
+            created_at: item.created_at,
+          })),
+        ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Timeline load failed';
+      setActivity((items) => [`Timeline error: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshTaskTimeline(liveTask);
+  }, [liveTask?.id, liveTask?.status]);
+
+  const callGovernedAction = async (
+    endpoint: string,
+    body: Record<string, string>,
+    label: string,
+  ) => {
+    setActionBusy(label);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required for governed Hermes actions.');
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload?.detail === 'string' ? payload.detail : `${label} failed`);
+      }
+      setActivity((items) => [`${label} accepted by governed Hermes API.`, ...items].slice(0, 5));
+      await refreshTaskTimeline(liveTask);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `${label} failed`;
+      setActivity((items) => [`${label} blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const mutateLiveTask = async (action: 'cancel' | 'retry' | 'pause' | 'resume') => {
+    if (!liveTask?.id) return;
+    await callGovernedAction(
+      `/api/hermes/tasks/${encodeURIComponent(liveTask.id)}/action`,
+      { action },
+      `Task ${action}`,
+    );
+  };
+
+  const resolveLiveInterrupt = async (status: 'approved' | 'rejected') => {
+    if (!pendingInterrupt?.id) return;
+    setActionBusy(status);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required for approval decisions.');
+      const response = await fetch(
+        `${API_BASE_URL}/api/hermes/interrupts/${encodeURIComponent(pendingInterrupt.id)}?status_unused=1`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : `Interrupt ${status} failed`);
+      setActivity((items) => [`Interrupt ${status}: ${pendingInterrupt.id}`, ...items].slice(0, 5));
+      await refreshTaskTimeline(liveTask);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : `Interrupt ${status} failed`;
+      setActivity((items) => [`Approval action blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setActionBusy(null);
+    }
+  };
 
   useEffect(() => {
     if (!executionPath.length) return;
@@ -744,6 +928,49 @@ const KnowledgeGraphOS: React.FC = () => {
                 <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-5 text-stone-500">{JSON.stringify(liveEvent.payload, null, 2)}</pre>
               </details>
             )}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button disabled={!liveTask || actionBusy !== null} onClick={() => mutateLiveTask('pause')} className="border border-[#34332f] bg-[#0c0c0a] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-300 disabled:cursor-not-allowed disabled:opacity-40">Pause</button>
+              <button disabled={!liveTask || actionBusy !== null} onClick={() => mutateLiveTask('resume')} className="border border-[#34332f] bg-[#0c0c0a] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-300 disabled:cursor-not-allowed disabled:opacity-40">Resume</button>
+              <button disabled={!liveTask || actionBusy !== null} onClick={() => mutateLiveTask('retry')} className="border border-[#34332f] bg-[#0c0c0a] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-300 disabled:cursor-not-allowed disabled:opacity-40">Retry</button>
+              <button disabled={!liveTask || actionBusy !== null} onClick={() => mutateLiveTask('cancel')} className="border border-red-300/20 bg-red-300/[0.035] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-red-200 disabled:cursor-not-allowed disabled:opacity-40">Cancel</button>
+            </div>
+
+            {pendingInterrupt && (
+              <div className="mt-3 border border-orange-300/20 bg-orange-300/[0.035] p-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-200">Approval required</p>
+                <p className="mt-1 text-[11px] leading-5 text-stone-400">{pendingInterrupt.prompt}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button disabled={actionBusy !== null} onClick={() => resolveLiveInterrupt('approved')} className="border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">Approve</button>
+                  <button disabled={actionBusy !== null} onClick={() => resolveLiveInterrupt('rejected')} className="border border-red-300/25 bg-red-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-red-200 disabled:opacity-40">Reject</button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 border-t border-[#25241f] pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500">Execution timeline</p>
+                <button onClick={() => refreshTaskTimeline(liveTask)} disabled={!liveTask || timelineLoading} className="text-[10px] font-semibold text-amber-100/70 disabled:opacity-40">
+                  {timelineLoading ? 'Refreshing…' : 'Refresh'}
+                </button>
+              </div>
+              <div className="mt-3 max-h-64 space-y-2 overflow-auto pr-1">
+                {timeline.length === 0 ? (
+                  <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">
+                    {liveTask ? 'No task-linked timeline rows available yet.' : 'Waiting for a live Hermes task.'}
+                  </div>
+                ) : timeline.map((item) => (
+                  <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-bold text-stone-300">{item.title}</span>
+                      <span className="text-[9px] uppercase tracking-[0.12em] text-stone-600">{item.kind}{item.status ? ` · ${item.status}` : ''}</span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 break-all text-[10px] leading-4 text-stone-600">{item.detail}</p>
+                    <p className="mt-1 text-[9px] text-stone-700">{new Date(item.created_at).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
 
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
