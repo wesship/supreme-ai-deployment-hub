@@ -478,15 +478,65 @@ async def _handle_tool_calls(
                     if isinstance(voice_context, dict)
                     else None
                 )
-                result = {
-                    "status": "accepted",
-                    "action": action,
-                    "node_id": str(parameters.get("node_id") or current_node or ""),
-                    "target_node_id": str(parameters.get("target_node_id") or ""),
-                    "query": str(parameters.get("query") or ""),
-                    "filter": str(parameters.get("filter") or ""),
-                    "governed_execution": action in {"run", "connect"},
-                }
+                node_id = str(parameters.get("node_id") or current_node or "")
+                target_node_id = str(parameters.get("target_node_id") or "")
+                query = str(parameters.get("query") or "")
+                filter_value = str(parameters.get("filter") or "")
+
+                if action in {"run", "connect"}:
+                    try:
+                        from backend.hermes.task_engine import create_task
+
+                        correlation_id = str(uuid4())
+                        approval_required = action == "connect"
+                        title = (
+                            f"Connect graph node {node_id} to {target_node_id or 'requested target'}"
+                            if action == "connect"
+                            else f"Run graph node {node_id or 'current selection'}"
+                        )
+                        task = await create_task(
+                            title=title[:240],
+                            task_type=f"voice.graph.{action}",
+                            description=query[:4000] if query else None,
+                            input_data={
+                                "authenticated_user_id": user_id,
+                                "voice_session": "inline",
+                                "voice_context": _redact(voice_context or {}),
+                                "graph_action": action,
+                                "node_id": node_id,
+                                "target_node_id": target_node_id,
+                                "filter": filter_value,
+                                "vapi_event_id": event_id,
+                            },
+                            source="vapi-inline",
+                            correlation_id=correlation_id,
+                            initial_status="PAUSED" if approval_required else "PENDING",
+                        )
+                        result = {
+                            "status": "approval_required" if approval_required else "queued",
+                            "action": action,
+                            "task_id": task.get("id"),
+                            "correlation_id": correlation_id,
+                            "node_id": node_id,
+                            "target_node_id": target_node_id,
+                            "governed_execution": True,
+                        }
+                    except Exception:  # pragma: no cover - persistence failure
+                        logger.error("Governed graph action creation failed")
+                        result = {
+                            "status": "unavailable",
+                            "message": "Hermes could not stage the graph action.",
+                        }
+                else:
+                    result = {
+                        "status": "accepted",
+                        "action": action,
+                        "node_id": node_id,
+                        "target_node_id": target_node_id,
+                        "query": query,
+                        "filter": filter_value,
+                        "governed_execution": False,
+                    }
         else:
             try:
                 from backend.hermes.task_engine import create_task
