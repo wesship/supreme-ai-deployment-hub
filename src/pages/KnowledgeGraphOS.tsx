@@ -15,6 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import '@/styles/knowledge-graph-effects.css';
 import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Activity,
   Bot,
@@ -36,6 +37,23 @@ import {
 } from 'lucide-react';
 
 type NodeKind = 'core' | 'agent' | 'tool' | 'memory' | 'product' | 'security';
+
+type HermesRealtimeState = 'connecting' | 'live' | 'error';
+
+type HermesEventRow = {
+  id: string;
+  task_id: string | null;
+  event_type: string;
+  payload: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type HermesTaskRow = {
+  id: string;
+  kind: string;
+  title: string | null;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+};
 
 type KnowledgeNodeData = {
   label: string;
@@ -264,6 +282,32 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
 
 const nodeTypes = { knowledge: KnowledgeNode };
 
+const livePathForSignal = (signal: string): string[] => {
+  const value = signal.toLowerCase();
+  if (value.includes('film') || value.includes('character') || value.includes('video')) {
+    return ['intent', 'hermes', 'agents', 'workflow', 'films'];
+  }
+  if (value.includes('radio') || value.includes('broadcast') || value.includes('audio')) {
+    return ['intent', 'hermes', 'agents', 'workflow', 'radio'];
+  }
+  if (value.includes('security') || value.includes('approval') || value.includes('interrupt') || value.includes('policy')) {
+    return ['intent', 'hermes', 'tools', 'security'];
+  }
+  if (value.includes('tool') || value.includes('mcp') || value.includes('connector')) {
+    return ['intent', 'hermes', 'tools'];
+  }
+  if (value.includes('rag') || value.includes('memory') || value.includes('knowledge') || value.includes('retriev')) {
+    return ['intent', 'hermes', 'knowledge'];
+  }
+  if (value.includes('agent') || value.includes('worker') || value.includes('delegate')) {
+    return ['intent', 'hermes', 'agents'];
+  }
+  if (value.includes('workflow') || value.includes('complete') || value.includes('result')) {
+    return ['intent', 'hermes', 'agents', 'workflow', 'analytics'];
+  }
+  return ['intent', 'hermes'];
+};
+
 const KnowledgeGraphOS: React.FC = () => {
   const [selectedId, setSelectedId] = useState('hermes');
   const [query, setQuery] = useState('');
@@ -271,6 +315,8 @@ const KnowledgeGraphOS: React.FC = () => {
   const [activity, setActivity] = useState<string[]>(['Graph surface initialized. No live mutations have been issued.']);
   const [executionPath, setExecutionPath] = useState<string[]>([]);
   const [executionStep, setExecutionStep] = useState(-1);
+  const [realtimeState, setRealtimeState] = useState<HermesRealtimeState>('connecting');
+  const [lastLiveEvent, setLastLiveEvent] = useState<string>('Waiting for Hermes event…');
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -281,6 +327,51 @@ const KnowledgeGraphOS: React.FC = () => {
     node_kind: selected.data.kind,
     canonical_route: selected.data.route,
   };
+
+  useEffect(() => {
+    let mounted = true;
+    setRealtimeState('connecting');
+
+    const applyLivePath = (path: string[], message: string) => {
+      if (!mounted) return;
+      setExecutionPath(path);
+      setExecutionStep(Math.max(0, path.length - 1));
+      setLastLiveEvent(message);
+      setActivity((items) => [`LIVE · ${message}`, ...items].slice(0, 5));
+    };
+
+    const channel = supabase
+      .channel('knowledge-graph-hermes-live')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'hermes_events' },
+        (payload) => {
+          const row = payload.new as HermesEventRow;
+          const signal = `${row.event_type} ${JSON.stringify(row.payload ?? {})}`;
+          applyLivePath(livePathForSignal(signal), row.event_type);
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hermes_tasks' },
+        (payload) => {
+          const row = payload.new as HermesTaskRow;
+          if (!row?.id) return;
+          const signal = `${row.kind} ${row.title ?? ''} ${row.status}`;
+          applyLivePath(livePathForSignal(signal), `task ${row.status}: ${row.title ?? row.kind}`);
+        },
+      )
+      .subscribe((status) => {
+        if (!mounted) return;
+        if (status === 'SUBSCRIBED') setRealtimeState('live');
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setRealtimeState('error');
+      });
+
+    return () => {
+      mounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     if (!executionPath.length) return;
@@ -537,8 +628,15 @@ const KnowledgeGraphOS: React.FC = () => {
               <h2 className="text-sm font-bold text-white">Execution propagation</h2>
             </div>
             <p className="mt-2 text-xs leading-5 text-stone-500">
-              Runtime-style visualization for Hermes event propagation. Live event subscription is the next adapter step.
+              Authenticated Supabase Realtime subscription to Hermes tasks and events. Manual Run trace remains available as a deterministic fallback.
             </p>
+            <div className="mt-3 flex items-center justify-between border border-[#2d2c28] bg-[#0c0c0a] px-3 py-2 text-[10px]">
+              <span className="flex items-center gap-2 font-semibold uppercase tracking-[0.16em] text-stone-400">
+                <span className={`h-2 w-2 rounded-full ${realtimeState === 'live' ? 'bg-emerald-300' : realtimeState === 'error' ? 'bg-red-300' : 'animate-pulse bg-amber-200'}`} />
+                Hermes realtime · {realtimeState}
+              </span>
+              <span className="max-w-[190px] truncate text-stone-500" title={lastLiveEvent}>{lastLiveEvent}</span>
+            </div>
             <div className="mt-4 flex flex-wrap gap-1.5">
               {(executionPath.length ? executionPath : ['intent', 'hermes', 'agents', 'workflow', 'platform']).map((id, index) => {
                 const node = initialNodes.find((item) => item.id === id);
