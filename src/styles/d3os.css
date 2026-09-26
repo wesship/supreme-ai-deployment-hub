@@ -122,3 +122,15 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* The global dark theme colours anchors light; inside the light OS surface,
+   links inherit the near-black ink so they stay legible. */
+.d3os a,
+.d3os a:hover,
+.d3os a:visited {
+  color: inherit;
+}
+.d3os .os-invert,
+.d3os .os-invert:hover {
+  color: var(--os-pearl);
+}
