@@ -27,6 +27,7 @@ import { deriveMultiClusterCorridor } from '@/features/knowledge-graph/lib/multi
 import { deriveCameraTarget } from '@/features/knowledge-graph/lib/cameraChoreography';
 import { useRuntimeIdentity } from '@/hooks/useRuntimeIdentity';
 import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
+import CinematicDepthLayer from '@/features/knowledge-graph/components/CinematicDepthLayer';
 import {
   Activity,
   Bot,
@@ -964,6 +965,11 @@ const KnowledgeGraphOS: React.FC = () => {
           {viewMode === 'graph' && (
             <div className={`d3-neural-stage h-[680px] ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''}`}>
               <div className="d3-nexus-globe" aria-hidden="true" />
+              <CinematicDepthLayer
+                runtimeState={livePanels.status}
+                active={cameraFocusNodeIds.length > 0 || livePanels.status === 'running' || livePanels.status === 'connecting'}
+                corridor={Boolean(multiClusterCorridor)}
+              />
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
