@@ -310,6 +310,8 @@ const inferEventNode = (event: HermesStreamEvent, selectedId: string): string =>
   const combined = `${type} ${message}`;
 
   if (combined.includes('memory') || combined.includes('rag') || combined.includes('retriev')) return 'knowledge';
+  if (combined.includes('model') || combined.includes('llm') || combined.includes('vlm')) return 'models';
+  if (combined.includes('gpu') || combined.includes('server') || combined.includes('infrastructure') || combined.includes('cloud')) return 'infrastructure';
   if (combined.includes('tool') || combined.includes('mcp') || combined.includes('connector')) return 'tools';
   if (combined.includes('security') || combined.includes('verify') || combined.includes('policy')) return 'security';
   if (combined.includes('agent') || combined.includes('dispatch') || combined.includes('worker')) return 'agents';
@@ -688,6 +690,8 @@ const KnowledgeGraphOS: React.FC = () => {
       agents: ['intent', 'hermes', 'agents'],
       knowledge: ['intent', 'hermes', 'knowledge'],
       tools: ['intent', 'hermes', 'tools'],
+      models: ['intent', 'hermes', 'models'],
+      infrastructure: ['intent', 'hermes', 'infrastructure'],
       workflow: ['intent', 'hermes', 'agents', 'workflow'],
       films: ['intent', 'hermes', 'agents', 'workflow', 'films'],
       radio: ['intent', 'hermes', 'agents', 'workflow', 'radio'],
@@ -785,7 +789,7 @@ const KnowledgeGraphOS: React.FC = () => {
         break;
       case 'ask':
         setSelectedId(nodeId);
-        setActivity((items) => [`VOICE · ask Hermes about ${node.data.label}: ${request.query || 'current context'}`, ...items].slice(0, 5));
+        setActivity((items) => [`${request.source.toUpperCase()} · ask Hermes about ${node.data.label}: ${request.query || 'current context'}`, ...items].slice(0, 5));
         break;
       case 'view':
         if (request.view) {
@@ -1096,7 +1100,7 @@ const KnowledgeGraphOS: React.FC = () => {
           </div>
         </section>
 
-        <aside className="d3-nexus-right-rail space-y-3">
+        <aside className="d3-nexus-right-rail flex flex-col gap-3">
           <section className="hidden border border-[#4b4633] bg-[#15140f] p-5 shadow-[inset_3px_0_0_#fcd34d,0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Mic className="h-4 w-4 text-amber-200" />
@@ -1133,7 +1137,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className={`${overlayClass('system')} border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]`}>
+          <section className={`${overlayClass('system')} order-1 border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]`}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Gauge className="h-4 w-4 text-amber-200" />
@@ -1168,7 +1172,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </p>
           </section>
 
-          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+          <section className="hidden border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-500">Selected node</p>
@@ -1237,10 +1241,10 @@ const KnowledgeGraphOS: React.FC = () => {
             </section>
           )}
 
-          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+          <section className="order-3 border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Network className="h-4 w-4 text-amber-200" />
-              <h2 className="text-sm font-bold text-white">Blind-spot bridges</h2>
+              <h2 className="text-sm font-bold text-white">Bridge opportunities</h2>
             </div>
             <p className="mt-2 text-xs leading-5 text-stone-500">
               Suggested cross-system connections. These are proposals, not automatic mutations.
@@ -1264,7 +1268,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+          <section className="hidden border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Workflow className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Execution propagation</h2>
@@ -1295,7 +1299,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
           </section>
 
-          <section className={`${overlayClass('activity')} border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]`}>
+          <section className={`${overlayClass('activity')} order-2 border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]`}>
             <div className="flex items-center gap-2">
               <Radio className="h-4 w-4 text-stone-400" />
               <h2 className="text-sm font-bold text-white">Recent activity</h2>
