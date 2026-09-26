@@ -50,9 +50,14 @@ type HermesEventRow = {
 
 type HermesTaskRow = {
   id: string;
+  goal_id?: string | null;
   kind: string;
   title: string | null;
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  depth?: number | null;
+  created_at?: string | null;
+  completed_at?: string | null;
+  error_message?: string | null;
 };
 
 type KnowledgeNodeData = {
@@ -282,6 +287,26 @@ function KnowledgeNode({ data, selected }: NodeProps<Node<KnowledgeNodeData>>) {
 
 const nodeTypes = { knowledge: KnowledgeNode };
 
+const extractCorrelation = (payload: Record<string, unknown> | null): string | null => {
+  if (!payload) return null;
+  for (const key of ['correlation_id', 'correlationId', 'request_id', 'requestId', 'trace_id', 'traceId']) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+};
+
+const formatDuration = (task: HermesTaskRow | null): string => {
+  if (!task?.created_at) return '—';
+  const start = new Date(task.created_at).getTime();
+  const end = task.completed_at ? new Date(task.completed_at).getTime() : Date.now();
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return '—';
+  const ms = end - start;
+  if (ms < 1000) return `${ms} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  return `${(ms / 60_000).toFixed(1)} min`;
+};
+
 const livePathForSignal = (signal: string): string[] => {
   const value = signal.toLowerCase();
   if (value.includes('film') || value.includes('character') || value.includes('video')) {
@@ -317,6 +342,8 @@ const KnowledgeGraphOS: React.FC = () => {
   const [executionStep, setExecutionStep] = useState(-1);
   const [realtimeState, setRealtimeState] = useState<HermesRealtimeState>('connecting');
   const [lastLiveEvent, setLastLiveEvent] = useState<string>('Waiting for Hermes event…');
+  const [liveTask, setLiveTask] = useState<HermesTaskRow | null>(null);
+  const [liveEvent, setLiveEvent] = useState<HermesEventRow | null>(null);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -347,6 +374,7 @@ const KnowledgeGraphOS: React.FC = () => {
         { event: 'INSERT', schema: 'public', table: 'hermes_events' },
         (payload) => {
           const row = payload.new as HermesEventRow;
+          setLiveEvent(row);
           const signal = `${row.event_type} ${JSON.stringify(row.payload ?? {})}`;
           applyLivePath(livePathForSignal(signal), row.event_type);
         },
@@ -357,6 +385,7 @@ const KnowledgeGraphOS: React.FC = () => {
         (payload) => {
           const row = payload.new as HermesTaskRow;
           if (!row?.id) return;
+          setLiveTask(row);
           const signal = `${row.kind} ${row.title ?? ''} ${row.status}`;
           applyLivePath(livePathForSignal(signal), `task ${row.status}: ${row.title ?? row.kind}`);
         },
@@ -463,6 +492,9 @@ const KnowledgeGraphOS: React.FC = () => {
     setExecutionPath(targetPath);
     setActivity((items) => [`Execution trace started: ${targetPath.join(' → ')}`, ...items].slice(0, 5));
   };
+
+  const liveCorrelation = extractCorrelation(liveEvent?.payload ?? null);
+  const liveTaskMatchesEvent = Boolean(liveTask && liveEvent?.task_id && liveTask.id === liveEvent.task_id);
 
   return (
     <div className="min-h-screen bg-[#080806] text-stone-100">
@@ -651,6 +683,67 @@ const KnowledgeGraphOS: React.FC = () => {
                 );
               })}
             </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Live execution inspector</h2>
+              </div>
+              <span className={`border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] ${liveTask?.status === 'failed' ? 'border-red-300/30 bg-red-300/10 text-red-200' : liveTask?.status === 'completed' ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'}`}>
+                {liveTask?.status ?? 'waiting'}
+              </span>
+            </div>
+
+            <div className="mt-4 grid gap-2 text-[11px]">
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Task ID</span>
+                <span className="truncate font-mono text-stone-300" title={liveTask?.id ?? liveEvent?.task_id ?? '—'}>{liveTask?.id ?? liveEvent?.task_id ?? '—'}</span>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Kind</span>
+                <span className="text-stone-300">{liveTask?.kind ?? '—'}</span>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Title</span>
+                <span className="truncate text-stone-300" title={liveTask?.title ?? '—'}>{liveTask?.title ?? '—'}</span>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Event</span>
+                <span className="text-stone-300">{liveEvent?.event_type ?? '—'}</span>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Correlation</span>
+                <span className="truncate font-mono text-stone-300" title={liveCorrelation ?? '—'}>{liveCorrelation ?? '—'}</span>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Duration</span>
+                <span className="text-stone-300">{formatDuration(liveTask)}</span>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Depth</span>
+                <span className="text-stone-300">{liveTask?.depth ?? '—'}</span>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-3 border-b border-[#25241f] pb-2">
+                <span className="text-stone-600">Linkage</span>
+                <span className={liveTaskMatchesEvent ? 'text-emerald-200' : 'text-stone-500'}>
+                  {liveTaskMatchesEvent ? 'Task ↔ event matched' : liveEvent?.task_id ? 'Awaiting matching task update' : 'Event has no task binding'}
+                </span>
+              </div>
+              {liveTask?.error_message && (
+                <div className="border border-red-300/20 bg-red-300/[0.04] p-2 text-red-200">
+                  {liveTask.error_message}
+                </div>
+              )}
+            </div>
+
+            {liveEvent?.payload && (
+              <details className="mt-3 border border-[#25241f] bg-[#090907] p-3">
+                <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-[0.16em] text-stone-500">Event payload</summary>
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-5 text-stone-500">{JSON.stringify(liveEvent.payload, null, 2)}</pre>
+              </details>
+            )}
           </section>
 
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
