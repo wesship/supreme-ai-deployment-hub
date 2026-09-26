@@ -10,6 +10,7 @@ import { startRumCollection } from './lib/assurance/rum';
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import OAuthConsent from "./pages/OAuthConsent";
 
 const FloatingChatWidget = lazy(() =>
   import("./components/ai/FloatingChatWidget").then(m => ({ default: m.FloatingChatWidget }))
@@ -168,6 +169,7 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/mile-high-golden-elevation" element={<MileHighGoldenElevation />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/auth" element={<AuthCallback />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/auth/confirm" element={<AuthCallback />} />
