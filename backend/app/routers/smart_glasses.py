@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from backend.app.services.smart_glasses_gateway import RedisNonceStore, authorize_request
 from backend.app.services.smart_glasses_vision import run_vision_action
+from backend.app.services.wearable_hud import build_hud_instruction
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/smart-glasses/v1", tags=["smart-glasses"])
@@ -93,6 +94,7 @@ async def _forward_remote(envelope: SmartGlassesEnvelope, action: str | None, st
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("smart_glasses_upstream_error device_id=%s correlation_id=%s action=%s agent=%s error_type=%s", envelope.device_id, envelope.correlation_id, action, agent, type(exc).__name__)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Smart-glasses upstream failed") from exc
+    hud = build_hud_instruction(result)
     return {
         "status": "completed",
         "route": "d3vonn_gateway",
@@ -103,6 +105,7 @@ async def _forward_remote(envelope: SmartGlassesEnvelope, action: str | None, st
         "model_used": result.get("model_used") if isinstance(result, dict) else None,
         "latency_ms": int((time.perf_counter() - started) * 1000),
         "result": result,
+        "hud": hud,
     }
 
 
