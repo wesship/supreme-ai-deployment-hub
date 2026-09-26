@@ -10,6 +10,9 @@ interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
   readonly VITE_ENVIRONMENT?: 'development' | 'staging' | 'production';
   readonly VITE_SENTRY_DSN?: string;
+  readonly VITE_READDY_PROJECT_ID?: string;
+  readonly VITE_READDY_PROJECT_VERSION_ID?: string;
+  readonly VITE_READDY_SHOW_ID?: string;
 
   readonly VITE_SUPABASE_URL: string;
   readonly VITE_SUPABASE_PUBLISHABLE_KEY?: string;
