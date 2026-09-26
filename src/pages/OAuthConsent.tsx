@@ -58,7 +58,8 @@ export default function OAuthConsent() {
       setError(error.message);
       return;
     }
-    const target = data?.redirect_url ?? data?.redirect_to;
+    const target = (data as unknown as AuthorizationDetails | null)?.redirect_url ??
+      (data as unknown as AuthorizationDetails | null)?.redirect_to;
     if (!target) {
       setBusy(false);
       setError("No redirect returned by the authorization server.");
