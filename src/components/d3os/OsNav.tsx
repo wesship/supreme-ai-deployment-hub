@@ -59,7 +59,7 @@ const OsNav: React.FC = () => {
           </Link>
           <SmartLaunchLink
             authedTo="/app"
-            className="cursor-pointer whitespace-nowrap rounded-md border border-[color:var(--os-ink)] bg-[color:var(--os-ink)] px-4 py-2 text-sm font-semibold text-[color:var(--os-pearl)] transition-colors hover:bg-[#25251f]"
+            className="cursor-pointer whitespace-nowrap rounded-md border border-[color:var(--os-ink)] bg-[color:var(--os-ink)] px-4 py-2 text-sm font-semibold os-invert text-[color:var(--os-pearl)] transition-colors hover:bg-[#25251f]"
           >
             Launch OS
           </SmartLaunchLink>
@@ -103,7 +103,7 @@ const OsNav: React.FC = () => {
             </Link>
             <SmartLaunchLink
               authedTo="/app"
-              className="block cursor-pointer whitespace-nowrap rounded-md bg-[color:var(--os-ink)] px-4 py-3 text-center text-sm font-semibold text-[color:var(--os-pearl)]"
+              className="block cursor-pointer whitespace-nowrap rounded-md bg-[color:var(--os-ink)] px-4 py-3 text-center text-sm font-semibold os-invert text-[color:var(--os-pearl)]"
             >
               Launch OS
             </SmartLaunchLink>

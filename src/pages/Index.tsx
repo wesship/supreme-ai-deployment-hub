@@ -119,7 +119,7 @@ const Hero: React.FC = () => {
           <div ref={magnetic} className="os-magnetic mt-8 flex flex-col gap-3 sm:flex-row">
             <SmartLaunchLink
               authedTo="/app"
-              className="inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border border-[color:var(--os-ink)] bg-[color:var(--os-ink)] px-6 py-3 text-sm font-semibold text-[color:var(--os-pearl)] transition-colors hover:bg-[#25251f]"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border border-[color:var(--os-ink)] bg-[color:var(--os-ink)] px-6 py-3 text-sm font-semibold os-invert text-[color:var(--os-pearl)] transition-colors hover:bg-[#25251f]"
             >
               Launch the OS <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </SmartLaunchLink>
@@ -360,7 +360,7 @@ const Index: React.FC = () => (
           <div className="relative mt-7 flex flex-col justify-center gap-3 sm:flex-row">
             <SmartLaunchLink
               authedTo="/app"
-              className="inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border border-[color:var(--os-ink)] bg-[color:var(--os-ink)] px-6 py-3 text-sm font-semibold text-[color:var(--os-pearl)] transition-colors hover:bg-[#25251f]"
+              className="inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md border border-[color:var(--os-ink)] bg-[color:var(--os-ink)] px-6 py-3 text-sm font-semibold os-invert text-[color:var(--os-pearl)] transition-colors hover:bg-[#25251f]"
             >
               Launch the OS <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </SmartLaunchLink>
