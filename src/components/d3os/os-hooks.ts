@@ -38,7 +38,10 @@ export function useFinePointer(): boolean {
 /** Subtle magnetic pull toward the pointer. Disabled for touch / reduced motion. */
 export function useMagnetic<T extends HTMLElement>(strength = 8) {
   const ref = useRef<T | null>(null);
-  const enabled = useFinePointer() && !useCalmMotion();
+  // Both hooks must run unconditionally — short-circuiting here breaks hook order.
+  const finePointer = useFinePointer();
+  const calm = useCalmMotion();
+  const enabled = finePointer && !calm;
 
   useEffect(() => {
     const node = ref.current;
