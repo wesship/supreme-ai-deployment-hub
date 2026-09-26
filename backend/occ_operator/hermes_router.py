@@ -383,25 +383,21 @@ async def decide_adaptive_change_request(
     if request.get("status") != "pending_review":
         raise HTTPException(status_code=409, detail="Adaptive change request has already been reviewed.")
 
-    patch = {
-        "status": body.decision,
-        "reviewer_id": principal.user_id,
-        "review_rationale": body.rationale,
-        "reviewed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
     try:
-        updated = await _SUPABASE.patch("hermes_adaptive_change_requests", request_id, patch)
+        updated = await _SUPABASE.rpc(
+            "hermes_decide_adaptive_change_request",
+            {
+                "p_request_id": request_id,
+                "p_user_id": principal.user_id,
+                "p_actor_id": principal.user_id,
+                "p_decision": body.decision,
+                "p_rationale": body.rationale,
+            },
+        )
     except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 409):
+            raise HTTPException(status_code=409, detail="Adaptive change request is no longer pending review.") from exc
         raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
-
-    await _adaptive_audit(
-        user_id=principal.user_id,
-        change_request_id=request_id,
-        actor_id=principal.user_id,
-        event_type=f"change_request.{body.decision}",
-        event_data={"rationale": body.rationale},
-    )
     return updated
 
 
@@ -422,56 +418,20 @@ async def queue_adaptive_change_canary(
     if request.get("status") != "approved":
         raise HTTPException(status_code=409, detail="Only approved adaptive change requests may queue a canary.")
 
-    canary_task = await _SUPABASE.post(
-        "hermes_tasks",
-        {
-            "user_id": principal.user_id,
-            "title": f"Adaptive canary: {request.get('target')}",
-            "description": "Governed canary for an approved Hermes adaptive recommendation. This task must not apply production config.",
-            "task_type": "adaptive_canary",
-            "kind": "adaptive.canary",
-            "status": "PENDING",
-            "priority": 2,
-            "source": "knowledge_graph_change_request",
-            "retry_count": 0,
-            "agent_name": "ION",
-            "input_data": {
-                "change_request_id": request_id,
-                "proposal_id": request.get("proposal_id"),
-                "category": request.get("category"),
-                "target": request.get("target"),
-                "evidence_hash": request.get("evidence_hash"),
-                "proposed_change": request.get("proposed_change"),
-                "guardrail": request.get("guardrail"),
-                "rollback_plan": request.get("rollback_plan"),
-                "mode": "evaluation_only",
-                "apply_production_change": False,
+    try:
+        result = await _SUPABASE.rpc(
+            "hermes_queue_adaptive_canary",
+            {
+                "p_request_id": request_id,
+                "p_user_id": principal.user_id,
+                "p_actor_id": principal.user_id,
             },
-            "payload": {
-                "change_request_id": request_id,
-                "mode": "evaluation_only",
-                "apply_production_change": False,
-            },
-        },
-    )
-    task_id = str(canary_task["id"])
-    await _SUPABASE.patch(
-        "hermes_adaptive_change_requests",
-        request_id,
-        {
-            "status": "canary_queued",
-            "canary_task_id": task_id,
-            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        },
-    )
-    await _adaptive_audit(
-        user_id=principal.user_id,
-        change_request_id=request_id,
-        actor_id=principal.user_id,
-        event_type="change_request.canary_queued",
-        event_data={"task_id": task_id, "agent_name": "ION", "mode": "evaluation_only"},
-    )
-    return {"status": "canary_queued", "task_id": task_id, "request_id": request_id}
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 409):
+            raise HTTPException(status_code=409, detail="Adaptive canary request is not eligible or has already been claimed.") from exc
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+    return result
 
 
 @router.post("/enqueue")
