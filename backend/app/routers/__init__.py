@@ -204,6 +204,13 @@ except ImportError as exc:
     logger.warning("Proxy vault router not registered: %s", exc)
 
 try:
+    from backend.the_door.router import router as the_door_router
+    proxy_router.include_router(the_door_router, tags=["the-door"])
+    logger.info("THE DOOR game-development router registered at /api/the-door/*.")
+except ImportError as exc:
+    logger.warning("THE DOOR game-development router not registered: %s", exc)
+
+try:
     from backend.ai_films.router import router as ai_film_router
     proxy_router.include_router(ai_film_router, tags=["ai-films"])
 except ImportError as exc:
@@ -299,3 +306,11 @@ try:
     logger.info("D3VONN governed event read router registered at /api/events.")
 except ImportError as exc:
     logger.warning("D3VONN event read router not registered: %s", exc)
+
+try:
+    from backend.game_dev.godmod3_location_router import router as godmod3_location_router
+
+    proxy_router.include_router(godmod3_location_router, tags=["game-dev", "godmod3"])
+    logger.info("GODMOD3 location ideation router registered at /api/game-dev/location-ideas.")
+except ImportError as exc:
+    logger.warning("GODMOD3 location ideation router not registered: %s", exc)
