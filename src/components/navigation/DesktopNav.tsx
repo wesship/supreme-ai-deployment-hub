@@ -9,7 +9,7 @@ interface DesktopNavProps {
 
 const DesktopNav: React.FC<DesktopNavProps> = ({ navigationItems, currentPath }) => {
   return (
-    <nav className="hidden md:flex items-center space-x-8">
+    <nav className="hidden 2xl:flex items-center gap-5">
       {navigationItems.map(item => (
         <NavLink
           key={item.name}
