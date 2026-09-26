@@ -23,6 +23,7 @@ from backend.hermes.infrastructure import (
     SupabaseRestClient,
     sign_payload,
 )
+from backend.hermes.task_engine import TaskTransitionConflict, transition_task
 from backend.occ_operator.occ_logger import log_error
 
 router = APIRouter(prefix="/api/hermes", tags=["hermes"])
@@ -80,6 +81,11 @@ class CreateGoalRequest(BaseModel):
     title: str
     description: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class TaskActionRequest(BaseModel):
+    action: str = Field(..., pattern="^(cancel|retry|pause|resume)$")
+    reason: str | None = Field(default=None, max_length=1000)
 
 
 def _require_internal_execution_key(
@@ -216,6 +222,39 @@ async def list_tasks(
     if status_filter:
         params["status"] = f"eq.{status_filter}"
     return await _get_rows("hermes_tasks", params)
+
+
+@router.post("/tasks/{task_id}/action")
+async def mutate_task(
+    task_id: str,
+    body: TaskActionRequest,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    action_targets = {
+        "cancel": "CANCELLED",
+        "retry": "RETRY",
+        "pause": "PAUSED",
+        "resume": "RUNNING",
+    }
+    try:
+        updated = await transition_task(
+            task_id,
+            action_targets[body.action],
+            error_message=body.reason if body.action == "cancel" and body.reason else None,
+        )
+    except TaskTransitionConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 404 if "not found" in detail.lower() else 409
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+    return {
+        "status": "updated",
+        "task_id": task_id,
+        "action": body.action,
+        "task": updated,
+        "actor_user_id": principal.user_id,
+    }
 
 
 @router.post("/enqueue")
