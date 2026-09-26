@@ -34,7 +34,9 @@ _DEFAULT_ELEVENLABS_MODEL = "eleven_turbo_v2_5"
 _WEBHOOK_DERIVATION_LABEL = b"d3vonn:vapi:webhook:v1"
 _ALLOWED_HERMES_TOOLS = {"create_hermes_task", "enqueue_hermes_task", "hermes_task"}
 _ALLOWED_FILM_TOOLS = {"query_film_intelligence"}
-_ALLOWED_VOICE_TOOLS = _ALLOWED_HERMES_TOOLS | _ALLOWED_FILM_TOOLS
+_ALLOWED_GRAPH_TOOLS = {"graph_action"}
+_ALLOWED_VOICE_TOOLS = _ALLOWED_HERMES_TOOLS | _ALLOWED_FILM_TOOLS | _ALLOWED_GRAPH_TOOLS
+_GRAPH_ACTIONS = {"open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop"}
 _event_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
 _SENSITIVE_KEY = re.compile(r"api[_-]?key|authorization|token|secret|password|credential", re.I)
 
@@ -113,7 +115,10 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                         "query_film_intelligence. Use mode search for literal footage lookup and mode reason for "
                         "Jockey corpus-level analysis. For longer research or execution work, call "
                         "create_hermes_task with a clear title and description. Never claim a task was completed "
-                        "unless the tool result confirms it."
+                        "unless the tool result confirms it. For direct Knowledge Graph UI commands use graph_action "
+                        "with one of: open, select, trace, run, monitor, connect, expand, filter, search, ask, stop. "
+                        "Use graph_action instead of create_hermes_task when the user is clearly manipulating the current graph UI. "
+                        "Run and connect are governed execution intents; never describe them as completed unless Hermes confirms execution."
                         + context_instruction
                     ),
                 }
@@ -138,6 +143,43 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                                 },
                             },
                             "required": ["title"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "async": False,
+                    "function": {
+                        "name": "graph_action",
+                        "description": (
+                            "Control the current D3VONN Knowledge Graph with an explicit action. "
+                            "Use this for direct graph navigation, tracing, monitoring, filtering, search, or execution intent."
+                        ),
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "string",
+                                    "enum": ["open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop"],
+                                },
+                                "node_id": {
+                                    "type": "string",
+                                    "description": "Optional graph node id. Omit to use the signed current node context.",
+                                },
+                                "target_node_id": {
+                                    "type": "string",
+                                    "description": "Optional second node for connect or bridge-style actions.",
+                                },
+                                "query": {
+                                    "type": "string",
+                                    "description": "Optional free-text search or question.",
+                                },
+                                "filter": {
+                                    "type": "string",
+                                    "description": "Optional node-type or state filter.",
+                                },
+                            },
+                            "required": ["action"],
                         },
                     },
                 },
@@ -426,6 +468,25 @@ async def _handle_tool_calls(
             }
         elif name in _ALLOWED_FILM_TOOLS:
             result = await _query_film_intelligence(parameters)
+        elif name in _ALLOWED_GRAPH_TOOLS:
+            action = str(parameters.get("action") or "").strip().lower()
+            if action not in _GRAPH_ACTIONS:
+                result = {"status": "rejected", "message": "Unsupported graph action."}
+            else:
+                current_node = (
+                    voice_context.get("node_id")
+                    if isinstance(voice_context, dict)
+                    else None
+                )
+                result = {
+                    "status": "accepted",
+                    "action": action,
+                    "node_id": str(parameters.get("node_id") or current_node or ""),
+                    "target_node_id": str(parameters.get("target_node_id") or ""),
+                    "query": str(parameters.get("query") or ""),
+                    "filter": str(parameters.get("filter") or ""),
+                    "governed_execution": action in {"run", "connect"},
+                }
         else:
             try:
                 from backend.hermes.task_engine import create_task
