@@ -270,6 +270,14 @@ const KnowledgeGraphOS: React.FC = () => {
   const [activity, setActivity] = useState<string[]>(['Graph surface initialized. No live mutations have been issued.']);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
+  const voiceContext = {
+    surface: 'knowledge-graph',
+    route: '/knowledge-graph',
+    node_id: selected.id,
+    node_label: selected.data.label,
+    node_kind: selected.data.kind,
+    canonical_route: selected.data.route,
+  };
 
   const nodes = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -394,7 +402,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">Production voice</p>
                 <p className="mt-1 text-xs text-stone-300">Vapi orchestration · ElevenLabs voice · Hermes tools</p>
               </div>
-              <ConversationalVoiceControls />
+              <ConversationalVoiceControls context={voiceContext} />
             </div>
           </section>
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
