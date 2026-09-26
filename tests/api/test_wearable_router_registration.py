@@ -7,9 +7,15 @@ def _collect_paths(routes):
         path = getattr(route, "path", None)
         if path:
             paths.add(path)
+
         nested = getattr(route, "routes", None)
         if nested:
             paths.update(_collect_paths(nested))
+
+        original_router = getattr(route, "original_router", None)
+        original_routes = getattr(original_router, "routes", None)
+        if original_routes:
+            paths.update(_collect_paths(original_routes))
     return paths
 
 
