@@ -25,6 +25,7 @@ import type { D3GraphActionRequest } from '@/features/knowledge-graph/lib/graphA
 import { deriveClusterActivation } from '@/features/knowledge-graph/lib/clusterActivation';
 import { deriveMultiClusterCorridor } from '@/features/knowledge-graph/lib/multiClusterCorridor';
 import { deriveCameraTarget } from '@/features/knowledge-graph/lib/cameraChoreography';
+import { useRuntimeIdentity } from '@/hooks/useRuntimeIdentity';
 import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
 import {
   Activity,
@@ -432,6 +433,7 @@ const majorClusterNodeIds = new Set(['agents', 'knowledge', 'tools', 'films', 'r
 const KnowledgeGraphOS: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { identity: runtimeIdentity, state: runtimeIdentityState } = useRuntimeIdentity();
   const routeCorrelationId = searchParams.get('execution') || searchParams.get('correlation_id');
   const [voiceCorrelationId, setVoiceCorrelationId] = useState<string | null>(null);
   const liveCorrelationId = voiceCorrelationId || routeCorrelationId;
@@ -771,6 +773,25 @@ const KnowledgeGraphOS: React.FC = () => {
                 ? `Hermes stream · ${liveStreamState}`
                 : 'Governed graph · preview propagation available'}
             </span>
+            <span
+              className={`border px-3 py-1.5 text-xs ${
+                runtimeIdentityState === 'connected'
+                  ? 'border-emerald-300/25 bg-emerald-300/[0.05] text-emerald-200'
+                  : runtimeIdentityState === 'mismatch'
+                    ? 'border-red-400/30 bg-red-500/[0.06] text-red-200'
+                    : 'border-[#34332f] bg-[#11110f] text-stone-500'
+              }`}
+              title={runtimeIdentity?.commit_sha ? `Backend commit ${runtimeIdentity.commit_sha}` : undefined}
+            >
+              {runtimeIdentityState === 'connected'
+                ? 'Backend · repo connected'
+                : runtimeIdentityState === 'mismatch'
+                  ? 'Backend · source mismatch'
+                  : runtimeIdentityState === 'unavailable'
+                    ? 'Backend · unavailable'
+                    : 'Backend · checking'}
+            </span>
+
             <Link to="/command-center" className="border border-[#34332f] bg-[#0c0c0a] px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-100/30 hover:text-white">
               Command Center
             </Link>
