@@ -17,7 +17,7 @@ const graphNodes = [
   { id: 'intent', label: 'User Intent', x: 50, y: 10, to: '/app', icon: RadioTower },
   { id: 'hermes', label: 'Hermes Orchestrator', x: 50, y: 30, to: '/workflows', icon: BrainCircuit },
   { id: 'agents', label: 'AI Workforce', x: 22, y: 46, to: '/agents', icon: Bot },
-  { id: 'kg', label: 'Knowledge Graph', x: 50, y: 52, to: '/dkos-ingestion', icon: Network },
+  { id: 'kg', label: 'Knowledge Graph', x: 50, y: 52, to: '/knowledge-graph', icon: Network },
   { id: 'rag', label: 'Memory + RAG', x: 76, y: 46, to: '/rag', icon: Database },
   { id: 'workflow', label: 'Workflow Engine', x: 32, y: 72, to: '/workflows', icon: Workflow },
   { id: 'market', label: 'Marketplace', x: 62, y: 72, to: '/marketplace', icon: ShoppingCart },
@@ -43,21 +43,21 @@ const edges = [
 const getNode = (id: string) => graphNodes.find((node) => node.id === id)!;
 
 const KnowledgeGraphPreview: React.FC = () => (
-  <section id="knowledge-graph" className="relative overflow-hidden bg-[#021b48] py-24 scroll-mt-24">
+  <section id="knowledge-graph" className="relative overflow-hidden bg-[#080806] py-24 scroll-mt-24">
     <div className="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_50%_20%,rgba(96,165,250,0.55),transparent_34%),radial-gradient(circle_at_20%_80%,rgba(14,165,233,0.28),transparent_32%),radial-gradient(circle_at_80%_80%,rgba(59,130,246,0.28),transparent_32%)]" />
     <div className="container relative mx-auto px-6">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">Interactive Knowledge Graph</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-200/80">Operational Knowledge Graph</p>
         <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-5xl">
-          See the operating system as a connected intelligence network
+          Operate the system as a connected intelligence network
         </h2>
-        <p className="mt-4 text-blue-100/72">
-          Every node represents a product surface in D3VONN.IO. Intent flows through Hermes, context, agents, workflows, security, media, marketplace, and analytics.
+        <p className="mt-4 text-stone-300/70">
+          Trace how intent moves through Hermes, agents, knowledge, tools, workflows, security, media, and operations — then open the full graph to inspect and act on those relationships.
         </p>
       </div>
 
-      <div className="mt-14 hidden rounded-3xl border border-blue-200/15 bg-blue-400/[0.04] p-6 shadow-[0_0_70px_-24px_rgba(59,130,246,0.85)] backdrop-blur-xl lg:block">
-        <div className="relative mx-auto h-[620px] max-w-6xl overflow-hidden rounded-2xl border border-blue-200/10 bg-slate-950/30">
+      <div className="mt-14 hidden border border-[#2d2c28] bg-[#0d0d0b] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.34)] lg:block">
+        <div className="relative mx-auto h-[620px] max-w-6xl overflow-hidden border border-[#2d2c28] bg-[#090907]">
           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="kgLine" x1="0" x2="1" y1="0" y2="1">
@@ -90,14 +90,14 @@ const KnowledgeGraphPreview: React.FC = () => (
               <Link
                 key={node.id}
                 to={node.to}
-                className="group absolute -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-blue-200/20 bg-[#031f4f]/85 px-4 py-3 text-center shadow-[0_0_34px_-12px_rgba(96,165,250,0.8)] backdrop-blur-xl transition hover:z-10 hover:scale-110 hover:border-blue-200/65 hover:bg-blue-500/20 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="group absolute -translate-x-1/2 -translate-y-1/2 border border-[#34332f] bg-[#141411] px-4 py-3 text-center shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition hover:z-10 hover:-translate-y-1 hover:border-amber-200/45 hover:bg-[#1a1812] focus:outline-none focus:ring-2 focus:ring-amber-100"
                 style={{ left: `${node.x}%`, top: `${node.y}%` }}
                 aria-label={`Open ${node.label}`}
               >
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-blue-300/30 bg-blue-500/15 shadow-[0_0_22px_rgba(96,165,250,0.28)] transition group-hover:bg-blue-400/25">
-                  <Icon className="h-5 w-5 text-blue-100" />
+                <span className="mx-auto flex h-12 w-12 items-center justify-center border border-[#3a382f] bg-[#0c0c0a] transition group-hover:border-amber-200/35 group-hover:bg-[#17150f]">
+                  <Icon className="h-5 w-5 text-amber-100" />
                 </span>
-                <span className="mt-3 block whitespace-nowrap text-xs font-bold uppercase tracking-[0.14em] text-blue-50">
+                <span className="mt-3 block whitespace-nowrap text-xs font-bold uppercase tracking-[0.14em] text-stone-100">
                   {node.label}
                 </span>
               </Link>
@@ -113,12 +113,12 @@ const KnowledgeGraphPreview: React.FC = () => (
             <Link
               key={node.id}
               to={node.to}
-              className="flex items-center gap-3 rounded-2xl border border-blue-200/15 bg-blue-400/[0.04] p-4 backdrop-blur transition hover:border-blue-200/45 hover:bg-blue-500/10 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="flex items-center gap-3 border border-[#2d2c28] bg-[#11110f] p-4 transition hover:border-amber-100/35 hover:bg-amber-100/[0.04] focus:outline-none focus:ring-2 focus:ring-amber-100"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-full border border-blue-300/30 bg-blue-500/15">
-                <Icon className="h-5 w-5 text-blue-100" />
+              <span className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-100/20 bg-amber-100/[0.06]">
+                <Icon className="h-5 w-5 text-amber-100" />
               </span>
-              <span className="text-sm font-semibold text-blue-50">{node.label}</span>
+              <span className="text-sm font-semibold text-stone-100">{node.label}</span>
             </Link>
           );
         })}

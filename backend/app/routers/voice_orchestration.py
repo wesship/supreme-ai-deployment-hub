@@ -82,10 +82,18 @@ def _public_api_url(request: Request) -> str:
     return f"{forwarded_proto}://{forwarded_host}".rstrip("/")
 
 
-def _inline_assistant(server_url: str) -> dict[str, Any]:
+def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a browser-safe Vapi assistant that uses Vapi-managed providers."""
     voice_id = effective_elevenlabs_voice_id()
     voice_model = _env_value("ELEVENLABS_DEFAULT_MODEL") or _DEFAULT_ELEVENLABS_MODEL
+    context_instruction = ""
+    if voice_context:
+        context_instruction = (
+            " Current signed UI context: "
+            + json.dumps(voice_context, separators=(",", ":"), sort_keys=True)
+            + ". Resolve deictic phrases such as 'this', 'it', or 'that node' against this context. "
+            "Do not claim a different selected object unless the user explicitly names one."
+        )
     return {
         "name": "D3VONN Inline Voice",
         "firstMessage": "D3VONN voice is online. How can I help you?",
@@ -104,6 +112,7 @@ def _inline_assistant(server_url: str) -> dict[str, Any]:
                         "Jockey corpus-level analysis. For longer research or execution work, call "
                         "create_hermes_task with a clear title and description. Never claim a task was completed "
                         "unless the tool result confirms it."
+                        + context_instruction
                     ),
                 }
             ],
@@ -386,6 +395,7 @@ async def _handle_tool_calls(
     event_id: str,
     user_id: str | None,
     *, character_preview: bool = False,
+    voice_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     calls = _tool_calls(message)
     results: list[dict[str, Any]] = []
@@ -428,6 +438,7 @@ async def _handle_tool_calls(
                         **_redact(parameters),
                         "authenticated_user_id": user_id,
                         "voice_session": "inline",
+                        "voice_context": _redact(voice_context or {}),
                     },
                     source="vapi-inline",
                     correlation_id=event_id,
@@ -531,8 +542,18 @@ async def create_voice_session(
     user_id: str = Depends(get_current_user_id),
 ) -> dict[str, Any]:
     """Return a short-lived inline Vapi assistant for one authenticated user."""
+    voice_context: dict[str, Any] | None = None
     try:
-        token, expires_at = issue_voice_session(user_id)
+        body = await request.json()
+        if isinstance(body, dict) and isinstance(body.get("context"), dict):
+            voice_context = body["context"]
+    except Exception:
+        voice_context = None
+
+    try:
+        token, expires_at = issue_voice_session(user_id, context_binding=voice_context)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid voice context") from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail="Voice session service unavailable") from exc
 
@@ -542,7 +563,7 @@ async def create_voice_session(
     return {
         "mode": "inline-authenticated",
         "expires_at": expires_at,
-        "assistant": _inline_assistant(webhook_url),
+        "assistant": _inline_assistant(webhook_url, voice_context),
     }
 
 
@@ -586,8 +607,13 @@ async def vapi_webhook(
                     if session_claims and session_claims.get("scope") == "character-preview"
                     else {"assistantId": effective_assistant_id()})
     elif event_type == "tool-calls":
-        response = await _handle_tool_calls(message, event_id, user_id,
-                                             character_preview=bool(session_claims and session_claims.get("character")))
+        response = await _handle_tool_calls(
+            message,
+            event_id,
+            user_id,
+            character_preview=bool(session_claims and session_claims.get("character")),
+            voice_context=session_claims.get("context") if session_claims else None,
+        )
     else:
         internal_recorded = await _record_internal_event(event_type, event_id, payload, user_id)
         external_relay = await _relay_external(event_type, event_id, payload)

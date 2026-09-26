@@ -199,3 +199,95 @@ def test_invalid_session_token_is_rejected_without_provider_headers(monkeypatch)
         json={"message": {"id": "evt-invalid-session", "type": "status-update"}},
     )
     assert response.status_code == 401
+
+
+def test_authenticated_session_binds_signed_graph_context(monkeypatch):
+    configure_signing(monkeypatch)
+    client = make_client(user_id="user-context-bound")
+    context = {
+        "surface": "knowledge-graph",
+        "route": "/knowledge-graph",
+        "node_id": "hermes",
+        "node_label": "Hermes",
+        "node_kind": "core",
+        "canonical_route": "/workflows",
+    }
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={"context": context},
+    )
+
+    assert session_response.status_code == 200
+    assistant = session_response.json()["assistant"]
+    system_message = assistant["model"]["messages"][0]["content"]
+    assert "Current signed UI context" in system_message
+    assert '"node_id":"hermes"' in system_message
+
+    token = parse_qs(urlparse(assistant["server"]["url"]).query)["session"][0]
+    claims = verify_voice_session(token)
+    assert claims is not None
+    assert claims["context"] == context
+
+
+def test_context_bound_tool_call_carries_voice_context_into_hermes(monkeypatch):
+    configure_signing(monkeypatch)
+    captured: dict[str, object] = {}
+
+    async def fake_create_task(**kwargs):
+        captured.update(kwargs)
+        return {"id": "inline-task-context", "title": kwargs["title"]}
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
+    client = make_client(user_id="user-context-tool")
+    context = {
+        "surface": "knowledge-graph",
+        "route": "/knowledge-graph",
+        "node_id": "radio",
+        "node_label": "HNF Radio",
+        "node_kind": "product",
+        "canonical_route": "/music",
+    }
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={"context": context},
+    )
+    token = parse_qs(
+        urlparse(session_response.json()["assistant"]["server"]["url"]).query
+    )["session"][0]
+
+    response = client.post(
+        f"/api/voice/vapi/webhook?session={token}",
+        json={
+            "message": {
+                "id": "evt-context-tool",
+                "type": "tool-calls",
+                "toolCallList": [
+                    {
+                        "id": "call-context-1",
+                        "name": "create_hermes_task",
+                        "parameters": {
+                            "title": "Monitor this",
+                            "description": "Inspect current status and report anomalies.",
+                        },
+                    }
+                ],
+            }
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["input_data"]["voice_context"] == context
+    assert captured["input_data"]["authenticated_user_id"] == "user-context-tool"
+
+
+def test_invalid_voice_context_is_rejected(monkeypatch):
+    configure_signing(monkeypatch)
+    response = make_client().post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={"context": {"route": "not-a-route"}},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid voice context"

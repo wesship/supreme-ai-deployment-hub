@@ -5,8 +5,18 @@ import { toast } from 'sonner';
 import { getVapiAssistantId, getVapiPublicKey } from '@/config/voice';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface VoiceUiContext {
+  surface: string;
+  route: string;
+  node_id?: string;
+  node_label?: string;
+  node_kind?: string;
+  canonical_route?: string;
+}
+
 interface ConversationalVoiceControlsProps {
   disabled?: boolean;
+  context?: VoiceUiContext;
 }
 
 type InlineVapiAssistant = Record<string, unknown>;
@@ -30,7 +40,7 @@ const readableError = (error: unknown): string =>
  * user. The browser never receives a Vapi private key, provider credential, or
  * reusable webhook secret.
  */
-const getInlineVoiceSession = async (): Promise<VoiceSessionResponse | null> => {
+const getInlineVoiceSession = async (context?: VoiceUiContext): Promise<VoiceSessionResponse | null> => {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -42,6 +52,7 @@ const getInlineVoiceSession = async (): Promise<VoiceSessionResponse | null> => 
       Authorization: `Bearer ${session.access_token}`,
       'Content-Type': 'application/json',
     },
+    body: JSON.stringify(context ? { context } : {}),
     cache: 'no-store',
   });
 
@@ -67,6 +78,7 @@ const getInlineVoiceSession = async (): Promise<VoiceSessionResponse | null> => 
  */
 export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsProps> = ({
   disabled = false,
+  context,
 }) => {
   const vapiPublicKey = getVapiPublicKey();
   const vapiAssistantId = getVapiAssistantId();
@@ -131,7 +143,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       }
 
       const vapi = ensureVapi();
-      const inlineSession = await getInlineVoiceSession();
+      const inlineSession = await getInlineVoiceSession(context);
       const target = inlineSession?.assistant ?? vapiAssistantId;
 
       await vapi.start(target as Parameters<Vapi['start']>[0]);
@@ -152,7 +164,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       setConnecting(false);
       setSpeaking(false);
     }
-  }, [ensureVapi, vapiAssistantId]);
+  }, [context, ensureVapi, vapiAssistantId]);
 
   const stop = useCallback(async () => {
     try {
