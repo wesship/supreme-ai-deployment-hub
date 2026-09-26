@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import httpx
+
 from backend.hermes.infrastructure import HermesDispatchClient, SupabaseRestClient
 
 
@@ -123,6 +125,55 @@ class SupabaseCheckpointStore:
             raise ValueError("checkpoint content must decode to an object")
         return decoded
 
+
+class InternalApiAgentDispatcher:
+    """AgentDispatcher backed by the private D3VONN API execution boundary.
+
+    This is deliberately separate from the public HMAC-signed enqueue-task
+    intake endpoint. Internal workers execute an existing leased task here; they
+    must never create a second Hermes task as a side effect of dispatch.
+    """
+
+    def __init__(self, config) -> None:
+        self._config = config
+
+    @property
+    def configured(self) -> bool:
+        return self._config.internal_dispatch_configured
+
+    async def dispatch(
+        self,
+        *,
+        task_id: str,
+        agent_name: str,
+        input_data: dict[str, Any],
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        if not self.configured:
+            raise RuntimeError("Hermes internal execution boundary is not configured")
+
+        payload: dict[str, Any] = {
+            "task_id": task_id,
+            "agent_name": agent_name,
+            "input_data": input_data,
+        }
+        if idempotency_key:
+            payload["idempotency_key"] = idempotency_key
+
+        async with httpx.AsyncClient(timeout=self._config.dispatch_timeout_seconds) as client:
+            response = await client.post(
+                self._config.internal_execute_url,
+                json=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Hermes-Internal-Key": self._config.internal_api_key,
+                },
+            )
+        response.raise_for_status()
+        result = response.json()
+        if not isinstance(result, dict):
+            raise RuntimeError("Hermes internal execution returned a non-object response")
+        return result
 
 class EdgeFunctionAgentDispatcher:
     """AgentDispatcher implementation backed by the enqueue-task Edge Function."""
