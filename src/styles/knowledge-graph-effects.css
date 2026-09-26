@@ -785,3 +785,62 @@
     transition: none;
   }
 }
+
+
+.d3-nexus-globe {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: min(72%, 760px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: .72;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(254,243,199,.055) 0 8%, rgba(252,211,77,.035) 19%, transparent 46%),
+    repeating-radial-gradient(circle at center, rgba(252,211,77,.12) 0 1px, transparent 1px 44px),
+    repeating-conic-gradient(from 0deg, rgba(252,211,77,.08) 0deg 1deg, transparent 1deg 15deg);
+  border: 1px solid rgba(252,211,77,.16);
+  box-shadow:
+    0 0 80px rgba(252,211,77,.08),
+    inset 0 0 90px rgba(252,211,77,.04);
+}
+
+.d3-nexus-globe::before,
+.d3-nexus-globe::after {
+  content: "";
+  position: absolute;
+  inset: 9%;
+  border-radius: 999px;
+  border: 1px solid rgba(254,243,199,.12);
+}
+
+.d3-nexus-globe::before {
+  transform: scaleY(.42) rotate(11deg);
+  box-shadow:
+    0 0 18px rgba(252,211,77,.06),
+    inset 0 0 18px rgba(252,211,77,.04);
+}
+
+.d3-nexus-globe::after {
+  transform: scaleX(.46) rotate(-8deg);
+  border-color: rgba(251,191,36,.1);
+}
+
+.d3-neural-stage .react-flow {
+  z-index: 2;
+}
+
+@media (max-width: 1279px) {
+  .d3-nexus-globe {
+    width: 82%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-nexus-globe {
+    opacity: .58;
+  }
+}
