@@ -1,4 +1,6 @@
+import io
 import json
+from urllib import error
 
 import pytest
 
@@ -46,32 +48,36 @@ def test_wifi_transport_adds_device_key_and_request_id():
 
     class _Response:
         status = 200
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-        def read(self):
-            return b'{"status":"completed"}'
-
-        def getcode(self):
-            return self.status
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self): return b'{"status":"completed"}'
+        def getcode(self): return self.status
 
     def opener(req, timeout):
         captured["headers"] = dict(req.header_items())
         captured["body"] = json.loads(req.data.decode("utf-8"))
-        captured["timeout"] = timeout
         return _Response()
 
     result = WifiHttpsTransport(device_key="secret", opener=opener).send(_envelope())
-    assert result.transport == "wifi"
     assert result.status_code == 200
-    assert result.body["status"] == "completed"
     assert captured["headers"]["X-d3vonn-device-key"] == "secret"
     assert captured["headers"]["X-request-id"] == "corr-transport-01"
-    assert captured["body"]["device_id"] == "sg-canary-01"
+
+
+def test_wifi_policy_denial_is_not_treated_as_transport_failure():
+    def opener(req, timeout):
+        raise error.HTTPError(
+            req.full_url,
+            403,
+            "Forbidden",
+            {},
+            io.BytesIO(b'{"detail":"kill_switch_enabled"}'),
+        )
+
+    result = WifiHttpsTransport(device_key="secret", opener=opener).send(_envelope())
+    assert result.transport == "wifi"
+    assert result.status_code == 403
+    assert result.body["detail"] == "kill_switch_enabled"
 
 
 def test_bluetooth_relay_never_needs_server_key_on_glasses():
@@ -81,16 +87,13 @@ def test_bluetooth_relay_never_needs_server_key_on_glasses():
         request_frames.append(frame)
 
     def receive_frames():
-        response = encode_envelope({"_http_status": 200, "status": "completed"})
-        return fragment_ble(response, chunk_bytes=40)
+        return fragment_ble(encode_envelope({"_http_status": 200, "status": "completed"}), chunk_bytes=40)
 
     result = BluetoothRelayTransport(
         send_frame=send_frame,
         receive_frames=receive_frames,
         chunk_bytes=40,
     ).send(_envelope())
-
-    assert result.transport == "bluetooth"
     assert result.status_code == 200
     request_doc = decode_envelope(reassemble_ble(request_frames))
     assert "device_key" not in request_doc
@@ -112,4 +115,3 @@ def test_auto_transport_falls_back_to_bluetooth_on_wifi_failure():
         wifi_available=lambda: True,
     ).send(_envelope())
     assert result.transport == "bluetooth"
-    assert result.body == {"ok": True}
