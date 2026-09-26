@@ -395,3 +395,176 @@ def test_latest_voice_execution_rejects_invalid_ui_session(monkeypatch):
         params={"ui_session_id": "not-a-valid-uuid"},
     )
     assert response.status_code == 422
+
+
+def test_inline_assistant_exposes_first_class_graph_action_tool(monkeypatch):
+    configure_signing(monkeypatch)
+    response = make_client().post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={
+            "context": {
+                "surface": "knowledge-graph",
+                "route": "/knowledge-graph",
+                "node_id": "films",
+                "node_label": "AI Films",
+                "node_kind": "product",
+                "canonical_route": "/ai-films",
+                "ui_session_id": "44444444-4444-4444-8444-444444444444",
+            }
+        },
+    )
+    assert response.status_code == 200
+    tools = response.json()["assistant"]["model"]["tools"]
+    graph_tool = next(tool for tool in tools if tool["function"]["name"] == "graph_action")
+    enum = graph_tool["function"]["parameters"]["properties"]["action"]["enum"]
+    assert enum == [
+        "open", "select", "trace", "run", "monitor", "connect",
+        "expand", "filter", "search", "ask", "stop",
+    ]
+
+
+def test_read_only_graph_action_does_not_create_hermes_task(monkeypatch):
+    configure_signing(monkeypatch)
+
+    async def unexpected_create_task(**kwargs):
+        raise AssertionError("read-only graph action must not create a Hermes task")
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", unexpected_create_task)
+    client = make_client(user_id="user-graph-read")
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={
+            "context": {
+                "surface": "knowledge-graph",
+                "route": "/knowledge-graph",
+                "node_id": "radio",
+                "node_label": "HNF Radio",
+                "node_kind": "product",
+                "canonical_route": "/music",
+                "ui_session_id": "55555555-5555-4555-8555-555555555555",
+            }
+        },
+    )
+    token = parse_qs(urlparse(session_response.json()["assistant"]["server"]["url"]).query)["session"][0]
+    response = client.post(
+        f"/api/voice/vapi/webhook?session={token}",
+        json={
+            "message": {
+                "id": "evt-graph-trace",
+                "type": "tool-calls",
+                "toolCallList": [{
+                    "id": "call-graph-trace",
+                    "name": "graph_action",
+                    "parameters": {"action": "trace"},
+                }],
+            }
+        },
+    )
+    assert response.status_code == 200
+    result = json.loads(response.json()["results"][0]["result"])
+    assert result["status"] == "accepted"
+    assert result["action"] == "trace"
+    assert result["node_id"] == "radio"
+    assert result["governed_execution"] is False
+
+
+def test_run_graph_action_creates_live_hermes_execution(monkeypatch):
+    configure_signing(monkeypatch)
+    captured: dict[str, object] = {}
+
+    async def fake_create_task(**kwargs):
+        captured.update(kwargs)
+        return {"id": "task-graph-run", "title": kwargs["title"]}
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
+    client = make_client(user_id="user-graph-run")
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={
+            "context": {
+                "surface": "knowledge-graph",
+                "route": "/knowledge-graph",
+                "node_id": "films",
+                "node_label": "AI Films",
+                "node_kind": "product",
+                "canonical_route": "/ai-films",
+                "ui_session_id": "66666666-6666-4666-8666-666666666666",
+            }
+        },
+    )
+    token = parse_qs(urlparse(session_response.json()["assistant"]["server"]["url"]).query)["session"][0]
+    response = client.post(
+        f"/api/voice/vapi/webhook?session={token}",
+        json={
+            "message": {
+                "id": "evt-graph-run",
+                "type": "tool-calls",
+                "toolCallList": [{
+                    "id": "call-graph-run",
+                    "name": "graph_action",
+                    "parameters": {"action": "run"},
+                }],
+            }
+        },
+    )
+    result = json.loads(response.json()["results"][0]["result"])
+    assert result["status"] == "queued"
+    assert result["action"] == "run"
+    assert result["governed_execution"] is True
+    assert captured["task_type"] == "voice.graph.run"
+    assert captured["initial_status"] == "PENDING"
+    assert captured["input_data"]["authenticated_user_id"] == "user-graph-run"
+    assert str(UUID(result["correlation_id"])) == result["correlation_id"]
+
+
+def test_connect_graph_action_is_paused_for_approval(monkeypatch):
+    configure_signing(monkeypatch)
+    captured: dict[str, object] = {}
+
+    async def fake_create_task(**kwargs):
+        captured.update(kwargs)
+        return {"id": "task-graph-connect", "title": kwargs["title"]}
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
+    client = make_client(user_id="user-graph-connect")
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+        json={
+            "context": {
+                "surface": "knowledge-graph",
+                "route": "/knowledge-graph",
+                "node_id": "films",
+                "node_label": "AI Films",
+                "node_kind": "product",
+                "canonical_route": "/ai-films",
+                "ui_session_id": "77777777-7777-4777-8777-777777777777",
+            }
+        },
+    )
+    token = parse_qs(urlparse(session_response.json()["assistant"]["server"]["url"]).query)["session"][0]
+    response = client.post(
+        f"/api/voice/vapi/webhook?session={token}",
+        json={
+            "message": {
+                "id": "evt-graph-connect",
+                "type": "tool-calls",
+                "toolCallList": [{
+                    "id": "call-graph-connect",
+                    "name": "graph_action",
+                    "parameters": {
+                        "action": "connect",
+                        "target_node_id": "knowledge",
+                    },
+                }],
+            }
+        },
+    )
+    result = json.loads(response.json()["results"][0]["result"])
+    assert result["status"] == "approval_required"
+    assert result["target_node_id"] == "knowledge"
+    assert captured["task_type"] == "voice.graph.connect"
+    assert captured["initial_status"] == "PAUSED"
