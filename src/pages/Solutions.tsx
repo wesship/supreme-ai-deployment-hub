@@ -10,8 +10,8 @@ import {
   ShieldCheck,
   Workflow,
 } from 'lucide-react';
-import ReaddyMarketingHero from '@/components/marketing/ReaddyMarketingHero';
-import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
+import D3VONNMarketingHero from '@/components/marketing/D3VONNMarketingHero';
+import D3VONNMarketingShell from '@/components/marketing/D3VONNMarketingShell';
 
 const solutions = [
   {
@@ -52,7 +52,7 @@ const Solutions: React.FC = () => {
     'D3VONN.IO solutions for executive operations, workflow automation, sales intelligence, governed AI operations, and custom AI workforces.';
 
   return (
-    <ReaddyMarketingShell>
+    <D3VONNMarketingShell>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -63,7 +63,7 @@ const Solutions: React.FC = () => {
       </Helmet>
 
       <div>
-        <ReaddyMarketingHero
+        <D3VONNMarketingHero
           eyebrow="Solutions"
           title={
             <>
@@ -87,7 +87,7 @@ const Solutions: React.FC = () => {
           >
             Explore agents
           </Link>
-        </ReaddyMarketingHero>
+        </D3VONNMarketingHero>
 
         <section className="px-4 pb-20 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
@@ -153,7 +153,7 @@ const Solutions: React.FC = () => {
           </div>
         </section>
       </div>
-    </ReaddyMarketingShell>
+    </D3VONNMarketingShell>
   );
 };
 
