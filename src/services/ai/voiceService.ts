@@ -29,6 +29,17 @@ export interface VoiceState {
   sttAvailable: boolean;
 }
 
+// Recognition event interfaces are not included in every TypeScript DOM release.
+// Keep these type-only declarations local to the browser adapter.
+type SpeechRecognitionEvent = Event & {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+};
+
+type SpeechRecognitionErrorEvent = Event & {
+  error: string;
+};
+
 type SpeechRecognitionInstance = {
   continuous: boolean;
   interimResults: boolean;
