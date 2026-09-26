@@ -356,14 +356,19 @@ const KnowledgeGraphOS: React.FC = () => {
   };
 
   const startExecutionPreview = () => {
-    const targetPath =
-      selected.id === 'films'
-        ? ['intent', 'hermes', 'agents', 'workflow', 'films']
-        : selected.id === 'radio'
-          ? ['intent', 'hermes', 'agents', 'workflow', 'radio']
-          : selected.id === 'security'
-            ? ['intent', 'hermes', 'tools', 'security']
-            : ['intent', 'hermes', 'knowledge', 'workflow', 'analytics'];
+    const paths: Record<string, string[]> = {
+      intent: ['intent'],
+      hermes: ['intent', 'hermes'],
+      agents: ['intent', 'hermes', 'agents'],
+      knowledge: ['intent', 'hermes', 'knowledge'],
+      tools: ['intent', 'hermes', 'tools'],
+      workflow: ['intent', 'hermes', 'agents', 'workflow'],
+      films: ['intent', 'hermes', 'agents', 'workflow', 'films'],
+      radio: ['intent', 'hermes', 'agents', 'workflow', 'radio'],
+      security: ['intent', 'hermes', 'tools', 'security'],
+      analytics: ['intent', 'hermes', 'knowledge', 'workflow', 'analytics'],
+    };
+    const targetPath = paths[selected.id] ?? ['intent', 'hermes'];
     setExecutionPath(targetPath);
     setActivity((items) => [`Execution trace started: ${targetPath.join(' → ')}`, ...items].slice(0, 5));
   };
