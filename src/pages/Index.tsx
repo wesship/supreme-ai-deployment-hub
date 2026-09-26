@@ -227,11 +227,11 @@ const Hero: React.FC = () => {
               </div>
 
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
-                <div className="relative aspect-[1376/768] w-full overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:aspect-auto sm:min-h-[430px]">
+                <div className="relative grid min-h-[320px] w-full place-items-center overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <img
-                    src={coreSrc}
-                    alt="D3VONN.IO Enterprise Intelligence Core — AI workforce, domain intelligence, and knowledge graph command center"
-                    className="absolute inset-0 h-full w-full bg-[#020b1c] object-contain object-center p-2 sm:p-3"
+                    src={MASTER_LOGO_SRC}
+                    alt="Official D3VONN.IO winged warrior logo — One Platform Infinite Intelligence"
+                    className="relative z-10 w-full max-w-[95%] max-h-[260px] object-contain object-center drop-shadow-[0_0_32px_rgba(62,155,255,0.62)] sm:max-h-[320px]"
                     loading="eager"
                     decoding="async"
                     onError={() => {
