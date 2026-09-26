@@ -308,6 +308,14 @@ except ImportError as exc:
     logger.warning("Hermes event stream router not registered: %s", exc)
 
 try:
+    from backend.app.routers.runtime_identity import router as runtime_identity_router
+
+    proxy_router.include_router(runtime_identity_router)
+    logger.info("Runtime identity router registered at /api/runtime/identity.")
+except ImportError as exc:
+    logger.warning("Runtime identity router not registered: %s", exc)
+
+try:
     from backend.app.routers.d3vonn_events import router as d3vonn_events_router
 
     proxy_router.include_router(d3vonn_events_router, tags=["platform-events"])
