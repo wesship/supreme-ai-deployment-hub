@@ -245,7 +245,7 @@ export function useDevonnChat(options: UseDevonnChatOptions = {}) {
           }
         }
       } catch (err) {
-        errorContent = `Connection error: ${err}`;
+        errorContent = `Connection error: ${err instanceof Error ? err.message : String(err)}`;
         setMessages(prev =>
           prev.map(m =>
             m.id === assistantId
