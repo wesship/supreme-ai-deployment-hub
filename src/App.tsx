@@ -89,6 +89,7 @@ const SecurityDisclosure = lazy(() => import("./pages/SecurityDisclosure"));
 const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
 const AquaGov = lazy(() => import("./pages/AquaGov"));
+const KnowledgeGraphOS = lazy(() => import("./pages/KnowledgeGraphOS"));
 
 
 const PageLoader = () => (
@@ -226,6 +227,7 @@ function App() {
                 <Route path="/command-center" element={<CommandCenter />} />
                 <Route path="/operations" element={<CommandCenter />} />
                 <Route path="/dkos-ingestion" element={<DkosIngestion />} />
+                <Route path="/knowledge-graph" element={<KnowledgeGraphOS />} />
                 <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
                 <Route path="/primetime" element={<PrimetimeRelease1 />} />
                 <Route path="/primetime/release-1" element={<PrimetimeRelease1 />} />
