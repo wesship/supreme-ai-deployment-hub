@@ -2,8 +2,8 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
-import ReaddyMarketingHero from '@/components/marketing/ReaddyMarketingHero';
-import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
+import D3VONNMarketingHero from '@/components/marketing/D3VONNMarketingHero';
+import D3VONNMarketingShell from '@/components/marketing/D3VONNMarketingShell';
 
 const plans = [
   {
@@ -41,7 +41,7 @@ const Pricing: React.FC = () => {
   const description = 'D3VONN.IO pricing for Starter, Operator, and Enterprise AI workforce orchestration plans.';
 
   return (
-    <ReaddyMarketingShell>
+    <D3VONNMarketingShell>
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
@@ -52,7 +52,7 @@ const Pricing: React.FC = () => {
       </Helmet>
 
       <div>
-        <ReaddyMarketingHero
+        <D3VONNMarketingHero
           eyebrow="Pricing"
           title={
             <>
@@ -147,7 +147,7 @@ const Pricing: React.FC = () => {
           </div>
         </section>
       </div>
-    </ReaddyMarketingShell>
+    </D3VONNMarketingShell>
   );
 };
 
