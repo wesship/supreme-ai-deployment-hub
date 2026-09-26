@@ -35,15 +35,15 @@ const WorkflowPulse: React.FC = () => {
         </span>
       </div>
 
-      <ol className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-stretch">
+      <ol className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {STAGES.map((stage, index) => {
           const active = !calm && index === step;
           const done = !calm && index < step;
           const Icon = stage.icon;
           return (
-            <li key={stage.label} className="flex flex-1 items-center gap-3">
+            <li key={stage.label} className="flex items-center gap-3">
               <div
-                className="flex flex-1 flex-col gap-2 rounded-lg border p-4 transition-colors duration-300 md:p-5"
+                className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg border p-4 transition-colors duration-300 md:p-5"
                 style={{
                   borderColor: active ? 'var(--os-orange)' : done ? 'var(--os-lime-deep)' : 'var(--os-line)',
                   background: active ? 'rgba(255,122,26,0.07)' : 'rgba(255,255,255,0.6)',
