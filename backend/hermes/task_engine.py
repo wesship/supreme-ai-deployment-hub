@@ -108,12 +108,16 @@ async def create_task(
     scheduled_at: str | None = None,
     deadline_at: str | None = None,
     correlation_id: str | None = None,
+    initial_status: str | TaskStatus = TaskStatus.PENDING,
 ) -> dict:
-    """Create a new Hermes task in the canonical pending state."""
+    """Create a new Hermes task, optionally fail-closed in PAUSED state."""
+    requested_status = TaskStatus(initial_status)
+    if requested_status not in {TaskStatus.PENDING, TaskStatus.PAUSED}:
+        raise ValueError("initial_status must be PENDING or PAUSED")
     payload: dict[str, Any] = {
         "title": title,
         "task_type": task_type,
-        "status": TaskStatus.PENDING.value,
+        "status": requested_status.value,
         "priority": priority,
         "source": source,
         "retry_count": 0,
@@ -137,7 +141,7 @@ async def create_task(
     await log_event(
         task_id=task.get("id"),
         event="task.created",
-        message=f"Task '{title}' created (type={task_type})",
+        message=f"Task '{title}' created (type={task_type}, status={requested_status.value})",
         agent_name=agent_name,
         correlation_id=correlation_id,
     )
