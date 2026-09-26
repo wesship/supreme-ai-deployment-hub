@@ -110,6 +110,8 @@ const ChartTooltipContent = React.forwardRef<
       nameKey?: string
       labelKey?: string
       label?: React.ReactNode
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      payload?: ReadonlyArray<any>
     }
 >(
   (

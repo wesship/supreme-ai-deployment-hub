@@ -80,7 +80,7 @@ export function SecureMcpRunner() {
           <div role="status" aria-live="polite" className={`rounded-lg border p-3 text-sm ${status === 'error' ? 'border-red-500/40 bg-red-500/10 text-red-200' : status === 'complete' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100' : 'border-white/10 bg-white/[0.03] text-white/70'}`}>
             {status === 'error' ? <AlertCircle className="mr-2 inline h-4 w-4" /> : status === 'complete' ? <CheckCircle2 className="mr-2 inline h-4 w-4" /> : null}{message}
           </div>
-          {result && <pre className="max-h-72 overflow-auto rounded-lg bg-black/30 p-4 text-xs text-white/80">{JSON.stringify(result, null, 2)}</pre>}
+          {result != null && <pre className="max-h-72 overflow-auto rounded-lg bg-black/30 p-4 text-xs text-white/80">{JSON.stringify(result, null, 2)}</pre>}
         </CardContent>
       </Card>
     </div>
