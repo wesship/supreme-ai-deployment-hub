@@ -341,3 +341,102 @@
   position: relative;
   z-index: 1;
 }
+
+
+@keyframes d3-cluster-ignite {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(252,211,77,.28));
+  }
+  42% {
+    filter:
+      drop-shadow(0 0 18px rgba(254,243,199,.72))
+      drop-shadow(0 0 32px rgba(251,191,36,.38));
+  }
+  55% {
+    filter:
+      drop-shadow(0 0 9px rgba(254,243,199,.42))
+      drop-shadow(0 0 20px rgba(251,191,36,.22));
+  }
+  70% {
+    filter:
+      drop-shadow(0 0 16px rgba(254,243,199,.62))
+      drop-shadow(0 0 28px rgba(251,191,36,.3));
+  }
+}
+
+@keyframes d3-sympathetic-flicker {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  18% { opacity: .93; filter: brightness(1.08); }
+  24% { opacity: 1; filter: brightness(1.18); }
+  58% { opacity: .96; filter: brightness(1.03); }
+  64% { opacity: 1; filter: brightness(1.12); }
+}
+
+@keyframes d3-cluster-edge-surge {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(252,211,77,.32));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 7px rgba(254,243,199,.72))
+      drop-shadow(0 0 14px rgba(251,191,36,.42));
+  }
+}
+
+.react-flow__node.d3-kg-cluster-primary .d3-kg-node {
+  border-color: rgba(254,243,199,.82);
+  background:
+    linear-gradient(180deg, rgba(252,211,77,.055), transparent 36%),
+    #17150f;
+  animation: d3-cluster-ignite 1.55s ease-in-out infinite;
+}
+
+.react-flow__node.d3-kg-cluster-primary .d3-kg-node::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  border: 1px solid rgba(254,243,199,.11);
+  box-shadow: inset 0 0 18px rgba(252,211,77,.06);
+}
+
+.react-flow__node.d3-kg-cluster-sympathetic .d3-kg-node {
+  border-color: rgba(252,211,77,.28);
+  animation: d3-sympathetic-flicker 2.2s steps(1, end) infinite;
+}
+
+.react-flow__node.d3-kg-cluster-sympathetic .d3-kg-handle {
+  box-shadow:
+    0 0 8px rgba(254,243,199,.45),
+    0 0 15px rgba(251,191,36,.2);
+}
+
+.react-flow__edge.d3-kg-edge--cluster path,
+.d3-cinematic-edge--cluster .react-flow__edge-path {
+  stroke-dasharray: 12 9;
+  animation:
+    d3-edge-flow 1.6s linear infinite,
+    d3-cluster-edge-surge 1.45s ease-in-out infinite;
+}
+
+.d3-cinematic-edge--cluster .d3-edge-particle {
+  opacity: .72;
+}
+
+.react-flow__node.d3-kg-cluster-primary .d3-hermes-shell,
+.react-flow__node.d3-kg-cluster-sympathetic .d3-hermes-shell {
+  filter: drop-shadow(0 0 16px rgba(252,211,77,.3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__node.d3-kg-cluster-primary .d3-kg-node,
+  .react-flow__node.d3-kg-cluster-sympathetic .d3-kg-node,
+  .react-flow__edge.d3-kg-edge--cluster path,
+  .d3-cinematic-edge--cluster .react-flow__edge-path {
+    animation: none !important;
+  }
+
+  .react-flow__node.d3-kg-cluster-primary .d3-kg-node {
+    box-shadow: 0 0 18px rgba(254,243,199,.28);
+  }
+}
