@@ -229,7 +229,7 @@ const Hero: React.FC = () => {
               <div className="grid gap-4 py-5 sm:grid-cols-[1.12fr_0.88fr]">
                 <div className="relative min-h-[360px] w-full overflow-hidden rounded-3xl border border-blue-200/10 bg-[#020b1c] sm:min-h-[430px]">
                   <img
-                    src={MASTER_LOGO_SRC}
+                    src={ENTERPRISE_CORE_SRC}
                     alt="Official D3VONN.IO winged warrior logo — One Platform Infinite Intelligence"
                     className="absolute inset-0 z-10 w-full h-full object-cover object-center"
                     loading="eager"
