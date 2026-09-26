@@ -180,6 +180,18 @@ type AdaptivePromotionCandidateRow = {
   created_at: string;
 };
 
+type AdaptiveRolloutRow = {
+  id: string;
+  promotion_candidate_id: string;
+  environment: 'staging' | 'production';
+  approved_delta: Record<string, unknown>;
+  rollback_config: Record<string, unknown>;
+  status: 'validated' | 'applied' | 'rolled_back' | 'failed';
+  runtime_changed: boolean;
+  deployment_evidence: Record<string, unknown>;
+  created_at: string;
+};
+
 type KnowledgeNodeData = {
   label: string;
   kind: NodeKind;
@@ -482,6 +494,8 @@ const KnowledgeGraphOS: React.FC = () => {
   const [promotionCandidates, setPromotionCandidates] = useState<AdaptivePromotionCandidateRow[]>([]);
   const [baselineMetrics, setBaselineMetrics] = useState({ success_rate: '0.98', error_rate: '0.02', latency_ms: '1000', cost_usd: '0.01' });
   const [candidateMetrics, setCandidateMetrics] = useState({ success_rate: '0.98', error_rate: '0.02', latency_ms: '1000', cost_usd: '0.01' });
+  const [rollouts, setRollouts] = useState<AdaptiveRolloutRow[]>([]);
+  const [productionAuthorization, setProductionAuthorization] = useState('');
   const timelineRequestRef = useRef(0);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -1110,6 +1124,82 @@ const KnowledgeGraphOS: React.FC = () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Canary certification failed';
       setActivity((items) => [`Certification blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const refreshAdaptiveRollouts = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-rollouts?limit=30`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Rollout load failed');
+      setRollouts((Array.isArray(payload) ? payload : []) as AdaptiveRolloutRow[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Rollout load failed';
+      setActivity((items) => [`Rollout ledger error: ${message}`, ...items].slice(0, 5));
+    }
+  };
+
+  useEffect(() => {
+    refreshAdaptiveRollouts();
+  }, []);
+
+  const decidePromotionCandidate = async (candidateId: string, decision: 'approved' | 'rejected') => {
+    setChangeBusy(candidateId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to review promotion candidates.');
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-promotion-candidates/${encodeURIComponent(candidateId)}/decision`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, rationale: reviewNote.trim() || 'Promotion evidence reviewed.' }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Promotion review failed');
+      setActivity((items) => [`Promotion ${decision}: ${candidateId}`, ...items].slice(0, 5));
+      await refreshPromotionCandidates();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Promotion review failed';
+      setActivity((items) => [`Promotion review blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const validatePromotionRollout = async (candidateId: string, environment: 'staging' | 'production') => {
+    setChangeBusy(candidateId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to validate rollout.');
+      if (environment === 'production' && productionAuthorization.trim().length < 16) {
+        throw new Error('Enter an explicit production authorization token/passphrase (16+ characters).');
+      }
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-promotion-candidates/${encodeURIComponent(candidateId)}/rollout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          environment,
+          production_authorization: environment === 'production' ? productionAuthorization : null,
+          pre_change_config: {
+            captured_at: new Date().toISOString(),
+            source: 'knowledge_graph_operator_snapshot',
+            system_health: systemHealth,
+            runtime_changed: false,
+          },
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Rollout validation failed');
+      setActivity((items) => [`${environment} rollout validated; runtime unchanged: ${candidateId}`, ...items].slice(0, 5));
+      await refreshAdaptiveRollouts();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Rollout validation failed';
+      setActivity((items) => [`Rollout blocked: ${message}`, ...items].slice(0, 5));
     } finally {
       setChangeBusy(null);
     }
@@ -1781,9 +1871,40 @@ const KnowledgeGraphOS: React.FC = () => {
                   </div>
                   <p className="mt-2 break-all text-[10px] text-stone-500">{JSON.stringify(item.proposed_change)}</p>
                   <p className="mt-2 truncate font-mono text-[9px] text-stone-700" title={item.evidence_hash}>evidence {item.evidence_hash}</p>
+                  {item.status === 'pending_promotion_review' && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button disabled={changeBusy !== null} onClick={() => decidePromotionCandidate(item.id, 'approved')} className="border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">Approve promotion</button>
+                      <button disabled={changeBusy !== null} onClick={() => decidePromotionCandidate(item.id, 'rejected')} className="border border-red-300/25 bg-red-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-red-200 disabled:opacity-40">Reject</button>
+                    </div>
+                  )}
+                  {item.status === 'approved' && (
+                    <div className="mt-3 space-y-2">
+                      <button disabled={changeBusy !== null} onClick={() => validatePromotionRollout(item.id, 'staging')} className="w-full border border-[#34332f] bg-[#0c0c0a] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-300 disabled:opacity-40">Validate staging rollout</button>
+                      <input value={productionAuthorization} onChange={(e) => setProductionAuthorization(e.target.value)} type="password" placeholder="Production authorization (16+ chars)" className="w-full border border-[#2d2c28] bg-[#090907] px-3 py-2 text-[10px] text-stone-300" />
+                      <button disabled={changeBusy !== null || productionAuthorization.trim().length < 16} onClick={() => validatePromotionRollout(item.id, 'production')} className="w-full border border-amber-300/25 bg-amber-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100 disabled:opacity-40">Validate production rollout</button>
+                    </div>
+                  )}
                 </div>
               ))}
               {!promotionCandidates.length && <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">No passing canary has produced a promotion candidate yet.</div>}
+            </div>
+            <div className="mt-4 border-t border-[#25241f] pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Validated rollout ledger</p>
+                <button onClick={refreshAdaptiveRollouts} className="text-[10px] text-amber-100/70">Refresh</button>
+              </div>
+              <div className="mt-2 space-y-2">
+                {rollouts.map((rollout) => (
+                  <div key={rollout.id} className="border border-[#25241f] bg-[#090907] p-3 text-[9px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-stone-300">{rollout.id.slice(0, 8)}</span>
+                      <span className="uppercase text-stone-500">{rollout.environment} · {rollout.status}</span>
+                    </div>
+                    <p className="mt-1 text-stone-600">runtime_changed={String(rollout.runtime_changed)} · rollback snapshot retained</p>
+                  </div>
+                ))}
+                {!rollouts.length && <p className="text-[10px] text-stone-600">No validated rollouts yet.</p>}
+              </div>
             </div>
           </section>
 
