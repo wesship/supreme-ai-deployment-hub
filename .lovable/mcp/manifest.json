@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "sdk_version": "3.0.4",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://bqkpxdjmpbucenbppxzc.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "supreme-ai-deployment-hub",
+      "version": "0.1.0",
+      "title": "supreme-ai-deployment-hub"
+    },
+    "tools": [
+      {
+        "name": "list_agent_templates",
+        "title": "List agent templates",
+        "description": "List published agent templates from the D3VONN.IO marketplace catalog, optionally filtered by category.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "category": {
+              "description": "Filter templates by category.",
+              "type": "string",
+              "minLength": 1
+            },
+            "limit": {
+              "default": 20,
+              "description": "Maximum number of templates to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_deployed_agents",
+        "title": "List deployed agents",
+        "description": "List the signed-in user's deployed agents on D3VONN.IO with their status, health score, and run counts.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "Filter agents by status.",
+              "type": "string",
+              "enum": [
+                "running",
+                "stopped",
+                "error",
+                "paused"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_deployment_status",
+        "title": "Get deployment status",
+        "description": "Summarize the signed-in user's D3VONN.IO fleet: agent counts by status, total runs, and average health score.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
