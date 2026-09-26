@@ -282,18 +282,6 @@ const KnowledgeGraphOS: React.FC = () => {
     canonical_route: selected.data.route,
   };
 
-  const nodes = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return initialNodes.map((node) => ({
-      ...node,
-      selected: node.id === selectedId,
-      className: executionNodeIds.has(node.id) ? 'd3-kg-runtime-node' : undefined,
-      hidden:
-        (kind !== 'all' && node.data.kind !== kind) ||
-        Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
-    }));
-  }, [executionNodeIds, kind, query, selectedId]);
-
   useEffect(() => {
     if (!executionPath.length) return;
     setExecutionStep(0);
@@ -325,6 +313,18 @@ const KnowledgeGraphOS: React.FC = () => {
     () => new Set(executionPath.slice(0, Math.max(0, executionStep + 1))),
     [executionPath, executionStep],
   );
+
+  const nodes = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return initialNodes.map((node) => ({
+      ...node,
+      selected: node.id === selectedId,
+      className: executionNodeIds.has(node.id) ? 'd3-kg-runtime-node' : undefined,
+      hidden:
+        (kind !== 'all' && node.data.kind !== kind) ||
+        Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
+    }));
+  }, [executionNodeIds, kind, query, selectedId]);
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
