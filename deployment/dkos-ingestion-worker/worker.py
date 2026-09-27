@@ -18,10 +18,12 @@ import hashlib
 import json
 import os
 import re
+import urllib.error
+import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 Stage = Literal[
@@ -310,6 +312,186 @@ def semantic_chunks(
     return output_path
 
 
+def _read_chunks(chunks_path: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for line in chunks_path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            rows.append(json.loads(line))
+    if not rows:
+        raise RuntimeError("No chunks available for embedding")
+    return rows
+
+
+def embedding_capability() -> bool:
+    return bool(os.getenv("OPENAI_API_KEY", "").strip())
+
+
+def pinecone_capability() -> bool:
+    return bool(
+        os.getenv("PINECONE_API_KEY", "").strip()
+        and os.getenv("PINECONE_INDEX", "").strip()
+    )
+
+
+def _embedding_model() -> str:
+    return os.getenv("DKOS_EMBEDDING_MODEL", "text-embedding-3-small").strip()
+
+
+def _embedding_dimensions() -> int | None:
+    raw = os.getenv("DKOS_EMBEDDING_DIMENSIONS", "").strip()
+    if not raw:
+        return None
+    value = int(raw)
+    if value <= 0:
+        raise RuntimeError("DKOS_EMBEDDING_DIMENSIONS must be positive")
+    return value
+
+
+def generate_embeddings(chunks_path: Path, output_dir: Path) -> Path:
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+
+    rows = _read_chunks(chunks_path)
+    payload: dict[str, Any] = {
+        "model": _embedding_model(),
+        "input": [row["text"] for row in rows],
+    }
+    dimensions = _embedding_dimensions()
+    if dimensions:
+        payload["dimensions"] = dimensions
+
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/embeddings",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(f"OpenAI embedding request failed ({exc.code}): {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"OpenAI embedding request failed: {exc}") from exc
+
+    data = body.get("data")
+    if not isinstance(data, list) or len(data) != len(rows):
+        raise RuntimeError("Embedding response count did not match semantic chunks")
+
+    output_path = output_dir / "embeddings.jsonl"
+    with output_path.open("w", encoding="utf-8") as handle:
+        for row, item in zip(rows, data, strict=True):
+            vector = item.get("embedding") if isinstance(item, dict) else None
+            if not isinstance(vector, list) or not vector:
+                raise RuntimeError("Embedding response contained an empty vector")
+            payload_row = {
+                "chunk_id": row["chunk_id"],
+                "index": row["index"],
+                "sha256": row["sha256"],
+                "text": row["text"],
+                "values": vector,
+                "dimension": len(vector),
+                "model": _embedding_model(),
+            }
+            handle.write(json.dumps(payload_row, ensure_ascii=False) + "\n")
+    return output_path
+
+
+def pinecone_namespace(job: IngestionJob) -> str:
+    tenant = re.sub(r"[^a-zA-Z0-9_.:-]+", "-", job.tenant_id.strip())[:120]
+    if not tenant:
+        raise RuntimeError("tenant_id is required for Pinecone isolation")
+    return f"tenant:{tenant}"
+
+
+def upsert_pinecone(job: IngestionJob, embeddings_path: Path, output_dir: Path) -> Path:
+    api_key = os.getenv("PINECONE_API_KEY", "").strip()
+    index_name = os.getenv("PINECONE_INDEX", "").strip()
+    if not api_key or not index_name:
+        raise RuntimeError("PINECONE_API_KEY and PINECONE_INDEX are required")
+
+    try:
+        from pinecone import Pinecone
+    except ImportError as exc:
+        raise RuntimeError("pinecone package is not installed") from exc
+
+    rows = _read_chunks(embeddings_path)
+    namespace = pinecone_namespace(job)
+    vectors = [
+        {
+            "id": f"{job.document_id}:{row['chunk_id']}",
+            "values": row["values"],
+            "metadata": {
+                "tenant_id": job.tenant_id,
+                "document_id": job.document_id,
+                "run_id": job.run_id,
+                "chunk_id": row["chunk_id"],
+                "chunk_sha256": row["sha256"],
+                "source_filename": job.source_path.name,
+                "classification": job.classification,
+                "text": row["text"],
+            },
+        }
+        for row in rows
+    ]
+    index = Pinecone(api_key=api_key).Index(index_name)
+    for start in range(0, len(vectors), 100):
+        index.upsert(vectors=vectors[start : start + 100], namespace=namespace)
+
+    receipt = {
+        "run_id": job.run_id,
+        "document_id": job.document_id,
+        "namespace": namespace,
+        "index": index_name,
+        "vector_count": len(vectors),
+        "vector_ids_sha256": hashlib.sha256(
+            "\n".join(vector["id"] for vector in vectors).encode("utf-8")
+        ).hexdigest(),
+        "completed_at": now_iso(),
+    }
+    output_path = output_dir / "pinecone_receipt.json"
+    output_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return output_path
+
+
+def create_hermes_memory_manifest(
+    job: IngestionJob,
+    *,
+    source_sha256: str,
+    chunks_path: Path,
+    embeddings_path: Path,
+    pinecone_receipt_path: Path,
+    output_dir: Path,
+) -> Path:
+    chunks = _read_chunks(chunks_path)
+    receipt = json.loads(pinecone_receipt_path.read_text(encoding="utf-8"))
+    commit_id = hashlib.sha256(
+        f"{job.tenant_id}:{job.document_id}:{source_sha256}:{file_sha256(chunks_path)}".encode("utf-8")
+    ).hexdigest()
+    manifest = {
+        "schema": "d3vonn.hermes.memory-commit.v1",
+        "commit_id": commit_id,
+        "idempotency_key": commit_id,
+        "tenant_id": job.tenant_id,
+        "document_id": job.document_id,
+        "run_id": job.run_id,
+        "source_sha256": source_sha256,
+        "chunk_count": len(chunks),
+        "chunks_sha256": file_sha256(chunks_path),
+        "embeddings_sha256": file_sha256(embeddings_path),
+        "pinecone": receipt,
+        "state": "ready_for_hermes_commit",
+        "created_at": now_iso(),
+    }
+    output_path = output_dir / "hermes-memory-manifest.json"
+    output_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return output_path
+
 def _new_stages() -> dict[str, StageState]:
     return {stage: StageState(stage=stage) for stage in PIPELINE}
 
@@ -398,19 +580,73 @@ def run_ingestion(
         artifacts.append(artifact("chunks", chunks, "application/jsonl"))
         _complete(stages[current_stage])
 
-        # Do not fabricate vector/memory completion. These capabilities become
-        # executable in the next gate when provider adapters are configured.
-        _block_remaining(
-            stages,
-            "embeddings",
-            "Embedding, Pinecone, and Hermes Memory adapters are not configured in this worker",
+        if not embedding_capability():
+            _block_remaining(
+                stages,
+                "embeddings",
+                "OPENAI_API_KEY is not configured for DKOS embeddings",
+            )
+            return IngestionResult(
+                run_id=job.run_id,
+                document_id=job.document_id,
+                status="manual_review",
+                current_stage="embeddings",
+                artifacts=artifacts,
+                stages=list(stages.values()),
+                completed_at=now_iso(),
+                source_sha256=source_sha256,
+            )
+
+        current_stage = "embeddings"
+        _start(stages[current_stage])
+        embeddings = generate_embeddings(chunks, output_dir)
+        artifacts.append(artifact("embeddings", embeddings, "application/jsonl"))
+        _complete(stages[current_stage], _embedding_model())
+
+        if not pinecone_capability():
+            _block_remaining(
+                stages,
+                "pinecone_storage",
+                "PINECONE_API_KEY and PINECONE_INDEX are not configured",
+            )
+            return IngestionResult(
+                run_id=job.run_id,
+                document_id=job.document_id,
+                status="manual_review",
+                current_stage="pinecone_storage",
+                artifacts=artifacts,
+                stages=list(stages.values()),
+                completed_at=now_iso(),
+                source_sha256=source_sha256,
+            )
+
+        current_stage = "pinecone_storage"
+        _start(stages[current_stage])
+        receipt = upsert_pinecone(job, embeddings, output_dir)
+        artifacts.append(artifact("pinecone_receipt", receipt, "application/json"))
+        _complete(stages[current_stage], pinecone_namespace(job))
+
+        current_stage = "hermes_memory"
+        _start(stages[current_stage])
+        memory_manifest = create_hermes_memory_manifest(
+            job,
+            source_sha256=source_sha256,
+            chunks_path=chunks,
+            embeddings_path=embeddings,
+            pinecone_receipt_path=receipt,
+            output_dir=output_dir,
+        )
+        artifacts.append(artifact("hermes_memory_manifest", memory_manifest, "application/json"))
+        _complete(
+            stages[current_stage],
+            "Durable idempotent memory manifest created for Hermes consumption",
         )
 
         return IngestionResult(
             run_id=job.run_id,
             document_id=job.document_id,
-            status="manual_review",
-            current_stage="embeddings",
+            status="completed",
+            current_stage="hermes_memory",
             artifacts=artifacts,
             stages=list(stages.values()),
             completed_at=now_iso(),
