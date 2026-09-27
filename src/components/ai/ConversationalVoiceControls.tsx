@@ -106,6 +106,11 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
   const vapiRef = useRef<Vapi | null>(null);
   const executionPollRef = useRef<number | null>(null);
   const seenExecutionRef = useRef<string | null>(null);
+  const onGraphActionRef = useRef(onGraphAction);
+
+  useEffect(() => {
+    onGraphActionRef.current = onGraphAction;
+  }, [onGraphAction]);
 
   const stopExecutionPolling = useCallback(() => {
     if (executionPollRef.current !== null) {
@@ -196,9 +201,9 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
             ? call.parameters
             : null;
       const action = normalizeGraphActionRequest(parameters, 'voice');
-      if (action) onGraphAction?.(action);
+      if (action) onGraphActionRef.current?.(action);
     }
-  }, [onGraphAction]);
+  }, []);
 
   const ensureVapi = useCallback((): Vapi => {
     if (!vapiPublicKey) {
