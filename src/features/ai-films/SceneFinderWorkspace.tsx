@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   createSceneBlueprint,
+  dispatchSceneProduction,
   searchScenes,
   type SceneBlueprintResponse,
   type SceneFinderHit,
@@ -26,6 +27,7 @@ export default function SceneFinderWorkspace() {
   const [scenes, setScenes] = useState<SceneFinderHit[]>([]);
   const [selected, setSelected] = useState<SceneFinderHit | null>(null);
   const [blueprint, setBlueprint] = useState<SceneBlueprintResponse | null>(null);
+  const [production, setProduction] = useState<{ renderJobId: string; provider: string; projectId: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Search authorized indexed footage by action, mood, lighting, camera movement, dialogue context, or production technique.');
 
@@ -60,9 +62,36 @@ export default function SceneFinderWorkspace() {
         endTime: typeof selected.end === 'number' ? selected.end : undefined,
       });
       setBlueprint(response);
+      setProduction(null);
       setMessage('Scene DNA extracted. The adaptation blueprint preserves general technique while requiring original expression.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The scene blueprint could not be generated.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+
+  const runProduction = async () => {
+    if (!selected || !selectedAssetId || !objective.trim()) return;
+    setBusy(true);
+    try {
+      const response = await dispatchSceneProduction({
+        assetId: selectedAssetId,
+        objective: objective.trim(),
+        startTime: typeof selected.start === 'number' ? selected.start : undefined,
+        endTime: typeof selected.end === 'number' ? selected.end : undefined,
+        durationSeconds: 8,
+        aspectRatio: '16:9',
+      });
+      setProduction({
+        renderJobId: response.production.render_job_id,
+        provider: response.production.provider,
+        projectId: response.production.project_id,
+      });
+      setMessage('Production handoff queued. The scene is now in the governed AI Films render and QA pipeline.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The production handoff could not be queued.');
     } finally {
       setBusy(false);
     }
@@ -127,10 +156,23 @@ export default function SceneFinderWorkspace() {
                 <label htmlFor="scene-objective" className="text-sm font-medium">Original adaptation objective</label>
                 <Textarea id="scene-objective" value={objective} onChange={(event) => setObjective(event.target.value)} className="mt-2 min-h-24" />
               </div>
-              <Button type="button" onClick={() => void runBlueprint()} disabled={busy || !selectedAssetId || !objective.trim()}>
-                <Sparkles className="mr-2 h-4 w-4" /> Analyze Scene DNA
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={() => void runBlueprint()} disabled={busy || !selectedAssetId || !objective.trim()}>
+                  <Sparkles className="mr-2 h-4 w-4" /> Analyze Scene DNA
+                </Button>
+                <Button type="button" onClick={() => void runProduction()} disabled={busy || !selectedAssetId || !objective.trim()}>
+                  <Clapperboard className="mr-2 h-4 w-4" /> Recreate Technique
+                </Button>
+              </div>
             </div>
+          )}
+
+          {production && (
+            <Card className="border-primary/30 bg-primary/5 p-5">
+              <div className="flex items-center gap-2"><Clapperboard className="h-4 w-4 text-primary" /><h3 className="font-semibold">Production queued</h3></div>
+              <p className="mt-3 text-sm text-muted-foreground">Provider: {production.provider} · Render job: {production.renderJobId}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Project: {production.projectId}</p>
+            </Card>
           )}
 
           {blueprint && (
