@@ -966,6 +966,7 @@ const KnowledgeGraphOS: React.FC = () => {
               ))}
             </div>
           </div>
+          </div>
 
           {viewMode === 'graph' && (
             <div className={`d3-neural-stage h-[680px] ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''}`}>
@@ -980,6 +981,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 nodes={nodes}
                 edges={edges}
                 nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
                 onNodeClick={(event, node) => {
                   if ((event.shiftKey || event.ctrlKey || event.metaKey) && majorClusterNodeIds.has(node.id) && node.id !== selectedId) {
                     setSecondaryClusterId(node.id);
