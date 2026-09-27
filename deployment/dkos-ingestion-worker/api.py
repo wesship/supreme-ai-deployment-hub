@@ -15,7 +15,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from worker import IngestionJob, run_ingestion
+from worker import IngestionJob, embedding_capability, pinecone_capability, run_ingestion
 
 Status = Literal["pending", "running", "completed", "failed", "manual_review"]
 
@@ -78,9 +78,9 @@ def health() -> dict:
             "markitdown": True,
             "docling_enabled": __import__("os").getenv("DKOS_ENABLE_DOCLING", "false").lower() in {"1", "true", "yes"},
             "semantic_chunking": True,
-            "embeddings": False,
-            "pinecone_storage": False,
-            "hermes_memory": False,
+            "embeddings": embedding_capability(),
+            "pinecone_storage": pinecone_capability(),
+            "hermes_memory": pinecone_capability(),
         },
     }
 
