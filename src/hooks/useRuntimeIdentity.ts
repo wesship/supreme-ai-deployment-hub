@@ -19,6 +19,12 @@ export function useRuntimeIdentity() {
     const controller = new AbortController();
 
     const check = async () => {
+      const host = window.location.hostname;
+      if (host === '127.0.0.1' || host === 'localhost') {
+        setState('unavailable');
+        return;
+      }
+
       try {
         const response = await fetch(RUNTIME_IDENTITY_PATH, {
           signal: controller.signal,
