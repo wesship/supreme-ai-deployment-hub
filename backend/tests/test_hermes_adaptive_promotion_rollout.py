@@ -19,6 +19,9 @@ def test_rollout_request_rejects_unknown_environment():
         AdaptiveRolloutRequest(environment="sandbox")
 
 
-def test_production_authorization_length_is_bounded_but_presence_is_endpoint_guarded():
+def test_production_authorization_enforces_minimum_length_in_api_contract():
     body = AdaptiveRolloutRequest(environment="production", production_authorization="x" * 16)
     assert len(body.production_authorization or "") == 16
+
+    with pytest.raises(ValidationError):
+        AdaptiveRolloutRequest(environment="production", production_authorization="short")
