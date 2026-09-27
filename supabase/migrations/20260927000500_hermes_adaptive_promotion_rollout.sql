@@ -20,8 +20,8 @@ using ((select auth.uid()) = user_id or (select auth.uid()) = reviewer_id);
 create table if not exists public.hermes_adaptive_rollouts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
-  promotion_candidate_id uuid not null unique references public.hermes_adaptive_promotion_candidates(id) on delete cascade,
-  promotion_review_id uuid not null unique references public.hermes_adaptive_promotion_reviews(id) on delete restrict,
+  promotion_candidate_id uuid not null references public.hermes_adaptive_promotion_candidates(id) on delete cascade,
+  promotion_review_id uuid not null references public.hermes_adaptive_promotion_reviews(id) on delete restrict,
   executor_id uuid not null,
   environment text not null check (environment in ('staging','production')),
   authorization_token_hash text,
@@ -33,7 +33,8 @@ create table if not exists public.hermes_adaptive_rollouts (
   runtime_changed boolean not null default false,
   deployment_evidence jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  unique (promotion_candidate_id, environment)
 );
 
 alter table public.hermes_adaptive_rollouts enable row level security;
@@ -145,8 +146,18 @@ begin
     p_pre_change || jsonb_build_object('approved_delta',v_candidate.proposed_change,'effective_runtime_changed',false),
     p_pre_change,'validated',false
   )
-  on conflict (promotion_candidate_id) do update
-    set updated_at=now()
+  on conflict (promotion_candidate_id, environment) do update
+    set promotion_review_id = excluded.promotion_review_id,
+        executor_id = excluded.executor_id,
+        authorization_token_hash = excluded.authorization_token_hash,
+        pre_change_config = excluded.pre_change_config,
+        approved_delta = excluded.approved_delta,
+        post_change_config = excluded.post_change_config,
+        rollback_config = excluded.rollback_config,
+        status = 'validated',
+        runtime_changed = false,
+        deployment_evidence = '{}'::jsonb,
+        updated_at = now()
   returning id into v_rollout_id;
 
   insert into public.hermes_adaptive_change_audit(
