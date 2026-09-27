@@ -9,6 +9,11 @@ PRODUCTION_ORIGINS: tuple[str, ...] = (
     "https://app.d3vonn.io",
 )
 
+DEFAULT_PREVIEW_ORIGIN_REGEX = (
+    r"https://(?:supreme-ai-deployment-hub(?:-[a-z0-9-]+)?\.vercel\.app|"
+    r"[a-z0-9-]+--supreme-ai-deployment-hub\.lovable\.app)"
+)
+
 
 def build_allowed_origins(configured_origins: str | None) -> list[str]:
     """Return a deduplicated allowlist that always includes official origins.
@@ -23,3 +28,9 @@ def build_allowed_origins(configured_origins: str | None) -> list[str]:
         if origin.strip()
     )
     return list(dict.fromkeys((*PRODUCTION_ORIGINS, *configured)))
+
+
+def build_allowed_origin_regex(configured_regex: str | None) -> str:
+    """Return the configured preview-origin regex or the canonical safe default."""
+    configured = (configured_regex or "").strip()
+    return configured or DEFAULT_PREVIEW_ORIGIN_REGEX

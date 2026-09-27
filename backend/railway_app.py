@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.cors_config import build_allowed_origins
+from backend.cors_config import build_allowed_origin_regex, build_allowed_origins
 
 if railway_environment := os.getenv("RAILWAY_ENVIRONMENT_NAME", "").strip():
     os.environ["ENVIRONMENT"] = railway_environment
@@ -230,10 +230,12 @@ app.router.lifespan_context = railway_lifespan
 DEPLOYMENT_REVISION = "railway-ai-films-pollo-replicate-failover-2026-09-06"
 INTELLIGENCE_IMPORT_ERROR: str | None = None
 RAILWAY_ALLOWED_ORIGINS = build_allowed_origins(os.getenv("ALLOWED_ORIGINS"))
+RAILWAY_ALLOWED_ORIGIN_REGEX = build_allowed_origin_regex(os.getenv("ALLOWED_ORIGIN_REGEX"))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=RAILWAY_ALLOWED_ORIGINS,
+    allow_origin_regex=RAILWAY_ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"],
