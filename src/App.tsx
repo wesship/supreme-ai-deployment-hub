@@ -90,6 +90,7 @@ const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
 const AquaGov = lazy(() => import("./pages/AquaGov"));
 const KnowledgeGraphOS = lazy(() => import("./pages/KnowledgeGraphOS"));
+const ApprovalCenter = lazy(() => import("./pages/ApprovalCenter"));
 
 
 const PageLoader = () => (
@@ -263,6 +264,7 @@ function App() {
                 <Route path="/jetson" element={<JetsonControl />} />
                 <Route path="/jetson-control" element={<JetsonControl />} />
                 <Route path="/app" element={<AuthenticatedRoute><LaunchApp /></AuthenticatedRoute>} />
+                <Route path="/approvals" element={<AdminRoute><ApprovalCenter /></AdminRoute>} />
                 <Route path="/ai-agents" element={<AIAgents />} />
                 <Route path="/business-automation" element={<BusinessAutomation />} />
                 <Route path="/solutions" element={<Solutions />} />
