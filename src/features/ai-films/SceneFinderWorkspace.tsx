@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Clapperboard, Loader2, Search, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,12 @@ import {
   createSceneBlueprint,
   dispatchSceneProduction,
   searchScenes,
+  sendSceneToTimeline,
   type SceneBlueprintResponse,
   type SceneFinderHit,
 } from '@/features/ai-films/sceneFinderService';
+import { getOpenMontageJob, type OpenMontageJobStatus } from '@/features/ai-films/openMontageService';
+import { upsertReview } from '@/features/ai-films/releaseControlService';
 
 function assetIdFor(hit: SceneFinderHit): string {
   return String(hit.asset_id || hit.video_id || '');
@@ -28,10 +31,34 @@ export default function SceneFinderWorkspace() {
   const [selected, setSelected] = useState<SceneFinderHit | null>(null);
   const [blueprint, setBlueprint] = useState<SceneBlueprintResponse | null>(null);
   const [production, setProduction] = useState<{ renderJobId: string; provider: string; projectId: string } | null>(null);
+  const [renderStatus, setRenderStatus] = useState<OpenMontageJobStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Search authorized indexed footage by action, mood, lighting, camera movement, dialogue context, or production technique.');
 
   const selectedAssetId = useMemo(() => selected ? assetIdFor(selected) : '', [selected]);
+
+
+  useEffect(() => {
+    if (!production?.renderJobId) return;
+    let cancelled = false;
+    let timer: number | undefined;
+    const poll = async () => {
+      try {
+        const status = await getOpenMontageJob(production.renderJobId);
+        if (cancelled) return;
+        setRenderStatus(status);
+        const terminal = ['completed', 'failed'].includes(status.status) || ['revise', 'block', 'failed'].includes(status.review_state || '');
+        if (!terminal) timer = window.setTimeout(() => { void poll(); }, 8000);
+      } catch (error) {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : 'Render status could not be refreshed.');
+      }
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [production?.renderJobId]);
 
   const runSearch = async () => {
     if (!query.trim()) return;
@@ -89,9 +116,53 @@ export default function SceneFinderWorkspace() {
         provider: response.production.provider,
         projectId: response.production.project_id,
       });
+      setRenderStatus(null);
       setMessage('Production handoff queued. The scene is now in the governed AI Films render and QA pipeline.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'The production handoff could not be queued.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+
+  const saveReview = async (status: 'approved' | 'changes_requested') => {
+    if (!production) return;
+    setBusy(true);
+    try {
+      await upsertReview(
+        production.projectId,
+        'release',
+        production.renderJobId,
+        'producer',
+        status,
+        status === 'approved' ? 'Scene Finder render approved after QA review.' : 'Scene Finder render requires revision.',
+      );
+      setMessage(status === 'approved' ? 'Scene approved and recorded in Release Control.' : 'Revision request recorded in Release Control.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Review decision could not be saved.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const regenerate = async () => {
+    await runProduction();
+  };
+
+  const sendToTimeline = async () => {
+    if (!production || !renderStatus?.result_asset_id) return;
+    setBusy(true);
+    try {
+      const result = await sendSceneToTimeline({
+        projectId: production.projectId,
+        assetId: renderStatus.result_asset_id,
+        label: objective.trim() || 'Scene Finder generated scene',
+        durationSeconds: Math.max(4, (typeof selected?.end === 'number' && typeof selected?.start === 'number') ? selected.end - selected.start : 8),
+      });
+      setMessage(`Scene sent to AI Director timeline. Assembly job ${result.render_job.id} queued.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Scene could not be sent to the timeline.');
     } finally {
       setBusy(false);
     }
@@ -169,9 +240,25 @@ export default function SceneFinderWorkspace() {
 
           {production && (
             <Card className="border-primary/30 bg-primary/5 p-5">
-              <div className="flex items-center gap-2"><Clapperboard className="h-4 w-4 text-primary" /><h3 className="font-semibold">Production queued</h3></div>
-              <p className="mt-3 text-sm text-muted-foreground">Provider: {production.provider} · Render job: {production.renderJobId}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Project: {production.projectId}</p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2"><Clapperboard className="h-4 w-4 text-primary" /><h3 className="font-semibold">Production monitor</h3></div>
+                <Badge variant="outline">{renderStatus?.status || 'queued'}</Badge>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">Provider: {renderStatus?.provider || production.provider} · Render job: {production.renderJobId}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Project: {production.projectId}{renderStatus?.review_state ? ` · QA: ${renderStatus.review_state}` : ''}</p>
+              {renderStatus?.stages?.length ? (
+                <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                  {renderStatus.stages.map((stage) => <div key={stage.name} className="rounded-lg border border-border/70 p-2 text-xs"><span className="font-medium">{stage.name}</span><span className="ml-2 text-muted-foreground">{stage.status}</span></div>)}
+                </div>
+              ) : null}
+              {renderStatus?.video_url && <video className="mt-4 w-full rounded-xl border border-border" controls src={renderStatus.video_url} />}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button type="button" disabled={busy || renderStatus?.status !== 'completed'} onClick={() => void saveReview('approved')}>Approve</Button>
+                <Button type="button" variant="outline" disabled={busy || !renderStatus} onClick={() => void saveReview('changes_requested')}>Revise</Button>
+                <Button type="button" variant="outline" disabled={busy || !renderStatus} onClick={() => void regenerate()}>Regenerate</Button>
+                <Button type="button" variant="secondary" disabled={busy || renderStatus?.status !== 'completed' || !renderStatus?.result_asset_id} onClick={() => void sendToTimeline()}>Send to Timeline</Button>
+              </div>
+              {renderStatus?.error && <p className="mt-3 text-sm text-destructive">{renderStatus.error}</p>}
             </Card>
           )}
 
