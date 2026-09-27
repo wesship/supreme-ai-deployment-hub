@@ -13,6 +13,8 @@ def test_meta_xr_is_provider_neutral_and_fail_closed():
     assert 'WEBXR = "webxr"' in source
     assert 'next_step="authorize_in_game"' in source
     assert 'authoritative: bool = False' in source
+    assert 'return False' in source
+    assert 'schema_available: bool = True' in source
     assert "No direct LoadLevel/OpenLevel operation is authorized" in source
 
 
