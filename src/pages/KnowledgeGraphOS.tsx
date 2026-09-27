@@ -509,6 +509,7 @@ const KnowledgeGraphOS: React.FC = () => {
   const [transitionPhase, setTransitionPhase] = useState<NexusTransitionPhase>('idle');
   const [hermesInstruction, setHermesInstruction] = useState('');
   const [hermesSubmitting, setHermesSubmitting] = useState(false);
+  const hermesInstructionRef = useRef<HTMLTextAreaElement | null>(null);
   const transitionTimersRef = useRef<number[]>([]);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -1042,8 +1043,12 @@ const KnowledgeGraphOS: React.FC = () => {
           <div className="border-b border-[#2d2c28] bg-[#10100d] px-4 py-4">
             <div className="mb-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-amber-200/60">D3VONN Knowledge Universe</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">Connect Everything. Make It Work.</h1>
-              <p className="mt-1 text-[11px] text-stone-400">People · Agents · Data · Tools · Workflows · Memory · Infrastructure · Results</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">
+                One Platform. <span className="text-amber-100">One Intelligence.</span>
+              </h1>
+              <p className="mt-1 text-[11px] text-stone-400">
+                Request → Hermes → Agents → Tools → Memory → Governed Result
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
             <label className="flex min-w-[260px] flex-1 items-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2">
@@ -1282,6 +1287,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 Text Hermes instructions
               </label>
               <textarea
+                ref={hermesInstructionRef}
                 id="hermes-instruction"
                 value={hermesInstruction}
                 onChange={(event) => setHermesInstruction(event.target.value)}
@@ -1291,10 +1297,15 @@ const KnowledgeGraphOS: React.FC = () => {
               />
               <button
                 type="button"
-                disabled={hermesSubmitting || !hermesInstruction.trim()}
+                disabled={hermesSubmitting}
                 onClick={async () => {
                   const prompt = hermesInstruction.trim();
-                  if (!prompt || hermesSubmitting) return;
+                  if (!prompt) {
+                    hermesInstructionRef.current?.focus();
+                    setActivity((items) => ['TEXT · enter an instruction for Hermes', ...items].slice(0, 5));
+                    return;
+                  }
+                  if (hermesSubmitting) return;
                   setHermesSubmitting(true);
                   try {
                     const result = await sendHermesBrowserCommand({
@@ -1314,7 +1325,7 @@ const KnowledgeGraphOS: React.FC = () => {
                     setHermesSubmitting(false);
                   }
                 }}
-                className="mt-2 w-full border border-amber-300/30 bg-amber-200 px-3 py-2 text-xs font-black text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+                className="mt-2 w-full border border-amber-300/30 bg-amber-200 px-3 py-2 text-xs font-black text-stone-950 transition hover:bg-amber-50 disabled:cursor-wait disabled:opacity-60"
               >
                 {hermesSubmitting ? 'Sending to Hermes…' : 'Send to Hermes'}
               </button>
