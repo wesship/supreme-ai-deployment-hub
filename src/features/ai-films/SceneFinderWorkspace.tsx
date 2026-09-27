@@ -11,6 +11,7 @@ import {
   dispatchSceneProduction,
   searchScenes,
   sendSceneToTimeline,
+  sendScenesToTimeline,
   type SceneBlueprintResponse,
   type SceneFinderHit,
   type SceneFusionRole,
@@ -35,6 +36,7 @@ export default function SceneFinderWorkspace() {
   const [production, setProduction] = useState<{ renderJobId: string; provider: string; projectId: string } | null>(null);
   const [renderStatus, setRenderStatus] = useState<OpenMontageJobStatus | null>(null);
   const [fusionSelections, setFusionSelections] = useState<Array<{ index: number; role: SceneFusionRole }>>([]);
+  const [sequenceClips, setSequenceClips] = useState<Array<{ assetId: string; label: string; durationSeconds: number; projectId: string }>>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Search authorized indexed footage by action, mood, lighting, camera movement, dialogue context, or production technique.');
 
@@ -222,6 +224,42 @@ export default function SceneFinderWorkspace() {
     }
   };
 
+
+  const addToSequence = () => {
+    if (!production || !renderStatus?.result_asset_id) return;
+    const durationSeconds = Math.max(
+      4,
+      (typeof selected?.end === 'number' && typeof selected?.start === 'number') ? selected.end - selected.start : 8,
+    );
+    setSequenceClips((current) => {
+      if (current.some((clip) => clip.assetId === renderStatus.result_asset_id)) return current;
+      return [...current, {
+        assetId: renderStatus.result_asset_id as string,
+        label: objective.trim() || `Scene ${current.length + 1}`,
+        durationSeconds,
+        projectId: production.projectId,
+      }];
+    });
+    setMessage('QA-passed scene added to the AI Director sequence basket.');
+  };
+
+  const assembleSequence = async () => {
+    if (sequenceClips.length < 2) return;
+    setBusy(true);
+    try {
+      const result = await sendScenesToTimeline({
+        projectId: sequenceClips[0].projectId,
+        title: 'Scene Finder Fusion Sequence',
+        clips: sequenceClips.map(({ assetId, label, durationSeconds }) => ({ assetId, label, durationSeconds })),
+      });
+      setMessage(`AI Director queued a ${sequenceClips.length}-scene continuity-aware assembly. Job ${result.render_job.id}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The multi-scene sequence could not be assembled.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section aria-labelledby="scene-finder-heading">
       <Card className="overflow-hidden border-primary/25">
@@ -344,8 +382,34 @@ export default function SceneFinderWorkspace() {
                 <Button type="button" variant="outline" disabled={busy || !renderStatus} onClick={() => void saveReview('changes_requested')}>Revise</Button>
                 <Button type="button" variant="outline" disabled={busy || !renderStatus} onClick={() => void regenerate()}>Regenerate</Button>
                 <Button type="button" variant="secondary" disabled={busy || renderStatus?.status !== 'completed' || !renderStatus?.result_asset_id} onClick={() => void sendToTimeline()}>Send to Timeline</Button>
+                <Button type="button" variant="outline" disabled={busy || renderStatus?.status !== 'completed' || !renderStatus?.result_asset_id} onClick={addToSequence}>Add to Sequence</Button>
               </div>
               {renderStatus?.error && <p className="mt-3 text-sm text-destructive">{renderStatus.error}</p>}
+            </Card>
+          )}
+
+          {sequenceClips.length > 0 && (
+            <Card className="border-primary/30 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-2"><Clapperboard className="h-4 w-4 text-primary" /><h3 className="font-semibold">AI Director Sequence Basket</h3></div>
+                  <p className="mt-2 text-sm text-muted-foreground">Collect QA-passed generated scenes, then let AI Director sequence them with continuity reasoning and final assembly QA.</p>
+                </div>
+                <Button type="button" onClick={() => void assembleSequence()} disabled={busy || sequenceClips.length < 2}>
+                  Assemble {sequenceClips.length} Scenes
+                </Button>
+              </div>
+              <div className="mt-4 space-y-2">
+                {sequenceClips.map((clip, index) => (
+                  <div key={clip.assetId} className="flex items-center justify-between rounded-lg border border-border/70 p-3 text-sm">
+                    <span>{index + 1}. {clip.label}</span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{clip.durationSeconds.toFixed(1)}s</Badge>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setSequenceClips((current) => current.filter((item) => item.assetId !== clip.assetId))}>Remove</Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 
