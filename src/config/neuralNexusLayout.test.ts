@@ -6,7 +6,8 @@ describe('approved Neural Nexus layout contract', () => {
 
   it('keeps the approved command-center shell landmarks', () => {
     for (const landmark of [
-      'Connect Everything. Make It Work.',
+      'One Platform.',
+      'One Intelligence.',
       'd3-nexus-left-rail',
       'd3-nexus-right-rail',
       'System status',
