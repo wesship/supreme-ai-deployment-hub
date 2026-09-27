@@ -19,6 +19,8 @@ import {
   type NonprofitSandboxReceiptCertificationRow,
   type NonprofitProductionConnectorPromotionRow,
   type NonprofitProductionShadowRunRow,
+  type NonprofitProductionExecutionTokenRow,
+  type NonprofitProductionPreflightRow,
 } from '@/lib/nonprofitCommandCenterApi';
 
 const card = 'rounded-2xl border border-slate-800 bg-slate-950/70 p-5 shadow-lg shadow-black/20';
@@ -53,6 +55,8 @@ export default function NonprofitCommandCenter() {
   const [sandboxReceiptCertifications, setSandboxReceiptCertifications] = useState<NonprofitSandboxReceiptCertificationRow[]>([]);
   const [productionConnectorPromotions, setProductionConnectorPromotions] = useState<NonprofitProductionConnectorPromotionRow[]>([]);
   const [productionShadowRuns, setProductionShadowRuns] = useState<NonprofitProductionShadowRunRow[]>([]);
+  const [productionExecutionTokens, setProductionExecutionTokens] = useState<NonprofitProductionExecutionTokenRow[]>([]);
+  const [productionPreflights, setProductionPreflights] = useState<NonprofitProductionPreflightRow[]>([]);
   const [authorizationAction, setAuthorizationAction] = useState('');
   const [previewAction, setPreviewAction] = useState('');
   const [certificationAction, setCertificationAction] = useState('');
@@ -60,6 +64,7 @@ export default function NonprofitCommandCenter() {
   const [externalSandboxAction, setExternalSandboxAction] = useState('');
   const [promotionAction, setPromotionAction] = useState('');
   const [shadowAction, setShadowAction] = useState('');
+  const [preflightAction, setPreflightAction] = useState('');
   const [audit, setAudit] = useState<NonprofitAuditSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [submittingStep, setSubmittingStep] = useState('');
@@ -87,6 +92,8 @@ export default function NonprofitCommandCenter() {
       setSandboxReceiptCertifications(result.sandboxReceiptCertifications);
       setProductionConnectorPromotions(result.productionConnectorPromotions);
       setProductionShadowRuns(result.productionShadowRuns);
+      setProductionExecutionTokens(result.productionExecutionTokens);
+      setProductionPreflights(result.productionPreflights);
       setAudit(result.audit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load nonprofit command center');
@@ -247,6 +254,21 @@ export default function NonprofitCommandCenter() {
     }
   }
 
+  async function validatePreflight(shadowRunId: string) {
+    setPreflightAction(shadowRunId);
+    setError('');
+    setMessage('');
+    try {
+      const result = await nonprofitCommandCenterApi.validateProductionPreflight(shadowRunId);
+      setMessage(result?.preflight_status === 'PREFLIGHT_CERTIFIED' ? 'Production preflight certified. Execution token is live and hash-bound, but production send remains unavailable.' : `Production preflight result: ${result?.preflight_status || 'blocked'}.`);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Production preflight validation was blocked');
+    } finally {
+      setPreflightAction('');
+    }
+  }
+
   const org = organizations[0];
   const latestAudit = audit[0];
   const redAlerts = useMemo(() => alerts.filter((row) => row.decision === 'RED').length, [alerts]);
@@ -263,6 +285,8 @@ export default function NonprofitCommandCenter() {
   const validSandboxReceiptCertifications = useMemo(() => sandboxReceiptCertifications.filter((row) => row.certification_valid).length, [sandboxReceiptCertifications]);
   const approvedPromotionPrereqs = useMemo(() => productionConnectorPromotions.filter((row) => row.promotion_prerequisites_met).length, [productionConnectorPromotions]);
   const certifiedProductionShadows = useMemo(() => productionShadowRuns.filter((row) => row.shadow_certified).length, [productionShadowRuns]);
+  const liveExecutionTokens = useMemo(() => productionExecutionTokens.filter((row) => row.token_live).length, [productionExecutionTokens]);
+  const certifiedPreflights = useMemo(() => productionPreflights.filter((row) => row.preflight_certified).length, [productionPreflights]);
 
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-10 text-slate-100">
@@ -281,7 +305,7 @@ export default function NonprofitCommandCenter() {
         {error && <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {message && <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">{message}</div>}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-14">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-16">
           <div className={card}><Landmark className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Organization</p><p className="mt-2 text-lg font-semibold">{org?.display_name || org?.legal_name || 'No authorized organization'}</p><span className={`${badge} mt-3 ${decisionClass(org?.tax_status_state)}`}>{org?.tax_status_state || 'NO ACCESS'}</span></div>
           <div className={card}><Sparkles className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Programs</p><p className="mt-2 text-3xl font-semibold">{org?.program_count ?? programs.length}</p><p className="mt-2 text-sm text-slate-400">Mission-linked records</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Grant workflows</p><p className="mt-2 text-3xl font-semibold">{org?.active_grant_workflows ?? grants.length}</p><p className="mt-2 text-sm text-slate-400">GrantAssist / RIPE</p></div>
@@ -295,6 +319,8 @@ export default function NonprofitCommandCenter() {
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Sandbox certified</p><p className="mt-2 text-3xl font-semibold">{validSandboxReceiptCertifications}</p><p className="mt-2 text-sm text-slate-400">3 receipts / 2 workflows</p></div>
           <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Promotion prereqs</p><p className="mt-2 text-3xl font-semibold">{approvedPromotionPrereqs}</p><p className="mt-2 text-sm text-slate-400">send still disabled</p></div>
           <div className={card}><FileCheck2 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Production shadow</p><p className="mt-2 text-3xl font-semibold">{certifiedProductionShadows}</p><p className="mt-2 text-sm text-slate-400">validated, no send</p></div>
+          <div className={card}><ShieldCheck className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Live exec tokens</p><p className="mt-2 text-3xl font-semibold">{liveExecutionTokens}</p><p className="mt-2 text-sm text-slate-400">protected env only</p></div>
+          <div className={card}><BadgeCheck className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Preflight certified</p><p className="mt-2 text-3xl font-semibold">{certifiedPreflights}</p><p className="mt-2 text-sm text-slate-400">send unavailable</p></div>
           <div className={card}><AlertTriangle className="mb-3 h-5 w-5 text-amber-300" /><p className="text-xs uppercase tracking-wider text-slate-500">Compliance</p><p className="mt-2 text-3xl font-semibold">{redAlerts}</p><p className="mt-2 text-sm text-slate-400">RED policy blocks</p></div>
         </section>
 
@@ -382,6 +408,17 @@ export default function NonprofitCommandCenter() {
               return <div key={promotion.promotion_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{promotion.connector_kind}</p><p className="text-sm text-slate-400">Protected approval: {promotion.protected_environment_approval_ref || 'missing'}</p></div>{shadow ? <span className={`${badge} ${decisionClass(shadow.shadow_certified ? 'GREEN' : 'BLOCKED')}`}>{shadow.shadow_status.replaceAll('_', ' ')}</span> : <button className={actionButton} disabled={shadowAction === promotion.promotion_id} onClick={() => void runProductionShadow(promotion.promotion_id)}>Run production shadow</button>}</div>{shadow && <div className="mt-3 grid gap-3 text-sm md:grid-cols-4"><div><p className="text-slate-500">Host</p><p>{shadow.production_endpoint_host}</p></div><div><p className="text-slate-500">Credentials</p><p>{shadow.credential_profile_present ? 'PRESENT' : 'MISSING'}</p></div><div><p className="text-slate-500">TLS / allowlist</p><p>{shadow.tls_validated && shadow.host_allowlisted ? 'VALID' : 'BLOCKED'}</p></div><div><p className="text-slate-500">Execution</p><p>{shadow.production_execution_enabled ? 'ENABLED' : 'DISABLED'}</p></div></div>}{shadow && <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-400"><p>Request body hash: <span className="font-mono">{shadow.request_body_hash}</span></p><p className="mt-1">Idempotency: {shadow.idempotency_key}</p><p className="mt-1">Network probe: {shadow.network_probe_performed ? 'YES' : 'NO'} · Application transmitted: {shadow.application_payload_transmitted ? 'YES' : 'NO'} · Production send available: {shadow.production_send_available ? 'YES' : 'NO'}</p></div>}</div>;
             })}
             {productionConnectorPromotions.filter((promotion) => promotion.promotion_status === 'APPROVED_FOR_IMPLEMENTATION').length === 0 && <p className="text-sm text-slate-500">No connector promotion has reached APPROVED FOR IMPLEMENTATION.</p>}
+          </div>
+        </section>
+        <section className={card}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Production preflight + one-time execution token</h2><p className="mt-1 text-sm text-slate-400">Protected environment issues a short-lived token bound to the exact production shadow request hash. Chat users cannot issue or view token plaintext. Preflight revalidates the live token and exact hash while production send remains unavailable.</p></div><span className={`${badge} ${certifiedPreflights > 0 ? decisionClass('GREEN') : decisionClass('PENDING')}`}>{certifiedPreflights > 0 ? `${certifiedPreflights} PREFLIGHT CERTIFIED` : 'TOKEN/PREFLIGHT REQUIRED'}</span></div>
+          <div className="space-y-3">
+            {productionShadowRuns.filter((shadow) => shadow.shadow_certified).map((shadow) => {
+              const token = productionExecutionTokens.find((row) => row.shadow_run_id === shadow.shadow_run_id && row.token_live);
+              const preflight = productionPreflights.find((row) => row.shadow_run_id === shadow.shadow_run_id);
+              return <div key={shadow.shadow_run_id} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{shadow.connector_kind}</p><p className="text-sm text-slate-400">Hash-bound shadow request</p></div><button className={actionButton} disabled={preflightAction === shadow.shadow_run_id} onClick={() => void validatePreflight(shadow.shadow_run_id)}>Validate production preflight</button></div><div className="mt-3 grid gap-3 text-sm md:grid-cols-4"><div><p className="text-slate-500">Shadow hash</p><p className="break-all font-mono text-xs">{shadow.request_body_hash}</p></div><div><p className="text-slate-500">Execution token</p><p>{token ? 'LIVE' : 'MISSING / EXPIRED'}</p></div><div><p className="text-slate-500">Preflight</p><p>{preflight?.preflight_status?.replaceAll('_', ' ') || 'NOT CHECKED'}</p></div><div><p className="text-slate-500">Production send</p><p>UNAVAILABLE</p></div></div>{token && <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3 text-xs text-slate-400"><p>Issued by: {token.issued_by}</p><p className="mt-1">Expires: {new Date(token.expires_at).toLocaleString()} · Plaintext exposed: {token.plaintext_token_exposed ? 'YES' : 'NO'}</p></div>}</div>;
+            })}
+            {productionShadowRuns.filter((shadow) => shadow.shadow_certified).length === 0 && <p className="text-sm text-slate-500">No SHADOW VALID connector is available for production preflight.</p>}
           </div>
         </section>
         <section className="grid gap-6 lg:grid-cols-2">
