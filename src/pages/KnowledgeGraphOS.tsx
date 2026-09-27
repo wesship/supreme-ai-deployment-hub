@@ -54,6 +54,7 @@ type HermesTaskRow = {
   parent_task_id?: string | null;
   goal_id?: string | null;
   agent_name?: string | null;
+  task_type?: string | null;
   kind: string;
   title: string | null;
   status: string;
@@ -442,6 +443,10 @@ const formatDuration = (task: HermesTaskRow | null): string => {
 
 const livePathForSignal = (signal: string): string[] => {
   const value = signal.toLowerCase();
+  const terminal = value.includes('complete') || value.includes('completed') || value.includes('result') || value.includes('failed') || value.includes('cancelled');
+  if (terminal) {
+    return ['intent', 'hermes', 'agents', 'workflow', 'analytics'];
+  }
   if (value.includes('film') || value.includes('character') || value.includes('video')) {
     return ['intent', 'hermes', 'agents', 'workflow', 'films'];
   }
@@ -460,7 +465,7 @@ const livePathForSignal = (signal: string): string[] => {
   if (value.includes('agent') || value.includes('worker') || value.includes('delegate')) {
     return ['intent', 'hermes', 'agents'];
   }
-  if (value.includes('workflow') || value.includes('complete') || value.includes('result')) {
+  if (value.includes('workflow')) {
     return ['intent', 'hermes', 'agents', 'workflow', 'analytics'];
   }
   return ['intent', 'hermes'];
@@ -480,6 +485,7 @@ const KnowledgeGraphOS: React.FC = () => {
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [pendingInterrupt, setPendingInterrupt] = useState<HermesInterruptRow | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [runs, setRuns] = useState<HermesRunRow[]>([]);
   const [taskLogs, setTaskLogs] = useState<HermesLogRow[]>([]);
@@ -539,7 +545,7 @@ const KnowledgeGraphOS: React.FC = () => {
           const row = payload.new as HermesTaskRow;
           if (!row?.id) return;
           setLiveTask(row);
-          const signal = `${row.kind} ${row.title ?? ''} ${row.status}`;
+          const signal = `${row.task_type ?? ''} ${row.agent_name ?? ''} ${row.kind} ${row.title ?? ''} ${row.status}`;
           applyLivePath(livePathForSignal(signal), `task ${row.status}: ${row.title ?? row.kind}`);
         },
       )
@@ -658,6 +664,7 @@ const KnowledgeGraphOS: React.FC = () => {
       return;
     }
     setTimeline([]);
+    setTimelineError(null);
     setPendingInterrupt(null);
     setRuns([]);
     setTaskLogs([]);
@@ -779,6 +786,7 @@ const KnowledgeGraphOS: React.FC = () => {
     } catch (error) {
       if (requestId !== timelineRequestRef.current) return;
       const message = error instanceof Error ? error.message : 'Timeline load failed';
+      setTimelineError(message);
       setActivity((items) => [`Timeline error: ${message}`, ...items].slice(0, 5));
     } finally {
       if (requestId === timelineRequestRef.current) setTimelineLoading(false);
@@ -1219,6 +1227,20 @@ const KnowledgeGraphOS: React.FC = () => {
 
   const adaptiveProposals = useMemo<AdaptiveProposal[]>(() => {
     const proposals: AdaptiveProposal[] = [];
+    if (systemHealthLoading || systemHealthError || !systemHealthUpdatedAt) {
+      return [{
+        id: 'health-evidence-unavailable',
+        category: 'workflow',
+        target: 'Hermes telemetry',
+        reason: systemHealthError
+          ? \`System-health evidence is unavailable: \${systemHealthError}\`
+          : 'System-health evidence has not completed loading yet.',
+        proposal: 'Do not change routing, concurrency, agent, tool, or workflow policy until a measured health snapshot is available.',
+        guardrail: 'Missing telemetry is not healthy telemetry; no canary or production change should be staged from this state.',
+        severity: 'warning',
+      }];
+    }
+
 
     for (const row of systemHealth) {
       const failureRate = row.tasks ? row.failed / row.tasks : 0;
@@ -1231,7 +1253,7 @@ const KnowledgeGraphOS: React.FC = () => {
           id: 'routing-unassigned',
           category: 'routing',
           target: 'Hermes router',
-          reason: `${row.tasks} recent task(s) are unassigned.`,
+          reason: `${row.tasks} recent executing/terminal task(s) are unassigned.`,
           proposal: 'Require an explicit agent assignment before dispatch for non-system tasks; send unresolved assignments to MANUAL_REVIEW instead of silently executing.',
           guardrail: 'Do not change existing in-flight tasks; apply only after an operator approves a routing-policy update.',
           severity: row.tasks >= 5 ? 'critical' : 'warning',
@@ -1275,12 +1297,12 @@ const KnowledgeGraphOS: React.FC = () => {
         });
       }
 
-      if (costPerTask >= 0.05 && row.tasks >= 3) {
+      if (costPerTask >= 0.05 && row.run_tasks >= 3) {
         proposals.push({
           id: `cost-${row.key}`,
           category: 'agent',
           target: agent,
-          reason: `Loaded run cost averages $${costPerTask.toFixed(3)} per recent task.`,
+          reason: `Loaded run cost averages ${costPerTask.toFixed(3)} across ${row.run_tasks} distinct recent executed task(s).`,
           proposal: 'Run a 10% evaluation canary using a lower-cost compatible model/tool profile, preserving the same task inputs and acceptance criteria for side-by-side comparison.',
           guardrail: 'Do not downgrade safety, approval, or accuracy requirements; promote only after measured equivalence.',
           severity: costPerTask >= 0.15 ? 'critical' : 'warning',
@@ -1317,7 +1339,7 @@ const KnowledgeGraphOS: React.FC = () => {
     }
 
     return proposals.slice(0, 10);
-  }, [liveTask, systemHealth, toolSignals]);
+  }, [liveTask, systemHealth, systemHealthError, systemHealthLoading, systemHealthUpdatedAt, toolSignals]);
 
   const graphFindings = useMemo<GraphFinding[]>(() => {
     if (!liveTask) return [];
@@ -1615,7 +1637,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 <Activity className="h-4 w-4 text-amber-200" />
                 <h2 className="text-sm font-bold text-white">Live execution inspector</h2>
               </div>
-              <span className={`border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] ${liveTask?.status === 'failed' ? 'border-red-300/30 bg-red-300/10 text-red-200' : liveTask?.status === 'completed' ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'}`}>
+              <span className={`border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] ${liveTask?.status?.toUpperCase() === 'FAILED' ? 'border-red-300/30 bg-red-300/10 text-red-200' : liveTask?.status?.toUpperCase() === 'COMPLETED' ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'}`}>
                 {liveTask?.status ?? 'waiting'}
               </span>
             </div>
@@ -1697,7 +1719,7 @@ const KnowledgeGraphOS: React.FC = () => {
               <div className="mt-3 max-h-64 space-y-2 overflow-auto pr-1">
                 {timeline.length === 0 ? (
                   <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">
-                    {liveTask ? 'No task-linked timeline rows available yet.' : 'Waiting for a live Hermes task.'}
+                    {timelineError ? `Timeline unavailable: ${timelineError}` : liveTask ? 'No task-linked timeline rows available yet.' : 'Waiting for a live Hermes task.'}
                   </div>
                 ) : timeline.map((item) => (
                   <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2">
