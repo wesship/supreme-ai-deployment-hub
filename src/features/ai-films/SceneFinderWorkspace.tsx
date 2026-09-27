@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   createSceneBlueprint,
+  dispatchSceneFusion,
   dispatchSceneProduction,
   searchScenes,
   sendSceneToTimeline,
   type SceneBlueprintResponse,
   type SceneFinderHit,
+  type SceneFusionRole,
 } from '@/features/ai-films/sceneFinderService';
 import { getOpenMontageJob, type OpenMontageJobStatus } from '@/features/ai-films/openMontageService';
 import { upsertReview } from '@/features/ai-films/releaseControlService';
@@ -32,6 +34,7 @@ export default function SceneFinderWorkspace() {
   const [blueprint, setBlueprint] = useState<SceneBlueprintResponse | null>(null);
   const [production, setProduction] = useState<{ renderJobId: string; provider: string; projectId: string } | null>(null);
   const [renderStatus, setRenderStatus] = useState<OpenMontageJobStatus | null>(null);
+  const [fusionSelections, setFusionSelections] = useState<Array<{ index: number; role: SceneFusionRole }>>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('Search authorized indexed footage by action, mood, lighting, camera movement, dialogue context, or production technique.');
 
@@ -68,6 +71,7 @@ export default function SceneFinderWorkspace() {
       const response = await searchScenes(query.trim());
       setScenes(response.scenes || []);
       setSelected(response.scenes?.[0] || null);
+      setFusionSelections([]);
       setMessage(response.count ? `Found ${response.count} matching scene references.` : 'No matching indexed scenes were found.');
     } catch (error) {
       setScenes([]);
@@ -125,6 +129,56 @@ export default function SceneFinderWorkspace() {
     }
   };
 
+
+
+  const fusionRoles: SceneFusionRole[] = ['camera', 'lighting', 'pacing', 'sound', 'production_design'];
+
+  const toggleFusion = (index: number) => {
+    setFusionSelections((current) => {
+      const existing = current.find((item) => item.index === index);
+      if (existing) return current.filter((item) => item.index !== index);
+      if (current.length >= 5) return current;
+      return [...current, { index, role: fusionRoles[current.length % fusionRoles.length] }];
+    });
+  };
+
+  const setFusionRole = (index: number, role: SceneFusionRole) => {
+    setFusionSelections((current) => current.map((item) => item.index === index ? { ...item, role } : item));
+  };
+
+  const runFusion = async () => {
+    if (fusionSelections.length < 2 || !objective.trim()) return;
+    setBusy(true);
+    try {
+      const references = fusionSelections.map(({ index, role }) => {
+        const scene = scenes[index];
+        return {
+          assetId: assetIdFor(scene),
+          role,
+          startTime: typeof scene.start === 'number' ? scene.start : undefined,
+          endTime: typeof scene.end === 'number' ? scene.end : undefined,
+        };
+      }).filter((reference) => Boolean(reference.assetId));
+      if (references.length < 2) throw new Error('Select at least two indexed scene references for Scene Fusion.');
+      const response = await dispatchSceneFusion({
+        objective: objective.trim(),
+        references,
+        durationSeconds: 8,
+        aspectRatio: '16:9',
+      });
+      setProduction({
+        renderJobId: response.production.render_job_id,
+        provider: response.production.provider,
+        projectId: response.production.project_id,
+      });
+      setRenderStatus(null);
+      setMessage(`Scene Fusion queued using ${response.reference_count} references: ${response.reference_roles.join(', ')}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Scene Fusion could not be queued.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const saveReview = async (status: 'approved' | 'changes_requested') => {
     if (!production) return;
@@ -203,22 +257,55 @@ export default function SceneFinderWorkspace() {
                 const id = assetIdFor(scene) || `scene-${index}`;
                 const active = selected === scene;
                 return (
-                  <button
-                    type="button"
-                    key={`${id}-${index}`}
-                    onClick={() => { setSelected(scene); setBlueprint(null); }}
-                    className={`rounded-xl border p-4 text-left transition ${active ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-semibold">Reference {index + 1}</span>
-                      {typeof scene.score === 'number' && <Badge variant="outline">{Math.round(scene.score * 100)}%</Badge>}
+                  <Card key={`${id}-${index}`} className={`p-4 transition ${active ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <button
+                      type="button"
+                      onClick={() => { setSelected(scene); setBlueprint(null); }}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-semibold">Reference {index + 1}</span>
+                        {typeof scene.score === 'number' && <Badge variant="outline">{Math.round(scene.score * 100)}%</Badge>}
+                      </div>
+                      <p className="mt-3 text-xs text-muted-foreground">{id}</p>
+                      <p className="mt-2 text-sm text-muted-foreground">{timeLabel(scene.start)} → {timeLabel(scene.end)}</p>
+                    </button>
+                    <div className="mt-4 flex items-center gap-2 border-t border-border/70 pt-3">
+                      <Button type="button" size="sm" variant={fusionSelections.some((item) => item.index === index) ? 'default' : 'outline'} onClick={() => toggleFusion(index)}>
+                        {fusionSelections.some((item) => item.index === index) ? 'In Fusion' : 'Add to Fusion'}
+                      </Button>
+                      {fusionSelections.some((item) => item.index === index) && (
+                        <select
+                          className="rounded-md border border-input bg-background px-2 py-1 text-xs"
+                          value={fusionSelections.find((item) => item.index === index)?.role}
+                          onChange={(event) => setFusionRole(index, event.target.value as SceneFusionRole)}
+                          aria-label={`Fusion role for reference ${index + 1}`}
+                        >
+                          {fusionRoles.map((role) => <option key={role} value={role}>{role.replace('_', ' ')}</option>)}
+                        </select>
+                      )}
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground">{id}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{timeLabel(scene.start)} → {timeLabel(scene.end)}</p>
-                  </button>
+                  </Card>
                 );
               })}
             </div>
+          )}
+
+          {fusionSelections.length >= 2 && (
+            <Card className="border-primary/30 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /><h3 className="font-semibold">Scene Fusion</h3></div>
+                  <p className="mt-2 text-sm text-muted-foreground">Fuse general camera, lighting, pacing, sound, and production-design DNA from 2–5 references into one materially original scene.</p>
+                </div>
+                <Button type="button" onClick={() => void runFusion()} disabled={busy || fusionSelections.length < 2 || !objective.trim()}>
+                  <Sparkles className="mr-2 h-4 w-4" /> Create Scene Fusion
+                </Button>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {fusionSelections.map(({ index, role }) => <Badge key={index} variant="outline">Reference {index + 1}: {role.replace('_', ' ')}</Badge>)}
+              </div>
+            </Card>
           )}
 
           {selected && (
