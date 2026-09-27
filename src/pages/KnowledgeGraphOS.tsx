@@ -28,6 +28,7 @@ import { deriveCameraTarget, deriveDepthAnchor } from '@/features/knowledge-grap
 import { useRuntimeIdentity } from '@/hooks/useRuntimeIdentity';
 import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
 import CinematicDepthLayer from '@/features/knowledge-graph/components/CinematicDepthLayer';
+import { deriveSelectiveFocus } from '@/features/knowledge-graph/lib/selectiveFocus';
 import {
   Activity,
   Bot,
@@ -581,6 +582,27 @@ const KnowledgeGraphOS: React.FC = () => {
     [multiClusterCorridor],
   );
 
+  const selectiveFocus = useMemo(
+    () => deriveSelectiveFocus(
+      initialNodes.map((node) => node.id),
+      initialEdges,
+      {
+        selectedId,
+        executionNodeIds,
+        corridorNodeIds,
+        clusterPrimaryId: clusterActivation.primaryNodeId,
+        sympatheticNodeIds: clusterActivation.sympatheticNodeIds,
+      },
+    ),
+    [
+      clusterActivation.primaryNodeId,
+      clusterActivation.sympatheticNodeIds,
+      corridorNodeIds,
+      executionNodeIds,
+      selectedId,
+    ],
+  );
+
   const overlayEmphasis = useMemo(
     () => deriveOverlayEmphasis({
       selectedNodeId: selectedId,
@@ -644,12 +666,13 @@ const KnowledgeGraphOS: React.FC = () => {
         corridorNodeIds.has(node.id) ? 'd3-kg-corridor-node' : '',
         multiClusterCorridor && node.id === 'hermes' ? 'd3-kg-multicluster-hermes' : '',
         secondaryClusterId === node.id ? 'd3-kg-secondary-selected' : '',
+        selectiveFocus.defocusedNodeIds.has(node.id) ? 'd3-kg-defocused' : '',
       ].filter(Boolean).join(' ') || undefined,
       hidden:
         (kind !== 'all' && node.data.kind !== kind) ||
         Boolean(needle && !`${node.data.label} ${node.data.description} ${kindLabel[node.data.kind]}`.toLowerCase().includes(needle)),
     }));
-  }, [clusterActivation, corridorNodeIds, executionNodeIds, kind, livePanels.status, multiClusterCorridor, query, secondaryClusterId, selectedId]);
+  }, [clusterActivation, corridorNodeIds, executionNodeIds, kind, livePanels.status, multiClusterCorridor, query, secondaryClusterId, selectedId, selectiveFocus]);
 
   const edges = useMemo(() => {
     const visibleIds = new Set(nodes.filter((node) => !node.hidden).map((node) => node.id));
@@ -668,6 +691,7 @@ const KnowledgeGraphOS: React.FC = () => {
         executing ? 'd3-kg-edge--executing' : '',
         clusterActive ? 'd3-kg-edge--cluster' : '',
         corridorActive ? 'd3-kg-edge--corridor' : '',
+        selectiveFocus.defocusedEdgeIds.has(edge.id) ? 'd3-kg-edge--defocused' : '',
       ].filter(Boolean).join(' '),
       animated: edge.source === 'hermes' || active || executing || clusterActive || corridorActive,
       data: {
@@ -683,7 +707,7 @@ const KnowledgeGraphOS: React.FC = () => {
       },
     };
     });
-  }, [clusterActivation, corridorEdgeIds, executionEdgeIds, nodes, selectedId]);
+  }, [clusterActivation, corridorEdgeIds, executionEdgeIds, nodes, selectedId, selectiveFocus]);
 
   const recordAction = (action: string) => {
     setActivity((items) => [`${action}: ${selected.data.label}`, ...items].slice(0, 5));
@@ -969,7 +993,7 @@ const KnowledgeGraphOS: React.FC = () => {
           </div>
 
           {viewMode === 'graph' && (
-            <div className={`d3-neural-stage h-[680px] ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''}`}>
+            <div className={`d3-neural-stage h-[680px] ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''} ${selectiveFocus.active ? 'd3-neural-stage--dof' : ''}`}>
               <div className="d3-nexus-globe" aria-hidden="true" />
               <CinematicDepthLayer
                 runtimeState={livePanels.status}
