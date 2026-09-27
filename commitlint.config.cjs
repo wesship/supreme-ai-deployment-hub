@@ -1,5 +1,6 @@
 module.exports = {
   ignores: [
+    (message) => message.startsWith('merge ') || message.startsWith('Merge '),
     (message) => message === 'Require Pollo webhook secret before paid dispatch',
     (message) => message === 'Test Pollo dispatch fail-closed webhook secret',
   ],
