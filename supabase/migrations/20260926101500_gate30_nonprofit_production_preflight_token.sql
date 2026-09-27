@@ -294,6 +294,105 @@ revoke all on function public.nonprofit_validate_production_preflight(uuid) from
 revoke all on function public.nonprofit_validate_production_preflight(uuid) from anon;
 grant execute on function public.nonprofit_validate_production_preflight(uuid) to authenticated;
 
+create or replace function nonprofit_api.consume_production_execution_token(
+  p_execution_token_id uuid,
+  p_plaintext_token text,
+  p_expected_request_body_hash text,
+  p_consumed_by text
+)
+returns table (
+  execution_token_id uuid,
+  token_status text,
+  consumed_at timestamptz,
+  production_execution_enabled boolean
+)
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  v_token nonprofit.production_execution_tokens%rowtype;
+  v_supplied_hash text;
+  v_consumed_at timestamptz := now();
+begin
+  if current_user not in ('postgres','service_role','supabase_admin') then
+    raise exception 'SERVICE_ROLE_REQUIRED' using errcode = '42501';
+  end if;
+
+  select * into v_token
+  from nonprofit.production_execution_tokens
+  where id = p_execution_token_id
+  for update;
+
+  if not found then
+    raise exception 'EXECUTION_TOKEN_NOT_FOUND' using errcode = 'P0002';
+  end if;
+
+  if v_token.status <> 'ISSUED' then
+    raise exception 'EXECUTION_TOKEN_NOT_LIVE' using errcode = '55000';
+  end if;
+
+  if v_token.expires_at <= now() then
+    update nonprofit.production_execution_tokens
+    set status = 'EXPIRED'
+    where id = v_token.id;
+    raise exception 'EXECUTION_TOKEN_EXPIRED' using errcode = '55000';
+  end if;
+
+  if p_expected_request_body_hash <> v_token.request_body_hash then
+    raise exception 'EXECUTION_TOKEN_REQUEST_HASH_MISMATCH' using errcode = '42501';
+  end if;
+
+  v_supplied_hash := encode(extensions.digest(convert_to(p_plaintext_token, 'UTF8'), 'sha256'), 'hex');
+  if v_supplied_hash <> v_token.token_hash then
+    raise exception 'EXECUTION_TOKEN_INVALID' using errcode = '42501';
+  end if;
+
+  update nonprofit.production_execution_tokens
+  set status = 'CONSUMED',
+      consumed_at = v_consumed_at,
+      consumed_by = nullif(btrim(p_consumed_by),''),
+      production_execution_enabled = false
+  where id = v_token.id;
+
+  return query select v_token.id, 'CONSUMED'::text, v_consumed_at, false;
+end;
+$;
+
+revoke all on function nonprofit_api.consume_production_execution_token(uuid,text,text,text) from public;
+revoke all on function nonprofit_api.consume_production_execution_token(uuid,text,text,text) from anon;
+revoke all on function nonprofit_api.consume_production_execution_token(uuid,text,text,text) from authenticated;
+grant execute on function nonprofit_api.consume_production_execution_token(uuid,text,text,text) to service_role;
+
+create or replace function public.nonprofit_consume_production_execution_token(
+  p_execution_token_id uuid,
+  p_plaintext_token text,
+  p_expected_request_body_hash text,
+  p_consumed_by text
+)
+returns table (
+  execution_token_id uuid,
+  token_status text,
+  consumed_at timestamptz,
+  production_execution_enabled boolean
+)
+language sql
+security invoker
+set search_path = ''
+as $
+  select * from nonprofit_api.consume_production_execution_token(
+    p_execution_token_id,
+    p_plaintext_token,
+    p_expected_request_body_hash,
+    p_consumed_by
+  );
+$;
+
+revoke all on function public.nonprofit_consume_production_execution_token(uuid,text,text,text) from public;
+revoke all on function public.nonprofit_consume_production_execution_token(uuid,text,text,text) from anon;
+revoke all on function public.nonprofit_consume_production_execution_token(uuid,text,text,text) from authenticated;
+grant execute on function public.nonprofit_consume_production_execution_token(uuid,text,text,text) to service_role;
+
 create or replace view public.nonprofit_production_execution_tokens_v1
 with (security_invoker = true)
 as
