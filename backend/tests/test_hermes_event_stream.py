@@ -94,7 +94,7 @@ def test_authorized_stream_emits_public_event():
     with client.stream(
         "GET",
         "/api/hermes/events/stream",
-        params={"correlation_id": correlation_id},
+        params={"correlation_id": correlation_id, "once": "true"},
     ) as response:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
