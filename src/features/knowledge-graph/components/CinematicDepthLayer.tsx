@@ -135,6 +135,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
   const anchorRef = useRef(anchor);
   const [fallbackActive, setFallbackActive] = useState(false);
   const [visualMode, setVisualMode] = useState<NexusVisualMode>('full');
+  const [contextEpoch, setContextEpoch] = useState(0);
 
   useEffect(() => {
     anchorRef.current = anchor;
@@ -143,6 +144,16 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      setFallbackActive(true);
+    };
+    const onContextRestored = () => {
+      setContextEpoch((epoch) => epoch + 1);
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    canvas.addEventListener('webglcontextrestored', onContextRestored);
 
     const reducedMotion =
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -165,6 +176,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     });
     if (!gl) {
       setFallbackActive(true);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
       return;
     }
     setFallbackActive(false);
@@ -175,6 +188,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       setFallbackActive(true);
       if (vertex) gl.deleteShader(vertex);
       if (fragment) gl.deleteShader(fragment);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
       return;
     }
 
@@ -183,6 +198,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       setFallbackActive(true);
       gl.deleteShader(vertex);
       gl.deleteShader(fragment);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
       return;
     }
     gl.attachShader(program, vertex);
@@ -193,6 +210,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       gl.deleteProgram(program);
       gl.deleteShader(vertex);
       gl.deleteShader(fragment);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
       return;
     }
 
@@ -328,6 +347,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       cancelAnimationFrame(raf);
       observer.disconnect();
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
       if (capability.parallax) {
         window.removeEventListener('pointermove', onPointerMove);
       }
@@ -336,7 +357,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       gl.deleteShader(vertex);
       gl.deleteShader(fragment);
     };
-  }, [active, corridor, runtimeState]);
+  }, [active, contextEpoch, corridor, runtimeState]);
 
   return (
     <>
