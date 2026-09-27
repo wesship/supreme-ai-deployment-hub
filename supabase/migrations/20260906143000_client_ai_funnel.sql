@@ -68,3 +68,9 @@ alter table public.client_ai_sources enable row level security;
 revoke all on table public.client_ai_leads from anon, authenticated;
 revoke all on table public.client_ai_profiles from anon, authenticated;
 revoke all on table public.client_ai_sources from anon, authenticated;
+
+-- Explicit backend-only Data API privileges. Supabase no longer guarantees
+-- automatic grants for newly created public tables.
+grant select, insert, update, delete on table public.client_ai_leads to service_role;
+grant select, insert, update, delete on table public.client_ai_profiles to service_role;
+grant select, insert, update, delete on table public.client_ai_sources to service_role;
