@@ -492,8 +492,6 @@ const KnowledgeGraphOS: React.FC = () => {
   const [reviewNote, setReviewNote] = useState('Reviewed against current evidence and rollback guardrails.');
   const [changeBusy, setChangeBusy] = useState<string | null>(null);
   const [promotionCandidates, setPromotionCandidates] = useState<AdaptivePromotionCandidateRow[]>([]);
-  const [baselineMetrics, setBaselineMetrics] = useState({ success_rate: '0.98', error_rate: '0.02', latency_ms: '1000', cost_usd: '0.01' });
-  const [candidateMetrics, setCandidateMetrics] = useState({ success_rate: '0.98', error_rate: '0.02', latency_ms: '1000', cost_usd: '0.01' });
   const [rollouts, setRollouts] = useState<AdaptiveRolloutRow[]>([]);
   const [productionAuthorization, setProductionAuthorization] = useState('');
   const timelineRequestRef = useRef(0);
@@ -1000,6 +998,18 @@ const KnowledgeGraphOS: React.FC = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('Sign in is required to stage a governed change request.');
       const rollbackPlan = `Abort the canary and retain the current production ${item.category} policy for ${item.target}; do not promote the proposed change.`;
+      const baselineRow = item.id === 'routing-unassigned'
+        ? systemHealth.find((row) => row.label === 'Unassigned')
+        : systemHealth.find((row) => row.label === item.target);
+      if (!baselineRow || baselineRow.tasks < 1 || baselineRow.runs < 1) {
+        throw new Error('A measured system-health baseline is required before staging this proposal.');
+      }
+      const baselineMetrics = {
+        success_rate: Math.max(0, 1 - baselineRow.failed / baselineRow.tasks),
+        error_rate: baselineRow.failed / baselineRow.tasks,
+        latency_ms: baselineRow.duration_ms / baselineRow.runs,
+        cost_usd: baselineRow.cost_usd / baselineRow.tasks,
+      };
       const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
@@ -1012,6 +1022,7 @@ const KnowledgeGraphOS: React.FC = () => {
             reason: item.reason,
             system_health_updated_at: systemHealthUpdatedAt?.toISOString() ?? null,
             system_health: systemHealth,
+            baseline_metrics: baselineMetrics,
           },
           proposed_change: proposalRuntimeDiff(item),
           guardrail: item.guardrail,
@@ -1098,24 +1109,9 @@ const KnowledgeGraphOS: React.FC = () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('Sign in is required to certify a canary.');
-      const asNumber = (value: string) => Number(value);
       const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests/${encodeURIComponent(requestId)}/certify`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          baseline: {
-            success_rate: asNumber(baselineMetrics.success_rate),
-            error_rate: asNumber(baselineMetrics.error_rate),
-            latency_ms: asNumber(baselineMetrics.latency_ms),
-            cost_usd: asNumber(baselineMetrics.cost_usd),
-          },
-          candidate: {
-            success_rate: asNumber(candidateMetrics.success_rate),
-            error_rate: asNumber(candidateMetrics.error_rate),
-            latency_ms: asNumber(candidateMetrics.latency_ms),
-            cost_usd: asNumber(candidateMetrics.cost_usd),
-          },
-        }),
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Canary certification failed');
@@ -1185,12 +1181,6 @@ const KnowledgeGraphOS: React.FC = () => {
         body: JSON.stringify({
           environment,
           production_authorization: environment === 'production' ? productionAuthorization : null,
-          pre_change_config: {
-            captured_at: new Date().toISOString(),
-            source: 'knowledge_graph_operator_snapshot',
-            system_health: systemHealth,
-            runtime_changed: false,
-          },
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -1810,21 +1800,14 @@ const KnowledgeGraphOS: React.FC = () => {
 
                     {request.status === 'canary_queued' && (
                       <div className="mt-3 border border-[#25241f] bg-[#0c0c0a] p-3">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">Canary certification metrics</p>
-                        <div className="mt-2 grid grid-cols-2 gap-2 text-[9px]">
-                          {(['success_rate','error_rate','latency_ms','cost_usd'] as const).map((key) => (
-                            <React.Fragment key={key}>
-                              <label className="text-stone-600">Baseline {key}</label>
-                              <input value={baselineMetrics[key]} onChange={(e) => setBaselineMetrics((m) => ({ ...m, [key]: e.target.value }))} className="border border-[#2d2c28] bg-[#090907] px-2 py-1 text-stone-300" />
-                              <label className="text-stone-600">Candidate {key}</label>
-                              <input value={candidateMetrics[key]} onChange={(e) => setCandidateMetrics((m) => ({ ...m, [key]: e.target.value }))} className="border border-[#2d2c28] bg-[#090907] px-2 py-1 text-stone-300" />
-                            </React.Fragment>
-                          ))}
-                        </div>
+                        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">Canary certification</p>
+                        <p className="mt-2 text-[10px] leading-4 text-stone-500">
+                          Certification is bound to the frozen baseline evidence and the linked Hermes canary task&apos;s persisted metrics. The task must be COMPLETED and include measured cost evidence.
+                        </p>
                         <button disabled={changeBusy !== null} onClick={() => certifyAdaptiveCanary(request.id)} className="mt-3 w-full border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">
-                          Certify canary
+                          Certify completed canary
                         </button>
-                        <p className="mt-2 text-[9px] leading-4 text-stone-600">PASS requires no more than 2pp success/error regression and no more than 20% latency/cost regression. FAIL retains production.</p>
+                        <p className="mt-2 text-[9px] leading-4 text-stone-600">PASS permits at most 2pp success/error regression and 20% latency/cost regression. Incomplete or unmeasured canaries fail closed.</p>
                       </div>
                     )}
 
