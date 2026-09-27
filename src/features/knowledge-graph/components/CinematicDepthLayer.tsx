@@ -6,6 +6,7 @@ export interface CinematicDepthLayerProps {
   runtimeState: DepthState;
   active: boolean;
   corridor: boolean;
+  anchor: { x: number; y: number };
 }
 
 const vertexShader = `
@@ -23,6 +24,8 @@ uniform float u_time;
 uniform float u_intensity;
 uniform float u_corridor;
 uniform vec3 u_tint;
+uniform vec2 u_anchor;
+uniform vec2 u_parallax;
 
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -40,15 +43,18 @@ float dust(vec2 uv, float scale, float speed) {
 void main() {
   vec2 uv = gl_FragCoord.xy / max(u_resolution.xy, vec2(1.0));
   vec2 aspect = vec2(u_resolution.x / max(u_resolution.y, 1.0), 1.0);
+  vec2 anchoredUv = u_anchor + u_parallax;
+  vec2 anchorP = (anchoredUv - 0.5) * aspect;
   vec2 p = (uv - 0.5) * aspect;
 
   float t = u_time * 0.08;
   vec2 drift = vec2(sin(t) * 0.018, cos(t * 0.73) * 0.012);
+  vec2 local = p - anchorP;
 
-  float core = exp(-8.5 * dot(p - drift, p - drift));
-  float halo = exp(-3.2 * dot(p * vec2(0.82, 1.0), p * vec2(0.82, 1.0)));
-  float corridorBand = exp(-18.0 * abs(p.y + 0.08 * sin(p.x * 5.0 + u_time * 0.22)));
-  corridorBand *= smoothstep(0.95, 0.08, abs(p.x));
+  float core = exp(-8.5 * dot(local - drift, local - drift));
+  float halo = exp(-3.2 * dot(local * vec2(0.82, 1.0), local * vec2(0.82, 1.0)));
+  float corridorBand = exp(-18.0 * abs(local.y + 0.08 * sin(local.x * 5.0 + u_time * 0.22)));
+  corridorBand *= smoothstep(0.95, 0.08, abs(local.x));
 
   float d1 = dust(uv + drift, 18.0, 0.65);
   float d2 = dust(uv * 1.07 - drift * 0.55, 31.0, 0.42);
@@ -119,6 +125,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
   runtimeState,
   active,
   corridor,
+  anchor,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -165,6 +172,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     const intensity = gl.getUniformLocation(program, 'u_intensity');
     const corridorUniform = gl.getUniformLocation(program, 'u_corridor');
     const tint = gl.getUniformLocation(program, 'u_tint');
+    const anchorUniform = gl.getUniformLocation(program, 'u_anchor');
+    const parallaxUniform = gl.getUniformLocation(program, 'u_parallax');
     const visual = depthVisualConfig(runtimeState, active, corridor);
     const [r, g, b] = visual.tint;
 
@@ -185,6 +194,30 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     resize();
 
     let raf = 0;
+    let targetParallaxX = 0;
+    let targetParallaxY = 0;
+    let parallaxX = 0;
+    let parallaxY = 0;
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (reducedMotion) return;
+      const rect = canvas.getBoundingClientRect();
+      if (
+        event.clientX < rect.left ||
+        event.clientX > rect.right ||
+        event.clientY < rect.top ||
+        event.clientY > rect.bottom
+      ) {
+        targetParallaxX = 0;
+        targetParallaxY = 0;
+        return;
+      }
+      const nx = (event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5;
+      const ny = (event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5;
+      targetParallaxX = nx * 0.035;
+      targetParallaxY = -ny * 0.028;
+    };
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
 
     const draw = (now: number) => {
       resize();
@@ -196,6 +229,14 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       gl.uniform1f(intensity, visual.intensity);
       gl.uniform1f(corridorUniform, visual.corridor);
       gl.uniform3f(tint, r, g, b);
+      gl.uniform2f(anchorUniform, anchor.x, 1 - anchor.y);
+      parallaxX += (targetParallaxX - parallaxX) * 0.055;
+      parallaxY += (targetParallaxY - parallaxY) * 0.055;
+      gl.uniform2f(
+        parallaxUniform,
+        reducedMotion ? 0 : parallaxX,
+        reducedMotion ? 0 : parallaxY,
+      );
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
       if (!reducedMotion) raf = requestAnimationFrame(draw);
@@ -206,12 +247,13 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      window.removeEventListener('pointermove', onPointerMove);
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
       gl.deleteShader(vertex);
       gl.deleteShader(fragment);
     };
-  }, [active, corridor, runtimeState]);
+  }, [active, anchor.x, anchor.y, corridor, runtimeState]);
 
   return (
     <canvas
