@@ -20,6 +20,7 @@ import { Conversation } from '@/services/ai/conversationStore';
 import { supabase } from '@/integrations/supabase/client';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 import { sendHermesBrowserCommand } from '@/features/knowledge-graph/lib/hermesCommand';
+import ConversationalVoiceControls from '@/components/ai/ConversationalVoiceControls';
 
 const SUGGESTED_PROMPTS = [
   'What is the current deployment status of the platform?',
@@ -493,13 +494,23 @@ const ChatPage: React.FC = () => {
                 value={interimTranscript ? `${input}${interimTranscript}` : input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Message D3VONN.IO... (Shift+Enter for new line)"
+                placeholder={hermesMode ? 'Give Hermes an instruction... (Shift+Enter for new line)' : 'Message D3VONN.IO... (Shift+Enter for new line)'}
                 rows={1}
                 className="flex-1 bg-transparent text-white text-sm placeholder-white/25 focus-visible:outline-none focus-visible:shadow-focus-glow resize-none leading-relaxed"
                 style={{ maxHeight: '160px', opacity: interimTranscript ? 0.7 : 1 }}
               />
 
-              {/* Voice controls */}
+              {/* Live Hermes conversational voice: Vapi + ElevenLabs + Hermes tools */}
+              <div className="flex-shrink-0 mb-0.5" title="Start live Hermes conversation">
+                <ConversationalVoiceControls
+                  context={{ surface: 'chat', route: '/chat' }}
+                  onExecutionStarted={(correlationId) => {
+                    setHermesStatus(`Hermes voice execution attached · ${correlationId}`);
+                  }}
+                />
+              </div>
+
+              {/* Dictation / TTS controls */}
               <div className="flex-shrink-0 mb-0.5">
                 <VoiceControls
                   lastAssistantMessage={lastAssistantMessage}
@@ -526,21 +537,23 @@ const ChatPage: React.FC = () => {
                   <button
                     onClick={handleSend}
                     aria-label="Send message"
-                    disabled={!input.trim()}
+                    disabled={!input.trim() || hermesSubmitting}
                     className="p-2 rounded-xl transition-all disabled:opacity-30"
                     style={{
                       background: input.trim() ? 'rgba(112, 128, 255, 0.15)' : 'rgba(255,255,255,0.05)',
                       border: input.trim() ? '1px solid rgba(112, 128, 255, 0.3)' : '1px solid rgba(255,255,255,0.08)',
                     }}
                   >
-                    <Send className={`w-4 h-4 ${input.trim() ? 'text-primary' : 'text-white/30'}`} />
+                    {hermesSubmitting
+                      ? <Loader2 className="w-4 h-4 animate-spin text-amber-200" />
+                      : <Send className={`w-4 h-4 ${input.trim() ? (hermesMode ? 'text-amber-200' : 'text-primary') : 'text-white/30'}`} />}
                   </button>
                 )}
               </div>
             </div>
 
             <p className="text-center text-white/15 text-[10px] mt-2 font-mono">
-              D3VONN.IO · Supreme Deployment Hub · {selectedModel}
+              D3VONN.IO · Supreme Deployment Hub · {hermesMode ? 'Hermes execution' : selectedModel}
             </p>
           </div>
         </div>
