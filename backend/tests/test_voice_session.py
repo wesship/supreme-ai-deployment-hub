@@ -611,3 +611,89 @@ def test_voice_session_rejects_unknown_view_mode(monkeypatch):
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid voice context"
+
+
+def test_browser_run_queues_user_bound_hermes_task(monkeypatch):
+    captured: dict[str, object] = {}
+
+    async def fake_create_task(**kwargs):
+        captured.update(kwargs)
+        return {"id": "browser-run-task", "title": kwargs["title"]}
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
+    response = make_client(user_id="user-browser-run").post(
+        "/api/voice/hermes/command",
+        json={
+            "action": "run",
+            "node_id": "films",
+            "surface": "knowledge-graph",
+            "route": "/knowledge-graph",
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["status"] == "queued"
+    assert body["governed_execution"] is True
+    assert str(UUID(body["correlation_id"])) == body["correlation_id"]
+    assert captured["task_type"] == "ui.graph.run"
+    assert captured["source"] == "browser-ui"
+    assert captured["input_data"]["authenticated_user_id"] == "user-browser-run"
+    assert captured["input_data"]["node_id"] == "films"
+
+
+def test_browser_connect_requires_target_and_pauses_for_approval(monkeypatch):
+    captured: dict[str, object] = {}
+
+    async def fake_create_task(**kwargs):
+        captured.update(kwargs)
+        return {"id": "browser-connect-task", "title": kwargs["title"]}
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
+    client = make_client(user_id="user-browser-connect")
+
+    missing = client.post(
+        "/api/voice/hermes/command",
+        json={"action": "connect", "node_id": "films"},
+    )
+    assert missing.status_code == 422
+
+    response = client.post(
+        "/api/voice/hermes/command",
+        json={
+            "action": "connect",
+            "node_id": "films",
+            "target_node_id": "knowledge",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["status"] == "approval_required"
+    assert captured["task_type"] == "ui.graph.connect"
+    assert captured["initial_status"] == "PAUSED"
+    assert captured["input_data"]["target_node_id"] == "knowledge"
+
+
+def test_browser_text_command_queues_direct_hermes_instruction(monkeypatch):
+    captured: dict[str, object] = {}
+
+    async def fake_create_task(**kwargs):
+        captured.update(kwargs)
+        return {"id": "browser-command-task", "title": kwargs["title"]}
+
+    monkeypatch.setattr("backend.hermes.task_engine.create_task", fake_create_task)
+    response = make_client(user_id="user-browser-text").post(
+        "/api/voice/hermes/command",
+        json={
+            "action": "command",
+            "title": "Investigate deployment health",
+            "prompt": "Check the deployment and summarize anything requiring operator action.",
+            "surface": "chat",
+            "route": "/chat",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["status"] == "queued"
+    assert captured["task_type"] == "ui.hermes.command"
+    assert captured["description"].startswith("Check the deployment")
+    assert captured["input_data"]["authenticated_user_id"] == "user-browser-text"
