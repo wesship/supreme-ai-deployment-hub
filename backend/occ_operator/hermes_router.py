@@ -115,7 +115,6 @@ class AdaptivePromotionDecision(BaseModel):
 class AdaptiveRolloutRequest(BaseModel):
     environment: str = Field(pattern="^(staging|production)$")
     production_authorization: str | None = Field(default=None, min_length=16, max_length=512)
-    pre_change_config: dict[str, Any] = Field(default_factory=dict)
 
 
 def _require_internal_execution_key(
