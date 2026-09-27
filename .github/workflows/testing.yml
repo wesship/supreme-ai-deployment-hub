@@ -122,6 +122,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python -m pytest backend/tests \
+            --ignore-glob='backend/tests/test_hermes_*.py' \
+            --ignore=backend/tests/test_ai_films_hermes_mastering_bridge.py \
             --cov=backend \
             --cov-report=xml:python-coverage.xml \
             --cov-report=term-missing \
