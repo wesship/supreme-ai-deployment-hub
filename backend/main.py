@@ -101,6 +101,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.app.routers", "proxy_router", None),
     ("backend.app.routers.smart_glasses", "router", "/api"),
     ("backend.api.v1.router", "router", "/api/v1"),
+    ("backend.api.public_dashboard", "router", None),
     ("backend.api.v2.router", "router", "/api/v2"),
     ("backend.agents.router", "router", "/api/agents"),
     ("backend.marketplace.router", "router", None),
