@@ -13,6 +13,8 @@ const canaryMigration = readFileSync('supabase/migrations/20260918054500_gate26_
 const externalSandboxMigration = readFileSync('supabase/migrations/20260918062000_gate27_nonprofit_external_sandbox_connector.sql', 'utf8');
 const externalSandboxFunction = readFileSync('supabase/functions/nonprofit-submission-sandbox/index.ts', 'utf8');
 const promotionMigration = readFileSync('supabase/migrations/20260918070000_gate28_nonprofit_production_promotion.sql', 'utf8');
+const shadowMigration = readFileSync('supabase/migrations/20260926090000_gate29_nonprofit_production_shadow.sql', 'utf8');
+const shadowFunction = readFileSync('supabase/functions/nonprofit-production-shadow/index.ts', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -37,6 +39,7 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_external_sandbox_transmissions_v1');
     expect(api).toContain('nonprofit_sandbox_receipt_certifications_v1');
     expect(api).toContain('nonprofit_production_connector_promotions_v1');
+    expect(api).toContain('nonprofit_production_connector_shadow_runs_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -344,5 +347,51 @@ describe('Gate 28 sandbox receipt certification and production promotion', () =>
     expect(page).toContain('Sandbox receipt certification + production promotion');
     expect(page).toContain('Certify sandbox receipts');
     expect(page).toContain('Request production promotion');
+  });
+});
+
+
+describe('Gate 29 production connector shadow mode', () => {
+  it('requires an approved promotion and protected production-environment approval', () => {
+    expect(shadowMigration).toContain('PROMOTION_NOT_APPROVED_FOR_IMPLEMENTATION');
+    expect(shadowMigration).toContain('PROTECTED_ENVIRONMENT_APPROVAL_REQUIRED');
+    expect(shadowMigration).toContain('PRODUCTION_EXECUTION_MUST_REMAIN_DISABLED');
+  });
+
+  it('validates production endpoint identity and credential presence without networking', () => {
+    expect(shadowFunction).toContain('PRODUCTION_ENDPOINT_NOT_CONFIGURED');
+    expect(shadowFunction).toContain('HTTPS_REQUIRED');
+    expect(shadowFunction).toContain('PRODUCTION_HOST_NOT_ALLOWLISTED');
+    expect(shadowFunction).toContain('PRODUCTION_HOST_IDENTITY_INVALID');
+    expect(shadowFunction).toContain('NONPROFIT_PRODUCTION_CREDENTIAL_TOKEN');
+    expect(shadowFunction).not.toContain('await fetch(endpoint');
+  });
+
+  it('constructs request hash, idempotency, and receipt parser contract', () => {
+    expect(shadowFunction).toContain('requestBodyHash');
+    expect(shadowFunction).toContain('Idempotency-Key');
+    expect(shadowFunction).toContain('receiptParserContract');
+    expect(shadowFunction).toContain('X-GrantAssist-Request-SHA256');
+  });
+
+  it('hard-disables production transmission in database and shadow response', () => {
+    expect(shadowMigration).toContain('check (network_probe_performed = false)');
+    expect(shadowMigration).toContain('check (application_payload_transmitted = false)');
+    expect(shadowMigration).toContain('check (production_execution_enabled = false)');
+    expect(shadowFunction).toContain('network_probe_performed: false');
+    expect(shadowFunction).toContain('application_payload_transmitted: false');
+    expect(shadowFunction).toContain('production_execution_enabled: false');
+    expect(shadowFunction).toContain('production_send_available: false');
+  });
+
+  it('wires shadow validation into the command center', () => {
+    expect(api).toContain("supabase.functions.invoke('nonprofit-production-shadow'");
+    expect(api).toContain('nonprofit_production_connector_shadow_runs_v1');
+    expect(page).toContain('Production connector shadow mode');
+    expect(page).toContain('Run production shadow');
+    expect(page).toContain('Network probe:');
+    expect(page).toContain('Application transmitted:');
+    expect(page).toContain('Production send available:');
+    expect(page).not.toContain('Submit application');
   });
 });
