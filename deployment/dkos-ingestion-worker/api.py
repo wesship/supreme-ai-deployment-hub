@@ -19,7 +19,7 @@ from worker import IngestionJob, run_ingestion
 
 Status = Literal["pending", "running", "completed", "failed", "manual_review"]
 
-app = FastAPI(title="D3VONN DKOS Ingestion API", version="0.1.0")
+app = FastAPI(title="D3VONN DKOS Ingestion API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -70,7 +70,19 @@ def now_iso() -> str:
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "dkos-ingestion", "version": "0.1.0"}
+    return {
+        "status": "ok",
+        "service": "dkos-ingestion",
+        "version": "0.2.0",
+        "capabilities": {
+            "markitdown": True,
+            "docling_enabled": __import__("os").getenv("DKOS_ENABLE_DOCLING", "false").lower() in {"1", "true", "yes"},
+            "semantic_chunking": True,
+            "embeddings": False,
+            "pinecone_storage": False,
+            "hermes_memory": False,
+        },
+    }
 
 
 @app.post("/api/dkos/ingestion/runs", response_model=StartIngestionResponse)
@@ -131,12 +143,24 @@ async def start_ingestion(
             )
         )
         artifacts = [artifact.__dict__ for artifact in result.artifacts]
+        stages = [
+            {
+                "stage": stage.stage,
+                "status": stage.status,
+                "startedAt": stage.started_at,
+                "completedAt": stage.completed_at,
+                "detail": stage.detail,
+            }
+            for stage in result.stages
+        ]
         ARTIFACTS[run_id] = artifacts
         RUNS[run_id].update(
             {
-                "status": "completed",
-                "currentStage": "dkos_retrieval",
+                "status": result.status,
+                "currentStage": result.current_stage,
+                "stages": stages,
                 "artifacts": artifacts,
+                "sourceSha256": result.source_sha256,
                 "updatedAt": now_iso(),
             }
         )
@@ -144,7 +168,7 @@ async def start_ingestion(
         RUNS[run_id].update(
             {
                 "status": "failed",
-                "currentStage": "security_scan",
+                "currentStage": RUNS[run_id].get("currentStage", "security_scan"),
                 "updatedAt": now_iso(),
                 "error": str(exc),
             }
