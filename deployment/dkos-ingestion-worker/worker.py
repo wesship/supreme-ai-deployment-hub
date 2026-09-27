@@ -87,6 +87,8 @@ class IngestionJob:
     tenant_id: str
     uploaded_by: str
     classification: str = "internal"
+    profile_id: str | None = None
+    source_id: str | None = None
     run_id: str = field(default_factory=lambda: str(uuid4()))
     document_id: str = field(default_factory=lambda: str(uuid4()))
 
@@ -221,6 +223,8 @@ def create_metadata(
         "tenant_id": job.tenant_id,
         "uploaded_by": job.uploaded_by,
         "classification": job.classification,
+        "profile_id": job.profile_id,
+        "source_id": job.source_id,
         "created_at": now_iso(),
     }
     output_path = output_dir / "source_metadata.json"
@@ -434,6 +438,8 @@ def upsert_pinecone(job: IngestionJob, embeddings_path: Path, output_dir: Path) 
                 "chunk_sha256": row["sha256"],
                 "source_filename": job.source_path.name,
                 "classification": job.classification,
+                "profile_id": job.profile_id,
+                "source_id": job.source_id,
                 "text": row["text"],
             },
         }
@@ -478,6 +484,8 @@ def create_hermes_memory_manifest(
         "commit_id": commit_id,
         "idempotency_key": commit_id,
         "tenant_id": job.tenant_id,
+        "profile_id": job.profile_id,
+        "source_id": job.source_id,
         "document_id": job.document_id,
         "run_id": job.run_id,
         "source_sha256": source_sha256,
