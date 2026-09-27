@@ -1043,6 +1043,7 @@ const KnowledgeGraphOS: React.FC = () => {
           <div className="border-b border-[#2d2c28] bg-[#10100d] px-4 py-4">
             <div className="mb-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-amber-200/60">D3VONN Knowledge Universe</p>
+              {/* Canonical D3VONN business headline; layout tests lock this wording. */}
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">
                 One Platform. <span className="text-amber-100">One Intelligence.</span>
               </h1>
