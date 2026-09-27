@@ -8,15 +8,17 @@ interface PublicPageShellProps {
   breadcrumbs?: BreadcrumbItem[] | false;
   className?: string;
   transparentHeader?: boolean;
+  offsetHeader?: boolean;
 }
 
 const PublicPageShell = ({
   children,
   breadcrumbs,
   className,
+  offsetHeader = true,
 }: PublicPageShellProps) => (
   <div className="min-h-screen bg-[#020714] text-white">
-    <div className="pt-16 lg:pt-[72px]">
+    <div className={cn(offsetHeader && "pt-16 lg:pt-[72px]")}>
       {breadcrumbs !== false && (
         <div className="border-b border-white/[0.06] bg-black/10">
           <Breadcrumbs items={breadcrumbs || undefined} />
