@@ -1,6 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
-import KnowledgeGraphOS from './KnowledgeGraphOS';
+import D3VONNReferenceHome from './D3VONNReferenceHome';
 
 /**
  * Canonical D3VONN.IO frontend entry.
@@ -24,7 +24,7 @@ const Index: React.FC = () => (
       <meta property="og:url" content="https://d3vonn.io/" />
       <link rel="canonical" href="https://d3vonn.io/" />
     </Helmet>
-    <KnowledgeGraphOS />
+    <D3VONNReferenceHome />
   </>
 );
 
