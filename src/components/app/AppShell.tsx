@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Bot, Workflow, Store, Wrench, Settings, Activity, Command, ShieldCheck,
+  Send, Loader2, CheckSquare,
 } from 'lucide-react';
+import { sendHermesBrowserCommand } from '@/features/knowledge-graph/lib/hermesCommand';
 
 const items = [
   { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true },
@@ -11,6 +13,7 @@ const items = [
   { to: '/marketplace', label: 'Marketplace', icon: Store },
   { to: '/mcp', label: 'MCP Tools', icon: Wrench },
   { to: '/command-center', label: 'Command', icon: Command },
+  { to: '/approvals', label: 'Approvals', icon: CheckSquare },
   { to: '/security', label: 'Security', icon: ShieldCheck },
   { to: '/status', label: 'Health', icon: Activity },
   { to: '/admin', label: 'Settings', icon: Settings },
@@ -18,7 +21,32 @@ const items = [
 
 const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
+  const [command, setCommand] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [commandStatus, setCommandStatus] = useState<string | null>(null);
   const crumb = items.find((i) => (i.end ? pathname === i.to : pathname.startsWith(i.to)))?.label ?? 'App';
+
+  const submitHermesCommand = async () => {
+    const prompt = command.trim();
+    if (!prompt || submitting) return;
+    setSubmitting(true);
+    setCommandStatus(null);
+    try {
+      const result = await sendHermesBrowserCommand({
+        action: 'command',
+        title: prompt.slice(0, 120),
+        prompt,
+        surface: 'app-shell',
+        route: pathname,
+      });
+      setCommand('');
+      setCommandStatus(`Queued · ${result.correlation_id.slice(0, 8)}`);
+    } catch (error) {
+      setCommandStatus(error instanceof Error ? error.message : 'Unable to queue Hermes instruction');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="d3-os-shell min-h-screen">
@@ -63,6 +91,46 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <p className="truncate text-[10px] uppercase tracking-[0.2em] text-white/40">
               Current workspace <span className="text-primary">{crumb}</span>
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="border-b border-white/10 bg-black/55">
+        <div className="container mx-auto px-3 py-3 sm:px-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="shrink-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-200">Hermes command</p>
+              <p className="text-[10px] text-white/40">One intelligence across every workspace</p>
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+              <input
+                value={command}
+                onChange={(event) => setCommand(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    void submitHermesCommand();
+                  }
+                }}
+                placeholder="Ask or instruct Hermes…"
+                aria-label="Ask or instruct Hermes"
+                className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+              />
+              <button
+                type="button"
+                onClick={() => void submitHermesCommand()}
+                disabled={!command.trim() || submitting}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-amber-300/25 bg-amber-200/10 text-amber-100 transition hover:bg-amber-200/15 disabled:cursor-not-allowed disabled:opacity-35"
+                aria-label="Send instruction to Hermes"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
+            {commandStatus && (
+              <div className="shrink-0 text-[10px] text-white/45" role="status" aria-live="polite">
+                {commandStatus}
+              </div>
+            )}
           </div>
         </div>
       </div>

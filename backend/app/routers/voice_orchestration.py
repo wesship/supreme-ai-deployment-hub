@@ -12,15 +12,32 @@ import time
 from collections import OrderedDict
 from typing import Any
 from urllib.parse import urlencode
+from uuid import UUID, uuid4
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel, Field
 
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.voice_session import issue_voice_session, verify_voice_session
+from backend.hermes.dependencies import get_dependencies
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice-orchestration"])
+
+
+class HermesBrowserCommand(BaseModel):
+    action: str = Field(min_length=1, max_length=32)
+    title: str | None = Field(default=None, max_length=240)
+    prompt: str | None = Field(default=None, max_length=4000)
+    node_id: str | None = Field(default=None, max_length=128)
+    target_node_id: str | None = Field(default=None, max_length=128)
+    ui_session_id: str | None = Field(default=None, max_length=36)
+    surface: str | None = Field(default=None, max_length=128)
+    route: str | None = Field(default=None, max_length=256)
+
+
+_BROWSER_HERMES_ACTIONS = {"run", "monitor", "connect", "ask", "command"}
 
 _MAX_BODY_BYTES = 1_000_000
 _MAX_CACHE_ITEMS = 2_000
@@ -32,7 +49,9 @@ _DEFAULT_ELEVENLABS_MODEL = "eleven_turbo_v2_5"
 _WEBHOOK_DERIVATION_LABEL = b"d3vonn:vapi:webhook:v1"
 _ALLOWED_HERMES_TOOLS = {"create_hermes_task", "enqueue_hermes_task", "hermes_task"}
 _ALLOWED_FILM_TOOLS = {"query_film_intelligence"}
-_ALLOWED_VOICE_TOOLS = _ALLOWED_HERMES_TOOLS | _ALLOWED_FILM_TOOLS
+_ALLOWED_GRAPH_TOOLS = {"graph_action"}
+_ALLOWED_VOICE_TOOLS = _ALLOWED_HERMES_TOOLS | _ALLOWED_FILM_TOOLS | _ALLOWED_GRAPH_TOOLS
+_GRAPH_ACTIONS = {"open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop", "view"}
 _event_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
 _SENSITIVE_KEY = re.compile(r"api[_-]?key|authorization|token|secret|password|credential", re.I)
 
@@ -111,7 +130,10 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                         "query_film_intelligence. Use mode search for literal footage lookup and mode reason for "
                         "Jockey corpus-level analysis. For longer research or execution work, call "
                         "create_hermes_task with a clear title and description. Never claim a task was completed "
-                        "unless the tool result confirms it."
+                        "unless the tool result confirms it. For direct Knowledge Graph UI commands use graph_action "
+                        "with one of: open, select, trace, run, monitor, connect, expand, filter, search, ask, stop, view. "
+                        "Use graph_action instead of create_hermes_task when the user is clearly manipulating the current graph UI. "
+                        "Run and connect are governed execution intents; never describe them as completed unless Hermes confirms execution."
                         + context_instruction
                     ),
                 }
@@ -136,6 +158,48 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                                 },
                             },
                             "required": ["title"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "async": False,
+                    "function": {
+                        "name": "graph_action",
+                        "description": (
+                            "Control the current D3VONN Knowledge Graph with an explicit action. "
+                            "Use this for direct graph navigation, tracing, monitoring, filtering, search, or execution intent."
+                        ),
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "string",
+                                    "enum": ["open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop", "view"],
+                                },
+                                "node_id": {
+                                    "type": "string",
+                                    "description": "Optional graph node id. Omit to use the signed current node context.",
+                                },
+                                "target_node_id": {
+                                    "type": "string",
+                                    "description": "Optional second node for connect or bridge-style actions.",
+                                },
+                                "query": {
+                                    "type": "string",
+                                    "description": "Optional free-text search or question.",
+                                },
+                                "filter": {
+                                    "type": "string",
+                                    "description": "Optional node-type or state filter.",
+                                },
+                                "view": {
+                                    "type": "string",
+                                    "enum": ["graph", "map", "list"],
+                                    "description": "Target Knowledge Graph representation for the view action.",
+                                },
+                            },
+                            "required": ["action"],
                         },
                     },
                 },
@@ -424,12 +488,84 @@ async def _handle_tool_calls(
             }
         elif name in _ALLOWED_FILM_TOOLS:
             result = await _query_film_intelligence(parameters)
+        elif name in _ALLOWED_GRAPH_TOOLS:
+            action = str(parameters.get("action") or "").strip().lower()
+            if action not in _GRAPH_ACTIONS:
+                result = {"status": "rejected", "message": "Unsupported graph action."}
+            else:
+                current_node = (
+                    voice_context.get("node_id")
+                    if isinstance(voice_context, dict)
+                    else None
+                )
+                node_id = str(parameters.get("node_id") or current_node or "")
+                target_node_id = str(parameters.get("target_node_id") or "")
+                query = str(parameters.get("query") or "")
+                filter_value = str(parameters.get("filter") or "")
+                view_mode = str(parameters.get("view") or "")
+
+                if action in {"run", "connect"}:
+                    try:
+                        from backend.hermes.task_engine import create_task
+
+                        correlation_id = str(uuid4())
+                        approval_required = action == "connect"
+                        title = (
+                            f"Connect graph node {node_id} to {target_node_id or 'requested target'}"
+                            if action == "connect"
+                            else f"Run graph node {node_id or 'current selection'}"
+                        )
+                        task = await create_task(
+                            title=title[:240],
+                            task_type=f"voice.graph.{action}",
+                            description=query[:4000] if query else None,
+                            input_data={
+                                "authenticated_user_id": user_id,
+                                "voice_session": "inline",
+                                "voice_context": _redact(voice_context or {}),
+                                "graph_action": action,
+                                "node_id": node_id,
+                                "target_node_id": target_node_id,
+                                "filter": filter_value,
+                                "vapi_event_id": event_id,
+                            },
+                            source="vapi-inline",
+                            correlation_id=correlation_id,
+                            initial_status="PAUSED" if approval_required else "PENDING",
+                        )
+                        result = {
+                            "status": "approval_required" if approval_required else "queued",
+                            "action": action,
+                            "task_id": task.get("id"),
+                            "correlation_id": correlation_id,
+                            "node_id": node_id,
+                            "target_node_id": target_node_id,
+                            "governed_execution": True,
+                        }
+                    except Exception:  # pragma: no cover - persistence failure
+                        logger.error("Governed graph action creation failed")
+                        result = {
+                            "status": "unavailable",
+                            "message": "Hermes could not stage the graph action.",
+                        }
+                else:
+                    result = {
+                        "status": "accepted",
+                        "action": action,
+                        "node_id": node_id,
+                        "target_node_id": target_node_id,
+                        "query": query,
+                        "filter": filter_value,
+                        "view": view_mode,
+                        "governed_execution": False,
+                    }
         else:
             try:
                 from backend.hermes.task_engine import create_task
 
                 title = str(parameters.get("title") or parameters.get("task") or "Voice-requested Hermes task")
                 description = parameters.get("description")
+                correlation_id = str(uuid4())
                 task = await create_task(
                     title=title[:240],
                     task_type="voice.hermes",
@@ -439,11 +575,17 @@ async def _handle_tool_calls(
                         "authenticated_user_id": user_id,
                         "voice_session": "inline",
                         "voice_context": _redact(voice_context or {}),
+                        "vapi_event_id": event_id,
                     },
                     source="vapi-inline",
-                    correlation_id=event_id,
+                    correlation_id=correlation_id,
                 )
-                result = {"status": "queued", "task_id": task.get("id"), "title": task.get("title", title)}
+                result = {
+                    "status": "queued",
+                    "task_id": task.get("id"),
+                    "title": task.get("title", title),
+                    "correlation_id": correlation_id,
+                }
             except Exception:  # pragma: no cover - external database failures
                 logger.error("Hermes task creation failed")
                 result = {
@@ -564,6 +706,122 @@ async def create_voice_session(
         "mode": "inline-authenticated",
         "expires_at": expires_at,
         "assistant": _inline_assistant(webhook_url, voice_context),
+    }
+
+
+
+
+@router.post("/hermes/command", status_code=201)
+async def create_browser_hermes_command(
+    body: HermesBrowserCommand,
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    """Create a governed Hermes task from an authenticated browser interaction."""
+    action = body.action.strip().lower()
+    if action not in _BROWSER_HERMES_ACTIONS:
+        raise HTTPException(status_code=400, detail="Unsupported Hermes browser action")
+
+    ui_session_id = None
+    if body.ui_session_id:
+        try:
+            ui_session_id = str(UUID(body.ui_session_id))
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid UI session id") from exc
+        if ui_session_id != body.ui_session_id:
+            raise HTTPException(status_code=400, detail="Invalid UI session id")
+
+    correlation_id = str(uuid4())
+    approval_required = action == "connect"
+    task_type = f"ui.graph.{action}" if action != "command" else "ui.hermes.command"
+    default_title = {
+        "run": f"Run graph node {body.node_id or 'current selection'}",
+        "monitor": f"Monitor graph node {body.node_id or 'current selection'}",
+        "connect": f"Connect graph node {body.node_id or 'current selection'} to {body.target_node_id or 'requested target'}",
+        "ask": f"Ask Hermes about {body.node_id or 'current selection'}",
+        "command": "Hermes browser instruction",
+    }[action]
+
+    if action == "connect" and not body.target_node_id:
+        raise HTTPException(status_code=422, detail="Connect requires target_node_id")
+
+    try:
+        from backend.hermes.task_engine import create_task
+
+        task = await create_task(
+            title=(body.title or default_title)[:240],
+            task_type=task_type,
+            description=body.prompt.strip()[:4000] if body.prompt and body.prompt.strip() else None,
+            input_data={
+                "authenticated_user_id": user_id,
+                "browser_session": "authenticated",
+                "surface": body.surface or "knowledge-graph",
+                "route": body.route or "/knowledge-graph",
+                "ui_session_id": ui_session_id,
+                "graph_action": action if action != "command" else None,
+                "node_id": body.node_id or "",
+                "target_node_id": body.target_node_id or "",
+            },
+            source="browser-ui",
+            correlation_id=correlation_id,
+            initial_status="PAUSED" if approval_required else "PENDING",
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Hermes browser command creation failed")
+        raise HTTPException(status_code=503, detail="Hermes could not queue the browser command") from exc
+
+    return {
+        "status": "approval_required" if approval_required else "queued",
+        "action": action,
+        "task_id": task.get("id"),
+        "correlation_id": correlation_id,
+        "node_id": body.node_id,
+        "target_node_id": body.target_node_id,
+        "governed_execution": True,
+    }
+
+
+@router.get("/executions/latest")
+async def latest_voice_execution(
+    ui_session_id: str = Query(..., min_length=36, max_length=36),
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    """Return the newest Hermes execution created by one authenticated browser voice session."""
+    try:
+        safe_ui_session_id = str(UUID(ui_session_id))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid voice UI session") from exc
+    if safe_ui_session_id != ui_session_id:
+        raise HTTPException(status_code=400, detail="Invalid voice UI session")
+
+    repository = get_dependencies().repository
+    if not repository.configured:
+        raise HTTPException(status_code=503, detail="Hermes task persistence is unavailable")
+
+    rows = await repository.list_rows(
+        "hermes_tasks",
+        {
+            "select": "id,correlation_id,created_at,input_data",
+            "input_data->>authenticated_user_id": f"eq.{user_id}",
+            "input_data->voice_context->>ui_session_id": f"eq.{safe_ui_session_id}",
+            "order": "created_at.desc",
+            "limit": "1",
+        },
+    )
+    if not rows:
+        return {"execution": None}
+
+    task = rows[0]
+    correlation_id = task.get("correlation_id")
+    if not isinstance(correlation_id, str) or not correlation_id:
+        return {"execution": None}
+    return {
+        "execution": {
+            "task_id": task.get("id"),
+            "correlation_id": correlation_id,
+            "created_at": task.get("created_at"),
+        }
     }
 
 

@@ -36,12 +36,12 @@ const SectionShell: React.FC<React.HTMLAttributes<HTMLElement>> = ({ className =
 );
 
 const trustMetrics = [
-  ['Railway API', 'Live', Gauge],
-  ['Vercel frontend', 'Live', Rocket],
-  ['Hermes orchestration', 'Online', Brain],
-  ['Supabase + Pinecone', 'RAG ready', Database],
-  ['CI checks', '41/41', CheckCircle2],
-  ['Test suite', '573 passing', Activity],
+  ['Runtime', 'Observable', Gauge],
+  ['Frontend', 'Deployed', Rocket],
+  ['Hermes', 'Governed', Brain],
+  ['Knowledge', 'RAG + Memory', Database],
+  ['CI/CD', 'Release-gated', CheckCircle2],
+  ['Audit trail', 'Traceable', Activity],
 ];
 
 const TrustLayer: React.FC = () => (
@@ -168,7 +168,7 @@ const ProductDemo: React.FC = () => (
         </div>
         <div className="mt-8 rounded-2xl border border-blue-200/12 bg-blue-950/30 p-4">
           <div className="grid grid-cols-3 gap-3">
-            {[['Agents', '24'], ['Tasks/min', '318'], ['Latency', '42ms']].map(([label, value]) => (
+            {[['Execution', 'Tracked'], ['Approvals', 'Governed'], ['Telemetry', 'Observed']].map(([label, value]) => (
               <div key={label} className="rounded-xl border border-blue-200/12 bg-blue-400/10 p-3 text-center">
                 <div className="text-xl font-black text-white">{value}</div>
                 <div className="mt-1 text-[10px] uppercase tracking-widest text-blue-100/55">{label}</div>
@@ -176,7 +176,7 @@ const ProductDemo: React.FC = () => (
             ))}
           </div>
           <div className="mt-4 space-y-3">
-            {[['Hermes', 'Planning', 92], ['Strategist', 'Market map', 74], ['Operator', 'CRM workflow', 61], ['Creator', 'Pitch assets', 48]].map(([agent, job, pct]) => (
+            {[['Hermes', 'Planning', 92], ['Agent mesh', 'Executing', 74], ['Tool boundary', 'Governed', 61], ['Human review', 'Approval', 48]].map(([agent, job, pct]) => (
               <div key={agent as string} className="rounded-xl border border-blue-200/12 bg-blue-950/25 p-3">
                 <div className="flex justify-between text-xs"><span className="font-semibold text-white">{agent}</span><span className="text-blue-100/58">{job}</span></div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-blue-950/70"><div className="h-full rounded-full bg-blue-300 shadow-[0_0_12px_rgba(147,197,253,0.85)]" style={{ width: `${pct}%` }} /></div>

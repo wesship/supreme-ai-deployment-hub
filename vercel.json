@@ -87,6 +87,10 @@
       "destination": "/pilot-checklist.md"
     },
     {
+      "source": "/api/runtime/identity",
+      "destination": "https://api.d3vonn.io/api/runtime/identity"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
@@ -167,7 +171,7 @@
       ]
     },
     {
-      "source": "/(app|admin|occ|dashboard|login|signin|signup|unauthorized|github-diagnostic|command-center|agents|workflows|deployment|api|flow|status|manifest|chat|voice-studio|research-os|dkos-ingestion|knowledge-ingestion|jetson|jetson-control|backtesting)(.*)",
+      "source": "/(app|admin|occ|dashboard|login|signin|signup|unauthorized|github-diagnostic|command-center|agents|workflows|deployment|api|flow|status|manifest|chat|voice-studio|research-os|dkos-ingestion|knowledge-ingestion|knowledge-graph|jetson|jetson-control|backtesting)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",

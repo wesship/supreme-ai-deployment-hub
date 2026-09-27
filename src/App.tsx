@@ -90,6 +90,7 @@ const EnterpriseReadiness = lazy(() => import("./pages/EnterpriseReadiness"));
 const MileHighGoldenElevation = lazy(() => import("./pages/MileHighGoldenElevation"));
 const AquaGov = lazy(() => import("./pages/AquaGov"));
 const KnowledgeGraphOS = lazy(() => import("./pages/KnowledgeGraphOS"));
+const ApprovalCenter = lazy(() => import("./pages/ApprovalCenter"));
 
 
 const PageLoader = () => (
@@ -164,18 +165,18 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
  */
 function ShellChrome() {
   const { pathname } = useLocation();
-  if (pathname === '/') return null;
+  if (pathname === '/' || pathname === '/knowledge-graph') return null;
   return <Suspense fallback={null}><Navbar /></Suspense>;
 }
 
 function MainRegion({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const isHome = pathname === '/';
+  const ownsFullScreenChrome = pathname === '/' || pathname === '/knowledge-graph';
   return (
     <main
       id="main-content"
       tabIndex={-1}
-      className={`min-h-screen focus:outline-none${isHome ? '' : ' pt-16'}`}
+      className={`min-h-screen focus:outline-none${ownsFullScreenChrome ? '' : ' pt-16'}`}
     >
       {children}
     </main>
@@ -263,6 +264,7 @@ function App() {
                 <Route path="/jetson" element={<JetsonControl />} />
                 <Route path="/jetson-control" element={<JetsonControl />} />
                 <Route path="/app" element={<AuthenticatedRoute><LaunchApp /></AuthenticatedRoute>} />
+                <Route path="/approvals" element={<AdminRoute><ApprovalCenter /></AdminRoute>} />
                 <Route path="/ai-agents" element={<AIAgents />} />
                 <Route path="/business-automation" element={<BusinessAutomation />} />
                 <Route path="/solutions" element={<Solutions />} />

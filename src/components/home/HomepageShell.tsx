@@ -1,5 +1,5 @@
 import React from 'react';
-import ReaddyMarketingShell from '@/components/marketing/ReaddyMarketingShell';
+import D3VONNMarketingShell from '@/components/marketing/D3VONNMarketingShell';
 import InstitutePreviewSection from '@/components/home/InstitutePreviewSection';
 
 interface HomepageShellProps {
@@ -11,17 +11,17 @@ interface HomepageShellProps {
  * Canonical public shell for the D3VONN.IO homepage.
  *
  * The homepage keeps its existing section-level cinematic backgrounds while
- * sharing the same Readdy marketing boundary, footer, keyboard behavior, and
- * application shell as the other certified public marketing routes.
+ * sharing the repository-native D3VONN marketing boundary, footer, keyboard behavior,
+ * and application shell as the other certified public marketing routes.
  */
 const HomepageShell = ({ children, className }: HomepageShellProps) => (
-  <ReaddyMarketingShell
+  <D3VONNMarketingShell
     atmosphere={false}
     className={`d3-homepage-world ${className ?? ''}`.trim()}
   >
     {children}
     <InstitutePreviewSection />
-  </ReaddyMarketingShell>
+  </D3VONNMarketingShell>
 );
 
 export default HomepageShell;

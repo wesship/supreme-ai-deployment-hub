@@ -4,19 +4,27 @@ import Vapi from '@vapi-ai/web';
 import { toast } from 'sonner';
 import { getVapiAssistantId, getVapiPublicKey } from '@/config/voice';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  normalizeGraphActionRequest,
+  type D3GraphActionRequest,
+} from '@/features/knowledge-graph/lib/graphActions';
 
 export interface VoiceUiContext {
-  surface: string;
-  route: string;
+  surface?: string;
+  route?: string;
   node_id?: string;
   node_label?: string;
   node_kind?: string;
   canonical_route?: string;
+  ui_session_id?: string;
+  view_mode?: 'graph' | 'map' | 'list';
 }
 
 interface ConversationalVoiceControlsProps {
   disabled?: boolean;
   context?: VoiceUiContext;
+  onExecutionStarted?: (correlationId: string) => void;
+  onGraphAction?: (action: D3GraphActionRequest) => void;
 }
 
 type InlineVapiAssistant = Record<string, unknown>;
@@ -25,6 +33,14 @@ type VoiceSessionResponse = {
   mode: 'inline-authenticated';
   expires_at: number;
   assistant: InlineVapiAssistant;
+};
+
+type LatestVoiceExecutionResponse = {
+  execution?: {
+    task_id?: string | null;
+    correlation_id?: string | null;
+    created_at?: string | null;
+  } | null;
 };
 
 const PRODUCTION_API_URL = 'https://api.d3vonn.io';
@@ -79,6 +95,8 @@ const getInlineVoiceSession = async (context?: VoiceUiContext): Promise<VoiceSes
 export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsProps> = ({
   disabled = false,
   context,
+  onExecutionStarted,
+  onGraphAction,
 }) => {
   const vapiPublicKey = getVapiPublicKey();
   const vapiAssistantId = getVapiAssistantId();
@@ -86,16 +104,106 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
   const [connected, setConnected] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const vapiRef = useRef<Vapi | null>(null);
+  const executionPollRef = useRef<number | null>(null);
+  const seenExecutionRef = useRef<string | null>(null);
+  const onGraphActionRef = useRef(onGraphAction);
+
+  useEffect(() => {
+    onGraphActionRef.current = onGraphAction;
+  }, [onGraphAction]);
+
+  const stopExecutionPolling = useCallback(() => {
+    if (executionPollRef.current !== null) {
+      window.clearInterval(executionPollRef.current);
+      executionPollRef.current = null;
+    }
+  }, []);
+
+  const startExecutionPolling = useCallback((uiSessionId: string) => {
+    stopExecutionPolling();
+    seenExecutionRef.current = null;
+
+    const poll = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const response = await fetch(
+          `${getApiBaseUrl()}/api/voice/executions/latest?ui_session_id=${encodeURIComponent(uiSessionId)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              Accept: 'application/json',
+            },
+            cache: 'no-store',
+          },
+        );
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as LatestVoiceExecutionResponse;
+        const correlationId = payload.execution?.correlation_id?.trim();
+        if (!correlationId || correlationId === seenExecutionRef.current) return;
+
+        seenExecutionRef.current = correlationId;
+        onExecutionStarted?.(correlationId);
+        toast.success('Hermes execution attached to live graph');
+      } catch {
+        // Keep the voice call active even if the optional graph handoff poll fails.
+      }
+    };
+
+    void poll();
+    executionPollRef.current = window.setInterval(() => void poll(), 1000);
+  }, [onExecutionStarted, stopExecutionPolling]);
 
   useEffect(
     () => () => {
       const vapi = vapiRef.current;
       vapiRef.current = null;
+      stopExecutionPolling();
       vapi?.removeAllListeners();
       void vapi?.stop();
     },
-    [],
+    [stopExecutionPolling],
   );
+
+
+  const handleVapiMessage = useCallback((message: unknown) => {
+    if (!message || typeof message !== 'object') return;
+    const root = message as Record<string, unknown>;
+    const nested =
+      root.message && typeof root.message === 'object'
+        ? (root.message as Record<string, unknown>)
+        : root;
+
+    const rawCalls = Array.isArray(nested.toolCallList)
+      ? nested.toolCallList
+      : Array.isArray(nested.toolWithToolCallList)
+        ? nested.toolWithToolCallList
+        : [];
+
+    for (const rawCall of rawCalls) {
+      if (!rawCall || typeof rawCall !== 'object') continue;
+      const call = rawCall as Record<string, unknown>;
+      const wrapped =
+        call.toolCall && typeof call.toolCall === 'object'
+          ? (call.toolCall as Record<string, unknown>)
+          : call;
+      const name = String(call.name ?? wrapped.name ?? '');
+      if (name !== 'graph_action') continue;
+
+      const parameters =
+        wrapped.parameters && typeof wrapped.parameters === 'object'
+          ? wrapped.parameters
+          : call.parameters && typeof call.parameters === 'object'
+            ? call.parameters
+            : null;
+      const action = normalizeGraphActionRequest(parameters, 'voice');
+      if (action) onGraphActionRef.current?.(action);
+    }
+  }, []);
 
   const ensureVapi = useCallback((): Vapi => {
     if (!vapiPublicKey) {
@@ -111,6 +219,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       toast.success('D3VONN voice assistant connected');
     });
     instance.on('call-end', () => {
+      stopExecutionPolling();
       setConnected(false);
       setConnecting(false);
       setSpeaking(false);
@@ -118,13 +227,16 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
     });
     instance.on('speech-start', () => setSpeaking(true));
     instance.on('speech-end', () => setSpeaking(false));
+    instance.on('message', handleVapiMessage);
     instance.on('call-start-failed', (event) => {
+      stopExecutionPolling();
       setConnected(false);
       setConnecting(false);
       setSpeaking(false);
       toast.error('Unable to connect D3VONN voice', { description: event.error });
     });
     instance.on('error', (error) => {
+      stopExecutionPolling();
       setConnected(false);
       setConnecting(false);
       setSpeaking(false);
@@ -133,7 +245,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
 
     vapiRef.current = instance;
     return instance;
-  }, [vapiPublicKey]);
+  }, [handleVapiMessage, stopExecutionPolling, vapiPublicKey]);
 
   const start = useCallback(async () => {
     setConnecting(true);
@@ -143,12 +255,18 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       }
 
       const vapi = ensureVapi();
-      const inlineSession = await getInlineVoiceSession(context);
+      const uiSessionId = crypto.randomUUID();
+      const sessionContext: VoiceUiContext = {
+        ...(context ?? {}),
+        ui_session_id: uiSessionId,
+      };
+      const inlineSession = await getInlineVoiceSession(sessionContext);
       const target = inlineSession?.assistant ?? vapiAssistantId;
 
       await vapi.start(target as Parameters<Vapi['start']>[0]);
       setConnected(true);
       setConnecting(false);
+      if (inlineSession) startExecutionPolling(uiSessionId);
       toast.success(
         inlineSession
           ? 'Authenticated Hermes voice session started'
@@ -164,10 +282,11 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       setConnecting(false);
       setSpeaking(false);
     }
-  }, [context, ensureVapi, vapiAssistantId]);
+  }, [context, ensureVapi, startExecutionPolling, vapiAssistantId]);
 
   const stop = useCallback(async () => {
     try {
+      stopExecutionPolling();
       await vapiRef.current?.stop();
       setConnected(false);
       setConnecting(false);
@@ -175,7 +294,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
     } catch (error) {
       toast.error('Unable to end D3VONN voice', { description: readableError(error) });
     }
-  }, []);
+  }, [stopExecutionPolling]);
 
   const unavailable = disabled || connecting || !vapiPublicKey;
   const actionLabel = connected ? 'End D3VONN voice conversation' : 'Start D3VONN voice conversation';
