@@ -53,6 +53,30 @@ class SceneProductionRequest(SceneBlueprintRequest):
     aspect_ratio: Literal["16:9", "9:16", "4:5"] = "16:9"
 
 
+class SceneFusionReference(BaseModel):
+    asset_id: str = Field(..., min_length=1, max_length=200)
+    role: Literal["camera", "lighting", "pacing", "sound", "production_design"]
+    start_time: float | None = Field(default=None, ge=0.0)
+    end_time: float | None = Field(default=None, gt=0.0)
+
+    @model_validator(mode="after")
+    def validate_window(self):
+        if self.start_time is not None and self.end_time is not None:
+            if self.end_time <= self.start_time:
+                raise ValueError("end_time must be greater than start_time")
+            if self.end_time - self.start_time < 4:
+                raise ValueError("Fusion reference windows must be at least 4 seconds")
+        return self
+
+
+class SceneFusionRequest(BaseModel):
+    objective: str = Field(..., min_length=2, max_length=1500)
+    references: list[SceneFusionReference] = Field(..., min_length=2, max_length=5)
+    duration_seconds: int = Field(default=8, ge=4, le=20)
+    aspect_ratio: Literal["16:9", "9:16", "4:5"] = "16:9"
+    model_name: Literal["pegasus1.5"] = "pegasus1.5"
+
+
 def _scene_hits(result: dict[str, Any]) -> list[dict[str, Any]]:
     data = result.get("data")
     if isinstance(data, list):
@@ -112,6 +136,29 @@ def _production_prompt(objective: str, blueprint: Any) -> str:
         "Do not reproduce copyrighted dialogue, distinctive characters, names, logos, costumes, proprietary set design, "
         "music, or the exact shot sequence from the source. Change the environment, blocking, visual details, and narrative expression. "
         "Preserve only general craft attributes such as camera movement, lens behavior, lighting strategy, pacing, composition, and sound-design principles."
+    )[:12000]
+
+
+def _fusion_role_prompt(role: str, objective: str) -> str:
+    return (
+        f"Analyze only the general {role.replace('_', ' ')} technique in this reference clip for a new original production. "
+        f"Production objective: {objective}. "
+        "Describe reusable craft principles only. Do not reproduce dialogue, exact shot order, distinctive characters, costumes, logos, sets, or music."
+    )
+
+
+def _fusion_prompt(objective: str, analyses: list[dict[str, Any]]) -> str:
+    parts = []
+    for item in analyses:
+        parts.append(f"{item['role'].upper()} DNA:\n{_result_text(item['analysis'])[:2400]}")
+    fusion = "\n\n".join(parts)
+    return (
+        "Create a materially original cinematic scene by fusing only the generalized filmmaking craft below. "
+        f"Original production objective: {objective.strip()}\n\n{fusion}\n\n"
+        "Resolve conflicts between references in favor of the production objective and coherent continuity. "
+        "Do not reproduce copyrighted dialogue, exact shot sequences, distinctive characters, names, logos, costumes, proprietary sets, or music. "
+        "Change story expression, environment, blocking, visual details, and sound content. "
+        "The output must be a new scene, not a composite copy of the references."
     )[:12000]
 
 
@@ -223,5 +270,58 @@ async def production_handoff(
             "end_time": request.end_time,
         },
         "originality_policy": "general-technique-only",
+        "production": dispatch,
+    }
+
+
+@router.post("/fusion-handoff", status_code=202)
+async def fusion_handoff(
+    request: SceneFusionRequest,
+    authorization: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Fuse generalized craft from 2-5 references and queue one original governed production."""
+    await _require_authenticated_user(authorization)
+    client = TwelveLabsAnalyzeClient()
+    analyses: list[dict[str, Any]] = []
+    try:
+        for reference in request.references:
+            analysis = await client.analyze_asset(
+                reference.asset_id,
+                _fusion_role_prompt(reference.role, request.objective),
+                model_name=request.model_name,
+                temperature=0.1,
+                max_tokens=1800,
+                start_time=reference.start_time,
+                end_time=reference.end_time,
+            )
+            analyses.append({
+                "asset_id": reference.asset_id,
+                "role": reference.role,
+                "window": {"start_time": reference.start_time, "end_time": reference.end_time},
+                "analysis": analysis,
+            })
+    except TwelveLabsError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    dispatch = await dispatch_openmontage(
+        OpenMontageDispatchRequest(
+            job_id=f"scene-fusion-{uuid.uuid4().hex[:16]}",
+            idea=request.objective.strip(),
+            screenplay=(
+                "Original Scene Fusion treatment created from generalized cinematography DNA. "
+                + request.objective.strip()
+            )[:30000],
+            video_prompt=_fusion_prompt(request.objective, analyses),
+            duration_seconds=request.duration_seconds,
+            aspect_ratio=request.aspect_ratio,
+        ),
+        authorization=authorization,
+    )
+    return {
+        "status": "queued",
+        "surface": "scene-fusion-production",
+        "reference_count": len(analyses),
+        "reference_roles": [item["role"] for item in analyses],
+        "originality_policy": "general-technique-fusion-only",
         "production": dispatch,
     }
