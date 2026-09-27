@@ -20,8 +20,12 @@ from typing import Any, Literal
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, HttpUrl, field_validator
+
+from backend.app.middleware.auth import get_current_user_id
+from backend.app.routers.primetime_release1 import _membership_required
+from backend.event_os.fulfillment_worker import qr_token_hash, verify_qr_token
 
 router = APIRouter(prefix="/event-os", tags=["event-os"])
 
@@ -39,6 +43,10 @@ _ALLOWED_TABLES = frozenset(
         "orders",
         "order_items",
         "payment_events",
+        "tickets",
+        "ticket_checkins",
+        "entitlements",
+        "event_streams",
     }
 )
 _ALLOWED_RPCS = frozenset(
@@ -46,6 +54,7 @@ _ALLOWED_RPCS = frozenset(
         "event_os_reserve_order_inventory",
         "event_os_finalize_order_payment",
         "event_os_release_order_inventory",
+        "event_os_commit_checkin",
     }
 )
 _checkout_windows: dict[str, deque[float]] = defaultdict(deque)
@@ -80,6 +89,30 @@ class CheckoutResponse(BaseModel):
     checkout_session_id: str
     checkout_url: str
     reservation_expires_at: str | None = None
+
+
+class CheckinRequest(BaseModel):
+    workspace_id: str = Field(pattern=_UUID_RE.pattern)
+    qr_token: str = Field(min_length=32, max_length=512)
+    device_id: str | None = Field(default=None, max_length=160)
+
+
+class StreamTokenRequest(BaseModel):
+    event_id: str = Field(pattern=_UUID_RE.pattern)
+    entitlement_key: str = Field(min_length=1, max_length=240)
+
+
+def _stream_signing_secret() -> bytes:
+    secret = os.getenv("EVENT_OS_STREAM_SIGNING_SECRET", "").strip()
+    if len(secret) < 32:
+        raise HTTPException(status_code=503, detail="Event stream signing is not configured")
+    return secret.encode()
+
+
+def _build_stream_token(user_id: str, event_id: str, entitlement_key: str, expires_at: int) -> str:
+    message = f"{user_id}|{event_id}|{entitlement_key}|{expires_at}"
+    signature = hmac.new(_stream_signing_secret(), message.encode(), hashlib.sha256).hexdigest()
+    return f"{expires_at}.{signature}"
 
 
 def _supabase_config() -> tuple[str, str]:
@@ -565,3 +598,118 @@ async def stripe_webhook(request: Request) -> dict[str, Any]:
             prefer="return=minimal",
         )
         raise
+
+
+async def _validated_ticket_from_qr(body: CheckinRequest, user_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    await _membership_required(body.workspace_id, user_id)
+    ticket_id = verify_qr_token(body.qr_token)
+    if not ticket_id:
+        raise HTTPException(status_code=400, detail="Invalid QR ticket")
+    rows = await _service_request(
+        "GET",
+        "tickets",
+        params={
+            "id": f"eq.{ticket_id}",
+            "workspace_id": f"eq.{body.workspace_id}",
+            "select": "*",
+            "limit": "1",
+        },
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    ticket = rows[0]
+    if not hmac.compare_digest(str(ticket.get("qr_token_hash") or ""), qr_token_hash(body.qr_token)):
+        raise HTTPException(status_code=400, detail="Invalid QR ticket")
+    return ticket, {"workspace_id": body.workspace_id, "user_id": user_id}
+
+
+@router.post("/checkin/validate")
+async def validate_checkin(
+    body: CheckinRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    ticket, _ = await _validated_ticket_from_qr(body, user_id)
+    return {
+        "valid": ticket.get("status") == "issued",
+        "ticket_id": ticket["id"],
+        "event_id": ticket["event_id"],
+        "ticket_type_id": ticket["ticket_type_id"],
+        "holder_name": ticket.get("holder_name"),
+        "holder_email": ticket.get("holder_email"),
+        "status": ticket.get("status"),
+        "checked_in_at": ticket.get("checked_in_at"),
+    }
+
+
+@router.post("/checkin/commit")
+async def commit_checkin(
+    body: CheckinRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    ticket, _ = await _validated_ticket_from_qr(body, user_id)
+    if ticket.get("status") == "checked_in":
+        return {
+            "accepted": False,
+            "duplicate": True,
+            "ticket_id": ticket["id"],
+            "checked_in_at": ticket.get("checked_in_at"),
+        }
+    result = await _rpc(
+        "event_os_commit_checkin",
+        {
+            "p_ticket_id": ticket["id"],
+            "p_scanned_by": user_id,
+            "p_device_id": body.device_id,
+        },
+    )
+    return {"accepted": True, "duplicate": False, "result": result}
+
+
+@router.post("/streams/token")
+async def create_stream_token(
+    body: StreamTokenRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    rows = await _service_request(
+        "GET",
+        "entitlements",
+        params={
+            "user_id": f"eq.{user_id}",
+            "event_id": f"eq.{body.event_id}",
+            "entitlement_key": f"eq.{body.entitlement_key}",
+            "status": "eq.active",
+            "select": "id,event_id,entitlement_key,expires_at",
+            "limit": "1",
+        },
+    )
+    if not rows:
+        raise HTTPException(status_code=403, detail="Active stream entitlement required")
+    entitlement = rows[0]
+    if entitlement.get("expires_at"):
+        try:
+            expiry = int(datetime.fromisoformat(str(entitlement["expires_at"]).replace("Z", "+00:00")).timestamp())
+        except ValueError as exc:
+            raise HTTPException(status_code=500, detail="Invalid entitlement expiry") from exc
+    else:
+        expiry = int(time.time()) + 900
+    expiry = min(expiry, int(time.time()) + 900)
+    streams = await _service_request(
+        "GET",
+        "event_streams",
+        params={
+            "event_id": f"eq.{body.event_id}",
+            "required_entitlement_key": f"eq.{body.entitlement_key}",
+            "status": "in.(scheduled,live)",
+            "select": "id,provider,playback_path,status",
+            "limit": "1",
+        },
+    )
+    if not streams:
+        raise HTTPException(status_code=404, detail="Event stream is not available")
+    token = _build_stream_token(user_id, body.event_id, body.entitlement_key, expiry)
+    return {
+        "event_id": body.event_id,
+        "stream": streams[0],
+        "token": token,
+        "expires_at": expiry,
+    }
