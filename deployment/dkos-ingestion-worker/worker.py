@@ -500,6 +500,38 @@ def create_hermes_memory_manifest(
     output_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return output_path
 
+def commit_manifest_to_hermes(job: IngestionJob, manifest_path: Path) -> dict[str, Any]:
+    if not job.profile_id or not job.source_id:
+        raise RuntimeError("Client AI profile_id and source_id are required for Hermes memory commit")
+
+    url = os.getenv("CLIENT_AI_MEMORY_COMMIT_URL", "").strip()
+    secret = os.getenv("CLIENT_AI_MEMORY_COMMIT_SECRET", "").strip()
+    if not url or not secret:
+        raise RuntimeError("CLIENT_AI_MEMORY_COMMIT_URL and CLIENT_AI_MEMORY_COMMIT_SECRET are required")
+
+    request = urllib.request.Request(
+        url,
+        data=manifest_path.read_bytes(),
+        headers={
+            "Content-Type": "application/json",
+            "X-Client-AI-Memory-Secret": secret,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise RuntimeError(f"Hermes memory commit failed ({exc.code}): {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Hermes memory commit failed: {exc}") from exc
+
+    if not isinstance(payload, dict) or payload.get("committed") is not True:
+        raise RuntimeError("Hermes memory consumer did not confirm commit")
+    return payload
+
+
 def _new_stages() -> dict[str, StageState]:
     return {stage: StageState(stage=stage) for stage in PIPELINE}
 
@@ -645,9 +677,27 @@ def run_ingestion(
             output_dir=output_dir,
         )
         artifacts.append(artifact("hermes_memory_manifest", memory_manifest, "application/json"))
+
+        try:
+            commit_result = commit_manifest_to_hermes(job, memory_manifest)
+        except RuntimeError as exc:
+            stages[current_stage].status = "blocked"
+            stages[current_stage].completed_at = now_iso()
+            stages[current_stage].detail = str(exc)
+            return IngestionResult(
+                run_id=job.run_id,
+                document_id=job.document_id,
+                status="manual_review",
+                current_stage="hermes_memory",
+                artifacts=artifacts,
+                stages=list(stages.values()),
+                completed_at=now_iso(),
+                source_sha256=source_sha256,
+            )
+
         _complete(
             stages[current_stage],
-            "Durable idempotent memory manifest created for Hermes consumption",
+            f"Hermes memory commit confirmed (created={commit_result.get('created')})",
         )
 
         return IngestionResult(
