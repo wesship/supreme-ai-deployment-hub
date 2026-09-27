@@ -416,6 +416,10 @@ describe('Gate 30 production preflight certification and one-time token', () => 
     expect(preflightMigration).toContain('p_ttl_seconds < 60 or p_ttl_seconds > 600');
     expect(preflightMigration).toContain('LIVE_EXECUTION_TOKEN_ALREADY_EXISTS');
     expect(preflightMigration).toContain('BLOCKED_HASH_MISMATCH');
+    expect(preflightMigration).toContain('consume_production_execution_token');
+    expect(preflightMigration).toContain('EXECUTION_TOKEN_REQUEST_HASH_MISMATCH');
+    expect(preflightMigration).toContain('EXECUTION_TOKEN_INVALID');
+    expect(preflightMigration).toContain("status = 'CONSUMED'");
   });
 
   it('never exposes plaintext token or enables production send', () => {
