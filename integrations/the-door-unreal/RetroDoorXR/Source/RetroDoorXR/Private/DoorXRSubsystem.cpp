@@ -43,8 +43,19 @@ FString UDoorXRSubsystem::InputKindToString(EDoorXRInputKind Kind) const
     }
 }
 
+void UDoorXRSubsystem::SetMetaRuntimeReady(bool bReady)
+{
+    bMetaRuntimeReady = bReady;
+}
+
 void UDoorXRSubsystem::SubmitInteraction(const FDoorXRInteraction& Interaction)
 {
+    if (Interaction.Provider == EDoorXRProvider::Meta && !bMetaRuntimeReady)
+    {
+        OnRequestFailed.Broadcast(TEXT("Meta XR runtime is not ready."));
+        return;
+    }
+
     if (Interaction.ProjectId.IsEmpty() || Interaction.Action.IsEmpty())
     {
         OnRequestFailed.Broadcast(TEXT("ProjectId and Action are required."));
@@ -98,7 +109,10 @@ void UDoorXRSubsystem::SubmitInteraction(const FDoorXRInteraction& Interaction)
         &UDoorXRSubsystem::HandleResponse,
         Interaction
     );
-    Request->ProcessRequest();
+    if (!Request->ProcessRequest())
+    {
+        OnRequestFailed.Broadcast(TEXT("THE DOOR XR request could not be started."));
+    }
 }
 
 void UDoorXRSubsystem::HandleResponse(
