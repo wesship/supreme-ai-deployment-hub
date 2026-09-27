@@ -1316,10 +1316,14 @@ const KnowledgeGraphOS: React.FC = () => {
               />
               <button
                 type="button"
-                disabled={hermesSubmitting || !hermesInstruction.trim()}
+                disabled={hermesSubmitting}
                 onClick={async () => {
                   const prompt = hermesInstruction.trim();
-                  if (!prompt || hermesSubmitting) return;
+                  if (hermesSubmitting) return;
+                  if (!prompt) {
+                    setActivity((items) => ['TEXT · Enter an instruction before sending to Hermes.', ...items].slice(0, 5));
+                    return;
+                  }
                   setHermesSubmitting(true);
                   try {
                     const result = await sendHermesBrowserCommand({
