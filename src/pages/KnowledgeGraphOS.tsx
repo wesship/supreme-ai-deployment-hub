@@ -798,6 +798,7 @@ const KnowledgeGraphOS: React.FC = () => {
 
   const startExecutionPreview = (nodeId = selected.id) => {
     const targetPath = pathForNode(nodeId);
+    setExecutionStep(0);
     setExecutionPath(targetPath);
     setActivity((items) => [`Execution trace started: ${targetPath.join(' → ')}`, ...items].slice(0, 5));
   };
