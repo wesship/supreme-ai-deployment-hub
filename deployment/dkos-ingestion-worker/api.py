@@ -91,6 +91,8 @@ async def start_ingestion(
     tenant_id: str = Form(...),
     uploaded_by: str = Form(...),
     classification: str = Form("internal"),
+    profile_id: str | None = Form(None),
+    source_id: str | None = Form(None),
     agent_access: str | None = Form(None),
 ) -> StartIngestionResponse:
     if not file.filename:
@@ -118,6 +120,8 @@ async def start_ingestion(
             "tenantId": tenant_id,
             "uploadedBy": uploaded_by,
             "classification": classification,
+            "profileId": profile_id,
+            "sourceId": source_id,
             "agentAccess": agent_access.split(",") if agent_access else [],
         },
         "status": "running",
@@ -138,6 +142,8 @@ async def start_ingestion(
                 tenant_id=tenant_id,
                 uploaded_by=uploaded_by,
                 classification=classification,
+                profile_id=profile_id,
+                source_id=source_id,
                 run_id=run_id,
                 document_id=document_id,
             )
