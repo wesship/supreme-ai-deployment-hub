@@ -178,3 +178,41 @@ export async function dispatchSceneFusion(input: {
     aspect_ratio: input.aspectRatio ?? '16:9',
   });
 }
+
+
+export type TimelineClipInput = {
+  assetId: string;
+  label: string;
+  durationSeconds: number;
+};
+
+export async function sendScenesToTimeline(input: {
+  projectId: string;
+  title: string;
+  clips: TimelineClipInput[];
+}): Promise<{ status: string; render_job: { id: string }; planned_runtime_seconds: number; timeline: unknown[] }> {
+  const total = input.clips.reduce((sum, clip) => sum + clip.durationSeconds, 0);
+  return authenticatedApiPost('/api/ai-films/director/assemble', {
+    project_id: input.projectId,
+    title: input.title,
+    clips: input.clips.map((clip) => ({
+      asset_id: clip.assetId,
+      label: clip.label,
+      duration_seconds: clip.durationSeconds,
+      source_in: 0,
+      source_out: clip.durationSeconds,
+      tags: ['scene-finder', 'qa-approved', 'sequence'],
+    })),
+    structure: 'narrative',
+    target_runtime_seconds: total,
+    fps: 24,
+    resolution: '1920x1080',
+    aspect_ratio: '16:9',
+    include_dialogue: true,
+    include_music: true,
+    include_sfx: true,
+    include_subtitles: true,
+    run_continuity_qa: true,
+    run_final_analyze_qa: true,
+  });
+}
