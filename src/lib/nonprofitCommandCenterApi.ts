@@ -340,6 +340,38 @@ export type NonprofitProductionShadowRunRow = {
   shadow_certified: boolean;
 };
 
+export type NonprofitProductionExecutionTokenRow = {
+  execution_token_id: string;
+  organization_id: string;
+  promotion_id: string;
+  shadow_run_id: string;
+  request_body_hash: string;
+  issued_by: string;
+  issued_at: string;
+  expires_at: string;
+  consumed_at: string | null;
+  consumed_by: string | null;
+  token_status: 'ISSUED' | 'CONSUMED' | 'EXPIRED' | 'REVOKED';
+  token_live: boolean;
+  plaintext_token_exposed: false;
+  production_execution_enabled: false;
+};
+
+export type NonprofitProductionPreflightRow = {
+  shadow_run_id: string;
+  organization_id: string;
+  promotion_id: string;
+  request_body_hash: string;
+  shadow_certified: boolean;
+  execution_token_id: string | null;
+  token_status: string | null;
+  token_live: boolean | null;
+  execution_token_expires_at: string | null;
+  preflight_certified: boolean;
+  preflight_status: string;
+  production_send_available: false;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -357,7 +389,7 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, productionShadowRuns, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, productionShadowRuns, productionExecutionTokens, productionPreflights, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
@@ -374,9 +406,19 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitSandboxReceiptCertificationRow>('nonprofit_sandbox_receipt_certifications_v1'),
       listView<NonprofitProductionConnectorPromotionRow>('nonprofit_production_connector_promotions_v1'),
       listView<NonprofitProductionShadowRunRow>('nonprofit_production_connector_shadow_runs_v1'),
+      listView<NonprofitProductionExecutionTokenRow>('nonprofit_production_execution_tokens_v1'),
+      listView<NonprofitProductionPreflightRow>('nonprofit_production_preflight_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, productionShadowRuns, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, productionShadowRuns, productionExecutionTokens, productionPreflights, audit };
+  },
+
+  async validateProductionPreflight(shadowRunId: string) {
+    const { data, error } = await supabase.functions.invoke('nonprofit-production-preflight', {
+      body: { shadow_run_id: shadowRunId },
+    });
+    if (error) throw error;
+    return data;
   },
 
   async runProductionShadow(promotionId: string) {
