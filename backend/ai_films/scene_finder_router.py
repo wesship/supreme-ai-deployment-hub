@@ -1,11 +1,14 @@
 """Authenticated scene-finder and production-blueprint surface for D3VONN.IO AI Films."""
 from __future__ import annotations
 
+import json
+import uuid
 from typing import Any, Literal
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
+from backend.ai_films.openmontage_router import OpenMontageDispatchRequest, dispatch_openmontage
 from backend.ai_films.router import _require_authenticated_user
 from backend.ai_films.twelvelabs import TwelveLabsError
 from backend.ai_films.twelvelabs_analyze import TwelveLabsAnalyzeClient
@@ -45,6 +48,11 @@ class SceneBlueprintRequest(BaseModel):
         return self
 
 
+class SceneProductionRequest(SceneBlueprintRequest):
+    duration_seconds: int = Field(default=8, ge=4, le=20)
+    aspect_ratio: Literal["16:9", "9:16", "4:5"] = "16:9"
+
+
 def _scene_hits(result: dict[str, Any]) -> list[dict[str, Any]]:
     data = result.get("data")
     if isinstance(data, list):
@@ -82,6 +90,29 @@ Important:
 - Do not recommend copying a unique character identity, logo, costume, set, or exact shot sequence.
 - The adaptation plan must be materially original while preserving only general cinematic techniques.
 """.strip()
+
+
+def _result_text(result: Any) -> str:
+    if isinstance(result, str):
+        return result
+    if isinstance(result, dict):
+        for key in ("text", "output", "result", "content"):
+            value = result.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+
+
+def _production_prompt(objective: str, blueprint: Any) -> str:
+    technique = _result_text(blueprint)[:8000]
+    return (
+        "Create a materially original cinematic scene using only general filmmaking techniques from the reference analysis. "
+        f"Original production objective: {objective.strip()}\n\n"
+        f"General Scene DNA reference:\n{technique}\n\n"
+        "Do not reproduce copyrighted dialogue, distinctive characters, names, logos, costumes, proprietary set design, "
+        "music, or the exact shot sequence from the source. Change the environment, blocking, visual details, and narrative expression. "
+        "Preserve only general craft attributes such as camera movement, lens behavior, lighting strategy, pacing, composition, and sound-design principles."
+    )[:12000]
 
 
 @router.post("/search")
@@ -145,4 +176,52 @@ async def create_scene_blueprint(
             "end_time": request.end_time,
         },
         "result": result,
+    }
+
+
+@router.post("/production-handoff", status_code=202)
+async def production_handoff(
+    request: SceneProductionRequest,
+    authorization: str | None = Header(default=None),
+) -> dict[str, object]:
+    """Analyze a reference and queue an original governed OpenMontage production."""
+    await _require_authenticated_user(authorization)
+    client = TwelveLabsAnalyzeClient()
+    try:
+        blueprint = await client.analyze_asset(
+            request.asset_id,
+            _blueprint_prompt(request.objective),
+            model_name=request.model_name,
+            temperature=0.2,
+            max_tokens=4096,
+            start_time=request.start_time,
+            end_time=request.end_time,
+        )
+    except TwelveLabsError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    dispatch = await dispatch_openmontage(
+        OpenMontageDispatchRequest(
+            job_id=f"scene-finder-{uuid.uuid4().hex[:16]}",
+            idea=request.objective.strip(),
+            screenplay=(
+                "Original scene treatment generated from generalized Scene DNA. "
+                + request.objective.strip()
+            )[:30000],
+            video_prompt=_production_prompt(request.objective, blueprint),
+            duration_seconds=request.duration_seconds,
+            aspect_ratio=request.aspect_ratio,
+        ),
+        authorization=authorization,
+    )
+    return {
+        "status": "queued",
+        "surface": "scene-finder-production",
+        "reference_asset_id": request.asset_id,
+        "reference_window": {
+            "start_time": request.start_time,
+            "end_time": request.end_time,
+        },
+        "originality_policy": "general-technique-only",
+        "production": dispatch,
     }
