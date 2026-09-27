@@ -308,6 +308,14 @@ except ImportError as exc:
     logger.warning("D3VONN event read router not registered: %s", exc)
 
 try:
+    from backend.app.routers.event_os import router as event_os_router
+
+    proxy_router.include_router(event_os_router)
+    logger.info("D3VONN Event OS checkout registered at /api/event-os/*.")
+except ImportError as exc:
+    logger.warning("D3VONN Event OS checkout router not registered: %s", exc)
+
+try:
     from backend.game_dev.godmod3_location_router import router as godmod3_location_router
 
     proxy_router.include_router(godmod3_location_router, tags=["game-dev", "godmod3"])
