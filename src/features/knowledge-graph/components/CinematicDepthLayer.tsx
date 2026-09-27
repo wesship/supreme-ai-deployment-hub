@@ -1,4 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  deriveNexusVisualCapability,
+  type NexusVisualMode,
+} from '@/features/knowledge-graph/lib/visualCapability';
 
 type DepthState = 'idle' | 'connecting' | 'running' | 'complete' | 'failed';
 
@@ -129,6 +133,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const anchorRef = useRef(anchor);
+  const [fallbackActive, setFallbackActive] = useState(false);
+  const [visualMode, setVisualMode] = useState<NexusVisualMode>('full');
 
   useEffect(() => {
     anchorRef.current = anchor;
@@ -140,24 +146,55 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
 
     const reducedMotion =
       window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const connection = (
+      navigator as Navigator & { connection?: { saveData?: boolean } }
+    ).connection;
+    const capability = deriveNexusVisualCapability({
+      reducedMotion,
+      viewportWidth: window.innerWidth,
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      saveData: connection?.saveData,
+    });
+    setVisualMode(capability.mode);
+
     const gl = canvas.getContext('webgl', {
       alpha: true,
       antialias: false,
       depth: false,
       powerPreference: 'low-power',
     });
-    if (!gl) return;
+    if (!gl) {
+      setFallbackActive(true);
+      return;
+    }
+    setFallbackActive(false);
 
     const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexShader);
     const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentShader);
-    if (!vertex || !fragment) return;
+    if (!vertex || !fragment) {
+      setFallbackActive(true);
+      if (vertex) gl.deleteShader(vertex);
+      if (fragment) gl.deleteShader(fragment);
+      return;
+    }
 
     const program = gl.createProgram();
-    if (!program) return;
+    if (!program) {
+      setFallbackActive(true);
+      gl.deleteShader(vertex);
+      gl.deleteShader(fragment);
+      return;
+    }
     gl.attachShader(program, vertex);
     gl.attachShader(program, fragment);
     gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      setFallbackActive(true);
+      gl.deleteProgram(program);
+      gl.deleteShader(vertex);
+      gl.deleteShader(fragment);
+      return;
+    }
 
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -184,7 +221,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, capability.dprCap);
       const width = Math.max(1, Math.round(rect.width * dpr));
       const height = Math.max(1, Math.round(rect.height * dpr));
       if (canvas.width !== width || canvas.height !== height) {
@@ -207,7 +244,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     let anchorY = anchorRef.current.y;
 
     const onPointerMove = (event: PointerEvent) => {
-      if (reducedMotion) return;
+      if (!capability.parallax) return;
       const rect = canvas.getBoundingClientRect();
       if (
         event.clientX < rect.left ||
@@ -224,9 +261,25 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       targetParallaxX = nx * 0.035;
       targetParallaxY = -ny * 0.028;
     };
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    if (capability.parallax) {
+      window.addEventListener('pointermove', onPointerMove, { passive: true });
+    }
+
+    let visible = document.visibilityState !== 'hidden';
+    let lastFrame = 0;
+    const frameInterval =
+      capability.maxFps > 0 ? 1000 / capability.maxFps : Number.POSITIVE_INFINITY;
 
     const draw = (now: number) => {
+      if (
+        capability.maxFps > 0 &&
+        lastFrame > 0 &&
+        now - lastFrame < frameInterval
+      ) {
+        if (visible) raf = requestAnimationFrame(draw);
+        return;
+      }
+      lastFrame = now;
       resize();
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
@@ -237,7 +290,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       gl.uniform1f(corridorUniform, visual.corridor);
       gl.uniform3f(tint, r, g, b);
       const targetAnchor = anchorRef.current;
-      if (reducedMotion) {
+      if (capability.mode === 'static') {
         anchorX = targetAnchor.x;
         anchorY = targetAnchor.y;
       } else {
@@ -249,20 +302,35 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       parallaxY += (targetParallaxY - parallaxY) * 0.055;
       gl.uniform2f(
         parallaxUniform,
-        reducedMotion ? 0 : parallaxX,
-        reducedMotion ? 0 : parallaxY,
+        capability.parallax ? parallaxX : 0,
+        capability.parallax ? parallaxY : 0,
       );
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-      if (!reducedMotion) raf = requestAnimationFrame(draw);
+      if (capability.maxFps > 0 && visible) {
+        raf = requestAnimationFrame(draw);
+      }
     };
+
+    const onVisibilityChange = () => {
+      visible = document.visibilityState !== 'hidden';
+      cancelAnimationFrame(raf);
+      if (visible && capability.maxFps > 0) {
+        lastFrame = 0;
+        raf = requestAnimationFrame(draw);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     draw(0);
 
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
-      window.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (capability.parallax) {
+        window.removeEventListener('pointermove', onPointerMove);
+      }
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
       gl.deleteShader(vertex);
@@ -271,13 +339,26 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
   }, [active, corridor, runtimeState]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="d3-webgl-depth"
-      aria-hidden="true"
-      data-runtime-state={runtimeState}
-      style={{ pointerEvents: 'none' }}
-    />
+    <>
+      <div
+        className={[
+          'd3-webgl-fallback',
+          fallbackActive ? 'd3-webgl-fallback--active' : '',
+        ].filter(Boolean).join(' ')}
+        aria-hidden="true"
+      />
+      <canvas
+        ref={canvasRef}
+        className={[
+          'd3-webgl-depth',
+          fallbackActive ? 'd3-webgl-depth--unavailable' : '',
+        ].filter(Boolean).join(' ')}
+        aria-hidden="true"
+        data-runtime-state={runtimeState}
+        data-visual-mode={visualMode}
+        style={{ pointerEvents: 'none' }}
+      />
+    </>
   );
 };
 
