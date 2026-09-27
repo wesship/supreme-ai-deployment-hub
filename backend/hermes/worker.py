@@ -13,6 +13,8 @@ import asyncio
 import logging
 import os
 import signal
+
+import httpx
 from typing import Any
 
 from backend.hermes.dependencies import get_dependencies
@@ -89,6 +91,48 @@ async def _renew_lease_until_stopped(
             )
 
 
+async def _run_client_ai_dkos_task(input_data: dict[str, Any]) -> dict[str, Any]:
+    url = os.getenv("DKOS_INGESTION_SERVICE_URL", "").strip()
+    service_key = os.getenv("DKOS_SERVICE_KEY", "").strip()
+    if not url or not service_key:
+        raise RuntimeError("DKOS_INGESTION_SERVICE_URL and DKOS_SERVICE_KEY must be configured")
+
+    source_uri = str(input_data.get("source_uri") or "").strip()
+    if not source_uri:
+        raise RuntimeError("client_ai_dkos_ingestion task is missing source_uri")
+
+    payload = {
+        "source_uri": source_uri,
+        "tenant_id": input_data.get("tenant_id"),
+        "uploaded_by": input_data.get("uploaded_by"),
+        "classification": input_data.get("classification", "internal"),
+        "profile_id": input_data.get("profile_id"),
+        "source_id": input_data.get("source_id"),
+        "source_type": input_data.get("source_type"),
+        "title": input_data.get("title"),
+    }
+    try:
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            response = await client.post(
+                url,
+                json=payload,
+                headers={"X-DKOS-Service-Key": service_key},
+            )
+    except httpx.RequestError as exc:
+        raise RuntimeError(f"DKOS ingestion service unavailable: {exc}") from exc
+
+    if response.status_code not in {200, 201, 202}:
+        raise RuntimeError(
+            f"DKOS ingestion service rejected task ({response.status_code}): {response.text[:500]}"
+        )
+    body = response.json()
+    if not isinstance(body, dict):
+        raise RuntimeError("DKOS ingestion service returned an invalid response")
+    if body.get("status") == "failed":
+        raise RuntimeError(f"DKOS ingestion failed at stage {body.get('current_stage')}")
+    return body
+
+
 async def _process_task(
     task: dict[str, Any],
     runtime: PersistentWorkerRuntime,
@@ -127,12 +171,15 @@ async def _process_task(
             logger.info("skipping non-runnable task id=%s status=%s", task_id, status)
             return
 
-        result = await dispatch_to_agent(
-            agent_name=agent_name,
-            task_id=task_id,
-            input_data=input_data,
-            idempotency_key=f"hermes-task:{task_id}",
-        )
+        if task.get("task_type") == "client_ai_dkos_ingestion":
+            result = await _run_client_ai_dkos_task(input_data)
+        else:
+            result = await dispatch_to_agent(
+                agent_name=agent_name,
+                task_id=task_id,
+                input_data=input_data,
+                idempotency_key=f"hermes-task:{task_id}",
+            )
 
         await transition_task(
             task_id,
