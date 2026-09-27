@@ -35,6 +35,10 @@
       "destination": "/resources.html"
     },
     {
+      "source": "/institute",
+      "destination": "/institute.html"
+    },
+    {
       "source": "/ai-agents",
       "destination": "/ai-agents.html"
     },
