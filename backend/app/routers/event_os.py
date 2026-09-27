@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, status
-from pydantic import BaseModel, EmailStr, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 router = APIRouter(prefix="/event-os", tags=["event-os"])
 
