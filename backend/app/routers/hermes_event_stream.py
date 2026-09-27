@@ -54,6 +54,7 @@ async def _authorized_correlation(correlation_id: str, user_id: str) -> dict[str
 async def stream_hermes_events(
     request: Request,
     correlation_id: str = Query(..., min_length=8, max_length=120),
+    once: bool = Query(False, description="Emit the currently available batch then close. Intended for diagnostics/certification."),
     user_id: str = Depends(get_current_user_id),
 ) -> EventSourceResponse:
     """Stream lifecycle events for exactly one authenticated Hermes execution."""
@@ -101,6 +102,9 @@ async def stream_hermes_events(
                     "event": payload["type"],
                     "data": json.dumps(payload, separators=(",", ":")),
                 }
+
+            if once:
+                break
 
             if not emitted:
                 await asyncio.sleep(_POLL_SECONDS)
