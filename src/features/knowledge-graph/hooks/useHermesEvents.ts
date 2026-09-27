@@ -63,7 +63,6 @@ export function useHermesEvents(correlationId?: string | null) {
             headers: {
               Accept: 'text/event-stream',
               Authorization: `Bearer ${session.access_token}`,
-              'Cache-Control': 'no-cache',
             },
           },
         );
