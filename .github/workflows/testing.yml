@@ -226,7 +226,11 @@ jobs:
           VITE_RUM_ENABLED: "false"
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
-        run: pnpm exec playwright test tests/e2e/production-interaction-audit.spec.ts --project="${{ matrix.browser }}"
+        run: >-
+          pnpm exec playwright test
+          tests/e2e/production-interaction-audit.spec.ts
+          tests/e2e/signed-in-first-user-journey.spec.ts
+          --project="${{ matrix.browser }}"
       - name: Upload Playwright report and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
