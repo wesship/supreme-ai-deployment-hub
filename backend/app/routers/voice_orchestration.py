@@ -610,6 +610,10 @@ async def _handle_tool_calls(
                 "status": "rejected",
                 "message": "An authenticated D3VONN voice session is required for voice tools.",
             }
+        elif name == "find_movie_scene":
+            result = await _find_movie_scene(parameters)
+        elif name == "create_scene_blueprint":
+            result = await _create_scene_blueprint(parameters)
         elif name in _ALLOWED_FILM_TOOLS:
             result = await _query_film_intelligence(parameters)
         elif name in _ALLOWED_GRAPH_TOOLS:
