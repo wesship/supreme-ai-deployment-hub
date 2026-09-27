@@ -313,6 +313,33 @@ export type NonprofitProductionConnectorPromotionRow = {
   production_send_available: false;
 };
 
+export type NonprofitProductionShadowRunRow = {
+  shadow_run_id: string;
+  organization_id: string;
+  promotion_id: string;
+  sandbox_certification_id: string;
+  connector_kind: string;
+  production_endpoint_host: string;
+  credential_profile_present: boolean;
+  tls_validated: boolean;
+  host_allowlisted: boolean;
+  protected_environment_approval_present: boolean;
+  request_method: 'POST';
+  request_headers: Record<string, unknown>;
+  request_body_hash: string;
+  idempotency_key: string;
+  receipt_parser_contract: Record<string, unknown>;
+  shadow_status: 'SHADOW_VALID' | 'SHADOW_BLOCKED';
+  network_probe_performed: false;
+  application_payload_transmitted: false;
+  production_execution_enabled: false;
+  generated_at: string;
+  promotion_status: string;
+  promotion_prerequisites_met: boolean;
+  production_send_available: false;
+  shadow_certified: boolean;
+};
+
 export type NonprofitAuditSummary = {
   organization_id: string;
   event_day: string;
@@ -330,7 +357,7 @@ async function listView<T>(view: string): Promise<T[]> {
 
 export const nonprofitCommandCenterApi = {
   async load() {
-    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, audit] = await Promise.all([
+    const [organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, productionShadowRuns, audit] = await Promise.all([
       listView<NonprofitOrgSummary>('nonprofit_command_org_v1'),
       listView<NonprofitProgramSummary>('nonprofit_programs_v1'),
       listView<NonprofitGrantPipelineRow>('nonprofit_grant_pipeline_v1'),
@@ -346,9 +373,18 @@ export const nonprofitCommandCenterApi = {
       listView<NonprofitExternalSandboxTransmissionRow>('nonprofit_external_sandbox_transmissions_v1'),
       listView<NonprofitSandboxReceiptCertificationRow>('nonprofit_sandbox_receipt_certifications_v1'),
       listView<NonprofitProductionConnectorPromotionRow>('nonprofit_production_connector_promotions_v1'),
+      listView<NonprofitProductionShadowRunRow>('nonprofit_production_connector_shadow_runs_v1'),
       listView<NonprofitAuditSummary>('nonprofit_audit_summary_v1'),
     ]);
-    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, audit };
+    return { organizations, programs, grants, approvals, approvalSteps, alerts, attachmentCompliance, submissionReadiness, submissionAuthorizations, submissionPreviews, submissionPreviewCertifications, submissionCanaries, externalSandboxTransmissions, sandboxReceiptCertifications, productionConnectorPromotions, productionShadowRuns, audit };
+  },
+
+  async runProductionShadow(promotionId: string) {
+    const { data, error } = await supabase.functions.invoke('nonprofit-production-shadow', {
+      body: { promotion_id: promotionId },
+    });
+    if (error) throw error;
+    return data;
   },
 
   async requestProductionConnectorPromotion(sandboxCertificationId: string) {
