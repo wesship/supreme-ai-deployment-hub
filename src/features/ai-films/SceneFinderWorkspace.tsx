@@ -1,0 +1,148 @@
+import { useMemo, useState } from 'react';
+import { Clapperboard, Loader2, Search, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  createSceneBlueprint,
+  searchScenes,
+  type SceneBlueprintResponse,
+  type SceneFinderHit,
+} from '@/features/ai-films/sceneFinderService';
+
+function assetIdFor(hit: SceneFinderHit): string {
+  return String(hit.asset_id || hit.video_id || '');
+}
+
+function timeLabel(value: unknown): string {
+  return typeof value === 'number' ? `${value.toFixed(1)}s` : '—';
+}
+
+export default function SceneFinderWorkspace() {
+  const [query, setQuery] = useState('');
+  const [objective, setObjective] = useState('Adapt the cinematic technique into an original D3VONN.IO production scene.');
+  const [scenes, setScenes] = useState<SceneFinderHit[]>([]);
+  const [selected, setSelected] = useState<SceneFinderHit | null>(null);
+  const [blueprint, setBlueprint] = useState<SceneBlueprintResponse | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('Search authorized indexed footage by action, mood, lighting, camera movement, dialogue context, or production technique.');
+
+  const selectedAssetId = useMemo(() => selected ? assetIdFor(selected) : '', [selected]);
+
+  const runSearch = async () => {
+    if (!query.trim()) return;
+    setBusy(true);
+    setBlueprint(null);
+    try {
+      const response = await searchScenes(query.trim());
+      setScenes(response.scenes || []);
+      setSelected(response.scenes?.[0] || null);
+      setMessage(response.count ? `Found ${response.count} matching scene references.` : 'No matching indexed scenes were found.');
+    } catch (error) {
+      setScenes([]);
+      setSelected(null);
+      setMessage(error instanceof Error ? error.message : 'Scene Finder is unavailable.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runBlueprint = async () => {
+    if (!selected || !selectedAssetId || !objective.trim()) return;
+    setBusy(true);
+    try {
+      const response = await createSceneBlueprint({
+        assetId: selectedAssetId,
+        objective: objective.trim(),
+        startTime: typeof selected.start === 'number' ? selected.start : undefined,
+        endTime: typeof selected.end === 'number' ? selected.end : undefined,
+      });
+      setBlueprint(response);
+      setMessage('Scene DNA extracted. The adaptation blueprint preserves general technique while requiring original expression.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The scene blueprint could not be generated.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section aria-labelledby="scene-finder-heading">
+      <Card className="overflow-hidden border-primary/25">
+        <div className="border-b border-border/70 bg-[radial-gradient(circle_at_85%_10%,rgba(34,211,238,.18),transparent_30%),linear-gradient(135deg,rgba(8,22,48,.92),rgba(2,6,15,.98))] p-6 text-white">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="flex items-center gap-2"><Clapperboard className="h-5 w-5 text-cyan-300" /><Badge variant="secondary">Scene Intelligence</Badge></div>
+              <h2 id="scene-finder-heading" className="mt-3 text-3xl font-bold">Movie Scene Finder</h2>
+              <p className="mt-2 text-sm leading-6 text-blue-100/80">Find reference scenes by cinematic meaning, then convert their general filmmaking technique into an original production blueprint.</p>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-col gap-3 md:flex-row">
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => { if (event.key === 'Enter') void runSearch(); }}
+              placeholder="Example: slow tracking shot through a crowded club with hard red practical lighting"
+              className="border-white/15 bg-black/30 text-white placeholder:text-slate-400"
+            />
+            <Button type="button" onClick={() => void runSearch()} disabled={busy || !query.trim()}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+              Find Scenes
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <p className="text-sm text-muted-foreground" role="status" aria-live="polite">{message}</p>
+
+          {scenes.length > 0 && (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {scenes.map((scene, index) => {
+                const id = assetIdFor(scene) || `scene-${index}`;
+                const active = selected === scene;
+                return (
+                  <button
+                    type="button"
+                    key={`${id}-${index}`}
+                    onClick={() => { setSelected(scene); setBlueprint(null); }}
+                    className={`rounded-xl border p-4 text-left transition ${active ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold">Reference {index + 1}</span>
+                      {typeof scene.score === 'number' && <Badge variant="outline">{Math.round(scene.score * 100)}%</Badge>}
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">{id}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{timeLabel(scene.start)} → {timeLabel(scene.end)}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {selected && (
+            <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div>
+                <label htmlFor="scene-objective" className="text-sm font-medium">Original adaptation objective</label>
+                <Textarea id="scene-objective" value={objective} onChange={(event) => setObjective(event.target.value)} className="mt-2 min-h-24" />
+              </div>
+              <Button type="button" onClick={() => void runBlueprint()} disabled={busy || !selectedAssetId || !objective.trim()}>
+                <Sparkles className="mr-2 h-4 w-4" /> Analyze Scene DNA
+              </Button>
+            </div>
+          )}
+
+          {blueprint && (
+            <Card className="bg-muted/30 p-5">
+              <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /><h3 className="font-semibold">Original Production Blueprint</h3></div>
+              <pre className="mt-4 max-h-[420px] overflow-auto whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+                {typeof blueprint.result === 'string' ? blueprint.result : JSON.stringify(blueprint.result, null, 2)}
+              </pre>
+            </Card>
+          )}
+        </div>
+      </Card>
+    </section>
+  );
+}
