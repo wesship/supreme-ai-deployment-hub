@@ -17,7 +17,7 @@ import {
 import '@/styles/readdy-v90.css';
 
 /**
- * Canonical public telemetry remains independent of the Readdy V90 presentation.
+ * Canonical public telemetry remains independent of the presentation layer.
  * The abort and fallback path are intentionally retained so the homepage never
  * implies a remote value when the public stats endpoint is unavailable.
  */
@@ -47,7 +47,7 @@ const GovernedIntegrationsSection: React.FC = () => (
           Governed intelligence, connected to the real platform.
         </h2>
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-blue-50/60">
-          These working previews remain canonical D3VONN integrations. Their underlying authority, data controls, and access policies are not supplied by the V90 presentation layer.
+          These working previews remain canonical D3VONN integrations. Their underlying authority, data controls, and access policies remain governed by the canonical D3VONN platform.
         </p>
       </div>
 

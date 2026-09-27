@@ -1,16 +1,15 @@
 /**
- * Public provenance for the currently adopted D3VONN.IO UI source.
+ * Public provenance for the canonical D3VONN.IO interface.
  *
  * Keep this file limited to non-sensitive identifiers that are safe to ship
- * in a browser bundle. Readdy user IDs, session IDs, and request IDs are
- * intentionally excluded.
+ * in a browser bundle. External design-tool project identifiers are not part
+ * of the production provenance contract.
  */
 export const UI_PROVENANCE = {
-  source: 'readdy',
-  projectId: 'dd3b402e-1da4-4fe4-954a-fad4fe9e7515',
-  projectVersionId: 14281026,
-  showId: 1,
-  projectUrl: 'https://readdy.ai/project/dd3b402e-1da4-4fe4-954a-fad4fe9e7515',
+  source: 'd3vonn-native',
+  canonicalHost: 'https://www.d3vonn.io',
+  product: 'D3VONN.IO',
+  interface: 'AI Business Operating System',
 } as const;
 
 export type UiProvenance = typeof UI_PROVENANCE;
