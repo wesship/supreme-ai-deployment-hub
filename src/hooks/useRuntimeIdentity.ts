@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const API_BASE = (import.meta.env.VITE_API_URL?.trim() || 'https://api.d3vonn.io').replace(/\/$/, '');
+const RUNTIME_IDENTITY_PATH = '/api/runtime/identity';
 const EXPECTED_REPOSITORY = 'wesship/supreme-ai-deployment-hub';
 
 export type RuntimeIdentity = {
@@ -20,7 +20,7 @@ export function useRuntimeIdentity() {
 
     const check = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/runtime/identity`, {
+        const response = await fetch(RUNTIME_IDENTITY_PATH, {
           signal: controller.signal,
           headers: { Accept: 'application/json' },
           cache: 'no-store',
