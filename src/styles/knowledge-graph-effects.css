@@ -1215,3 +1215,76 @@
     transition: none !important;
   }
 }
+
+
+/* Production fallback and constrained-device animation budget. */
+.d3-webgl-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(254,243,199,.11), transparent 18%),
+    radial-gradient(circle at 50% 50%, rgba(252,211,77,.055), transparent 38%),
+    radial-gradient(circle at 18% 24%, rgba(254,243,199,.05) 0 1px, transparent 1.5px);
+  background-size: auto, auto, 82px 82px;
+}
+
+.d3-webgl-fallback--active {
+  opacity: .86;
+}
+
+.d3-webgl-depth--unavailable {
+  opacity: 0 !important;
+}
+
+.d3-webgl-depth[data-visual-mode="reduced"] {
+  opacity: .7;
+}
+
+.d3-webgl-depth[data-visual-mode="static"] {
+  opacity: .58;
+  mix-blend-mode: screen;
+}
+
+@media (max-width: 767px) {
+  .d3-webgl-depth {
+    opacity: .62;
+  }
+
+  .d3-edge-particle--1,
+  .d3-edge-particle--2 {
+    display: none;
+  }
+
+  .d3-hermes-orbit--outer {
+    animation-duration: 24s;
+  }
+
+  .d3-hermes-orbit--inner {
+    animation-duration: 18s;
+  }
+
+  .react-flow__edge.d3-kg-edge path {
+    animation-duration: 4.8s;
+  }
+
+  .react-flow__node.d3-kg-cluster-sympathetic .d3-kg-node {
+    animation: none;
+  }
+
+  .d3-ops-overlay--active::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-webgl-fallback--active {
+    opacity: .7;
+  }
+
+  .d3-webgl-depth[data-visual-mode="static"] {
+    opacity: .5;
+  }
+}
