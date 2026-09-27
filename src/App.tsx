@@ -269,6 +269,7 @@ function App() {
                 <Route path="/business-automation" element={<BusinessAutomation />} />
                 <Route path="/solutions" element={<Solutions />} />
                 <Route path="/resources" element={<Resources />} />
+                <Route path="/roadmap" element={<Navigate to="/resources" replace />} />
                 <Route path="/institute" element={<Institute />} />
                 <Route path="/nonprofit" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
                 <Route path="/nonprofit/grants" element={<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>} />
