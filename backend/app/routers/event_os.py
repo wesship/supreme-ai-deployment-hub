@@ -14,11 +14,12 @@ import hmac
 import json
 import os
 import re
+import secrets
 import time
 from datetime import datetime
 from collections import defaultdict, deque
 from typing import Any, Literal
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -56,6 +57,7 @@ _ALLOWED_RPCS = frozenset(
         "event_os_finalize_order_payment",
         "event_os_release_order_inventory",
         "event_os_commit_checkin",
+        "event_os_claim_order_entitlements",
     }
 )
 _checkout_windows: dict[str, deque[float]] = defaultdict(deque)
@@ -101,6 +103,11 @@ class CheckinRequest(BaseModel):
 class StreamTokenRequest(BaseModel):
     event_id: str = Field(pattern=_UUID_RE.pattern)
     entitlement_key: str = Field(min_length=1, max_length=240)
+
+
+class EntitlementClaimRequest(BaseModel):
+    order_id: str = Field(pattern=_UUID_RE.pattern)
+    claim_token: str = Field(min_length=32, max_length=256)
 
 
 def _stream_signing_secret() -> bytes:
@@ -195,6 +202,13 @@ async def _rpc(name: str, payload: dict[str, Any]) -> Any:
             pass
         raise HTTPException(status_code=502, detail=detail)
     return response.json() if response.content else None
+
+
+def _with_claim_token(value: str, order_id: str, claim_token: str) -> str:
+    parsed = urlparse(value)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query.update({"event_os_order": order_id, "event_os_claim": claim_token})
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 def _validate_return_url(value: str) -> str:
@@ -416,6 +430,8 @@ async def create_checkout(body: CheckoutRequest, request: Request) -> CheckoutRe
     currency = currencies.pop()
     subtotal = sum(item["unit_price_cents"] * item["quantity"] for item in canonical)
 
+    claim_token = secrets.token_urlsafe(32)
+    claim_token_hash = hashlib.sha256(claim_token.encode()).hexdigest()
     order_rows = await _service_request(
         "POST",
         "orders",
@@ -427,6 +443,10 @@ async def create_checkout(body: CheckoutRequest, request: Request) -> CheckoutRe
             "currency": currency,
             "subtotal_cents": subtotal,
             "total_cents": subtotal,
+            "metadata": {
+                "claim_status": "unclaimed",
+                "claim_token_hash": claim_token_hash,
+            },
         },
     )
     if not order_rows:
@@ -463,7 +483,11 @@ async def create_checkout(body: CheckoutRequest, request: Request) -> CheckoutRe
             purchaser_email=str(body.purchaser_email).lower(),
             currency=currency,
             items=canonical,
-            success_url=_validate_return_url(str(body.success_url)),
+            success_url=_with_claim_token(
+                _validate_return_url(str(body.success_url)),
+                order["id"],
+                claim_token,
+            ),
             cancel_url=_validate_return_url(str(body.cancel_url)),
         )
     except HTTPException:
@@ -714,3 +738,20 @@ async def create_stream_token(
         "token": token,
         "expires_at": expiry,
     }
+
+
+@router.post("/entitlements/claim")
+async def claim_order_entitlements(
+    body: EntitlementClaimRequest,
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    claim_hash = hashlib.sha256(body.claim_token.encode()).hexdigest()
+    result = await _rpc(
+        "event_os_claim_order_entitlements",
+        {
+            "p_order_id": body.order_id,
+            "p_user_id": user_id,
+            "p_claim_hash": claim_hash,
+        },
+    )
+    return {"claimed": True, "result": result}
