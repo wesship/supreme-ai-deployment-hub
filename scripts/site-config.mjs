@@ -7,6 +7,7 @@ export const PUBLIC_ROUTES = [
   ['/security', 'Security | D3VONN.IO', 'Learn how D3VONN.IO protects AI workflows, data, infrastructure, and operational access.', 'WebPage', 'monthly', '0.9'],
   ['/security/disclosure', 'Vulnerability Disclosure Policy | D3VONN.IO', 'Learn how to securely report a D3VONN.IO vulnerability and what response to expect.', 'WebPage', 'yearly', '0.7'],
   ['/resources', 'Resources | D3VONN.IO', 'Access D3VONN.IO guides, documentation, and resources for building with AI agents and automation.', 'CollectionPage', 'weekly', '0.9'],
+  ['/institute', 'D3VONN.IO Institute — Technology, Global Relief & Sustainable Development', 'D3VONN.IO Institute advances technology, environmental stewardship, education, health, housing, youth development, and global relief through community-centered programs and partnerships.', 'Organization', 'weekly', '0.9'],
   ['/ai-agents', 'AI Agents | D3VONN.IO', 'Build, deploy, and coordinate specialized AI agents with D3VONN.IO.', 'SoftwareApplication', 'weekly', '0.95'],
   ['/business-automation', 'Business Automation | D3VONN.IO', 'Automate business workflows and coordinate intelligent operations with D3VONN.IO.', 'Service', 'weekly', '0.95'],
   ['/marketplace', 'AI Agent Marketplace | D3VONN.IO', 'Discover and deploy AI agents from the D3VONN.IO marketplace.', 'CollectionPage', 'weekly', '0.9'],
