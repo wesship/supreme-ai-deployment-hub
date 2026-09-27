@@ -14,11 +14,12 @@ import {
   ChevronRight, Loader2, Bot, User, Zap, Settings, Upload,
   Terminal, Brain, Activity
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDevonnChat } from '@/hooks/useDevonnChat';
 import { Conversation } from '@/services/ai/conversationStore';
 import { supabase } from '@/integrations/supabase/client';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
+import { sendHermesBrowserCommand } from '@/features/knowledge-graph/lib/hermesCommand';
 
 const SUGGESTED_PROMPTS = [
   'What is the current deployment status of the platform?',
@@ -31,6 +32,7 @@ const SUGGESTED_PROMPTS = [
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [userId, setUserId] = useState<string | undefined>();
   const [userEmail, setUserEmail] = useState<string | undefined>();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -40,6 +42,9 @@ const ChatPage: React.FC = () => {
   const [lastIngestResult, setLastIngestResult] = useState<IngestResult | null>(null);
   const [agentConsoleCollapsed, setAgentConsoleCollapsed] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
+  const [hermesMode, setHermesMode] = useState(searchParams.get('hermes') === '1');
+  const [hermesSubmitting, setHermesSubmitting] = useState(false);
+  const [hermesStatus, setHermesStatus] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -98,9 +103,32 @@ const ChatPage: React.FC = () => {
   }, [input]);
 
   const handleSend = async () => {
-    if (!input.trim() || isStreaming) return;
-    const text = input;
+    if (!input.trim() || isStreaming || hermesSubmitting) return;
+    const text = input.trim();
     setInput('');
+
+    if (hermesMode) {
+      setHermesSubmitting(true);
+      setHermesStatus(null);
+      try {
+        const result = await sendHermesBrowserCommand({
+          action: 'command',
+          title: text.slice(0, 120),
+          prompt: text,
+          surface: 'chat',
+          route: '/chat',
+        });
+        setHermesStatus(`Queued in Hermes · ${result.correlation_id}`);
+      } catch (error) {
+        setHermesStatus(
+          `Hermes error · ${error instanceof Error ? error.message : 'Unable to queue instruction'}`,
+        );
+      } finally {
+        setHermesSubmitting(false);
+      }
+      return;
+    }
+
     await sendMessage(text);
   };
 
@@ -226,6 +254,19 @@ const ChatPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setHermesMode((value) => !value);
+                setHermesStatus(null);
+              }}
+              aria-pressed={hermesMode}
+              className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${hermesMode ? 'border-amber-300/40 bg-amber-200/10 text-amber-100' : 'border-white/10 text-white/50 hover:text-white/80'}`}
+              title="Queue typed instructions directly into Hermes"
+            >
+              {hermesMode ? 'Hermes mode' : 'Chat mode'}
+            </button>
+
             {/* Model selector */}
             <select
               value={selectedModel}
@@ -247,6 +288,16 @@ const ChatPage: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {hermesStatus && (
+          <div
+            className={`mx-4 mt-3 border px-3 py-2 text-xs ${hermesStatus.startsWith('Hermes error') ? 'border-red-400/25 bg-red-500/5 text-red-200' : 'border-amber-300/25 bg-amber-200/5 text-amber-100'}`}
+            role="status"
+            aria-live="polite"
+          >
+            {hermesStatus}
+          </div>
+        )}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto" aria-live="polite" aria-label="Conversation messages">
