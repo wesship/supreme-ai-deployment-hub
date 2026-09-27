@@ -27,3 +27,6 @@ create index if not exists client_ai_memory_commits_source_idx
 
 alter table public.client_ai_memory_commits enable row level security;
 revoke all on table public.client_ai_memory_commits from anon, authenticated;
+
+-- Backend-only Data API access for the FastAPI service role.
+grant select, insert, update, delete on table public.client_ai_memory_commits to service_role;
