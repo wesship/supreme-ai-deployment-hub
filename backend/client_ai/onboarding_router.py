@@ -153,6 +153,7 @@ async def register_source(profile_id: str, payload: SourceRegisterIn, principal:
             "metadata": {
                 **payload.metadata,
                 "consent_confirmed": True,
+                "consent": {"authorized_for_ai_training": True},
                 "registered_by_user_id": principal.user_id,
                 "correlation_id": correlation_id,
             },

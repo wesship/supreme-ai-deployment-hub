@@ -26,12 +26,18 @@ deployment/dkos-ingestion-worker/Dockerfile
 6. Add environment variables:
 
 ```text
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
 PINECONE_API_KEY=
 PINECONE_INDEX=devonn-rag
 OPENAI_API_KEY=
-HERMES_MEMORY_URL=
+DKOS_SERVICE_KEY=<strong-random-shared-secret>
+DKOS_SOURCE_HOST_ALLOWLIST=your-storage.example.com
+CLIENT_AI_MEMORY_COMMIT_URL=https://api.d3vonn.io/api/client-ai/memory/commits
+CLIENT_AI_MEMORY_COMMIT_SECRET=<strong-random-shared-secret>
+DKOS_EMBEDDING_MODEL=text-embedding-3-small
+# Optional when your Pinecone index uses a non-default dimension:
+# DKOS_EMBEDDING_DIMENSIONS=1536
+# Optional when Docling is installed in the image:
+# DKOS_ENABLE_DOCLING=true
 ```
 
 7. Deploy and copy the public service URL.
@@ -42,9 +48,22 @@ HERMES_MEMORY_URL=
 VITE_DKOS_INGESTION_API_URL=https://your-dkos-worker.up.railway.app
 ```
 
-9. Redeploy the Vercel frontend.
+9. On the main D3VONN FastAPI/Hermes deployment, configure:
 
-10. Test:
+```text
+DKOS_INGESTION_SERVICE_URL=https://your-dkos-worker.up.railway.app/api/dkos/ingestion/sources
+DKOS_SERVICE_KEY=<same DKOS_SERVICE_KEY used by the worker>
+CLIENT_AI_MEMORY_COMMIT_SECRET=<same memory secret used by the worker>
+OPENAI_API_KEY=
+PINECONE_API_KEY=
+PINECONE_INDEX=devonn-rag
+```
+
+10. Apply the Client AI migrations, including `client_ai_memory_commits`, before enabling customer ingestion.
+
+11. Redeploy the Vercel frontend and FastAPI/Hermes services.
+
+12. Test:
 
 ```text
 https://your-dkos-worker.up.railway.app/health
@@ -92,12 +111,12 @@ curl -X POST https://YOUR_WORKER_URL/api/dkos/ingestion/runs \
 
 ## Production hardening before customer data
 
-- Replace in-memory run storage with Supabase tables.
-- Add object storage for uploaded files and artifacts.
-- Add queue execution instead of synchronous processing.
-- Add authentication and tenant authorization.
-- Add file-size limits.
-- Add malware scanning.
-- Add parser sandboxing.
-- Add signed artifact URLs.
-- Add audit logs.
+The Client AI service path now requires service authentication, exact HTTPS source-host allowlisting, tenant-isolated Pinecone namespaces, file-size enforcement, and a service-authenticated memory commit callback. Before broad customer rollout:
+
+- Replace the DKOS worker's in-memory run-status cache with durable persistence.
+- Prefer private object storage and short-lived signed source URLs on an allowlisted storage hostname.
+- Add malware scanning and parser sandboxing for untrusted binary documents.
+- Keep `DKOS_SERVICE_KEY` and `CLIENT_AI_MEMORY_COMMIT_SECRET` server-side only and rotate them on a defined schedule.
+- Keep the Pinecone index namespace contract as `tenant:<client-ai tenant id>`; never use the default namespace for Client AI data.
+- Confirm the memory commit migration is applied before enabling `CLIENT_AI_MEMORY_COMMIT_URL`.
+- Monitor failed/manual-review stages and retain audit records for source hash, chunk hash, vector receipt, and Hermes memory commit id.

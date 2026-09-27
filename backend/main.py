@@ -78,7 +78,7 @@ app.add_middleware(
     allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID", "X-HNF-Service-Key", "X-Telegram-Bot-Api-Secret-Token"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID", "X-HNF-Service-Key", "X-Telegram-Bot-Api-Secret-Token", "X-Client-AI-Memory-Secret"],
 )
 
 _REQUIRED_MIDDLEWARE = (
@@ -112,6 +112,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.client_ai.router", "router", None),
     ("backend.client_ai.onboarding_router", "router", None),
     ("backend.client_ai.ingestion_router", "router", None),
+    ("backend.client_ai.memory_router", "router", None),
     ("backend.hermes.proactivity_router", "router", None),
     ("backend.hnf.router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),

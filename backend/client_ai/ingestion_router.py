@@ -107,7 +107,8 @@ async def dispatch_source_ingestion(
 
     metadata = source.get("metadata") if isinstance(source.get("metadata"), dict) else {}
     consent = metadata.get("consent") if isinstance(metadata.get("consent"), dict) else {}
-    if consent.get("authorized_for_ai_training") is not True:
+    authorized = consent.get("authorized_for_ai_training") is True or metadata.get("consent_confirmed") is True
+    if not authorized:
         raise HTTPException(status_code=409, detail="Explicit AI-training consent is required")
 
     existing_run = source.get("ingestion_run_id")
