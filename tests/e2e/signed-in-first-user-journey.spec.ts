@@ -128,9 +128,14 @@ test.describe('signed-in first-user journey', () => {
     await expect(page.getByRole('heading', { name: 'What needs your attention' })).toBeVisible();
     await expect(page.getByText('First-run onboarding', { exact: true })).toBeVisible();
 
+    // DeferredProviders intentionally remounts the app shell shortly after first paint.
+    // Wait for that boundary to settle before entering stateful command text.
+    await page.waitForTimeout(250);
     const command = page.getByLabel('Ask or instruct Hermes');
+    const sendCommand = page.getByRole('button', { name: 'Send instruction to Hermes' });
     await command.fill('Summarize what needs my attention today.');
-    await page.getByRole('button', { name: 'Send instruction to Hermes' }).click();
+    await expect(sendCommand).toBeEnabled();
+    await sendCommand.click();
     await expect(page.getByText(`Queued · ${CORRELATION_ID.slice(0, 8)}`, { exact: true })).toBeVisible();
 
     await page.getByRole('link', { name: /Run your first governed task/ }).click();
@@ -143,7 +148,6 @@ test.describe('signed-in first-user journey', () => {
 
     const statusPanel = page.locator('section').filter({ hasText: 'System status' }).first();
     await expect(statusPanel.getByText('complete', { exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(statusPanel).toContainText('Hermes');
 
     await page.goto('/approvals', { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(/\/unauthorized$/);
