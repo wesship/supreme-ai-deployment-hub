@@ -1036,3 +1036,72 @@
     opacity: .52;
   }
 }
+
+
+.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node {
+  opacity: .68;
+  filter: saturate(.62) brightness(.82);
+  box-shadow:
+    0 5px 16px rgba(0,0,0,.22),
+    inset 0 0 0 1px rgba(255,255,255,.01);
+  transition:
+    opacity .45s ease,
+    filter .45s ease,
+    border-color .45s ease,
+    box-shadow .45s ease;
+}
+
+.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node p,
+.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node span,
+.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node svg {
+  filter: none;
+  text-shadow: none;
+}
+
+.d3-neural-stage--dof .react-flow__edge.d3-kg-edge--defocused .react-flow__edge-path,
+.d3-neural-stage--dof .d3-cinematic-edge.d3-cinematic-edge--defocused .react-flow__edge-path {
+  opacity: .26 !important;
+  filter: blur(.55px) brightness(.74);
+  transition:
+    opacity .45s ease,
+    filter .45s ease;
+}
+
+.d3-neural-stage--dof .d3-webgl-depth {
+  filter: blur(1.25px) saturate(.9);
+  opacity: .78;
+  transition:
+    filter .5s ease,
+    opacity .5s ease;
+}
+
+.d3-neural-stage--corridor.d3-neural-stage--dof .d3-webgl-depth {
+  filter: blur(1.55px) saturate(.94);
+  opacity: .9;
+}
+
+.d3-neural-stage--dof .d3-nexus-globe {
+  filter: blur(.8px);
+  opacity: .56;
+  transition:
+    filter .5s ease,
+    opacity .5s ease;
+}
+
+.d3-neural-stage--dof .react-flow__node:not(.d3-kg-defocused) {
+  position: relative;
+  z-index: 4 !important;
+}
+
+.d3-neural-stage--dof .react-flow__edge:not(.d3-kg-edge--defocused) {
+  z-index: 3 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node,
+  .d3-neural-stage--dof .react-flow__edge.d3-kg-edge--defocused .react-flow__edge-path,
+  .d3-neural-stage--dof .d3-webgl-depth,
+  .d3-neural-stage--dof .d3-nexus-globe {
+    transition: none !important;
+  }
+}
