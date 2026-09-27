@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.app.middleware.auth import get_current_user_id
+import backend.app.routers.voice_orchestration as voice_orchestration
 from backend.app.routers.voice_orchestration import router
 from backend.app.voice_session import issue_voice_session, verify_voice_session
 
@@ -62,6 +63,8 @@ def test_authenticated_session_returns_browser_safe_inline_assistant(monkeypatch
     tool_names = [tool["function"]["name"] for tool in assistant["model"]["tools"]]
     assert "create_hermes_task" in tool_names
     assert "query_film_intelligence" in tool_names
+    assert "find_movie_scene" in tool_names
+    assert "create_scene_blueprint" in tool_names
     assert "secret" not in assistant["server"]
     assert "session=" in assistant["server"]["url"]
     assert "invalid-but-secret-vapi-value" not in json.dumps(body)
@@ -190,6 +193,85 @@ def test_inline_jockey_tool_uses_server_side_twelvelabs(monkeypatch):
     assert observed["message"] == "Check Legend wardrobe continuity."
     assert observed["instructions"] == "Use only indexed footage."
     assert observed["include_intermediate"] is False
+
+
+def test_inline_scene_finder_tool_uses_index_search(monkeypatch):
+    configure_signing(monkeypatch)
+    observed: dict[str, object] = {}
+
+    class FakeIndexClient:
+        async def search(self, query, **kwargs):
+            observed["query"] = query
+            observed["kwargs"] = kwargs
+            return {"data": [{"video_id": "video-scene-1", "start": 4.0, "end": 12.0, "score": 0.93}]}
+
+    monkeypatch.setattr(voice_orchestration, "TwelveLabsIndexClient", FakeIndexClient, raising=False)
+    monkeypatch.setattr("backend.ai_films.twelvelabs_index.TwelveLabsIndexClient", FakeIndexClient)
+    client = make_client(user_id="user-scene-finder")
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+    )
+    token = parse_qs(urlparse(session_response.json()["assistant"]["server"]["url"]).query)["session"][0]
+
+    response = client.post(
+        f"/api/voice/vapi/webhook?session={token}",
+        json={"message": {"id": "evt-scene-find", "type": "tool-calls", "toolCallList": [{
+            "id": "call-scene-find",
+            "name": "find_movie_scene",
+            "parameters": {"query": "slow tracking shot with hard red practical lighting", "limit": 3},
+        }]}},
+    )
+
+    assert response.status_code == 200
+    result = json.loads(response.json()["results"][0]["result"])
+    assert result["status"] == "ok"
+    assert result["mode"] == "scene-finder"
+    assert result["scenes"][0]["video_id"] == "video-scene-1"
+    assert observed["query"] == "slow tracking shot with hard red practical lighting"
+    assert observed["kwargs"]["page_limit"] == 3
+
+
+def test_inline_scene_blueprint_tool_requires_original_adaptation(monkeypatch):
+    configure_signing(monkeypatch)
+    observed: dict[str, object] = {}
+
+    class FakeAnalyzeClient:
+        async def analyze_asset(self, asset_id, prompt, **kwargs):
+            observed["asset_id"] = asset_id
+            observed["prompt"] = prompt
+            observed["kwargs"] = kwargs
+            return {"text": "original scene blueprint"}
+
+    monkeypatch.setattr("backend.ai_films.twelvelabs_analyze.TwelveLabsAnalyzeClient", FakeAnalyzeClient)
+    client = make_client(user_id="user-scene-blueprint")
+    session_response = client.post(
+        "/api/voice/session",
+        headers={"host": "api.d3vonn.io", "x-forwarded-proto": "https"},
+    )
+    token = parse_qs(urlparse(session_response.json()["assistant"]["server"]["url"]).query)["session"][0]
+
+    response = client.post(
+        f"/api/voice/vapi/webhook?session={token}",
+        json={"message": {"id": "evt-scene-blueprint", "type": "tool-calls", "toolCallList": [{
+            "id": "call-scene-blueprint",
+            "name": "create_scene_blueprint",
+            "parameters": {
+                "asset_id": "asset-scene-1",
+                "objective": "Adapt the movement for an original underground market sequence.",
+                "start_time": 4,
+                "end_time": 12,
+            },
+        }]}},
+    )
+
+    assert response.status_code == 200
+    result = json.loads(response.json()["results"][0]["result"])
+    assert result["status"] == "ok"
+    assert result["mode"] == "scene-blueprint"
+    assert observed["asset_id"] == "asset-scene-1"
+    assert "materially original" in observed["prompt"]
+    assert "Do not reproduce copyrighted dialogue" in observed["prompt"]
 
 
 def test_invalid_session_token_is_rejected_without_provider_headers(monkeypatch):
