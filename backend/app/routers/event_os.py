@@ -60,7 +60,16 @@ class CheckoutLine(BaseModel):
 class CheckoutRequest(BaseModel):
     workspace_id: str = Field(pattern=_UUID_RE.pattern)
     event_id: str | None = Field(default=None, pattern=_UUID_RE.pattern)
-    purchaser_email: EmailStr
+    purchaser_email: str = Field(min_length=3, max_length=320)
+
+    @field_validator("purchaser_email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        candidate = value.strip().lower()
+        if candidate.count("@") != 1 or "." not in candidate.rsplit("@", 1)[1]:
+            raise ValueError("valid purchaser email is required")
+        return candidate
+
     items: list[CheckoutLine] = Field(min_length=1, max_length=20)
     success_url: HttpUrl
     cancel_url: HttpUrl
