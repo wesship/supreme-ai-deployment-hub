@@ -29,10 +29,10 @@ export type SceneBlueprintResponse = {
   result: unknown;
 };
 
-async function authenticatedPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
+async function authenticatedApiPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session?.access_token) throw new Error('Sign in to use Scene Finder.');
-  const response = await fetch(`${API_BASE_URL}/api/ai-films/scene-finder/${path}`, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${data.session.access_token}`,
@@ -54,7 +54,7 @@ async function authenticatedPost<T>(path: string, body: Record<string, unknown>)
 }
 
 export async function searchScenes(query: string): Promise<SceneSearchResponse> {
-  return authenticatedPost<SceneSearchResponse>('search', { query, page_limit: 12 });
+  return authenticatedApiPost<SceneSearchResponse>('/api/ai-films/scene-finder/search', { query, page_limit: 12 });
 }
 
 export async function createSceneBlueprint(input: {
@@ -63,7 +63,7 @@ export async function createSceneBlueprint(input: {
   startTime?: number;
   endTime?: number;
 }): Promise<SceneBlueprintResponse> {
-  return authenticatedPost<SceneBlueprintResponse>('blueprint', {
+  return authenticatedApiPost<SceneBlueprintResponse>('/api/ai-films/scene-finder/blueprint', {
     asset_id: input.assetId,
     objective: input.objective,
     start_time: input.startTime ?? null,
@@ -99,12 +99,44 @@ export async function dispatchSceneProduction(input: {
   durationSeconds?: number;
   aspectRatio?: '16:9' | '9:16' | '4:5';
 }): Promise<SceneProductionResponse> {
-  return authenticatedPost<SceneProductionResponse>('production-handoff', {
+  return authenticatedApiPost<SceneProductionResponse>('/api/ai-films/scene-finder/production-handoff', {
     asset_id: input.assetId,
     objective: input.objective,
     start_time: input.startTime ?? null,
     end_time: input.endTime ?? null,
     duration_seconds: input.durationSeconds ?? 8,
     aspect_ratio: input.aspectRatio ?? '16:9',
+  });
+}
+
+
+export async function sendSceneToTimeline(input: {
+  projectId: string;
+  assetId: string;
+  label: string;
+  durationSeconds: number;
+}): Promise<{ status: string; render_job: { id: string }; planned_runtime_seconds: number }> {
+  return authenticatedApiPost('/api/ai-films/director/assemble', {
+    project_id: input.projectId,
+    title: input.label,
+    clips: [{
+      asset_id: input.assetId,
+      label: input.label,
+      duration_seconds: input.durationSeconds,
+      source_in: 0,
+      source_out: input.durationSeconds,
+      tags: ['scene-finder', 'qa-approved'],
+    }],
+    structure: 'montage',
+    target_runtime_seconds: input.durationSeconds,
+    fps: 24,
+    resolution: '1920x1080',
+    aspect_ratio: '16:9',
+    include_dialogue: true,
+    include_music: true,
+    include_sfx: true,
+    include_subtitles: true,
+    run_continuity_qa: true,
+    run_final_analyze_qa: true,
   });
 }
