@@ -1105,3 +1105,113 @@
     transition: none !important;
   }
 }
+
+
+/* Coordinated Neural Nexus transition choreography. */
+.d3-transition-ignite.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node {
+  opacity: .9;
+  filter: saturate(.86) brightness(.94);
+}
+
+.d3-transition-route.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node {
+  opacity: .78;
+  filter: saturate(.72) brightness(.88);
+}
+
+.d3-transition-ignite.d3-neural-stage--dof .react-flow__edge.d3-kg-edge--defocused .react-flow__edge-path {
+  opacity: .46 !important;
+  filter: blur(.18px) brightness(.88);
+}
+
+.d3-transition-route.d3-neural-stage--dof .react-flow__edge.d3-kg-edge--defocused .react-flow__edge-path {
+  opacity: .34 !important;
+  filter: blur(.36px) brightness(.8);
+}
+
+.d3-transition-ignite .d3-webgl-depth {
+  opacity: .74;
+  filter: blur(.4px) saturate(.96);
+}
+
+.d3-transition-route .d3-webgl-depth {
+  opacity: .86;
+  filter: blur(.82px) saturate(.94);
+}
+
+.d3-transition-focus .d3-webgl-depth {
+  transition:
+    filter .55s ease,
+    opacity .55s ease;
+}
+
+.d3-transition-ignite .react-flow__node.d3-kg-cluster-primary .d3-kg-node,
+.d3-transition-ignite .react-flow__node.d3-kg-corridor-node .d3-kg-node {
+  transform: scale(1.015);
+  transition:
+    transform .18s ease,
+    border-color .22s ease,
+    box-shadow .22s ease;
+}
+
+.d3-transition-route .react-flow__node.d3-kg-cluster-primary .d3-kg-node,
+.d3-transition-route .react-flow__node.d3-kg-corridor-node .d3-kg-node {
+  transform: scale(1.006);
+}
+
+.d3-transition-ignite .d3-cinematic-edge--executing .react-flow__edge-path,
+.d3-transition-ignite .d3-cinematic-edge--corridor .react-flow__edge-path {
+  opacity: .48 !important;
+  filter: drop-shadow(0 0 3px rgba(254,243,199,.35));
+}
+
+.d3-transition-route .d3-cinematic-edge--executing .react-flow__edge-path,
+.d3-transition-route .d3-cinematic-edge--corridor .react-flow__edge-path {
+  opacity: .9 !important;
+}
+
+.d3-ops-overlay--transition-ignite.d3-ops-overlay--active {
+  transform: translateY(0);
+  border-color: rgba(252,211,77,.18) !important;
+  animation: none;
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.28),
+    inset 0 0 0 1px rgba(254,243,199,.018);
+}
+
+.d3-ops-overlay--transition-ignite.d3-ops-overlay--active::after {
+  animation: none;
+  opacity: 0;
+}
+
+.d3-ops-overlay--transition-route.d3-ops-overlay--active {
+  transform: translateY(-1px);
+  border-color: rgba(252,211,77,.26) !important;
+  animation: none;
+  box-shadow:
+    0 15px 34px rgba(0,0,0,.31),
+    0 0 10px rgba(252,211,77,.04),
+    inset 0 0 0 1px rgba(254,243,199,.028);
+}
+
+.d3-ops-overlay--transition-route.d3-ops-overlay--active::after {
+  animation: d3-overlay-scan 5.6s ease-in-out infinite;
+}
+
+.d3-ops-overlay--transition-focus.d3-ops-overlay--active {
+  transition:
+    border-color .35s ease,
+    box-shadow .35s ease,
+    transform .35s ease,
+    background-color .35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3-transition-ignite.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node,
+  .d3-transition-route.d3-neural-stage--dof .react-flow__node.d3-kg-defocused .d3-kg-node,
+  .d3-transition-ignite.d3-neural-stage--dof .react-flow__edge.d3-kg-edge--defocused .react-flow__edge-path,
+  .d3-transition-route.d3-neural-stage--dof .react-flow__edge.d3-kg-edge--defocused .react-flow__edge-path,
+  .d3-transition-ignite .d3-webgl-depth,
+  .d3-transition-route .d3-webgl-depth {
+    transition: none !important;
+  }
+}
