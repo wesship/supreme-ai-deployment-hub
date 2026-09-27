@@ -15,11 +15,17 @@ from backend.the_door.contracts import (
     VerificationResult,
 )
 from backend.the_door.open_source_adapters import build_open_source_adapters
+from backend.the_door.xr import (
+    MetaXRAdapter,
+    XRInteraction,
+    XRInteractionResult,
+)
 
 router = APIRouter(prefix="/the-door")
 _aura = AuraDoorAdapter()
 _blender = BlenderAssetPipeline()
 _adapters = {EngineProvider.AURA: _aura, **build_open_source_adapters()}
+_meta_xr = MetaXRAdapter()
 
 
 def _adapter_for(provider: EngineProvider):
@@ -40,6 +46,9 @@ async def health() -> dict[str, object]:
             provider.value for provider, adapter in _adapters.items() if adapter.configured
         ],
         "asset_pipeline_configured": _blender.configured,
+        "xr": {
+            "meta": _meta_xr.capabilities().model_dump(),
+        },
     }
 
 
@@ -97,3 +106,26 @@ async def prepare_asset(
     _: str = Depends(get_current_user_id),
 ) -> AssetPreparationResult:
     return await _blender.prepare(request)
+
+
+@router.get("/xr/capabilities")
+async def xr_capabilities() -> dict[str, object]:
+    """Return provider-neutral XR capability boundaries for THE DOOR."""
+    return {
+        "subsystem": "the-door",
+        "authoritative_runtime": "unreal",
+        "providers": [_meta_xr.capabilities().model_dump()],
+        "entry_policy": (
+            "XR input is non-authoritative and must be authorized by the in-game Door "
+            "gameplay gate before any realm transition."
+        ),
+    }
+
+
+@router.post("/xr/interactions", response_model=XRInteractionResult)
+async def xr_interaction(
+    interaction: XRInteraction,
+    _: str = Depends(get_current_user_id),
+) -> XRInteractionResult:
+    """Normalize Meta XR input without mutating gameplay state."""
+    return _meta_xr.normalize(interaction)
