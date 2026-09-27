@@ -387,7 +387,7 @@ function CinematicEdge({
       {(executing ? [0, 1, 2] : corridorActive ? [0, 1] : clusterActive ? [0] : []).map((index) => (
         <circle
           key={index}
-          className="d3-edge-particle"
+          className={`d3-edge-particle d3-edge-particle--${index}`}
           r={index === 0 ? 3.2 : 2.2}
         >
           <animateMotion
