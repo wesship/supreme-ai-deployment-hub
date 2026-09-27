@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections import deque
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -64,6 +65,7 @@ async def stream_hermes_events(
     async def events():
         last_created_at: str | None = None
         sent_ids: set[str] = set()
+        sent_order: deque[str] = deque()
 
         while True:
             if await request.is_disconnected():
@@ -84,8 +86,10 @@ async def stream_hermes_events(
                 if not event_id or event_id in sent_ids:
                     continue
                 sent_ids.add(event_id)
-                if len(sent_ids) > 500:
-                    sent_ids = set(list(sent_ids)[-250:])
+                sent_order.append(event_id)
+                if len(sent_order) > 500:
+                    oldest = sent_order.popleft()
+                    sent_ids.discard(oldest)
                 timestamp = row.get("created_at")
                 if isinstance(timestamp, str):
                     last_created_at = timestamp
