@@ -28,6 +28,7 @@ import { deriveCameraTarget, deriveDepthAnchor } from '@/features/knowledge-grap
 import { useRuntimeIdentity } from '@/hooks/useRuntimeIdentity';
 import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
 import CinematicDepthLayer from '@/features/knowledge-graph/components/CinematicDepthLayer';
+import HermesGovernancePanel from '@/features/knowledge-graph/components/HermesGovernancePanel';
 import { deriveSelectiveFocus } from '@/features/knowledge-graph/lib/selectiveFocus';
 import { sendHermesBrowserCommand } from '@/features/knowledge-graph/lib/hermesCommand';
 import {
@@ -1618,6 +1619,8 @@ const KnowledgeGraphOS: React.FC = () => {
           </section>
         </div>
       </div>
+
+      <HermesGovernancePanel />
     </div>
   );
 };
