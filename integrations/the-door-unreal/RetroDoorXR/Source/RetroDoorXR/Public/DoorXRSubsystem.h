@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
 #include "DoorXRTypes.h"
 #include "DoorXRSubsystem.generated.h"
 
