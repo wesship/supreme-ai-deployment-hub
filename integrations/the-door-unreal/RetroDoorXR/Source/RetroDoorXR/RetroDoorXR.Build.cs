@@ -10,12 +10,12 @@ public class RetroDoorXR : ModuleRules
         {
             "Core",
             "CoreUObject",
-            "Engine"
+            "Engine",
+            "HTTP"
         });
 
         PrivateDependencyModuleNames.AddRange(new[]
         {
-            "HTTP",
             "Json",
             "JsonUtilities"
         });
