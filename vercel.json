@@ -87,6 +87,10 @@
       "destination": "/pilot-checklist.md"
     },
     {
+      "source": "/api/runtime/identity",
+      "destination": "https://api.d3vonn.io/api/runtime/identity"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
