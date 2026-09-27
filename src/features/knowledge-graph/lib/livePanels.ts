@@ -138,7 +138,9 @@ export function deriveLiveExecutionPanels(
     !events.length
       ? streamState === 'connecting'
         ? 'connecting'
-        : 'idle'
+        : streamState === 'error'
+          ? 'failed'
+          : 'idle'
       : level === 'error' || type.includes('failed') || type.includes('error')
         ? 'failed'
         : type.includes('complete') || type.includes('completed')
