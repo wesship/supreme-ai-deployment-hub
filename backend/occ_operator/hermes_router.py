@@ -26,7 +26,7 @@ from backend.hermes.infrastructure import (
     sign_payload,
 )
 from backend.hermes.registry import BUILTIN_AGENT_REGISTRY
-from backend.hermes.task_engine import TaskTransitionConflict, transition_task
+from backend.hermes.task_engine import TaskTransitionConflict, get_task, transition_task
 from backend.occ_operator.occ_logger import log_error
 
 router = APIRouter(prefix="/api/hermes", tags=["hermes"])
@@ -317,17 +317,24 @@ async def mutate_task(
     body: TaskActionRequest,
     principal: OCCPrincipal = Depends(require_occ_access),
 ):
+    task = await get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Hermes task not found.")
+    observed_status = str(task.get("status") or "").upper()
     action_targets = {
         "cancel": "CANCELLED",
         "retry": "RETRY",
         "pause": "PAUSED",
-        "resume": "RUNNING",
+        # Resuming an operator-paused task restores the queueable state.
+        # A worker lease will perform the canonical PENDING -> LOCKED -> RUNNING path.
+        "resume": "PENDING",
     }
     try:
         updated = await transition_task(
             task_id,
             action_targets[body.action],
             error_message=body.reason if body.action == "cancel" and body.reason else None,
+            expected_status=observed_status,
         )
     except TaskTransitionConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
