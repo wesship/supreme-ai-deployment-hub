@@ -140,3 +140,41 @@ export async function sendSceneToTimeline(input: {
     run_final_analyze_qa: true,
   });
 }
+
+
+export type SceneFusionRole = 'camera' | 'lighting' | 'pacing' | 'sound' | 'production_design';
+
+export type SceneFusionReferenceInput = {
+  assetId: string;
+  role: SceneFusionRole;
+  startTime?: number;
+  endTime?: number;
+};
+
+export type SceneFusionResponse = {
+  status: string;
+  surface: string;
+  reference_count: number;
+  reference_roles: SceneFusionRole[];
+  originality_policy: string;
+  production: SceneProductionResponse['production'];
+};
+
+export async function dispatchSceneFusion(input: {
+  objective: string;
+  references: SceneFusionReferenceInput[];
+  durationSeconds?: number;
+  aspectRatio?: '16:9' | '9:16' | '4:5';
+}): Promise<SceneFusionResponse> {
+  return authenticatedApiPost<SceneFusionResponse>('/api/ai-films/scene-finder/fusion-handoff', {
+    objective: input.objective,
+    references: input.references.map((reference) => ({
+      asset_id: reference.assetId,
+      role: reference.role,
+      start_time: reference.startTime ?? null,
+      end_time: reference.endTime ?? null,
+    })),
+    duration_seconds: input.durationSeconds ?? 8,
+    aspect_ratio: input.aspectRatio ?? '16:9',
+  });
+}
