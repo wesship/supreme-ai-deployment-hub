@@ -54,6 +54,7 @@ type HermesTaskRow = {
   parent_task_id?: string | null;
   goal_id?: string | null;
   agent_name?: string | null;
+  task_type?: string | null;
   kind: string;
   title: string | null;
   status: string;
@@ -122,6 +123,75 @@ type GraphFinding = {
   label: string;
   evidence: string;
   recommendation: string;
+};
+
+type SystemHealthRow = {
+  key: string;
+  label: string;
+  tasks: number;
+  failed: number;
+  retries: number;
+  runs: number;
+  duration_ms: number;
+  cost_usd: number;
+  run_tasks: number;
+};
+
+type AdaptiveProposal = {
+  id: string;
+  category: 'routing' | 'agent' | 'tool' | 'concurrency' | 'workflow';
+  target: string;
+  reason: string;
+  proposal: string;
+  guardrail: string;
+  severity: 'info' | 'warning' | 'critical';
+};
+
+type AdaptiveChangeRequestRow = {
+  id: string;
+  proposal_id: string;
+  category: AdaptiveProposal['category'];
+  target: string;
+  severity: AdaptiveProposal['severity'];
+  risk_classification: 'low' | 'medium' | 'high' | 'critical';
+  evidence_hash: string;
+  proposed_change: Record<string, unknown>;
+  guardrail: string;
+  rollback_plan: string;
+  status: 'pending_review' | 'approved' | 'rejected' | 'canary_queued' | 'canary_completed' | 'canary_failed';
+  review_rationale: string | null;
+  canary_task_id: string | null;
+  created_at: string;
+};
+
+type AdaptiveAuditRow = {
+  id: string;
+  change_request_id: string;
+  event_type: string;
+  event_data: Record<string, unknown>;
+  created_at: string;
+};
+
+type AdaptivePromotionCandidateRow = {
+  id: string;
+  change_request_id: string;
+  certification_id: string;
+  proposed_change: Record<string, unknown>;
+  evidence_hash: string;
+  status: 'pending_promotion_review' | 'approved' | 'rejected' | 'promoted';
+  created_at: string;
+};
+
+type AdaptiveRolloutRow = {
+  id: string;
+  promotion_candidate_id: string;
+  environment: 'staging' | 'production';
+  approved_delta: Record<string, unknown>;
+  rollback_config: Record<string, unknown>;
+  status: 'validated' | 'applied' | 'rolled_back' | 'failed';
+  runtime_changed: boolean;
+  deployment_evidence: Record<string, unknown>;
+  created_at: string;
 };
 
 type KnowledgeNodeData = {
@@ -373,6 +443,10 @@ const formatDuration = (task: HermesTaskRow | null): string => {
 
 const livePathForSignal = (signal: string): string[] => {
   const value = signal.toLowerCase();
+  const terminal = value.includes('complete') || value.includes('completed') || value.includes('result') || value.includes('failed') || value.includes('cancelled');
+  if (terminal) {
+    return ['intent', 'hermes', 'agents', 'workflow', 'analytics'];
+  }
   if (value.includes('film') || value.includes('character') || value.includes('video')) {
     return ['intent', 'hermes', 'agents', 'workflow', 'films'];
   }
@@ -391,7 +465,7 @@ const livePathForSignal = (signal: string): string[] => {
   if (value.includes('agent') || value.includes('worker') || value.includes('delegate')) {
     return ['intent', 'hermes', 'agents'];
   }
-  if (value.includes('workflow') || value.includes('complete') || value.includes('result')) {
+  if (value.includes('workflow')) {
     return ['intent', 'hermes', 'agents', 'workflow', 'analytics'];
   }
   return ['intent', 'hermes'];
@@ -411,11 +485,23 @@ const KnowledgeGraphOS: React.FC = () => {
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [pendingInterrupt, setPendingInterrupt] = useState<HermesInterruptRow | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [runs, setRuns] = useState<HermesRunRow[]>([]);
   const [taskLogs, setTaskLogs] = useState<HermesLogRow[]>([]);
   const [parentTask, setParentTask] = useState<HermesTaskRow | null>(null);
   const [childTasks, setChildTasks] = useState<HermesTaskRow[]>([]);
+  const [systemHealth, setSystemHealth] = useState<SystemHealthRow[]>([]);
+  const [systemHealthLoading, setSystemHealthLoading] = useState(false);
+  const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
+  const [systemHealthUpdatedAt, setSystemHealthUpdatedAt] = useState<Date | null>(null);
+  const [changeRequests, setChangeRequests] = useState<AdaptiveChangeRequestRow[]>([]);
+  const [changeAudit, setChangeAudit] = useState<AdaptiveAuditRow[]>([]);
+  const [reviewNote, setReviewNote] = useState('Reviewed against current evidence and rollback guardrails.');
+  const [changeBusy, setChangeBusy] = useState<string | null>(null);
+  const [promotionCandidates, setPromotionCandidates] = useState<AdaptivePromotionCandidateRow[]>([]);
+  const [rollouts, setRollouts] = useState<AdaptiveRolloutRow[]>([]);
+  const [productionAuthorization, setProductionAuthorization] = useState('');
   const timelineRequestRef = useRef(0);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -459,7 +545,7 @@ const KnowledgeGraphOS: React.FC = () => {
           const row = payload.new as HermesTaskRow;
           if (!row?.id) return;
           setLiveTask(row);
-          const signal = `${row.kind} ${row.title ?? ''} ${row.status}`;
+          const signal = `${row.task_type ?? ''} ${row.agent_name ?? ''} ${row.kind} ${row.title ?? ''} ${row.status}`;
           applyLivePath(livePathForSignal(signal), `task ${row.status}: ${row.title ?? row.kind}`);
         },
       )
@@ -475,6 +561,97 @@ const KnowledgeGraphOS: React.FC = () => {
     };
   }, []);
 
+  const refreshSystemHealth = async () => {
+    setSystemHealthLoading(true);
+    setSystemHealthError(null);
+    try {
+      const [tasksRes, runsRes] = await Promise.all([
+        supabase
+          .from('hermes_tasks')
+          .select('id,kind,title,status,agent_name,retry_count,created_at')
+          .order('created_at', { ascending: false })
+          .limit(250),
+        supabase
+          .from('hermes_runs')
+          .select('id,task_id,agent_name,status,duration_ms,cost_usd,created_at')
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
+      if (tasksRes.error) throw tasksRes.error;
+      if (runsRes.error) throw runsRes.error;
+
+      const recentTasks = (tasksRes.data ?? []) as unknown as HermesTaskRow[];
+      const recentRuns = (runsRes.data ?? []) as unknown as HermesRunRow[];
+      const taskById = new Map(recentTasks.map((task) => [task.id, task]));
+      const buckets = new Map<string, SystemHealthRow>();
+      const runTaskIds = new Map<string, Set<string>>();
+
+      const normalizeAgent = (value?: string | null) => {
+        const trimmed = value?.trim();
+        return trimmed ? trimmed.toUpperCase() : 'UNASSIGNED';
+      };
+      const ensure = (key: string, label: string) => {
+        if (!buckets.has(key)) {
+          buckets.set(key, { key, label, tasks: 0, failed: 0, retries: 0, runs: 0, duration_ms: 0, cost_usd: 0, run_tasks: 0 });
+        }
+        return buckets.get(key)!;
+      };
+
+      for (const task of recentTasks) {
+        const normalized = normalizeAgent(task.agent_name);
+        const status = task.status.toUpperCase();
+        // PENDING/PAUSED tasks may intentionally be unassigned before dispatch.
+        if (normalized === 'UNASSIGNED' && (status === 'PENDING' || status === 'PAUSED')) continue;
+        const label = normalized === 'UNASSIGNED' ? 'Unassigned' : normalized;
+        const key = `agent:${normalized}`;
+        const row = ensure(key, label);
+        row.tasks += 1;
+        if (status === 'FAILED') row.failed += 1;
+        row.retries += task.retry_count ?? 0;
+      }
+
+      for (const run of recentRuns) {
+        const task = taskById.get(run.task_id);
+        // Keep cost/latency population aligned to the loaded task window.
+        if (!task) continue;
+        const normalized = normalizeAgent(run.agent_name || task.agent_name);
+        const label = normalized === 'UNASSIGNED' ? 'Unassigned' : normalized;
+        const key = `agent:${normalized}`;
+        const row = ensure(key, label);
+        row.runs += 1;
+        row.duration_ms += run.duration_ms ?? 0;
+        row.cost_usd += Number(run.cost_usd ?? 0);
+        const ids = runTaskIds.get(key) ?? new Set<string>();
+        ids.add(run.task_id);
+        runTaskIds.set(key, ids);
+        row.run_tasks = ids.size;
+      }
+
+      setSystemHealth(
+        Array.from(buckets.values())
+          .sort((a, b) => {
+            const pressureA = a.failed * 5 + a.retries * 2 + a.duration_ms / 30_000 + a.cost_usd * 10;
+            const pressureB = b.failed * 5 + b.retries * 2 + b.duration_ms / 30_000 + b.cost_usd * 10;
+            return pressureB - pressureA;
+          })
+          .slice(0, 12),
+      );
+      setSystemHealthUpdatedAt(new Date());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'System health load failed';
+      setSystemHealthError(message);
+      setActivity((items) => [`System health error: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setSystemHealthLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshSystemHealth();
+    const timer = window.setInterval(refreshSystemHealth, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const refreshTaskTimeline = async (task: HermesTaskRow | null) => {
     const requestId = ++timelineRequestRef.current;
     if (!task?.id) {
@@ -487,6 +664,7 @@ const KnowledgeGraphOS: React.FC = () => {
       return;
     }
     setTimeline([]);
+    setTimelineError(null);
     setPendingInterrupt(null);
     setRuns([]);
     setTaskLogs([]);
@@ -608,6 +786,7 @@ const KnowledgeGraphOS: React.FC = () => {
     } catch (error) {
       if (requestId !== timelineRequestRef.current) return;
       const message = error instanceof Error ? error.message : 'Timeline load failed';
+      setTimelineError(message);
       setActivity((items) => [`Timeline error: ${message}`, ...items].slice(0, 5));
     } finally {
       if (requestId === timelineRequestRef.current) setTimelineLoading(false);
@@ -793,6 +972,375 @@ const KnowledgeGraphOS: React.FC = () => {
       return [...structured, ...eventFallback];
     }),
   )).slice(0, 8);
+  const proposalRuntimeDiff = (item: AdaptiveProposal): Record<string, unknown> => {
+    if (item.category === 'concurrency') {
+      return { scope: 'worker-runtime', target: item.target, env: 'HERMES_MAX_CONCURRENT_TASKS', operation: 'canary_reduce_percent', percent: 25 };
+    }
+    if (item.category === 'routing') {
+      return { scope: 'router', target: item.target, operation: 'canary_fallback', traffic_percent: 10 };
+    }
+    if (item.category === 'agent') {
+      return { scope: 'agent-profile', target: item.target, operation: 'evaluation_canary', traffic_percent: 10 };
+    }
+    if (item.category === 'tool') {
+      return { scope: 'tool-policy', target: item.target, operation: 'read_only_fallback_canary' };
+    }
+    return { scope: 'workflow-policy', target: item.target, operation: 'preflight_gate' };
+  };
+
+  const refreshAdaptiveChangeRequests = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests?limit=30`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const rows = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(typeof rows?.detail === 'string' ? rows.detail : 'Change request load failed');
+      const typedRows = (Array.isArray(rows) ? rows : []) as AdaptiveChangeRequestRow[];
+      setChangeRequests(typedRows);
+
+      if (typedRows.length) {
+        const ids = typedRows.map((row) => row.id);
+        const auditRes = await supabase
+          .from('hermes_adaptive_change_audit')
+          .select('id,change_request_id,event_type,event_data,created_at')
+          .in('change_request_id', ids)
+          .order('created_at', { ascending: false })
+          .limit(100);
+        if (!auditRes.error) setChangeAudit((auditRes.data ?? []) as unknown as AdaptiveAuditRow[]);
+      } else {
+        setChangeAudit([]);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Change request load failed';
+      setActivity((items) => [`Governance ledger error: ${message}`, ...items].slice(0, 5));
+    }
+  };
+
+  useEffect(() => {
+    refreshAdaptiveChangeRequests();
+  }, []);
+
+  const stageAdaptiveProposal = async (item: AdaptiveProposal) => {
+    setChangeBusy(item.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to stage a governed change request.');
+      const rollbackPlan = `Abort the canary and retain the current production ${item.category} policy for ${item.target}; do not promote the proposed change.`;
+      const baselineRow = item.id === 'routing-unassigned'
+        ? systemHealth.find((row) => row.label === 'Unassigned')
+        : systemHealth.find((row) => row.label === item.target);
+      if (!baselineRow || baselineRow.tasks < 1 || baselineRow.runs < 1) {
+        throw new Error('A measured system-health baseline is required before staging this proposal.');
+      }
+      const baselineMetrics = {
+        success_rate: Math.max(0, 1 - baselineRow.failed / baselineRow.tasks),
+        error_rate: baselineRow.failed / baselineRow.tasks,
+        latency_ms: baselineRow.duration_ms / baselineRow.runs,
+        cost_usd: baselineRow.cost_usd / baselineRow.tasks,
+      };
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposal_id: item.id,
+          category: item.category,
+          target: item.target,
+          severity: item.severity,
+          evidence: {
+            reason: item.reason,
+            system_health_updated_at: systemHealthUpdatedAt?.toISOString() ?? null,
+            system_health: systemHealth,
+            baseline_metrics: baselineMetrics,
+          },
+          proposed_change: proposalRuntimeDiff(item),
+          guardrail: item.guardrail,
+          rollback_plan: rollbackPlan,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Change request staging failed');
+      setActivity((items) => [`Governed review staged: ${item.target}`, ...items].slice(0, 5));
+      await refreshAdaptiveChangeRequests();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Change request staging failed';
+      setActivity((items) => [`Governed review blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const decideAdaptiveChange = async (requestId: string, decision: 'approved' | 'rejected') => {
+    setChangeBusy(requestId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to review a change request.');
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests/${encodeURIComponent(requestId)}/decision`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, rationale: reviewNote.trim() || 'Operator review completed.' }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : `Change request ${decision} failed`);
+      setActivity((items) => [`Change request ${decision}: ${requestId}`, ...items].slice(0, 5));
+      await refreshAdaptiveChangeRequests();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Change request review failed';
+      setActivity((items) => [`Review blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const queueAdaptiveCanary = async (requestId: string) => {
+    setChangeBusy(requestId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to queue a canary.');
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests/${encodeURIComponent(requestId)}/canary`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Canary queue failed');
+      setActivity((items) => [`Evaluation-only canary queued: ${payload.task_id ?? requestId}`, ...items].slice(0, 5));
+      await refreshAdaptiveChangeRequests();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Canary queue failed';
+      setActivity((items) => [`Canary blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const refreshPromotionCandidates = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-promotion-candidates?limit=30`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Promotion candidate load failed');
+      setPromotionCandidates((Array.isArray(payload) ? payload : []) as AdaptivePromotionCandidateRow[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Promotion candidate load failed';
+      setActivity((items) => [`Promotion candidate error: ${message}`, ...items].slice(0, 5));
+    }
+  };
+
+  useEffect(() => {
+    refreshPromotionCandidates();
+  }, []);
+
+  const certifyAdaptiveCanary = async (requestId: string) => {
+    setChangeBusy(requestId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to certify a canary.');
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-change-requests/${encodeURIComponent(requestId)}/certify`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Canary certification failed');
+      setActivity((items) => [`Canary certification ${String(payload.decision ?? '').toUpperCase()}: ${requestId}`, ...items].slice(0, 5));
+      await Promise.all([refreshAdaptiveChangeRequests(), refreshPromotionCandidates()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Canary certification failed';
+      setActivity((items) => [`Certification blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const refreshAdaptiveRollouts = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-rollouts?limit=30`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Rollout load failed');
+      setRollouts((Array.isArray(payload) ? payload : []) as AdaptiveRolloutRow[]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Rollout load failed';
+      setActivity((items) => [`Rollout ledger error: ${message}`, ...items].slice(0, 5));
+    }
+  };
+
+  useEffect(() => {
+    refreshAdaptiveRollouts();
+  }, []);
+
+  const decidePromotionCandidate = async (candidateId: string, decision: 'approved' | 'rejected') => {
+    setChangeBusy(candidateId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to review promotion candidates.');
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-promotion-candidates/${encodeURIComponent(candidateId)}/decision`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision, rationale: reviewNote.trim() || 'Promotion evidence reviewed.' }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Promotion review failed');
+      setActivity((items) => [`Promotion ${decision}: ${candidateId}`, ...items].slice(0, 5));
+      await refreshPromotionCandidates();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Promotion review failed';
+      setActivity((items) => [`Promotion review blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const validatePromotionRollout = async (candidateId: string, environment: 'staging' | 'production') => {
+    setChangeBusy(candidateId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Sign in is required to validate rollout.');
+      if (environment === 'production' && productionAuthorization.trim().length < 16) {
+        throw new Error('Enter an explicit production authorization token/passphrase (16+ characters).');
+      }
+      const response = await fetch(`${API_BASE_URL}/api/hermes/adaptive-promotion-candidates/${encodeURIComponent(candidateId)}/rollout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          environment,
+          production_authorization: environment === 'production' ? productionAuthorization : null,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof payload?.detail === 'string' ? payload.detail : 'Rollout validation failed');
+      setActivity((items) => [`${environment} rollout validated; runtime unchanged: ${candidateId}`, ...items].slice(0, 5));
+      await refreshAdaptiveRollouts();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Rollout validation failed';
+      setActivity((items) => [`Rollout blocked: ${message}`, ...items].slice(0, 5));
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const adaptiveProposals = useMemo<AdaptiveProposal[]>(() => {
+    const proposals: AdaptiveProposal[] = [];
+    if (systemHealthLoading || systemHealthError || !systemHealthUpdatedAt) {
+      return [{
+        id: 'health-evidence-unavailable',
+        category: 'workflow',
+        target: 'Hermes telemetry',
+        reason: systemHealthError
+          ? \`System-health evidence is unavailable: \${systemHealthError}\`
+          : 'System-health evidence has not completed loading yet.',
+        proposal: 'Do not change routing, concurrency, agent, tool, or workflow policy until a measured health snapshot is available.',
+        guardrail: 'Missing telemetry is not healthy telemetry; no canary or production change should be staged from this state.',
+        severity: 'warning',
+      }];
+    }
+
+
+    for (const row of systemHealth) {
+      const failureRate = row.tasks ? row.failed / row.tasks : 0;
+      const avgRunMs = row.runs ? row.duration_ms / row.runs : 0;
+      const costPerTask = row.run_tasks ? row.cost_usd / row.run_tasks : 0;
+      const agent = row.label;
+
+      if (agent === 'Unassigned' && row.tasks > 0) {
+        proposals.push({
+          id: 'routing-unassigned',
+          category: 'routing',
+          target: 'Hermes router',
+          reason: `${row.tasks} recent executing/terminal task(s) are unassigned.`,
+          proposal: 'Require an explicit agent assignment before dispatch for non-system tasks; send unresolved assignments to MANUAL_REVIEW instead of silently executing.',
+          guardrail: 'Do not change existing in-flight tasks; apply only after an operator approves a routing-policy update.',
+          severity: row.tasks >= 5 ? 'critical' : 'warning',
+        });
+        continue;
+      }
+
+      if (failureRate >= 0.25 && row.tasks >= 4) {
+        proposals.push({
+          id: `route-${row.key}`,
+          category: 'routing',
+          target: agent,
+          reason: `${(failureRate * 100).toFixed(0)}% failure rate across ${row.tasks} recent task(s).`,
+          proposal: 'Place new non-critical assignments behind a 10% canary route to a capability-compatible fallback and compare success/error signatures before broader rerouting.',
+          guardrail: 'Fallback compatibility must be validated against the Hermes agent registry; safety/approval work must remain with GUARDIAN.',
+          severity: failureRate >= 0.5 ? 'critical' : 'warning',
+        });
+      }
+
+      if (row.retries >= 3) {
+        proposals.push({
+          id: `workflow-${row.key}`,
+          category: 'workflow',
+          target: agent,
+          reason: `${row.retries} retries are recorded in the recent task window.`,
+          proposal: 'Insert a deterministic preflight validation step before this agent and stop automatic retry after one unchanged failure signature.',
+          guardrail: 'Preflight may reject or pause work, but must not bypass human approval or mutate protected task inputs.',
+          severity: row.retries >= 6 ? 'critical' : 'warning',
+        });
+      }
+
+      if (avgRunMs >= 30_000 && row.runs >= 3) {
+        proposals.push({
+          id: `concurrency-${row.key}`,
+          category: 'concurrency',
+          target: agent,
+          reason: `Average loaded run duration is ${(avgRunMs / 1000).toFixed(1)}s across ${row.runs} run(s).`,
+          proposal: 'Canary a 25% lower worker lease/concurrency target for this workload class and compare queue depth, completion time, and failure rate before changing HERMES_MAX_CONCURRENT_TASKS.',
+          guardrail: 'No environment variable changes are applied from this screen; deployment/config approval remains required.',
+          severity: avgRunMs >= 60_000 ? 'critical' : 'warning',
+        });
+      }
+
+      if (costPerTask >= 0.05 && row.run_tasks >= 3) {
+        proposals.push({
+          id: `cost-${row.key}`,
+          category: 'agent',
+          target: agent,
+          reason: `Loaded run cost averages ${costPerTask.toFixed(3)} across ${row.run_tasks} distinct recent executed task(s).`,
+          proposal: 'Run a 10% evaluation canary using a lower-cost compatible model/tool profile, preserving the same task inputs and acceptance criteria for side-by-side comparison.',
+          guardrail: 'Do not downgrade safety, approval, or accuracy requirements; promote only after measured equivalence.',
+          severity: costPerTask >= 0.15 ? 'critical' : 'warning',
+        });
+      }
+    }
+
+    if (liveTask && /tool|mcp|connector|integration/i.test(`${liveTask.kind} ${liveTask.title ?? ''}`)) {
+      proposals.push({
+        id: 'tool-fallback-active',
+        category: 'tool',
+        target: liveTask.title ?? liveTask.kind,
+        reason: toolSignals.length
+          ? `Active task exposes ${toolSignals.length} tool/MCP attribution signal(s).`
+          : 'No structured tool/MCP attribution appears in the newest 60 loaded logs for this tool-oriented task.',
+        proposal: toolSignals.length
+          ? 'Define an ordered fallback chain for the attributed connector/tool and test failover with a read-only canary before allowing mutation-capable fallback.'
+          : 'Add structured tool attribution first, then define a fail-closed fallback chain so Hermes can distinguish provider failure from missing instrumentation.',
+        guardrail: 'Fallbacks must inherit the original tool permissions, approval mode, and destructive-action policy.',
+        severity: toolSignals.length ? 'info' : 'warning',
+      });
+    }
+
+    if (!proposals.length) {
+      proposals.push({
+        id: 'stable-system',
+        category: 'workflow',
+        target: 'Hermes',
+        reason: 'No aggregate signal currently crosses the adaptive recommendation thresholds.',
+        proposal: 'Keep the current routing topology and continue collecting task/run evidence before changing worker, agent, or tool policy.',
+        guardrail: 'Absence of a recommendation is not a production certification; deployment smoke tests remain separate.',
+        severity: 'info',
+      });
+    }
+
+    return proposals.slice(0, 10);
+  }, [liveTask, systemHealth, systemHealthError, systemHealthLoading, systemHealthUpdatedAt, toolSignals]);
+
   const graphFindings = useMemo<GraphFinding[]>(() => {
     if (!liveTask) return [];
     const findings: GraphFinding[] = [];
@@ -1089,7 +1637,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 <Activity className="h-4 w-4 text-amber-200" />
                 <h2 className="text-sm font-bold text-white">Live execution inspector</h2>
               </div>
-              <span className={`border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] ${liveTask?.status === 'failed' ? 'border-red-300/30 bg-red-300/10 text-red-200' : liveTask?.status === 'completed' ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'}`}>
+              <span className={`border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] ${liveTask?.status?.toUpperCase() === 'FAILED' ? 'border-red-300/30 bg-red-300/10 text-red-200' : liveTask?.status?.toUpperCase() === 'COMPLETED' ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' : 'border-amber-300/30 bg-amber-300/10 text-amber-100'}`}>
                 {liveTask?.status ?? 'waiting'}
               </span>
             </div>
@@ -1171,7 +1719,7 @@ const KnowledgeGraphOS: React.FC = () => {
               <div className="mt-3 max-h-64 space-y-2 overflow-auto pr-1">
                 {timeline.length === 0 ? (
                   <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">
-                    {liveTask ? 'No task-linked timeline rows available yet.' : 'Waiting for a live Hermes task.'}
+                    {timelineError ? `Timeline unavailable: ${timelineError}` : liveTask ? 'No task-linked timeline rows available yet.' : 'Waiting for a live Hermes task.'}
                   </div>
                 ) : timeline.map((item) => (
                   <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2">
@@ -1185,6 +1733,258 @@ const KnowledgeGraphOS: React.FC = () => {
                 ))}
               </div>
             </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Adaptive recommendations</h2>
+              </div>
+              <span className="border border-[#34332f] bg-[#0c0c0a] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-500">approval-gated</span>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Evidence-derived proposals for routing, agent/model selection, tool fallback, concurrency, and workflow structure. Nothing here changes runtime state automatically.
+            </p>
+
+            <div className="mt-4 space-y-2">
+              {adaptiveProposals.map((item) => (
+                <div key={item.id} className="border border-[#2d2c28] bg-[#090907] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-bold text-stone-200">{item.target}</p>
+                      <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-stone-600">{item.category}</p>
+                    </div>
+                    <span className={`text-[9px] font-bold uppercase tracking-[0.12em] ${item.severity === 'critical' ? 'text-red-200' : item.severity === 'warning' ? 'text-amber-200' : 'text-stone-600'}`}>
+                      {item.severity}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[10px] leading-4 text-stone-500">{item.reason}</p>
+                  <p className="mt-2 text-[10px] leading-4 text-stone-300">
+                    <span className="font-bold text-stone-500">Proposed change:</span> {item.proposal}
+                  </p>
+                  <p className="mt-2 border-l border-[#34332f] pl-2 text-[9px] leading-4 text-stone-600">
+                    <span className="font-bold">Guardrail:</span> {item.guardrail}
+                  </p>
+                  <button
+                    onClick={() => stageAdaptiveProposal(item)}
+                    disabled={changeBusy !== null || item.id === 'stable-system'}
+                    className="mt-3 w-full border border-amber-300/20 bg-amber-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Stage governed review
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 border border-[#25241f] bg-[#0c0c0a] px-3 py-2 text-[9px] leading-4 text-stone-600">
+              Recommendations are staged only. Applying routing, model, worker-concurrency, tool-fallback, or workflow-policy changes requires a separate governed action and production validation.
+            </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Governed change requests</h2>
+              </div>
+              <button onClick={refreshAdaptiveChangeRequests} className="text-[10px] font-semibold text-amber-100/70">Refresh</button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Immutable evidence snapshot → risk classification → human decision → evaluation-only canary. Approval never equals production apply.
+            </p>
+
+            <textarea
+              value={reviewNote}
+              onChange={(event) => setReviewNote(event.target.value)}
+              className="mt-3 min-h-16 w-full border border-[#2d2c28] bg-[#090907] px-3 py-2 text-[10px] text-stone-300 outline-none focus:border-amber-200/30"
+              aria-label="Change request review rationale"
+              placeholder="Reviewer rationale"
+            />
+
+            <div className="mt-3 space-y-2">
+              {changeRequests.map((request) => {
+                const auditRows = changeAudit.filter((item) => item.change_request_id === request.id).slice(0, 4);
+                return (
+                  <div key={request.id} className="border border-[#2d2c28] bg-[#090907] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-bold text-stone-200">{request.target}</p>
+                        <p className="mt-0.5 text-[9px] uppercase tracking-[0.12em] text-stone-600">{request.category} · risk {request.risk_classification}</p>
+                      </div>
+                      <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-amber-200">{request.status}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-[86px_1fr] gap-2 text-[9px]">
+                      <span className="text-stone-600">Evidence</span>
+                      <span className="truncate font-mono text-stone-400" title={request.evidence_hash}>{request.evidence_hash.slice(0, 16)}…</span>
+                      <span className="text-stone-600">Diff</span>
+                      <span className="break-all text-stone-400">{JSON.stringify(request.proposed_change)}</span>
+                      <span className="text-stone-600">Rollback</span>
+                      <span className="text-stone-400">{request.rollback_plan}</span>
+                    </div>
+
+                    {request.status === 'pending_review' && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button disabled={changeBusy !== null} onClick={() => decideAdaptiveChange(request.id, 'approved')} className="border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">Approve</button>
+                        <button disabled={changeBusy !== null} onClick={() => decideAdaptiveChange(request.id, 'rejected')} className="border border-red-300/25 bg-red-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-red-200 disabled:opacity-40">Reject</button>
+                      </div>
+                    )}
+
+                    {request.status === 'approved' && (
+                      <button disabled={changeBusy !== null} onClick={() => queueAdaptiveCanary(request.id)} className="mt-3 w-full border border-amber-300/25 bg-amber-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100 disabled:opacity-40">
+                        Queue evaluation-only canary
+                      </button>
+                    )}
+
+                    {request.canary_task_id && (
+                      <button onClick={() => setLiveTask({ id: request.canary_task_id!, kind: 'adaptive.canary', title: `Canary: ${request.target}`, status: 'PENDING' })} className="mt-2 w-full border border-[#34332f] bg-[#0c0c0a] px-3 py-2 text-[10px] text-stone-400">
+                        Inspect canary task · {request.canary_task_id.slice(0, 8)}
+                      </button>
+                    )}
+
+                    {request.status === 'canary_queued' && (
+                      <div className="mt-3 border border-[#25241f] bg-[#0c0c0a] p-3">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-stone-500">Canary certification</p>
+                        <p className="mt-2 text-[10px] leading-4 text-stone-500">
+                          Certification is bound to the frozen baseline evidence and the linked Hermes canary task&apos;s persisted metrics. The task must be COMPLETED and include measured cost evidence.
+                        </p>
+                        <button disabled={changeBusy !== null} onClick={() => certifyAdaptiveCanary(request.id)} className="mt-3 w-full border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">
+                          Certify completed canary
+                        </button>
+                        <p className="mt-2 text-[9px] leading-4 text-stone-600">PASS permits at most 2pp success/error regression and 20% latency/cost regression. Incomplete or unmeasured canaries fail closed.</p>
+                      </div>
+                    )}
+
+                    {auditRows.length > 0 && (
+                      <details className="mt-3 border-t border-[#25241f] pt-2">
+                        <summary className="cursor-pointer text-[9px] font-bold uppercase tracking-[0.12em] text-stone-600">Audit trail</summary>
+                        <div className="mt-2 space-y-1">
+                          {auditRows.map((audit) => (
+                            <p key={audit.id} className="text-[9px] text-stone-600">
+                              {new Date(audit.created_at).toLocaleString()} · {audit.event_type}
+                            </p>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                );
+              })}
+              {!changeRequests.length && (
+                <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">
+                  No governed adaptive change requests staged yet.
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">Canary certification & promotion candidates</h2>
+              </div>
+              <button onClick={refreshPromotionCandidates} className="text-[10px] font-semibold text-amber-100/70">Refresh</button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Only passing canary certifications create a promotion candidate. Failed canaries explicitly retain current production policy.
+            </p>
+            <div className="mt-4 space-y-2">
+              {promotionCandidates.map((item) => (
+                <div key={item.id} className="border border-[#2d2c28] bg-[#090907] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-[10px] text-stone-300">{item.id.slice(0, 8)}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-emerald-200">{item.status}</span>
+                  </div>
+                  <p className="mt-2 break-all text-[10px] text-stone-500">{JSON.stringify(item.proposed_change)}</p>
+                  <p className="mt-2 truncate font-mono text-[9px] text-stone-700" title={item.evidence_hash}>evidence {item.evidence_hash}</p>
+                  {item.status === 'pending_promotion_review' && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button disabled={changeBusy !== null} onClick={() => decidePromotionCandidate(item.id, 'approved')} className="border border-emerald-300/25 bg-emerald-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-200 disabled:opacity-40">Approve promotion</button>
+                      <button disabled={changeBusy !== null} onClick={() => decidePromotionCandidate(item.id, 'rejected')} className="border border-red-300/25 bg-red-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-red-200 disabled:opacity-40">Reject</button>
+                    </div>
+                  )}
+                  {item.status === 'approved' && (
+                    <div className="mt-3 space-y-2">
+                      <button disabled={changeBusy !== null} onClick={() => validatePromotionRollout(item.id, 'staging')} className="w-full border border-[#34332f] bg-[#0c0c0a] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-300 disabled:opacity-40">Validate staging rollout</button>
+                      <input value={productionAuthorization} onChange={(e) => setProductionAuthorization(e.target.value)} type="password" placeholder="Production authorization (16+ chars)" className="w-full border border-[#2d2c28] bg-[#090907] px-3 py-2 text-[10px] text-stone-300" />
+                      <button disabled={changeBusy !== null || productionAuthorization.trim().length < 16} onClick={() => validatePromotionRollout(item.id, 'production')} className="w-full border border-amber-300/25 bg-amber-300/[0.04] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100 disabled:opacity-40">Validate production rollout</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {!promotionCandidates.length && <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">No passing canary has produced a promotion candidate yet.</div>}
+            </div>
+            <div className="mt-4 border-t border-[#25241f] pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Validated rollout ledger</p>
+                <button onClick={refreshAdaptiveRollouts} className="text-[10px] text-amber-100/70">Refresh</button>
+              </div>
+              <div className="mt-2 space-y-2">
+                {rollouts.map((rollout) => (
+                  <div key={rollout.id} className="border border-[#25241f] bg-[#090907] p-3 text-[9px]">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-stone-300">{rollout.id.slice(0, 8)}</span>
+                      <span className="uppercase text-stone-500">{rollout.environment} · {rollout.status}</span>
+                    </div>
+                    <p className="mt-1 text-stone-600">runtime_changed={String(rollout.runtime_changed)} · rollback snapshot retained</p>
+                  </div>
+                ))}
+                {!rollouts.length && <p className="text-[10px] text-stone-600">No validated rollouts yet.</p>}
+              </div>
+            </div>
+          </section>
+
+          <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-amber-200" />
+                <h2 className="text-sm font-bold text-white">System-wide graph health</h2>
+              </div>
+              <button onClick={refreshSystemHealth} disabled={systemHealthLoading} className="text-[10px] font-semibold text-amber-100/70 disabled:opacity-40">
+                {systemHealthLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+            </div>
+            <p className="mt-2 text-xs leading-5 text-stone-500">
+              Aggregated pressure across the newest 250 Hermes tasks and 500 run records visible to this authenticated user.
+            </p>
+
+            <div className="mt-4 space-y-2">
+              {systemHealth.map((row) => {
+                const avgRunMs = row.runs ? row.duration_ms / row.runs : 0;
+                const failureRate = row.tasks ? (row.failed / row.tasks) * 100 : 0;
+                const pressure = row.failed * 5 + row.retries * 2 + row.duration_ms / 30_000 + row.cost_usd * 10;
+                const level = pressure >= 15 ? 'critical' : pressure >= 6 ? 'warning' : 'normal';
+                return (
+                  <div key={row.key} className="border border-[#2d2c28] bg-[#090907] p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-[11px] font-bold text-stone-200">{row.label}</p>
+                      <span className={`text-[9px] font-bold uppercase tracking-[0.12em] ${level === 'critical' ? 'text-red-200' : level === 'warning' ? 'text-amber-200' : 'text-stone-600'}`}>
+                        {level}
+                      </span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-[9px]">
+                      <span className="text-stone-500">Tasks <b className="text-stone-300">{row.tasks}</b></span>
+                      <span className="text-stone-500">Fail <b className="text-stone-300">{failureRate.toFixed(0)}%</b></span>
+                      <span className="text-stone-500">Retries <b className="text-stone-300">{row.retries}</b></span>
+                      <span className="text-stone-500">Runs <b className="text-stone-300">{row.runs}</b></span>
+                      <span className="text-stone-500">Avg <b className="text-stone-300">{avgRunMs ? `${(avgRunMs / 1000).toFixed(1)}s` : '—'}</b></span>
+                      <span className="text-stone-500">Cost <b className="text-stone-300">${row.cost_usd.toFixed(3)}</b></span>
+                    </div>
+                  </div>
+                );
+              })}
+              {!systemHealth.length && (
+                <div className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[10px] text-stone-600">
+                  {systemHealthLoading ? 'Loading recent Hermes health…' : 'No recent system-health records available.'}
+                </div>
+              )}
+            </div>
+
+            <p className="mt-3 text-[9px] leading-4 text-stone-700">
+              Pressure ranking is heuristic: failures ×5 + retries ×2 + runtime/30s + cost ×10. It is an operator signal, not an automated routing decision.
+              {systemHealthUpdatedAt ? ` Updated ${systemHealthUpdatedAt.toLocaleTimeString()}.` : ''}
+            </p>
           </section>
 
           <section className="border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
