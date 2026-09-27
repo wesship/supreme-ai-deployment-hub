@@ -15,6 +15,8 @@ const externalSandboxFunction = readFileSync('supabase/functions/nonprofit-submi
 const promotionMigration = readFileSync('supabase/migrations/20260918070000_gate28_nonprofit_production_promotion.sql', 'utf8');
 const shadowMigration = readFileSync('supabase/migrations/20260926090000_gate29_nonprofit_production_shadow.sql', 'utf8');
 const shadowFunction = readFileSync('supabase/functions/nonprofit-production-shadow/index.ts', 'utf8');
+const preflightMigration = readFileSync('supabase/migrations/20260926101500_gate30_nonprofit_production_preflight_token.sql', 'utf8');
+const preflightFunction = readFileSync('supabase/functions/nonprofit-production-preflight/index.ts', 'utf8');
 
 describe('Gate 20 nonprofit command center wiring', () => {
   it('registers authenticated nonprofit routes', () => {
@@ -40,6 +42,8 @@ describe('Gate 20 nonprofit command center wiring', () => {
     expect(api).toContain('nonprofit_sandbox_receipt_certifications_v1');
     expect(api).toContain('nonprofit_production_connector_promotions_v1');
     expect(api).toContain('nonprofit_production_connector_shadow_runs_v1');
+    expect(api).toContain('nonprofit_production_execution_tokens_v1');
+    expect(api).toContain('nonprofit_production_preflight_v1');
     expect(api).toContain('nonprofit_audit_summary_v1');
     expect(api).not.toContain('nonprofit_vault.documents');
   });
@@ -392,6 +396,57 @@ describe('Gate 29 production connector shadow mode', () => {
     expect(page).toContain('Network probe:');
     expect(page).toContain('Application transmitted:');
     expect(page).toContain('Production send available:');
+    expect(page).not.toContain('Submit application');
+  });
+});
+
+
+describe('Gate 30 production preflight certification and one-time token', () => {
+  it('restricts token issuance to protected service-role infrastructure', () => {
+    expect(preflightMigration).toContain('SERVICE_ROLE_REQUIRED');
+    expect(preflightMigration).toContain('EXECUTION_TOKEN_MINIMUM_ENTROPY_REQUIRED');
+    expect(preflightMigration).toContain('EXECUTION_TOKEN_TTL_OUT_OF_RANGE');
+    expect(preflightMigration).toContain('grant execute on function public.nonprofit_issue_production_execution_token');
+    expect(preflightMigration).toContain('to service_role');
+  });
+
+  it('binds the token to the exact shadow request hash and enforces short lifetime', () => {
+    expect(preflightMigration).toContain('request_body_hash text not null');
+    expect(preflightMigration).toContain('token_hash text not null unique');
+    expect(preflightMigration).toContain('p_ttl_seconds < 60 or p_ttl_seconds > 600');
+    expect(preflightMigration).toContain('LIVE_EXECUTION_TOKEN_ALREADY_EXISTS');
+    expect(preflightMigration).toContain('BLOCKED_HASH_MISMATCH');
+    expect(preflightMigration).toContain('consume_production_execution_token');
+    expect(preflightMigration).toContain('EXECUTION_TOKEN_REQUEST_HASH_MISMATCH');
+    expect(preflightMigration).toContain('EXECUTION_TOKEN_INVALID');
+    expect(preflightMigration).toContain("status = 'CONSUMED'");
+  });
+
+  it('never exposes plaintext token or enables production send', () => {
+    expect(preflightMigration).toContain('false as plaintext_token_exposed');
+    expect(preflightMigration).toContain('false as production_execution_enabled');
+    expect(preflightMigration).toContain('false as production_send_available');
+    expect(preflightFunction).toContain('token_plaintext_exposed: false');
+    expect(preflightFunction).toContain('token_issued_by_this_function: false');
+    expect(preflightFunction).toContain('production_send_available: false');
+  });
+
+  it('performs no network or application transmission during preflight', () => {
+    expect(preflightFunction).not.toContain('await fetch(');
+    expect(preflightFunction).toContain('network_probe_performed: false');
+    expect(preflightFunction).toContain('application_payload_transmitted: false');
+    expect(preflightFunction).toContain('production_execution_enabled: false');
+  });
+
+  it('wires preflight validation and status into the command center', () => {
+    expect(api).toContain("supabase.functions.invoke('nonprofit-production-preflight'");
+    expect(api).toContain('nonprofit_production_execution_tokens_v1');
+    expect(api).toContain('nonprofit_production_preflight_v1');
+    expect(page).toContain('Production preflight + one-time execution token');
+    expect(page).toContain('Validate production preflight');
+    expect(page).toContain('Plaintext exposed:');
+    expect(page).toContain('Production send');
+    expect(page).toContain('UNAVAILABLE');
     expect(page).not.toContain('Submit application');
   });
 });
