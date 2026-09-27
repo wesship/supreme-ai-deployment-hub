@@ -98,3 +98,53 @@ def test_scene_blueprint_rejects_too_short_window(monkeypatch):
         },
     )
     assert response.status_code == 422
+
+
+def test_scene_production_handoff_uses_governed_openmontage(monkeypatch):
+    calls = {}
+
+    class FakeAnalyzeClient:
+        async def analyze_asset(self, asset_id, prompt, **kwargs):
+            calls["analyze_asset_id"] = asset_id
+            calls["analyze_prompt"] = prompt
+            return {"text": "slow dolly, hard red practicals, shallow depth of field"}
+
+    async def fake_dispatch(request, authorization=None):
+        calls["dispatch_request"] = request
+        calls["authorization"] = authorization
+        return {
+            "project_id": "project-scene-1",
+            "render_job_id": "render-scene-1",
+            "provider": "pollo",
+            "provider_route": ["pollo", "replicate"],
+            "status": "queued",
+        }
+
+    monkeypatch.setattr(scene_finder_router, "TwelveLabsAnalyzeClient", FakeAnalyzeClient)
+    monkeypatch.setattr(scene_finder_router, "dispatch_openmontage", fake_dispatch)
+    client = _client(monkeypatch)
+
+    response = client.post(
+        "/api/ai-films/scene-finder/production-handoff",
+        headers={"Authorization": "Bearer test"},
+        json={
+            "asset_id": "asset-123",
+            "objective": "Create an original underground market confrontation using the general camera and lighting technique.",
+            "start_time": 10,
+            "end_time": 18,
+            "duration_seconds": 8,
+            "aspect_ratio": "16:9",
+        },
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["surface"] == "scene-finder-production"
+    assert body["originality_policy"] == "general-technique-only"
+    assert body["production"]["render_job_id"] == "render-scene-1"
+    dispatch_request = calls["dispatch_request"]
+    assert dispatch_request.aspect_ratio == "16:9"
+    assert dispatch_request.duration_seconds == 8
+    assert "materially original" in dispatch_request.video_prompt
+    assert "Do not reproduce copyrighted dialogue" in calls["analyze_prompt"]
+    assert calls["authorization"] == "Bearer test"
