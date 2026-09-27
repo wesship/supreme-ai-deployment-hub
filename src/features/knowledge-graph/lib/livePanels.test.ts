@@ -66,4 +66,8 @@ describe('deriveLiveExecutionPanels', () => {
     expect(deriveLiveExecutionPanels([], 'connecting').status).toBe('connecting');
     expect(deriveLiveExecutionPanels([], 'idle').status).toBe('idle');
   });
+
+  it('shows a failed state when the stream errors before the first event', () => {
+    expect(deriveLiveExecutionPanels([], 'error').status).toBe('failed');
+  });
 });
