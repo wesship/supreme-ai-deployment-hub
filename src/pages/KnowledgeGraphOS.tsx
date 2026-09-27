@@ -24,7 +24,7 @@ import { deriveLiveExecutionPanels } from '@/features/knowledge-graph/lib/livePa
 import type { D3GraphActionRequest } from '@/features/knowledge-graph/lib/graphActions';
 import { deriveClusterActivation } from '@/features/knowledge-graph/lib/clusterActivation';
 import { deriveMultiClusterCorridor } from '@/features/knowledge-graph/lib/multiClusterCorridor';
-import { deriveCameraTarget } from '@/features/knowledge-graph/lib/cameraChoreography';
+import { deriveCameraTarget, deriveDepthAnchor } from '@/features/knowledge-graph/lib/cameraChoreography';
 import { useRuntimeIdentity } from '@/hooks/useRuntimeIdentity';
 import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
 import CinematicDepthLayer from '@/features/knowledge-graph/components/CinematicDepthLayer';
@@ -611,6 +611,11 @@ const KnowledgeGraphOS: React.FC = () => {
     return [];
   }, [clusterActivation.primaryNodeId, executionPath, multiClusterCorridor]);
 
+  const depthAnchor = useMemo(
+    () => deriveDepthAnchor(initialNodes, cameraFocusNodeIds.length ? cameraFocusNodeIds : ['hermes']),
+    [cameraFocusNodeIds],
+  );
+
   useEffect(() => {
     if (!cameraFollow || viewMode !== 'graph' || !flowInstance || !cameraFocusNodeIds.length) return;
 
@@ -969,6 +974,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 runtimeState={livePanels.status}
                 active={cameraFocusNodeIds.length > 0 || livePanels.status === 'running' || livePanels.status === 'connecting'}
                 corridor={Boolean(multiClusterCorridor)}
+                anchor={depthAnchor}
               />
               <ReactFlow
                 nodes={nodes}
