@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -12,6 +13,7 @@ def _load_worker():
     spec = importlib.util.spec_from_file_location("dkos_runtime_worker", WORKER_PATH)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -48,8 +50,12 @@ def test_semantic_chunking_is_deterministic(tmp_path):
         "# Heading\n\n" + ("alpha beta gamma " * 60) + "\n\n" + ("delta epsilon " * 60),
         encoding="utf-8",
     )
-    first = worker.semantic_chunks(markdown, tmp_path / "one", max_tokens=50)
-    second = worker.semantic_chunks(markdown, tmp_path / "two", max_tokens=50)
+    one = tmp_path / "one"
+    two = tmp_path / "two"
+    one.mkdir()
+    two.mkdir()
+    first = worker.semantic_chunks(markdown, one, max_tokens=50)
+    second = worker.semantic_chunks(markdown, two, max_tokens=50)
 
     first_rows = [json.loads(line) for line in first.read_text().splitlines()]
     second_rows = [json.loads(line) for line in second.read_text().splitlines()]
