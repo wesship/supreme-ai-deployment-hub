@@ -133,6 +133,7 @@ type SystemHealthRow = {
   runs: number;
   duration_ms: number;
   cost_usd: number;
+  run_tasks: number;
 };
 
 type AdaptiveProposal = {
@@ -486,6 +487,7 @@ const KnowledgeGraphOS: React.FC = () => {
   const [childTasks, setChildTasks] = useState<HermesTaskRow[]>([]);
   const [systemHealth, setSystemHealth] = useState<SystemHealthRow[]>([]);
   const [systemHealthLoading, setSystemHealthLoading] = useState(false);
+  const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
   const [systemHealthUpdatedAt, setSystemHealthUpdatedAt] = useState<Date | null>(null);
   const [changeRequests, setChangeRequests] = useState<AdaptiveChangeRequestRow[]>([]);
   const [changeAudit, setChangeAudit] = useState<AdaptiveAuditRow[]>([]);
@@ -555,6 +557,7 @@ const KnowledgeGraphOS: React.FC = () => {
 
   const refreshSystemHealth = async () => {
     setSystemHealthLoading(true);
+    setSystemHealthError(null);
     try {
       const [tasksRes, runsRes] = await Promise.all([
         supabase
@@ -575,29 +578,47 @@ const KnowledgeGraphOS: React.FC = () => {
       const recentRuns = (runsRes.data ?? []) as unknown as HermesRunRow[];
       const taskById = new Map(recentTasks.map((task) => [task.id, task]));
       const buckets = new Map<string, SystemHealthRow>();
+      const runTaskIds = new Map<string, Set<string>>();
 
+      const normalizeAgent = (value?: string | null) => {
+        const trimmed = value?.trim();
+        return trimmed ? trimmed.toUpperCase() : 'UNASSIGNED';
+      };
       const ensure = (key: string, label: string) => {
         if (!buckets.has(key)) {
-          buckets.set(key, { key, label, tasks: 0, failed: 0, retries: 0, runs: 0, duration_ms: 0, cost_usd: 0 });
+          buckets.set(key, { key, label, tasks: 0, failed: 0, retries: 0, runs: 0, duration_ms: 0, cost_usd: 0, run_tasks: 0 });
         }
         return buckets.get(key)!;
       };
 
       for (const task of recentTasks) {
-        const agent = task.agent_name?.trim() || 'Unassigned';
-        const row = ensure(`agent:${agent}`, agent);
+        const normalized = normalizeAgent(task.agent_name);
+        const status = task.status.toUpperCase();
+        // PENDING/PAUSED tasks may intentionally be unassigned before dispatch.
+        if (normalized === 'UNASSIGNED' && (status === 'PENDING' || status === 'PAUSED')) continue;
+        const label = normalized === 'UNASSIGNED' ? 'Unassigned' : normalized;
+        const key = `agent:${normalized}`;
+        const row = ensure(key, label);
         row.tasks += 1;
-        if (task.status.toUpperCase() === 'FAILED') row.failed += 1;
+        if (status === 'FAILED') row.failed += 1;
         row.retries += task.retry_count ?? 0;
       }
 
       for (const run of recentRuns) {
         const task = taskById.get(run.task_id);
-        const agent = run.agent_name?.trim() || task?.agent_name?.trim() || 'Unassigned';
-        const row = ensure(`agent:${agent}`, agent);
+        // Keep cost/latency population aligned to the loaded task window.
+        if (!task) continue;
+        const normalized = normalizeAgent(run.agent_name || task.agent_name);
+        const label = normalized === 'UNASSIGNED' ? 'Unassigned' : normalized;
+        const key = `agent:${normalized}`;
+        const row = ensure(key, label);
         row.runs += 1;
         row.duration_ms += run.duration_ms ?? 0;
         row.cost_usd += Number(run.cost_usd ?? 0);
+        const ids = runTaskIds.get(key) ?? new Set<string>();
+        ids.add(run.task_id);
+        runTaskIds.set(key, ids);
+        row.run_tasks = ids.size;
       }
 
       setSystemHealth(
@@ -612,6 +633,7 @@ const KnowledgeGraphOS: React.FC = () => {
       setSystemHealthUpdatedAt(new Date());
     } catch (error) {
       const message = error instanceof Error ? error.message : 'System health load failed';
+      setSystemHealthError(message);
       setActivity((items) => [`System health error: ${message}`, ...items].slice(0, 5));
     } finally {
       setSystemHealthLoading(false);
@@ -1201,7 +1223,7 @@ const KnowledgeGraphOS: React.FC = () => {
     for (const row of systemHealth) {
       const failureRate = row.tasks ? row.failed / row.tasks : 0;
       const avgRunMs = row.runs ? row.duration_ms / row.runs : 0;
-      const costPerTask = row.tasks ? row.cost_usd / row.tasks : 0;
+      const costPerTask = row.run_tasks ? row.cost_usd / row.run_tasks : 0;
       const agent = row.label;
 
       if (agent === 'Unassigned' && row.tasks > 0) {
