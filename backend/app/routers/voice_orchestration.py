@@ -24,6 +24,20 @@ from backend.hermes.dependencies import get_dependencies
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice-orchestration"])
 
+
+class HermesBrowserCommand(BaseModel):
+    action: str = Field(min_length=1, max_length=32)
+    title: str | None = Field(default=None, max_length=240)
+    prompt: str | None = Field(default=None, max_length=4000)
+    node_id: str | None = Field(default=None, max_length=128)
+    target_node_id: str | None = Field(default=None, max_length=128)
+    ui_session_id: str | None = Field(default=None, max_length=36)
+    surface: str | None = Field(default=None, max_length=128)
+    route: str | None = Field(default=None, max_length=256)
+
+
+_BROWSER_HERMES_ACTIONS = {"run", "monitor", "connect", "ask", "command"}
+
 _MAX_BODY_BYTES = 1_000_000
 _MAX_CACHE_ITEMS = 2_000
 _IDEMPOTENCY_TTL_SECONDS = 86_400
@@ -694,6 +708,77 @@ async def create_voice_session(
     }
 
 
+
+
+@router.post("/hermes/command", status_code=201)
+async def create_browser_hermes_command(
+    body: HermesBrowserCommand,
+    user_id: str = Depends(get_current_user_id),
+) -> dict[str, Any]:
+    """Create a governed Hermes task from an authenticated browser interaction."""
+    action = body.action.strip().lower()
+    if action not in _BROWSER_HERMES_ACTIONS:
+        raise HTTPException(status_code=400, detail="Unsupported Hermes browser action")
+
+    ui_session_id = None
+    if body.ui_session_id:
+        try:
+            ui_session_id = str(UUID(body.ui_session_id))
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid UI session id") from exc
+        if ui_session_id != body.ui_session_id:
+            raise HTTPException(status_code=400, detail="Invalid UI session id")
+
+    correlation_id = str(uuid4())
+    approval_required = action == "connect"
+    task_type = f"ui.graph.{action}" if action != "command" else "ui.hermes.command"
+    default_title = {
+        "run": f"Run graph node {body.node_id or 'current selection'}",
+        "monitor": f"Monitor graph node {body.node_id or 'current selection'}",
+        "connect": f"Connect graph node {body.node_id or 'current selection'} to {body.target_node_id or 'requested target'}",
+        "ask": f"Ask Hermes about {body.node_id or 'current selection'}",
+        "command": "Hermes browser instruction",
+    }[action]
+
+    if action == "connect" and not body.target_node_id:
+        raise HTTPException(status_code=422, detail="Connect requires target_node_id")
+
+    try:
+        from backend.hermes.task_engine import create_task
+
+        task = await create_task(
+            title=(body.title or default_title)[:240],
+            task_type=task_type,
+            description=body.prompt.strip()[:4000] if body.prompt and body.prompt.strip() else None,
+            input_data={
+                "authenticated_user_id": user_id,
+                "browser_session": "authenticated",
+                "surface": body.surface or "knowledge-graph",
+                "route": body.route or "/knowledge-graph",
+                "ui_session_id": ui_session_id,
+                "graph_action": action if action != "command" else None,
+                "node_id": body.node_id or "",
+                "target_node_id": body.target_node_id or "",
+            },
+            source="browser-ui",
+            correlation_id=correlation_id,
+            initial_status="PAUSED" if approval_required else "PENDING",
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Hermes browser command creation failed")
+        raise HTTPException(status_code=503, detail="Hermes could not queue the browser command") from exc
+
+    return {
+        "status": "approval_required" if approval_required else "queued",
+        "action": action,
+        "task_id": task.get("id"),
+        "correlation_id": correlation_id,
+        "node_id": body.node_id,
+        "target_node_id": body.target_node_id,
+        "governed_execution": True,
+    }
 
 
 @router.get("/executions/latest")
