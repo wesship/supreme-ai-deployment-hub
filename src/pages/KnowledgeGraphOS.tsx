@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Background,
@@ -29,6 +29,11 @@ import { useRuntimeIdentity } from '@/hooks/useRuntimeIdentity';
 import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
 import CinematicDepthLayer from '@/features/knowledge-graph/components/CinematicDepthLayer';
 import { deriveSelectiveFocus } from '@/features/knowledge-graph/lib/selectiveFocus';
+import {
+  deriveNexusTransitionKey,
+  NEXUS_TRANSITION_TIMING,
+  type NexusTransitionPhase,
+} from '@/features/knowledge-graph/lib/transitionChoreography';
 import {
   Activity,
   Bot,
@@ -500,6 +505,8 @@ const KnowledgeGraphOS: React.FC = () => {
   const [secondaryClusterId, setSecondaryClusterId] = useState<string | null>(null);
   const [cameraFollow, setCameraFollow] = useState(true);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const [transitionPhase, setTransitionPhase] = useState<NexusTransitionPhase>('idle');
+  const transitionTimersRef = useRef<number[]>([]);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
   const voiceContext = {
@@ -624,6 +631,7 @@ const KnowledgeGraphOS: React.FC = () => {
       'd3-ops-overlay',
       overlayEmphasis.has(panel) ? 'd3-ops-overlay--active' : '',
       multiClusterCorridor ? 'd3-ops-overlay--corridor' : '',
+      `d3-ops-overlay--transition-${transitionPhase}`,
     ].filter(Boolean).join(' ');
 
   const cameraFocusNodeIds = useMemo(() => {
@@ -638,18 +646,66 @@ const KnowledgeGraphOS: React.FC = () => {
     [cameraFocusNodeIds],
   );
 
+  const transitionKey = useMemo(
+    () => deriveNexusTransitionKey(
+      cameraFocusNodeIds,
+      livePanels.status,
+      Boolean(multiClusterCorridor),
+    ),
+    [cameraFocusNodeIds, livePanels.status, multiClusterCorridor],
+  );
+
+  useEffect(() => {
+    transitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    transitionTimersRef.current = [];
+
+    if (transitionKey === 'idle') {
+      setTransitionPhase('idle');
+      return;
+    }
+
+    const reducedMotion =
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (reducedMotion) {
+      setTransitionPhase('focus');
+      return;
+    }
+
+    setTransitionPhase('ignite');
+    transitionTimersRef.current = [
+      window.setTimeout(
+        () => setTransitionPhase('route'),
+        NEXUS_TRANSITION_TIMING.routeMs,
+      ),
+      window.setTimeout(
+        () => setTransitionPhase('focus'),
+        NEXUS_TRANSITION_TIMING.focusMs,
+      ),
+    ];
+
+    return () => {
+      transitionTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      transitionTimersRef.current = [];
+    };
+  }, [transitionKey]);
+
   useEffect(() => {
     if (!cameraFollow || viewMode !== 'graph' || !flowInstance || !cameraFocusNodeIds.length) return;
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const shouldMove =
+      transitionPhase === 'route' ||
+      (reducedMotion && transitionPhase === 'focus');
+    if (!shouldMove) return;
 
     const target = deriveCameraTarget(initialNodes, cameraFocusNodeIds);
     if (!target) return;
 
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     void flowInstance.setCenter(target.x, target.y, {
       zoom: target.zoom,
       duration: reducedMotion ? 0 : 850,
     });
-  }, [cameraFocusNodeIds, cameraFollow, flowInstance, viewMode]);
+  }, [cameraFocusNodeIds, cameraFollow, flowInstance, transitionPhase, viewMode]);
 
   const nodes = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -993,7 +1049,7 @@ const KnowledgeGraphOS: React.FC = () => {
           </div>
 
           {viewMode === 'graph' && (
-            <div className={`d3-neural-stage h-[680px] ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''} ${selectiveFocus.active ? 'd3-neural-stage--dof' : ''}`}>
+            <div className={`d3-neural-stage h-[680px] d3-transition-${transitionPhase} ${cameraFocusNodeIds.length ? 'd3-neural-stage--focused' : ''} ${multiClusterCorridor ? 'd3-neural-stage--corridor' : ''} ${selectiveFocus.active ? 'd3-neural-stage--dof' : ''}`}>
               <div className="d3-nexus-globe" aria-hidden="true" />
               <CinematicDepthLayer
                 runtimeState={livePanels.status}
