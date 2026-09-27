@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import time
 from typing import Any
 
@@ -24,6 +25,7 @@ from backend.hermes.infrastructure import (
     SupabaseRestClient,
     sign_payload,
 )
+from backend.hermes.registry import BUILTIN_AGENT_REGISTRY
 from backend.hermes.task_engine import TaskTransitionConflict, transition_task
 from backend.occ_operator.occ_logger import log_error
 
