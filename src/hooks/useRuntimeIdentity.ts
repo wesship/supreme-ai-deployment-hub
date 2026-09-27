@@ -17,6 +17,16 @@ export function useRuntimeIdentity() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const hostname = window.location.hostname.toLowerCase();
+    const isLocalPreview =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '0.0.0.0';
+
+    if (isLocalPreview) {
+      setState('unavailable');
+      return () => controller.abort();
+    }
 
     const check = async () => {
       try {
