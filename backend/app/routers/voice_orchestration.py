@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel, Field
 
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.voice_session import issue_voice_session, verify_voice_session
