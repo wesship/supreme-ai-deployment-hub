@@ -58,6 +58,7 @@ class XRInteractionResult(BaseModel):
 class XRProviderCapabilities(BaseModel):
     provider: XRProvider
     configured: bool
+    schema_available: bool = True
     mode: str
     capabilities: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
@@ -75,14 +76,16 @@ class MetaXRAdapter:
 
     @property
     def configured(self) -> bool:
-        # Runtime SDK configuration lives in the Unreal client. The backend
-        # accepts normalized interaction contracts without storing Meta secrets.
-        return True
+        # Runtime SDK configuration lives in the Unreal client. Until an
+        # explicit client/runtime registration or health signal exists, the
+        # adapter must fail closed and report unavailable.
+        return False
 
     def capabilities(self) -> XRProviderCapabilities:
         return XRProviderCapabilities(
             provider=self.provider,
             configured=self.configured,
+            schema_available=True,
             mode="input-presentation-adapter",
             capabilities=[
                 "gaze",
