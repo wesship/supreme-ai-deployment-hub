@@ -1,8 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const PROJECT_REF = 'tjygexesognbkwualywq';
-const AUTH_STORAGE_KEY = `sb-${PROJECT_REF}-auth-token`;
-const SUPABASE_ORIGIN = `https://${PROJECT_REF}.supabase.co`;
+const AUTH_STORAGE_KEYS = [
+  `sb-${PROJECT_REF}-auth-token`,
+  'sb-placeholder-auth-token',
+];
+const SUPABASE_ORIGINS = [
+  `https://${PROJECT_REF}.supabase.co`,
+  'https://placeholder.supabase.co',
+];
 const HERMES_COMMAND_URL = 'https://api.d3vonn.io/api/voice/hermes/command';
 const CORRELATION_ID = '11111111-2222-4333-8444-555555555555';
 
@@ -35,24 +41,26 @@ async function seedSignedInSession(page: Page) {
     user,
   };
 
-  await page.addInitScript(({ key, value }) => {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  }, { key: AUTH_STORAGE_KEY, value: session });
+  await page.addInitScript(({ keys, value }) => {
+    for (const key of keys) window.localStorage.setItem(key, JSON.stringify(value));
+  }, { keys: AUTH_STORAGE_KEYS, value: session });
 }
 
 async function stubSignedInDependencies(page: Page) {
-  await page.route(`${SUPABASE_ORIGIN}/rest/v1/**`, async (route) => {
-    const url = route.request().url();
-    const body = url.includes('/rpc/dashboard_schema_readiness')
-      ? JSON.stringify([{ ready: true, missing: [] }])
-      : '[]';
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      headers: { 'access-control-allow-origin': '*' },
-      body,
+  for (const origin of SUPABASE_ORIGINS) {
+    await page.route(`${origin}/rest/v1/**`, async (route) => {
+      const url = route.request().url();
+      const body = url.includes('/rpc/dashboard_schema_readiness')
+        ? JSON.stringify([{ ready: true, missing: [] }])
+        : '[]';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'access-control-allow-origin': '*' },
+        body,
+      });
     });
-  });
+  }
 
   await page.route('**/api/status-health', async (route) => {
     await route.fulfill({
