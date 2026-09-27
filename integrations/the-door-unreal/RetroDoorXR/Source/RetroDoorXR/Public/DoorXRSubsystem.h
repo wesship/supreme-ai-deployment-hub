@@ -46,9 +46,13 @@ public:
     void ConfigureEndpoint(const FString& InApiBaseUrl, const FString& InBearerToken);
 
     UFUNCTION(BlueprintCallable, Category="THE DOOR|XR")
+    void SetMetaRuntimeReady(bool bReady);
+
+    UFUNCTION(BlueprintCallable, Category="THE DOOR|XR")
     void SubmitInteraction(const FDoorXRInteraction& Interaction);
 
 private:
+    bool bMetaRuntimeReady = false;
     FString ApiBaseUrl = TEXT("https://api.d3vonn.io");
     FString BearerToken;
 
