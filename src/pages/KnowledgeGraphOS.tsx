@@ -1013,6 +1013,30 @@ const KnowledgeGraphOS: React.FC = () => {
             </span>
           </div>
         </div>
+        <nav
+          className="mx-auto flex max-w-[1920px] gap-1 overflow-x-auto border-t border-[#25241f] px-3 py-2 xl:hidden"
+          aria-label="Primary mobile"
+        >
+          {[
+            ['Home', '/'],
+            ['Knowledge Graph', '/knowledge-graph'],
+            ['Hermes', '/workflows'],
+            ['Agents', '/agents'],
+            ['Workflows', '/workflows'],
+            ['Infrastructure', '/command-center'],
+            ['AI Films', '/ai-films'],
+            ['HNF', '/music'],
+            ['Marketplace', '/marketplace'],
+          ].map(([label, route]) => (
+            <Link
+              key={label}
+              to={route}
+              className="shrink-0 border border-[#34332f] bg-[#11110f] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-stone-200 transition hover:border-amber-300/40 hover:text-amber-100"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
       </header>
 
       <div className="mx-auto grid max-w-[1920px] gap-3 px-3 py-3 xl:grid-cols-[220px_minmax(0,1fr)_310px] xl:px-4">
