@@ -41,12 +41,12 @@ create policy "owners read adaptive promotion candidates"
 on public.hermes_adaptive_promotion_candidates for select to authenticated
 using ((select auth.uid()) = user_id);
 
+drop function if exists public.hermes_certify_adaptive_canary(uuid,uuid,uuid,jsonb,jsonb);
+
 create or replace function public.hermes_certify_adaptive_canary(
   p_request_id uuid,
   p_user_id uuid,
-  p_actor_id uuid,
-  p_baseline jsonb,
-  p_candidate jsonb
+  p_actor_id uuid
 )
 returns jsonb
 language plpgsql
@@ -55,17 +55,20 @@ set search_path = public
 as $$
 declare
   v_request public.hermes_adaptive_change_requests%rowtype;
+  v_task public.hermes_tasks%rowtype;
+  v_baseline jsonb;
+  v_candidate jsonb;
   v_cert_id uuid;
   v_decision text;
   v_reason text;
-  v_success_base numeric := coalesce((p_baseline->>'success_rate')::numeric,0);
-  v_success_cand numeric := coalesce((p_candidate->>'success_rate')::numeric,0);
-  v_error_base numeric := coalesce((p_baseline->>'error_rate')::numeric,0);
-  v_error_cand numeric := coalesce((p_candidate->>'error_rate')::numeric,0);
-  v_latency_base numeric := greatest(coalesce((p_baseline->>'latency_ms')::numeric,0),1);
-  v_latency_cand numeric := coalesce((p_candidate->>'latency_ms')::numeric,0);
-  v_cost_base numeric := greatest(coalesce((p_baseline->>'cost_usd')::numeric,0),0.000001);
-  v_cost_cand numeric := coalesce((p_candidate->>'cost_usd')::numeric,0);
+  v_success_base numeric;
+  v_success_cand numeric;
+  v_error_base numeric;
+  v_error_cand numeric;
+  v_latency_base numeric;
+  v_latency_cand numeric;
+  v_cost_base numeric;
+  v_cost_cand numeric;
 begin
   select * into v_request
   from public.hermes_adaptive_change_requests
@@ -76,6 +79,52 @@ begin
   if v_request.status <> 'canary_queued' then raise exception 'canary is not eligible for certification'; end if;
   if v_request.canary_task_id is null then raise exception 'canary task missing'; end if;
 
+  select * into v_task
+  from public.hermes_tasks
+  where id=v_request.canary_task_id and user_id=p_user_id
+  for update;
+
+  if not found then raise exception 'linked canary task not found'; end if;
+  if v_task.status <> 'COMPLETED' then
+    raise exception 'linked canary task must be completed before certification';
+  end if;
+  if coalesce(v_task.task_type,'') <> 'adaptive_canary' or coalesce(v_task.kind,'') <> 'adaptive.canary' then
+    raise exception 'linked task is not an adaptive canary';
+  end if;
+
+  v_baseline := v_request.evidence->'baseline_metrics';
+  v_candidate := v_task.output_data #> '{dispatch_result,output,certification_metrics}';
+
+  if jsonb_typeof(v_baseline) <> 'object' then
+    raise exception 'persisted baseline metrics are missing';
+  end if;
+  if jsonb_typeof(v_candidate) <> 'object' then
+    raise exception 'completed canary did not persist certification metrics';
+  end if;
+  if coalesce((v_candidate->>'cost_measured')::boolean,false) is not true then
+    raise exception 'completed canary lacks measured cost evidence';
+  end if;
+
+  if v_baseline->>'success_rate' is null
+     or v_baseline->>'error_rate' is null
+     or v_baseline->>'latency_ms' is null
+     or v_baseline->>'cost_usd' is null
+     or v_candidate->>'success_rate' is null
+     or v_candidate->>'error_rate' is null
+     or v_candidate->>'latency_ms' is null
+     or v_candidate->>'cost_usd' is null then
+    raise exception 'baseline and candidate metrics must include success, error, latency, and cost';
+  end if;
+
+  v_success_base := (v_baseline->>'success_rate')::numeric;
+  v_success_cand := (v_candidate->>'success_rate')::numeric;
+  v_error_base := (v_baseline->>'error_rate')::numeric;
+  v_error_cand := (v_candidate->>'error_rate')::numeric;
+  v_latency_base := greatest((v_baseline->>'latency_ms')::numeric,1);
+  v_latency_cand := (v_candidate->>'latency_ms')::numeric;
+  v_cost_base := greatest((v_baseline->>'cost_usd')::numeric,0.000001);
+  v_cost_cand := (v_candidate->>'cost_usd')::numeric;
+
   if v_success_cand + 0.02 < v_success_base
      or v_error_cand > v_error_base + 0.02
      or v_latency_cand > v_latency_base * 1.20
@@ -84,13 +133,13 @@ begin
     v_reason := 'Candidate exceeded one or more regression limits; current production policy retained.';
   else
     v_decision := 'pass';
-    v_reason := 'Candidate remained within certification regression limits.';
+    v_reason := 'Completed canary remained within certification regression limits.';
   end if;
 
   insert into public.hermes_adaptive_canary_certifications(
     user_id,change_request_id,canary_task_id,baseline,candidate,deltas,decision,decision_reason,rollback_state
   ) values (
-    p_user_id,p_request_id,v_request.canary_task_id,p_baseline,p_candidate,
+    p_user_id,p_request_id,v_request.canary_task_id,v_baseline,v_candidate,
     jsonb_build_object(
       'success_rate',v_success_cand-v_success_base,
       'error_rate',v_error_cand-v_error_base,
@@ -112,7 +161,12 @@ begin
   ) values (
     p_user_id,p_request_id,p_actor_id,
     case when v_decision='pass' then 'canary.certified_pass' else 'canary.certified_fail' end,
-    jsonb_build_object('certification_id',v_cert_id,'decision',v_decision,'reason',v_reason)
+    jsonb_build_object(
+      'certification_id',v_cert_id,
+      'decision',v_decision,
+      'reason',v_reason,
+      'canary_task_id',v_request.canary_task_id
+    )
   );
 
   if v_decision='pass' then
@@ -134,10 +188,11 @@ begin
     'decision',v_decision,
     'certification_id',v_cert_id,
     'reason',v_reason,
+    'canary_task_id',v_request.canary_task_id,
     'promotion_candidate_created',(v_decision='pass')
   );
 end;
 $$;
 
-revoke all on function public.hermes_certify_adaptive_canary(uuid,uuid,uuid,jsonb,jsonb) from public,anon,authenticated;
-grant execute on function public.hermes_certify_adaptive_canary(uuid,uuid,uuid,jsonb,jsonb) to service_role;
+revoke all on function public.hermes_certify_adaptive_canary(uuid,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.hermes_certify_adaptive_canary(uuid,uuid,uuid) to service_role;
