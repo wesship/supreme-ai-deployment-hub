@@ -70,3 +70,41 @@ export async function createSceneBlueprint(input: {
     end_time: input.endTime ?? null,
   });
 }
+
+
+export type SceneProductionResponse = {
+  status: string;
+  surface: string;
+  reference_asset_id: string;
+  reference_window: { start_time: number | null; end_time: number | null };
+  originality_policy: string;
+  production: {
+    project_id: string;
+    render_job_id: string;
+    render_job_ids?: string[];
+    provider: string;
+    provider_route?: string[];
+    shot_count?: number;
+    aspect_ratio?: string;
+    status: string;
+    stages?: Array<{ name: string; status: string; updatedAt?: string }>;
+  };
+};
+
+export async function dispatchSceneProduction(input: {
+  assetId: string;
+  objective: string;
+  startTime?: number;
+  endTime?: number;
+  durationSeconds?: number;
+  aspectRatio?: '16:9' | '9:16' | '4:5';
+}): Promise<SceneProductionResponse> {
+  return authenticatedPost<SceneProductionResponse>('production-handoff', {
+    asset_id: input.assetId,
+    objective: input.objective,
+    start_time: input.startTime ?? null,
+    end_time: input.endTime ?? null,
+    duration_seconds: input.durationSeconds ?? 8,
+    aspect_ratio: input.aspectRatio ?? '16:9',
+  });
+}
