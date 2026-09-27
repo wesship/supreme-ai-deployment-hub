@@ -899,7 +899,7 @@ const KnowledgeGraphOS: React.FC = () => {
         <div className="mx-auto flex max-w-[1920px] items-center gap-5 px-4 py-3 lg:px-5">
           <Link to="/" className="min-w-[190px]">
             <p className="text-xl font-black tracking-[0.22em] text-amber-100">D3VONN</p>
-            <p className="text-[8px] font-bold uppercase tracking-[0.34em] text-stone-500">AI Business Operating System</p>
+            <p className="text-[8px] font-bold uppercase tracking-[0.34em] text-stone-400">AI Business Operating System</p>
           </Link>
           <nav className="hidden flex-1 items-center justify-center gap-1 xl:flex" aria-label="Primary">
             {[
@@ -919,7 +919,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 className={`border-b-2 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.08em] transition ${
                   label === 'Knowledge Graph'
                     ? 'border-amber-300 text-amber-100'
-                    : 'border-transparent text-stone-500 hover:text-white'
+                    : 'border-transparent text-stone-400 hover:text-white'
                 }`}
               >
                 {label}
@@ -941,7 +941,7 @@ const KnowledgeGraphOS: React.FC = () => {
                   ? 'border-emerald-300/25 bg-emerald-300/[0.05] text-emerald-200'
                   : runtimeIdentityState === 'mismatch'
                     ? 'border-red-400/30 bg-red-500/[0.06] text-red-200'
-                    : 'border-[#34332f] bg-[#11110f] text-stone-500'
+                    : 'border-[#34332f] bg-[#11110f] text-stone-400'
               }`}
               title={runtimeIdentity?.commit_sha ? `Backend commit ${runtimeIdentity.commit_sha}` : undefined}
             >
@@ -960,7 +960,7 @@ const KnowledgeGraphOS: React.FC = () => {
       <div className="mx-auto grid max-w-[1920px] gap-3 px-3 py-3 xl:grid-cols-[220px_minmax(0,1fr)_310px] xl:px-4">
         <aside className="d3-nexus-left-rail hidden border border-[#2d2c28] bg-[#0c0c0a] p-2 xl:block">
           <div className="mb-2 border-b border-[#25241f] px-3 py-3">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-600">Platform</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-400">Platform</p>
             <p className="mt-1 text-xs font-semibold text-stone-300">Command surfaces</p>
           </div>
           <nav className="space-y-1" aria-label="D3VONN command surfaces">
@@ -971,7 +971,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 className={`flex items-center gap-3 border px-3 py-2.5 text-[11px] font-semibold transition ${
                   active
                     ? 'border-amber-300/30 bg-amber-200/[0.08] text-amber-100 shadow-[inset_3px_0_0_#fcd34d]'
-                    : 'border-transparent text-stone-500 hover:border-[#34332f] hover:bg-white/[0.02] hover:text-stone-200'
+                    : 'border-transparent text-stone-400 hover:border-[#34332f] hover:bg-white/[0.02] hover:text-stone-200'
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -986,16 +986,16 @@ const KnowledgeGraphOS: React.FC = () => {
             <div className="mb-3">
               <p className="text-[9px] font-bold uppercase tracking-[0.22em] text-amber-200/60">D3VONN Knowledge Universe</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">Connect Everything. Make It Work.</h1>
-              <p className="mt-1 text-[11px] text-stone-500">People · Agents · Data · Tools · Workflows · Memory · Infrastructure · Results</p>
+              <p className="mt-1 text-[11px] text-stone-400">People · Agents · Data · Tools · Workflows · Memory · Infrastructure · Results</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
             <label className="flex min-w-[260px] flex-1 items-center gap-2 border border-[#34332f] bg-[#11110f] px-3 py-2">
-              <Search className="h-4 w-4 text-stone-500" />
+              <Search className="h-4 w-4 text-stone-400" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search agents, tools, memory, products..."
-                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-stone-600"
+                className="w-full bg-transparent text-sm text-white outline-none placeholder:text-stone-400"
               />
             </label>
             <select
@@ -1016,7 +1016,7 @@ const KnowledgeGraphOS: React.FC = () => {
               className={`flex items-center gap-1.5 border border-[#34332f] px-3 py-2 text-xs font-semibold transition ${
                 cameraFollow
                   ? 'bg-amber-200/[0.08] text-amber-100'
-                  : 'bg-[#11110f] text-stone-500 hover:text-white'
+                  : 'bg-[#11110f] text-stone-400 hover:text-white'
               }`}
               title="Automatically focus the active execution region"
             >
@@ -1062,6 +1062,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 edges={edges}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
+                onInit={setFlowInstance}
                 onNodeClick={(event, node) => {
                   if ((event.shiftKey || event.ctrlKey || event.metaKey) && majorClusterNodeIds.has(node.id) && node.id !== selectedId) {
                     setSecondaryClusterId(node.id);
@@ -1123,9 +1124,9 @@ const KnowledgeGraphOS: React.FC = () => {
                           >
                             <div className="flex items-center justify-between gap-3">
                               <span className="text-sm font-bold text-white">{node.data.label}</span>
-                              <span className="text-[9px] uppercase tracking-[0.12em] text-stone-500">{kindLabel[node.data.kind]}</span>
+                              <span className="text-[9px] uppercase tracking-[0.12em] text-stone-400">{kindLabel[node.data.kind]}</span>
                             </div>
-                            <p className="mt-2 text-[11px] leading-5 text-stone-500">{node.data.description}</p>
+                            <p className="mt-2 text-[11px] leading-5 text-stone-400">{node.data.description}</p>
                           </button>
                         );
                       })}
@@ -1140,7 +1141,7 @@ const KnowledgeGraphOS: React.FC = () => {
             <div className="min-h-[680px] overflow-x-auto p-4">
               <table className="w-full min-w-[760px] border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-[#34332f] text-[10px] uppercase tracking-[0.14em] text-stone-500">
+                  <tr className="border-b border-[#34332f] text-[10px] uppercase tracking-[0.14em] text-stone-400">
                     <th className="px-3 py-3">Name</th>
                     <th className="px-3 py-3">Type</th>
                     <th className="px-3 py-3">State</th>
@@ -1161,11 +1162,11 @@ const KnowledgeGraphOS: React.FC = () => {
                       <td className="px-3 py-4 text-stone-400">{kindLabel[node.data.kind]}</td>
                       <td className="px-3 py-4 text-stone-400">{stateLabel[node.data.state]}</td>
                       <td className="px-3 py-4">
-                        <span className={executionNodeIds.has(node.id) ? 'text-amber-200' : 'text-stone-600'}>
+                        <span className={executionNodeIds.has(node.id) ? 'text-amber-200' : 'text-stone-400'}>
                           {executionNodeIds.has(node.id) ? 'Active path' : 'Idle'}
                         </span>
                       </td>
-                      <td className="px-3 py-4 font-mono text-xs text-stone-500">{node.data.route}</td>
+                      <td className="px-3 py-4 font-mono text-xs text-stone-400">{node.data.route}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1221,7 +1222,7 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
             <div className="mt-4 flex items-center justify-between border-t border-[#2d2c28] pt-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">Production voice</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">Production voice</p>
                 <p className="mt-1 text-xs text-stone-300">Vapi orchestration · ElevenLabs voice · Hermes tools</p>
               </div>
               <ConversationalVoiceControls
@@ -1252,32 +1253,32 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Active Agents</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-400">Active Agents</p>
                 <p className="mt-1 text-lg font-black text-white">{livePanels.agents.length || '—'}</p>
-                <p className="mt-1 text-[9px] text-stone-600">{livePanels.agents.length ? 'current execution' : 'not reported'}</p>
+                <p className="mt-1 text-[9px] text-stone-400">{livePanels.agents.length ? 'current execution' : 'not reported'}</p>
               </div>
               <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Running Tasks</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-400">Running Tasks</p>
                 <p className="mt-1 text-lg font-black text-white">{liveCorrelationId ? (livePanels.status === 'running' ? 1 : 0) : '—'}</p>
-                <p className="mt-1 text-[9px] text-stone-600">{liveCorrelationId ? 'tracked stream' : 'not reported'}</p>
+                <p className="mt-1 text-[9px] text-stone-400">{liveCorrelationId ? 'tracked stream' : 'not reported'}</p>
               </div>
               <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Success Rate</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-400">Success Rate</p>
                 <p className="mt-1 text-lg font-black text-white">—</p>
-                <p className="mt-1 text-[9px] text-stone-600">not reported</p>
+                <p className="mt-1 text-[9px] text-stone-400">not reported</p>
               </div>
               <div className="d3-nexus-stat-card border border-[#2d2c28] bg-[#0c0c0a] p-3">
-                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-500">Uptime</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-stone-400">Uptime</p>
                 <p className="mt-1 text-lg font-black text-white">—</p>
-                <p className="mt-1 text-[9px] text-stone-600">not reported</p>
+                <p className="mt-1 text-[9px] text-stone-400">not reported</p>
               </div>
             </div>
             <div className="mt-3 border-t border-[#25241f] pt-3">
-              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-stone-600">Current stage</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-stone-400">Current stage</p>
               <p className="mt-1 truncate text-xs font-bold text-stone-300">
                 {executionPath.length ? initialNodes.find((node) => node.id === executionPath[executionPath.length - 1])?.data.label ?? 'Hermes' : 'Standby'}
               </p>
-              <p className="mt-2 text-[9px] text-stone-600">
+              <p className="mt-2 text-[9px] text-stone-400">
                 {livePanels.asOf ? `As of ${new Date(livePanels.asOf).toLocaleTimeString()}` : 'No live execution timestamp reported'}
               </p>
             </div>
@@ -1286,7 +1287,7 @@ const KnowledgeGraphOS: React.FC = () => {
           <section className="hidden border border-[#2f2e2a] bg-[#11110f] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-500">Selected node</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400">Selected node</p>
                 <h2 className="mt-1 text-xl font-black text-white">{selected.data.label}</h2>
               </div>
               <span className="border border-emerald-300/20 bg-[#101713] px-2.5 py-1 text-[10px] font-semibold text-emerald-200">
@@ -1345,7 +1346,7 @@ const KnowledgeGraphOS: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSecondaryClusterId(null)}
-                className="mt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500 hover:text-white"
+                className="mt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400 hover:text-white"
               >
                 Clear second cluster
               </button>
@@ -1357,7 +1358,7 @@ const KnowledgeGraphOS: React.FC = () => {
               <Network className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Bridge opportunities</h2>
             </div>
-            <p className="mt-2 text-xs leading-5 text-stone-500">
+            <p className="mt-2 text-xs leading-5 text-stone-400">
               Suggested cross-system connections. These are proposals, not automatic mutations.
             </p>
             <div className="mt-4 space-y-3">
@@ -1368,7 +1369,7 @@ const KnowledgeGraphOS: React.FC = () => {
                   className="w-full border border-[#2f2e2a] bg-[#0c0c0a] p-3 text-left transition hover:border-amber-100/25 hover:bg-amber-100/[0.035]"
                 >
                   <p className="text-xs font-bold text-stone-100">{idea.title}</p>
-                  <p className="mt-1.5 text-[11px] leading-5 text-stone-500">{idea.reason}</p>
+                  <p className="mt-1.5 text-[11px] leading-5 text-stone-400">{idea.reason}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
                     {idea.path.map((step) => (
                       <span key={step} className="border border-[#2d2c28] bg-[#141411] px-1.5 py-1 text-[9px] font-medium text-stone-400">{step}</span>
@@ -1384,7 +1385,7 @@ const KnowledgeGraphOS: React.FC = () => {
               <Workflow className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Execution propagation</h2>
             </div>
-            <p className="mt-2 text-xs leading-5 text-stone-500">
+            <p className="mt-2 text-xs leading-5 text-stone-400">
               {liveCorrelationId
                 ? 'Bound to an authenticated Hermes execution. Graph state follows persisted lifecycle events.'
                 : 'Preview mode. Attach ?execution=<correlation-id> to follow a real authenticated Hermes execution.'}
@@ -1401,7 +1402,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 return (
                   <span
                     key={`${id}-${index}`}
-                    className={`border px-2 py-1 text-[10px] font-semibold transition ${active ? 'border-amber-300/50 bg-amber-200/10 text-amber-100' : 'border-[#2d2c28] bg-[#0c0c0a] text-stone-500'}`}
+                    className={`border px-2 py-1 text-[10px] font-semibold transition ${active ? 'border-amber-300/50 bg-amber-200/10 text-amber-100' : 'border-[#2d2c28] bg-[#0c0c0a] text-stone-400'}`}
                   >
                     {node?.data.label ?? id}
                   </span>
@@ -1422,11 +1423,11 @@ const KnowledgeGraphOS: React.FC = () => {
                 message,
                 level: 'info',
               }))).map((item) => (
-                <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px] leading-5 text-stone-500">
+                <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px] leading-5 text-stone-400">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-semibold text-stone-300">{item.type}</span>
                     {'timestamp' in item && item.timestamp ? (
-                      <span className="text-[9px] text-stone-600">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                      <span className="text-[9px] text-stone-400">{new Date(item.timestamp).toLocaleTimeString()}</span>
                     ) : null}
                   </div>
                   <p className="mt-1">{item.message || item.type}</p>
@@ -1451,7 +1452,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 return (
                   <div key={id} className="flex items-center gap-2 text-[11px]">
                     <span className={`h-2 w-2 rounded-full ${complete ? 'bg-amber-200 shadow-[0_0_8px_rgba(252,211,77,.5)]' : 'bg-stone-700'}`} />
-                    <span className={complete ? 'text-stone-200' : 'text-stone-600'}>{node?.data.label ?? id}</span>
+                    <span className={complete ? 'text-stone-200' : 'text-stone-400'}>{node?.data.label ?? id}</span>
                   </div>
                 );
               })}
@@ -1470,10 +1471,10 @@ const KnowledgeGraphOS: React.FC = () => {
                     <span className="truncate text-xs font-semibold text-stone-200">{agent.name}</span>
                     <span className="text-[10px] text-amber-200">{agent.events}</span>
                   </div>
-                  <p className="mt-1 truncate text-[10px] text-stone-600">{agent.lastEvent}</p>
+                  <p className="mt-1 truncate text-[10px] text-stone-400">{agent.lastEvent}</p>
                 </div>
               )) : (
-                <p className="text-[11px] leading-5 text-stone-600">No agent identity has been reported by this execution.</p>
+                <p className="text-[11px] leading-5 text-stone-400">No agent identity has been reported by this execution.</p>
               )}
             </div>
           </section>
@@ -1490,7 +1491,7 @@ const KnowledgeGraphOS: React.FC = () => {
                   <span className="text-emerald-200">{item.state}</span>
                 </div>
               )) : (
-                <p className="text-[11px] leading-5 text-stone-600">No infrastructure dependency has been reported by this execution.</p>
+                <p className="text-[11px] leading-5 text-stone-400">No infrastructure dependency has been reported by this execution.</p>
               )}
             </div>
           </section>
@@ -1502,15 +1503,15 @@ const KnowledgeGraphOS: React.FC = () => {
             </div>
             <div className="mt-4 space-y-3">
               <div className="border border-[#25241f] bg-[#090907] px-3 py-2">
-                <p className="text-[9px] uppercase tracking-[0.14em] text-stone-600">Cost</p>
+                <p className="text-[9px] uppercase tracking-[0.14em] text-stone-400">Cost</p>
                 <p className="mt-1 text-sm font-bold text-white">{livePanels.costUsd === null ? 'Not reported' : `${livePanels.costUsd.toFixed(4)}`}</p>
               </div>
               <div className="border border-[#25241f] bg-[#090907] px-3 py-2">
-                <p className="text-[9px] uppercase tracking-[0.14em] text-stone-600">Tokens</p>
+                <p className="text-[9px] uppercase tracking-[0.14em] text-stone-400">Tokens</p>
                 <p className="mt-1 text-sm font-bold text-white">{livePanels.tokensUsed === null ? 'Not reported' : livePanels.tokensUsed.toLocaleString()}</p>
               </div>
               <div className="border border-[#25241f] bg-[#090907] px-3 py-2">
-                <p className="flex items-center gap-1 text-[9px] uppercase tracking-[0.14em] text-stone-600"><Clock3 className="h-3 w-3" /> Runtime</p>
+                <p className="flex items-center gap-1 text-[9px] uppercase tracking-[0.14em] text-stone-400"><Clock3 className="h-3 w-3" /> Runtime</p>
                 <p className="mt-1 text-sm font-bold text-white">{livePanels.durationMs === null ? 'Not reported' : `${(livePanels.durationMs / 1000).toFixed(2)}s`}</p>
               </div>
             </div>
