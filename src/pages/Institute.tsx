@@ -76,7 +76,7 @@ const operatingPillars = [
 
 const Institute: React.FC = () => {
   return (
-    <PublicPageShell breadcrumbs={false} className="bg-[#03130b] text-white">
+    <PublicPageShell breadcrumbs={false} offsetHeader={false} className="bg-[#03130b] text-white">
       <Helmet>
         <title>D3VONN.IO Institute — Technology, Global Relief & Sustainable Development</title>
         <meta
