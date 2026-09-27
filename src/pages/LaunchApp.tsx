@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import {
   Activity, Bot, CheckCircle2, Workflow, Database, Gauge, HeartPulse, Plus, ArrowRight,
-  RefreshCw, AlertTriangle, Clock,
+  RefreshCw, AlertTriangle, Clock, ShieldCheck, Network, Film, Server, CheckSquare,
+  Wrench, Brain, Circle,
 } from 'lucide-react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { Skeleton } from '@/components/ui/skeleton';
 import AppShell from '@/components/app/AppShell';
+import { useOCCData } from '@/hooks/useOCCData';
 
 const Stat: React.FC<{
   icon: React.ElementType;
@@ -62,6 +64,23 @@ const LaunchApp: React.FC = () => {
     loading, error, usingMock, agents, workflows, activity, stats,
     isCheckingHealth, refresh,
   } = useDashboardData();
+  const {
+    stats: occStats,
+    error: occError,
+    loading: occLoading,
+  } = useOCCData();
+
+  const [onboarding, setOnboarding] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('d3vonn-onboarding-v1') || '{}') as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('d3vonn-onboarding-v1', JSON.stringify(onboarding));
+  }, [onboarding]);
 
   const healthPct = stats.systemHealthPct;
   const healthColor =
@@ -137,6 +156,41 @@ const LaunchApp: React.FC = () => {
           </div>
         )}
 
+        <section className="mt-8" aria-labelledby="today-heading">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200">Today</p>
+              <h2 id="today-heading" className="mt-1 text-2xl font-black text-white">What needs your attention</h2>
+            </div>
+            <Link to="/approvals" className="text-xs font-semibold text-amber-100 hover:text-white">
+              Approval Center <ArrowRight className="ml-1 inline h-3 w-3" />
+            </Link>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Stat icon={Bot} label="Active agents" value={loading ? '—' : stats.activeAgents.toLocaleString()} loading={false} />
+            <Stat icon={Workflow} label="Running workflows" value={loading ? '—' : stats.workflowsRunning.toLocaleString()} loading={false} />
+            <Stat
+              icon={CheckSquare}
+              label="Pending approvals"
+              value={occLoading || occError ? '—' : occStats.pendingApprovals.toLocaleString()}
+              loading={false}
+            />
+            <Stat
+              icon={AlertTriangle}
+              label="Unresolved errors"
+              value={occLoading || occError ? '—' : occStats.unresolvedErrors.toLocaleString()}
+              loading={false}
+            />
+          </div>
+
+          {occError && (
+            <p className="mt-3 text-[11px] text-white/35">
+              Governance counters are unavailable for this session; no values were inferred.
+            </p>
+          )}
+        </section>
+
         {/* Stats */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <Stat
@@ -168,6 +222,100 @@ const LaunchApp: React.FC = () => {
             loading={loading && healthPct === 0}
           />
         </div>
+
+        <section className="mt-8" aria-labelledby="operating-model-heading">
+          <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
+            <Panel title="One Platform. One Intelligence.">
+              <div id="operating-model-heading" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { icon: Brain, name: 'Hermes', role: 'Orchestration intelligence', route: '/chat?hermes=1', action: 'Give Hermes an instruction' },
+                  { icon: Network, name: 'Neural Nexus', role: 'Visual operating map', route: '/knowledge-graph', action: 'Open live graph' },
+                  { icon: Bot, name: 'Agents', role: 'Specialist workers', route: '/agents', action: 'Manage agents' },
+                  { icon: Workflow, name: 'Workflows', role: 'Execution plans', route: '/workflows', action: 'Manage workflows' },
+                  { icon: Database, name: 'Knowledge', role: 'Memory + RAG context', route: '/dkos-ingestion', action: 'Open knowledge' },
+                  { icon: ShieldCheck, name: 'Command + Governance', role: 'Health, approvals, security', route: '/command-center', action: 'Open command center' },
+                ].map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.route}
+                    className="rounded-xl border border-white/10 bg-black/25 p-4 transition hover:border-amber-200/25 hover:bg-amber-100/[0.025]"
+                  >
+                    <item.icon className="h-5 w-5 text-amber-200" />
+                    <h3 className="mt-3 text-sm font-black text-white">{item.name}</h3>
+                    <p className="mt-1 text-xs text-white/45">{item.role}</p>
+                    <p className="mt-3 text-[10px] font-semibold uppercase tracking-wider text-amber-100/70">{item.action}</p>
+                  </Link>
+                ))}
+              </div>
+            </Panel>
+
+            <Panel title="First-run onboarding">
+              <p className="text-xs leading-5 text-white/50">
+                Complete these setup steps in any order. Progress is stored locally in this browser.
+              </p>
+              <div className="mt-4 space-y-2">
+                {[
+                  { id: 'tools', label: 'Connect tools', to: '/mcp', icon: Wrench },
+                  { id: 'goal', label: 'Choose your first business goal', to: '/chat?hermes=1', icon: Brain },
+                  { id: 'permissions', label: 'Review permissions and approvals', to: '/approvals', icon: ShieldCheck },
+                  { id: 'meet-hermes', label: 'Meet Hermes', to: '/chat?hermes=1', icon: Bot },
+                  { id: 'first-run', label: 'Run your first governed task', to: '/knowledge-graph', icon: Activity },
+                ].map((step) => {
+                  const done = Boolean(onboarding[step.id]);
+                  return (
+                    <div key={step.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 p-3">
+                      <button
+                        type="button"
+                        onClick={() => setOnboarding((state) => ({ ...state, [step.id]: !done }))}
+                        className="shrink-0 text-white/60 hover:text-amber-100"
+                        aria-label={done ? `Mark ${step.label} incomplete` : `Mark ${step.label} complete`}
+                      >
+                        {done ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Circle className="h-5 w-5" />}
+                      </button>
+                      <Link to={step.to} className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <step.icon className="h-4 w-4 text-amber-200" />
+                          <span className={`text-sm font-semibold ${done ? 'text-white/45 line-through' : 'text-white'}`}>{step.label}</span>
+                        </div>
+                      </Link>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-white/25" />
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+          </div>
+        </section>
+
+        <section className="mt-8" aria-labelledby="product-surfaces-heading">
+          <div className="mb-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-200">Operational surfaces</p>
+            <h2 id="product-surfaces-heading" className="mt-1 text-2xl font-black text-white">Business systems under Hermes</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { icon: Film, title: 'AI Films', route: '/ai-films', owner: 'Creative agents', next: 'Open studio' },
+              { icon: Database, title: 'Knowledge + RAG', route: '/dkos-ingestion', owner: 'Hermes memory', next: 'Inspect knowledge' },
+              { icon: ShieldCheck, title: 'Security', route: '/security', owner: 'Sentinel / operator', next: 'Review controls' },
+              { icon: Server, title: 'Infrastructure', route: '/status', owner: 'DevOps / operator', next: 'Check health' },
+              { icon: Bot, title: 'Agent Workforce', route: '/agents', owner: 'Hermes', next: 'Manage agents' },
+              { icon: Workflow, title: 'Workflow Engine', route: '/workflows', owner: 'Hermes', next: 'Inspect workflows' },
+              { icon: CheckSquare, title: 'Approvals', route: '/approvals', owner: 'Human operator', next: 'Review queue' },
+              { icon: Network, title: 'Neural Nexus', route: '/knowledge-graph', owner: 'Hermes + operator', next: 'Open graph' },
+            ].map((product) => (
+              <Link key={product.title} to={product.route} className="rounded-2xl border border-white/10 bg-black/25 p-5 transition hover:border-amber-200/25 hover:bg-amber-100/[0.025]">
+                <product.icon className="h-5 w-5 text-amber-200" />
+                <h3 className="mt-3 text-base font-black text-white">{product.title}</h3>
+                <div className="mt-3 space-y-1 text-[11px] text-white/45">
+                  <p><span className="text-white/65">Status:</span> operational surface available</p>
+                  <p><span className="text-white/65">Owner:</span> {product.owner}</p>
+                  <p><span className="text-white/65">Last execution:</span> not reported here</p>
+                </div>
+                <p className="mt-4 text-[10px] font-bold uppercase tracking-wider text-amber-100/70">{product.next}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         {/* Main grid */}
         <div className="mt-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
