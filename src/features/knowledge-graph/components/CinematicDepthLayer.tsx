@@ -216,6 +216,15 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     }
 
     const buffer = gl.createBuffer();
+    if (!buffer) {
+      setFallbackActive(true);
+      gl.deleteProgram(program);
+      gl.deleteShader(vertex);
+      gl.deleteShader(fragment);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
+      return;
+    }
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(
       gl.ARRAY_BUFFER,
@@ -225,6 +234,16 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
 
     gl.useProgram(program);
     const position = gl.getAttribLocation(program, 'a_position');
+    if (position < 0) {
+      setFallbackActive(true);
+      gl.deleteBuffer(buffer);
+      gl.deleteProgram(program);
+      gl.deleteShader(vertex);
+      gl.deleteShader(fragment);
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
+      return;
+    }
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
