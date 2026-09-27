@@ -29,6 +29,7 @@ import { useRuntimeIdentity } from '@/hooks/useRuntimeIdentity';
 import { deriveOverlayEmphasis } from '@/features/knowledge-graph/lib/overlayEmphasis';
 import CinematicDepthLayer from '@/features/knowledge-graph/components/CinematicDepthLayer';
 import { deriveSelectiveFocus } from '@/features/knowledge-graph/lib/selectiveFocus';
+import { sendHermesBrowserCommand } from '@/features/knowledge-graph/lib/hermesCommand';
 import {
   deriveNexusTransitionKey,
   NEXUS_TRANSITION_TIMING,
@@ -506,6 +507,8 @@ const KnowledgeGraphOS: React.FC = () => {
   const [cameraFollow, setCameraFollow] = useState(true);
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null);
   const [transitionPhase, setTransitionPhase] = useState<NexusTransitionPhase>('idle');
+  const [hermesInstruction, setHermesInstruction] = useState('');
+  const [hermesSubmitting, setHermesSubmitting] = useState(false);
   const transitionTimersRef = useRef<number[]>([]);
 
   const selected = initialNodes.find((node) => node.id === selectedId) ?? initialNodes[1];
@@ -803,7 +806,7 @@ const KnowledgeGraphOS: React.FC = () => {
     setActivity((items) => [`Execution trace started: ${targetPath.join(' → ')}`, ...items].slice(0, 5));
   };
 
-  const executeGraphAction = (request: D3GraphActionRequest) => {
+  const executeGraphAction = async (request: D3GraphActionRequest) => {
     const nodeId = resolveNodeId(request.nodeId);
     const node = initialNodes.find((item) => item.id === nodeId) ?? selected;
 
@@ -826,22 +829,72 @@ const KnowledgeGraphOS: React.FC = () => {
       case 'run':
         setSelectedId(nodeId);
         if (request.source === 'click') {
-          startExecutionPreview(nodeId);
+          try {
+            const result = await sendHermesBrowserCommand({
+              action: 'run',
+              node_id: nodeId,
+              title: `Run ${node.data.label}`,
+              surface: 'knowledge-graph',
+              route: '/knowledge-graph',
+            });
+            setVoiceCorrelationId(result.correlation_id);
+            setActivity((items) => [`CLICK · Hermes run queued for ${node.data.label}`, ...items].slice(0, 5));
+          } catch (error) {
+            setActivity((items) => [`ERROR · ${error instanceof Error ? error.message : 'Hermes run could not be queued'}`, ...items].slice(0, 5));
+          }
         } else {
           setActivity((items) => [`VOICE · Hermes run requested for ${node.data.label}; awaiting governed execution`, ...items].slice(0, 5));
         }
         break;
       case 'monitor':
         setSelectedId(nodeId);
-        setActivity((items) => [`${request.source.toUpperCase()} · monitoring ${node.data.label}`, ...items].slice(0, 5));
+        if (request.source === 'click') {
+          try {
+            const result = await sendHermesBrowserCommand({
+              action: 'monitor',
+              node_id: nodeId,
+              title: `Monitor ${node.data.label}`,
+              surface: 'knowledge-graph',
+              route: '/knowledge-graph',
+            });
+            setVoiceCorrelationId(result.correlation_id);
+            setActivity((items) => [`CLICK · live Hermes monitor attached to ${node.data.label}`, ...items].slice(0, 5));
+          } catch (error) {
+            setActivity((items) => [`ERROR · ${error instanceof Error ? error.message : 'Hermes monitor could not be queued'}`, ...items].slice(0, 5));
+          }
+        } else {
+          setActivity((items) => [`VOICE · monitoring ${node.data.label}`, ...items].slice(0, 5));
+        }
         break;
       case 'connect': {
         setSelectedId(nodeId);
-        const targetNodeId = resolveNodeId(request.targetNodeId);
-        if (request.targetNodeId && majorClusterNodeIds.has(targetNodeId) && targetNodeId !== nodeId) {
+        const requestedTarget = request.targetNodeId || secondaryClusterId || undefined;
+        if (!requestedTarget) {
+          setActivity((items) => [`${request.source.toUpperCase()} · select a second major node before Connect`, ...items].slice(0, 5));
+          break;
+        }
+        const targetNodeId = resolveNodeId(requestedTarget);
+        if (majorClusterNodeIds.has(targetNodeId) && targetNodeId !== nodeId) {
           setSecondaryClusterId(targetNodeId);
         }
-        setActivity((items) => [`${request.source.toUpperCase()} · connection request staged for approval`, ...items].slice(0, 5));
+        if (request.source === 'click') {
+          try {
+            const result = await sendHermesBrowserCommand({
+              action: 'connect',
+              node_id: nodeId,
+              target_node_id: targetNodeId,
+              title: `Connect ${node.data.label} to ${initialNodes.find((item) => item.id === targetNodeId)?.data.label ?? targetNodeId}`,
+              surface: 'knowledge-graph',
+              route: '/knowledge-graph',
+            });
+            setVoiceCorrelationId(result.correlation_id);
+            setActivity((items) => [`CLICK · connection staged in Hermes for approval`, ...items].slice(0, 5));
+          } catch (error) {
+            setActivity((items) => [`ERROR · ${error instanceof Error ? error.message : 'Hermes connection could not be staged'}`, ...items].slice(0, 5));
+          }
+        } else {
+          setActivity((items) => [`VOICE · connection request staged for approval`, ...items].slice(0, 5));
+        }
         break;
       }
       case 'expand':
@@ -876,7 +929,10 @@ const KnowledgeGraphOS: React.FC = () => {
         break;
       case 'ask':
         setSelectedId(nodeId);
-        setActivity((items) => [`${request.source.toUpperCase()} · ask Hermes about ${node.data.label}: ${request.query || 'current context'}`, ...items].slice(0, 5));
+        setHermesInstruction(
+          request.query?.trim() || `Review ${node.data.label} and tell me what needs my attention.`,
+        );
+        setActivity((items) => [`${request.source.toUpperCase()} · Hermes instruction prepared for ${node.data.label}`, ...items].slice(0, 5));
         break;
       case 'view':
         if (request.view) {
@@ -1176,7 +1232,7 @@ const KnowledgeGraphOS: React.FC = () => {
           )}
 
           <div className="d3-nexus-actionbar flex flex-wrap items-center justify-center gap-2 border-t border-[#2d2c28] bg-[#0d0d0b] px-4 py-3">
-            <button type="button" onClick={() => recordAction('Explore')} className="d3-nexus-action d3-nexus-action--primary">
+            <button type="button" onClick={() => void executeGraphAction({ action: 'expand', nodeId: selected.id, source: 'click' })} className="d3-nexus-action d3-nexus-action--primary">
               <Network className="h-4 w-4" /> Explore
             </button>
             <button type="button" onClick={() => executeGraphAction({ action: 'trace', nodeId: selected.id, source: 'click' })} className="d3-nexus-action">
@@ -1198,7 +1254,7 @@ const KnowledgeGraphOS: React.FC = () => {
         </section>
 
         <aside className="d3-nexus-right-rail flex flex-col gap-3">
-          <section className="hidden border border-[#4b4633] bg-[#15140f] p-5 shadow-[inset_3px_0_0_#fcd34d,0_12px_28px_rgba(0,0,0,0.24)]">
+          <section className="border border-[#4b4633] bg-[#15140f] p-5 shadow-[inset_3px_0_0_#fcd34d,0_12px_28px_rgba(0,0,0,0.24)]">
             <div className="flex items-center gap-2">
               <Mic className="h-4 w-4 text-amber-200" />
               <h2 className="text-sm font-bold text-white">Voice command layer</h2>
@@ -1221,6 +1277,49 @@ const KnowledgeGraphOS: React.FC = () => {
                 </div>
               ))}
             </div>
+            <div className="mt-4 border border-[#34332f] bg-[#0c0c0a] p-3">
+              <label htmlFor="hermes-instruction" className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-100">
+                Text Hermes instructions
+              </label>
+              <textarea
+                id="hermes-instruction"
+                value={hermesInstruction}
+                onChange={(event) => setHermesInstruction(event.target.value)}
+                rows={3}
+                placeholder={`Tell Hermes what to do with ${selected.data.label}...`}
+                className="mt-2 w-full resize-none border border-[#34332f] bg-[#11110f] px-3 py-2 text-xs leading-5 text-white outline-none placeholder:text-stone-500 focus:border-amber-200/40"
+              />
+              <button
+                type="button"
+                disabled={hermesSubmitting || !hermesInstruction.trim()}
+                onClick={async () => {
+                  const prompt = hermesInstruction.trim();
+                  if (!prompt || hermesSubmitting) return;
+                  setHermesSubmitting(true);
+                  try {
+                    const result = await sendHermesBrowserCommand({
+                      action: 'command',
+                      title: `Hermes instruction · ${selected.data.label}`,
+                      prompt,
+                      node_id: selected.id,
+                      surface: 'knowledge-graph',
+                      route: '/knowledge-graph',
+                    });
+                    setVoiceCorrelationId(result.correlation_id);
+                    setActivity((items) => [`TEXT · Hermes instruction queued for ${selected.data.label}`, ...items].slice(0, 5));
+                    setHermesInstruction('');
+                  } catch (error) {
+                    setActivity((items) => [`ERROR · ${error instanceof Error ? error.message : 'Hermes instruction could not be queued'}`, ...items].slice(0, 5));
+                  } finally {
+                    setHermesSubmitting(false);
+                  }
+                }}
+                className="mt-2 w-full border border-amber-300/30 bg-amber-200 px-3 py-2 text-xs font-black text-stone-950 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {hermesSubmitting ? 'Sending to Hermes…' : 'Send to Hermes'}
+              </button>
+            </div>
+
             <div className="mt-4 flex items-center justify-between border-t border-[#2d2c28] pt-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">Production voice</p>
