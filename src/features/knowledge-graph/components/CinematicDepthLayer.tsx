@@ -128,6 +128,11 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
   anchor,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const anchorRef = useRef(anchor);
+
+  useEffect(() => {
+    anchorRef.current = anchor;
+  }, [anchor.x, anchor.y]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -198,6 +203,8 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
     let targetParallaxY = 0;
     let parallaxX = 0;
     let parallaxY = 0;
+    let anchorX = anchorRef.current.x;
+    let anchorY = anchorRef.current.y;
 
     const onPointerMove = (event: PointerEvent) => {
       if (reducedMotion) return;
@@ -229,7 +236,15 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       gl.uniform1f(intensity, visual.intensity);
       gl.uniform1f(corridorUniform, visual.corridor);
       gl.uniform3f(tint, r, g, b);
-      gl.uniform2f(anchorUniform, anchor.x, 1 - anchor.y);
+      const targetAnchor = anchorRef.current;
+      if (reducedMotion) {
+        anchorX = targetAnchor.x;
+        anchorY = targetAnchor.y;
+      } else {
+        anchorX += (targetAnchor.x - anchorX) * 0.055;
+        anchorY += (targetAnchor.y - anchorY) * 0.055;
+      }
+      gl.uniform2f(anchorUniform, anchorX, 1 - anchorY);
       parallaxX += (targetParallaxX - parallaxX) * 0.055;
       parallaxY += (targetParallaxY - parallaxY) * 0.055;
       gl.uniform2f(
@@ -253,7 +268,7 @@ export const CinematicDepthLayer: React.FC<CinematicDepthLayerProps> = ({
       gl.deleteShader(vertex);
       gl.deleteShader(fragment);
     };
-  }, [active, anchor.x, anchor.y, corridor, runtimeState]);
+  }, [active, corridor, runtimeState]);
 
   return (
     <canvas
