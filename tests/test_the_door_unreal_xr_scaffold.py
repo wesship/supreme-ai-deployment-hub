@@ -26,14 +26,19 @@ def test_xr_client_calls_governed_backend_and_never_loads_levels():
 
 def test_meta_provider_fails_closed_until_runtime_ready():
     source = PROVIDER.read_text()
+    subsystem = SUBSYSTEM.read_text()
+    header = (PLUGIN / "Source" / "RetroDoorXR" / "Public" / "DoorXRSubsystem.h").read_text()
     assert "bRuntimeReady = false" in source
     assert "SetRuntimeReady" in source
     assert "EDoorXRProvider::Meta" in source
+    assert "bMetaRuntimeReady = false" in header
+    assert "Meta XR runtime is not ready." in subsystem
 
 
 def test_plugin_has_no_hard_meta_sdk_dependency():
     build = BUILD.read_text()
     assert '"HTTP"' in build
+    assert '"Engine",\n            "HTTP"' in build
     assert '"Json"' in build
     assert "OculusXR" not in build
     assert "MetaXR" not in build
@@ -43,3 +48,9 @@ def test_handoff_keeps_existing_gameplay_gate_authoritative():
     readme = README.read_text()
     assert "TryEnterRetroDoor" in readme
     assert "only path allowed to transition into a realm" in readme
+
+
+def test_http_request_start_failure_is_reported():
+    source = SUBSYSTEM.read_text()
+    assert "if (!Request->ProcessRequest())" in source
+    assert "request could not be started" in source
