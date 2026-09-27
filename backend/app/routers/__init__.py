@@ -39,6 +39,7 @@ async def proxy_lifespan(app: FastAPI):
     master_qc_task: asyncio.Task[None] | None = None
     hermes_handoff_task: asyncio.Task[None] | None = None
     mastering_recovery_task: asyncio.Task[None] | None = None
+    event_os_fulfillment_task: asyncio.Task[None] | None = None
     try:
         from backend.app.voice_activation import activate_voice_runtime
         activation_task = asyncio.create_task(activate_voice_runtime(), name="d3vonn-voice-activation")
@@ -79,6 +80,16 @@ async def proxy_lifespan(app: FastAPI):
         logger.info("AI FILMS mastering restart-recovery worker scheduled.")
     except ImportError as exc:
         logger.warning("AI FILMS mastering recovery worker unavailable: %s", exc)
+    try:
+        from backend.event_os.fulfillment_worker import run_event_os_fulfillment_worker
+        event_os_fulfillment_task = asyncio.create_task(
+            run_event_os_fulfillment_worker(),
+            name="event-os-fulfillment-worker",
+        )
+        app.state.event_os_fulfillment_worker_task = event_os_fulfillment_task
+        logger.info("Event OS fulfillment worker scheduled.")
+    except ImportError as exc:
+        logger.warning("Event OS fulfillment worker unavailable: %s", exc)
     yield
     for task in (
         activation_task,
@@ -86,6 +97,7 @@ async def proxy_lifespan(app: FastAPI):
         master_qc_task,
         hermes_handoff_task,
         mastering_recovery_task,
+        event_os_fulfillment_task,
     ):
         if task and not task.done():
             task.cancel()
@@ -129,6 +141,9 @@ async def deploy_probe(request: Request):
                 "ai_films_hermes_mastering_handoff_worker_task",
             ),
             "recovery": _task_state(request.app, "ai_films_mastering_recovery_worker_task"),
+        },
+        "event_os": {
+            "fulfillment": _task_state(request.app, "event_os_fulfillment_worker_task"),
         },
     }
 
