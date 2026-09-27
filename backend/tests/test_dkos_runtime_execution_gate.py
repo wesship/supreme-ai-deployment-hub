@@ -77,6 +77,9 @@ def test_docling_is_optional_and_disabled_by_default(tmp_path, monkeypatch):
 
 def test_downstream_stages_remain_blocked_without_adapters(tmp_path, monkeypatch):
     worker = _load_worker()
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("PINECONE_API_KEY", raising=False)
+    monkeypatch.delenv("PINECONE_INDEX", raising=False)
     source = tmp_path / "source.txt"
     source.write_text("one paragraph\n\ntwo paragraph", encoding="utf-8")
     job = worker.IngestionJob(source_path=source, tenant_id="tenant", uploaded_by="user")
