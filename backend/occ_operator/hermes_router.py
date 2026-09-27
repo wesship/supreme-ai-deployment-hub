@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import time
 from typing import Any
 
@@ -24,6 +25,7 @@ from backend.hermes.infrastructure import (
     SupabaseRestClient,
     sign_payload,
 )
+from backend.hermes.registry import BUILTIN_AGENT_REGISTRY
 from backend.hermes.task_engine import TaskTransitionConflict, transition_task
 from backend.occ_operator.occ_logger import log_error
 
@@ -105,16 +107,14 @@ class AdaptiveChangeDecision(BaseModel):
     rationale: str = Field(min_length=3, max_length=4000)
 
 
-class AdaptiveCanaryMetrics(BaseModel):
-    success_rate: float = Field(ge=0.0, le=1.0)
-    error_rate: float = Field(ge=0.0, le=1.0)
-    latency_ms: float = Field(ge=0.0)
-    cost_usd: float = Field(ge=0.0)
+class AdaptivePromotionDecision(BaseModel):
+    decision: str = Field(pattern="^(approved|rejected)$")
+    rationale: str = Field(min_length=3, max_length=4000)
 
 
-class AdaptiveCanaryCertificationRequest(BaseModel):
-    baseline: AdaptiveCanaryMetrics
-    candidate: AdaptiveCanaryMetrics
+class AdaptiveRolloutRequest(BaseModel):
+    environment: str = Field(pattern="^(staging|production)$")
+    production_authorization: str | None = Field(default=None, min_length=16, max_length=512)
 
 
 def _require_internal_execution_key(
@@ -217,6 +217,7 @@ async def execute_internal_agent(
         "stream": False,
     }
 
+    started_at = time.perf_counter()
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
             OPENAI_CHAT_URL,
@@ -238,16 +239,45 @@ async def execute_internal_agent(
     except (KeyError, IndexError, TypeError) as exc:
         raise HTTPException(status_code=502, detail="TARS execution provider returned an invalid response.") from exc
 
+    output: dict[str, Any] = {
+        "text": content,
+        "provider": "openai",
+        "model": settings.openai_default_model,
+    }
+
+    if (
+        body.input_data.get("mode") == "evaluation_only"
+        and body.input_data.get("apply_production_change") is False
+    ):
+        usage = provider_payload.get("usage") if isinstance(provider_payload, dict) else {}
+        usage = usage if isinstance(usage, dict) else {}
+        prompt_tokens = int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
+        input_rate = float(os.getenv("HERMES_CANARY_INPUT_COST_PER_MILLION_TOKENS", "0") or 0)
+        output_rate = float(os.getenv("HERMES_CANARY_OUTPUT_COST_PER_MILLION_TOKENS", "0") or 0)
+        cost_measured = input_rate > 0 and output_rate > 0
+        cost_usd = (
+            (prompt_tokens / 1_000_000) * input_rate
+            + (completion_tokens / 1_000_000) * output_rate
+            if cost_measured
+            else 0.0
+        )
+        output["certification_metrics"] = {
+            "success_rate": 1.0,
+            "error_rate": 0.0,
+            "latency_ms": round((time.perf_counter() - started_at) * 1000, 3),
+            "cost_usd": round(cost_usd, 8),
+            "cost_measured": cost_measured,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }
+
     return {
         "status": "completed",
         "task_id": body.task_id,
         "agent": agent_name,
         "idempotency_key": body.idempotency_key,
-        "output": {
-            "text": content,
-            "provider": "openai",
-            "model": settings.openai_default_model,
-        },
+        "output": output,
     }
 
 @router.get("/goals")
@@ -449,7 +479,6 @@ async def queue_adaptive_change_canary(
 @router.post("/adaptive-change-requests/{request_id}/certify")
 async def certify_adaptive_change_canary(
     request_id: str,
-    body: AdaptiveCanaryCertificationRequest,
     principal: OCCPrincipal = Depends(require_occ_access),
 ):
     try:
@@ -459,13 +488,14 @@ async def certify_adaptive_change_canary(
                 "p_request_id": request_id,
                 "p_user_id": principal.user_id,
                 "p_actor_id": principal.user_id,
-                "p_baseline": body.baseline.model_dump(),
-                "p_candidate": body.candidate.model_dump(),
             },
         )
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code in (400, 409):
-            raise HTTPException(status_code=409, detail="Adaptive canary is not eligible for certification.") from exc
+            raise HTTPException(
+                status_code=409,
+                detail="Canary certification requires a completed task with persisted baseline and measured candidate metrics.",
+            ) from exc
         raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
 
 
@@ -476,6 +506,131 @@ async def list_adaptive_promotion_candidates(
 ):
     return await _get_rows(
         "hermes_adaptive_promotion_candidates",
+        {
+            "user_id": f"eq.{principal.user_id}",
+            "order": "created_at.desc",
+            "limit": limit,
+        },
+    )
+
+
+@router.post("/adaptive-promotion-candidates/{candidate_id}/decision")
+async def decide_adaptive_promotion(
+    candidate_id: str,
+    body: AdaptivePromotionDecision,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    try:
+        return await _SUPABASE.rpc(
+            "hermes_review_adaptive_promotion",
+            {
+                "p_candidate_id": candidate_id,
+                "p_user_id": principal.user_id,
+                "p_reviewer_id": principal.user_id,
+                "p_decision": body.decision,
+                "p_rationale": body.rationale,
+            },
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 409):
+            raise HTTPException(status_code=409, detail="Promotion candidate is not eligible for review.") from exc
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+
+
+async def _adaptive_current_config_snapshot(
+    candidate_id: str,
+    user_id: str,
+) -> dict[str, Any]:
+    candidates = await _get_rows(
+        "hermes_adaptive_promotion_candidates",
+        {"id": f"eq.{candidate_id}", "user_id": f"eq.{user_id}", "limit": 1},
+    )
+    if not candidates:
+        raise HTTPException(status_code=404, detail="Promotion candidate not found.")
+    candidate = candidates[0]
+    requests = await _get_rows(
+        "hermes_adaptive_change_requests",
+        {
+            "id": f"eq.{candidate.get('change_request_id')}",
+            "user_id": f"eq.{user_id}",
+            "limit": 1,
+        },
+    )
+    if not requests:
+        raise HTTPException(status_code=404, detail="Adaptive change request not found.")
+    request = requests[0]
+    proposed = candidate.get("proposed_change") if isinstance(candidate.get("proposed_change"), dict) else {}
+    category = str(request.get("category") or "")
+    target = str(request.get("target") or "")
+
+    snapshot: dict[str, Any] = {
+        "source": "server_runtime",
+        "category": category,
+        "target": target,
+        "captured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "proposed_scope": proposed.get("scope"),
+    }
+    if category == "concurrency":
+        snapshot["HERMES_MAX_CONCURRENT_TASKS"] = os.getenv("HERMES_MAX_CONCURRENT_TASKS", "10")
+    elif category == "routing":
+        snapshot["HERMES_DEFAULT_AGENT"] = os.getenv("HERMES_DEFAULT_AGENT", "TARS")
+        snapshot["agent_hierarchy"] = BUILTIN_AGENT_REGISTRY.hierarchy()
+    elif category == "agent":
+        try:
+            snapshot["agent_manifest"] = BUILTIN_AGENT_REGISTRY.get(target.strip().lower()).model_dump(mode="json")
+        except KeyError:
+            snapshot["agent_manifest"] = None
+    elif category == "tool":
+        tools_snapshot: list[dict[str, Any]] = []
+        for manifest in BUILTIN_AGENT_REGISTRY.list(enabled_only=False):
+            for tool in manifest.tools:
+                tools_snapshot.append({"agent": manifest.name, **tool.model_dump(mode="json")})
+        snapshot["registered_tools"] = tools_snapshot
+    else:
+        snapshot["agent_hierarchy"] = BUILTIN_AGENT_REGISTRY.hierarchy()
+        snapshot["policy_source"] = "code_and_persisted_workflow_state"
+    return snapshot
+
+
+@router.post("/adaptive-promotion-candidates/{candidate_id}/rollout")
+async def validate_adaptive_rollout(
+    candidate_id: str,
+    body: AdaptiveRolloutRequest,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    if body.environment == "production" and not body.production_authorization:
+        raise HTTPException(status_code=403, detail="Explicit production authorization is required.")
+    auth_hash = (
+        hashlib.sha256(body.production_authorization.encode()).hexdigest()
+        if body.production_authorization
+        else ""
+    )
+    pre_change = await _adaptive_current_config_snapshot(candidate_id, principal.user_id)
+    try:
+        return await _SUPABASE.rpc(
+            "hermes_validate_adaptive_rollout",
+            {
+                "p_candidate_id": candidate_id,
+                "p_user_id": principal.user_id,
+                "p_executor_id": principal.user_id,
+                "p_environment": body.environment,
+                "p_authorization_hash": auth_hash,
+                "p_pre_change": pre_change,
+            },
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in (400, 403, 409):
+            raise HTTPException(status_code=409, detail="Promotion rollout is not eligible for validation.") from exc
+        raise HTTPException(status_code=502, detail=f"Supabase error: {exc.response.text}") from exc
+
+
+@router.get("/adaptive-rollouts")
+async def list_adaptive_rollouts(
+    limit: int = 50,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    return await _get_rows(
+        "hermes_adaptive_rollouts",
         {
             "user_id": f"eq.{principal.user_id}",
             "order": "created_at.desc",
