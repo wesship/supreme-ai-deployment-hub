@@ -99,3 +99,80 @@ def test_downstream_stages_remain_blocked_without_adapters(tmp_path, monkeypatch
     assert states["hermes_memory"] == "blocked"
     kinds = {item.kind for item in result.artifacts}
     assert {"raw_markdown", "markdown", "source_metadata", "chunks"} <= kinds
+
+
+def test_pinecone_namespace_is_tenant_isolated(tmp_path):
+    worker = _load_worker()
+    source = tmp_path / "source.txt"
+    source.write_text("hello", encoding="utf-8")
+    job = worker.IngestionJob(source_path=source, tenant_id="Acme / West", uploaded_by="user")
+
+    assert worker.pinecone_namespace(job) == "tenant:Acme-West"
+
+
+def test_hermes_memory_manifest_is_idempotent(tmp_path):
+    worker = _load_worker()
+    source = tmp_path / "source.txt"
+    source.write_text("hello", encoding="utf-8")
+    job = worker.IngestionJob(
+        source_path=source,
+        tenant_id="tenant-a",
+        uploaded_by="user",
+        run_id="run-1",
+        document_id="doc-1",
+    )
+    chunks = tmp_path / "chunks.jsonl"
+    chunks.write_text(
+        json.dumps({"chunk_id": "000000", "index": 0, "text": "hello", "sha256": "abc", "token_count": 1}) + "\n",
+        encoding="utf-8",
+    )
+    embeddings = tmp_path / "embeddings.jsonl"
+    embeddings.write_text(
+        json.dumps({"chunk_id": "000000", "index": 0, "text": "hello", "sha256": "abc", "values": [0.1, 0.2]}) + "\n",
+        encoding="utf-8",
+    )
+    receipt = tmp_path / "pinecone_receipt.json"
+    receipt.write_text(
+        json.dumps({"namespace": "tenant:tenant-a", "index": "idx", "vector_count": 1}),
+        encoding="utf-8",
+    )
+
+    first = worker.create_hermes_memory_manifest(
+        job,
+        source_sha256="sourcehash",
+        chunks_path=chunks,
+        embeddings_path=embeddings,
+        pinecone_receipt_path=receipt,
+        output_dir=tmp_path,
+    )
+    first_payload = json.loads(first.read_text())
+    first.unlink()
+    second = worker.create_hermes_memory_manifest(
+        job,
+        source_sha256="sourcehash",
+        chunks_path=chunks,
+        embeddings_path=embeddings,
+        pinecone_receipt_path=receipt,
+        output_dir=tmp_path,
+    )
+    second_payload = json.loads(second.read_text())
+
+    assert first_payload["commit_id"] == second_payload["commit_id"]
+    assert first_payload["idempotency_key"] == first_payload["commit_id"]
+    assert first_payload["state"] == "ready_for_hermes_commit"
+    assert first_payload["tenant_id"] == "tenant-a"
+
+
+def test_embedding_and_pinecone_capabilities_follow_environment(monkeypatch):
+    worker = _load_worker()
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("PINECONE_API_KEY", raising=False)
+    monkeypatch.delenv("PINECONE_INDEX", raising=False)
+    assert worker.embedding_capability() is False
+    assert worker.pinecone_capability() is False
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
+    monkeypatch.setenv("PINECONE_API_KEY", "test-pinecone")
+    monkeypatch.setenv("PINECONE_INDEX", "test-index")
+    assert worker.embedding_capability() is True
+    assert worker.pinecone_capability() is True
