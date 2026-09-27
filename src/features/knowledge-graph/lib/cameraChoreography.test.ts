@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Node } from '@xyflow/react';
-import { deriveCameraTarget } from './cameraChoreography';
+import { deriveCameraTarget, deriveDepthAnchor } from './cameraChoreography';
 
 const nodes: Node[] = [
   { id: 'knowledge', position: { x: 560, y: 210 }, data: {} },
@@ -25,5 +25,18 @@ describe('deriveCameraTarget', () => {
 
   it('returns null for unknown focus nodes', () => {
     expect(deriveCameraTarget(nodes, ['missing'])).toBeNull();
+  });
+
+  it('anchors WebGL light toward the active graph region', () => {
+    const left = deriveDepthAnchor(nodes, ['knowledge']);
+    const right = deriveDepthAnchor(nodes, ['films']);
+
+    expect(left.x).toBeLessThan(right.x);
+    expect(left.y).toBeGreaterThan(0);
+    expect(right.x).toBeLessThan(1);
+  });
+
+  it('uses the graph center when no focus node exists', () => {
+    expect(deriveDepthAnchor(nodes, ['missing'])).toEqual({ x: 0.5, y: 0.5 });
   });
 });
