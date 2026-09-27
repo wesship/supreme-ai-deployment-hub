@@ -3,7 +3,6 @@ import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Command, Search, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 import Logo from './navigation/Logo';
 import DesktopNav from './navigation/DesktopNav';
@@ -23,7 +22,6 @@ const Navbar = ({
   transparent = false,
 }: NavbarProps) => {
   const location = useLocation();
-  const isMobile = useIsMobile();
   const [isScrolled, setIsScrolled] = useState(false);
   const [prevScrollPos, setPrevScrollPos] = useState(0);
   const [visible, setVisible] = useState(true);
@@ -70,9 +68,7 @@ const Navbar = ({
                 </div>
               </div>
 
-              {!isMobile && (
-                <DesktopNav navigationItems={navigationItems} currentPath={location.pathname} />
-              )}
+              <DesktopNav navigationItems={navigationItems} currentPath={location.pathname} />
 
               <div className="flex items-center gap-2 sm:gap-3">
                 <Link
@@ -110,7 +106,7 @@ const Navbar = ({
                   Launch App
                 </SmartLaunchLink>
 
-                {isMobile && <MobileMenu navigationItems={navigationItems} />}
+                <div className="2xl:hidden"><MobileMenu navigationItems={navigationItems} /></div>
               </div>
             </div>
           </div>
