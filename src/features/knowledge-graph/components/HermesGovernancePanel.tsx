@@ -129,6 +129,13 @@ const HermesGovernancePanel: React.FC = () => {
   }, [accessToken]);
 
   const refreshTelemetry = useCallback(async () => {
+    const token = await accessToken();
+    if (!token) {
+      setTasks([]);
+      setRuns([]);
+      return;
+    }
+
     const [taskResult, runResult] = await Promise.all([
       supabase
         .from('hermes_tasks')
@@ -145,7 +152,7 @@ const HermesGovernancePanel: React.FC = () => {
     if (runResult.error) throw runResult.error;
     setTasks((taskResult.data ?? []) as unknown as TaskRow[]);
     setRuns((runResult.data ?? []) as unknown as RunRow[]);
-  }, []);
+  }, [accessToken]);
 
   const refreshGovernance = useCallback(async () => {
     const token = await accessToken();
