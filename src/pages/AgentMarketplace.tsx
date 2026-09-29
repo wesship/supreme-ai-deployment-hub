@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Boxes, Bot, Database, Layers3, ShieldCheck } from 'lucide-react';
-import { AgentTemplate, MarketplaceFilters as FilterType, AgentDeploymentConfig } from '@/types/marketplace';
+import { ArrowRight, Boxes, Bot, Database, Layers3, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { AgentTemplate, MarketplaceFilters as FilterType, AgentDeploymentConfig, MarketplaceDiscoveryRecommendation } from '@/types/marketplace';
 import PublicPageShell from '@/components/shell/PublicPageShell';
 import MarketplaceHeader from '@/components/marketplace/MarketplaceHeader';
 import MarketplaceFilters from '@/components/marketplace/MarketplaceFilters';
@@ -11,7 +11,7 @@ import AgentDetailModal from '@/components/marketplace/AgentDetailModal';
 import DeployAgentModal from '@/components/marketplace/DeployAgentModal';
 import ProductWorkspaceHero from '@/components/d3/ProductWorkspaceHero';
 import { toast } from '@/hooks/use-toast';
-import { useMarketplaceAgents } from '@/hooks/useMarketplaceAgents';
+import { discoverMarketplaceAgents, useMarketplaceAgents } from '@/hooks/useMarketplaceAgents';
 
 const breadcrumbs = [{ label: 'Marketplace' }, { label: 'Agent Marketplace' }];
 
@@ -21,6 +21,10 @@ const AgentMarketplace: React.FC = () => {
   const [deployAgent, setDeployAgent] = useState<AgentTemplate | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeployModal, setShowDeployModal] = useState(false);
+  const [discoveryQuery, setDiscoveryQuery] = useState('');
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryResults, setDiscoveryResults] = useState<MarketplaceDiscoveryRecommendation[]>([]);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const { agents: marketplaceAgents, loading, error, source, live } = useMarketplaceAgents();
 
   const filteredAgents = useMemo(() => {
@@ -77,6 +81,21 @@ const AgentMarketplace: React.FC = () => {
   const handleDeployAgent = (agent: AgentTemplate) => { setDeployAgent(agent); setShowDeployModal(true); setShowDetailModal(false); };
   const handleDeployComplete = (agent: AgentTemplate, config: AgentDeploymentConfig) => { console.log('Deployed:', agent.name, config); setShowDeployModal(false); };
   const handlePublishClick = () => toast({ title: 'Coming Soon', description: 'Agent publishing will be available in the next release.' });
+  const handleDiscover = async () => {
+    const query = discoveryQuery.trim();
+    if (query.length < 2) return;
+    setDiscovering(true);
+    setDiscoveryError(null);
+    try {
+      const result = await discoverMarketplaceAgents(query);
+      setDiscoveryResults(result.recommendations);
+    } catch (err) {
+      setDiscoveryResults([]);
+      setDiscoveryError(err instanceof Error ? err.message : 'AI discovery is unavailable');
+    } finally {
+      setDiscovering(false);
+    }
+  };
   const registryStatus = error ? 'Registry unavailable' : loading ? 'Loading live registry' : live ? 'Live agent registry' : 'Registry snapshot';
 
   return (
@@ -109,6 +128,71 @@ const AgentMarketplace: React.FC = () => {
               ))}
             </div>
           </ProductWorkspaceHero>
+
+          <div className="d3-titanium-panel overflow-hidden p-5 sm:p-7" aria-labelledby="ai-discovery-heading">
+            <div className="grid gap-6 lg:grid-cols-[1.05fr_1.95fr]">
+              <div>
+                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  Hermes AI Discovery
+                </div>
+                <h2 id="ai-discovery-heading" className="text-2xl font-semibold text-white">Tell D3VONN what you need done.</h2>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  Describe the business outcome or task. D3VONN ranks live agents from the canonical registry by capability, category, tags, and description.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <form
+                  className="flex flex-col gap-3 sm:flex-row"
+                  onSubmit={(event) => { event.preventDefault(); void handleDiscover(); }}
+                >
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                    <input
+                      aria-label="Describe the task you want D3VONN to accomplish"
+                      value={discoveryQuery}
+                      onChange={(event) => setDiscoveryQuery(event.target.value)}
+                      placeholder="Example: monitor security threats and coordinate incident response"
+                      className="h-11 w-full rounded-xl border border-white/10 bg-black/30 pl-10 pr-4 text-sm text-white outline-none transition focus:border-white/25"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={discovering || discoveryQuery.trim().length < 2}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {discovering ? 'Matching…' : 'Find intelligence'}
+                    {!discovering && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                  </button>
+                </form>
+
+                {discoveryError && <p className="text-sm text-amber-200" role="alert">{discoveryError}</p>}
+
+                {discoveryResults.length > 0 && (
+                  <div className="grid gap-3 md:grid-cols-2" aria-live="polite">
+                    {discoveryResults.slice(0, 4).map((result) => (
+                      <button
+                        key={result.agent.id}
+                        type="button"
+                        onClick={() => handleViewAgent(result.agent)}
+                        className="rounded-xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-white/25 hover:bg-white/5"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-white">{result.agent.name}</div>
+                            <div className="mt-1 text-xs uppercase tracking-wide text-white/50">{result.agent.category}</div>
+                          </div>
+                          <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] text-white/60">match {result.score}</span>
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-xs leading-5 text-muted-foreground">{result.reason}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
           <div className="d3-surface p-4 sm:p-6">
             <MarketplaceHeader totalAgents={marketplaceAgents.length} featuredCount={featuredAgents.length} onPublishClick={handlePublishClick} />
