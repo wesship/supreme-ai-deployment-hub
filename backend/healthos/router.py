@@ -1,0 +1,58 @@
+"""Feature-gated synthetic HealthOS API routes."""
+from fastapi import APIRouter, HTTPException
+
+from backend.healthos.adapters.fhir import SyntheticFHIRAdapter
+from backend.healthos.adapters.policy import SyntheticPolicyAdapter
+from backend.healthos.adapters.workflow import InMemoryWorkflowAdapter
+from backend.healthos.contracts import HealthWorkflowEnvelope
+from backend.healthos.service import HealthSandboxService
+from backend.healthos.settings import HealthOSSettings
+from backend.healthos.synthetic import SYNTHETIC_FHIR_FIXTURES
+
+router = APIRouter(prefix="/api/health", tags=["healthos"])
+
+
+def _settings() -> HealthOSSettings:
+    settings = HealthOSSettings.from_env()
+    if not settings.enabled:
+        raise HTTPException(status_code=404, detail="HealthOS is disabled")
+    if not settings.synthetic_only:
+        raise HTTPException(status_code=503, detail="Real-data mode is not certified")
+    return settings
+
+
+@router.get("/status")
+async def healthos_status():
+    settings = _settings()
+    return {
+        "status": "enabled",
+        "mode": "synthetic",
+        "fhir_enabled": settings.fhir_enabled,
+        "policy_enabled": settings.policy_enabled,
+        "temporal_enabled": settings.temporal_enabled,
+        "real_data_allowed": settings.production_data_allowed(),
+    }
+
+
+@router.get("/sandbox/patient/{patient_id}/appointments")
+async def synthetic_patient_appointments(patient_id: str):
+    _settings()
+    envelope = HealthWorkflowEnvelope(
+        tenant_id="healthos-sandbox",
+        actor_id="synthetic-api-user",
+        purpose_of_use="operations-test",
+        requested_action="appointment.lookup",
+        source_system="synthetic-fhir",
+        authorization_level="sandbox",
+        audit_event_id=f"lookup-{patient_id}",
+        synthetic=True,
+    )
+    service = HealthSandboxService(
+        SyntheticFHIRAdapter(SYNTHETIC_FHIR_FIXTURES),
+        SyntheticPolicyAdapter(),
+        InMemoryWorkflowAdapter(),
+    )
+    try:
+        return await service.patient_appointment_lookup(envelope, patient_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Synthetic patient not found")
