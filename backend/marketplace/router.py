@@ -269,6 +269,57 @@ async def _transition_with_audit(
     return updated
 
 
+def _discovery_score(agent: dict[str, Any], query: str) -> tuple[int, list[str]]:
+    terms = [term for term in re.findall(r"[a-z0-9]+", query.lower()) if len(term) > 1]
+    if not terms:
+        return 0, []
+
+    fields = {
+        "name": str(agent.get("name") or "").lower(),
+        "category": str(agent.get("category") or "").lower(),
+        "description": str(agent.get("description") or "").lower(),
+        "capabilities": " ".join(str(v).lower() for v in agent.get("capabilities") or []),
+        "tags": " ".join(str(v).lower() for v in agent.get("tags") or []),
+    }
+    weights = {"name": 5, "category": 4, "capabilities": 4, "tags": 3, "description": 2}
+    score = 0
+    matched: list[str] = []
+    for term in terms:
+        term_score = 0
+        for field, text in fields.items():
+            if term in text:
+                term_score += weights[field]
+        if term_score:
+            matched.append(term)
+            score += term_score
+
+    phrase = query.strip().lower()
+    if phrase and phrase in fields["description"]:
+        score += 6
+    if phrase and phrase in fields["name"]:
+        score += 10
+    return score, matched
+
+
+def _discover_agents(agents: list[dict[str, Any]], query: str, limit: int = 8) -> list[dict[str, Any]]:
+    ranked: list[dict[str, Any]] = []
+    for agent in agents:
+        score, matched = _discovery_score(agent, query)
+        if score <= 0:
+            continue
+        ranked.append({
+            "agent": agent,
+            "score": score,
+            "matchedTerms": matched,
+            "reason": (
+                f"Matched {', '.join(matched[:4])} across the agent's registered "
+                "capabilities, category, tags, name, or description."
+            ),
+        })
+    ranked.sort(key=lambda item: (-int(item["score"]), str(item["agent"].get("name") or "")))
+    return ranked[:limit]
+
+
 @router.get("/agents")
 async def list_marketplace_agents() -> dict[str, Any]:
     now = time.time()
@@ -280,6 +331,24 @@ async def list_marketplace_agents() -> dict[str, Any]:
     _cache["data"] = result
     _cache["ts"] = now
     return result
+
+
+@router.get("/discover")
+async def discover_marketplace_agents(
+    q: str = Query(..., min_length=2, max_length=240),
+    limit: int = Query(8, ge=1, le=20),
+) -> dict[str, Any]:
+    catalog = await list_marketplace_agents()
+    agents = catalog.get("agents") if isinstance(catalog, dict) else []
+    safe_agents = agents if isinstance(agents, list) else []
+    recommendations = _discover_agents(safe_agents, q, limit)
+    return {
+        "query": q,
+        "source": catalog.get("source", "agent_registry") if isinstance(catalog, dict) else "agent_registry",
+        "live": bool(catalog.get("live")) if isinstance(catalog, dict) else False,
+        "count": len(recommendations),
+        "recommendations": recommendations,
+    }
 
 
 @router.post("/installations", status_code=status.HTTP_201_CREATED)
