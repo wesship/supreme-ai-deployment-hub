@@ -51,7 +51,7 @@ create or replace function public.hermes_certify_adaptive_canary(
 returns jsonb
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public
 as $$
 declare
   v_request public.hermes_adaptive_change_requests%rowtype;
@@ -81,7 +81,7 @@ begin
 
   select * into v_task
   from public.hermes_tasks
-  where id=v_request.canary_task_id
+  where id=v_request.canary_task_id and user_id=p_user_id
   for update;
 
   if not found then raise exception 'linked canary task not found'; end if;
