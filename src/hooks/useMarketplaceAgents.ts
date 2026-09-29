@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { AgentTemplate } from '@/types/marketplace';
+import type { AgentTemplate, MarketplaceDiscoveryResponse } from '@/types/marketplace';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'https://api.d3vonn.io').replace(/\/$/, '');
 
@@ -53,4 +53,21 @@ export function useMarketplaceAgents() {
   }, []);
 
   return { agents, loading, error, source, live };
+}
+
+
+export async function discoverMarketplaceAgents(query: string, signal?: AbortSignal): Promise<MarketplaceDiscoveryResponse> {
+  const normalized = query.trim();
+  if (normalized.length < 2) {
+    return { query: normalized, source: 'agent_registry', live: false, count: 0, recommendations: [] };
+  }
+
+  const response = await fetch(
+    `${API_URL}/api/marketplace/discover?q=${encodeURIComponent(normalized)}`,
+    { headers: { Accept: 'application/json' }, signal },
+  );
+  if (!response.ok) {
+    throw new Error(`Marketplace discovery API returned ${response.status}`);
+  }
+  return (await response.json()) as MarketplaceDiscoveryResponse;
 }
