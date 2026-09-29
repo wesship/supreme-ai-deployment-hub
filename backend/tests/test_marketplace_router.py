@@ -144,3 +144,33 @@ def test_uninstall_is_logical_revoke_with_audit(monkeypatch):
     assert response.status_code == 200
     assert response.json()["status"] == "revoked"
     assert response.json()["authority"] == "server"
+
+
+def test_discovery_ranks_matching_registry_agents(monkeypatch):
+    async def fake_fetch_registry_rows():
+        return [
+            _row(),
+            _row(
+                id="33333333-3333-3333-3333-333333333333",
+                agent_name="SECURITY_SENTINEL",
+                display_name="Security Sentinel",
+                role="safety",
+                capabilities=["threat_detection", "incident_response"],
+            ),
+        ]
+
+    monkeypatch.setattr(marketplace, "_fetch_registry_rows", fake_fetch_registry_rows)
+    marketplace._cache["data"] = None
+    marketplace._cache["ts"] = 0.0
+    response = TestClient(_app()).get("/api/marketplace/discover", params={"q": "security threat response"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "agent_registry"
+    assert body["count"] >= 1
+    assert body["recommendations"][0]["agent"]["slug"] == "security-sentinel"
+    assert "threat" in body["recommendations"][0]["matchedTerms"]
+
+
+def test_discovery_requires_meaningful_query():
+    response = TestClient(_app()).get("/api/marketplace/discover", params={"q": "x"})
+    assert response.status_code == 422
