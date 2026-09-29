@@ -12,7 +12,7 @@ import time
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.app.middleware.auth import get_current_user_id
 from backend.marketplace.installations import (
