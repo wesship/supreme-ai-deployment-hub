@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -249,7 +250,7 @@ async def get_intelligence_summary(principal: OCCAccess) -> dict[str, Any]:
     """
     since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
 
-    agents, revenue_rows, cost_rows, run_rows = await __import__("asyncio").gather(
+    agents, revenue_rows, cost_rows, run_rows = await asyncio.gather(
         _get_owned_rows(
             "money_agents",
             principal,
