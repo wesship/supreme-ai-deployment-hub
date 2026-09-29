@@ -8,6 +8,7 @@ from backend.healthos.contracts import HealthWorkflowEnvelope
 from backend.healthos.service import HealthSandboxService
 from backend.healthos.settings import HealthOSSettings
 from backend.healthos.readiness import check_healthos_dependencies, sandbox_ready
+from backend.healthos.journey import SyntheticHospitalJourney
 from backend.healthos.synthetic import SYNTHETIC_FHIR_FIXTURES
 
 router = APIRouter(prefix="/api/health", tags=["healthos"])
@@ -77,3 +78,32 @@ async def synthetic_patient_appointments(patient_id: str):
         return await service.patient_appointment_lookup(envelope, patient_id)
     except KeyError:
         raise HTTPException(status_code=404, detail="Synthetic patient not found")
+
+
+@router.get("/sandbox/certify/patient/{patient_id}")
+async def certify_synthetic_hospital_journey(patient_id: str):
+    settings = _settings()
+
+    async def readiness_provider():
+        return await check_healthos_dependencies(settings)
+
+    envelope = HealthWorkflowEnvelope(
+        tenant_id="healthos-sandbox",
+        actor_id="synthetic-certifier",
+        purpose_of_use="operations-test",
+        requested_action="appointment.lookup",
+        source_system="synthetic-fhir",
+        authorization_level="sandbox",
+        audit_event_id=f"cert-{patient_id}",
+        synthetic=True,
+    )
+    journey = SyntheticHospitalJourney(
+        SyntheticFHIRAdapter(SYNTHETIC_FHIR_FIXTURES),
+        SyntheticPolicyAdapter(),
+        InMemoryWorkflowAdapter(),
+        readiness_provider,
+    )
+    try:
+        return await journey.run(envelope, patient_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Synthetic hospital resource not found")
