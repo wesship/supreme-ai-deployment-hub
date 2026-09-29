@@ -55,7 +55,7 @@ create or replace function public.hermes_review_adaptive_promotion(
 returns jsonb
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public
 as $$
 declare
   v_candidate public.hermes_adaptive_promotion_candidates%rowtype;
@@ -109,7 +109,7 @@ create or replace function public.hermes_validate_adaptive_rollout(
 returns jsonb
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public
 as $$
 declare
   v_candidate public.hermes_adaptive_promotion_candidates%rowtype;
