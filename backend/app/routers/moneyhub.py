@@ -362,6 +362,185 @@ async def get_intelligence_summary(principal: OCCAccess) -> dict[str, Any]:
     }
 
 
+@router.get("/intelligence/cashflow")
+async def get_cashflow_intelligence(principal: OCCAccess) -> dict[str, Any]:
+    """
+    Read-only cash-flow intelligence derived from verified USD MoneyHub events.
+
+    This is operational analysis only. It does not read bank balances, initiate
+    transfers, submit payments, make lending decisions, or execute brokerage actions.
+    """
+    now = datetime.now(timezone.utc)
+    since_30d = (now - timedelta(days=30)).isoformat()
+    since_7d = (now - timedelta(days=7)).isoformat()
+
+    revenue_rows, cost_rows = await asyncio.gather(
+        _get_owned_rows(
+            "moneyhub_revenue_events",
+            principal,
+            select="amount,currency,status,occurred_at,agent_id,source,provider",
+            filters={
+                "occurred_at": f"gte.{since_30d}",
+                "status": "in.(verified,settled)",
+                "currency": "eq.USD",
+            },
+        ),
+        _get_owned_rows(
+            "moneyhub_cost_events",
+            principal,
+            select="amount,currency,status,occurred_at,agent_id,source,provider",
+            filters={
+                "occurred_at": f"gte.{since_30d}",
+                "status": "in.(verified,settled)",
+                "currency": "eq.USD",
+            },
+        ),
+    )
+
+    def occurred_at(row: dict[str, Any]) -> datetime | None:
+        value = row.get("occurred_at")
+        if not isinstance(value, str):
+            return None
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+    def amount_of(row: dict[str, Any]) -> Decimal:
+        try:
+            return Decimal(str(row.get("amount") or 0))
+        except Exception:
+            return Decimal("0")
+
+    def source_breakdown(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        totals: dict[str, Decimal] = {}
+        counts: dict[str, int] = {}
+        for row in rows:
+            source_name = str(row.get("source") or "unknown").strip() or "unknown"
+            totals[source_name] = totals.get(source_name, Decimal("0")) + amount_of(row)
+            counts[source_name] = counts.get(source_name, 0) + 1
+        ranked = sorted(totals.items(), key=lambda item: item[1], reverse=True)
+        return [
+            {
+                "source": source_name,
+                "amount": str(total),
+                "event_count": counts[source_name],
+                "recurring_candidate": counts[source_name] >= 2,
+            }
+            for source_name, total in ranked[:10]
+        ]
+
+    daily: dict[str, dict[str, Decimal]] = {}
+    for kind, rows in (("inflow", revenue_rows), ("outflow", cost_rows)):
+        for row in rows:
+            ts = occurred_at(row)
+            if ts is None:
+                continue
+            day = ts.date().isoformat()
+            bucket = daily.setdefault(day, {"inflow": Decimal("0"), "outflow": Decimal("0")})
+            bucket[kind] += amount_of(row)
+
+    daily_series = []
+    for offset in range(29, -1, -1):
+        day = (now.date() - timedelta(days=offset)).isoformat()
+        bucket = daily.get(day, {"inflow": Decimal("0"), "outflow": Decimal("0")})
+        inflow = bucket["inflow"]
+        outflow = bucket["outflow"]
+        daily_series.append({
+            "date": day,
+            "inflow": str(inflow),
+            "outflow": str(outflow),
+            "net": str(inflow - outflow),
+        })
+
+    revenue_30d = _decimal_sum(revenue_rows, "amount")
+    cost_30d = _decimal_sum(cost_rows, "amount")
+    revenue_7d = sum(
+        (amount_of(row) for row in revenue_rows if (occurred_at(row) and occurred_at(row).isoformat() >= since_7d)),
+        Decimal("0"),
+    )
+    cost_7d = sum(
+        (amount_of(row) for row in cost_rows if (occurred_at(row) and occurred_at(row).isoformat() >= since_7d)),
+        Decimal("0"),
+    )
+
+    net_30d = revenue_30d - cost_30d
+    net_7d = revenue_7d - cost_7d
+    avg_daily_net_30d = net_30d / Decimal("30")
+
+    outflow_breakdown = source_breakdown(cost_rows)
+    inflow_breakdown = source_breakdown(revenue_rows)
+
+    signals: list[dict[str, str]] = []
+    if net_7d < 0:
+        signals.append({
+            "kind": "negative_7d_cashflow",
+            "severity": "watch",
+            "message": "Verified USD outflows exceeded verified USD inflows over the last 7 days.",
+        })
+    if net_30d < 0:
+        signals.append({
+            "kind": "negative_30d_cashflow",
+            "severity": "watch",
+            "message": "Verified USD outflows exceeded verified USD inflows over the last 30 days.",
+        })
+    if outflow_breakdown and cost_30d > 0:
+        largest = Decimal(outflow_breakdown[0]["amount"])
+        share = largest / cost_30d * Decimal("100")
+        if share >= Decimal("50"):
+            signals.append({
+                "kind": "outflow_concentration",
+                "severity": "watch",
+                "message": "The largest cost source represents at least 50% of verified 30-day USD outflows.",
+            })
+    if len(revenue_rows) + len(cost_rows) < 10:
+        signals.append({
+            "kind": "cashflow_confidence",
+            "severity": "early",
+            "message": "Fewer than 10 verified USD events are available in the 30-day cash-flow window.",
+        })
+    if not signals:
+        signals.append({
+            "kind": "cashflow_baseline",
+            "severity": "healthy",
+            "message": "No configured MoneyHub cash-flow watch threshold is currently triggered.",
+        })
+
+    return {
+        "window_days": 30,
+        "currency_scope": "USD-only; bank balances and non-USD events are not included",
+        "metrics": {
+            "inflow_7d": str(revenue_7d),
+            "outflow_7d": str(cost_7d),
+            "net_7d": str(net_7d),
+            "inflow_30d": str(revenue_30d),
+            "outflow_30d": str(cost_30d),
+            "net_30d": str(net_30d),
+            "avg_daily_net_30d": str(avg_daily_net_30d.quantize(Decimal("0.01"))),
+            "event_count_30d": len(revenue_rows) + len(cost_rows),
+        },
+        "inflow_sources": inflow_breakdown,
+        "outflow_sources": outflow_breakdown,
+        "daily_series": daily_series,
+        "signals": signals,
+        "limitations": {
+            "bank_balance_available": False,
+            "runway_available": False,
+            "pending_transactions_included": False,
+            "fx_normalization_available": False,
+            "recurring_detection": "candidate-only based on repeated source observations",
+        },
+        "guardrails": {
+            "read_only": True,
+            "transfers": False,
+            "payments": False,
+            "lending_decisions": False,
+            "brokerage_execution": False,
+        },
+    }
+
+
 @router.post("/economic-events", status_code=status.HTTP_201_CREATED)
 async def record_economic_event(payload: EconomicEventIn, principal: OCCAccess) -> dict[str, Any]:
     result = await _record_event(principal, payload)
