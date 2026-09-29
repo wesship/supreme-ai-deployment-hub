@@ -186,3 +186,19 @@ export interface AgentDeploymentConfig {
     timeout?: number;
   };
 }
+
+
+export interface MarketplaceDiscoveryRecommendation {
+  agent: AgentTemplate;
+  score: number;
+  matchedTerms: string[];
+  reason: string;
+}
+
+export interface MarketplaceDiscoveryResponse {
+  query: string;
+  source: string;
+  live: boolean;
+  count: number;
+  recommendations: MarketplaceDiscoveryRecommendation[];
+}
