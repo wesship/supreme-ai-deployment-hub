@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -137,6 +137,84 @@ async def _call_moneyhub_rpc(
     return data
 
 
+async def _get_owned_rows(
+    table: Literal[
+        "money_agents",
+        "moneyhub_agent_runs",
+        "moneyhub_revenue_events",
+        "moneyhub_cost_events",
+    ],
+    principal: OCCAccess,
+    *,
+    select: str,
+    filters: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MoneyHub intelligence is not configured.",
+        )
+
+    params = {
+        "user_id": f"eq.{principal.user_id}",
+        "select": select,
+    }
+    if filters:
+        params.update(filters)
+
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            response = await client.get(
+                f"{SUPABASE_URL}/rest/v1/{table}",
+                headers=headers,
+                params=params,
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="MoneyHub intelligence data is unavailable.",
+        ) from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="MoneyHub intelligence data could not be read.",
+        )
+
+    try:
+        rows = response.json()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="MoneyHub intelligence returned an invalid response.",
+        ) from exc
+
+    if not isinstance(rows, list):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="MoneyHub intelligence returned an invalid response.",
+        )
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _decimal_sum(rows: list[dict[str, Any]], field: str) -> Decimal:
+    total = Decimal("0")
+    for row in rows:
+        value = row.get(field)
+        if value is None:
+            continue
+        try:
+            total += Decimal(str(value))
+        except Exception:
+            continue
+    return total
+
+
 async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[str, Any]:
     rpc_payload: dict[str, Any] = {
         "p_kind": payload.kind,
@@ -159,6 +237,126 @@ async def _record_event(principal: OCCAccess, payload: EconomicEventIn) -> dict[
         rpc_payload,
         error_scope="ledger",
     )
+
+
+@router.get("/intelligence/summary")
+async def get_intelligence_summary(principal: OCCAccess) -> dict[str, Any]:
+    """
+    Read-only financial intelligence for Hermes and MoneyHub UI.
+
+    This endpoint never creates transfers, brokerage orders, withdrawals, loans,
+    approvals, signatures, or provider-side mutations.
+    """
+    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+
+    agents, revenue_rows, cost_rows, run_rows = await __import__("asyncio").gather(
+        _get_owned_rows(
+            "money_agents",
+            principal,
+            select="id,name,total_earned,runs_count,status",
+        ),
+        _get_owned_rows(
+            "moneyhub_revenue_events",
+            principal,
+            select="amount,currency,status,occurred_at,agent_id",
+            filters={
+                "occurred_at": f"gte.{since}",
+                "status": "in.(verified,settled)",
+            },
+        ),
+        _get_owned_rows(
+            "moneyhub_cost_events",
+            principal,
+            select="amount,currency,status,occurred_at,agent_id",
+            filters={
+                "occurred_at": f"gte.{since}",
+                "status": "in.(verified,settled)",
+            },
+        ),
+        _get_owned_rows(
+            "moneyhub_agent_runs",
+            principal,
+            select="id,status,started_at,finished_at,agent_id",
+            filters={"started_at": f"gte.{since}"},
+        ),
+    )
+
+    revenue_30d = _decimal_sum(revenue_rows, "amount")
+    cost_30d = _decimal_sum(cost_rows, "amount")
+    net_30d = revenue_30d - cost_30d
+
+    total_tracked = _decimal_sum(agents, "total_earned")
+    top_agent_total = max(
+        (Decimal(str(agent.get("total_earned") or 0)) for agent in agents),
+        default=Decimal("0"),
+    )
+    top_agent_share = (
+        (top_agent_total / total_tracked * Decimal("100"))
+        if total_tracked > 0
+        else Decimal("0")
+    )
+
+    run_count_30d = len(run_rows)
+    avg_revenue_per_run = (
+        revenue_30d / Decimal(run_count_30d)
+        if run_count_30d > 0
+        else Decimal("0")
+    )
+    margin_pct = (
+        net_30d / revenue_30d * Decimal("100")
+        if revenue_30d > 0
+        else Decimal("0")
+    )
+
+    signals: list[dict[str, str]] = []
+    if top_agent_share >= Decimal("70") and total_tracked > 0:
+        signals.append({
+            "kind": "revenue_concentration",
+            "severity": "watch",
+            "message": "Top-agent earnings concentration is at or above the 70% review threshold.",
+        })
+    if cost_30d > revenue_30d and (cost_30d > 0 or revenue_30d > 0):
+        signals.append({
+            "kind": "negative_operating_margin",
+            "severity": "watch",
+            "message": "Verified 30-day costs exceed verified 30-day revenue.",
+        })
+    if run_count_30d < 10:
+        signals.append({
+            "kind": "forecast_confidence",
+            "severity": "early",
+            "message": "Fewer than 10 recorded runs are available in the 30-day window.",
+        })
+    if not signals:
+        signals.append({
+            "kind": "operating_baseline",
+            "severity": "healthy",
+            "message": "No configured MoneyHub watch threshold is currently triggered.",
+        })
+
+    return {
+        "window_days": 30,
+        "currency_scope": "reported currencies are not FX-normalized",
+        "metrics": {
+            "revenue_30d": str(revenue_30d),
+            "cost_30d": str(cost_30d),
+            "net_30d": str(net_30d),
+            "margin_pct": str(margin_pct.quantize(Decimal("0.01"))),
+            "run_count_30d": run_count_30d,
+            "avg_revenue_per_run": str(avg_revenue_per_run.quantize(Decimal("0.01"))),
+            "tracked_lifetime_earnings": str(total_tracked),
+            "top_agent_share_pct": str(top_agent_share.quantize(Decimal("0.01"))),
+            "money_agent_count": len(agents),
+        },
+        "signals": signals,
+        "guardrails": {
+            "read_only": True,
+            "custody": False,
+            "brokerage_execution": False,
+            "transfers": False,
+            "lending_decisions": False,
+        },
+    }
 
 
 @router.post("/economic-events", status_code=status.HTTP_201_CREATED)
