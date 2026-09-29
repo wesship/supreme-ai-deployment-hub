@@ -82,7 +82,7 @@ create or replace function public.hermes_decide_adaptive_change_request(
 returns jsonb
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public
 as $$
 declare
   v_row public.hermes_adaptive_change_requests%rowtype;
@@ -135,7 +135,7 @@ create or replace function public.hermes_queue_adaptive_canary(
 returns jsonb
 language plpgsql
 security definer
-set search_path = ''
+set search_path = public
 as $$
 declare
   v_request public.hermes_adaptive_change_requests%rowtype;
@@ -165,6 +165,7 @@ begin
   end if;
 
   insert into public.hermes_tasks(
+    user_id,
     title,
     description,
     task_type,
@@ -177,6 +178,7 @@ begin
     input_data,
     payload
   ) values (
+    p_user_id,
     'Adaptive canary: ' || v_request.target,
     'Governed evaluation-only canary. This task must not apply production config.',
     'adaptive_canary',
