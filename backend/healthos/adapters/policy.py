@@ -13,9 +13,12 @@ class SyntheticPolicyAdapter:
 
     async def authorize(self, input_document: dict[str, Any]) -> dict[str, Any]:
         action = str(input_document.get("requested_action", ""))
-        allowed = self.allow_read_only and action.endswith(".lookup")
+        synthetic = input_document.get("synthetic") is True
+        allowed = self.allow_read_only and (
+            action.endswith(".lookup") or (synthetic and action == "adt.ingest")
+        )
         return {
             "allow": allowed,
             "source": "synthetic-policy",
-            "reason": "synthetic read-only policy" if allowed else "synthetic policy denied",
+            "reason": "synthetic sandbox policy" if allowed else "synthetic policy denied",
         }
