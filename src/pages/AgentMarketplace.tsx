@@ -83,7 +83,11 @@ const AgentMarketplace: React.FC = () => {
   const handlePublishClick = () => toast({ title: 'Coming Soon', description: 'Agent publishing will be available in the next release.' });
   const handleDiscover = async () => {
     const query = discoveryQuery.trim();
-    if (query.length < 2) return;
+    if (query.length < 2) {
+      setDiscoveryResults([]);
+      setDiscoveryError('Describe the task in at least 2 characters.');
+      return;
+    }
     setDiscovering(true);
     setDiscoveryError(null);
     try {
@@ -159,7 +163,7 @@ const AgentMarketplace: React.FC = () => {
                   </div>
                   <button
                     type="submit"
-                    disabled={discovering || discoveryQuery.trim().length < 2}
+                    disabled={discovering}
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {discovering ? 'Matching…' : 'Find intelligence'}
