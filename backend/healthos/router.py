@@ -7,6 +7,7 @@ from backend.healthos.adapters.workflow import InMemoryWorkflowAdapter
 from backend.healthos.contracts import HealthWorkflowEnvelope
 from backend.healthos.service import HealthSandboxService
 from backend.healthos.settings import HealthOSSettings
+from backend.healthos.readiness import check_healthos_dependencies, sandbox_ready
 from backend.healthos.synthetic import SYNTHETIC_FHIR_FIXTURES
 
 router = APIRouter(prefix="/api/health", tags=["healthos"])
@@ -31,6 +32,26 @@ async def healthos_status():
         "policy_enabled": settings.policy_enabled,
         "temporal_enabled": settings.temporal_enabled,
         "real_data_allowed": settings.production_data_allowed(),
+    }
+
+
+@router.get("/readiness")
+async def healthos_readiness():
+    settings = _settings()
+    statuses = await check_healthos_dependencies(settings)
+    return {
+        "ready": sandbox_ready(statuses),
+        "mode": "synthetic",
+        "dependencies": {
+            name: {
+                "enabled": item.enabled,
+                "configured": item.configured,
+                "healthy": item.healthy,
+                "required": item.required,
+                "detail": item.detail,
+            }
+            for name, item in statuses.items()
+        },
     }
 
 
