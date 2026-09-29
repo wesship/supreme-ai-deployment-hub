@@ -263,6 +263,7 @@ async def get_intelligence_summary(principal: OCCAccess) -> dict[str, Any]:
             filters={
                 "occurred_at": f"gte.{since}",
                 "status": "in.(verified,settled)",
+                "currency": "eq.USD",
             },
         ),
         _get_owned_rows(
@@ -272,6 +273,7 @@ async def get_intelligence_summary(principal: OCCAccess) -> dict[str, Any]:
             filters={
                 "occurred_at": f"gte.{since}",
                 "status": "in.(verified,settled)",
+                "currency": "eq.USD",
             },
         ),
         _get_owned_rows(
@@ -337,7 +339,7 @@ async def get_intelligence_summary(principal: OCCAccess) -> dict[str, Any]:
 
     return {
         "window_days": 30,
-        "currency_scope": "reported currencies are not FX-normalized",
+        "currency_scope": "USD-only; non-USD events require a governed FX normalization layer before aggregation",
         "metrics": {
             "revenue_30d": str(revenue_30d),
             "cost_30d": str(cost_30d),
