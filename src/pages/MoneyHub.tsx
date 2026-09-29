@@ -145,19 +145,82 @@ const MoneyHub = () => {
   }, [loadMoneyHub]);
 
   const metrics = useMemo(() => {
-    const dayAgo = Date.now() - 86_400_000;
+    const now = Date.now();
+    const dayAgo = now - 86_400_000;
+    const monthAgo = now - (30 * 86_400_000);
     const tracked = earnings.reduce((sum, item) => sum + Number(item.amount || 0), 0);
     const last24h = earnings.reduce((sum, item) => {
       if (!item.earned_at || new Date(item.earned_at).getTime() < dayAgo) return sum;
       return sum + Number(item.amount || 0);
     }, 0);
+    const last30d = earnings.reduce((sum, item) => {
+      if (!item.earned_at || new Date(item.earned_at).getTime() < monthAgo) return sum;
+      return sum + Number(item.amount || 0);
+    }, 0);
+    const runs = agents.reduce((sum, agent) => sum + Number(agent.runs_count || 0), 0);
+    const topAgentEarned = agents.reduce((max, agent) => Math.max(max, Number(agent.total_earned || 0)), 0);
+    const topAgentShare = tracked > 0 ? (topAgentEarned / tracked) * 100 : 0;
+    const projected30d = (last30d / 30) * 30;
+
     return {
       tracked,
       last24h,
+      last30d,
+      projected30d,
+      avgPerRun: runs > 0 ? tracked / runs : 0,
+      topAgentShare,
       running: agents.filter((agent) => agent.status === 'running').length,
-      runs: agents.reduce((sum, agent) => sum + Number(agent.runs_count || 0), 0),
+      runs,
     };
   }, [agents, earnings]);
+
+  const intelligenceSignals = useMemo(() => {
+    const signals: Array<{ title: string; detail: string; tone: 'good' | 'watch' | 'neutral' }> = [];
+
+    if (metrics.topAgentShare >= 70 && metrics.tracked > 0) {
+      signals.push({
+        title: 'Revenue concentration',
+        detail: `${metrics.topAgentShare.toFixed(0)}% of tracked earnings are concentrated in the top Money Agent. Diversification deserves review.`,
+        tone: 'watch',
+      });
+    } else if (metrics.tracked > 0) {
+      signals.push({
+        title: 'Revenue concentration',
+        detail: `Top-agent concentration is ${metrics.topAgentShare.toFixed(0)}%, below the current 70% watch threshold.`,
+        tone: 'good',
+      });
+    }
+
+    if (metrics.runs < 10) {
+      signals.push({
+        title: 'Forecast confidence',
+        detail: 'Run history is still thin, so trend and forecast signals should be treated as early indicators rather than stable baselines.',
+        tone: 'neutral',
+      });
+    } else {
+      signals.push({
+        title: 'Forecast confidence',
+        detail: `${integer.format(metrics.runs)} recorded runs provide a stronger operating baseline for trend analysis.`,
+        tone: 'good',
+      });
+    }
+
+    if (metrics.last24h <= 0) {
+      signals.push({
+        title: 'Earnings velocity',
+        detail: 'No earnings were recorded in the last 24 hours. Hermes can treat this as an operational follow-up signal, not as a financial-loss conclusion.',
+        tone: 'watch',
+      });
+    } else {
+      signals.push({
+        title: 'Earnings velocity',
+        detail: `${currency.format(metrics.last24h)} was recorded in the last 24 hours.`,
+        tone: 'good',
+      });
+    }
+
+    return signals;
+  }, [metrics]);
 
   const agentNames = useMemo(() => new Map(agents.map((agent) => [agent.id, agent.name])), [agents]);
 
@@ -225,7 +288,7 @@ const MoneyHub = () => {
               </div>
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Command the economics of your AI workforce.</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                Governed Money Agent operations, earnings visibility, performance ranking, and reconciliation signals backed by your existing D3VONN data layer.
+                Governed Money Agent operations plus fintech intelligence for earnings velocity, forecasting, concentration risk, API-native finance workflows, and Hermes-ready decision support.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -262,6 +325,80 @@ const MoneyHub = () => {
                 <div className="mt-4 text-2xl font-semibold">{metric.value}</div>
               </article>
             ))}
+          </section>
+
+          <section aria-label="Fintech intelligence" className="mt-6 grid gap-4 lg:grid-cols-4">
+            {[
+              { label: '30-day tracked earnings', value: currency.format(metrics.last30d), detail: 'Observed earnings in the rolling 30-day window.' },
+              { label: '30-day run-rate', value: currency.format(metrics.projected30d), detail: 'Simple run-rate from observed 30-day earnings; not a guarantee or investment forecast.' },
+              { label: 'Average per run', value: currency.format(metrics.avgPerRun), detail: 'Tracked earnings divided by recorded Money Agent runs.' },
+              { label: 'Top-agent concentration', value: `${metrics.topAgentShare.toFixed(0)}%`, detail: 'Share of tracked earnings attributed to the highest-earning Money Agent.' },
+            ].map((item) => (
+              <article key={item.label} className="rounded-2xl border border-white/[0.08] bg-[#0b1222] p-5">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-500">{item.label}</div>
+                <div className="mt-3 text-2xl font-semibold text-white">{item.value}</div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{item.detail}</p>
+              </article>
+            ))}
+          </section>
+
+          <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0b1222] p-5">
+              <div className="flex items-center gap-2">
+                <Bot className="h-5 w-5 text-indigo-300" />
+                <h2 className="font-semibold">Hermes financial intelligence</h2>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                These are deterministic operating signals derived from MoneyHub data. They are designed to become inputs for governed Hermes reasoning and approval workflows without granting Hermes custody or autonomous transfer authority.
+              </p>
+              <div className="mt-4 space-y-3">
+                {intelligenceSignals.map((signal) => (
+                  <div key={signal.title} className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium">{signal.title}</span>
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${
+                        signal.tone === 'good'
+                          ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300'
+                          : signal.tone === 'watch'
+                            ? 'border-amber-400/20 bg-amber-400/10 text-amber-300'
+                            : 'border-slate-400/20 bg-slate-400/10 text-slate-300'
+                      }`}>
+                        {signal.tone === 'good' ? 'healthy' : signal.tone === 'watch' ? 'watch' : 'early'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-slate-400">{signal.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.08] bg-[#0b1222] p-5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-300" />
+                <h2 className="font-semibold">Fintech capability map</h2>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                The MoneyHub roadmap now follows an API-first fintech model while keeping execution explicitly governed.
+              </p>
+              <div className="mt-4 space-y-3 text-sm">
+                {[
+                  ['AI financial intelligence', 'Live signal layer', 'Earnings velocity, run-rate, concentration and agent economics.'],
+                  ['API-native finance orchestration', 'Foundation active', 'Server-owned economic events and governed RPC boundaries.'],
+                  ['Liquidity intelligence', 'Backend foundation', 'Read-only opportunity, risk-score and proposal primitives; no signing or broadcasting.'],
+                  ['Fraud / anomaly detection', 'Signal-ready', 'Risk indicators can be attached without enabling autonomous account actions.'],
+                  ['Alternative underwriting', 'Adapter-ready', 'Can accept approved business data later; no lending decision engine is active today.'],
+                  ['Payments / lending providers', 'Not connected', 'Requires explicit provider integrations, credentials, compliance review and user authorization.'],
+                ].map(([name, status, detail]) => (
+                  <div key={name} className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="font-medium text-slate-100">{name}</span>
+                      <span className="shrink-0 text-xs text-indigo-300">{status}</span>
+                    </div>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </section>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-[1.65fr_1fr]">
