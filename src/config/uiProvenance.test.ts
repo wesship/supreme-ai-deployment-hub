@@ -14,7 +14,7 @@ describe('canonical D3VONN frontend source', () => {
     const html = fs.readFileSync('index.html', 'utf8');
     const provenance = fs.readFileSync('src/config/uiProvenance.ts', 'utf8');
 
-    expect(html).toContain('d3vonn-ui-source\" content=\"repository\"');
+    expect(html).toContain('d3vonn-ui-source" content="repository"');
     expect(html).toContain('wesship/supreme-ai-deployment-hub');
     expect(provenance).toContain("source: 'repository'");
     expect(provenance).not.toContain("source: 'readdy'");
