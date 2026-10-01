@@ -61,13 +61,13 @@ const SovereignEffectsCanvas: React.FC = () => {
     const draw = () => {
       context.clearRect(0, 0, width, height);
 
-      const driftX = (pointerX - 0.5) * 24;
-      const driftY = (pointerY - 0.5) * 16;
-      const pulse = 0.5 + Math.sin(frame * 0.012) * 0.5;
+      const driftX = reducedMotion ? 0 : (pointerX - 0.5) * 24;
+      const driftY = reducedMotion ? 0 : (pointerY - 0.5) * 16;
+      const pulse = reducedMotion ? 0.5 : 0.5 + Math.sin(frame * 0.012) * 0.5;
 
       const glow = context.createRadialGradient(
-        width * (0.54 + (pointerX - 0.5) * 0.04),
-        height * (0.42 + (pointerY - 0.5) * 0.03),
+        width * (0.54 + (reducedMotion ? 0 : (pointerX - 0.5) * 0.04)),
+        height * (0.42 + (reducedMotion ? 0 : (pointerY - 0.5) * 0.03)),
         0,
         width * 0.54,
         height * 0.42,
@@ -107,7 +107,7 @@ const SovereignEffectsCanvas: React.FC = () => {
           context.stroke();
         }
 
-        const localPulse = 0.62 + Math.sin(frame * 0.018 + particle.phase) * 0.38;
+        const localPulse = reducedMotion ? 0.72 : 0.62 + Math.sin(frame * 0.018 + particle.phase) * 0.38;
         context.beginPath();
         context.arc(particle.x + driftX, particle.y + driftY, particle.radius + localPulse * 0.55, 0, Math.PI * 2);
         context.fillStyle = `rgba(112, 233, 255, ${0.28 + localPulse * 0.34})`;
@@ -125,17 +125,25 @@ const SovereignEffectsCanvas: React.FC = () => {
       context.fillStyle = sweep;
       context.fillRect(0, sweepY - 30, width, 60);
 
-      frame += 1;
-      animationFrame = window.requestAnimationFrame(draw);
+      if (!reducedMotion) {
+        frame += 1;
+        animationFrame = window.requestAnimationFrame(draw);
+      } else {
+        animationFrame = 0;
+      }
     };
 
     const handlePointerMove = (event: PointerEvent) => {
+      if (reducedMotion) return;
       pointerX = event.clientX / Math.max(1, window.innerWidth);
       pointerY = event.clientY / Math.max(1, window.innerHeight);
     };
 
     const handleReducedMotion = (event: MediaQueryListEvent) => {
       reducedMotion = event.matches;
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      draw();
     };
 
     resize();
@@ -145,7 +153,7 @@ const SovereignEffectsCanvas: React.FC = () => {
     draw();
 
     return () => {
-      window.cancelAnimationFrame(animationFrame);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointermove', handlePointerMove);
       reducedMotionQuery.removeEventListener('change', handleReducedMotion);
