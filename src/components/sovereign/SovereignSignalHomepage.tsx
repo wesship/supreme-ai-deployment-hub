@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { HomepageTelemetry } from '@/lib/homepageTelemetry';
+import SovereignEffectsCanvas from './SovereignEffectsCanvas';
 import '@/styles/sovereign-signal.css';
 
 type Props = {
@@ -21,6 +22,7 @@ const signalStates = ['CORE ONLINE', 'VISION — READY', 'VOICE — READY', 'AGE
 const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
   return (
     <main className="sovereign-page">
+      <SovereignEffectsCanvas />
       <div className="sovereign-grid" aria-hidden="true" />
       <div className="sovereign-vignette" aria-hidden="true" />
 
