@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { HomepageTelemetry } from '@/lib/homepageTelemetry';
-import SovereignEffectsCanvas from './SovereignEffectsCanvas';
+import SovereignNeuralWeb from './SovereignNeuralWeb';
 import SovereignFeatureDeck from './SovereignFeatureDeck';
 import '@/styles/sovereign-signal.css';
 
@@ -24,7 +24,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
   return (
     <main className="sovereign-page">
       <a className="sovereign-skip-link" href="#sovereign-main">Skip to main content</a>
-      <SovereignEffectsCanvas />
+      <SovereignNeuralWeb />
       <div className="sovereign-grid" aria-hidden="true" />
       <div className="sovereign-vignette" aria-hidden="true" />
 
