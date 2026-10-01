@@ -1,0 +1,51 @@
+{
+  "repository": "https://github.com/wshobson/agents",
+  "revision": "156b7a5e7a8b93642628a339ee4039c925b34c7f",
+  "license": "MIT",
+  "profiles": [
+    {
+      "id": "wshobson-fastapi",
+      "name": "FastAPI Specialist",
+      "path": "wshobson-fastapi.md",
+      "upstream_path": "plugins/api-scaffolding/agents/fastapi-pro.md",
+      "sha256": "f89b4ec100ccba056c98c633239cdbca8f5348e1ddd96c7409a48f58be734efa",
+      "capabilities": [
+        "code.review",
+        "api.design"
+      ],
+      "allowed_agents": [
+        "hermes",
+        "tars"
+      ]
+    },
+    {
+      "id": "wshobson-security",
+      "name": "Backend Security Specialist",
+      "path": "wshobson-security.md",
+      "upstream_path": "plugins/backend-api-security/agents/backend-security-coder.md",
+      "sha256": "6cb40057bea051720e32abcef6680299c17ef648c4ec6f89f6c0dbc70750ba92",
+      "capabilities": [
+        "security.review"
+      ],
+      "allowed_agents": [
+        "hermes",
+        "guardian"
+      ]
+    },
+    {
+      "id": "wshobson-testing",
+      "name": "Testing Specialist",
+      "path": "wshobson-testing.md",
+      "upstream_path": "plugins/unit-testing/agents/test-automator.md",
+      "sha256": "439a44edf224638acaefd241258b6dc189b4f7ade5427ebc9d29b04e7f532017",
+      "capabilities": [
+        "test.design",
+        "test.review"
+      ],
+      "allowed_agents": [
+        "hermes",
+        "tars"
+      ]
+    }
+  ]
+}
