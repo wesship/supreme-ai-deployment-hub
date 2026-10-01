@@ -52,6 +52,11 @@ const surfaces = [
   },
 ];
 
+const applyMotionPreference = (reduced: boolean) => {
+  document.documentElement.dataset.sovereignMotion = reduced ? 'reduced' : 'full';
+  document.documentElement.classList.toggle('sovereign-motion-reduced', reduced);
+};
+
 const SovereignFeatureDeck: React.FC<Props> = ({ telemetry }) => {
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -60,15 +65,16 @@ const SovereignFeatureDeck: React.FC<Props> = ({ telemetry }) => {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const next = saved === 'true' || (saved === null && prefersReduced);
     setReducedMotion(next);
-    document.documentElement.dataset.sovereignMotion = next ? 'reduced' : 'full';
+    applyMotionPreference(next);
   }, []);
 
   const toggleMotion = () => {
     const next = !reducedMotion;
     setReducedMotion(next);
     window.localStorage.setItem('d3vonn-reduce-motion', String(next));
-    document.documentElement.dataset.sovereignMotion = next ? 'reduced' : 'full';
+    applyMotionPreference(next);
     window.dispatchEvent(new CustomEvent('d3vonn-motion-change', { detail: { reduced: next } }));
+    window.dispatchEvent(new CustomEvent('sovereign-motion-change', { detail: { reduced: next } }));
   };
 
   return (
