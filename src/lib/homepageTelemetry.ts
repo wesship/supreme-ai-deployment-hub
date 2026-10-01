@@ -41,9 +41,15 @@ export const normalizePublicStats = (stats: PublicStatsResponse | null | undefin
   };
 };
 
+const getPublicStatsUrl = (): string => {
+  const configuredBase = import.meta.env.VITE_API_URL?.trim();
+  const apiBase = configuredBase || 'https://api.d3vonn.io';
+  return `${apiBase.replace(/\/$/, '')}/api/public/stats`;
+};
+
 export async function fetchHomepageTelemetry(signal?: AbortSignal): Promise<HomepageTelemetry> {
   try {
-    const response = await fetch('/api/public/stats', {
+    const response = await fetch(getPublicStatsUrl(), {
       signal,
       headers: { Accept: 'application/json' },
     });
