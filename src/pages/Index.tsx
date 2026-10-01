@@ -1,22 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import Navbar from '@/components/Navbar';
-import HomepageShell from '@/components/home/HomepageShell';
-import V90Homepage from '@/components/readdy/V90Homepage';
+import SovereignSignalHomepage from '@/components/sovereign/SovereignSignalHomepage';
 import {
   defaultHomepageTelemetry,
   fetchHomepageTelemetry,
   type HomepageTelemetry,
 } from '@/lib/homepageTelemetry';
-import '@/styles/readdy-v90.css';
 
 /**
  * Canonical D3VONN.IO public frontend entry.
  *
- * The visual presentation is the repository-local adaptation of the approved
- * Readdy project export. Application authority stays repository-native: auth,
- * APIs, Hermes execution, protected routes, security, and deployment remain
- * outside the presentation component.
+ * The presentation layer follows the approved Sovereign Signal direction from
+ * the current Readdy project. Application authority remains repository-native:
+ * auth, APIs, Hermes execution, protected routes, security, voice, and
+ * deployment stay outside this presentation component.
  */
 const Index: React.FC = () => {
   const [telemetry, setTelemetry] = useState<HomepageTelemetry>(defaultHomepageTelemetry);
@@ -32,24 +29,21 @@ const Index: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>D3VONN.IO — AI Business Operating System</title>
+        <title>D3VONN.IO — Sovereign AI Operating System</title>
         <meta
           name="description"
-          content="D3VONN.IO is a voice-engageable AI Business Operating System for orchestrating agents, knowledge, tools, workflows, infrastructure, security, and operations through Hermes."
+          content="D3VONN.IO is a sovereign, voice-engageable AI operating system for commanding Hermes, agents, knowledge, creative systems, workflows, infrastructure, security, and operations from one governed intelligence layer."
         />
-        <meta property="og:title" content="D3VONN.IO — AI Business Operating System" />
+        <meta property="og:title" content="D3VONN.IO — Sovereign AI Operating System" />
         <meta
           property="og:description"
-          content="Operate D3VONN through one governed command layer connecting Hermes, agents, knowledge, workflows, voice, and infrastructure."
+          content="Intelligence under your command: Hermes, AI agents, voice, films, knowledge, workflows, infrastructure, and operations in one governed platform."
         />
         <meta property="og:url" content="https://d3vonn.io/" />
         <link rel="canonical" href="https://d3vonn.io/" />
       </Helmet>
 
-      <Navbar transparent />
-      <HomepageShell className="readdy-v90-shell">
-        <V90Homepage telemetry={telemetry} />
-      </HomepageShell>
+      <SovereignSignalHomepage telemetry={telemetry} />
     </>
   );
 };

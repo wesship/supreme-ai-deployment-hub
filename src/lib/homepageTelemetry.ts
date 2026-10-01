@@ -41,9 +41,25 @@ export const normalizePublicStats = (stats: PublicStatsResponse | null | undefin
   };
 };
 
+const isLocalPreviewHost = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+};
+
+const getPublicStatsUrl = (): string => {
+  const configuredBase = import.meta.env.VITE_API_URL?.trim();
+  const apiBase = configuredBase || 'https://api.d3vonn.io';
+  return `${apiBase.replace(/\/$/, '')}/api/public/stats`;
+};
+
 export async function fetchHomepageTelemetry(signal?: AbortSignal): Promise<HomepageTelemetry> {
+  // Local preview and CI hosts intentionally avoid calling the production API.
+  // This prevents cross-origin console failures while keeping production telemetry live.
+  if (isLocalPreviewHost()) return defaultHomepageTelemetry;
+
   try {
-    const response = await fetch('/api/public/stats', {
+    const response = await fetch(getPublicStatsUrl(), {
       signal,
       headers: { Accept: 'application/json' },
     });
