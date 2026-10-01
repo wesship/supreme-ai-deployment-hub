@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { HomepageTelemetry } from '@/lib/homepageTelemetry';
 import SovereignEffectsCanvas from './SovereignEffectsCanvas';
+import SovereignFeatureDeck from './SovereignFeatureDeck';
 import '@/styles/sovereign-signal.css';
 
 type Props = {
@@ -22,6 +23,7 @@ const signalStates = ['CORE ONLINE', 'VISION — READY', 'VOICE — READY', 'AGE
 const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
   return (
     <main className="sovereign-page">
+      <a className="sovereign-skip-link" href="#sovereign-main">Skip to main content</a>
       <SovereignEffectsCanvas />
       <div className="sovereign-grid" aria-hidden="true" />
       <div className="sovereign-vignette" aria-hidden="true" />
@@ -38,13 +40,14 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
         <nav className="sovereign-nav" aria-label="Primary navigation">
           <Link to="/platform">PLATFORM</Link>
           <Link to="/marketplace">MARKETPLACE</Link>
+          <Link to="/pricing">PRICING</Link>
           <Link to="/institute">INSTITUTE</Link>
           <Link to="/status">STATUS</Link>
           <Link to="/app" className="sovereign-nav-cta">ENTER SYSTEM</Link>
         </nav>
       </header>
 
-      <section className="sovereign-hero" aria-labelledby="sovereign-title">
+      <section id="sovereign-main" className="sovereign-hero" aria-labelledby="sovereign-title">
         <div className="sovereign-kicker">
           <span className="signal-dot" />
           D3VONN NETWORK // SYSTEMS ACTIVE
@@ -71,6 +74,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
                 <div className="hero-actions">
                   <Link to="/app" className="signal-button signal-button-primary">ENTER COMMAND</Link>
                   <Link to="/occ" className="signal-button">OPEN HERMES</Link>
+                  <Link to="/voice-studio" className="signal-button">TALK TO D3VONN</Link>
                 </div>
               </div>
 
@@ -101,7 +105,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
           ))}
         </div>
 
-        <div className="sovereign-telemetry" aria-label="Live platform telemetry">
+        <div className="sovereign-telemetry" aria-label="Live platform telemetry" aria-live="polite">
           <div><small>ACTIVE AGENTS</small><strong>{telemetry.activeAgents}</strong></div>
           <div><small>WORKFLOWS TODAY</small><strong>{telemetry.workflowsToday}</strong></div>
           <div><small>KNOWLEDGE NODES</small><strong>{telemetry.knowledgeNodes}</strong></div>
@@ -109,6 +113,8 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
           <div><small>HERMES QUEUE</small><strong>{telemetry.hermesQueue}</strong></div>
         </div>
       </section>
+
+      <SovereignFeatureDeck telemetry={telemetry} />
 
       <section className="sovereign-systems" aria-label="D3VONN systems">
         <div className="systems-heading">
