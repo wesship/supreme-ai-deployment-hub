@@ -7,8 +7,10 @@ layer used by authenticated admin endpoints and explicitly registered executors.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, Callable
 from uuid import uuid4
 
@@ -26,12 +28,61 @@ class ApprovalDecision:
     reason: str | None = None
 
 
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _parse_timestamp(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _approval_payload(action: dict[str, Any]) -> dict[str, Any]:
+    """Return only execution-relevant fields used to bind an approval.
+
+    Mutable audit metadata is deliberately excluded so recording approval and
+    execution events cannot invalidate an otherwise unchanged approved action.
+    """
+    details = dict(action.get("details") or {})
+    details.pop("approval", None)
+    details.pop("execution", None)
+    return {
+        "action_type": action.get("action_type"),
+        "target": action.get("target"),
+        "agent_name": action.get("agent_name"),
+        "parameters": action.get("parameters"),
+        "details": details,
+    }
+
+
+def _payload_hash(action: dict[str, Any]) -> str:
+    encoded = json.dumps(
+        _approval_payload(action),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 class ApprovalExecutionService:
     """Approve/reject queued actions and execute only through registered adapters."""
 
-    def __init__(self, db: Any, executors: dict[str, Executor] | None = None):
+    def __init__(
+        self,
+        db: Any,
+        executors: dict[str, Executor] | None = None,
+        *,
+        approval_ttl_seconds: int = 900,
+    ):
+        if approval_ttl_seconds <= 0:
+            raise ValueError("approval_ttl_seconds must be positive")
         self.db = db
         self.executors = executors or {}
+        self.approval_ttl_seconds = approval_ttl_seconds
 
     def _get_action(self, action_id: str) -> dict[str, Any] | None:
         resp = (
@@ -57,14 +108,22 @@ class ApprovalExecutionService:
         if action_type not in DESTRUCTIVE_ACTIONS:
             raise ValueError("only approval-gated containment actions use this path")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now_dt = _utc_now()
+        now = now_dt.isoformat()
+        expires_at = (now_dt + timedelta(seconds=self.approval_ttl_seconds)).isoformat()
+        approved_payload_hash = _payload_hash(action)
         resp = (
             self.db.table("hermes_security_actions")
             .update({
                 "status": "approved",
                 "details": {
                     **(action.get("details") or {}),
-                    "approval": {"approver_id": approver_id, "approved_at": now},
+                    "approval": {
+                        "approver_id": approver_id,
+                        "approved_at": now,
+                        "expires_at": expires_at,
+                        "payload_hash": approved_payload_hash,
+                    },
                 },
             })
             .eq("id", action_id)
@@ -86,7 +145,7 @@ class ApprovalExecutionService:
         if action.get("status") != "pending_approval":
             raise ValueError("security action is not pending approval")
 
-        now = datetime.now(timezone.utc).isoformat()
+        now = _utc_now().isoformat()
         resp = (
             self.db.table("hermes_security_actions")
             .update({
@@ -108,12 +167,29 @@ class ApprovalExecutionService:
             raise RuntimeError("approval state changed concurrently")
         return ApprovalDecision(action_id, "rejected", approver_id, reason)
 
+    def _validate_approval(self, action: dict[str, Any]) -> None:
+        approval = (action.get("details") or {}).get("approval") or {}
+        approved_hash = approval.get("payload_hash")
+        expires_at = approval.get("expires_at")
+        if not approved_hash or not expires_at:
+            raise ValueError("security action approval metadata is incomplete")
+        if _payload_hash(action) != approved_hash:
+            raise ValueError("security action payload changed after approval")
+        try:
+            expiry = _parse_timestamp(expires_at)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("security action approval expiration is invalid") from exc
+        if _utc_now() >= expiry:
+            raise ValueError("security action approval has expired")
+
     async def execute_approved(self, action_id: str) -> dict[str, Any]:
         action = self._get_action(action_id)
         if not action:
             raise LookupError("security action not found")
         if action.get("status") != "approved":
             raise ValueError("security action must be approved before execution")
+
+        self._validate_approval(action)
 
         action_type = action.get("action_type", "")
         executor = self.executors.get(action_type)
@@ -125,7 +201,7 @@ class ApprovalExecutionService:
                 "reason": "No audited executor is registered for this action type.",
             }
 
-        started_at = datetime.now(timezone.utc).isoformat()
+        started_at = _utc_now().isoformat()
         execution_id = str(uuid4())
         claim = (
             self.db.table("hermes_security_actions")
@@ -136,6 +212,7 @@ class ApprovalExecutionService:
                     "execution": {
                         "execution_id": execution_id,
                         "started_at": started_at,
+                        "approved_payload_hash": ((action.get("details") or {}).get("approval") or {}).get("payload_hash"),
                     },
                 },
             })
@@ -151,7 +228,7 @@ class ApprovalExecutionService:
         try:
             result = await executor(claimed_action)
         except asyncio.CancelledError:
-            completed_at = datetime.now(timezone.utc).isoformat()
+            completed_at = _utc_now().isoformat()
             self.db.table("hermes_security_actions").update({
                 "status": "execution_failed",
                 "details": {
@@ -165,7 +242,7 @@ class ApprovalExecutionService:
             }).eq("id", action_id).eq("status", "executing").execute()
             raise
         except Exception as exc:
-            completed_at = datetime.now(timezone.utc).isoformat()
+            completed_at = _utc_now().isoformat()
             self.db.table("hermes_security_actions").update({
                 "status": "execution_failed",
                 "details": {
@@ -186,7 +263,7 @@ class ApprovalExecutionService:
             final_status = "dry_run"
         else:
             final_status = "execution_failed"
-        completed_at = datetime.now(timezone.utc).isoformat()
+        completed_at = _utc_now().isoformat()
 
         update = {
             "status": final_status,
