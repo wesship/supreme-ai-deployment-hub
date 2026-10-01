@@ -25,7 +25,8 @@ const SovereignEffectsCanvas: React.FC = () => {
     if (!context) return;
 
     const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let reducedMotion = reducedMotionQuery.matches;
+    const storedPreference = window.localStorage.getItem('d3vonn-reduce-motion');
+    let reducedMotion = storedPreference === 'true' || (storedPreference === null && reducedMotionQuery.matches);
     let frame = 0;
     let animationFrame = 0;
     let width = 0;
@@ -133,6 +134,12 @@ const SovereignEffectsCanvas: React.FC = () => {
       }
     };
 
+    const restartAnimation = () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      draw();
+    };
+
     const handlePointerMove = (event: PointerEvent) => {
       if (reducedMotion) return;
       pointerX = event.clientX / Math.max(1, window.innerWidth);
@@ -140,15 +147,21 @@ const SovereignEffectsCanvas: React.FC = () => {
     };
 
     const handleReducedMotion = (event: MediaQueryListEvent) => {
-      reducedMotion = event.matches;
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      animationFrame = 0;
-      draw();
+      const saved = window.localStorage.getItem('d3vonn-reduce-motion');
+      reducedMotion = saved === 'true' || (saved === null && event.matches);
+      restartAnimation();
+    };
+
+    const handleUserMotion = (event: Event) => {
+      const detail = (event as CustomEvent<{ reduced?: boolean }>).detail;
+      reducedMotion = Boolean(detail?.reduced);
+      restartAnimation();
     };
 
     resize();
     window.addEventListener('resize', resize);
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('d3vonn-motion-change', handleUserMotion as EventListener);
     reducedMotionQuery.addEventListener('change', handleReducedMotion);
     draw();
 
@@ -156,6 +169,7 @@ const SovereignEffectsCanvas: React.FC = () => {
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('d3vonn-motion-change', handleUserMotion as EventListener);
       reducedMotionQuery.removeEventListener('change', handleReducedMotion);
     };
   }, []);
