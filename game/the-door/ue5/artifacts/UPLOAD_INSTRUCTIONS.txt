@@ -1,0 +1,1 @@
+Place DEVONN_AI_UE53_Gate107_CompilerHandoff_v6.zip in this directory before the first authoritative UE 5.3 compile. Verify SHA-256 matches DEVONN_AI_UE53_Gate107_CompilerHandoff_v6.sha256. This repository currently records the exact checksum and execution contract; do not certify Gate 107 from metadata alone.
