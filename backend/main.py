@@ -141,6 +141,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.aquagov.jobs", "router", None),
     ("backend.opensource_integrations.router", "router", None),
     ("backend.liquidity_agent.router", "router", None),
+    ("backend.healthos.router", "router", None),
 )
 for module_name, attr, prefix in _OPTIONAL_ROUTERS:
     try:
