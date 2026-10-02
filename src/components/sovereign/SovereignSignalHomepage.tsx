@@ -11,6 +11,7 @@ type Props = {
 };
 
 const systems = [
+  { label: 'HANDS', href: '/holo' },
   { label: 'HERMES', href: '/occ' },
   { label: 'AGENTS', href: '/ai-agents' },
   { label: 'FILMS', href: '/film' },
@@ -87,6 +88,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
         </Link>
 
         <nav className="sovereign-nav" aria-label="Primary navigation">
+          <Link reloadDocument to="/holo">HANDS</Link>
           <Link to="/platform">PLATFORM</Link>
           <Link to="/marketplace">MARKETPLACE</Link>
           <Link to="/pricing">PRICING</Link>
@@ -188,7 +190,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
         </div>
         <div className="system-links">
           {systems.map((system) => (
-            <Link key={system.label} to={system.href} className="system-link">
+            <Link reloadDocument={system.href === "/holo"} key={system.label} to={system.href} className="system-link">
               <span>{system.label}</span>
               <span>↗</span>
             </Link>

@@ -15,6 +15,7 @@ import OAuthConsent from "./pages/OAuthConsent";
 const FloatingChatWidget = lazy(() =>
   import("./components/ai/FloatingChatWidget").then(m => ({ default: m.FloatingChatWidget }))
 );
+const HoloWorkspace = lazy(() => import('./pages/HoloWorkspace'));
 const Navbar = lazy(() => import("./components/Navbar"));
 const ChatProvider = lazy(() => import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider })));
 const DeploymentProvider = lazy(() => import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider })));
@@ -165,13 +166,13 @@ function DeferredProviders({ children }: { children: React.ReactNode }) {
  */
 function ShellChrome() {
   const { pathname } = useLocation();
-  if (pathname === '/' || pathname === '/knowledge-graph') return null;
+  if (pathname === '/' || pathname === '/knowledge-graph' || pathname === '/holo') return null;
   return <Suspense fallback={null}><Navbar /></Suspense>;
 }
 
 function MainRegion({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  const ownsFullScreenChrome = pathname === '/' || pathname === '/knowledge-graph';
+  const ownsFullScreenChrome = pathname === '/' || pathname === '/knowledge-graph' || pathname === '/holo';
   return (
     <main
       id="main-content"
@@ -228,6 +229,7 @@ function App() {
                 <Route path="/command-center" element={<CommandCenter />} />
                 <Route path="/operations" element={<CommandCenter />} />
                 <Route path="/dkos-ingestion" element={<DkosIngestion />} />
+                <Route path="/holo" element={<HoloWorkspace />} />
                 <Route path="/knowledge-graph" element={<KnowledgeGraphOS />} />
                 <Route path="/knowledge-ingestion" element={<DkosIngestion />} />
                 <Route path="/primetime" element={<PrimetimeRelease1 />} />

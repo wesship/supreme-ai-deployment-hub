@@ -1,0 +1,13 @@
+import { act, fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import HoloWorkspace from './HoloWorkspace';
+vi.mock('@/components/ai/ConversationalVoiceControls', () => ({ ConversationalVoiceControls: ({ context }: { context: object }) => <div data-testid="voice-context">{JSON.stringify(context)}</div> }));
+vi.mock('@/features/holo/useHandTracking', () => ({ useHandTracking: () => ({ videoRef: { current: null }, active: false, loading: false, status: 'Camera off', start: vi.fn(), stop: vi.fn() }) }));
+beforeEach(() => Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: vi.fn(() => 'local-random-id') }));
+afterEach(cleanup);
+const setup = () => render(<MemoryRouter><HoloWorkspace /></MemoryRouter>);
+it('selects platform cards with keyboard and canonical links', () => { setup(); fireEvent.keyDown(screen.getByRole('button', { name: /PLATFORM Film Studio/ }), { key: 'Enter' }); expect(screen.getByRole('link', { name: /Open Film Studio/ }).getAttribute('href')).toBe('/ai-films/studio'); });
+it('uses XREAL display layout and explicit camera activation', () => { setup(); fireEvent.change(screen.getByLabelText('Display'), { target: { value: 'xreal' } }); expect(document.querySelector('.holo-glasses')).toBeTruthy(); expect(screen.getByRole('button', { name: 'Start hand tracking' })).toBeTruthy(); });
+it('renders notes as text and excludes content from voice context', async () => { setup(); const file = new File(['<script>PRIVATE_SECRET</script>'], 'private.md', { type: 'text/markdown' }); Object.defineProperty(file, 'text', { value: () => Promise.resolve('<script>PRIVATE_SECRET</script>') }); await act(() => { fireEvent.change(screen.getByLabelText('Import local notes'), { target: { files: [file] } }); }); const card = await screen.findByRole('button', { name: /LOCAL NOTE private.md/ }); fireEvent.keyDown(card, { key: 'Enter' }); expect(screen.getByTestId('voice-context').textContent).not.toContain('PRIVATE_SECRET'); expect(screen.getByTestId('voice-context').textContent).not.toContain('private.md'); expect(document.querySelector('script')).toBeNull(); fireEvent.click(screen.getByText('Remove note')); expect(screen.queryByRole('button', { name: /LOCAL NOTE private.md/ })).toBeNull(); });
+it('rejects oversized notes', async () => { setup(); const file = new File(['x'.repeat(65537)], 'large.md'); fireEvent.change(screen.getByLabelText('Import local notes'), { target: { files: [file] } }); await waitFor(() => expect(screen.getByText(/up to 64 KB/)).toBeTruthy()); expect(screen.queryByRole('button', { name: /large.md/ })).toBeNull(); });
