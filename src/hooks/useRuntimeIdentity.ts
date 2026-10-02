@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
-const RUNTIME_IDENTITY_PATH = '/api/runtime/identity';
+const API_BASE = (import.meta.env.VITE_API_URL?.trim() || 'https://api.d3vonn.io').replace(/\/$/, '');
+const RUNTIME_IDENTITY_PATH = `${API_BASE}/api/runtime/identity`;
 const EXPECTED_REPOSITORY = 'wesship/supreme-ai-deployment-hub';
 
 export type RuntimeIdentity = {
@@ -19,8 +20,8 @@ export function useRuntimeIdentity() {
     const controller = new AbortController();
 
     const check = async () => {
-      const host = window.location.hostname;
-      if (host === '127.0.0.1' || host === 'localhost') {
+      const host = window.location.hostname.toLowerCase();
+      if (host === '127.0.0.1' || host === 'localhost' || host === '0.0.0.0') {
         setState('unavailable');
         return;
       }
