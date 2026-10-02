@@ -8,10 +8,10 @@ function createNonce(): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-function cspFor(nonce: string, reportOnly = false): string {
+function cspFor(nonce: string, reportOnly = false, handWorkspace = false): string {
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://apis.google.com https://cdn.jsdelivr.net https://*.supabase.co https://*.sentry.io https://*.vercel-insights.com`,
+    `script-src 'self'${handWorkspace ? " 'wasm-unsafe-eval'" : ''} 'nonce-${nonce}' https://apis.google.com https://cdn.jsdelivr.net https://*.supabase.co https://*.sentry.io https://*.vercel-insights.com`,
     "worker-src 'self' blob:",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "style-src-attr 'unsafe-inline'",
@@ -36,8 +36,8 @@ export default function middleware(request: Request) {
   }
 
   const nonce = createNonce();
-  const policy = cspFor(nonce);
-  const reportOnlyPolicy = cspFor(nonce, true);
+  const policy = cspFor(nonce, false, pathname === '/holo');
+  const reportOnlyPolicy = cspFor(nonce, true, pathname === '/holo');
   return next({
     headers: {
       'Content-Security-Policy': policy,

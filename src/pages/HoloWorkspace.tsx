@@ -92,7 +92,7 @@ export default function HoloWorkspace() {
     if (!voice) { setMessage('No local English voice is installed.'); return; }
     speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(current.detail); utterance.voice = voice; speechSynthesis.speak(utterance);
   }
-  return <div ref={displayConnection.rootRef} className={`holo-workspace ${display === 'xreal' ? 'holo-glasses' : ''}`}>
+  return <div data-voice-skip ref={displayConnection.rootRef} className={`holo-workspace ${display === 'xreal' ? 'holo-glasses' : ''}`}>
     <header className="holo-header"><Link reloadDocument to="/">D3VONN.IO</Link><span>HAND WORKSPACE</span><Link reloadDocument to="/knowledge-graph">Exit to knowledge graph</Link></header>
     <div className="holo-intro"><p className="holo-eyebrow">ONE PLATFORM · ONE INTELLIGENCE</p><h1>Your intelligence, within reach.</h1><p>Move your workspace with your hands. Connect your display, then bring Hermes into the conversation.</p></div>
     <div className="holo-controls" aria-label="Workspace controls">
@@ -106,6 +106,7 @@ export default function HoloWorkspace() {
     </div>
     <p role="status" className="holo-status">{tracking.status}{displayConnection.error ? ` · ${displayConnection.error}` : ''}</p>
     <details className="holo-connect"><summary>Connect glasses or a monitor</summary><p>Connect XREAL display glasses to a host with USB-C DisplayPort video output, or connect a monitor using its supported cable. In your operating system, extend or mirror the display, move this browser window to it, select the glasses layout and enter fullscreen. Choose audio input and output in your system settings. Hand tracking uses the selected webcam; native glasses sensors and 6DoF are not connected through this browser.</p></details>
+    <nav className="holo-mobile-tools" aria-label="All workspace cards">{cards.map(card => <button key={card.id} aria-pressed={selected === card.id} onClick={() => setSelected(card.id)}>{card.title}</button>)}</nav>
     <div className="holo-layout"><section className="holo-main" aria-label="Hand workspace">
       <div className="holo-toolbar"><button onClick={reset}>Reset view</button><button onClick={arrange}>Arrange cards</button><button aria-label="Zoom out" onClick={() => setView(v => ({ ...v, scale: Math.max(.5, v.scale - .1) }))}>−</button><span>{Math.round(view.scale * 100)}%</span><button aria-label="Zoom in" onClick={() => setView(v => ({ ...v, scale: Math.min(2, v.scale + .1) }))}>+</button><button onClick={() => fileRef.current?.click()}>Import local note</button><input ref={fileRef} aria-label="Import local notes" type="file" accept=".txt,.md" multiple hidden onChange={e => { void importNotes(e.target.files); e.target.value = ''; }} /></div>
       <div className="holo-stage" ref={stageRef} onPointerMove={e => {
