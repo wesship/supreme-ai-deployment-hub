@@ -13,9 +13,16 @@ its atomic claim. Changed, expired, incomplete and replayed actions cannot run.
 Existing approvals without this metadata require a new approval. Real containment
 flags remain disabled until operational certification is complete.
 
-Rate limits use the ASGI client address, independent of unvalidated bearer tokens
-and raw forwarded headers. Trusted reverse proxies must be configured at the ASGI
-server boundary; arbitrary clients must not be trusted to provide their address.
+Rate limits never use unvalidated bearer tokens or raw forwarded chains. The
+canonical Railway image explicitly opts into its public edge's overwritten
+`X-Real-IP` header, only when the Railway project marker is present. Values must
+parse as one IP; invalid or duplicate headers fall back to the socket peer.
+Other deployments use the ASGI client address and require a trusted proxy
+configuration if proxy headers are needed. Railway's public edge contract is
+documented at https://docs.railway.com/networking/public-networking/specs-and-limits
+and confirmed by Railway staff at
+https://station.railway.com/questions/need-authoritative-railway-client-ip-p-b7a7b4bd.
+Do not enable this setting on origins with untrusted direct/private ingress.
 Redis failure remains fail-closed in staging and production.
 
 ## Telemetry and startup contract
@@ -62,7 +69,7 @@ security and coverage gates.
 
 ## Local validation
 
-- General backend suite: 1,090 passed; Hermes suite: 156 passed.
+- General backend suite: 1,090 passed before eight additional proxy-boundary regression cases; Hermes suite: 156 passed.
 - Focused release suite before receipt-transfer tests: 86 passed; canary authentication regressions: 4 passed.
 - Frontend: 826 passed, 10 skipped; coverage 9.50% lines, 9.71% statements,
   8.81% functions and 7.76% branches.
