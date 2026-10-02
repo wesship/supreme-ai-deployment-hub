@@ -15,6 +15,7 @@ from backend.app.config import get_settings
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.middleware.rate_limit import rate_limit
 from backend.app.models.proxy import ChatRequest
+from backend.app.services.token_governor import govern_chat_request
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -138,10 +139,17 @@ async def chat_proxy(
             detail="LLM service not configured (OPENAI_API_KEY missing on server)",
         )
 
+    raw_messages = [m.model_dump() for m in request.messages]
+    governed_messages, token_decision = govern_chat_request(
+        raw_messages,
+        request.max_tokens,
+        policy_name="interactive",
+    )
+
     payload: dict = {
         "model": request.model,
-        "messages": [m.model_dump() for m in request.messages],
-        "max_tokens": request.max_tokens,
+        "messages": governed_messages,
+        "max_tokens": token_decision.allowed_output_tokens,
         "temperature": request.temperature,
         "stream": request.stream,
     }
@@ -150,6 +158,18 @@ async def chat_proxy(
         payload["tools"] = [t.model_dump() for t in request.tools]
         payload["tool_choice"] = request.tool_choice or "auto"
 
+    logger.info(
+        "token_governor policy=%s prompt_before=%d prompt_after=%d requested_output=%d "
+        "allowed_output=%d messages_before=%d messages_after=%d trimmed=%s",
+        token_decision.policy,
+        token_decision.estimated_prompt_tokens_before,
+        token_decision.estimated_prompt_tokens_after,
+        token_decision.requested_output_tokens,
+        token_decision.allowed_output_tokens,
+        token_decision.messages_before,
+        token_decision.messages_after,
+        token_decision.trimmed,
+    )
     logger.info("chat_proxy request accepted stream=%s", request.stream)
 
     if not request.stream:
@@ -168,7 +188,16 @@ async def chat_proxy(
                 status_code=resp.status_code,
                 detail=_provider_error_message(resp.status_code, resp.text),
             )
-        return resp.json()  # type: ignore[return-value]
+        body = resp.json()
+        usage = body.get("usage", {}) if isinstance(body, dict) else {}
+        logger.info(
+            "llm_usage provider=openai model=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+            request.model,
+            usage.get("prompt_tokens"),
+            usage.get("completion_tokens"),
+            usage.get("total_tokens"),
+        )
+        return body  # type: ignore[return-value]
 
     return StreamingResponse(
         _stream_openai(payload, settings.openai_api_key),
@@ -177,5 +206,7 @@ async def chat_proxy(
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
+            "X-D3VONN-Token-Policy": token_decision.policy,
+            "X-D3VONN-Output-Budget": str(token_decision.allowed_output_tokens),
         },
     )
