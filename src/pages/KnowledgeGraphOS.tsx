@@ -37,6 +37,7 @@ import {
   type NexusTransitionPhase,
 } from '@/features/knowledge-graph/lib/transitionChoreography';
 import {
+  Hand,
   Activity,
   Bot,
   BrainCircuit,
@@ -469,6 +470,7 @@ const majorClusterNodeIds = new Set(['intent', 'agents', 'knowledge', 'models', 
 
 
 const nexusNavItems = [
+  { label: 'Hand workspace', route: '/holo', icon: Hand },
   { label: 'Command Center', route: '/command-center', icon: Gauge },
   { label: 'Knowledge Graph', route: '/knowledge-graph', icon: Network, active: true },
   { label: 'Hermes Orchestration', route: '/workflows', icon: BrainCircuit },
@@ -973,7 +975,7 @@ const KnowledgeGraphOS: React.FC = () => {
             ].map(([label, route]) => (
               <Link
                 key={label}
-                to={route}
+                to={route} reloadDocument={route === '/holo'}
                 className={`border-b-2 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.08em] transition ${
                   label === 'Knowledge Graph'
                     ? 'border-amber-300 text-amber-100'
@@ -1030,7 +1032,7 @@ const KnowledgeGraphOS: React.FC = () => {
           ].map(([label, route]) => (
             <Link
               key={label}
-              to={route}
+              to={route} reloadDocument={route === '/holo'}
               className="shrink-0 border border-[#34332f] bg-[#11110f] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-stone-200 transition hover:border-amber-300/40 hover:text-amber-100"
             >
               {label}
@@ -1049,7 +1051,7 @@ const KnowledgeGraphOS: React.FC = () => {
             {nexusNavItems.map(({ label, route, icon: Icon, active }) => (
               <Link
                 key={label}
-                to={route}
+                to={route} reloadDocument={route === '/holo'}
                 className={`flex items-center gap-3 border px-3 py-2.5 text-[11px] font-semibold transition ${
                   active
                     ? 'border-amber-300/30 bg-amber-200/[0.08] text-amber-100 shadow-[inset_3px_0_0_#fcd34d]'
