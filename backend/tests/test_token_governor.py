@@ -33,9 +33,13 @@ def test_utility_policy_has_small_output_budget():
 
 def test_trimming_preserves_system_and_newest_context():
     system = {"role": "system", "content": "Follow the D3VONN operating rules."}
-    old = {"role": "user", "content": "x" * 24_000}
+    # At four characters per estimated token, this message alone exceeds the
+    # utility policy's 8k prompt-token ceiling and must be trimmed.
+    old = {"role": "user", "content": "x" * 40_000}
     newest = {"role": "user", "content": "What should I do next?"}
     messages = [system, old, newest]
+
+    assert estimate_message_tokens(messages) > POLICIES["utility"].max_prompt_tokens
 
     governed, decision = govern_chat_request(messages, 2_048, policy_name="utility")
 
