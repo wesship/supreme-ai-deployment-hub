@@ -1,25 +1,25 @@
 export type HomepageTelemetry = {
   activeAgents: string;
-  workflowsToday: string;
-  knowledgeNodes: string;
+  workflowsCompleted: string;
+  tasksProcessed: string;
   systemStatus: string;
   hermesQueue: string;
 };
 
 export const defaultHomepageTelemetry: HomepageTelemetry = {
   activeAgents: 'Not reported',
-  workflowsToday: 'Not reported',
-  knowledgeNodes: 'Not reported',
+  workflowsCompleted: 'Not reported',
+  tasksProcessed: 'Not reported',
   systemStatus: 'Unknown',
   hermesQueue: 'Not reported',
 };
 
 type PublicStatsResponse = {
-  active_agents?: number | string;
-  completed_workflows?: number | string;
-  uptime_percent?: number | string;
-  queue_pending?: number | string;
-  total_tasks_processed?: number | string;
+  active_agents?: number | string | null;
+  completed_workflows?: number | string | null;
+  uptime_percent?: number | string | null;
+  queue_pending?: number | string | null;
+  total_tasks_processed?: number | string | null;
   system_health?: string;
 };
 
@@ -34,8 +34,8 @@ export const normalizePublicStats = (stats: PublicStatsResponse | null | undefin
 
   return {
     activeAgents: formatNumber(stats.active_agents, defaultHomepageTelemetry.activeAgents),
-    workflowsToday: formatNumber(stats.completed_workflows, defaultHomepageTelemetry.workflowsToday),
-    knowledgeNodes: formatNumber(stats.total_tasks_processed, defaultHomepageTelemetry.knowledgeNodes),
+    workflowsCompleted: formatNumber(stats.completed_workflows, defaultHomepageTelemetry.workflowsCompleted),
+    tasksProcessed: formatNumber(stats.total_tasks_processed, defaultHomepageTelemetry.tasksProcessed),
     systemStatus: stats.system_health || defaultHomepageTelemetry.systemStatus,
     hermesQueue: formatNumber(stats.queue_pending, defaultHomepageTelemetry.hermesQueue),
   };

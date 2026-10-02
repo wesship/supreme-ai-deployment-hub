@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _verify_required_routes(app)
     logger.info("D3VONN.IO backend starting up…")
     if init_weave():
         logger.info("W&B Weave initialized successfully.")
@@ -97,6 +98,12 @@ for module_name, middleware_name in _REQUIRED_MIDDLEWARE:
             raise RuntimeError(f"Required middleware {middleware_name} unavailable") from exc
         logger.warning("%s unavailable — skipping in %s only.", middleware_name, _environment)
 
+_REQUIRED_ROUTERS = frozenset({
+    "backend.app.routers", "backend.hermes.router",
+    "backend.occ_operator.hermes_router", "backend.hermes.sibyl_handoff",
+    "backend.app.security.admin_approval_router",
+    "backend.occ_operator.public_stats_router",
+})
 _OPTIONAL_ROUTERS = (
     ("backend.app.routers", "proxy_router", None),
     ("backend.app.routers.smart_glasses", "router", "/api"),
@@ -107,6 +114,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.occ_operator.router", "router", "/api/operator"),
     ("backend.occ_operator.market_intelligence_router", "router", "/api/operator"),
     ("backend.occ_operator.hermes_router", "router", None),
+    ("backend.occ_operator.public_stats_router", "router", None),
     ("backend.hermes.sibyl_handoff", "router", None),
     ("backend.hermes.router", "router", None),
     ("backend.hermes.recency_router", "router", None),
@@ -139,8 +147,25 @@ for module_name, attr, prefix in _OPTIONAL_ROUTERS:
         module = __import__(module_name, fromlist=[attr])
         router = getattr(module, attr)
         app.include_router(router, prefix=prefix) if prefix else app.include_router(router)
-    except (ImportError, AttributeError):
-        pass
+    except (ImportError, AttributeError) as exc:
+        if module_name in _REQUIRED_ROUTERS:
+            raise RuntimeError(f"Required router {module_name} unavailable") from exc
+        logger.warning("Optional router %s unavailable: %s", module_name, exc)
+
+
+def _verify_required_routes(application: FastAPI) -> None:
+    required = {
+        "/api/chat": "post", "/api/rag/retrieve": "post",
+        "/api/voice/session": "post", "/api/runtime/identity": "get",
+        "/api/hermes/enqueue": "post", "/api/hermes/tasks": "get",
+        "/api/public/stats": "get",
+        "/api/security/admin/actions/{action_id}/execute": "post",
+    }
+    paths = application.openapi()["paths"]
+    missing = [f"{method.upper()} {path}" for path, method in required.items()
+               if method not in paths.get(path, {})]
+    if missing:
+        raise RuntimeError("Required API routes unavailable: " + ", ".join(missing))
 
 try:
     from backend.app.routers.primetime_release1 import router as primetime_release1_router

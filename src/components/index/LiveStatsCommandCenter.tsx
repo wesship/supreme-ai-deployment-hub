@@ -1,7 +1,7 @@
 /**
  * LiveStatsCommandCenter — replaces the hardcoded Command Center preview
  * with live data from the Hermes/OCC backend. Falls back gracefully to
- * placeholder values when the API is unreachable.
+ * unavailable measurements when the API is unreachable.
  */
 import React from 'react';
 import { motion } from 'framer-motion';
@@ -32,28 +32,18 @@ const LiveStatsCommandCenter: React.FC = () => {
   const { stats, isLive, lastUpdated } = usePublicStats();
 
   const metricCards = [
-    { k: 'Agents online', v: String(stats.activeAgents) },
-    { k: 'Tasks processed', v: stats.totalTasksProcessed >= 1000 ? `${(stats.totalTasksProcessed / 1000).toFixed(1)}K` : String(stats.totalTasksProcessed) },
-    { k: 'System uptime', v: `${stats.uptimePercent}%` },
+    { k: 'Agents online', v: stats.activeAgents == null ? 'Not reported' : String(stats.activeAgents) },
+    { k: 'Tasks processed', v: stats.totalTasksProcessed == null ? 'Not reported' : stats.totalTasksProcessed >= 1000 ? `${(stats.totalTasksProcessed / 1000).toFixed(1)}K` : String(stats.totalTasksProcessed) },
+    { k: 'System uptime', v: stats.uptimePercent == null ? 'Not reported' : `${stats.uptimePercent}%` },
   ];
 
   // Map latest events to agent activity display
-  const agentActivity = stats.latestEvents.length > 0
-    ? stats.latestEvents.slice(0, 4).map((evt) => ({
+  const agentActivity = stats.latestEvents.slice(0, 4).map((evt) => ({
         name: evt.agent_id?.replace(/-/g, ' ').slice(0, 20) || 'Agent',
         status: evt.event_type === 'started' ? 'Running' :
                 evt.event_type === 'completed' ? 'Complete' :
                 evt.event_type === 'failed' ? 'Error' : 'Processing',
-        pct: evt.event_type === 'completed' ? 100 :
-             evt.event_type === 'failed' ? 15 :
-             Math.floor(Math.random() * 60) + 30,
-      }))
-    : [
-        { name: 'Atlas Researcher', status: 'Synthesizing', pct: 72 },
-        { name: 'Helios Sales', status: 'Dispatching', pct: 46 },
-        { name: 'Vault Sentinel', status: 'Scanning', pct: 91 },
-        { name: 'Forge Engineer', status: 'Deploying', pct: 33 },
-      ];
+      }));
 
   return (
     <section id="command-center" className="relative py-24 scroll-mt-24">
@@ -116,7 +106,7 @@ const LiveStatsCommandCenter: React.FC = () => {
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 text-[9px] uppercase tracking-widest text-white/40">
-                    <WifiOff className="h-3 w-3" /> Demo
+                    <WifiOff className="h-3 w-3" /> Not live
                   </span>
                 )}
                 <span className="text-[10px] uppercase tracking-widest text-white/50">d3vonn / occ</span>
@@ -133,17 +123,12 @@ const LiveStatsCommandCenter: React.FC = () => {
             </div>
 
             <div className="mt-5 space-y-2">
+              {agentActivity.length === 0 && <p className="text-xs text-white/60">No reported agent activity</p>}
               {agentActivity.map((agent) => (
                 <div key={agent.name} className="rounded-lg border border-white/10 bg-black/30 p-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-white">{agent.name}</span>
                     <span className="text-white/60">{agent.status}</span>
-                  </div>
-                  <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-blue-500 shadow-[0_0_10px_rgba(56,136,255,0.8)] transition-all duration-1000"
-                      style={{ width: `${agent.pct}%` }}
-                    />
                   </div>
                 </div>
               ))}

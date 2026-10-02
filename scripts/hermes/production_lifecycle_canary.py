@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Production lifecycle canary for the persistent Hermes worker mesh.
 
-Creates one clearly tagged synthetic Hermes task through the service-role REST
+Creates one clearly tagged synthetic Hermes task through the authenticated API
 boundary and proves that a real persistent worker heartbeats, atomically claims
 it, creates a lease, completes the task, and releases the lease.
 
@@ -27,6 +27,8 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://api.d3vonn.io").rstrip("/")
 TIMEOUT_SECONDS = int(os.getenv("HERMES_CANARY_TIMEOUT_SECONDS", "180"))
 POLL_SECONDS = float(os.getenv("HERMES_CANARY_POLL_SECONDS", "5"))
 MAX_HEARTBEAT_AGE_SECONDS = int(os.getenv("HERMES_CANARY_MAX_HEARTBEAT_AGE_SECONDS", "120"))
+CERTIFIED_SHA = os.environ["CERTIFIED_SHA"]
+_API_HEADERS: dict[str, str] = {}
 
 
 def _json_request(
@@ -74,16 +76,20 @@ def _table_get(table: str, params: dict[str, str]) -> list[dict[str, Any]]:
     return result
 
 
-def _table_post(table: str, payload: dict[str, Any]) -> dict[str, Any]:
-    result = _json_request(
-        f"{SUPABASE_URL}/rest/v1/{table}",
+def authenticate_operator() -> None:
+    """Use the protected test user's actual JWT; never service-role API authority."""
+    session = _json_request(
+        f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
         method="POST",
-        payload=payload,
-        headers=_rest_headers(representation=True),
+        headers={"apikey": SERVICE_ROLE_KEY},
+        payload={"email": os.environ["E2E_TEST_EMAIL"], "password": os.environ["E2E_TEST_PASSWORD"]},
     )
-    if not isinstance(result, list) or not result:
-        raise RuntimeError(f"Expected inserted row from {table}")
-    return result[0]
+    token = session.get("access_token") if isinstance(session, dict) else None
+    if not isinstance(token, str) or not token:
+        raise RuntimeError("Protected operator authentication returned no access token")
+    _API_HEADERS["Authorization"] = f"Bearer {token}"
+    _json_request(f"{API_BASE_URL}/api/hermes/tasks?limit=1", headers=_API_HEADERS)
+    print("PASS authenticated Hermes operator boundary")
 
 
 def _parse_timestamp(value: str) -> datetime:
@@ -91,6 +97,9 @@ def _parse_timestamp(value: str) -> datetime:
 
 
 def verify_api_health() -> None:
+    identity = _json_request(f"{API_BASE_URL}/api/runtime/identity")
+    if identity.get("commit_sha") != CERTIFIED_SHA:
+        raise RuntimeError("API commit does not match certified source")
     deployment = _json_request(f"{API_BASE_URL}/health/deployment")
     if not isinstance(deployment, dict):
         raise RuntimeError("Production deployment health did not return JSON object")
@@ -103,7 +112,7 @@ def require_fresh_worker() -> dict[str, Any]:
     workers = _table_get(
         "hermes_workers",
         {
-            "select": "worker_id,status,last_heartbeat_at,active_leases,max_leases,capabilities,version_counter",
+            "select": "worker_id,status,last_heartbeat_at,active_leases,max_leases,capabilities,version_counter,metadata",
             "status": "in.(healthy,busy)",
             "order": "last_heartbeat_at.desc",
             "limit": "10",
@@ -115,7 +124,7 @@ def require_fresh_worker() -> dict[str, Any]:
         if not heartbeat:
             continue
         age = (now - _parse_timestamp(str(heartbeat))).total_seconds()
-        if age <= MAX_HEARTBEAT_AGE_SECONDS:
+        if 0 <= age <= MAX_HEARTBEAT_AGE_SECONDS and (worker.get("metadata") or {}).get("commit_sha") == CERTIFIED_SHA:
             print(
                 "PASS fresh worker heartbeat",
                 worker.get("worker_id"),
@@ -130,16 +139,16 @@ def require_fresh_worker() -> dict[str, Any]:
 
 def create_canary_task() -> dict[str, Any]:
     correlation_id = f"hermes-prod-cert-{uuid.uuid4()}"
-    task = _table_post(
-        "hermes_tasks",
-        {
+    result = _json_request(
+        f"{API_BASE_URL}/api/hermes/tasks",
+        method="POST",
+        headers=_API_HEADERS,
+        payload={
             "title": "Hermes production lifecycle certification canary",
             "description": "Synthetic production canary. Safe to execute and audit.",
             "task_type": "generic",
-            "status": "PENDING",
             "priority": 1,
             "source": "github-production-canary",
-            "retry_count": 0,
             "agent_name": "TARS",
             "correlation_id": correlation_id,
             "input_data": {
@@ -149,6 +158,9 @@ def create_canary_task() -> dict[str, Any]:
             },
         },
     )
+    task = result.get("task") if isinstance(result, dict) else None
+    if not isinstance(task, dict) or not task.get("id"):
+        raise RuntimeError("Authenticated API did not return a created task")
     print("PASS synthetic task created", task.get("id"), correlation_id)
     return task
 
@@ -159,17 +171,10 @@ def wait_for_completion(task_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     last_status = None
 
     while time.monotonic() < deadline:
-        task_rows = _table_get(
-            "hermes_tasks",
-            {
-                "select": "id,status,assigned_to,assigned_at,locked_at,started_at,completed_at,error_message,output_data",
-                "id": f"eq.{task_id}",
-                "limit": "1",
-            },
-        )
-        if not task_rows:
-            raise RuntimeError(f"Canary task disappeared: {task_id}")
-        task = task_rows[0]
+        result = _json_request(f"{API_BASE_URL}/api/hermes/tasks/{task_id}", headers=_API_HEADERS)
+        task = result.get("task") if isinstance(result, dict) else None
+        if not isinstance(task, dict):
+            raise RuntimeError(f"Canary task disappeared from authenticated API: {task_id}")
         status = str(task.get("status") or "")
         if status != last_status:
             print("INFO task status", status, "worker", task.get("assigned_to"))
@@ -219,7 +224,7 @@ def verify_worker_after_completion(worker_id: str) -> None:
     rows = _table_get(
         "hermes_workers",
         {
-            "select": "worker_id,status,last_heartbeat_at,active_leases,max_leases,version_counter",
+            "select": "worker_id,status,last_heartbeat_at,active_leases,max_leases,version_counter,metadata",
             "worker_id": f"eq.{worker_id}",
             "limit": "1",
         },
@@ -227,6 +232,8 @@ def verify_worker_after_completion(worker_id: str) -> None:
     if not rows:
         raise RuntimeError(f"Worker missing after canary completion: {worker_id}")
     worker = rows[0]
+    if (worker.get("metadata") or {}).get("commit_sha") != CERTIFIED_SHA:
+        raise RuntimeError("Completing worker commit does not match certified source")
     if str(worker.get("status")) not in {"healthy", "busy"}:
         raise RuntimeError(f"Worker ended in unhealthy state: {worker}")
     if int(worker.get("active_leases") or 0) < 0:
@@ -243,6 +250,7 @@ def verify_worker_after_completion(worker_id: str) -> None:
 
 def main() -> int:
     verify_api_health()
+    authenticate_operator()
     require_fresh_worker()
     task = create_canary_task()
     completed, lease = wait_for_completion(str(task["id"]))

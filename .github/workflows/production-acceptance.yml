@@ -1,0 +1,60 @@
+name: Production Release Acceptance
+
+on:
+  workflow_run:
+    workflows:
+      - D3VONN.IO Post-Deploy Audit
+      - D3VONN.IO Post-Deploy Mobile Audit
+      - D3VONN.IO Authenticated Audit
+      - Hermes Production Lifecycle Canary
+      - Voice Live Browser Certification
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  statuses: write
+
+concurrency:
+  group: production-acceptance-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all production evidence for the same commit
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const sha = context.payload.workflow_run.head_sha;
+            const required = [
+              'D3VONN.IO Post-Deploy Audit',
+              'D3VONN.IO Post-Deploy Mobile Audit',
+              'D3VONN.IO Authenticated Audit',
+              'Hermes Production Lifecycle Canary',
+              'Voice Live Browser Certification',
+            ];
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              head_sha: sha, per_page: 100,
+            });
+            const evidence = required.map(name => {
+              const run = runs.filter(r => r.name === name && r.head_branch === 'main' && r.event !== 'pull_request')
+                .sort((a, b) => b.id - a.id)[0];
+              return { name, run };
+            });
+            const passed = evidence.every(({run}) => run?.conclusion === 'success');
+            const failed = evidence.some(({run}) => ['failure', 'cancelled', 'timed_out', 'action_required'].includes(run?.conclusion));
+            const state = passed ? 'success' : failed ? 'failure' : 'pending';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner, repo: context.repo.repo, sha,
+              state, context: 'Production Release Acceptance',
+              description: passed ? 'Desktop, mobile, authentication, Hermes and voice certified' : 'Production certification incomplete',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            });
+            await core.summary.addHeading('Production acceptance').addTable([
+              [{data: 'Required evidence', header: true}, {data: 'Result', header: true}],
+              ...evidence.map(({name, run}) => [name, run?.conclusion || run?.status || 'missing']),
+            ]).write();
+            if (!passed) core.setFailed('All required production audits must pass for the same commit.');

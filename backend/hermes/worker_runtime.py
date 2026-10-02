@@ -20,6 +20,12 @@ from backend.hermes.workflows.workers import (
 )
 
 
+def _commit_sha() -> str | None:
+    return next((os.getenv(name, "").strip() for name in
+                 ("RAILWAY_GIT_COMMIT_SHA", "GIT_COMMIT_SHA", "COMMIT_SHA")
+                 if os.getenv(name, "").strip()), None)
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -135,12 +141,12 @@ class PersistentWorkerRuntime:
                     self.config.capabilities
                 ),
                 max_leases=self.config.max_leases,
-                metadata={"persistent_runtime": True},
+                metadata={"persistent_runtime": True, "commit_sha": _commit_sha()},
             )
         else:
             worker = registry.heartbeat(
                 self.worker_id,
-                metadata={"persistent_runtime": True},
+                metadata={"persistent_runtime": True, "commit_sha": _commit_sha()},
             )
         await self.persistence.persist_worker(worker)
         self.started = True

@@ -4,12 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - 'backend/hermes/**'
-      - 'Dockerfile.hermes-worker'
-      - 'supabase/migrations/*hermes*.sql'
-      - 'scripts/hermes/production_lifecycle_canary.py'
-      - '.github/workflows/hermes-production-lifecycle-canary.yml'
   workflow_run:
     workflows: ['Devonn.AI Deploy']
     types: [completed]
@@ -28,10 +22,12 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       CERTIFIED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       SUPABASE_URL: 'https://tjygexesognbkwualywq.supabase.co'
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       API_BASE_URL: 'https://api.d3vonn.io'
       HERMES_CANARY_TIMEOUT_SECONDS: '180'
@@ -43,6 +39,9 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.CERTIFIED_SHA }}
+
+      - name: Require exact deployed API and frontend commit
+        run: node scripts/wait-deployed-commit.mjs
 
       - name: Set up Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -57,6 +56,8 @@ jobs:
           test "$API_BASE_URL" = "https://api.d3vonn.io"
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           test -n "$CERTIFIED_SHA"
+          test -n "$E2E_TEST_EMAIL"
+          test -n "$E2E_TEST_PASSWORD"
           echo "Certifying deployed SHA: $CERTIFIED_SHA" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run Hermes production lifecycle canary

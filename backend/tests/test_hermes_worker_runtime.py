@@ -27,6 +27,15 @@ def test_worker_capabilities_are_normalized_and_keep_dispatch_base():
     ) == ("browser-control", "task-dispatch", "visual-qa")
 
 
+@pytest.mark.asyncio
+async def test_registered_worker_records_deployed_commit(monkeypatch):
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "a" * 40)
+    repository = InMemoryTaskRepository()
+    clock = FrozenClock(datetime(2026, 8, 9, tzinfo=timezone.utc))
+    worker = await runtime_service(repository, clock).start()
+    assert worker.metadata["commit_sha"] == "a" * 40
+
+
 def runtime_service(
     repository: InMemoryTaskRepository,
     clock: FrozenClock,

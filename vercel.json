@@ -91,6 +91,10 @@
       "destination": "https://api.d3vonn.io/api/runtime/identity"
     },
     {
+      "source": "/api/public/stats",
+      "destination": "https://api.d3vonn.io/api/public/stats"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }

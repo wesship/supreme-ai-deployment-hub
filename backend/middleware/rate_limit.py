@@ -6,8 +6,8 @@ usable.
 """
 from __future__ import annotations
 
-import hashlib
 import logging
+import ipaddress
 import os
 import time
 
@@ -33,12 +33,21 @@ def _strict_environment() -> bool:
 
 
 def _client_identity(request: Request) -> str:
-    authorization = request.headers.get("authorization", "")
-    if authorization.lower().startswith("bearer "):
-        digest = hashlib.sha256(authorization[7:].encode("utf-8")).hexdigest()
-        return f"token:{digest[:24]}"
-    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
-    host = forwarded or (request.client.host if request.client else "unknown")
+    # Authentication happens in endpoint dependencies, after this middleware.
+    # Never give an unverified credential or forwarded header a fresh allowance.
+    # Railway's public HTTP edge overwrites X-Real-IP and cannot be bypassed
+    # publicly. Trust this contract only in the explicitly configured Railway
+    # deployment. Do not enable this on an origin with untrusted direct ingress.
+    railway_edge = os.getenv("TRUST_RAILWAY_EDGE_CLIENT_IP", "").lower() == "true" and bool(os.getenv("RAILWAY_PROJECT_ID"))
+    if railway_edge:
+        values = request.headers.getlist("x-real-ip")
+        if len(values) == 1:
+            try:
+                return f"ip:{ipaddress.ip_address(values[0].strip())}"
+            except ValueError:
+                pass
+    # Other deployments use the ASGI server's validated client address.
+    host = request.client.host if request.client else "unknown"
     return f"ip:{host}"
 
 

@@ -49,8 +49,8 @@ const workflow = [
 
 const telemetryItems = (telemetry: HomepageTelemetry) => [
   { label: 'Active agents', value: telemetry.activeAgents, icon: 'agents' as const, to: '/ai-agents' },
-  { label: 'Completed workflows', value: telemetry.workflowsToday, icon: 'workflow' as const, to: '/business-automation' },
-  { label: 'Tasks processed', value: telemetry.knowledgeNodes, icon: 'network' as const, to: '/dkos-ingestion' },
+  { label: 'Completed workflows', value: telemetry.workflowsCompleted, icon: 'workflow' as const, to: '/business-automation' },
+  { label: 'Tasks processed', value: telemetry.tasksProcessed, icon: 'network' as const, to: '/dkos-ingestion' },
   { label: 'System status', value: telemetry.systemStatus, icon: 'shield' as const, to: '/security' },
 ];
 

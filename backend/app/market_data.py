@@ -38,12 +38,13 @@ class MessariProvider:
         return {"x-messari-api-key": self.api_key}
 
     async def _get(self, path: str, *, params: dict[str, Any] | None = None) -> Any:
+        headers = self._headers()
         try:
             async with httpx.AsyncClient(
                 base_url=self.base_url.rstrip("/"),
                 timeout=self.timeout_seconds,
             ) as client:
-                response = await client.get(path, headers=self._headers(), params=params)
+                response = await client.get(path, headers=headers, params=params)
                 response.raise_for_status()
         except MarketDataNotConfigured:
             raise
