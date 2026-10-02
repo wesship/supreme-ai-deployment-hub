@@ -48,7 +48,7 @@ _DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 _DEFAULT_ELEVENLABS_MODEL = "eleven_turbo_v2_5"
 _WEBHOOK_DERIVATION_LABEL = b"d3vonn:vapi:webhook:v1"
 _ALLOWED_HERMES_TOOLS = {"create_hermes_task", "enqueue_hermes_task", "hermes_task"}
-_ALLOWED_FILM_TOOLS = {"query_film_intelligence"}
+_ALLOWED_FILM_TOOLS = {"query_film_intelligence", "find_movie_scene", "create_scene_blueprint"}
 _ALLOWED_GRAPH_TOOLS = {"graph_action"}
 _ALLOWED_VOICE_TOOLS = _ALLOWED_HERMES_TOOLS | _ALLOWED_FILM_TOOLS | _ALLOWED_GRAPH_TOOLS
 _GRAPH_ACTIONS = {"open", "select", "trace", "run", "monitor", "connect", "expand", "filter", "search", "ask", "stop", "view"}
@@ -230,6 +230,43 @@ def _inline_assistant(server_url: str, voice_context: dict[str, Any] | None = No
                                 },
                             },
                             "required": ["query"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "async": False,
+                    "function": {
+                        "name": "find_movie_scene",
+                        "description": (
+                            "Find ranked reference scenes in authorized indexed AI Films footage by cinematic meaning, "
+                            "including action, mood, camera movement, lighting, sound, or dialogue context."
+                        ),
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "Natural-language description of the scene or filmmaking technique."},
+                                "limit": {"type": "integer", "minimum": 1, "maximum": 8},
+                            },
+                            "required": ["query"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "async": False,
+                    "function": {
+                        "name": "create_scene_blueprint",
+                        "description": "Analyze one authorized indexed scene and extract general Scene DNA into an original production blueprint.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "asset_id": {"type": "string"},
+                                "objective": {"type": "string"},
+                                "start_time": {"type": "number", "minimum": 0},
+                                "end_time": {"type": "number", "minimum": 0},
+                            },
+                            "required": ["asset_id", "objective"],
                         },
                     },
                 },
@@ -454,6 +491,93 @@ async def _query_film_intelligence(parameters: dict[str, Any]) -> dict[str, Any]
     }
 
 
+async def _find_movie_scene(parameters: dict[str, Any]) -> dict[str, Any]:
+    query = str(parameters.get("query") or "").strip()
+    if not query:
+        return {"status": "rejected", "message": "A scene description is required."}
+    try:
+        limit = int(parameters.get("limit") or 5)
+    except (TypeError, ValueError):
+        limit = 5
+    limit = max(1, min(limit, 8))
+    try:
+        from backend.ai_films.twelvelabs import TwelveLabsError
+        from backend.ai_films.twelvelabs_index import TwelveLabsIndexClient
+        client = TwelveLabsIndexClient()
+        provider_result = await asyncio.wait_for(
+            client.search(
+                query,
+                page_limit=limit,
+                search_options=("visual", "audio", "transcription"),
+                transcription_options=("lexical", "semantic"),
+                group_by="clip",
+                operator="or",
+                include_user_metadata=True,
+            ),
+            timeout=_JOCKEY_TOOL_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        return {"status": "unavailable", "message": "Scene search exceeded the live voice deadline."}
+    except TwelveLabsError:
+        return {"status": "unavailable", "message": "Scene search could not complete the request."}
+    except Exception:
+        logger.exception("Voice scene finder failed")
+        return {"status": "unavailable", "message": "Scene Finder is temporarily unavailable."}
+    data = provider_result.get("data")
+    scenes = data if isinstance(data, list) else provider_result.get("clips")
+    if not isinstance(scenes, list):
+        scenes = []
+    return {"status": "ok", "provider": "twelvelabs", "mode": "scene-finder", "query": query, "scenes": _redact(scenes[:limit])}
+
+
+async def _create_scene_blueprint(parameters: dict[str, Any]) -> dict[str, Any]:
+    asset_id = str(parameters.get("asset_id") or "").strip()
+    objective = str(parameters.get("objective") or "").strip()
+    if not asset_id or not objective:
+        return {"status": "rejected", "message": "asset_id and objective are required."}
+    start_time = parameters.get("start_time")
+    end_time = parameters.get("end_time")
+    try:
+        start_value = float(start_time) if start_time is not None else None
+        end_value = float(end_time) if end_time is not None else None
+    except (TypeError, ValueError):
+        return {"status": "rejected", "message": "Scene timestamps must be numeric."}
+    if start_value is not None and end_value is not None and end_value - start_value < 4:
+        return {"status": "rejected", "message": "Scene blueprint windows must be at least 4 seconds."}
+    prompt = (
+        "Analyze this reference clip for general filmmaking technique and produce an original D3VONN.IO production blueprint. "
+        f"Production objective: {objective}\n"
+        "Cover composition, camera position and movement, estimated lens behavior, blocking, lighting, palette, production design, "
+        "editing rhythm, sound, VFX/SFX, narrative function, and reusable Scene DNA tags. "
+        "Do not reproduce copyrighted dialogue or recommend copying a unique character identity, logo, costume, set, or exact shot sequence. "
+        "The adaptation must be materially original."
+    )
+    try:
+        from backend.ai_films.twelvelabs import TwelveLabsError
+        from backend.ai_films.twelvelabs_analyze import TwelveLabsAnalyzeClient
+        client = TwelveLabsAnalyzeClient()
+        result = await asyncio.wait_for(
+            client.analyze_asset(
+                asset_id,
+                prompt,
+                model_name="pegasus1.5",
+                temperature=0.2,
+                max_tokens=4096,
+                start_time=start_value,
+                end_time=end_value,
+            ),
+            timeout=_JOCKEY_TOOL_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError:
+        return {"status": "unavailable", "message": "Scene blueprint analysis exceeded the live voice deadline."}
+    except TwelveLabsError:
+        return {"status": "unavailable", "message": "Scene blueprint analysis could not complete the request."}
+    except Exception:
+        logger.exception("Voice scene blueprint failed")
+        return {"status": "unavailable", "message": "Scene blueprint analysis is temporarily unavailable."}
+    return {"status": "ok", "provider": "twelvelabs", "mode": "scene-blueprint", "asset_id": asset_id, "data": _redact(result)}
+
+
 async def _handle_tool_calls(
     message: dict[str, Any],
     event_id: str,
@@ -486,6 +610,10 @@ async def _handle_tool_calls(
                 "status": "rejected",
                 "message": "An authenticated D3VONN voice session is required for voice tools.",
             }
+        elif name == "find_movie_scene":
+            result = await _find_movie_scene(parameters)
+        elif name == "create_scene_blueprint":
+            result = await _create_scene_blueprint(parameters)
         elif name in _ALLOWED_FILM_TOOLS:
             result = await _query_film_intelligence(parameters)
         elif name in _ALLOWED_GRAPH_TOOLS:
