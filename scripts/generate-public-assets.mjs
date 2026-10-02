@@ -1,8 +1,11 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { CANONICAL_ORIGIN, PUBLIC_ROUTES, canonicalUrl } from './site-config.mjs';
 
 const publicDir = path.resolve('public');
+const commitSha = process.env.VERCEL_GIT_COMMIT_SHA
+  || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
 await mkdir(path.join(publicDir, '.well-known'), { recursive: true });
 
 const sitemap = [
@@ -57,6 +60,10 @@ Canonical: ${CANONICAL_ORIGIN}/.well-known/security.txt
 `;
 
 await Promise.all([
+  writeFile(path.join(publicDir, 'health.json'), JSON.stringify({
+    ok: true, service: 'd3vonn-web', environment: 'production',
+    status: 'healthy', commit_sha: commitSha,
+  }, null, 2) + '\n', 'utf8'),
   writeFile(path.join(publicDir, 'sitemap.xml'), sitemap, 'utf8'),
   writeFile(path.join(publicDir, 'robots.txt'), robots, 'utf8'),
   writeFile(path.join(publicDir, '.well-known', 'security.txt'), securityTxt, 'utf8'),

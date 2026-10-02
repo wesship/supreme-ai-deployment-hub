@@ -1,6 +1,6 @@
 /**
  * usePublicStats — fetches live platform stats from the public API endpoint.
- * Falls back to sensible placeholder values if the API is unreachable.
+ * Reports unavailable measurements as unknown when the API is unreachable.
  * Auto-refreshes every 60 seconds.
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -11,18 +11,18 @@ const HEALTH_URL = `${API_BASE}/health`;
 const REFRESH_INTERVAL = 60_000; // 60 seconds
 
 export interface PlatformStats {
-  activeAgents: number;
-  completedWorkflows: number;
-  uptimePercent: number;
-  queuePending: number;
-  totalTasksProcessed: number;
+  activeAgents: number | null;
+  completedWorkflows: number | null;
+  uptimePercent: number | null;
+  queuePending: number | null;
+  totalTasksProcessed: number | null;
   latestEvents: Array<{
     agent_id: string;
     event_type: string;
     created_at: string;
     metadata?: Record<string, unknown>;
   }>;
-  systemHealth: 'operational' | 'degraded' | 'down';
+  systemHealth: 'operational' | 'degraded' | 'down' | 'unknown';
 }
 
 export interface PublicStatsResult {
@@ -35,13 +35,13 @@ export interface PublicStatsResult {
 }
 
 const FALLBACK_STATS: PlatformStats = {
-  activeAgents: 24,
-  completedWorkflows: 1847,
-  uptimePercent: 99.9,
-  queuePending: 3,
-  totalTasksProcessed: 12_450,
+  activeAgents: null,
+  completedWorkflows: null,
+  uptimePercent: null,
+  queuePending: null,
+  totalTasksProcessed: null,
   latestEvents: [],
-  systemHealth: 'operational',
+  systemHealth: 'unknown',
 };
 
 export function usePublicStats(): PublicStatsResult {
@@ -52,15 +52,14 @@ export function usePublicStats(): PublicStatsResult {
   const [isLive, setIsLive] = useState(false);
 
   const fetchStats = useCallback(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
 
       const response = await fetch(STATS_URL, {
         signal: controller.signal,
         headers: { 'Accept': 'application/json' },
       });
-      clearTimeout(timeout);
 
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
@@ -75,17 +74,18 @@ export function usePublicStats(): PublicStatsResult {
         queuePending: data.queue_pending ?? FALLBACK_STATS.queuePending,
         totalTasksProcessed: data.total_tasks_processed ?? FALLBACK_STATS.totalTasksProcessed,
         latestEvents: data.latest_events ?? [],
-        systemHealth: data.system_health ?? 'operational',
+        systemHealth: data.system_health ?? 'unknown',
       });
-      setIsLive(true);
+      setIsLive(data.telemetry_available === true && data.cached !== true);
       setError(null);
       setLastUpdated(new Date());
     } catch (err) {
-      // Graceful fallback — use placeholder stats but mark as not live
+      // Keep the last observation, but never describe it as live after a failure.
       setIsLive(false);
       setError(err instanceof Error ? err.message : 'Failed to fetch stats');
       // Keep existing stats (either previous live data or fallback)
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }, []);

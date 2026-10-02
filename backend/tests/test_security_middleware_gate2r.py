@@ -82,3 +82,47 @@ def test_rate_limiter_fails_open_without_redis_in_local_dev(monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "development")
     client = TestClient(_app(RateLimitMiddleware))
     assert client.get("/echo").status_code == 200
+
+
+def test_unvalidated_tokens_and_forwarded_headers_share_client_allowance(monkeypatch):
+    from backend.middleware import rate_limit
+
+    class FakeRedis:
+        def __init__(self):
+            self.counts = {}
+
+        async def incr(self, key):
+            self.counts[key] = self.counts.get(key, 0) + 1
+            return self.counts[key]
+
+        async def expire(self, key, seconds):
+            return True
+
+    store = FakeRedis()
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379")
+    monkeypatch.setenv("RATE_LIMIT_REQUESTS_PER_MINUTE", "2")
+    monkeypatch.setattr(rate_limit.Redis, "from_url", lambda *a, **kw: store)
+    monkeypatch.setattr(rate_limit.time, "time", lambda: 120)
+    client = TestClient(_app(RateLimitMiddleware))
+    for i, expected in enumerate((200, 200, 429)):
+        response = client.get("/echo", headers={
+            "Authorization": f"Bearer invalid-{i}",
+            "X-Forwarded-For": f"192.0.2.{i}",
+        })
+        assert response.status_code == expected
+    assert len(store.counts) == 1
+
+
+def test_redis_failure_blocks_production_but_not_local(monkeypatch):
+    from backend.middleware import rate_limit
+
+    class BrokenRedis:
+        async def incr(self, key):
+            raise ConnectionError("shared limiter offline")
+
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379")
+    monkeypatch.setattr(rate_limit.Redis, "from_url", lambda *a, **kw: BrokenRedis())
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    assert TestClient(_app(RateLimitMiddleware)).get("/echo").status_code == 503
+    monkeypatch.setenv("ENVIRONMENT", "local")
+    assert TestClient(_app(RateLimitMiddleware)).get("/echo").status_code == 200

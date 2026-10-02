@@ -32,9 +32,9 @@ const LiveStatsCommandCenter: React.FC = () => {
   const { stats, isLive, lastUpdated } = usePublicStats();
 
   const metricCards = [
-    { k: 'Agents online', v: String(stats.activeAgents) },
-    { k: 'Tasks processed', v: stats.totalTasksProcessed >= 1000 ? `${(stats.totalTasksProcessed / 1000).toFixed(1)}K` : String(stats.totalTasksProcessed) },
-    { k: 'System uptime', v: `${stats.uptimePercent}%` },
+    { k: 'Agents online', v: stats.activeAgents == null ? 'Not reported' : String(stats.activeAgents) },
+    { k: 'Tasks processed', v: stats.totalTasksProcessed == null ? 'Not reported' : stats.totalTasksProcessed >= 1000 ? `${(stats.totalTasksProcessed / 1000).toFixed(1)}K` : String(stats.totalTasksProcessed) },
+    { k: 'System uptime', v: stats.uptimePercent == null ? 'Not reported' : `${stats.uptimePercent}%` },
   ];
 
   // Map latest events to agent activity display

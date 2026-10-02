@@ -10,8 +10,8 @@ import path from 'path';
  * is the correct choice for a Vite-based project (no transform overhead).
  *
  * Coverage thresholds enforce a minimum quality gate:
- *   - 70% lines/functions/branches/statements to start
- *   - Raise these incrementally as you add tests
+ *   - Enforce the measured global baseline without hiding untested code
+ *   - Require focused security boundary coverage in the release gate
  */
 export default defineConfig({
   plugins: [react()],
@@ -64,13 +64,11 @@ export default defineConfig({
         'src/**/*.stories.{ts,tsx}',
       ],
       thresholds: {
-        // NOTE: thresholds set to current coverage baseline (4-5%).
-        // Raise these incrementally as test coverage improves.
-        // Target: lines 70, functions 70, branches 60, statements 70
-        lines: 4,
-        functions: 4,
-        branches: 2,
-        statements: 4,
+        // Enforce the measured baseline while critical modules gain focused tests.
+        lines: 9,
+        functions: 8,
+        branches: 7,
+        statements: 9,
       },
     },
 

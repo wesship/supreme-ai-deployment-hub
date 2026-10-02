@@ -10,18 +10,18 @@ const LiveStatsBar: React.FC = () => {
   const { stats, isLive } = usePublicStats();
 
   const displayStats = [
-    { value: `${stats.uptimePercent}%`, label: 'System Uptime' },
-    { value: String(stats.activeAgents), label: 'Active Agents' },
+    { value: stats.uptimePercent == null ? 'Not reported' : `${stats.uptimePercent}%`, label: 'System Uptime' },
+    { value: stats.activeAgents == null ? 'Not reported' : String(stats.activeAgents), label: 'Active Agents' },
     { value: '256-bit', label: 'End-to-End Encryption' },
     {
-      value: stats.completedWorkflows >= 1000
+      value: stats.completedWorkflows == null ? 'Not reported' : stats.completedWorkflows >= 1000
         ? `${(stats.completedWorkflows / 1000).toFixed(1)}K`
         : String(stats.completedWorkflows),
       label: 'Workflows Completed',
     },
     {
       value: stats.systemHealth === 'operational' ? 'Operational' :
-             stats.systemHealth === 'degraded' ? 'Degraded' : 'Down',
+             stats.systemHealth === 'degraded' ? 'Degraded' : stats.systemHealth === 'down' ? 'Down' : 'Unknown',
       label: 'System Health',
     },
   ];

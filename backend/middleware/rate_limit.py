@@ -6,7 +6,6 @@ usable.
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import time
@@ -33,12 +32,11 @@ def _strict_environment() -> bool:
 
 
 def _client_identity(request: Request) -> str:
-    authorization = request.headers.get("authorization", "")
-    if authorization.lower().startswith("bearer "):
-        digest = hashlib.sha256(authorization[7:].encode("utf-8")).hexdigest()
-        return f"token:{digest[:24]}"
-    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
-    host = forwarded or (request.client.host if request.client else "unknown")
+    # Authentication happens in endpoint dependencies, after this middleware.
+    # Never give an unverified credential or forwarded header a fresh allowance.
+    # ASGI server proxy handling must be configured with trusted proxy addresses;
+    # request.client then contains the server-validated client address.
+    host = request.client.host if request.client else "unknown"
     return f"ip:{host}"
 
 

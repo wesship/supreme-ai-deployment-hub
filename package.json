@@ -99,7 +99,7 @@
     "@vercel/analytics": "1.6.1",
     "@vercel/functions": "^3.9.3",
     "@xyflow/react": "^12.6.0",
-    "axios": "^1.18.0",
+    "axios": "^1.20.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -178,11 +178,12 @@
       "protobufjs": "7.6.5",
       "@babel/core": "7.29.7",
       "sharp": "0.35.4",
-      "brace-expansion": "5.0.9",
+      "brace-expansion": "5.0.12",
       "minimatch@<4": "10.2.5",
-      "fast-uri": "3.1.7",
-      "ip-address": "10.3.1",
-      "browserslist": "4.28.7"
+      "fast-uri": "3.1.8",
+      "ip-address": "10.7.3",
+      "browserslist": "4.28.7",
+      "esbuild": "0.28.1"
     }
   }
 }

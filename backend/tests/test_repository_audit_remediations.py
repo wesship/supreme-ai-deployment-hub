@@ -67,13 +67,15 @@ class _ActionDB:
 
 
 def _approved_action() -> dict[str, object]:
-    return {
+    row = {
         "id": "a1",
         "agent_name": "audit-test",
         "action_type": "block_ip",
-        "status": "approved",
+        "status": "pending_approval",
         "details": {"source": "audit-test"},
     }
+    ApprovalExecutionService(_ActionDB([row])).approve("a1", "audit-admin")
+    return row
 
 
 def test_market_query_defaults_to_non_persisting():

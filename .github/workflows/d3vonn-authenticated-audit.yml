@@ -5,10 +5,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/d3vonn-authenticated-audit.yml'
-      - 'src/pages/Login.tsx'
-      - 'tests/e2e/authenticated-production-audit.spec.ts'
   schedule:
     - cron: '17 9 * * 1'
 
@@ -36,6 +32,11 @@ jobs:
           set -euo pipefail
           test -n "${E2E_TEST_EMAIL}" || { echo 'Missing E2E_TEST_EMAIL'; exit 1; }
           test -n "${E2E_TEST_PASSWORD}" || { echo 'Missing E2E_TEST_PASSWORD'; exit 1; }
+
+      - name: Require exact deployed API and frontend commit
+        env:
+          CERTIFIED_SHA: ${{ github.sha }}
+        run: node scripts/wait-deployed-commit.mjs
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda
