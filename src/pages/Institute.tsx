@@ -1,6 +1,7 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
+import PublicPageShell from '@/components/shell/PublicPageShell';
 import {
   ArrowRight,
   BookOpen,
@@ -75,14 +76,14 @@ const operatingPillars = [
 
 const Institute: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#03130b] text-white">
+    <PublicPageShell breadcrumbs={false} offsetHeader={false} className="bg-[#03130b] text-white">
       <Helmet>
         <title>D3VONN.IO Institute — Technology, Global Relief & Sustainable Development</title>
         <meta
           name="description"
           content="D3VONN.IO Institute advances technology, environmental stewardship, education, health, housing, youth development, and global relief through community-centered programs and partnerships."
         />
-        <link rel="canonical" href="https://d3vonn.io/institute" />
+        <link rel="canonical" href="https://www.d3vonn.io/institute" />
       </Helmet>
 
       <section className="relative isolate overflow-hidden border-b border-emerald-300/15 bg-[#03130b]">
@@ -242,7 +243,7 @@ const Institute: React.FC = () => {
           </div>
         </div>
       </section>
-    </div>
+    </PublicPageShell>
   );
 };
 
