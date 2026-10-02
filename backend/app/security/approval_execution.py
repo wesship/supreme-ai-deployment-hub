@@ -51,6 +51,9 @@ def _approval_payload(action: dict[str, Any]) -> dict[str, Any]:
     details.pop("approval", None)
     details.pop("execution", None)
     return {
+        "id": action.get("id"),
+        "workspace_id": action.get("workspace_id"),
+        "tenant_id": action.get("tenant_id"),
         "action_type": action.get("action_type"),
         "target": action.get("target"),
         "agent_name": action.get("agent_name"),
@@ -188,6 +191,8 @@ class ApprovalExecutionService:
             raise ValueError("security action approval has expired")
         if approved_at > now or expiry <= approved_at:
             raise ValueError("security action approval timeline is invalid")
+        if expiry > approved_at + timedelta(seconds=self.approval_ttl_seconds):
+            raise ValueError("security action approval exceeds allowed lifetime")
 
     async def execute_approved(self, action_id: str) -> dict[str, Any]:
         action = self._get_action(action_id)

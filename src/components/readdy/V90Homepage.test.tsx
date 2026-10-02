@@ -79,6 +79,6 @@ describe('Readdy V90 homepage presentation boundary', () => {
 
   it('retains the public API field mapping without fabricating values for missing fields', () => {
     const normalized = normalizePublicStats({ active_agents: 7, completed_workflows: 29, total_tasks_processed: 101, system_health: 'healthy' });
-    expect(normalized).toMatchObject({ activeAgents: '7', workflowsToday: '29', knowledgeNodes: '101', systemStatus: 'healthy', hermesQueue: 'Not reported' });
+    expect(normalized).toMatchObject({ activeAgents: '7', workflowsCompleted: '29', tasksProcessed: '101', systemStatus: 'healthy', hermesQueue: 'Not reported' });
   });
 });

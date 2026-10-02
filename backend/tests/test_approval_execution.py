@@ -107,6 +107,26 @@ async def test_approval_rejects_future_or_reversed_timestamp_window():
 
 
 @pytest.mark.asyncio
+async def test_approval_receipt_cannot_be_transferred_to_another_action():
+    row = make_action()
+    service = approve(row)
+    row["id"] = "a2"
+    with pytest.raises(ValueError, match="payload changed"):
+        await service.execute_approved("a2")
+
+
+@pytest.mark.asyncio
+async def test_approval_expiry_cannot_be_extended_past_allowed_lifetime():
+    from datetime import datetime, timedelta
+    row = make_action()
+    service = approve(row)
+    receipt = row["details"]["approval"]
+    receipt["expires_at"] = (datetime.fromisoformat(receipt["approved_at"]) + timedelta(days=1)).isoformat()
+    with pytest.raises(ValueError, match="allowed lifetime"):
+        await service.execute_approved("a1")
+
+
+@pytest.mark.asyncio
 async def test_payload_mutation_during_atomic_claim_never_reaches_executor(monkeypatch):
     row = make_action()
     row["parameters"] = {"ip": "192.0.2.1"}

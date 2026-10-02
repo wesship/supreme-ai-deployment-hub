@@ -4,8 +4,15 @@ import { execFileSync } from 'node:child_process';
 import { CANONICAL_ORIGIN, PUBLIC_ROUTES, canonicalUrl } from './site-config.mjs';
 
 const publicDir = path.resolve('public');
-const commitSha = process.env.VERCEL_GIT_COMMIT_SHA
-  || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+let commitSha = process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null;
+if (!commitSha) {
+  try {
+    commitSha = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    // Source archives and container stages may omit git. Their revision is unknown.
+  }
+}
+if (commitSha && !/^[0-9a-f]{40}$/.test(commitSha)) throw new Error('Invalid frontend commit SHA');
 await mkdir(path.join(publicDir, '.well-known'), { recursive: true });
 
 const sitemap = [

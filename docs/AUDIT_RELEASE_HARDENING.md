@@ -5,7 +5,7 @@ This change addresses the six release gaps identified against main commit
 
 ## Execution safety
 
-Containment approval binds action type, target, agent, parameters and execution
+Containment approval binds action ID, workspace/tenant, type, target, agent, parameters and execution
 relevant details using a canonical SHA-256 digest. Approval requires a human
 identity, timezone-aware approval/expiry timestamps and a valid 15-minute window.
 The executor validates the payload and expiry both before and immediately after
@@ -27,8 +27,10 @@ Completed workflow counts come from completed `workflow_runs`; processed task
 counts come from terminal `hermes_tasks`. Active agents are inferred from the latest
 event per agent within the most recent 200 activity records, with that limitation
 included in the response. Queue counts come from pending approval records. No
-uptime or health percentage is invented. Cached observations are marked cached
-and the frontend does not describe them as live.
+uptime, health percentage or activity progress is invented. Cached observations are marked cached
+and the frontend does not describe them as live. Homepage labels describe lifetime
+workflow and processed-task totals accurately. Source archives without git report
+an unknown revision; they cannot pass exact-commit production certification.
 
 Required chat, retrieval, voice, runtime identity, Hermes, approval and public
 telemetry router imports fail visibly. Startup verifies required nested routes
@@ -60,11 +62,11 @@ security and coverage gates.
 
 ## Local validation
 
-- General backend suite: 1,077 passed; Hermes suite: 156 passed.
-- Final focused release suite: 86 passed; canary authentication regressions: 4 passed.
+- General backend suite: 1,090 passed; Hermes suite: 156 passed.
+- Focused release suite before receipt-transfer tests: 86 passed; canary authentication regressions: 4 passed.
 - Frontend: 826 passed, 10 skipped; coverage 9.50% lines, 9.71% statements,
   8.81% functions and 7.76% branches.
-- Security modules: approval 92.75%, rate limiting 94.34%, telemetry 100%.
+- Security modules: approval 92.86%, rate limiting 94.34%, telemetry 100%.
 - TypeScript, ESLint (existing warnings), production build, bundle credential scan,
   secret scan, workflow YAML/action-reference validation, workflow audit and CI
   doctor passed.

@@ -172,8 +172,8 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
 
         <div className="sovereign-telemetry" aria-label="Live platform telemetry" aria-live="polite">
           <div><small>ACTIVE AGENTS</small><strong>{telemetry.activeAgents}</strong></div>
-          <div><small>WORKFLOWS TODAY</small><strong>{telemetry.workflowsToday}</strong></div>
-          <div><small>KNOWLEDGE NODES</small><strong>{telemetry.knowledgeNodes}</strong></div>
+          <div><small>WORKFLOWS COMPLETED</small><strong>{telemetry.workflowsCompleted}</strong></div>
+          <div><small>TASKS PROCESSED</small><strong>{telemetry.tasksProcessed}</strong></div>
           <div><small>SYSTEM STATUS</small><strong>{telemetry.systemStatus}</strong></div>
           <div><small>HERMES QUEUE</small><strong>{telemetry.hermesQueue}</strong></div>
         </div>

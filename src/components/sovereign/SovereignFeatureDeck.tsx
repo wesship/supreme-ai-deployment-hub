@@ -119,8 +119,8 @@ const SovereignFeatureDeck: React.FC<Props> = ({ telemetry }) => {
           <strong>{telemetry.hermesQueue}</strong>
         </div>
         <div>
-          <small>WORKFLOWS TODAY</small>
-          <strong>{telemetry.workflowsToday}</strong>
+          <small>WORKFLOWS COMPLETED</small>
+          <strong>{telemetry.workflowsCompleted}</strong>
         </div>
         <Link to="/voice-studio" className="feature-deck-voice">
           <span className="voice-aperture" aria-hidden="true"><i /><i /><i /></span>
