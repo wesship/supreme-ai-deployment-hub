@@ -55,6 +55,7 @@ docs/
 !README.md
 !MASTER_CONTEXT.md
 !public/pilot-checklist.md
+!public/holo/D3VONN_PROMPT_PACK.md
 
 # Scripts — exclude by default but preserve production build scripts and their dependencies
 scripts/*
