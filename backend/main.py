@@ -129,6 +129,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.visual_intelligence.router", "router", "/api"),
     ("backend.ai_films.policy_promotion_review_router", "router", "/api"),
     ("backend.ai_films.policy_promotion_rollout_router", "router", "/api"),
+    ("backend.influencer_studio.router", "router", None),
     ("backend.rag.router", "router", None),
     ("backend.knowledge.router", "router", None),
     ("backend.research_os.router", "router", None),
