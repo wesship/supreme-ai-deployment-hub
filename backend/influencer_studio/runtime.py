@@ -147,6 +147,10 @@ class InfluencerCampaignRuntime:
 
         if request.persona_id != campaign.persona_id:
             raise ValueError("media request persona does not match campaign persona")
+        if request.reference_assets and request.options.get("reference_rights_verified") is not True:
+            raise ValueError(
+                "Reference assets require options.reference_rights_verified=true"
+            )
         provider: MediaProvider = self.providers.get(provider_name)
         if not provider.supports(request.capability):
             raise ValueError(
