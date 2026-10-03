@@ -351,7 +351,7 @@ class ComfyUIWanProvider(MediaProvider):
 
 
 def configured_provider_health(environ: dict[str, str] | None = None) -> dict[str, Any]:
-    source = environ or dict(os.environ)
+    source = dict(os.environ) if environ is None else environ
     eromify_key = bool(source.get("EROMIFY_API_KEY", "").strip())
     comfy_url = bool(source.get("COMFYUI_BASE_URL", "").strip())
     return {
