@@ -188,6 +188,21 @@ async def generate_campaign_asset(
     return {"campaign": campaign, "asset": asset}
 
 
+@router.post("/campaigns/{campaign_id}/assets/{asset_id}/refresh")
+async def refresh_asset(
+    campaign_id: str,
+    asset_id: str,
+    principal: OCCPrincipal = Depends(require_occ_access),
+):
+    runtime = _runtime(principal)
+    campaign = await _campaign_or_404(runtime, campaign_id)
+    try:
+        asset = await runtime.refresh_asset_status(campaign, asset_id=asset_id)
+    except (ValueError, RuntimeError, KeyError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"asset": asset}
+
+
 @router.post("/campaigns/{campaign_id}/qa")
 async def enter_qa(
     campaign_id: str,
