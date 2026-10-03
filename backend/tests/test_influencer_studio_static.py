@@ -26,4 +26,4 @@ def test_documented_api_flow_stops_before_irreversible_publish() -> None:
     assert "POST /api/influencer-studio/personas" in readme
     assert "POST /api/influencer-studio/campaigns/{id}/ready" in readme
     assert "External publishing is disabled in this gate." in readme
-    assert "automatically publish" not in readme.lower()
+    assert "does **not** automatically publish" in readme
