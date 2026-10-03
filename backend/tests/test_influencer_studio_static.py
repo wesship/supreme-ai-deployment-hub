@@ -14,6 +14,8 @@ def test_influencer_studio_router_and_private_pilot_ui_are_registered() -> None:
     page = PAGE.read_text(encoding="utf-8")
 
     assert '("backend.influencer_studio.router", "router", None)' in main
+    assert '"backend.influencer_studio.router",' in main
+    assert '"/api/influencer-studio/health": "get"' in main
     assert 'import("./pages/InfluencerStudio")' in app
     assert 'path="/influencer-studio"' in app
     assert "<AdminRoute><InfluencerStudio /></AdminRoute>" in app
