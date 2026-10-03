@@ -4,7 +4,7 @@ from typing import Any
 
 from backend.hermes.dependencies import HermesDependencies
 
-from .assets import CampaignAssetRepository, asset_from_job
+from .assets import CampaignAssetRepository, asset_from_job, normalize_status
 from .hermes_bridge import InfluencerHermesBridge
 from .models import Campaign, CampaignState, Persona
 from .providers import MediaProvider, MediaRequest, ProviderRegistry
@@ -168,15 +168,45 @@ class InfluencerCampaignRuntime:
         )
         return campaign, saved
 
+
+    async def refresh_asset_status(
+        self,
+        campaign: Campaign,
+        *,
+        asset_id: str,
+    ):
+        assets = await self.assets.list_for_campaign(campaign.campaign_id)
+        asset = next((item for item in assets if item.asset_id == asset_id), None)
+        if asset is None:
+            raise ValueError("campaign asset not found")
+        provider = self.providers.get(asset.provider)
+        job = await provider.get_job(asset.provider_job_id)
+        asset.status = normalize_status(job.status)
+        asset.provenance = {
+            **asset.provenance,
+            "provider_refresh": dict(job.provenance),
+        }
+        saved = await self.assets.save(asset)
+        await self.hermes.event_sink.emit(
+            {
+                "event": "influencer_studio.media.refreshed",
+                "campaign_id": campaign.campaign_id,
+                "asset_id": asset.asset_id,
+                "provider": asset.provider,
+                "provider_job_id": asset.provider_job_id,
+                "status": asset.status,
+            }
+        )
+        return saved
+
     async def enter_qa(self, campaign: Campaign) -> Campaign:
         if campaign.state != CampaignState.GENERATING:
             raise ValueError("campaign must be generating before QA")
         assets = await self.assets.list_for_campaign(campaign.campaign_id)
         if not assets:
             raise ValueError("campaign has no generated assets")
-        failed = [asset for asset in assets if asset.status == "failed"]
-        if failed:
-            raise ValueError("campaign has failed generated assets")
+        if any(asset.status != "succeeded" for asset in assets):
+            raise ValueError("all campaign assets must succeed before QA")
         return await self.bridge.transition(campaign, CampaignState.QA)
 
     async def certify_asset(
@@ -196,6 +226,16 @@ class InfluencerCampaignRuntime:
         asset.rights_verified = rights_verified
         asset.qa_passed = qa_passed
         if ai_film_asset_id:
+            rows = await self.hermes.repository.list_rows(
+                "ai_film_assets",
+                {
+                    "id": f"eq.{ai_film_asset_id}",
+                    "owner_id": f"eq.{self.owner_id}",
+                    "limit": "1",
+                },
+            )
+            if not rows:
+                raise ValueError("AI Films asset is not owned by this campaign owner")
             asset.ai_film_asset_id = ai_film_asset_id
         if storage_path:
             asset.storage_path = storage_path
@@ -235,12 +275,16 @@ class InfluencerCampaignRuntime:
             raise ValueError("provenance/rights verification is incomplete")
         if any(not asset.qa_passed for asset in assets):
             raise ValueError("QA is incomplete")
-        return await self.bridge.mark_ready_to_publish(
+        updated = await self.bridge.mark_ready_to_publish(
             campaign,
             approved_by=approved_by,
             provenance_verified=True,
             qa_passed=True,
         )
+        for asset in assets:
+            asset.approved_by = approved_by
+            await self.assets.save(asset)
+        return updated
 
     async def snapshot(self, campaign: Campaign) -> dict[str, Any]:
         assets = await self.assets.list_for_campaign(campaign.campaign_id)
