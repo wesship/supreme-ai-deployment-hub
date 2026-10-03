@@ -21,7 +21,10 @@ export default function HoloWorkspace() {
   const [cards, setCards] = useState<Card[]>(initial), cardsRef = useRef(cards); cardsRef.current = cards;
   const [view, setView] = useState<View>(defaultView), viewRef = useRef(view); viewRef.current = view;
   const [selected, setSelected] = useState('hermes');
-  const [display, setDisplay] = useState(() => new URLSearchParams(location.search).get('display') === 'xreal' ? 'xreal' : 'monitor');
+  const [display, setDisplay] = useState(() => {
+    const requested = new URLSearchParams(location.search).get('display');
+    return requested === 'xreal' || requested === 'vision-pro' ? requested : 'monitor';
+  });
   const [camera, setCamera] = useState(''), [mirror, setMirror] = useState(true), [preview, setPreview] = useState(false);
   const [message, setMessage] = useState(''), [hands, setHands] = useState<Hand[]>([]);
   const importing = useRef(false);
@@ -92,19 +95,20 @@ export default function HoloWorkspace() {
     if (!voice) { setMessage('No local English voice is installed.'); return; }
     speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(current.detail); utterance.voice = voice; speechSynthesis.speak(utterance);
   }
-  return <div data-voice-skip ref={displayConnection.rootRef} className={`holo-workspace ${display === 'xreal' ? 'holo-glasses' : ''}`}>
-    <header className="holo-header"><Link reloadDocument to="/">D3VONN.IO</Link><span>HAND WORKSPACE</span><Link reloadDocument to="/knowledge-graph">Exit to knowledge graph</Link></header>
+  return <div data-voice-skip ref={displayConnection.rootRef} className={`holo-workspace ${display === 'xreal' ? 'holo-glasses' : display === 'vision-pro' ? 'holo-vision-pro' : ''}`}>
+    <header className="holo-header"><Link reloadDocument to="/">D3VONN.IO</Link><span>HAND WORKSPACE</span><a href="/holo/D3VONN_PROMPT_PACK.md" download>Download prompt pack</a><Link reloadDocument to="/knowledge-graph">Exit to knowledge graph</Link></header>
     <div className="holo-intro"><p className="holo-eyebrow">ONE PLATFORM · ONE INTELLIGENCE</p><h1>Your intelligence, within reach.</h1><p>Move your workspace with your hands. Connect your display, then bring Hermes into the conversation.</p></div>
     <div className="holo-controls" aria-label="Workspace controls">
-      <label>Display <select value={display} onChange={e => setDisplay(e.target.value)}><option value="monitor">Monitor</option><option value="xreal">XREAL / display glasses</option></select></label>
-      <button onClick={displayConnection.toggleFullscreen}>{displayConnection.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}</button>
-      <button onClick={displayConnection.findCameras}>Find cameras</button>
+      <label>Display <select value={display} onChange={e => { tracking.stop(); drag.current = null; dual.current = null; pointer.current = null; setDisplay(e.target.value); }}><option value="monitor">Monitor</option><option value="xreal">XREAL / display glasses</option><option value="vision-pro">Apple Vision Pro / Safari</option></select></label>
+      {display !== 'vision-pro' && <button onClick={displayConnection.toggleFullscreen}>{displayConnection.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}</button>}
+      {display !== 'vision-pro' && <><button onClick={displayConnection.findCameras}>Find cameras</button>
       <label>Camera <select value={camera} onChange={e => { tracking.stop(); setCamera(e.target.value); }}><option value="">Default webcam</option>{displayConnection.cameras.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>)}</select></label>
       <label><input type="checkbox" checked={mirror} onChange={e => { tracking.stop(); setMirror(e.target.checked); }} />Mirror camera</label>
       <label><input type="checkbox" checked={preview} onChange={e => setPreview(e.target.checked)} />Show camera preview</label>
-      <button className="holo-primary" onClick={() => tracking.active || tracking.loading ? tracking.stop() : tracking.start(camera || undefined, mirror)}>{tracking.active || tracking.loading ? 'Stop camera' : 'Start hand tracking'}</button>
+      <button className="holo-primary" onClick={() => tracking.active || tracking.loading ? tracking.stop() : tracking.start(camera || undefined, mirror)}>{tracking.active || tracking.loading ? 'Stop camera' : 'Start hand tracking'}</button></>}
     </div>
-    <p role="status" className="holo-status">{tracking.status}{displayConnection.error ? ` · ${displayConnection.error}` : ''}</p>
+    <p role="status" className="holo-status">{display === 'vision-pro' ? 'Safari window mode · use look-and-pinch selection · camera tracking off' : tracking.status}{displayConnection.error ? ` · ${displayConnection.error}` : ''}</p>
+    {display === 'vision-pro' && <p className="holo-help">Open this workspace in Safari on Vision Pro, enlarge the window, then look at a card or button and tap your thumb and index finger together. Use the card selector and zoom buttons. This is a browser window experience; immersive WebXR and native headset sensors are not connected. For host-webcam gestures through Mac Virtual Display, run the Monitor mode on your Mac instead.</p>}
     <details className="holo-connect"><summary>Connect glasses or a monitor</summary><p>Connect XREAL display glasses to a host with USB-C DisplayPort video output, or connect a monitor using its supported cable. In your operating system, extend or mirror the display, move this browser window to it, select the glasses layout and enter fullscreen. Choose audio input and output in your system settings. Hand tracking uses the selected webcam; native glasses sensors and 6DoF are not connected through this browser.</p></details>
     <nav className="holo-mobile-tools" aria-label="All workspace cards">{cards.map(card => <button key={card.id} aria-pressed={selected === card.id} onClick={() => setSelected(card.id)}>{card.title}</button>)}</nav>
     <div className="holo-layout"><section className="holo-main" aria-label="Hand workspace">
@@ -116,14 +120,15 @@ export default function HoloWorkspace() {
         setCards(c => c.map(card => card.id === grabbed.id ? { ...card, x: w.x - grabbed.offset.x, y: w.y - grabbed.offset.y } : card));
       }} onPointerUp={e => { if (pointer.current && !pointer.current.moved) setSelected(pointer.current.id); pointer.current = null; if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); }} onPointerCancel={() => { pointer.current = null; }}>
         <div className="holo-world" style={{ transform: `translate(${view.x}px, ${view.y}px) rotate(${view.angle}rad) scale(${view.scale})` }}>
-          {cards.map(card => <button key={card.id} className={`holo-card ${selected === card.id ? 'is-selected' : ''}`} style={{ left: card.x, top: card.y }} aria-pressed={selected === card.id} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(card.id); } }} onPointerDown={e => {
+          {cards.map(card => <button key={card.id} className={`holo-card ${selected === card.id ? 'is-selected' : ''}`} style={{ left: card.x, top: card.y }} aria-pressed={selected === card.id} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(card.id); } }} onClick={() => { if (display === 'vision-pro') setSelected(card.id); }} onPointerDown={e => {
+            if (display === 'vision-pro') return;
             if (e.button !== 0) return; e.preventDefault(); const p = pointerPosition(e.clientX, e.clientY), w = toWorld(p, viewRef.current);
             pointer.current = { id: card.id, start: p, offset: { x: w.x - card.x, y: w.y - card.y }, moved: false }; stageRef.current?.setPointerCapture(e.pointerId);
           }}><small>{card.route ? 'PLATFORM' : 'LOCAL NOTE'}</small><strong>{card.title}</strong><span>{card.route ? card.detail : card.detail.slice(0, 70)}</span></button>)}
         </div>
         {hands.map(h => <span key={h.id} className={`holo-cursor ${h.pinch ? 'is-pinching' : ''}`} style={{ left: `${h.cursor.x * 100}%`, top: `${h.cursor.y * 100}%` }} />)}
       </div>
-      <p className="holo-help">Pinch to drag · Quick pinch to select · Two pinches to zoom, pan and rotate · Hold peace to reset · Hold two open palms to arrange. Pointer, touch and keyboard work too.</p>
+      {display !== 'vision-pro' && <p className="holo-help">Pinch to drag · Quick pinch to select · Two pinches to zoom, pan and rotate · Hold peace to reset · Hold two open palms to arrange. Pointer, touch and keyboard work too.</p>}
     </section><aside className="holo-detail" aria-label="Selected card"><p className="holo-eyebrow">SELECTED</p><h2>{current?.title ?? 'Select a card'}</h2>{current && <p className="holo-note">{current.detail}</p>}{current?.route ? <Link className="holo-open" reloadDocument to={current.route}>Open {current.title} →</Link> : current ? <div className="holo-controls"><button onClick={readNote}>Read aloud locally</button><button onClick={() => { setCards(c => c.filter(card => card.id !== current.id)); setSelected('hermes'); window.speechSynthesis?.cancel(); }}>Remove note</button></div> : null}
       <div className="holo-voice"><h3>Ask Hermes</h3><p>Use the existing D3VONN voice session. Local notes are excluded from its context.</p><ConversationalVoiceControls context={{ surface: 'holo', route: '/holo', node_id: current?.id, ...(current?.route ? { node_label: current.title, canonical_route: current.route } : {}), ui_session_id: session }} /></div>
       <p role="status">{message}</p><p className="holo-private">Camera frames and imported notes stay on this device. Camera stops when this tab is hidden. Voice connects only when you start it.</p>

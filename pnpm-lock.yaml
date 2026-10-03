@@ -172,18 +172,12 @@ importers:
       '@testing-library/dom':
         specifier: ^10.4.0
         version: 10.4.1
-      '@testing-library/jest-dom':
-        specifier: ^5.17.0
-        version: 5.17.0
       '@testing-library/react':
         specifier: ^14.2.0
         version: 14.3.1(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
-      '@types/jest':
-        specifier: ^29.5.14
-        version: 29.5.14
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -244,9 +238,6 @@ importers:
       jsdom:
         specifier: 23.2.0
         version: 23.2.0
-      lint-staged:
-        specifier: ^15.5.1
-        version: 15.5.2
       lucide-react:
         specifier: ^0.553.0
         version: 0.553.0(react@18.3.1)
@@ -292,9 +283,6 @@ importers:
       tailwind-merge:
         specifier: ^2.5.2
         version: 2.6.1
-      tailwindcss-animate:
-        specifier: ^1.0.7
-        version: 1.0.7(tailwindcss@3.4.19(yaml@2.9.0))
       uuid:
         specifier: ^11.1.1
         version: 11.1.1
@@ -308,6 +296,18 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.19(yaml@2.9.0))
+      lint-staged:
+        specifier: ^15.5.1
+        version: 15.5.2
+      '@types/jest':
+        specifier: ^29.5.14
+        version: 29.5.14
+      '@testing-library/jest-dom':
+        specifier: ^5.17.0
+        version: 5.17.0
       '@axe-core/playwright':
         specifier: ^4.13.0
         version: 4.13.0(playwright-core@1.61.1)
