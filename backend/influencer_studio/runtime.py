@@ -281,8 +281,10 @@ class InfluencerCampaignRuntime:
             provenance_verified=True,
             qa_passed=True,
         )
+        approved_at = self.hermes.clock.now().isoformat()
         for asset in assets:
             asset.approved_by = approved_by
+            asset.approved_at = approved_at
             await self.assets.save(asset)
         return updated
 
@@ -306,6 +308,8 @@ class InfluencerCampaignRuntime:
                     "qa_passed": asset.qa_passed,
                     "ai_film_asset_id": asset.ai_film_asset_id,
                     "storage_path": asset.storage_path,
+                    "approved_by": asset.approved_by,
+                    "approved_at": asset.approved_at,
                 }
                 for asset in assets
             ],
