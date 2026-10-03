@@ -74,6 +74,7 @@ const SecurityDashboard = lazy(() => import("./pages/security/SecurityDashboard"
 const SecurityOps = lazy(() => import("./pages/security/SecurityOps"));
 const SecurityCommandCenter = lazy(() => import("./pages/security/CommandCenter"));
 const SecretsVault = lazy(() => import("./pages/security/SecretsVault"));
+const GuardianPilot = lazy(() => import("./pages/security/GuardianPilot"));
 const Pricing = lazy(() => import("./pages/Pricing"));
 const ResearchOS = lazy(() => import("./pages/ResearchOS"));
 const MarketIntelligence = lazy(() => import("./pages/MarketIntelligence"));
@@ -279,6 +280,8 @@ function App() {
                 <Route path="/enterprise" element={<Security />} />
                 <Route path="/enterprise-readiness" element={<EnterpriseReadiness />} />
                 <Route path="/assurance" element={<AdminRoute><AssuranceConsole /></AdminRoute>} />
+                <Route path="/guardian" element={<AuthenticatedRoute><GuardianPilot /></AuthenticatedRoute>} />
+                <Route path="/security/guardian" element={<Navigate to="/guardian" replace />} />
                 <Route path="/security/ops" element={<SecurityOps />} />
                 <Route path="/security/dashboard" element={<SecurityDashboard />} />
                 <Route path="/security/command-center" element={<SecurityCommandCenter />} />
