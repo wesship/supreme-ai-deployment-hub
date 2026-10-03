@@ -43,6 +43,21 @@ class InMemoryCampaignAssetRepository:
         return [asset for asset in self._items.values() if asset.campaign_id == campaign_id]
 
 
+def _normalize_status(status: str) -> str:
+    normalized = status.strip().lower()
+    aliases = {
+        "submitted": "queued",
+        "pending": "queued",
+        "processing": "running",
+        "complete": "succeeded",
+        "completed": "succeeded",
+        "success": "succeeded",
+        "error": "failed",
+    }
+    normalized = aliases.get(normalized, normalized)
+    return normalized if normalized in {"queued", "running", "succeeded", "failed", "cancelled", "unknown"} else "unknown"
+
+
 def asset_from_job(
     *,
     campaign_id: str,
@@ -55,7 +70,7 @@ def asset_from_job(
         provider=job.provider,
         capability=request.capability.value,
         provider_job_id=job.external_job_id,
-        status=job.status,
+        status=_normalize_status(job.status),
         provenance={
             "request": {
                 "capability": request.capability.value,
