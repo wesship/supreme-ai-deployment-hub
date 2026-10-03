@@ -69,6 +69,7 @@ export default function InfluencerStudio() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [asset, setAsset] = useState<CampaignAsset | null>(null);
   const [snapshot, setSnapshot] = useState<any>(null);
+  const [providerProbe, setProviderProbe] = useState<any>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -163,6 +164,13 @@ export default function InfluencerStudio() {
       );
       setCampaign(data.campaign);
       await refreshSnapshot(data.campaign.campaign_id);
+    });
+  };
+
+  const probeProvider = async () => {
+    await run("Probing provider", async () => {
+      const data = await authFetch<any>(`/api/influencer-studio/providers/${provider}/probe`);
+      setProviderProbe(data);
     });
   };
 
@@ -324,6 +332,7 @@ export default function InfluencerStudio() {
               {provider === "comfyui-wan" && (
                 <textarea className="min-h-28 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs" value={comfyWorkflow} onChange={(e) => setComfyWorkflow(e.target.value)} placeholder="ComfyUI API-format workflow JSON" />
               )}
+              <button className={actionClass} disabled={!!busy} onClick={() => void probeProvider()}>Probe provider</button>
               <button className={actionClass} disabled={!campaign || !["planning", "generating"].includes(campaign.state) || !!busy} onClick={() => void generate()}>Generate</button>
               <button className={actionClass} disabled={!asset || !!busy} onClick={() => void refreshAsset()}>Refresh provider job</button>
               {asset && <p className="text-xs text-neutral-500">Job {asset.provider_job_id}: {asset.status}</p>}
@@ -345,7 +354,7 @@ export default function InfluencerStudio() {
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <section className="rounded-2xl border border-white/10 bg-black/30 p-5">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-neutral-400">Provider health</h2>
-            <pre className="overflow-auto text-xs text-neutral-300">{JSON.stringify(health, null, 2)}</pre>
+            <pre className="overflow-auto text-xs text-neutral-300">{JSON.stringify({ health, probe: providerProbe }, null, 2)}</pre>
           </section>
           <section className="rounded-2xl border border-white/10 bg-black/30 p-5">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-neutral-400">Campaign audit snapshot</h2>
