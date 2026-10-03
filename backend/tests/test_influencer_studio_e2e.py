@@ -138,6 +138,8 @@ async def test_runtime_certifies_full_loop_without_external_publish() -> None:
     assert snapshot["external_publish_executed"] is False
     assert snapshot["asset_count"] == 1
     assert snapshot["assets"][0]["rights_verified"] is True
+    assert snapshot["assets"][0]["approved_by"] == OWNER_ID
+    assert snapshot["assets"][0]["approved_at"] is not None
     assert any(
         event.get("event") == "influencer_studio.campaign.transitioned"
         and event.get("to_state") == "ready_to_publish"
@@ -327,3 +329,47 @@ def test_influencer_studio_migration_is_owner_scoped_and_fail_closed() -> None:
     assert "ready_to_publish" in migration
     assert "rights_verified boolean not null default false" in migration
     assert "qa_passed boolean not null default false" in migration
+
+
+
+@pytest.mark.asyncio
+async def test_generation_reference_assets_require_explicit_rights_verification() -> None:
+    runtime, _, _ = _runtime()
+    persona = await runtime.create_persona(
+        Persona(display_name="Ari", character_bible="Synthetic presenter", niche="tech")
+    )
+    campaign = await runtime.create_campaign(
+        Campaign(persona_id=persona.persona_id, objective="Motion reference test")
+    )
+    campaign = await runtime.start_planning(campaign)
+
+    with pytest.raises(ValueError, match="reference_rights_verified"):
+        await runtime.generate(
+            campaign,
+            provider_name="test-media",
+            request=MediaRequest(
+                capability=MediaCapability.TEXT_TO_IMAGE,
+                prompt="Use licensed pose reference",
+                persona_id=persona.persona_id,
+                reference_assets=("licensed-reference.mp4",),
+            ),
+        )
+
+
+def test_persona_reference_assets_require_rights_provenance() -> None:
+    with pytest.raises(ValueError, match="reference_rights_verified"):
+        Persona(
+            display_name="Nova",
+            character_bible="Synthetic creator",
+            niche="education",
+            reference_assets=["reference.jpg"],
+        )
+
+    persona = Persona(
+        display_name="Nova",
+        character_bible="Synthetic creator",
+        niche="education",
+        reference_assets=["reference.jpg"],
+        provenance={"reference_rights_verified": True},
+    )
+    assert persona.reference_assets == ["reference.jpg"]
