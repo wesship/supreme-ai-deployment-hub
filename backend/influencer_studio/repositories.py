@@ -91,6 +91,8 @@ def _campaign_payload(campaign: Campaign, owner_id: str) -> dict[str, Any]:
         "objective": campaign.objective,
         "state": campaign.state.value,
         "metadata": campaign.metadata,
+        "hermes_goal_id": campaign.hermes_goal_id,
+        "hermes_task_id": campaign.hermes_task_id,
     }
 
 
@@ -101,6 +103,8 @@ def _campaign_from_row(row: dict[str, Any]) -> Campaign:
         objective=str(row["objective"]),
         state=CampaignState(str(row["state"])),
         metadata=dict(row.get("metadata") or {}),
+        hermes_goal_id=str(row["hermes_goal_id"]) if row.get("hermes_goal_id") else None,
+        hermes_task_id=str(row["hermes_task_id"]) if row.get("hermes_task_id") else None,
     )
 
 
