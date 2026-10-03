@@ -59,6 +59,8 @@ class Persona:
             raise ValueError("Influencer Studio personas must be declared age 21 or older")
         if not self.synthetic_disclosure:
             raise ValueError("Synthetic persona disclosure is required")
+        if self.reference_assets and not bool(self.provenance.get("reference_rights_verified")):
+            raise ValueError("Reference assets require provenance.reference_rights_verified=true")
 
 
 @dataclass(slots=True)
