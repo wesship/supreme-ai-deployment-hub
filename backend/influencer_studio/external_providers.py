@@ -63,6 +63,7 @@ class EromifyMCPProvider(MediaProvider):
         self._owns_client = client is None
         self._client = client or httpx.AsyncClient(timeout=httpx.Timeout(120.0))
         self._request_id = 0
+        self._session_id: str | None = None
         self._initialized = False
         self._tools: list[dict[str, Any]] | None = None
 
@@ -80,13 +81,17 @@ class EromifyMCPProvider(MediaProvider):
 
     async def _rpc(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         self._request_id += 1
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "MCP-Protocol-Version": "2025-03-26",
+        }
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
         response = await self._client.post(
             self.base_url,
-            headers={
-                "Authorization": f"Bearer {self._api_key}",
-                "Accept": "application/json, text/event-stream",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             json={
                 "jsonrpc": "2.0",
                 "id": self._request_id,
@@ -94,6 +99,9 @@ class EromifyMCPProvider(MediaProvider):
                 "params": params or {},
             },
         )
+        session_id = response.headers.get("mcp-session-id")
+        if session_id:
+            self._session_id = session_id
         decoded = _parse_mcp_response(response)
         if decoded.get("error"):
             raise RuntimeError(f"Eromify MCP error: {decoded['error']}")
@@ -110,6 +118,21 @@ class EromifyMCPProvider(MediaProvider):
                 "clientInfo": {"name": "d3vonn-influencer-studio", "version": "1.0"},
             },
         )
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "MCP-Protocol-Version": "2025-03-26",
+        }
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
+        notification = await self._client.post(
+            self.base_url,
+            headers=headers,
+            json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+        )
+        if notification.status_code >= 400:
+            notification.raise_for_status()
         self._initialized = True
 
     async def list_tools(self, *, refresh: bool = False) -> list[dict[str, Any]]:
