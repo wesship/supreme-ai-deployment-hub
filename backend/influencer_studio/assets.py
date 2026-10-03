@@ -24,6 +24,7 @@ class CampaignAsset:
     rights_verified: bool = False
     qa_passed: bool = False
     approved_by: str | None = None
+    approved_at: str | None = None
 
 
 class CampaignAssetRepository(Protocol):
@@ -108,6 +109,7 @@ class SupabaseCampaignAssetRepository:
             rights_verified=bool(row.get("rights_verified", False)),
             qa_passed=bool(row.get("qa_passed", False)),
             approved_by=str(row["approved_by"]) if row.get("approved_by") else None,
+            approved_at=str(row["approved_at"]) if row.get("approved_at") else None,
         )
 
     def _payload(self, asset: CampaignAsset) -> dict[str, Any]:
@@ -126,6 +128,7 @@ class SupabaseCampaignAssetRepository:
             "rights_verified": asset.rights_verified,
             "qa_passed": asset.qa_passed,
             "approved_by": asset.approved_by,
+            "approved_at": asset.approved_at,
         }
 
     async def save(self, asset: CampaignAsset) -> CampaignAsset:
