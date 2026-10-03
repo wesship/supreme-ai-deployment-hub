@@ -98,6 +98,7 @@ POST /api/influencer-studio/campaigns/{id}/qa
 PATCH /api/influencer-studio/campaigns/{id}/assets/{asset_id}/certify
 POST /api/influencer-studio/campaigns/{id}/approval
 POST /api/influencer-studio/campaigns/{id}/ready
+GET  /api/influencer-studio/providers/{provider_name}/probe
 GET  /api/influencer-studio/campaigns/{id}
 ```
 
@@ -107,6 +108,8 @@ Initial access uses the existing OCC admin/operator authentication boundary for 
 
 - Synthetic disclosure is mandatory.
 - Persona declared age must be 21+.
+- Persona reference assets require provenance.reference_rights_verified=true.
+- Generation reference assets require options.reference_rights_verified=true.
 - Imported/reference assets require rights/provenance certification.
 - Provider outputs retain provider and request provenance.
 - Provider jobs must reach `succeeded` before QA.
