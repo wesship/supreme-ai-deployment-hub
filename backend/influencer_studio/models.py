@@ -68,6 +68,8 @@ class Campaign:
     campaign_id: str = field(default_factory=lambda: str(uuid4()))
     state: CampaignState = CampaignState.DRAFT
     metadata: dict[str, Any] = field(default_factory=dict)
+    hermes_goal_id: str | None = None
+    hermes_task_id: str | None = None
 
     def transition(self, target: CampaignState) -> None:
         if target not in _ALLOWED_TRANSITIONS[self.state]:
