@@ -1,5 +1,17 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, Play, RefreshCw, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  Play,
+  RefreshCw,
+  ShieldCheck,
+  Siren,
+  Smartphone,
+} from 'lucide-react';
+import GuardianInstallPrompt from '@/components/security/GuardianInstallPrompt';
 import { supabase } from '@/integrations/supabase/client';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.d3vonn.io').replace(/\/$/, '');
@@ -41,12 +53,23 @@ type Certification = {
   certified_at?: string | null;
 };
 
+type EmergencyCategory = 'account' | 'phone' | 'money' | 'device' | 'unsure';
+
+const emergencyLabels: Record<EmergencyCategory, string> = {
+  account: 'Someone may be in my account',
+  phone: 'My phone or SIM seems wrong',
+  money: 'My bank or money may be affected',
+  device: 'My computer or device seems compromised',
+  unsure: "I'm not sure — something feels wrong",
+};
+
 async function authFetch(path: string, init: RequestInit = {}) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Sign in to open Security Guardian.');
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
+    cache: 'no-store',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -60,10 +83,22 @@ async function authFetch(path: string, init: RequestInit = {}) {
 }
 
 function severityClass(severity: GuardianEvent['severity']) {
-  if (severity === 'critical') return 'border-red-500/40 bg-red-500/10 text-red-200';
-  if (severity === 'high') return 'border-orange-500/40 bg-orange-500/10 text-orange-200';
+  if (severity === 'critical') return 'border-red-500/40 bg-red-500/10 text-red-100';
+  if (severity === 'high') return 'border-orange-500/40 bg-orange-500/10 text-orange-100';
   if (severity === 'medium') return 'border-amber-500/40 bg-amber-500/10 text-amber-100';
   return 'border-white/10 bg-white/[0.03] text-zinc-300';
+}
+
+function friendlyEventName(eventType: string) {
+  const names: Record<string, string> = {
+    'user.emergency_mode_activated': 'Emergency help started',
+    'authentication.new_device': 'New device noticed',
+    'authentication.login': 'Account sign-in detected',
+    'identity.mfa_removed': 'Security verification changed',
+    'token.oauth_created': 'New app access granted',
+    'response.approval_required': 'Security review needed',
+  };
+  return names[eventType] || eventType.replaceAll('.', ' ').replaceAll('_', ' ');
 }
 
 export default function GuardianPilot() {
@@ -76,7 +111,17 @@ export default function GuardianPilot() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const selected = useMemo(() => organizations.find((org) => org.id === selectedId) || null, [organizations, selectedId]);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [emergencyOpen, setEmergencyOpen] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('emergency') === '1' || params.get('mode') === 'emergency';
+  });
+  const [activeEmergency, setActiveEmergency] = useState<EmergencyCategory | null>(null);
+
+  const selected = useMemo(
+    () => organizations.find((org) => org.id === selectedId) || null,
+    [organizations, selectedId],
+  );
 
   const loadOrganizations = useCallback(async () => {
     const result = await authFetch('/api/security/guardian/organizations');
@@ -117,7 +162,7 @@ export default function GuardianPilot() {
 
   useEffect(() => {
     if (!selectedId) return;
-    loadTenant(selectedId).catch((error) => setMessage(error instanceof Error ? error.message : 'Could not load organization.'));
+    loadTenant(selectedId).catch((error) => setMessage(error instanceof Error ? error.message : 'Could not load protection status.'));
   }, [selectedId, loadTenant]);
 
   const createOrganization = async (event: FormEvent) => {
@@ -133,9 +178,37 @@ export default function GuardianPilot() {
       setSelectedId(result.organization.id);
       setName('');
       setSlug('');
-      setMessage('Pilot organization created. Run the safe simulation next.');
+      setMessage('Protection profile created.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not create organization.');
+      setMessage(error instanceof Error ? error.message : 'Could not create protection profile.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEmergency = async (category: EmergencyCategory) => {
+    if (!selectedId) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      await authFetch(`/api/security/guardian/organizations/${selectedId}/events`, {
+        method: 'POST',
+        body: JSON.stringify({
+          event_type: 'user.emergency_mode_activated',
+          severity: 'critical',
+          source: 'guardian_mobile_app',
+          metadata: {
+            category,
+            initiated_by_user: true,
+            containment_executed: false,
+          },
+        }),
+      });
+      setActiveEmergency(category);
+      await loadTenant(selectedId);
+      setMessage('Emergency mode is active. No automatic account changes were made.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not start emergency mode.');
     } finally {
       setBusy(false);
     }
@@ -148,9 +221,9 @@ export default function GuardianPilot() {
     try {
       const result = await authFetch(`/api/security/guardian/organizations/${selectedId}/pilot/simulate`, { method: 'POST' });
       await loadTenant(selectedId);
-      setMessage(`Safe simulation complete: ${result.events_created} synthetic events, no containment executed.`);
+      setMessage(`Safe test complete: ${result.events_created} test events. No containment was executed.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Simulation failed.');
+      setMessage(error instanceof Error ? error.message : 'Safe test failed.');
     } finally {
       setBusy(false);
     }
@@ -164,8 +237,8 @@ export default function GuardianPilot() {
       const result = await authFetch(`/api/security/guardian/organizations/${selectedId}/pilot/certify`, { method: 'POST' });
       setCertification(result.certification);
       setMessage(result.certification.status === 'certified'
-        ? 'Pilot certification passed.'
-        : `Certification blocked: ${(result.certification.blockers || []).join(', ')}`);
+        ? 'Protection setup passed the pilot safety checks.'
+        : `Setup needs attention: ${(result.certification.blockers || []).join(', ')}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Certification failed.');
     } finally {
@@ -174,55 +247,158 @@ export default function GuardianPilot() {
   };
 
   if (loading) {
-    return <div className="mx-auto flex min-h-[60vh] max-w-6xl items-center justify-center px-6 text-zinc-300"><Loader2 className="mr-3 h-5 w-5 animate-spin" />Loading Security Guardian…</div>;
+    return (
+      <div className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center px-6 text-zinc-300">
+        <Loader2 className="mr-3 h-6 w-6 animate-spin" />Opening Guardian…
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-[#090a0a] text-zinc-100">
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
-        <header className="mb-8 flex flex-col gap-5 border-b border-white/10 pb-7 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300"><ShieldCheck className="h-4 w-4" />D3VONN Security Guardian</div>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Client protection pilot</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">Tenant-isolated security monitoring and certification. Pilot simulations are synthetic and never execute containment.</p>
+      <div className="mx-auto max-w-3xl px-4 pb-12 pt-6 sm:px-6 sm:pt-9">
+        <header className="mb-6">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">
+            <ShieldCheck className="h-4 w-4" />D3VONN Security Guardian
           </div>
-          {organizations.length > 0 && (
-            <select aria-label="Organization" value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className="rounded-lg border border-white/10 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 outline-none focus:border-emerald-400/60">
-              {organizations.map((org) => <option key={org.id} value={org.id}>{org.name} · {org.role}</option>)}
-            </select>
-          )}
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight">Personal protection</h1>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">Simple account and device safety with guided emergency help.</p>
+            </div>
+            <GuardianInstallPrompt />
+          </div>
         </header>
 
-        {message && <div className="mb-6 rounded-lg border border-white/10 bg-white/[0.035] px-4 py-3 text-sm text-zinc-300" role="status">{message}</div>}
+        {message && (
+          <div className="mb-5 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-zinc-200" role="status">
+            {message}
+          </div>
+        )}
 
         {organizations.length === 0 ? (
-          <form onSubmit={createOrganization} className="max-w-xl rounded-xl border border-white/10 bg-white/[0.025] p-6">
-            <h2 className="text-xl font-medium">Create your pilot organization</h2>
-            <p className="mt-2 text-sm text-zinc-400">Your organization becomes the isolation boundary for events and certifications.</p>
-            <label className="mt-6 block text-sm text-zinc-300">Organization name<input required value={name} onChange={(event) => setName(event.target.value)} className="mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-2.5 outline-none focus:border-emerald-400/60" /></label>
-            <label className="mt-4 block text-sm text-zinc-300">Workspace slug<input required minLength={3} pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} placeholder="acme-security" className="mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-2.5 outline-none focus:border-emerald-400/60" /></label>
-            <button disabled={busy} className="mt-6 inline-flex items-center rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50">{busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Create pilot</button>
+          <form onSubmit={createOrganization} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <Smartphone className="h-7 w-7 text-emerald-300" />
+              <div>
+                <h2 className="text-xl font-semibold">Set up personal protection</h2>
+                <p className="mt-1 text-sm text-zinc-400">This creates a private security space for one person.</p>
+              </div>
+            </div>
+            <label className="mt-6 block text-sm text-zinc-300">
+              Name
+              <input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Mom — Personal Guardian" className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-black px-4 outline-none focus:border-emerald-400/60" />
+            </label>
+            <label className="mt-4 block text-sm text-zinc-300">
+              Private workspace name
+              <input required minLength={3} pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" value={slug} onChange={(event) => setSlug(event.target.value.toLowerCase())} placeholder="mom-personal-guardian" className="mt-2 min-h-12 w-full rounded-xl border border-white/10 bg-black px-4 outline-none focus:border-emerald-400/60" />
+            </label>
+            <button disabled={busy} className="mt-6 min-h-12 w-full rounded-xl bg-emerald-400 px-5 text-base font-bold text-black disabled:opacity-50">
+              {busy ? 'Creating…' : 'Start protection'}
+            </button>
           </form>
         ) : (
           <>
-            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-white/10 bg-white/[0.025] p-5"><p className="text-xs uppercase tracking-wider text-zinc-500">Protection</p><p className="mt-2 text-2xl font-semibold capitalize">{overview?.protection_status || 'Pilot'}</p></div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.025] p-5"><p className="text-xs uppercase tracking-wider text-zinc-500">Events</p><p className="mt-2 text-2xl font-semibold">{overview?.events_observed ?? 0}</p></div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.025] p-5"><p className="text-xs uppercase tracking-wider text-zinc-500">High / critical</p><p className="mt-2 text-2xl font-semibold">{overview?.high_or_critical ?? 0}</p></div>
-              <div className="rounded-xl border border-white/10 bg-white/[0.025] p-5"><p className="text-xs uppercase tracking-wider text-zinc-500">Certification</p><p className="mt-2 text-2xl font-semibold capitalize">{certification?.status || 'Not run'}</p></div>
+            <section className="rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.06] p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Current status</p>
+                  <h2 className="mt-2 text-3xl font-semibold">Guardian is watching</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-300">{selected?.name} is isolated in a private protection workspace.</p>
+                </div>
+                <CheckCircle2 className="h-9 w-9 shrink-0 text-emerald-300" />
+              </div>
+              <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-2xl font-semibold">{overview?.events_observed ?? 0}</p><p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">Events</p></div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-2xl font-semibold">{overview?.high_or_critical ?? 0}</p><p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">Important</p></div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3"><p className="text-2xl font-semibold capitalize">{certification?.status === 'certified' ? 'Yes' : 'Setup'}</p><p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">Certified</p></div>
+              </div>
             </section>
 
-            <section className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-xl border border-white/10 bg-white/[0.025] p-6">
-                <div className="flex items-center justify-between gap-4"><div><h2 className="text-lg font-medium">Pilot certification</h2><p className="mt-1 text-sm text-zinc-400">{selected?.name} · {selected?.role}</p></div>{certification?.status === 'certified' ? <CheckCircle2 className="h-7 w-7 text-emerald-300" /> : <AlertTriangle className="h-7 w-7 text-amber-300" />}</div>
-                <div className="mt-5 flex flex-wrap gap-3"><button onClick={simulate} disabled={busy} className="inline-flex items-center rounded-lg border border-white/15 bg-white/[0.04] px-4 py-2.5 text-sm font-medium hover:bg-white/[0.07] disabled:opacity-50"><Play className="mr-2 h-4 w-4" />Run safe simulation</button><button onClick={certify} disabled={busy} className="inline-flex items-center rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50"><ShieldCheck className="mr-2 h-4 w-4" />Certify pilot</button><button onClick={() => loadTenant(selectedId)} disabled={busy} aria-label="Refresh" className="rounded-lg border border-white/10 p-2.5 text-zinc-300 hover:bg-white/[0.05]"><RefreshCw className="h-4 w-4" /></button></div>
-                {certification && <div className="mt-6"><div className="flex items-center justify-between text-sm"><span className="text-zinc-400">Readiness score</span><span className="font-semibold">{certification.score}%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${certification.score}%` }} /></div><div className="mt-5 space-y-2">{Object.entries(certification.checks || {}).map(([key, passed]) => <div key={key} className="flex items-center justify-between border-b border-white/5 py-2 text-sm"><span className="text-zinc-400">{key.replaceAll('_', ' ')}</span><span className={passed ? 'text-emerald-300' : 'text-amber-300'}>{passed ? 'PASS' : 'BLOCKED'}</span></div>)}</div><p className="mt-4 break-all text-xs text-zinc-600">Evidence hash: {certification.evidence_hash}</p></div>}
-              </div>
+            <button
+              type="button"
+              onClick={() => setEmergencyOpen(true)}
+              className="mt-5 flex min-h-20 w-full items-center justify-center rounded-2xl bg-red-600 px-5 text-xl font-extrabold tracking-tight text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500 focus:outline-none focus:ring-4 focus:ring-red-400/30"
+            >
+              <Siren className="mr-3 h-7 w-7" />I’M UNDER ATTACK
+            </button>
+            <p className="mt-2 text-center text-xs leading-5 text-zinc-500">Use this if an account, phone, bank, or device suddenly feels wrong.</p>
 
-              <div className="rounded-xl border border-white/10 bg-white/[0.025] p-6">
-                <h2 className="text-lg font-medium">Recent security events</h2>
-                <div className="mt-4 space-y-3">{overview?.recent_events?.length ? overview.recent_events.map((event) => <div key={event.id} className={`rounded-lg border p-3 ${severityClass(event.severity)}`}><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium">{event.event_type}</p><p className="mt-1 text-xs opacity-70">{event.source}{event.synthetic ? ' · synthetic' : ''}</p></div><span className="text-[10px] font-semibold uppercase tracking-wider">{event.severity}</span></div></div>) : <p className="text-sm text-zinc-500">No events yet. Run the safe simulation to validate the pilot path.</p>}</div>
+            {emergencyOpen && (
+              <section className="mt-5 rounded-2xl border border-red-400/30 bg-red-500/[0.07] p-5" aria-live="polite">
+                {!activeEmergency ? (
+                  <>
+                    <div className="flex items-start justify-between gap-4">
+                      <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-red-300">Emergency mode</p><h2 className="mt-2 text-2xl font-semibold">What seems wrong?</h2></div>
+                      <button type="button" onClick={() => setEmergencyOpen(false)} className="min-h-11 rounded-xl border border-white/10 px-3 text-sm text-zinc-300">Close</button>
+                    </div>
+                    <div className="mt-5 grid gap-3">
+                      {(Object.entries(emergencyLabels) as [EmergencyCategory, string][]).map(([category, label]) => (
+                        <button key={category} type="button" disabled={busy} onClick={() => startEmergency(category)} className="min-h-14 rounded-xl border border-white/10 bg-black/30 px-4 text-left text-sm font-semibold text-white hover:bg-black/45 disabled:opacity-50">
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-300">Emergency mode active</p>
+                    <h2 className="mt-2 text-2xl font-semibold">{emergencyLabels[activeEmergency]}</h2>
+                    <div className="mt-5 space-y-3 text-sm leading-6 text-zinc-200">
+                      <div className="rounded-xl border border-white/10 bg-black/25 p-4"><strong>1. Use a trusted device.</strong><br />Stop entering passwords or verification codes into anything suspicious.</div>
+                      <div className="rounded-xl border border-white/10 bg-black/25 p-4"><strong>2. Never share a verification code.</strong><br />Do not read login codes to someone who called or texted you.</div>
+                      <div className="rounded-xl border border-white/10 bg-black/25 p-4"><strong>3. Protect email and phone first.</strong><br />They are often the recovery keys for your other accounts.</div>
+                      <div className="rounded-xl border border-white/10 bg-black/25 p-4"><strong>4. Contact the real provider directly.</strong><br />For banking or SIM problems, use the official app, website, card number, or known support number.</div>
+                    </div>
+                    <p className="mt-4 text-xs leading-5 text-zinc-400">Guardian recorded that you asked for emergency help. It did not lock accounts, move money, or change credentials automatically.</p>
+                    <button type="button" onClick={() => { setActiveEmergency(null); setEmergencyOpen(false); }} className="mt-5 min-h-12 w-full rounded-xl border border-white/15 bg-white/[0.05] font-semibold text-white">Close emergency guide</button>
+                  </>
+                )}
+              </section>
+            )}
+
+            <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.025] p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div><h2 className="text-lg font-semibold">Recent alerts</h2><p className="mt-1 text-xs text-zinc-500">Newest security activity first</p></div>
+                <button type="button" onClick={() => loadTenant(selectedId)} disabled={busy} aria-label="Refresh alerts" className="min-h-11 min-w-11 rounded-xl border border-white/10 p-3 text-zinc-300"><RefreshCw className="h-4 w-4" /></button>
               </div>
+              <div className="mt-4 space-y-3">
+                {overview?.recent_events?.length ? overview.recent_events.slice(0, 5).map((event) => (
+                  <div key={event.id} className={`rounded-xl border p-4 ${severityClass(event.severity)}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div><p className="text-sm font-semibold capitalize">{friendlyEventName(event.event_type)}</p><p className="mt-1 text-xs opacity-70">{event.synthetic ? 'Safe test event' : 'Guardian event'}</p></div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">{event.severity}</span>
+                    </div>
+                  </div>
+                )) : <p className="rounded-xl border border-white/5 bg-black/20 p-4 text-sm text-zinc-500">No security alerts yet.</p>}
+              </div>
+            </section>
+
+            <section className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+              <button type="button" onClick={() => setAdvancedOpen((value) => !value)} className="flex min-h-14 w-full items-center justify-between px-5 text-left text-sm font-semibold text-zinc-300">
+                Advanced setup & pilot tools
+                {advancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </button>
+              {advancedOpen && (
+                <div className="border-t border-white/10 p-5">
+                  {organizations.length > 1 && (
+                    <select aria-label="Protection workspace" value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className="mb-4 min-h-12 w-full rounded-xl border border-white/10 bg-zinc-950 px-4 text-sm text-zinc-100">
+                      {organizations.map((org) => <option key={org.id} value={org.id}>{org.name} · {org.role}</option>)}
+                    </select>
+                  )}
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button onClick={simulate} disabled={busy} className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 text-sm font-semibold disabled:opacity-50"><Play className="mr-2 h-4 w-4" />Run safe test</button>
+                    <button onClick={certify} disabled={busy} className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-400 px-4 text-sm font-bold text-black disabled:opacity-50"><ShieldCheck className="mr-2 h-4 w-4" />Certify protection</button>
+                  </div>
+                  {certification && (
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between text-sm"><span className="text-zinc-400">Safety readiness</span><span className="font-semibold">{certification.score}%</span></div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${certification.score}%` }} /></div>
+                      {certification.blockers?.length > 0 && <div className="mt-4 flex gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-3 text-xs leading-5 text-amber-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{certification.blockers.join(', ')}</div>}
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           </>
         )}
