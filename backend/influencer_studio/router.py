@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -109,6 +110,44 @@ async def health(_: OCCPrincipal = Depends(require_occ_access)):
         "certification_boundary": CampaignState.READY_TO_PUBLISH.value,
         "external_publish_enabled": False,
     }
+
+
+@router.get("/providers/{provider_name}/probe")
+async def probe_provider(
+    provider_name: str,
+    _: OCCPrincipal = Depends(require_occ_access),
+):
+    try:
+        provider = _provider_registry().get(provider_name)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+    try:
+        if isinstance(provider, EromifyMCPProvider):
+            tools = await provider.list_tools(refresh=True)
+            return {
+                "provider": provider_name,
+                "reachable": True,
+                "transport": "mcp",
+                "tools": [
+                    {
+                        "name": str(tool.get("name") or ""),
+                        "description": str(tool.get("description") or ""),
+                    }
+                    for tool in tools
+                ],
+            }
+        if isinstance(provider, ComfyUIWanProvider):
+            stats = await provider.probe()
+            return {
+                "provider": provider_name,
+                "reachable": True,
+                "transport": "http",
+                "system": stats.get("system") if isinstance(stats, dict) else None,
+            }
+        return {"provider": provider_name, "reachable": True}
+    except (ValueError, RuntimeError, httpx.HTTPError) as exc:
+        raise HTTPException(502, f"{provider_name} probe failed: {exc}") from exc
 
 
 @router.post("/personas", status_code=201)
