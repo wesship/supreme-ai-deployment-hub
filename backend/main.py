@@ -103,6 +103,7 @@ _REQUIRED_ROUTERS = frozenset({
     "backend.occ_operator.hermes_router", "backend.hermes.sibyl_handoff",
     "backend.app.security.admin_approval_router",
     "backend.app.security.guardian_router",
+    "backend.influencer_studio.router",
     "backend.occ_operator.public_stats_router",
 })
 _OPTIONAL_ROUTERS = (
@@ -164,6 +165,7 @@ def _verify_required_routes(application: FastAPI) -> None:
         "/api/public/stats": "get",
         "/api/security/admin/actions/{action_id}/execute": "post",
         "/api/security/guardian/organizations": "get",
+        "/api/influencer-studio/health": "get",
     }
     paths = application.openapi()["paths"]
     missing = [f"{method.upper()} {path}" for path, method in required.items()
