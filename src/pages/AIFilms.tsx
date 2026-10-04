@@ -1,3 +1,4 @@
+import AvatarStudioLink from '@/features/avatar-studio/AvatarStudioLink';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -281,6 +282,7 @@ const AIFilms = () => {
             </section>
           )}
 
+          <AvatarStudioLink />
           <section aria-labelledby="catalog-heading">
             <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div><p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">D3VONN Studios</p><h2 id="catalog-heading" className="mt-2 text-3xl font-bold sm:text-4xl">Movies and Originals</h2></div>
