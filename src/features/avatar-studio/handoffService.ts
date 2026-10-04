@@ -24,7 +24,7 @@ export function handoffPayload(metadata: WorkflowMetadata, requestId: string) {
 export function handoffApiBase(value: string, currentOrigin: string, development: boolean) {
   const url = new URL(value || currentOrigin);
   if (url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('Invalid Studio API origin.');
-  const trusted = ['https://api.d3vonn.io', 'https://devonn-ai-api-production.up.railway.app', currentOrigin];
+  const trusted = ['https://api.d3vonn.io', 'https://staging-api.d3vonn.io', currentOrigin];
   if (!trusted.includes(url.origin) && !(development && ['localhost', '127.0.0.1'].includes(url.hostname))) throw new Error('Studio API origin is not trusted.');
   if (url.protocol !== 'https:' && !(development && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) throw new Error('Studio API requires HTTPS.');
   return url.origin;

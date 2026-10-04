@@ -24,6 +24,7 @@ describe('authenticated Studio handoff', () => {
   });
   it('allows verified canonical origins and development localhost', () => {
     expect(handoffApiBase('https://api.d3vonn.io', 'https://d3vonn.io', false)).toBe('https://api.d3vonn.io');
+    expect(handoffApiBase('https://staging-api.d3vonn.io', 'https://d3vonn.io', false)).toBe('https://staging-api.d3vonn.io');
     expect(handoffApiBase('http://localhost:8000', 'http://localhost:5173', true)).toBe('http://localhost:8000');
     expect(() => handoffApiBase('http://localhost:8000', 'https://d3vonn.io', false)).toThrow();
   });

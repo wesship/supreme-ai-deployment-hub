@@ -39,6 +39,13 @@ Read-only production catalog inspection confirmed the four reused tables exist w
 and both `ai-film-media` and `ai-film-renders` buckets are private. The existing scenes schema supports
 the draft metadata record; no schema change is needed. This checks configuration, not multi-account live behavior.
 
+Storage policy inspection found only an authenticated SELECT policy for `ai-film-media` objects whose
+first folder is the user's UUID. There is no user SELECT policy for `ai-film-renders`; project-prefixed
+render objects therefore cannot be signed with the caller's JWT today. Those requests are denied.
+Do not activate artifact delivery until a reviewed owner-scoped Storage policy is installed and tested
+with two accounts, or a separately reviewed artifact broker is implemented. No policy or bucket
+visibility was changed in this gate. Existing jobs are not evidence that user download access works.
+
 ## Activation and next certification
 
 After merging and deploying this change into a review environment, set
