@@ -75,11 +75,16 @@ jobs:
         run: pnpm run test
       - name: Generate coverage report
         run: pnpm run test:coverage
+      - name: Require frontend coverage evidence
+        run: |
+          test -s coverage/lcov.info
+          node scripts/check-coverage-summary.mjs
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: testing-frontend-coverage
           path: coverage/
+          if-no-files-found: error
           retention-days: 7
       - name: Upload coverage to Codecov
         if: always()
@@ -156,9 +161,29 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Lint runtime-critical backend errors
         run: ruff check app/ tests/test_proxy_routes.py --select E9,F63,F7,F82 --output-format=github
-      - name: Type-check with mypy
-        run: mypy app/ --ignore-missing-imports --no-error-summary
-        continue-on-error: true
+      - name: Type-check release-critical backend modules (blocking)
+        working-directory: .
+        run: bash scripts/check-backend-critical-types.sh
+      - name: Report full backend type-check backlog (non-blocking)
+        working-directory: .
+        shell: bash
+        run: |
+          set +e
+          python -m mypy -p backend.app --ignore-missing-imports --no-error-summary > backend-typecheck-backlog.txt 2>&1
+          result=$?
+          cat backend-typecheck-backlog.txt
+          if [ "$result" -gt 1 ]; then exit "$result"; fi
+          echo "### Full backend type-check diagnostics (non-blocking)" >> "$GITHUB_STEP_SUMMARY"
+          echo "mypy exit status: $result. Release-critical modules are checked separately and block CI." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$result" -ne 0 ]; then
+            echo "::warning::Full backend type-check backlog remains; see backend-typecheck-backlog artifact."
+          fi
+      - name: Upload full backend type-check diagnostics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-typecheck-backlog
+          path: backend-typecheck-backlog.txt
+          if-no-files-found: error
       - name: Run proxy route tests
         run: |
           pytest tests/test_proxy_routes.py \

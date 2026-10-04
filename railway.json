@@ -3,7 +3,9 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile.railway",
-    "watchPatterns": ["backend/**", "MASTER_CONTEXT.md", "Dockerfile.railway", "railway.json"]
+    "watchPatterns": [
+      "**"
+    ]
   },
   "deploy": {
     "healthcheckPath": "/health/ready",

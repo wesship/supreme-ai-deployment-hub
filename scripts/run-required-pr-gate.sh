@@ -21,6 +21,8 @@ run_group "Coverage baseline enforcement" node scripts/check-coverage-summary.mj
 run_group "High-severity production dependency audit" pnpm audit --prod --audit-level=high
 run_group "Production frontend build" pnpm build
 
+run_group "Release-critical backend type-check" bash scripts/check-backend-critical-types.sh
+
 run_group "Backend syntax check" python -m compileall -q backend
 run_group "Backend import check" python -c "from backend.main import app; assert app is not None"
 run_group "Focused backend tests" python -m pytest \

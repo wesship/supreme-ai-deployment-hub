@@ -11,7 +11,8 @@ for (let attempt = 1; attempt <= 30; attempt++) {
       if (!response.ok) return false;
       const body = await response.json();
       const match = body.commit_sha === expected;
-      console.log(`${name}: ${match ? 'certified commit' : 'waiting for certified commit'}`);
+      const actual = /^[0-9a-f]{40}$/.test(body.commit_sha || '') ? body.commit_sha : 'unavailable';
+      console.log(`${name}: ${match ? 'certified commit' : `waiting for ${expected}; observed ${actual}`}`);
       return match;
     } catch {
       console.log(`${name}: identity unavailable`);
