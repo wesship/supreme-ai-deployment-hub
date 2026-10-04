@@ -40,7 +40,11 @@ jobs:
               head_sha: sha, per_page: 100,
             });
             const evidence = required.map(name => {
-              const run = runs.filter(r => r.name === name && r.head_sha === sha && r.head_branch === 'main' && r.event !== 'pull_request')
+              // workflow_run records use the default-branch SHA, while a chained
+              // canary may certify its upstream payload's different commit.
+              // Direct runs bind their checked-out and certified SHA to head_sha.
+              const run = runs.filter(r => r.name === name && r.head_sha === sha && r.head_branch === 'main'
+                && ['push', 'workflow_dispatch'].includes(r.event))
                 .sort((a, b) => b.id - a.id)[0];
               return { name, run };
             });
