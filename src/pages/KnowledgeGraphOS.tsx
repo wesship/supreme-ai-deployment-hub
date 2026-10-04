@@ -469,7 +469,7 @@ const edgeTypes = { cinematic: CinematicEdge };
 const majorClusterNodeIds = new Set(['intent', 'agents', 'knowledge', 'models', 'tools', 'films', 'radio', 'workflow', 'infrastructure', 'security', 'analytics']);
 
 
-const nexusNavItems = [
+const nexusNavItems: ReadonlyArray<{ label: string; route: string; icon: React.ElementType; active?: boolean }> = [
   { label: 'Hand workspace', route: '/holo', icon: Hand },
   { label: 'Command Center', route: '/command-center', icon: Gauge },
   { label: 'Knowledge Graph', route: '/knowledge-graph', icon: Network, active: true },
@@ -479,6 +479,7 @@ const nexusNavItems = [
   { label: 'Workflows', route: '/workflows', icon: Workflow },
   { label: 'Knowledge & RAG', route: '/dkos-ingestion', icon: Database },
   { label: 'AI Films', route: '/ai-films', icon: Sparkles },
+  { label: 'Avatar Studio', route: '/avatar-studio', icon: Users },
   { label: 'HNF Ecosystem', route: '/music', icon: Radio },
   { label: 'Infrastructure', route: '/command-center', icon: Server },
   { label: 'Operations', route: '/operations', icon: Activity },
@@ -970,6 +971,7 @@ const KnowledgeGraphOS: React.FC = () => {
               ['Workflows', '/workflows'],
               ['Infrastructure', '/command-center'],
               ['AI Films', '/ai-films'],
+              ['Avatar Studio', '/avatar-studio'],
               ['HNF', '/music'],
               ['Marketplace', '/marketplace'],
             ].map(([label, route]) => (
@@ -1027,6 +1029,7 @@ const KnowledgeGraphOS: React.FC = () => {
             ['Workflows', '/workflows'],
             ['Infrastructure', '/command-center'],
             ['AI Films', '/ai-films'],
+              ['Avatar Studio', '/avatar-studio'],
             ['HNF', '/music'],
             ['Marketplace', '/marketplace'],
           ].map(([label, route]) => (
@@ -1557,7 +1560,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px] leading-5 text-stone-400">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-semibold text-stone-300">{item.type}</span>
-                    {'timestamp' in item && item.timestamp ? (
+                    {'timestamp' in item && typeof item.timestamp === 'string' && item.timestamp ? (
                       <span className="text-[9px] text-stone-400">{new Date(item.timestamp).toLocaleTimeString()}</span>
                     ) : null}
                   </div>
