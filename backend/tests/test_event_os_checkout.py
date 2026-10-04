@@ -183,3 +183,33 @@ def test_paid_stripe_webhook_finalizes_once(monkeypatch):
     assert result["accepted"] is True
     assert result["result"]["status"] == "paid"
     assert patches and "processed_at" in patches[-1]
+
+
+def test_stripe_session_sends_an_encoded_async_request(monkeypatch):
+    import httpx
+    from urllib.parse import parse_qs
+
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "test-local-stripe-key")
+    captured = []
+
+    def handle(request):
+        captured.append(request)
+        return httpx.Response(200, json={"id": "cs_local", "url": "https://checkout.stripe.com/local"})
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(event_os.httpx, "AsyncClient",
+                        lambda **kwargs: original_client(transport=httpx.MockTransport(handle), **kwargs))
+    result = asyncio.run(event_os._create_stripe_session(
+        order_id=ORDER_ID, workspace_id=WORKSPACE_ID, purchaser_email="buyer+local@example.com",
+        currency="USD", items=[{"quantity": 2, "unit_price_cents": 1500, "title": "Music & film"}],
+        success_url="https://example.com/success", cancel_url="https://example.com/cancel"))
+    assert result["id"] == "cs_local"
+    request = captured[0]
+    fields = parse_qs(request.content.decode())
+    assert request.headers["content-type"] == "application/x-www-form-urlencoded"
+    assert request.headers["idempotency-key"] == f"event-os-checkout:{ORDER_ID}"
+    assert fields["customer_email"] == ["buyer+local@example.com"]
+    assert fields["line_items[0][price_data][product_data][name]"] == ["Music & film"]
+    assert fields["line_items[0][price_data][unit_amount]"] == ["1500"]
+    assert fields["line_items[0][quantity]"] == ["2"]
+    assert fields["metadata[workspace_id]"] == [WORKSPACE_ID]

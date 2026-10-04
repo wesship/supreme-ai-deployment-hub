@@ -86,9 +86,9 @@ class AssetIdentityGraph:
         node_id: str,
         name: str,
         tenant_id: str = "",
-        properties: dict[str, Any] = None,
+        properties: dict[str, Any] | None = None,
         risk_level: RiskLevel = RiskLevel.NONE,
-        tags: list[str] = None,
+        tags: list[str] | None = None,
     ) -> dict[str, Any]:
         """Register or update a node in the graph."""
         node_data = {
@@ -141,7 +141,7 @@ class AssetIdentityGraph:
         target_type: NodeType,
         target_id: str,
         edge_type: EdgeType,
-        properties: dict[str, Any] = None,
+        properties: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create or update an edge between two nodes."""
         edge_data = {
@@ -229,7 +229,7 @@ class AssetIdentityGraph:
             await self.register_edge(NodeType.CONTAINER, container_id, NodeType.SERVER, server_id, EdgeType.RUNS_ON)
         return node
 
-    async def register_api_key(self, key_id: str, name: str, owner_id: str, scopes: list[str] = None, **kwargs) -> dict[str, Any]:
+    async def register_api_key(self, key_id: str, name: str, owner_id: str, scopes: list[str] | None = None, **kwargs) -> dict[str, Any]:
         """Register an API key node."""
         node = await self.register_node(
             NodeType.API_KEY, key_id, name,
@@ -305,7 +305,7 @@ class AssetIdentityGraph:
         except Exception:
             return None
 
-    async def get_neighbors(self, node_type: NodeType, node_id: str, edge_types: list[EdgeType] = None) -> list[dict[str, Any]]:
+    async def get_neighbors(self, node_type: NodeType, node_id: str, edge_types: list[EdgeType] | None = None) -> list[dict[str, Any]]:
         """Get all nodes connected to a given node."""
         neighbors: list[dict[str, Any]] = []
         try:

@@ -48,7 +48,7 @@ class Store(SupabaseAssemblyClient):
         return result
 
 
-async def _service(authorization: str | None) -> tuple[RoleAuthoring, str]:
+async def _service(authorization: str | None) -> tuple[RoleAuthoring[Store], str]:
     if os.getenv("AI_FILMS_ROLE_STUDIO_ENABLED", "").lower() not in {"1", "true", "yes"}:
         raise HTTPException(status_code=404, detail="Role Studio is unavailable")
     try:
@@ -66,6 +66,8 @@ async def _execute(action: str, project_id: UUID, role_id: str,
     service, actor_id = await _service(authorization)
     try:
         if action == "test":
+            if not isinstance(request, TestRequest):
+                raise HTTPException(status_code=422, detail="Policy attestation is required")
             return await service.mark_tested(str(project_id), role_id, actor_id,
                                              request.revision, request.attestation)
         return await service.transition(action, str(project_id), role_id, actor_id, request.revision)

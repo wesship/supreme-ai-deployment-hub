@@ -1,7 +1,7 @@
 """Role draft transitions. Store RPC performs authorization and CAS atomically."""
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Generic, Protocol, TypeVar
 
 from backend.ai_films.role_policy_attestation import verify_policy_attestation
 from backend.ai_films.role_runtime import RoleProfileUnavailable, profile_hash, validate_profile
@@ -12,8 +12,11 @@ class AuthoringStore(Protocol):
     async def role_rpc(self, payload: dict[str, Any]) -> dict[str, Any]: ...
 
 
-class RoleAuthoring:
-    def __init__(self, store: AuthoringStore):
+StoreType = TypeVar("StoreType", bound=AuthoringStore)
+
+
+class RoleAuthoring(Generic[StoreType]):
+    def __init__(self, store: StoreType):
         self.store = store
 
     async def _advance(self, action: str, project_id: str, role_id: str, actor_id: str,

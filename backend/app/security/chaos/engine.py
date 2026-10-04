@@ -44,7 +44,7 @@ class ChaosExperiment:
         hypothesis: str,
         steps: list[dict[str, Any]],
         success_criteria: list[str],
-        rollback_steps: list[dict[str, Any]] = None,
+        rollback_steps: list[dict[str, Any]] | None = None,
         timeout_seconds: int = 300,
         safe_mode: bool = True,
     ):

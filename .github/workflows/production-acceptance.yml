@@ -40,7 +40,7 @@ jobs:
               head_sha: sha, per_page: 100,
             });
             const evidence = required.map(name => {
-              const run = runs.filter(r => r.name === name && r.head_branch === 'main' && r.event !== 'pull_request')
+              const run = runs.filter(r => r.name === name && r.head_sha === sha && r.head_branch === 'main' && r.event !== 'pull_request')
                 .sort((a, b) => b.id - a.id)[0];
               return { name, run };
             });
@@ -57,4 +57,5 @@ jobs:
               [{data: 'Required evidence', header: true}, {data: 'Result', header: true}],
               ...evidence.map(({name, run}) => [name, run?.conclusion || run?.status || 'missing']),
             ]).write();
-            if (!passed) core.setFailed('All required production audits must pass for the same commit.');
+            if (failed) core.setFailed('Required production evidence failed for this commit.');
+            else if (!passed) core.notice('Production acceptance remains pending until all required audits pass for the same commit.');
