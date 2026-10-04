@@ -17,6 +17,9 @@ REQUIRED = [
     ("complete", "success"), ("waiting", "pending"), ("missing", "pending"),
     ("failed", "failure"), ("wrong_commit", "pending"), ("pull_request", "pending"),
     ("newer_failure", "failure"),
+    ("skipped", "failure"), ("neutral", "failure"), ("stale", "failure"),
+    ("startup_failure", "failure"), ("cancelled", "failure"),
+    ("timed_out", "failure"), ("action_required", "failure"),
 ])
 def test_acceptance_requires_same_commit_evidence_without_failing_waits(case, expected):
     workflow = Path(__file__).resolve().parents[2] / ".github/workflows/production-acceptance.yml"
@@ -29,6 +32,8 @@ def test_acceptance_requires_same_commit_evidence_without_failing_waits(case, ex
         runs.pop()
     elif case == "failed":
         runs[-1]["conclusion"] = "failure"
+    elif case in {"skipped", "neutral", "stale", "startup_failure", "cancelled", "timed_out", "action_required"}:
+        runs[-1]["conclusion"] = case
     elif case == "wrong_commit":
         runs[-1]["head_sha"] = "other"
     elif case == "pull_request":

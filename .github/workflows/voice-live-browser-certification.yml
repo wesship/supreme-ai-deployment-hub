@@ -16,7 +16,9 @@ permissions:
 
 concurrency:
   group: voice-live-browser-certification
-  cancel-in-progress: false
+  # Keep production calls serialized; a stale approval wait must not block the
+  # current commit from reaching its own protected-environment review.
+  cancel-in-progress: true
 
 jobs:
   certify:

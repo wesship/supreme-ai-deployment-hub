@@ -45,7 +45,7 @@ jobs:
               return { name, run };
             });
             const passed = evidence.every(({run}) => run?.conclusion === 'success');
-            const failed = evidence.some(({run}) => ['failure', 'cancelled', 'timed_out', 'action_required'].includes(run?.conclusion));
+            const failed = evidence.some(({run}) => run?.status === 'completed' && run.conclusion !== 'success');
             const state = passed ? 'success' : failed ? 'failure' : 'pending';
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner, repo: context.repo.repo, sha,
