@@ -44,7 +44,7 @@ jobs:
               // canary may certify its upstream payload's different commit.
               // Direct runs bind their checked-out and certified SHA to head_sha.
               const run = runs.filter(r => r.name === name && r.head_sha === sha && r.head_branch === 'main'
-                && ['push', 'workflow_dispatch'].includes(r.event))
+                && ['push', 'workflow_dispatch', 'schedule'].includes(r.event))
                 .sort((a, b) => b.id - a.id)[0];
               return { name, run };
             });
