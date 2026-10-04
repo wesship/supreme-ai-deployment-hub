@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { parseWorkflowMetadata, type WorkflowMetadata } from './workflowImport';
+import AuthenticatedHandoff from './AuthenticatedHandoff';
 export default function WorkflowImport() {
   const [metadata, setMetadata] = useState<WorkflowMetadata | null>(null);
   const [error, setError] = useState('');
@@ -21,5 +22,6 @@ export default function WorkflowImport() {
     <input id="studio-workflow-json" type="file" accept=".json,application/json" className="max-w-full text-sm" onChange={e => { void read(e.target.files?.[0]); e.target.value = ''; }} />
     {error && <p className="mt-3 text-amber-200" role="alert">{error}</p>}
     {metadata && <div className="mt-5 space-y-3 break-words"><h3 className="font-semibold">{metadata.project.title}</h3><p className="text-sm text-stone-400">Imported state: {metadata.overall} · unverified</p><ul className="space-y-3">{metadata.stages.map(stage => <li key={stage.stage} className="border-t border-stone-700 pt-3"><p>{stage.stage}: {stage.status}</p>{stage.blockers.map((blocker, i) => <p key={i} className="mt-1 text-sm text-stone-400">{blocker}</p>)}</li>)}</ul><button type="button" className="border border-stone-600 px-3 py-2 text-sm" onClick={() => { ++request.current; setMetadata(null); }}>Clear imported plan</button></div>}
+    {metadata && <AuthenticatedHandoff metadata={metadata} />}
   </section>;
 }

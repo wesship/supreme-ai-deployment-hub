@@ -106,6 +106,7 @@ _REQUIRED_ROUTERS = frozenset({
     "backend.occ_operator.public_stats_router",
 })
 _OPTIONAL_ROUTERS = (
+    ("backend.ai_films.avatar_studio_router", "router", "/api"),
     ("backend.app.routers", "proxy_router", None),
     ("backend.app.routers.smart_glasses", "router", "/api"),
     ("backend.api.v1.router", "router", "/api/v1"),

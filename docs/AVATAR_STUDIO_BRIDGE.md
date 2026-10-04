@@ -2,6 +2,8 @@
 
 The local manifest importer validates Studio version-1 workflow JSON and retains only metadata in page memory. Scripts, objectives, directions and job IDs are discarded. Imported statuses are explicitly unverified file claims and cannot trigger Hermes execution.
 
+An optional authenticated handoff now lets a signed-in D3VONN user explicitly save title, format and stage claims as a draft in an owned AI Film project. It is disabled until the backend handoff flag is enabled. See [the authenticated gate](AVATAR_STUDIO_AUTHENTICATED_GATE.md) for routes, retry behavior, private output access and deployment certification. This does not make imported approvals or render claims authoritative.
+
 The canonical D3VONN frontend remains this repository. `/avatar-studio` adds a use-case catalog reachable from Neural Nexus navigation, AI Films, the protected Film Studio, and Workflows. Existing authentication, Hermes APIs and route guards remain unchanged.
 
 The current external authoring target is a Lovable **preview**, not a verified public production domain. `src/features/avatar-studio/catalog.ts` fixes the target origin. A launch opens `/projects?template=<allowlisted format>`; Studio must preselect its new-project format without automatic creation. No names, scripts, tokens, media or credentials are forwarded. Separate origins keep separate sessions; this does not add SSO.
