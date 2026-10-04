@@ -12,3 +12,6 @@ PyYAML==6.0.3
 # Linting / formatting
 ruff==0.8.0
 mypy==1.13.0
+
+# Redis annotations for the blocking release-critical mypy gate
+types-redis==4.6.0.20241004

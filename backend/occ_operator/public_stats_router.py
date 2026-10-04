@@ -51,7 +51,8 @@ async def get_public_stats(response: Response) -> dict[str, Any]:
         return_exceptions=True,
     )
     available = [not isinstance(item, BaseException) for item in sources]
-    events = sources[0] if available[0] else []
+    agent_events = sources[0]
+    events = [] if isinstance(agent_events, BaseException) else agent_events
     latest_by_agent: dict[str, str] = {}
     for row in events:
         agent_id = row.get("agent_id")

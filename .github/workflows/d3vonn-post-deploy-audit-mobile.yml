@@ -7,17 +7,12 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '.github/workflows/d3vonn-post-deploy-audit-mobile.yml'
-      - 'tests/e2e/production-interaction-audit.spec.ts'
-      - 'playwright.config.ts'
-      - 'src/**'
 
 permissions:
   contents: read
 
 concurrency:
-  group: d3vonn-post-deploy-mobile-audit
+  group: d3vonn-post-deploy-mobile-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:

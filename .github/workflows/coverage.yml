@@ -35,9 +35,15 @@ jobs:
         run: git diff --exit-code pnpm-lock.yaml || (echo "pnpm-lock.yaml changed after pnpm install --frozen-lockfile" && exit 1)
 
       - name: Run unit tests with coverage
-        run: pnpm run test -- --coverage --reporter=verbose
+        run: pnpm run test:coverage
         env:
           CI: true
+
+      - name: Require coverage evidence
+        run: |
+          test -s coverage/lcov.info
+          test -s coverage/coverage-summary.json
+          node scripts/check-coverage-summary.mjs
 
       - name: Upload coverage to Codecov
         continue-on-error: true
@@ -56,6 +62,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
+          if-no-files-found: error
           retention-days: 14
 
       - name: Coverage summary
