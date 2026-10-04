@@ -20,6 +20,10 @@ REQUIRED = [
     ("skipped", "failure"), ("neutral", "failure"), ("stale", "failure"),
     ("startup_failure", "failure"), ("cancelled", "failure"),
     ("timed_out", "failure"), ("action_required", "failure"),
+    ("chained_success", "pending"), ("newer_chained_failure", "success"),
+    ("wrong_branch", "pending"), ("manual", "success"),
+    ("scheduled_success", "success"), ("scheduled_failure", "failure"),
+    ("newer_scheduled_failure", "failure"),
 ])
 def test_acceptance_requires_same_commit_evidence_without_failing_waits(case, expected):
     workflow = Path(__file__).resolve().parents[2] / ".github/workflows/production-acceptance.yml"
@@ -40,6 +44,20 @@ def test_acceptance_requires_same_commit_evidence_without_failing_waits(case, ex
         runs[-1]["event"] = "pull_request"
     elif case == "newer_failure":
         runs.append({**runs[-1], "id": 100, "conclusion": "failure"})
+    elif case == "chained_success":
+        runs[-1]["event"] = "workflow_run"
+    elif case == "newer_chained_failure":
+        runs.append({**runs[-1], "id": 100, "event": "workflow_run", "conclusion": "failure"})
+    elif case == "wrong_branch":
+        runs[-1]["head_branch"] = "other"
+    elif case == "manual":
+        runs[-1]["event"] = "workflow_dispatch"
+    elif case in {"scheduled_success", "scheduled_failure"}:
+        runs[-1]["event"] = "schedule"
+        if case == "scheduled_failure":
+            runs[-1]["conclusion"] = "failure"
+    elif case == "newer_scheduled_failure":
+        runs.append({**runs[-1], "id": 100, "event": "schedule", "conclusion": "failure"})
     harness = """
 const input = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 const result = {failed: false};
