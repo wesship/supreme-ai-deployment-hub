@@ -368,7 +368,7 @@ async def _create_stripe_session(
                     "Content-Type": "application/x-www-form-urlencoded",
                     "Idempotency-Key": f"event-os-checkout:{order_id}",
                 },
-                data=form,
+                content=urlencode(form),
             )
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="Stripe checkout unavailable") from exc

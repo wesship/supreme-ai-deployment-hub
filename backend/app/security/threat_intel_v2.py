@@ -111,7 +111,7 @@ class STIXHandler:
         }
 
     @staticmethod
-    def create_threat_actor(name: str, actor_type: ThreatActorType, aliases: list[str] = None, description: str = "") -> dict[str, Any]:
+    def create_threat_actor(name: str, actor_type: ThreatActorType, aliases: list[str] | None = None, description: str = "") -> dict[str, Any]:
         """Create a STIX 2.1 Threat Actor object."""
         return {
             "type": "threat-actor",
@@ -233,9 +233,9 @@ class ThreatIntelPipeline:
         value: str,
         source: str,
         confidence: int = 50,
-        tags: list[str] = None,
+        tags: list[str] | None = None,
         ttl_days: int = 90,
-        context: dict[str, Any] = None,
+        context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Ingest and normalize a new IOC."""
         normalized_value = self._normalize_ioc(ioc_type, value)
@@ -394,9 +394,9 @@ class ThreatIntelPipeline:
         self,
         name: str,
         actor_type: ThreatActorType,
-        aliases: list[str] = None,
-        ttps: list[str] = None,
-        targets: list[str] = None,
+        aliases: list[str] | None = None,
+        ttps: list[str] | None = None,
+        targets: list[str] | None = None,
         description: str = "",
     ) -> dict[str, Any]:
         """Create or update a threat actor profile."""
@@ -445,9 +445,9 @@ class ThreatIntelPipeline:
         self,
         name: str,
         actor_name: str = "",
-        objectives: list[str] = None,
-        iocs: list[str] = None,
-        ttps: list[str] = None,
+        objectives: list[str] | None = None,
+        iocs: list[str] | None = None,
+        ttps: list[str] | None = None,
         description: str = "",
     ) -> dict[str, Any]:
         """Create or update a campaign."""
@@ -491,7 +491,7 @@ class ThreatIntelPipeline:
     # STIX/TAXII Integration
     # -----------------------------------------------------------------------
 
-    async def export_as_stix_bundle(self, ioc_types: list[IOCType] = None, limit: int = 100) -> dict[str, Any]:
+    async def export_as_stix_bundle(self, ioc_types: list[IOCType] | None = None, limit: int = 100) -> dict[str, Any]:
         """Export IOCs as a STIX 2.1 bundle."""
         objects: list[dict[str, Any]] = []
 

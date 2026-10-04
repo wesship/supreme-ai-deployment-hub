@@ -54,11 +54,11 @@ class DigitalTwin:
         service_type: str = "microservice",
         version: str = "unknown",
         environment: str = "production",
-        dependencies: list[str] = None,
-        endpoints: list[str] = None,
+        dependencies: list[str] | None = None,
+        endpoints: list[str] | None = None,
         owner: str = "",
-        tenant_ids: list[str] = None,
-        metadata: dict[str, Any] = None,
+        tenant_ids: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Register or update a service in the digital twin."""
         service_data = {

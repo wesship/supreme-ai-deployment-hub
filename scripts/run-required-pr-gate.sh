@@ -33,6 +33,10 @@ run_group "Focused backend tests" python -m pytest \
   backend/tests/test_required_routes.py \
   backend/tests/test_production_lifecycle_canary.py \
   backend/tests/test_ai_film_provider_adapters.py \
+  backend/tests/test_security_event_ingestion_v2.py \
+  backend/tests/test_event_os_checkout.py \
+  backend/tests/test_production_acceptance.py \
+  tests/ai_films/test_role_authoring.py \
   backend/tests/test_hermes_proactivity.py \
   tests/test_readiness.py \
   -q

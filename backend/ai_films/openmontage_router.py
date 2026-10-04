@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, Mapping
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, status

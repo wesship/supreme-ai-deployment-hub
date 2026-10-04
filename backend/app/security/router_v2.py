@@ -94,7 +94,7 @@ def get_db():
 # ---------------------------------------------------------------------------
 
 @router.post("/events")
-async def ingest_event_v2(event: SecurityEventV2):
+async def ingest_event_v2(event: SecurityEventV2) -> dict[str, Any]:
     """Ingest a security event with v2 schema and trigger detection pipeline."""
     db = get_db()
 
@@ -120,14 +120,16 @@ async def ingest_event_v2(event: SecurityEventV2):
         raise HTTPException(status_code=500, detail=f"Failed to store event: {exc}")
 
     # Run detection engine
-    from backend.app.security.detection import DetectionEngine
-    engine = DetectionEngine(db)
-    alerts = await engine.evaluate(stored_event)
+    from backend.app.security.detection import evaluate_event
+    alert = await evaluate_event(db, stored_event)
+    alerts = [alert] if alert is not None else []
 
     # Run correlation engine
     from backend.app.security.correlation import CorrelationEngine
     correlator = CorrelationEngine(db)
-    correlations = await correlator.correlate_alert(stored_event)
+    correlations = []
+    for alert in alerts:
+        correlations.extend(await correlator.correlate_alert(alert))
 
     # Enrich with threat intelligence
     from backend.app.security.threat_intel import ThreatIntelligenceLayer
