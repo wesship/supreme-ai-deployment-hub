@@ -147,7 +147,9 @@ jobs:
           try {
             const report = JSON.parse(raw);
             let total = 0;
-            for (const [url, result] of Object.entries(report)) {
+            // pa11y-ci wraps URL results alongside total/passes/errors counters.
+            const results = report.results || report;
+            for (const [url, result] of Object.entries(results)) {
               const issues = Array.isArray(result) ? result : (result.issues || []);
               if (!issues.length) continue;
               console.error(`PA11Y URL: ${url}`);
@@ -174,7 +176,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Fail on pa11y violations
+      - name: Fail on pa11y audit errors
         if: always()
         run: |
           EXIT_CODE='${{ steps.pa11y.outputs.exit_code }}'
@@ -183,6 +185,6 @@ jobs:
             exit 1
           fi
           if [ "$EXIT_CODE" -ne 0 ]; then
-            echo "::error::pa11y detected accessibility violations. See the pa11y-accessibility-results artifact and diagnostics above."
+            echo "::error::pa11y audit failed (exit $EXIT_CODE). See the artifact and diagnostics for accessibility issues or browser errors."
             exit "$EXIT_CODE"
           fi
