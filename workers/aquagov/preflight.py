@@ -1,4 +1,4 @@
-"""Hardware/software readiness checks for a local AquaGov worker.
+"""Hardware/software readiness checks for a local or managed AquaGov worker.
 
 The module is intentionally dependency-light and reports findings without
 installing packages or executing reconstruction workloads.
@@ -42,10 +42,15 @@ def run_preflight(workspace: str | Path = "./workspace") -> dict:
     checks.append(Check("nvidia_gpu", nvidia is not None, nvidia or "nvidia-smi unavailable"))
 
     comfy_url = os.getenv("AQUAGOV_COMFYUI_URL", "http://127.0.0.1:8188").rstrip("/")
+    comfy_token = os.getenv("AQUAGOV_COMFYUI_TOKEN", "").strip()
     try:
         import urllib.request
-        with urllib.request.urlopen(comfy_url + "/system_stats", timeout=5) as response:
-            checks.append(Check("comfyui", 200 <= response.status < 300, f"HTTP {response.status}"))
+
+        headers = {"Authorization": f"Bearer {comfy_token}"} if comfy_token else {}
+        req = urllib.request.Request(comfy_url + "/system_stats", headers=headers, method="GET")
+        with urllib.request.urlopen(req, timeout=5) as response:
+            auth_mode = "bearer" if comfy_token else "none"
+            checks.append(Check("comfyui", 200 <= response.status < 300, f"HTTP {response.status}; auth={auth_mode}"))
     except Exception as exc:
         checks.append(Check("comfyui", False, f"unreachable: {type(exc).__name__}"))
 
