@@ -1,0 +1,82 @@
+name: The Door Gate 107 - Unreal 5.3 Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_path:
+        description: Relative path to DEVONN_AI.uproject
+        required: false
+        default: game/the-door/ue5/project/DEVONN_AI.uproject
+  pull_request:
+    branches: [main, feat/the-door-ue5-gate107]
+    paths:
+      - '.github/workflows/the-door-gate107.yml'
+      - 'game/the-door/ue5/**'
+
+permissions:
+  contents: read
+
+jobs:
+  gate107:
+    name: UE5.3 compile, Retro, and World Forge evidence
+    runs-on: [self-hosted, Windows, X64, ue5-3]
+    timeout-minutes: 90
+    env:
+      UE_ROOT: C:\Program Files\Epic Games\UE_5.3
+      PROJECT_PATH: ${{ inputs.project_path || 'game/the-door/ue5/project/DEVONN_AI.uproject' }}
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Materialize exact Gate 107 project
+        shell: powershell
+        run: |
+          & '.\game\the-door\ue5\MaterializeGate107Project.ps1'
+
+      - name: Apply GodEye + GeoLibre World Forge overlay
+        shell: powershell
+        run: |
+          & '.\game\the-door\ue5\world-forge\ApplyWorldForgeOverlay.ps1'
+
+      - name: Verify UE 5.3 toolchain
+        shell: powershell
+        run: |
+          $build = Join-Path $env:UE_ROOT 'Engine\Build\BatchFiles\Build.bat'
+          $editor = Join-Path $env:UE_ROOT 'Engine\Binaries\Win64\UnrealEditor-Cmd.exe'
+          if (!(Test-Path $build)) { throw "UE 5.3 Build.bat not found at $build" }
+          if (!(Test-Path $editor)) { throw "UE 5.3 UnrealEditor-Cmd.exe not found at $editor" }
+
+      - name: Verify Gate 107 project is present
+        shell: powershell
+        run: |
+          if (!(Test-Path $env:PROJECT_PATH)) {
+            throw "Gate 107 project not materialized at $env:PROJECT_PATH. Do not treat this workflow as certification."
+          }
+
+      - name: Run Gate 107 preflight
+        shell: powershell
+        run: |
+          $root = Split-Path -Parent $env:PROJECT_PATH
+          & (Join-Path $root 'PreflightGate107.ps1')
+
+      - name: Build and run Retro automation
+        shell: powershell
+        run: |
+          $root = Split-Path -Parent $env:PROJECT_PATH
+          & (Join-Path $root 'RunGate107.ps1')
+
+      - name: Run World Forge automation
+        shell: powershell
+        run: |
+          & '.\game\the-door\ue5\world-forge\RunWorldForgeTests.ps1'
+
+      - name: Upload Gate 107 and World Forge evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate107-world-forge-evidence-${{ github.sha }}
+          path: |
+            game/the-door/ue5/project/Evidence/Gate107/**
+            game/the-door/ue5/project/Evidence/WorldForge/**
+          if-no-files-found: warn
+          retention-days: 30
