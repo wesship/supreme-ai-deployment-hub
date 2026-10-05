@@ -1,7 +1,8 @@
-"""Safe ComfyUI local execution bridge.
+"""Safe ComfyUI execution bridge.
 
-Uses ComfyUI's API-format workflow over HTTP and WebSocket. The bridge only
-submits an already-approved workflow graph; it never accepts shell commands.
+Uses ComfyUI's API-format workflow over HTTP. The bridge only submits an
+already-approved workflow graph; it never accepts shell commands. Local ComfyUI
+works without authentication; managed providers may supply a bearer token.
 """
 from __future__ import annotations
 
@@ -20,9 +21,23 @@ class ComfyResult:
 
 
 class ComfyUIBridge:
-    def __init__(self, base_url: str = "http://127.0.0.1:8188", timeout: float = 1800):
+    def __init__(
+        self,
+        base_url: str = "http://127.0.0.1:8188",
+        timeout: float = 1800,
+        token: str | None = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.token = token.strip() if token else None
+
+    def _headers(self, *, json_content: bool = False) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        if json_content:
+            headers["Content-Type"] = "application/json"
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        return headers
 
     def submit(self, workflow: dict, client_id: str | None = None) -> str:
         self._validate_workflow(workflow)
@@ -34,7 +49,7 @@ class ComfyUIBridge:
         req = request.Request(
             f"{self.base_url}/prompt",
             data=data,
-            headers={"Content-Type": "application/json"},
+            headers=self._headers(json_content=True),
             method="POST",
         )
         with request.urlopen(req, timeout=30) as response:
@@ -44,7 +59,12 @@ class ComfyUIBridge:
         return result["prompt_id"]
 
     def history(self, prompt_id: str) -> dict:
-        with request.urlopen(f"{self.base_url}/history/{prompt_id}", timeout=30) as response:
+        req = request.Request(
+            f"{self.base_url}/history/{prompt_id}",
+            headers=self._headers(),
+            method="GET",
+        )
+        with request.urlopen(req, timeout=30) as response:
             return json.loads(response.read())
 
     def wait(self, prompt_id: str, poll_seconds: float = 2.0) -> ComfyResult:
