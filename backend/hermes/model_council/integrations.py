@@ -7,6 +7,7 @@ from typing import Any
 
 import httpx
 
+from backend.app.services.token_governor import govern_chat_request
 from backend.research_os.agents import EvidenceRankerAgent
 from backend.research_os.models import EvidenceItem
 
@@ -54,15 +55,27 @@ class OpenAIChatCouncilProvider:
             messages.append({"role": "system", "content": system_prompt.strip()})
         messages.append({"role": "user", "content": request.prompt})
 
+        requested_output_tokens: int | None = None
+        if "max_tokens" in spec.metadata:
+            try:
+                requested_output_tokens = int(spec.metadata["max_tokens"])
+            except (TypeError, ValueError):
+                requested_output_tokens = None
+
+        governed_messages, token_decision = govern_chat_request(
+            messages,
+            requested_output_tokens,
+            policy_name="agent",
+        )
+
         payload: dict[str, Any] = {
             "model": spec.model,
-            "messages": messages,
+            "messages": governed_messages,
+            "max_tokens": token_decision.allowed_output_tokens,
             "stream": False,
         }
         if "temperature" in spec.metadata:
             payload["temperature"] = spec.metadata["temperature"]
-        if "max_tokens" in spec.metadata:
-            payload["max_tokens"] = spec.metadata["max_tokens"]
 
         headers = {
             "Content-Type": "application/json",
@@ -87,6 +100,14 @@ class OpenAIChatCouncilProvider:
             "finish_reason": choices[0].get("finish_reason"),
             "usage": usage,
             "provider_request_id": response.headers.get("x-request-id"),
+            "token_governor": {
+                "policy": token_decision.policy,
+                "estimated_prompt_tokens_before": token_decision.estimated_prompt_tokens_before,
+                "estimated_prompt_tokens_after": token_decision.estimated_prompt_tokens_after,
+                "requested_output_tokens": token_decision.requested_output_tokens,
+                "allowed_output_tokens": token_decision.allowed_output_tokens,
+                "trimmed": token_decision.trimmed,
+            },
         }
 
         # Provider adapters do not self-award groundedness or safety. Those are
