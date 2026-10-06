@@ -8,6 +8,7 @@
  */
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
+  readonly VITE_AUTHENTIK_PILOT_ENABLED?: string;
   readonly VITE_ENVIRONMENT?: 'development' | 'staging' | 'production';
   readonly VITE_SENTRY_DSN?: string;
 
