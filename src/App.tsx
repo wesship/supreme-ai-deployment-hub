@@ -31,6 +31,7 @@ const FilmPage = lazy(() => import("./pages/AIFilms"));
 const AIFilmStudio = lazy(() => import("./pages/AIFilmStudio"));
 const CommerceStudio = lazy(() => import("./pages/CommerceStudio"));
 const TheDoor = lazy(() => import("./pages/TheDoor"));
+const AvatarStudio = lazy(() => import("./pages/AvatarStudio"));
 const WorkflowManagement = lazy(() => import("./pages/WorkflowManagement"));
 const DeploymentDashboard = lazy(() => import("./pages/DeploymentDashboard"));
 const APIManagement = lazy(() => import("./pages/APIManagement"));
@@ -219,6 +220,7 @@ function App() {
                 <Route path="/ai-workforce" element={<AgentDashboard />} />
                 <Route path="/devonn" element={<DevonnDashboard />} />
                 <Route path="/flow" element={<FlowEditor />} />
+                <Route path="/avatar-studio" element={<AvatarStudio />} />
                 <Route path="/workflows" element={<WorkflowManagement />} />
                 <Route path="/agent-demo" element={<AgentDemo />} />
                 <Route path="/enhanced-agents" element={<EnhancedAgentDemo />} />
