@@ -45,3 +45,17 @@ node --test scripts/authentik-staging-preflight.test.mjs
 ```
 
 Sources: [Supabase custom OAuth/OIDC providers](https://supabase.com/docs/guides/auth/custom-oauth-providers), [Authentik OAuth2/OIDC](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/), [Authentik advisories](https://github.com/goauthentik/authentik/security/advisories), [staging repair PR #1394](https://github.com/wesship/supreme-ai-deployment-hub/pull/1394).
+
+## Railway infrastructure prepared — October 6, 2026
+
+The connected Railway project `devonn-ai-backend` (`65a00bf6-1a68-414e-bbe9-a30052595a83`) has staging environment `14733108-698e-4c85-9370-e7417a8908b5`. Its five existing live services were not changed.
+
+Pending patch `ef6b25c5-dcdf-4d44-9370-56344139c854` contains only creation of Authentik server, Authentik worker, PostgreSQL 18, a database volume, an S3 storage bucket, and their resource group. Final inspection reported 91 staged changes and `destructive: false`. No resources are provisioned yet; deployment will incur Railway usage charges.
+
+The `authentik-railway` community template originally pinned 2026.5.6. Both Authentik sources were replaced in the pending patch with `ghcr.io/goauthentik/server:2026.8.3`, the official latest release verified on October 6. Its preceding 2026.8.2 release includes the September security fixes. Both server and worker use generated secrets; the worker now references the server's signing secret and bootstrap password so they are shared rather than generated independently. Values were not printed or copied into this repository.
+
+Database connections use private networking with `AUTHENTIK_POSTGRESQL__SSLMODE=require` on both Authentik services. This encrypts transport but does not verify the database certificate; CA verification remains a production hardening gate for the template's self-signed PostgreSQL certificate.
+
+The server template retains its `/api/v3/root/config/` HTTP health check. The connector rejected Authentik's documented `/-/health/ready/` path because its validation disallows hyphens. A subsequent attempt to stage timeout/resource limits returned `Service Instance not found` for the not-yet-created service, so no timeout or limit override was applied. Verify database readiness separately after first deployment, then correct the deployment probe through the dashboard if needed.
+
+Before deploying, confirm this exact pending patch still contains only the new identity resources. Railway's `accept_deploy` tool requires explicit confirmation to deploy. After deployment, verify server/worker/database health, inspect secret sharing without exposing values, set the real administrator recovery email (the template placeholder is `admin@example.com`), confirm the trusted proxy configuration, and create the staging OIDC client. The generated public HTTPS domain and the OIDC issuer do not exist until deployment and provider setup complete. D3VONN.IO production login is unchanged.
