@@ -59,3 +59,17 @@ Database connections use private networking with `AUTHENTIK_POSTGRESQL__SSLMODE=
 The server template retains its `/api/v3/root/config/` HTTP health check. The connector rejected Authentik's documented `/-/health/ready/` path because its validation disallows hyphens. A subsequent attempt to stage timeout/resource limits returned `Service Instance not found` for the not-yet-created service, so no timeout or limit override was applied. Verify database readiness separately after first deployment, then correct the deployment probe through the dashboard if needed.
 
 Before deploying, confirm this exact pending patch still contains only the new identity resources. Railway's `accept_deploy` tool requires explicit confirmation to deploy. After deployment, verify server/worker/database health, inspect secret sharing without exposing values, set the real administrator recovery email (the template placeholder is `admin@example.com`), confirm the trusted proxy configuration, and create the staging OIDC client. The generated public HTTPS domain and the OIDC issuer do not exist until deployment and provider setup complete. D3VONN.IO production login is unchanged.
+
+## Deployment verified — October 6, 2026
+
+After explicit user approval, the reviewed staging patch was committed at approximately 12:58 UTC. Railway reported all three identity services online with one running replica each, no crashed replicas, no reported issues, and no pending work:
+
+- Server deployment: `1f709f94-fbb5-435a-9a63-6391cff920ce`, SUCCESS.
+- Worker deployment: `8b1c383d-f03f-4c20-9089-48a0c4c65569`, SUCCESS.
+- PostgreSQL deployment: `73595d7f-7e73-45b4-a45a-33c2f4e6ab1f`, SUCCESS.
+
+Public endpoint: https://authentik-staging.up.railway.app
+
+Independent HTTPS requests returned 200 for `/-/health/ready/`, `/api/v3/root/config/`, and `/if/admin/`. The admin response only establishes page reachability, not an authenticated administrator session or provider readiness. The initial readiness request returned 404 during startup; after migrations and deployment settled, the independent readiness check passed.
+
+The Railway connector returned `valuesRedacted: true` for server variables, including the generated bootstrap password. It cannot retrieve that credential for administrator sign-in. The next handoff is to sign in as `akadmin` using `AUTHENTIK_BOOTSTRAP_PASSWORD` from the Railway server's Variables dashboard; do not paste that password into chat. Replace the placeholder recovery email and configure MFA, then create the staging OIDC provider/client. Supabase custom provider setup, application login, account linking, two-account isolation, and migration-history reconciliation remain open. No production login or domain was changed.
