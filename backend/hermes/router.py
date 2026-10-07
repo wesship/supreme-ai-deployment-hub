@@ -50,6 +50,19 @@ class DispatchRequest(BaseModel):
 async def list_agents(_: Any = Depends(require_occ_access)):
     return {"agents": AGENT_HIERARCHY}
 
+@router.get("/specialists")
+async def list_specialists(_: Any = Depends(require_occ_access)):
+    from backend.hermes.skills import BUILTIN_SKILL_REGISTRY
+
+    return {
+        "specialists": [
+            skill.model_dump(mode="json")
+            for skill in BUILTIN_SKILL_REGISTRY.list(enabled_only=False)
+            if skill.id.startswith("wshobson-")
+        ],
+        "execution_status": "pilot_pending",
+    }
+
 @router.get("/states")
 async def list_states(_: Any = Depends(require_occ_access)):
     return {"states": sorted(TASK_STATES)}
