@@ -52,7 +52,9 @@ async def agent_preview(body: PreviewPrompt, request: Request):
     if not _enabled():
         raise HTTPException(503, "Public AI preview is not enabled")
     origin = request.headers.get("origin")
-    if origin not in _ALLOWED_ORIGINS:
+    configured = {item.strip() for item in os.getenv("PUBLIC_AI_DEMO_ALLOWED_ORIGINS", "").split(",") if item.strip()}
+    # Staging origins require an exact, explicit server-side allowlist entry.
+    if origin not in (_ALLOWED_ORIGINS | configured):
         raise HTTPException(403, "Origin not permitted")
     await _reserve(request)
     settings = get_settings()
