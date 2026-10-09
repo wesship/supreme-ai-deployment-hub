@@ -38,9 +38,9 @@ const source = readFileSync('src/styles/approved-home.source.css', 'utf8');
 const result = await postcss([tailwindcss(config), scope]).process(source, { from: undefined });
 const accessibility = `
 /* Match the approved page scrollbar and keep its cinematic chrome unobstructed. */
-html:has(.approved-home)::-webkit-scrollbar { width: 10px; height: 10px; }
-html:has(.approved-home)::-webkit-scrollbar-track { background: #090b0d; }
-html:has(.approved-home)::-webkit-scrollbar-thumb { background: #242a31; border-radius: 999px; border: 2px solid #090b0d; }
+:is(html,body):has(.approved-home)::-webkit-scrollbar { width: 10px; height: 10px; }
+:is(html,body):has(.approved-home)::-webkit-scrollbar-track { background: #090b0d; }
+:is(html,body):has(.approved-home)::-webkit-scrollbar-thumb { background: #242a31; border-radius: 999px; border: 2px solid #090b0d; }
 body:has(.approved-home) #page-voice-reader-root,
 body:has(.approved-home) button[aria-label="Open Devonn AI Chat"] { display: none; }
 .approved-home { isolation: isolate; overflow-x: clip; }
