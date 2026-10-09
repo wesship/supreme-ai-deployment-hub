@@ -61,6 +61,7 @@ docs/
 scripts/*
 !scripts/vercel-ignore-build.sh
 !scripts/verify-build-scripts.mjs
+!scripts/generate-approved-home-style.mjs
 !scripts/generate-public-assets.mjs
 !scripts/generate-route-html.mjs
 !scripts/generate-brand-assets.mjs
