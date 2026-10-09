@@ -36,7 +36,8 @@ describe('Sovereign Signal homepage handoff', () => {
     expect(container.textContent).not.toContain('12,843');
     expect(container.textContent).not.toContain('2,465+');
     expect(container.textContent).not.toContain('CORE ONLINE');
-    expect(container.querySelector('.readdy-mini-panel strong')?.textContent).toBe('Not reported');
+    expect(container.querySelector('.sovereign-telemetry strong')?.textContent).toBe('Not reported');
+    expect(container.querySelector('.readdy-command-artwork')?.getAttribute('src')).toBe('/d3vonn-enterprise-core.webp');
     expect(container.querySelector('#platform')).toBeTruthy();
   });
 });

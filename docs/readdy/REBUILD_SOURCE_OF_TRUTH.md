@@ -26,6 +26,12 @@ The corrected export passes `npm run type-check` and `npm run build`. Its bundle
 
 ## Repository presentation corrections
 
-The canonical homepage retains its neural web, orbit, globe, card and signal effects. The handoff adds soft-edge logo/card masks, working mobile navigation with keyboard dismissal, and the missing platform anchor. Decorative cards use the same public telemetry/fallbacks as the primary telemetry panel rather than fabricated counts. Readiness labels identify surfaces; core status comes from telemetry.
+The canonical homepage retains its neural web, orbit, globe, card and signal effects. The handoff adds soft-edge logo/card masks, working mobile navigation with keyboard dismissal, and the missing platform anchor. The mobile card uses the original locally stored enterprise artwork, explicitly labeled as a concept visualization; its illustration is not live telemetry. The public telemetry panel retains real values/fallbacks. The header uses the generated WebP directly because an SVG image referencing another image does not render reliably inside an img element. Readiness labels identify surfaces; core status comes from telemetry.
 
 Production release uses the existing `supreme-ai-deployment-hub` Vercel project and its bound D3VONN.IO domains. Keep changes behind the repository's required PR gate and verify the actual deployed frontend commit, routes and rendered mobile navigation after release. Backend runtime identity alone does not prove the frontend release.
+
+## Dependency release gate
+
+The 2026-10-09 release check identified three high-severity advisories in the existing dependency graph. The release pins `source-map-js` to 1.2.2, `sharp` to 0.35.5 and `@modelcontextprotocol/sdk` to 1.31.0, with a regenerated frozen lockfile. Re-run the high-severity audit and complete the canonical gate on the resulting commit.
+
+A separate moderate advisory, GHSA-hp3w-g68c-fv3c, affects `sprintf-js` 1.1.3 through Transformers → onnxruntime-node → global-agent → roarr. The advisory lists no patched release. It is retained as an explicit unresolved upstream finding; the release gate is not weakened or suppressed. The browser homepage does not call this Node logger. Do not describe the entire dependency graph as vulnerability-free.

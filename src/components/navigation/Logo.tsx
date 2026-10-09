@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-export const OFFICIAL_LOGO_SRC = '/d3vonn-main-logo.svg?v=20260726-main';
-export const OFFICIAL_LOGO_FALLBACK_SRC = '/d3vonn-logo.webp?v=20260726-main';
+export const OFFICIAL_LOGO_SRC = '/d3vonn-logo.webp';
+export const OFFICIAL_LOGO_FALLBACK_SRC = '/d3vonn-enterprise-core.webp';
 
 const Logo: React.FC = () => {
   const [logoSrc, setLogoSrc] = useState(OFFICIAL_LOGO_SRC);
@@ -23,6 +23,10 @@ const Logo: React.FC = () => {
           height={492}
           alt="D3VONN.IO — One Platform Infinite Intelligence"
           className="relative block h-12 w-[178px] max-w-[48vw] object-contain object-left drop-shadow-[0_0_18px_rgba(96,165,250,0.48)] transition duration-300 group-hover:drop-shadow-[0_0_26px_rgba(96,165,250,0.78)] sm:h-[52px] sm:w-[205px] lg:w-[224px]"
+          style={{
+            maskImage: 'radial-gradient(ellipse at center, #000 55%, rgba(0, 0, 0, .94) 75%, transparent 100%)',
+            WebkitMaskImage: 'radial-gradient(ellipse at center, #000 55%, rgba(0, 0, 0, .94) 75%, transparent 100%)',
+          }}
           decoding="async"
           fetchPriority="high"
           draggable={false}
