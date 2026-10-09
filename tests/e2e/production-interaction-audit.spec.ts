@@ -192,6 +192,46 @@ test.describe('D3VONN.IO production interaction audit', () => {
     });
   }
 
+
+  for (const width of [390, 768, 1353, 1920]) {
+    test(`approved homepage preserves artwork and responsive layout at ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 932 });
+      const errors = await collectRuntimeErrors(page);
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await waitForApplication(page);
+      await expect(page.locator('#top h1')).toHaveText('INTELLIGENCEUNDER YOUR COMMAND.');
+      const artwork = page.locator('#top img[alt="D3VONN"]');
+      await expect(artwork).toHaveAttribute('src', '/approved-home/emblem.webp');
+      await expect(artwork).toBeVisible();
+      await expect.poll(() => artwork.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+      const dimensions = await page.locator('.approved-home').evaluate((home) => {
+        const hero = home.querySelector('#top')!.getBoundingClientRect();
+        const header = home.querySelector('header')!.getBoundingClientRect();
+        const art = home.querySelector('#top img[alt="D3VONN"]')!.getBoundingClientRect();
+        return { heroWidth: hero.width, headerWidth: header.width, artWidth: art.width, scrollWidth: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth };
+      });
+      expect(dimensions.heroWidth).toBe(dimensions.viewport);
+      expect(dimensions.headerWidth).toBe(dimensions.viewport);
+      expect(dimensions.scrollWidth).toBeLessThanOrEqual(width + 1);
+      expect(dimensions.artWidth).toBeGreaterThan(Math.min(width * 0.65, 700));
+      await expect(page.locator('#top .water-puddle')).toBeVisible();
+      const headerLinks = await page.locator('header a:visible').evaluateAll((links) => links.map((link) => link.getBoundingClientRect().right));
+      for (const right of headerLinks) expect(right).toBeLessThanOrEqual(dimensions.viewport + 1);
+      await page.waitForTimeout(2000);
+      await page.screenshot({ path: testInfo.outputPath(`approved-home-${width}.png`), fullPage: false });
+      if (width < 1024) {
+        const trigger = page.getByRole('button', { name: 'Open navigation' });
+        await trigger.click();
+        await expect(page.getByRole('dialog', { name: 'Navigation' })).toBeVisible();
+        await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: /Platform/ })).toBeVisible();
+        await page.keyboard.press('Escape');
+        await expect(trigger).toBeFocused();
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      }
+      expect(errors).toEqual([]);
+    });
+  }
+
   test('homepage navigation links reach their intended destinations', async ({ page, request }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);

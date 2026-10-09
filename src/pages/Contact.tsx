@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import D3vonnPageBanner from '@/components/index/D3vonnPageBanner';
 import { env } from '@/lib/env';
 import { contactPreset } from '@/lib/contactPresets';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 type ContactFormState = {
   name: string;
@@ -30,8 +30,10 @@ const EMPTY_FORM: ContactFormState = {
 
 const Contact: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [form, setForm] = useState<ContactFormState>(() => ({
     ...EMPTY_FORM,
+    email: typeof location.state?.email === 'string' ? location.state.email : '',
     ...(contactPreset(searchParams.get('inquiry')) ?? {}),
   }));
   const [isSubmitting, setIsSubmitting] = useState(false);

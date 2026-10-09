@@ -6,6 +6,10 @@ export type ContactPreset = {
 const JEWELRY_INQUIRY = 'mile-high-golden-elevation';
 
 export function contactPreset(inquiry: string | null): ContactPreset | null {
+  if (inquiry === 'newsletter') return {
+    subject: 'D3VONN Signal newsletter subscription',
+    message: 'Please add me to The Signal newsletter. I consent to receiving occasional D3VONN updates.',
+  };
   if (inquiry !== JEWELRY_INQUIRY) return null;
   return {
     subject: 'Mile High Golden Elevation consultation',

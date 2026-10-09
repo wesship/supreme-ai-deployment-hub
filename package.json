@@ -6,7 +6,7 @@
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "vite",
-    "build": "pnpm run generate:public-assets && vite build && pnpm run security:bundle-scan",
+    "build": "pnpm run generate:approved-home && pnpm run generate:public-assets && vite build && pnpm run security:bundle-scan",
     "build:dev": "vite build --mode development",
     "generate:brand": "node scripts/generate-brand-assets.mjs",
     "generate:routes": "node scripts/generate-route-html.mjs",
@@ -36,7 +36,8 @@
     "memory:compress": "node scripts/tokenjuice-lite.mjs",
     "connectors:audit": "node scripts/connector-inventory.mjs",
     "validate:speech": "node deployment/scripts/validate-speech-support.js",
-    "primetime:staging-gate": "node scripts/primetime-staging-gate.mjs"
+    "primetime:staging-gate": "node scripts/primetime-staging-gate.mjs",
+    "generate:approved-home": "node scripts/generate-approved-home-style.mjs"
   },
   "dependencies": {
     "@11labs/react": "^0.2.0",
@@ -129,7 +130,9 @@
     "uuid": "^11.1.1",
     "vaul": "^0.9.3",
     "vitest": "^4.1.11",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@react-three/fiber": "8.18.0",
+    "three": "0.179.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -164,7 +167,8 @@
     "typescript-eslint": "^8.0.1",
     "vite": "^6.4.3",
     "vite-plugin-static-copy": "3.1.3",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "@types/three": "0.179.0"
   },
   "engines": {
     "node": "22.x",
