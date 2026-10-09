@@ -5,11 +5,11 @@ const LOGO =
 
 const DEPTH_LAYERS = [-6, -12, -18, -24, -30];
 
-// Feathered elliptical mask so the emblem dissolves into the surrounding
+// Intersecting edge masks so the emblem dissolves into the surrounding
 // background instead of showing a hard rectangular edge. The centre stays
 // fully opaque so the D3VONN.IO wordmark remains crisp and readable.
 const EDGE_MASK =
-  'radial-gradient(ellipse 96% 92% at 50% 50%, rgba(0,0,0,1) 54%, rgba(0,0,0,0.88) 70%, rgba(0,0,0,0.4) 85%, rgba(0,0,0,0) 100%)';
+  'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent), linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent)';
 
 export default function Logo3D() {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -64,6 +64,8 @@ export default function Logo3D() {
                   transform: `translateZ(${z}px)`,
                   filter: `brightness(${0.55 + Math.abs(z) / 80})`,
                   maskImage: EDGE_MASK,
+                  maskComposite: 'intersect',
+                  WebkitMaskComposite: 'source-in',
                   WebkitMaskImage: EDGE_MASK,
                 }}
               />
@@ -75,7 +77,9 @@ export default function Logo3D() {
                 src={LOGO}
                 alt="D3VONN"
                 className="h-full w-full object-cover object-center"
-                style={{ maskImage: EDGE_MASK, WebkitMaskImage: EDGE_MASK }}
+                style={{ maskImage: EDGE_MASK,
+                  maskComposite: 'intersect',
+                  WebkitMaskComposite: 'source-in', WebkitMaskImage: EDGE_MASK }}
               />
               {/* glass sheen that tracks the tilt */}
               <span
@@ -83,6 +87,8 @@ export default function Logo3D() {
                 style={{
                   background: `radial-gradient(circle at ${50 + tilt.y * 3}% ${50 + tilt.x * 3}%, rgba(255,255,255,0.30) 0%, rgba(125,241,255,0.09) 28%, transparent 60%)`,
                   maskImage: EDGE_MASK,
+                  maskComposite: 'intersect',
+                  WebkitMaskComposite: 'source-in',
                   WebkitMaskImage: EDGE_MASK,
                 }}
               ></span>
@@ -93,6 +99,8 @@ export default function Logo3D() {
                   background:
                     'radial-gradient(ellipse 72% 62% at 50% 0%, rgba(255,255,255,0.16), transparent 72%)',
                   maskImage: EDGE_MASK,
+                  maskComposite: 'intersect',
+                  WebkitMaskComposite: 'source-in',
                   WebkitMaskImage: EDGE_MASK,
                 }}
               ></span>
@@ -103,6 +111,8 @@ export default function Logo3D() {
                   background:
                     'radial-gradient(ellipse 58% 54% at 50% 52%, rgba(59,155,255,0.12), transparent 72%)',
                   maskImage: EDGE_MASK,
+                  maskComposite: 'intersect',
+                  WebkitMaskComposite: 'source-in',
                   WebkitMaskImage: EDGE_MASK,
                 }}
               ></span>

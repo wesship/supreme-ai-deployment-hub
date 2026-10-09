@@ -37,6 +37,12 @@ const scope = {
 const source = readFileSync('src/styles/approved-home.source.css', 'utf8');
 const result = await postcss([tailwindcss(config), scope]).process(source, { from: undefined });
 const accessibility = `
+/* Match the approved page scrollbar and keep its cinematic chrome unobstructed. */
+html:has(.approved-home)::-webkit-scrollbar { width: 10px; height: 10px; }
+html:has(.approved-home)::-webkit-scrollbar-track { background: #090b0d; }
+html:has(.approved-home)::-webkit-scrollbar-thumb { background: #242a31; border-radius: 999px; border: 2px solid #090b0d; }
+body:has(.approved-home) #page-voice-reader-root,
+body:has(.approved-home) button[aria-label="Open Devonn AI Chat"] { display: none; }
 .approved-home { isolation: isolate; overflow-x: clip; }
 .approved-home section { scroll-margin-top: 88px; }
 .approved-home .approved-skip-link { position: fixed; top: -80px; left: 16px; z-index: 200; background: #090b0d; color: white; padding: 12px 16px; }

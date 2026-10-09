@@ -208,13 +208,15 @@ test.describe('D3VONN.IO production interaction audit', () => {
         const hero = home.querySelector('#top')!.getBoundingClientRect();
         const header = home.querySelector('header')!.getBoundingClientRect();
         const art = home.querySelector('#top img[alt="D3VONN"]')!.getBoundingClientRect();
-        return { heroWidth: hero.width, headerWidth: header.width, artWidth: art.width, scrollWidth: document.documentElement.scrollWidth, viewport: innerWidth };
+        return { heroWidth: hero.width, headerWidth: header.width, artWidth: art.width, scrollWidth: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth };
       });
-      expect(dimensions.heroWidth).toBe(width);
-      expect(dimensions.headerWidth).toBe(width);
+      expect(dimensions.heroWidth).toBe(dimensions.viewport);
+      expect(dimensions.headerWidth).toBe(dimensions.viewport);
       expect(dimensions.scrollWidth).toBeLessThanOrEqual(width + 1);
       expect(dimensions.artWidth).toBeGreaterThan(Math.min(width * 0.65, 700));
       await expect(page.locator('#top .water-puddle')).toBeVisible();
+      const headerLinks = await page.locator('header a:visible').evaluateAll((links) => links.map((link) => link.getBoundingClientRect().right));
+      for (const right of headerLinks) expect(right).toBeLessThanOrEqual(dimensions.viewport + 1);
       await page.waitForTimeout(2000);
       await page.screenshot({ path: testInfo.outputPath(`approved-home-${width}.png`), fullPage: false });
       if (width < 1024) {
