@@ -10,6 +10,9 @@ import os
 import platform
 import shutil
 import subprocess
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
@@ -21,6 +24,26 @@ class Check:
     ok: bool
     detail: str
     required: bool = True
+
+
+class _SafeBearerRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Block authenticated redirects that would cross origins."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        old = urllib.parse.urlsplit(req.full_url)
+        new = urllib.parse.urlsplit(newurl)
+        old_origin = (old.scheme.lower(), old.hostname, old.port)
+        new_origin = (new.scheme.lower(), new.hostname, new.port)
+        has_auth = req.has_header("Authorization")
+        if has_auth and old_origin != new_origin:
+            raise urllib.error.HTTPError(
+                req.full_url,
+                code,
+                "Refusing cross-origin redirect with Authorization header",
+                headers,
+                fp,
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def _command_version(command: str, args: list[str]) -> Optional[str]:
@@ -44,11 +67,10 @@ def run_preflight(workspace: str | Path = "./workspace") -> dict:
     comfy_url = os.getenv("AQUAGOV_COMFYUI_URL", "http://127.0.0.1:8188").rstrip("/")
     comfy_token = os.getenv("AQUAGOV_COMFYUI_TOKEN", "").strip()
     try:
-        import urllib.request
-
         headers = {"Authorization": f"Bearer {comfy_token}"} if comfy_token else {}
         req = urllib.request.Request(comfy_url + "/system_stats", headers=headers, method="GET")
-        with urllib.request.urlopen(req, timeout=5) as response:
+        opener = urllib.request.build_opener(_SafeBearerRedirectHandler())
+        with opener.open(req, timeout=5) as response:
             auth_mode = "bearer" if comfy_token else "none"
             checks.append(Check("comfyui", 200 <= response.status < 300, f"HTTP {response.status}; auth={auth_mode}"))
     except Exception as exc:
@@ -63,7 +85,6 @@ def run_preflight(workspace: str | Path = "./workspace") -> dict:
     free_gb = usage.free / (1024**3)
     checks.append(Check("workspace_disk", free_gb >= 20, f"{free_gb:.1f} GiB free"))
 
-    # Optional metadata checks are reported but do not block until pinned values exist.
     checks.append(Check("workflow_pin", bool(os.getenv("AQUAGOV_WORKFLOW_SHA")), os.getenv("AQUAGOV_WORKFLOW_SHA", "not configured"), required=False))
     checks.append(Check("matrix3d_pin", bool(os.getenv("AQUAGOV_MATRIX3D_COMMIT")), os.getenv("AQUAGOV_MATRIX3D_COMMIT", "not configured"), required=False))
 
