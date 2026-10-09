@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { HomepageTelemetry } from '@/lib/homepageTelemetry';
 import SovereignNeuralWeb from './SovereignNeuralWeb';
 import SovereignFeatureDeck from './SovereignFeatureDeck';
 import '@/styles/sovereign-signal.css';
 import '@/styles/readdy-mobile-parity.css';
+import '@/styles/sovereign-handoff.css';
 
 type Props = {
   telemetry: HomepageTelemetry;
@@ -20,39 +21,13 @@ const systems = [
   { label: 'KNOWLEDGE', href: '/dkos-ingestion' },
 ];
 
-const signalStates = ['CORE ONLINE', 'VISION — READY', 'VOICE — READY', 'AGENTS — READY', 'EDGE — READY'];
+const signalStates = ['VISION SURFACE', 'VOICE SURFACE', 'AGENT SURFACE', 'EDGE SURFACE'];
 
 const ReaddyMobileHeroVisual: React.FC = () => (
   <div className="readdy-mobile-stage" aria-hidden="true">
     <div className="readdy-command-card">
-      <div className="readdy-card-column readdy-card-column-left">
-        <div className="readdy-mini-panel readdy-mini-panel-tall">
-          <small>ORCHESTRATION FORCE</small>
-          <strong>12,843</strong>
-          <span className="readdy-spark-bars"><i /><i /><i /><i /><i /><i /></span>
-          <em>OPTIMAL</em>
-        </div>
-        <div className="readdy-mini-panel"><small>DOMAIN INTELLIGENCE</small><span className="readdy-stars">✦ · ✧ · ✦</span></div>
-        <div className="readdy-mini-panel"><small>KNOWLEDGE GRAPH</small><span className="readdy-stars">· ✦ · ✧ ·</span></div>
-      </div>
-
-      <div className="readdy-card-center">
-        <div className="readdy-card-grid" />
-        <div className="readdy-helmet-shell">
-          <img src="/d3vonn-icon.svg" alt="" />
-        </div>
-        <div className="readdy-card-wordmark">D3VONN.IO</div>
-        <div className="readdy-card-message">You're here at an opportune time so Live</div>
-        <div className="readdy-horizon-glow" />
-        <div className="readdy-cloud readdy-cloud-a" />
-        <div className="readdy-cloud readdy-cloud-b" />
-      </div>
-
-      <div className="readdy-card-column readdy-card-column-right">
-        <div className="readdy-mini-panel readdy-mini-panel-tall"><small>AI MARKETPLACE</small><strong>2,465+</strong><span>AGENTS & TOOLS</span></div>
-        <div className="readdy-mini-panel"><small>AUTOMATION WORKFLOWS</small><span className="readdy-flow-dots">◈—◈—◈</span></div>
-        <div className="readdy-mini-panel"><small>AI VOICE STUDIO</small><span className="readdy-wave">▁▃▅▂▆▃▇▂</span></div>
-      </div>
+      <img className="readdy-command-artwork" src="/d3vonn-enterprise-core.webp" alt="" />
+      <span className="readdy-artwork-caption">CONCEPT VISUALIZATION</span>
     </div>
 
     <div className="readdy-globe-wrap">
@@ -71,6 +46,23 @@ const ReaddyMobileHeroVisual: React.FC = () => (
 );
 
 const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const menuNav = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    menuNav.current?.querySelector('a')?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false);
+        menuButton.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen]);
+
   return (
     <main className="sovereign-page">
       <a className="sovereign-skip-link" href="#sovereign-main">Skip to main content</a>
@@ -78,16 +70,16 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
       <div className="sovereign-grid" aria-hidden="true" />
       <div className="sovereign-vignette" aria-hidden="true" />
 
-      <header className="sovereign-header">
+      <header className={`sovereign-header${menuOpen ? ' sovereign-header-menu-open' : ''}`}>
         <Link to="/" className="sovereign-brand" aria-label="D3VONN.IO home">
-          <span className="sovereign-mark"><img src="/d3vonn-icon.svg" alt="" /></span>
+          <span className="sovereign-mark"><img src="/d3vonn-logo.webp" alt="" /></span>
           <span>
             <strong>D3VONN.IO</strong>
             <small>SOVEREIGN SIGNAL</small>
           </span>
         </Link>
 
-        <nav className="sovereign-nav" aria-label="Primary navigation">
+        <nav ref={menuNav} id="sovereign-primary-nav" className={`sovereign-nav${menuOpen ? ' sovereign-nav-open' : ''}`} aria-label="Primary navigation" onClick={() => setMenuOpen(false)}>
           <Link reloadDocument to="/holo">HANDS</Link>
           <Link to="/platform">PLATFORM</Link>
           <Link to="/marketplace">MARKETPLACE</Link>
@@ -96,7 +88,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
           <Link to="/status">STATUS</Link>
           <Link to="/app" className="sovereign-nav-cta">ENTER SYSTEM</Link>
         </nav>
-        <button className="sovereign-mobile-menu" type="button" aria-label="Open navigation" aria-expanded="false">
+        <button ref={menuButton} className="sovereign-mobile-menu" type="button" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} aria-controls="sovereign-primary-nav" onClick={() => setMenuOpen((open) => !open)}>
           <span /><span /><span />
         </button>
       </header>
@@ -167,7 +159,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
         </div>
 
         <div className="signal-strip" aria-label="System readiness">
-          {signalStates.map((state) => (
+          {[`CORE — ${telemetry.systemStatus}`, ...signalStates].map((state) => (
             <span key={state}><i />{state}</span>
           ))}
         </div>
@@ -183,7 +175,7 @@ const SovereignSignalHomepage: React.FC<Props> = ({ telemetry }) => {
 
       <SovereignFeatureDeck telemetry={telemetry} />
 
-      <section className="sovereign-systems" aria-label="D3VONN systems">
+      <section id="platform" className="sovereign-systems" aria-label="D3VONN systems">
         <div className="systems-heading">
           <span>ONE SIGNAL.</span>
           <span>MULTIPLE SYSTEMS.</span>
