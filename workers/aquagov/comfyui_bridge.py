@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.error
+import urllib.parse
 import uuid
 from dataclasses import dataclass
 from urllib import request
@@ -20,6 +22,26 @@ class ComfyResult:
     history: dict
 
 
+class SafeBearerRedirectHandler(request.HTTPRedirectHandler):
+    """Block authenticated redirects that would cross origins."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        old = urllib.parse.urlsplit(req.full_url)
+        new = urllib.parse.urlsplit(newurl)
+        old_origin = (old.scheme.lower(), old.hostname, old.port)
+        new_origin = (new.scheme.lower(), new.hostname, new.port)
+        has_auth = req.has_header("Authorization")
+        if has_auth and old_origin != new_origin:
+            raise urllib.error.HTTPError(
+                req.full_url,
+                code,
+                "Refusing cross-origin redirect with Authorization header",
+                headers,
+                fp,
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 class ComfyUIBridge:
     def __init__(
         self,
@@ -30,6 +52,7 @@ class ComfyUIBridge:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.token = token.strip() if token else None
+        self._opener = request.build_opener(SafeBearerRedirectHandler())
 
     def _headers(self, *, json_content: bool = False) -> dict[str, str]:
         headers: dict[str, str] = {}
@@ -52,7 +75,7 @@ class ComfyUIBridge:
             headers=self._headers(json_content=True),
             method="POST",
         )
-        with request.urlopen(req, timeout=30) as response:
+        with self._opener.open(req, timeout=30) as response:
             result = json.loads(response.read())
         if result.get("node_errors"):
             raise ValueError(f"ComfyUI workflow validation failed: {result['node_errors']}")
@@ -64,7 +87,7 @@ class ComfyUIBridge:
             headers=self._headers(),
             method="GET",
         )
-        with request.urlopen(req, timeout=30) as response:
+        with self._opener.open(req, timeout=30) as response:
             return json.loads(response.read())
 
     def wait(self, prompt_id: str, poll_seconds: float = 2.0) -> ComfyResult:
