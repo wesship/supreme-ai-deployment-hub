@@ -63,7 +63,7 @@ export default function Hero() {
                 booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
               }`}
             >
-              Build, deploy, and direct sovereign AI systems from one expanding creative and operational ecosystem.
+              Build AI agents, automate workflows, explore connected knowledge, and direct your operations from one governed platform. Our quantum layer is an architectural direction, not a claim of quantum hardware acceleration.
             </p>
 
             {/* CTAs */}
@@ -73,24 +73,24 @@ export default function Hero() {
               }`}
             >
               <a
-                href="/app"
+                href="#platform"
                 className="btn-primary group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
               >
-                Enter the Platform
+                Explore the Platform
                 <i className="ri-arrow-right-line transition-transform duration-300 group-hover:translate-x-1"></i>
               </a>
               <a
-                href="#signal"
+                href="#agents"
                 className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
               >
-                Explore the Signal
+                Preview Agent Workflow
               </a>
               <a
-                href="/command-center"
+                href="/app"
                 className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
               >
                 <i className="ri-radar-line"></i>
-                Command Core
+                Sign In
               </a>
             </div>
 

@@ -116,6 +116,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.occ_operator.market_intelligence_router", "router", "/api/operator"),
     ("backend.occ_operator.hermes_router", "router", None),
     ("backend.occ_operator.public_stats_router", "router", None),
+    ("backend.app.routers.public_agent_preview", "router", None),
     ("backend.hermes.sibyl_handoff", "router", None),
     ("backend.hermes.router", "router", None),
     ("backend.hermes.recency_router", "router", None),
