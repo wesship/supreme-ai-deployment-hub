@@ -80,10 +80,10 @@ export default function Hero() {
                 <i className="ri-arrow-right-line transition-transform duration-300 group-hover:translate-x-1"></i>
               </a>
               <a
-                href="/agent-demo"
+                href="#agents"
                 className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
               >
-                Try Agent Demo
+                Preview Agent Workflow
               </a>
               <a
                 href="/app"
