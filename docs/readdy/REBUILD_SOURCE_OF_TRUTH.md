@@ -1,76 +1,31 @@
-# D3VONN.IO Readdy reference — current source of truth
+# D3VONN.IO presentation and runtime authority
 
-Status: historical visual reference; repository-native runtime authority.
-Reviewed 2026-10-09 against main commit `321e8f39b73bbfd897a13dccd44ea1b7dcf408d2`.
+The production frontend is `wesship/supreme-ai-deployment-hub`. The public root renders `src/pages/Index.tsx` → `src/components/sovereign/SovereignSignalHomepage.tsx`. `/knowledge-graph` retains its repository-native experience. Readdy is a presentation reference, not the production application shell.
 
-## Current homepage authority
+Keep authentication, API calls, Hermes execution, protected routes, Supabase policies, security, voice orchestration and deployment configuration repository-native. Do not wholesale-replace `src/App.tsx` with generated source or import generated backend/schema code.
 
-`AGENTS.md` and `src/App.tsx` are authoritative. The public homepage is
-`src/pages/Index.tsx` → `src/pages/KnowledgeGraphOS.tsx`, the repository-native
-Neural Nexus / Knowledge Graph experience. It owns its application chrome.
-Readdy components, styles, previews, and older intake documents are visual
-references; they do not establish the deployed frontend or backend behavior.
+## Export handoff, 2026-10-09
 
-The earlier six-page rebuild plan below is superseded as an active homepage
-replacement plan. The presentation allowlist in
-`src/integrations/readdy/marketingSurfaces.ts` is an integration boundary,
-not authorization to replace the current runtime shell.
+The supplied `project-14687484.zip` is valid React/TypeScript source. Its homepage launch CTAs used local section anchors and several generated operational routes differed from production. The corrected standalone handoff now uses ordinary browser links to `https://www.d3vonn.io`:
 
-## Reference-site handoff
+| Export destination | Canonical destination |
+| --- | --- |
+| Launch / Enter the Platform | `/app` |
+| `/command` | `/command-center` |
+| `/films` | `/ai-films` |
+| `/studio` | `/music` |
+| Sound Lab | `/voice-studio` (Voice Studio) |
+| `/blog` | `/resources` |
+| `/admin` | `/occ` |
 
-A separate Readdy reference should send operational actions to the canonical
-application rather than its generated preview routes. Use absolute links to
-the verified deployment origin when crossing from the builder preview.
+Existing matching destinations use their canonical routes. Exploration anchors remain local. The exported Logo3D feathering, tilt, sheen, reflection, ripples and SignalField effects remain intact.
 
-| Reference action | Repository route |
-|---|---|
-| Enter the Platform / Launch D3VONN | /app |
-| Command Core / operational Infrastructure | /command-center |
-| Operational AI Agents | /agents |
-| Marketplace | /marketplace |
-| Music Studio / Sound Lab | /music |
-| Voice Studio | /voice-studio |
-| AI Films | /ai-films |
-| Resources (formerly Blog) | /resources |
-| Pricing / About / Contact | /pricing /about /contact |
-| Privacy / Terms | /privacy /terms |
-| Admin OCC | /occ |
+The export's custom Supabase lock incorrectly returned a release callback and never invoked the supplied auth operation. The corrected reference uses SDK default locking. Music segment controls explicitly declare their value types. These generated modules are reference-only and are not imported into production. `export-fixes.patch` records all eight changed source files relative to the supplied ZIP. Original environment values are excluded from the downloadable handoff.
 
-These routes are defined in `src/App.tsx`. Preserve its authentication and
-admin guards. Local exploration anchors may remain local to the visual
-reference. Static agent statuses and task samples must be labeled illustrative;
-a link to Command Core is a navigation handoff, not evidence of a live data feed.
-Keep the requested artwork, special effects, animations, and logo blending.
+The corrected export passes `npm run type-check` and `npm run build`. Its bundle-size/config-loader warnings remain advisory. This does not certify its generated standalone backend, newsletter endpoint or authenticated workflows.
 
-## Runtime connection evidence and limits
+## Repository presentation corrections
 
-On 2026-10-09, a read-only GET to
-`https://d3vonn.io/api/runtime/identity` returned HTTP 200 with repository
-`wesship/supreme-ai-deployment-hub`, `ui_authority: repository`,
-`contract_version: 1.0`, and the reviewed commit above.
-`https://api.d3vonn.io/health` returned HTTP 200 and `status: ok`.
-This proves the reported API identity and health at that time; it does not
-certify the frontend bundle commit, signed-in task execution, voice processing,
-cross-account isolation, or every provider.
+The canonical homepage retains its neural web, orbit, globe, card and signal effects. The handoff adds soft-edge logo/card masks, working mobile navigation with keyboard dismissal, and the missing platform anchor. Decorative cards use the same public telemetry/fallbacks as the primary telemetry panel rather than fabricated counts. Readiness labels identify surfaces; core status comes from telemetry.
 
-The existing repository clients use authenticated Hermes commands at
-`/api/voice/hermes/command` and lifecycle events at
-`/api/hermes/events/stream`. Readdy must not duplicate those clients or receive
-server-side secrets. Full execution verification remains a separate signed-in
-release gate.
-
-## Protected authorities
-
-Keep FastAPI APIs, Supabase authentication/RLS, Hermes, MoneyHub, Security Ops,
-admin authorization, AI Films, Voice Studio/ElevenLabs, OCC, application routes,
-CI/security workflows, and Vercel/Railway configuration repository-native.
-Do not connect bidirectional builder sync to overwrite the repository root.
-Any future selective visual import must preserve routing, analytics, SEO,
-accessibility, reduced-motion support, and existing design tokens.
-
-## Historical plan
-
-The original Phase 1 presentation plan covered `/`, `/solutions`,
-`/ai-agents`, `/pricing`, `/about`, and `/resources`.
-It remains useful as historical context only. It does not override the current
-homepage instructions in `AGENTS.md`.
+Production release uses the existing `supreme-ai-deployment-hub` Vercel project and its bound D3VONN.IO domains. Keep changes behind the repository's required PR gate and verify the actual deployed frontend commit, routes and rendered mobile navigation after release. Backend runtime identity alone does not prove the frontend release.

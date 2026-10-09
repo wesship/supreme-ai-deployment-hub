@@ -1,0 +1,48 @@
+.sovereign-mark {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.sovereign-mark img {
+  mask-image: radial-gradient(ellipse at center, #000 52%, rgba(0, 0, 0, .9) 66%, transparent 74%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 52%, rgba(0, 0, 0, .9) 66%, transparent 74%);
+  filter: drop-shadow(0 0 12px rgba(83, 195, 255, .2));
+}
+
+.readdy-command-card {
+  mask-image: radial-gradient(ellipse 70% 85% at center, #000 62%, rgba(0, 0, 0, .94) 75%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 85% at center, #000 62%, rgba(0, 0, 0, .94) 75%, transparent 100%);
+}
+
+.sovereign-mobile-menu:focus-visible,
+.sovereign-nav a:focus-visible {
+  outline: 2px solid #d8eef7;
+  outline-offset: 5px;
+}
+
+@media (max-width: 900px) {
+  .sovereign-nav.sovereign-nav-open {
+    position: absolute;
+    z-index: 10;
+    top: 100%;
+    right: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 12px;
+    border: 1px solid rgba(83, 195, 255, .3);
+    border-radius: 12px;
+    background: #03101a;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .5);
+  }
+
+  .sovereign-nav.sovereign-nav-open a {
+    display: block;
+    padding: 16px;
+    font-size: 12px;
+  }
+}
