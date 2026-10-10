@@ -12,6 +12,7 @@ beforeEach(() => {
   window.localStorage.clear();
   vi.stubGlobal('IntersectionObserver', class {
     observe() {}
+    unobserve() {}
     disconnect() {}
   });
 });

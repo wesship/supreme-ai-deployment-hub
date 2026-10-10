@@ -74,6 +74,44 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
   );
 }
 
+function FilmCard({ film, progress, saved, onPlay, onToggleSaved }: {
+  film: AIFilm;
+  progress: number;
+  saved: boolean;
+  onPlay: (film: AIFilm) => void;
+  onToggleSaved: (filmId: string) => void;
+}) {
+    return (
+      <motion.article
+        initial={{ opacity: 0, y: 18 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        className="group overflow-hidden rounded-2xl border border-border/70 bg-card/70 shadow-2xl shadow-black/10 backdrop-blur"
+      >
+        <div className="relative">
+          <FilmPreviewMedia film={film} />
+          <div className="absolute bottom-5 right-5 flex gap-2">
+            <Button type="button" size="icon" variant="secondary" aria-label={saved ? `Remove ${film.title} from My Library` : `Add ${film.title} to My Library`} onClick={() => onToggleSaved(film.id)}>
+              {saved ? <BookmarkCheck aria-hidden="true" className="h-5 w-5" /> : <Bookmark aria-hidden="true" className="h-5 w-5" />}
+            </Button>
+            <Button type="button" size="icon" className="rounded-full" aria-label={film.trailerUrl ? `Watch ${film.title} preview` : `View ${film.title} details`} onClick={() => onPlay(film)}>
+              {film.trailerUrl ? <Play aria-hidden="true" className="h-5 w-5" /> : <Info aria-hidden="true" className="h-5 w-5" />}
+            </Button>
+          </div>
+        </div>
+        <div className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <Badge variant="outline">{film.category}</Badge>
+            <span className="text-xs text-muted-foreground">{film.duration}</span>
+          </div>
+          <h3 className="mt-4 text-xl font-bold">{film.title}</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{film.description}</p>
+          {progress > 0 && <Progress value={progress} className="mt-4 h-1.5" aria-label={`${progress}% watched`} />}
+        </div>
+      </motion.article>
+    );
+}
+
 const AIFilms = () => {
   const [showIntro, setShowIntro] = useState(false);
   const [muted, setMuted] = useState(true);
@@ -190,39 +228,7 @@ const AIFilms = () => {
     });
   };
 
-  const FilmCard = ({ film }: { film: AIFilm }) => {
-    const progress = library.progress[film.id] || 0;
-    const saved = library.saved.includes(film.id);
-    return (
-      <motion.article
-        initial={{ opacity: 0, y: 18 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        className="group overflow-hidden rounded-2xl border border-border/70 bg-card/70 shadow-2xl shadow-black/10 backdrop-blur"
-      >
-        <div className="relative">
-          <FilmPreviewMedia film={film} />
-          <div className="absolute bottom-5 right-5 flex gap-2">
-            <Button type="button" size="icon" variant="secondary" aria-label={saved ? `Remove ${film.title} from My Library` : `Add ${film.title} to My Library`} onClick={() => toggleSaved(film.id)}>
-              {saved ? <BookmarkCheck aria-hidden="true" className="h-5 w-5" /> : <Bookmark aria-hidden="true" className="h-5 w-5" />}
-            </Button>
-            <Button type="button" size="icon" className="rounded-full" aria-label={film.trailerUrl ? `Watch ${film.title} preview` : `View ${film.title} details`} onClick={() => openFilm(film)}>
-              {film.trailerUrl ? <Play aria-hidden="true" className="h-5 w-5" /> : <Info aria-hidden="true" className="h-5 w-5" />}
-            </Button>
-          </div>
-        </div>
-        <div className="p-5">
-          <div className="flex items-center justify-between gap-3">
-            <Badge variant="outline">{film.category}</Badge>
-            <span className="text-xs text-muted-foreground">{film.duration}</span>
-          </div>
-          <h3 className="mt-4 text-xl font-bold">{film.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{film.description}</p>
-          {progress > 0 && <Progress value={progress} className="mt-4 h-1.5" aria-label={`${progress}% watched`} />}
-        </div>
-      </motion.article>
-    );
-  };
+
 
   return (
     <PublicPageShell breadcrumbs={breadcrumbs}>
@@ -270,14 +276,14 @@ const AIFilms = () => {
           {continueWatching.length > 0 && (
             <section aria-labelledby="continue-watching-heading">
               <h2 id="continue-watching-heading" className="text-2xl font-bold">Continue Watching Previews</h2>
-              <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{continueWatching.map((film) => <FilmCard key={film.id} film={film} />)}</div>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{continueWatching.map((film) => <FilmCard key={film.id} film={film} progress={library.progress[film.id] || 0} saved={library.saved.includes(film.id)} onPlay={openFilm} onToggleSaved={toggleSaved} />)}</div>
             </section>
           )}
 
           {savedFilms.length > 0 && (
             <section aria-labelledby="my-library-heading">
               <h2 id="my-library-heading" className="text-2xl font-bold">My Library</h2>
-              <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{savedFilms.map((film) => <FilmCard key={film.id} film={film} />)}</div>
+              <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{savedFilms.map((film) => <FilmCard key={film.id} film={film} progress={library.progress[film.id] || 0} saved={library.saved.includes(film.id)} onPlay={openFilm} onToggleSaved={toggleSaved} />)}</div>
             </section>
           )}
 
@@ -289,7 +295,7 @@ const AIFilms = () => {
             <div className="mb-8 flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Film categories">
               {aiFilmCategories.map((category) => <Button key={category} type="button" variant={activeCategory === category ? 'default' : 'outline'} size="sm" aria-pressed={activeCategory === category} onClick={() => setActiveCategory(category)}>{category}</Button>)}
             </div>
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite">{visibleFilms.map((film) => <FilmCard key={film.id} film={film} />)}</div>
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-live="polite">{visibleFilms.map((film) => <FilmCard key={film.id} film={film} progress={library.progress[film.id] || 0} saved={library.saved.includes(film.id)} onPlay={openFilm} onToggleSaved={toggleSaved} />)}</div>
           </section>
         </div>
 
