@@ -1,6 +1,12 @@
 name: VPS Deploy — D3VONN.IO
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/vps-deploy.yml"
+      - "deploy/vps/**"
   workflow_dispatch:
     inputs:
       skip_deploy:
