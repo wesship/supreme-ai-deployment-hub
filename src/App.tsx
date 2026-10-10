@@ -294,6 +294,7 @@ function App() {
                 <Route path="/analytics" element={<Navigate to="/app" replace />} />
                 <Route path="/rag" element={<Navigate to="/dkos-ingestion" replace />} />
                 <Route path="/platform" element={<Navigate to="/#platform" replace />} />
+                <Route path="/infrastructure" element={<Navigate to="/#infrastructure" replace />} />
                 <Route path="/signin" element={<Navigate to="/login" replace />} />
                 <Route path="/sign-in" element={<Navigate to="/login" replace />} />
                 <Route path="/log-in" element={<Navigate to="/login" replace />} />
