@@ -25,7 +25,7 @@ COPY backend/requirements.txt .
 # W&B / Weave are optional diagnostics, not required for API operation.
 # Do not bundle wandb-core in the hardened runtime until upstream ships
 # a scanner-clean Go binary. Explicitly disable the optional instrumentation.
-RUN grep -Eiv '^[[:space:]]*(wandb|weave)([[:space:]\\[<=>!~;#]|$)' requirements.txt > requirements-hardened.txt \\
+RUN grep -Eiv '^[[:space:]]*(wandb|weave)([[:space:]<=>!~;#]|$)' requirements.txt > requirements-hardened.txt \
     && pip install --no-cache-dir --prefix=/install -r requirements-hardened.txt
 
 # ── Stage 2: Frontend Builder ─────────────────────────────────────────────
