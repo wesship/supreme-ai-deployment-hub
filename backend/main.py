@@ -73,6 +73,10 @@ DEFAULT_PREVIEW_ORIGIN_REGEX = (
     r"[a-z0-9-]+--supreme-ai-deployment-hub\.lovable\.app)"
 )
 ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or DEFAULT_PREVIEW_ORIGIN_REGEX
+# Outer wrapper observes only rejected preflights when explicitly enabled.
+from backend.middleware.rum_cors_diagnostics import RumCorsDiagnosticsMiddleware
+
+app.add_middleware(RumCorsDiagnosticsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
