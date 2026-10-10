@@ -33,8 +33,11 @@ jobs:
           [ -z "${{ secrets.VPS_SSH_PRIVATE_KEY }}" ] && missing+=("VPS_SSH_PRIVATE_KEY")
           [ -z "${{ secrets.VPS_KNOWN_HOSTS }}"     ] && missing+=("VPS_KNOWN_HOSTS")
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.skip_deploy }}" = "false" ]; then
-            [ -z "${{ secrets.OPENAI_API_KEY }}"    ] && missing+=("OPENAI_API_KEY (required for full deploy)")
-            [ -z "${{ secrets.PINECONE_API_KEY }}"  ] && missing+=("PINECONE_API_KEY (required for full deploy)")
+            [ -z "${{ secrets.OPENAI_API_KEY }}"             ] && missing+=("OPENAI_API_KEY (required for full deploy)")
+            [ -z "${{ secrets.PINECONE_API_KEY }}"           ] && missing+=("PINECONE_API_KEY (required for full deploy)")
+            [ -z "${{ secrets.SUPABASE_URL }}"               ] && missing+=("SUPABASE_URL (required for full deploy)")
+            [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"  ] && missing+=("SUPABASE_SERVICE_ROLE_KEY (required for full deploy)")
+            [ -z "${{ secrets.SUPABASE_ANON_KEY }}"          ] && missing+=("SUPABASE_ANON_KEY (required for full deploy)")
           fi
           if [ ${#missing[@]} -gt 0 ]; then
             echo "ERROR: The following repository secrets are not set:"
@@ -136,6 +139,12 @@ jobs:
              set_if_missing DEBUG                     "false"
              set_if_missing REQUIRE_AUTH              "true"
              set_if_missing HERMES_BYPASS             "false"
+             if sudo grep -q '^HERMES_PERSISTENT_WORKERS_ENABLED=' "$ENV_FILE" 2>/dev/null; then
+               sudo sed -i 's|^HERMES_PERSISTENT_WORKERS_ENABLED=.*|HERMES_PERSISTENT_WORKERS_ENABLED=true|' "$ENV_FILE"
+             else
+               printf '%s\n' 'HERMES_PERSISTENT_WORKERS_ENABLED=true' | sudo tee -a "$ENV_FILE" > /dev/null
+             fi
+             echo "  ENFORCED: HERMES_PERSISTENT_WORKERS_ENABLED=true"
              set_if_missing POLL_INTERVAL             "30"
              set_if_missing OPENAI_EMBEDDING_MODEL    "text-embedding-3-small"
              set_if_missing RAG_CHUNK_SIZE_CHARS      "1500"
