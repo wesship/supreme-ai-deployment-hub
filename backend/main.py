@@ -76,7 +76,6 @@ ALLOWED_ORIGIN_REGEX = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or DEFAULT_
 # Outer wrapper observes only rejected preflights when explicitly enabled.
 from backend.middleware.rum_cors_diagnostics import RumCorsDiagnosticsMiddleware
 
-app.add_middleware(RumCorsDiagnosticsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -85,6 +84,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-Request-ID", "X-Workspace-ID", "X-HNF-Service-Key", "X-Telegram-Bot-Api-Secret-Token", "X-Client-AI-Memory-Secret"],
 )
+app.add_middleware(RumCorsDiagnosticsMiddleware)
 
 _REQUIRED_MIDDLEWARE = (
     ("backend.middleware.request_context", "RequestContextMiddleware"),
