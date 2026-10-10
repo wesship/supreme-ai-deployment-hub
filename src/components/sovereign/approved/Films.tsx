@@ -88,6 +88,8 @@ export default function Films() {
 
             <div className="relative aspect-video w-full overflow-hidden bg-background-200">
               <img
+                loading="lazy"
+                decoding="async"
                 src="/readdy-v90/films-hero-frame.jpg"
                 alt="D3VONN film studio cinematic frame"
                 title="D3VONN AI Films cinematic frame"
@@ -132,6 +134,8 @@ export default function Films() {
               >
                 <div className="relative aspect-video w-full overflow-hidden">
                   <img
+                loading="lazy"
+                decoding="async"
                     src={f.src}
                     alt={`${f.title} cinematic film frame`}
                     title={`${f.title} D3VONN AI Films`}

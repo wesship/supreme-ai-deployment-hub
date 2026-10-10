@@ -10,6 +10,8 @@ export default function FinalCTA() {
           <span className="absolute inset-10 rounded-full border border-primary-500/20"></span>
           <span className="absolute inset-24 rounded-full border border-accent-500/15"></span>
           <img
+                loading="lazy"
+                decoding="async"
             src="/readdy-v90/final-cta-emblem.webp"
             alt=""
             className="relative h-32 w-32 rounded-full object-cover object-center md:h-48 md:w-48"

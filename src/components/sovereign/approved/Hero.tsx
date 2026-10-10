@@ -1,15 +1,7 @@
-import { useEffect, useState } from 'react';
 import SignalField from './SignalField';
 import Logo3D from './Logo3D';
 
 export default function Hero() {
-  const [booted, setBooted] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setBooted(true), 900);
-    return () => clearTimeout(t);
-  }, []);
-
   return (
     <section id="top" className="relative isolate flex min-h-screen items-center overflow-hidden">
       <SignalField />
@@ -17,9 +9,7 @@ export default function Hero() {
       <div className="relative z-10 mx-auto w-full max-w-[1680px] px-5 pt-24 pb-12 md:px-8">
         {/* telemetry label */}
         <div
-          className={`flex items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em] text-accent-400/80 transition-all duration-700 ${
-            booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-          }`}
+          className="flex items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em] text-accent-400/80"
         >
           <span className="h-px w-10 bg-accent-500/40"></span>
           D3VONN NETWORK // GOVERNED AI
@@ -28,9 +18,7 @@ export default function Hero() {
 
         {/* logo emblem — full width */}
         <div
-          className={`mt-5 flex w-full items-center justify-center transition-all duration-1000 ${
-            booted ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
-          }`}
+          className="mt-5 flex w-full items-center justify-center"
         >
           <div className="w-full max-w-[560px]">
             <Logo3D />
@@ -47,9 +35,7 @@ export default function Hero() {
           <div className="relative">
             {/* headline */}
             <h1
-              className={`mt-4 font-heading text-[clamp(2.25rem,5vw,4.5rem)] font-bold leading-[0.94] tracking-[-0.03em] text-white transition-all duration-1000 delay-150 drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)] ${
-                booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
-              }`}
+              className="mt-4 font-heading text-[clamp(2.25rem,5vw,4.5rem)] font-bold leading-[0.94] tracking-[-0.03em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)]"
             >
               INTELLIGENCE
               <span className="block text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)]" style={{ textShadow: '0 0 40px rgba(0,0,0,0.9), 0 2px 12px rgba(0,0,0,0.8)' }}>
@@ -59,18 +45,14 @@ export default function Hero() {
 
             {/* supporting copy */}
             <p
-              className={`mx-auto mt-4 max-w-2xl text-base leading-7 text-white/90 font-medium transition-all duration-1000 delay-300 drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)] ${
-                booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}
+              className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/90 font-medium drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]"
             >
               Run AI agents, organize your knowledge, and create voice and film projects from one platform—with human oversight.
             </p>
 
             {/* CTAs */}
             <div
-              className={`mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row transition-all duration-1000 delay-500 ${
-                booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}
+              className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row"
             >
               <a
                 href="/app"
@@ -96,9 +78,7 @@ export default function Hero() {
 
             {/* status line */}
             <div
-              className={`mx-auto mt-6 flex max-w-md items-center justify-center gap-3 transition-all duration-1000 delay-700 ${
-                booted ? 'opacity-100' : 'opacity-0'
-              }`}
+              className="mx-auto mt-6 flex max-w-md items-center justify-center gap-3"
             >
               <span className="h-px flex-1 bg-white/20"></span>
               <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-white/60">
@@ -109,9 +89,7 @@ export default function Hero() {
 
             {/* scroll cue */}
             <div
-              className={`mt-6 flex flex-col items-center gap-2 transition-all duration-1000 delay-900 ${
-                booted ? 'opacity-100' : 'opacity-0'
-              }`}
+              className="mt-6 flex flex-col items-center gap-2"
             >
               <a
                 href="#platform"
