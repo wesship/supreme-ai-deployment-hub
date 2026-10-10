@@ -48,8 +48,23 @@ const PRODUCTION_API_URL = 'https://api.d3vonn.io';
 const getApiBaseUrl = (): string =>
   (import.meta.env.VITE_API_URL?.trim() || PRODUCTION_API_URL).replace(/\/$/, '');
 
-const readableError = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error || 'Unknown voice error');
+const readableError = (error: unknown): string => {
+  // SDK failures can contain a structured HTTP response, including a nested
+  // message object. Never pass that object directly to React or stringify the
+  // entire provider response (which can include private configuration).
+  const extractMessage = (value: unknown, depth = 0): string | undefined => {
+    if (typeof value === 'string') return value.trim() || undefined;
+    if (!value || typeof value !== 'object' || depth >= 4) return undefined;
+    if (Array.isArray(value)) {
+      const messages = value.map(item => extractMessage(item, depth + 1)).filter(Boolean);
+      return messages.join('; ') || undefined;
+    }
+    const record = value as Record<string, unknown>;
+    return extractMessage(record.message, depth + 1)
+      ?? extractMessage(record.error, depth + 1);
+  };
+  return extractMessage(error) ?? 'Unknown voice error';
+};
 
 /**
  * Request a short-lived assistant configuration tied to the signed-in D3VONN
@@ -233,7 +248,7 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       setConnected(false);
       setConnecting(false);
       setSpeaking(false);
-      toast.error('Unable to connect D3VONN voice', { description: event.error });
+      toast.error('Unable to connect D3VONN voice', { description: readableError(event.error) });
     });
     instance.on('error', (error) => {
       stopExecutionPolling();
@@ -263,8 +278,12 @@ export const ConversationalVoiceControls: React.FC<ConversationalVoiceControlsPr
       const inlineSession = await getInlineVoiceSession(sessionContext);
       const target = inlineSession?.assistant ?? vapiAssistantId;
 
-      await vapi.start(target as Parameters<Vapi['start']>[0]);
-      setConnected(true);
+      const call = await vapi.start(target as Parameters<Vapi['start']>[0]);
+      // Vapi resolves with null after some start failures. Only the SDK's
+      // call-start event can mark this control as connected.
+      if (!call) {
+        throw new Error('The voice provider did not create a call. Check the connection error and try again.');
+      }
       setConnecting(false);
       if (inlineSession) startExecutionPolling(uiSessionId);
       toast.success(
