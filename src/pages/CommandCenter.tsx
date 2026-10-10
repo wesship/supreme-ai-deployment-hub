@@ -64,11 +64,11 @@ export default function CommandCenter() {
             <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-white/55">
               <span className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-emerald-300/15 bg-emerald-400/[0.06] px-3">
                 <Activity className="h-3.5 w-3.5 text-emerald-300" aria-hidden="true" />
-                Systems online
+                Workspace overview
               </span>
               <span className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-blue-300/15 bg-blue-400/[0.06] px-3">
                 <ShieldCheck className="h-3.5 w-3.5 text-blue-200" aria-hidden="true" />
-                Governance active
+                Governance controls
               </span>
             </div>
           </div>

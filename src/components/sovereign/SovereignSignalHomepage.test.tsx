@@ -36,6 +36,8 @@ describe('Approved responsive homepage handoff', () => {
     expect(container.querySelector('#platform')).toBeTruthy();
     expect(container.querySelector('#top a[href="/app"]')).toBeTruthy();
     expect(container.textContent).not.toContain('All systems operational');
-    expect(container.textContent).toContain(defaultHomepageTelemetry.systemStatus);
+    expect(container.textContent).toContain('Status unavailable — view checks');
+    expect(container.querySelector('a[href="/status"]')).toBeTruthy();
+    expect(container.textContent).toContain('Illustrative // Simulated');
   });
 });

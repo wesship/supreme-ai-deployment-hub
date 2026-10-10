@@ -22,28 +22,28 @@ interface Props {
 const stats = [
   {
     label: "AI Workforce",
-    value: "Ready",
+    value: "Explore",
     detail: "Agents available for orchestration",
     icon: Bot,
     view: "agents" as const,
   },
   {
     label: "Capability Layer",
-    value: "Connected",
+    value: "Explore",
     detail: "MCP tools and integrations",
     icon: Wrench,
     view: "mcp" as const,
   },
   {
     label: "Intelligence Catalog",
-    value: "Live",
+    value: "Browse",
     detail: "Templates and deployable systems",
     icon: Store,
     view: "marketplace" as const,
   },
   {
     label: "Control Plane",
-    value: "Protected",
+    value: "Review",
     detail: "Settings, access and governance",
     icon: Settings,
     view: "settings" as const,
@@ -51,10 +51,10 @@ const stats = [
 ];
 
 const services = [
-  { name: "Database", status: "operational", icon: Database },
-  { name: "Authentication", status: "operational", icon: ShieldCheck },
-  { name: "Orchestration", status: "operational", icon: Workflow },
-  { name: "MCP Gateway", status: "observing", icon: Activity },
+  { name: "Database", status: "not measured", icon: Database },
+  { name: "Authentication", status: "not measured", icon: ShieldCheck },
+  { name: "Orchestration", status: "not measured", icon: Workflow },
+  { name: "MCP Gateway", status: "not measured", icon: Activity },
 ];
 
 const priorities = [
@@ -69,10 +69,10 @@ export default function CommandCenterOverview({ onNavigate }: Props) {
       <section className="d3-chrome-panel overflow-hidden rounded-3xl border border-blue-300/15 p-5 sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-end">
           <div>
-            <div className="d3-system-status">D3 Core synchronized</div>
-            <h1 className="mt-5 max-w-3xl text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <div className="d3-system-status">Command workspace</div>
+            <h2 className="mt-5 max-w-3xl text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
               Operate the company from one intelligent control plane.
-            </h1>
+            </h2>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
               Coordinate agents, tools, workflows, knowledge and governance without losing sight of what the system is doing or what happens next.
             </p>
@@ -89,20 +89,15 @@ export default function CommandCenterOverview({ onNavigate }: Props) {
           <div className="rounded-2xl border border-blue-300/15 bg-black/25 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-white/40">Operational posture</p>
-                <p className="mt-2 text-2xl font-semibold text-white">Stable</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-white/40">Readiness telemetry</p>
+                <p className="mt-2 text-2xl font-semibold text-white">Not measured</p>
               </div>
               <div className="grid h-12 w-12 place-items-center rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.08]">
                 <BrainCircuit className="h-6 w-6 text-emerald-300" aria-hidden="true" />
               </div>
             </div>
-            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-              <div className="h-full w-[86%] rounded-full bg-gradient-to-r from-blue-500 via-cyan-300 to-emerald-300" />
-            </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-white/40">
-              <span>Core readiness</span>
-              <span className="font-medium text-white/70">86%</span>
-            </div>
+            <p className="mt-4 text-sm leading-6 text-white/60">This overview demonstrates the command layout. Workspace readiness and service telemetry are not connected here.</p>
+            <a href="/status" className="mt-4 inline-flex min-h-11 items-center text-sm text-cyan-200 underline">View measured public service checks</a>
           </div>
         </div>
       </section>
@@ -172,9 +167,10 @@ export default function CommandCenterOverview({ onNavigate }: Props) {
             <Activity className="h-5 w-5 text-emerald-300" aria-hidden="true" />
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-blue-200/55">System health</p>
-              <h2 className="mt-1 text-xl font-semibold text-white">Live service posture</h2>
+              <h2 className="mt-1 text-xl font-semibold text-white">Service telemetry</h2>
             </div>
           </div>
+          <p className="mb-4 text-sm leading-6 text-white/60">These workspace components have no measured health data in this overview. Public checks are available on the status page.</p>
           <div className="space-y-3">
             {services.map(({ name, status, icon: Icon }) => (
               <div key={name} className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 px-4 py-3">

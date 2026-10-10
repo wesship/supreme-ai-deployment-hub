@@ -156,7 +156,6 @@ const AIFilms = () => {
 
   const openFilm = (film: AIFilm) => {
     setSelectedFilm(film);
-    setProgress(film.id, Math.max(library.progress[film.id] || 0, 5));
   };
 
   const askCompanion = async () => {
@@ -256,8 +255,9 @@ const AIFilms = () => {
               <Badge className="mb-5" variant="secondary">{featuredFilm.category} · Featured</Badge>
               <h1 className="text-5xl font-black tracking-tight text-white sm:text-7xl">{featuredFilm.title}</h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-blue-100">{featuredFilm.description}</p>
+              <p className="mt-3 text-sm text-blue-100">Approx. 4-second concept preview. Full productions are not available in this catalog.</p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Play</Button>
+                <Button type="button" size="lg" onClick={() => openFilm(featuredFilm)}><Play aria-hidden="true" className="mr-2 h-5 w-5" /> Watch Preview</Button>
                 <Button type="button" size="lg" variant="outline" onClick={() => setSelectedFilm(featuredFilm)}><Info aria-hidden="true" className="mr-2 h-5 w-5" /> More Info</Button>
                 <Button type="button" size="lg" variant="outline" onClick={scrollToStudio}><Sparkles aria-hidden="true" className="mr-2 h-5 w-5" /> Create a Film</Button>
                 {companionEnabled && <Button type="button" size="lg" variant="outline" onClick={() => setCompanionOpen(true)}><MessageCircle aria-hidden="true" className="mr-2 h-5 w-5" /> AI Companion</Button>}
@@ -269,7 +269,7 @@ const AIFilms = () => {
         <div className="container mx-auto space-y-14 px-4 py-12 sm:px-6 lg:py-16">
           {continueWatching.length > 0 && (
             <section aria-labelledby="continue-watching-heading">
-              <h2 id="continue-watching-heading" className="text-2xl font-bold">Continue Watching</h2>
+              <h2 id="continue-watching-heading" className="text-2xl font-bold">Continue Watching Previews</h2>
               <div className="mt-5 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{continueWatching.map((film) => <FilmCard key={film.id} film={film} />)}</div>
             </section>
           )}
@@ -283,7 +283,7 @@ const AIFilms = () => {
 
           <section aria-labelledby="catalog-heading">
             <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div><p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">D3VONN Studios</p><h2 id="catalog-heading" className="mt-2 text-3xl font-bold sm:text-4xl">Movies and Originals</h2></div>
+              <div><p className="text-sm font-semibold uppercase tracking-[0.25em] text-primary">D3VONN Studios</p><h2 id="catalog-heading" className="mt-2 text-3xl font-bold sm:text-4xl">Movies and Originals</h2><p className="mt-3 text-sm text-muted-foreground">Short concept previews. Full films and episodes are not published here.</p></div>
               <div className="relative w-full lg:max-w-sm"><label htmlFor="movie-search" className="sr-only">Search movies, topics, or categories</label><Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input id="movie-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search movies, topics, or categories" className="pl-10" /></div>
             </div>
             <div className="mb-8 flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Film categories">
@@ -321,13 +321,31 @@ const AIFilms = () => {
               <div className="mt-5 flex flex-wrap gap-2">{selectedFilm.topics.map((topic) => <Badge key={topic} variant="outline">{topic}</Badge>)}</div>
               {selectedFilm.trailerUrl ? (
                 <figure className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-black">
-                  <video controls autoPlay playsInline poster={selectedFilm.posterUrl} preload="metadata" className="aspect-video w-full" aria-describedby="selected-film-preview-caption" aria-label={`${selectedFilm.title} preview`} src={selectedFilm.trailerUrl}>Your browser does not support video playback.</video>
-                  <figcaption id="selected-film-preview-caption" className="px-4 py-3 text-sm text-slate-300">Preview clip for <strong>{selectedFilm.title}</strong>. {selectedFilm.description} Spoken-word captions will be added when a verified transcript is available.</figcaption>
+                  <video
+                    key={selectedFilm.id}
+                    controls
+                    autoPlay
+                    playsInline
+                    onTimeUpdate={(event) => {
+                      const video = event.currentTarget;
+                      if (Number.isFinite(video.duration) && video.duration > 0) {
+                        setProgress(selectedFilm.id, Math.min(100, Math.floor(video.currentTime / video.duration * 100)));
+                      }
+                    }}
+                    onEnded={() => setProgress(selectedFilm.id, 100)}
+                    poster={selectedFilm.posterUrl}
+                    preload="metadata"
+                    className="aspect-video w-full"
+                    aria-describedby="selected-film-preview-caption"
+                    aria-label={`${selectedFilm.title} preview`}
+                    src={selectedFilm.trailerUrl}
+                  >Your browser does not support video playback.</video>
+                  <figcaption id="selected-film-preview-caption" className="px-4 py-3 text-sm text-slate-300">Approx. 4-second concept preview for <strong>{selectedFilm.title}</strong>. Full production is not available here. {selectedFilm.description} Spoken-word captions will be added when a verified transcript is available.</figcaption>
                 </figure>
               ) : (
                 <div className="mt-6 rounded-xl border border-dashed border-white/15 bg-white/5 p-4 text-sm text-slate-300"><strong>{selectedFilm.title}</strong> is in development. A title-specific preview will appear here when it is published.</div>
               )}
-              <div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => setProgress(selectedFilm.id, Math.min(100, (library.progress[selectedFilm.id] || 0) + 20))}>{selectedFilm.trailerUrl ? <Play className="mr-2 h-4 w-4" /> : <Info className="mr-2 h-4 w-4" />}{selectedFilm.trailerUrl ? 'Track Preview Progress' : 'Track Interest'}</Button><Button variant="outline" onClick={() => toggleSaved(selectedFilm.id)}>{library.saved.includes(selectedFilm.id) ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />} My Library</Button>{companionEnabled && <Button variant="outline" onClick={() => setCompanionOpen(true)}><Bot className="mr-2 h-4 w-4" /> Ask AI</Button>}</div>
+              <div className="mt-6 flex flex-wrap gap-3"><Button variant="outline" onClick={() => toggleSaved(selectedFilm.id)}>{library.saved.includes(selectedFilm.id) ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />} My Library</Button>{companionEnabled && <Button variant="outline" onClick={() => setCompanionOpen(true)}><Bot className="mr-2 h-4 w-4" /> Ask AI</Button>}</div>
               {(library.progress[selectedFilm.id] || 0) > 0 && <Progress value={library.progress[selectedFilm.id]} className="mt-6" />}
             </Card>
           </motion.div>

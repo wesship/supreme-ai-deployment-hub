@@ -128,14 +128,15 @@ export default function Agents() {
                   <span className="h-2 w-2 animate-pulse-glow rounded-full bg-accent-500 shadow-[0_0_8px_rgba(98,230,255,0.7)]"></span>
                 </span>
                 <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground-200">
-                  Agent Orchestration Console
+                  Agent Orchestration Demo
                 </span>
               </div>
               <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground-300/70">
-                Runtime // Active
+                Illustrative // Simulated
               </span>
             </div>
 
+            <p className="border-b border-foreground-200/10 px-6 py-4 text-sm leading-6 text-foreground-200">Illustrative agent names and simulated task, tool, memory, and approval states. Explore AI Agents for your workspace; this demo does not execute tasks.</p>
             <div className="grid lg:grid-cols-[0.9fr_1.1fr_1fr]">
               {/* Agent identities */}
               <div className="border-b border-foreground-200/10 lg:border-b-0 lg:border-r">
@@ -266,7 +267,7 @@ export default function Agents() {
                     <div className="memory-bar h-full w-[72%] rounded-full"></div>
                   </div>
                   <p className="mt-2 font-mono text-[10px] text-foreground-300/70">
-                    Context retained // human-verified
+                    Example context // simulated
                   </p>
                 </div>
 
@@ -278,7 +279,7 @@ export default function Agents() {
                     </span>
                   </div>
                   <p className="mt-2 text-xs leading-5 text-foreground-200 font-medium">
-                    1 action requires your sign-off before execution.
+                    Example: an action pauses for human approval before execution.
                   </p>
                 </div>
               </div>
