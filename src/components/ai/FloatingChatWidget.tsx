@@ -136,8 +136,8 @@ export const FloatingChatWidget: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`fixed bottom-6 right-6 z-50 flex flex-col rounded-2xl overflow-hidden ${
-              isExpanded ? 'w-[480px] h-[600px]' : 'w-[360px] h-[480px]'
+            className={`fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 flex flex-col min-w-0 rounded-2xl overflow-hidden ${
+              isExpanded ? 'w-[min(480px,calc(100vw-24px))] h-[min(600px,calc(100dvh-32px))]' : 'w-[min(360px,calc(100vw-24px))] h-[min(480px,calc(100dvh-32px))]'
             }`}
             style={{
               background: 'linear-gradient(180deg, #070d1a 0%, #0a1628 100%)',
@@ -147,7 +147,7 @@ export const FloatingChatWidget: React.FC = () => {
           >
             {/* Header */}
             <div
-              className="flex items-center justify-between px-4 py-3 border-b"
+              className="flex shrink-0 items-center justify-between gap-2 px-3 sm:px-4 py-3 border-b"
               style={{ borderColor: 'rgba(59, 255, 122, 0.15)' }}
             >
               <div className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export const FloatingChatWidget: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <Link
                   to="/chat"
                   className="p-1.5 rounded-lg text-white/40 hover:text-white/80 hover:bg-white/5 transition-colors"
@@ -188,7 +188,7 @@ export const FloatingChatWidget: React.FC = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-green-500/20">
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-green-500/20">
               {visibleMessages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
@@ -245,11 +245,11 @@ export const FloatingChatWidget: React.FC = () => {
 
             {/* Input */}
             <div
-              className="px-3 pb-3 pt-2 border-t"
+              className="shrink-0 px-3 pb-3 pt-2 border-t"
               style={{ borderColor: 'rgba(59, 255, 122, 0.1)' }}
             >
               <div
-                className="flex items-center gap-2 rounded-xl px-3 py-2"
+                className="flex min-w-0 items-center gap-2 rounded-xl px-3 py-2"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(59, 255, 122, 0.15)',
@@ -266,7 +266,7 @@ export const FloatingChatWidget: React.FC = () => {
                       : 'Ask Devonn...'
                   }
                   disabled={isLimitReached}
-                  className="flex-1 bg-transparent text-white text-sm placeholder-white/25 focus-visible:outline-none focus-visible:shadow-focus-glow disabled:opacity-40"
+                  className="min-w-0 flex-1 bg-transparent text-white text-sm placeholder-white/25 focus-visible:outline-none focus-visible:shadow-focus-glow disabled:opacity-40"
                 />
                 {/* Voice controls */}
                 <div className="flex-shrink-0">
