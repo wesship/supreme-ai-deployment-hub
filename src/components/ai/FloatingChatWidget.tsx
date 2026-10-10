@@ -50,7 +50,6 @@ export const FloatingChatWidget: React.FC = () => {
   }, []);
 
   const isAuthenticated = !!userId;
-  const visibleMessages = isAuthenticated ? messages : demoMessages;
   const config = isAuthenticated
     ? { model: 'gpt-4.1-mini' }
     : { model: 'gpt-4.1-nano' };
@@ -59,6 +58,7 @@ export const FloatingChatWidget: React.FC = () => {
     userId,
     config,
   });
+  const visibleMessages = isAuthenticated ? messages : demoMessages;
 
   // Last assistant message for TTS
   const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant' && !m.streaming)?.content;
