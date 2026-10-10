@@ -61,9 +61,18 @@ async def voice_tts(
                 },
             )
         if resp.status_code != 200:
+            # Provider response bodies may contain private configuration and must
+            # never be reflected back to browsers or included in ordinary logs.
+            logger.warning("voice_tts provider=elevenlabs upstream_status=%d", resp.status_code)
+            reason = (
+                "provider_limit" if resp.status_code in (402, 429)
+                else "provider_auth" if resp.status_code in (401, 403)
+                else "provider_invalid_request" if resp.status_code == 400
+                else "provider_unavailable"
+            )
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"ElevenLabs TTS error {resp.status_code}: {resp.text[:300]}",
+                detail=f"Voice provider could not generate audio ({reason}).",
             )
         logger.info("voice_tts provider=elevenlabs chars=%d", len(request.text))
         return Response(content=resp.content, media_type="audio/mpeg")
