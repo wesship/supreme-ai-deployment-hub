@@ -59,6 +59,7 @@ jobs:
           configPath: ./lighthouse-config.json
           urls: |
             http://localhost:4173/
+            http://localhost:4173/film
           # Use the existing lighthouse-config.json but override startServerCommand
           # since we already started the server above
           runs: 3
