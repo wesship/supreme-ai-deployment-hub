@@ -227,7 +227,13 @@ test.describe('D3VONN.IO production interaction audit', () => {
         const trigger = page.getByRole('button', { name: 'Open navigation' });
         await trigger.click();
         await expect(page.getByRole('dialog', { name: 'Navigation' })).toBeVisible();
-        await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: /Platform/ })).toBeVisible();
+        const mobileNav = page.getByRole('navigation', { name: 'Primary navigation' });
+        await expect(mobileNav.getByRole('link', { name: /Platform/ })).toBeVisible();
+        await expect(mobileNav.getByRole('link', { name: 'Infrastructure' })).toBeVisible();
+        await page.getByRole('button', { name: 'Close menu' }).click();
+        await expect(page.getByRole('dialog', { name: 'Navigation' })).toHaveCount(0);
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        await trigger.click();
         await page.keyboard.press('Escape');
         await expect(trigger).toBeFocused();
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');
