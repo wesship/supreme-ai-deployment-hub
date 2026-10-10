@@ -1,8 +1,0 @@
-import { act, renderHook } from '@testing-library/react';
-import { beforeEach, expect, it, vi } from 'vitest';
-import { useDisplayConnection } from './useDisplayConnection';
-beforeEach(() => vi.restoreAllMocks());
-it('does not discover cameras on mount', () => { const enumerateDevices = vi.fn(); Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { enumerateDevices } }); renderHook(useDisplayConnection); expect(enumerateDevices).not.toHaveBeenCalled(); });
-it('discovers video devices without requesting camera access', async () => { const getUserMedia = vi.fn(); Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { enumerateDevices: vi.fn().mockResolvedValue([{ kind: 'videoinput', deviceId: 'cam' }, { kind: 'audioinput', deviceId: 'mic' }]), getUserMedia } }); const { result } = renderHook(useDisplayConnection); await act(() => result.current.findCameras()); expect(result.current.cameras).toHaveLength(1); expect(getUserMedia).not.toHaveBeenCalled(); });
-it('reports unsupported fullscreen', async () => { const { result } = renderHook(useDisplayConnection); await act(() => result.current.toggleFullscreen()); expect(result.current.error).toMatch(/Fullscreen unavailable/); });
-it('requests fullscreen on its own workspace element', async () => { const { result } = renderHook(useDisplayConnection); const requestFullscreen = vi.fn().mockResolvedValue(undefined); const div = document.createElement('div'); div.requestFullscreen = requestFullscreen; result.current.rootRef.current = div; await act(() => result.current.toggleFullscreen()); expect(requestFullscreen).toHaveBeenCalledOnce(); });

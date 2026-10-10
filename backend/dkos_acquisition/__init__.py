@@ -1,1 +1,0 @@
-"""DKOS acquisition policy helpers."""

@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
+import './styles/signal-pages.css';
+import SignalAtmosphere from './components/shell/SignalAtmosphere';
 import ScrollToTop from "./components/ScrollToTop";
 import SkipToContent from "./components/SkipToContent";
 import AuthenticatedRoute from "./components/auth/AuthenticatedRoute";
@@ -178,9 +180,9 @@ function MainRegion({ children }: { children: ReactNode }) {
     <main
       id="main-content"
       tabIndex={-1}
-      className={`min-h-screen focus:outline-none${ownsFullScreenChrome ? '' : ' pt-16'}`}
+      className={`min-h-screen focus:outline-none${ownsFullScreenChrome ? '' : ' d3-signal-pages pt-16'}`}
     >
-      {children}
+      {ownsFullScreenChrome ? children : <><SignalAtmosphere /><div className="d3-signal-content">{children}</div></>}
     </main>
   );
 }

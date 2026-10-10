@@ -1,7 +1,0 @@
-Contact: mailto:security@d3vonn.io
-Contact: https://www.d3vonn.io/security/disclosure
-Expires: 2027-08-17T00:00:00.000Z
-Preferred-Languages: en
-Policy: https://www.d3vonn.io/security/disclosure
-Acknowledgments: https://www.d3vonn.io/security/disclosure#acknowledgments
-Canonical: https://www.d3vonn.io/.well-known/security.txt

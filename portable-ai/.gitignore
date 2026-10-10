@@ -1,8 +1,0 @@
-.env
-models/**/*.gguf
-models/**/*.bin
-models/**/*.ggml
-models/**/*.safetensors
-bin/**
-__pycache__/
-*.pyc

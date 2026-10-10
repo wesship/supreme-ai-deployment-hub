@@ -1,5 +1,0 @@
-activeAgents=Live
-workflowsToday=41/41
-knowledgeNodes=573+
-systemStatus=Optimal
-hermesQueue=Ready

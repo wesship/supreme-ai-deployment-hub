@@ -1,4 +1,0 @@
-## Homepage design system
-- The public homepage (`/`) is the repository-native D3VONN Sovereign Signal experience rendered by `src/pages/Index.tsx` → `src/components/sovereign/SovereignSignalHomepage.tsx`. It owns its full-screen application chrome, so `App.tsx` suppresses the shared navbar on `/` and `/knowledge-graph`.
-- The user approved the exported Readdy visual design for exact mobile and desktop parity. Its homepage presentation is ported into `src/components/sovereign/approved/*` with scoped, reproducible styling; the floating emblem, reflection, and Three.js effects are preserved. This repository remains the canonical runtime and deployment authority.
-- Keep authentication, backend APIs, Hermes execution, protected routes, security, voice orchestration, and deployment configuration canonical and repository-native.

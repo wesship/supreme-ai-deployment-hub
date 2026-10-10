@@ -18,7 +18,7 @@ const D3VONNMarketingHero = ({
 }: D3VONNMarketingHeroProps) => (
   <section className={cn('relative px-4 pb-14 pt-20 sm:px-6 sm:pb-18 sm:pt-24 lg:px-8 lg:pb-20 lg:pt-28', className)}>
     <div className="mx-auto max-w-5xl text-center">
-      <div className="inline-flex items-center border border-amber-200/20 bg-amber-200/[0.06] px-4 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-amber-100">
+      <div className="inline-flex items-center border border-cyan-200/20 bg-cyan-200/[0.06] px-4 py-2 font-mono text-[10px] uppercase tracking-[0.22em] text-cyan-100">
         {eyebrow}
       </div>
       <h1 className="mx-auto mt-7 max-w-5xl text-balance text-4xl font-black leading-[0.98] tracking-[-0.045em] text-white sm:text-6xl lg:text-7xl">

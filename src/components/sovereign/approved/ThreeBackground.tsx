@@ -315,7 +315,7 @@ function Rig() {
   return null;
 }
 
-export default function ThreeBackground() {
+export default function ThreeBackground({ compact = false }: { compact?: boolean }) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   useEffect(() => {
@@ -328,7 +328,9 @@ export default function ThreeBackground() {
     return () => { observer.disconnect(); preference.removeEventListener('change', update); };
   }, []);
   const [count] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 520 : 1100,
+    typeof window !== 'undefined' && window.innerWidth < 768
+      ? (compact ? 260 : 520)
+      : (compact ? 560 : 1100),
   );
 
   useEffect(() => {
