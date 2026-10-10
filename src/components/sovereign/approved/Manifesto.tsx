@@ -12,6 +12,8 @@ export default function Manifesto() {
           <Reveal>
             <div className="relative aspect-[4/5] overflow-hidden rounded-lg border border-foreground-200/10">
               <img
+                loading="lazy"
+                decoding="async"
                 src="/readdy-v90/manifesto-hands.jpg"
                 alt="Human creativity meeting machine intelligence"
                 title="Human creativity and machine intelligence — D3VONN"

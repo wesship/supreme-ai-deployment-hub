@@ -76,6 +76,8 @@ export default function Logo3D() {
               <img
                 src={LOGO}
                 alt="D3VONN"
+                fetchPriority="high"
+                loading="eager"
                 className="h-full w-full object-cover object-center"
                 style={{ maskImage: EDGE_MASK,
                   maskComposite: 'intersect',

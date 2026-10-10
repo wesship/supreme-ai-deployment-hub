@@ -1,3 +1,5 @@
+import { isLocalPreviewHost } from './isLocalPreview';
+
 export type HomepageTelemetry = {
   activeAgents: string;
   workflowsCompleted: string;
@@ -39,12 +41,6 @@ export const normalizePublicStats = (stats: PublicStatsResponse | null | undefin
     systemStatus: stats.system_health || defaultHomepageTelemetry.systemStatus,
     hermesQueue: formatNumber(stats.queue_pending, defaultHomepageTelemetry.hermesQueue),
   };
-};
-
-const isLocalPreviewHost = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const hostname = window.location.hostname;
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 };
 
 const getPublicStatsUrl = (): string => {

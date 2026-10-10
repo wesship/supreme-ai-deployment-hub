@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useGraphFrameScheduler } from './useGraphFrameScheduler';
 
 const BLUE = '#4da8ff';
 const CYAN = '#6ff0ff';
 const MAGENTA = '#ff4da6';
+const CYAN_COLOR = new THREE.Color(CYAN);
+const MAGENTA_COLOR = new THREE.Color(MAGENTA);
 
 // Shared mutable state between the DOM listeners and the render loop, so
 // scroll and pointer events flow into useFrame without triggering re-renders.
@@ -217,7 +220,7 @@ function Core() {
 
     if (glowMat.current) {
       const t = 0.5 + 0.5 * Math.sin(clock.elapsedTime * 1.2);
-      glowMat.current.color.lerpColors(new THREE.Color(CYAN), new THREE.Color(MAGENTA), t);
+      glowMat.current.color.lerpColors(CYAN_COLOR, MAGENTA_COLOR, t);
     }
 
     // Living core: rotating data rings + illuminated inner processor
@@ -315,6 +318,13 @@ function Rig() {
   return null;
 }
 
+/** Keep the same time-based motion without drawing at every display refresh. */
+function FrameScheduler({ paused }: { paused: boolean }) {
+  const { invalidate } = useThree();
+  useGraphFrameScheduler(invalidate, paused);
+  return null;
+}
+
 export default function ThreeBackground({ compact = false }: { compact?: boolean }) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -339,6 +349,7 @@ export default function ThreeBackground({ compact = false }: { compact?: boolean
       const c = document.createElement('canvas');
       const gl = c.getContext('webgl2') || c.getContext('webgl');
       if (!gl) ok = false;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext();
     } catch {
       ok = false;
     }
@@ -368,11 +379,12 @@ export default function ThreeBackground({ compact = false }: { compact?: boolean
   return (
     <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
       <Canvas
-        frameloop={reduceMotion ? 'demand' : 'always'}
+        frameloop="demand"
         dpr={[1, 1.5]}
         camera={{ position: [0, 0, 12], fov: 60, near: 0.1, far: 120 }}
         gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
       >
+        <FrameScheduler paused={reduceMotion} />
         <Rig />
         <Core />
         <AccentPulse />
