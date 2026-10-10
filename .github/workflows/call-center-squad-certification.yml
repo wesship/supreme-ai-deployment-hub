@@ -1,0 +1,137 @@
+name: Call Center Squad Certification
+
+on:
+  pull_request:
+    paths:
+      - 'backend/app/routers/call_center.py'
+      - 'backend/app/call_center_tools.py'
+      - 'scripts/deploy_vapi_call_center.py'
+      - 'backend/tests/test_call_center.py'
+      - 'backend/tests/test_vapi_call_center_deploy.py'
+      - '.github/workflows/call-center-squad-certification.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type CERTIFY_CALL_CENTER to publish/update the protected Vapi Squad'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-contract:
+    name: Validate call-center contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install targeted test dependencies
+        run: python -m pip install --upgrade pip pytest fastapi httpx
+      - name: Run call-center certification tests
+        run: |
+          python -m pytest -q \
+            backend/tests/test_call_center.py \
+            backend/tests/test_vapi_call_center_deploy.py
+
+  publish-and-certify:
+    name: Publish and certify Vapi Squad
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'CERTIFY_CALL_CENTER'
+    needs: validate-contract
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      D3VONN_PUBLIC_API_URL: https://api.d3vonn.io
+      VAPI_PRIVATE_KEY: ${{ secrets.VAPI_PRIVATE_KEY }}
+      VAPI_CALL_CENTER_CREDENTIAL_ID: ${{ secrets.VAPI_CALL_CENTER_CREDENTIAL_ID || vars.VAPI_CALL_CENTER_CREDENTIAL_ID }}
+      VAPI_CALL_CENTER_SQUAD_ID: ${{ secrets.VAPI_CALL_CENTER_SQUAD_ID || vars.VAPI_CALL_CENTER_SQUAD_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fail closed on missing protected configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${VAPI_PRIVATE_KEY:-}" || { echo 'VAPI_PRIVATE_KEY is not configured in production'; exit 1; }
+          test -n "${VAPI_CALL_CENTER_CREDENTIAL_ID:-}" || { echo 'VAPI_CALL_CENTER_CREDENTIAL_ID is not configured in production'; exit 1; }
+
+      - name: Verify D3VONN call-center backend readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "${D3VONN_PUBLIC_API_URL}/api/voice/call-center/health" -o call-center-health.json
+          python - <<'PY'
+          import json
+          body=json.load(open('call-center-health.json'))
+          assert body.get('agents_ready') is True, body
+          assert body.get('live_pstn_enabled') is False, body
+          assert body.get('secrets_exposed') is False, body
+          print(json.dumps({
+              'agents_ready': body.get('agents_ready'),
+              'tool_path_ready': body.get('tool_path_ready'),
+              'live_pstn_enabled': body.get('live_pstn_enabled'),
+          }))
+          PY
+
+      - name: Fetch governed source manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            "${D3VONN_PUBLIC_API_URL}/api/voice/call-center/squad/manifest" \
+            -o call-center-manifest.json
+
+      - name: Publish or update Vapi Squad
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/deploy_vapi_call_center.py \
+            --manifest-file call-center-manifest.json \
+            --publish \
+            --output deployable-squad.json \
+            | tee publish-result.json
+
+      - name: Verify published Squad directly with Vapi
+        shell: bash
+        run: |
+          set -euo pipefail
+          SQUAD_ID="$(python - <<'PY'
+          import json
+          data=json.load(open('publish-result.json'))
+          print(data.get('squad_id') or '')
+          PY
+          )"
+          test -n "$SQUAD_ID" || { echo 'Vapi did not return a squad id'; exit 1; }
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${VAPI_PRIVATE_KEY}" \
+            "https://api.vapi.ai/squad/${SQUAD_ID}" \
+            -o published-squad.json
+          python - <<'PY'
+          import json
+          body=json.load(open('published-squad.json'))
+          members=body.get('members') or []
+          assert len(members) == 7, body
+          assert body.get('id'), body
+          print(json.dumps({'squad_id': body['id'], 'member_count': len(members), 'name': body.get('name')}))
+          PY
+
+      - name: Verify PSTN remains gated
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          body=json.load(open('call-center-health.json'))
+          assert body.get('live_pstn_enabled') is False
+          print('Live PSTN remains disabled after Squad publication, as required.')
+          PY
+
+      - name: Remove transient deployment artifacts
+        if: always()
+        shell: bash
+        run: rm -f call-center-health.json call-center-manifest.json deployable-squad.json publish-result.json published-squad.json

@@ -1,0 +1,29 @@
+{
+  "provider_id": "ace-step-1.5",
+  "repository": "ACE-Step/Ace-Step1.5",
+  "revision": "19671f406d603126926c1b7e2adc169acbcade22",
+  "status": "expected_upstream_metadata",
+  "verification_rule": "A qualification job must download this exact revision and recompute SHA-256 locally; all digests must match before artifact_hash_status can become verified.",
+  "artifacts": [
+    {
+      "path": "Qwen3-Embedding-0.6B/model.safetensors",
+      "sha256": "0437e45c94563b09e13cb7a64478fc406947a93cb34a7e05870fc8dcd48e23fd"
+    },
+    {
+      "path": "acestep-5Hz-lm-1.7B/model.safetensors",
+      "sha256": "f161689da73e5ecefa28ff780d51c2d92a00f056d021d7933c779ed5c6cd7db8"
+    },
+    {
+      "path": "acestep-v15-turbo/model.safetensors",
+      "sha256": "3f6e0797fad420a39bd33979eb6e840e30989e34a3794e843d23b60ec6e422d7"
+    },
+    {
+      "path": "acestep-v15-turbo/silence_latent.pt",
+      "sha256": "a778e9dd942f5e8b2c09c55370782d318834432b03dabbcdf70e6ed49ad6358b"
+    },
+    {
+      "path": "vae/diffusion_pytorch_model.safetensors",
+      "sha256": "da17edb604c40deaf09e9b24974e590d1ca83a374070e5d0884cfa4bed9a99b0"
+    }
+  ]
+}

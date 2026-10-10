@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "status": "DISABLED_PENDING_SG3_PASS",
+  "production_enabled": false,
+  "cohort": {
+    "mode": "explicit_device_allowlist",
+    "device_ids": []
+  },
+  "allowed_actions": [
+    "get_battery",
+    "capture_photo",
+    "describe_scene",
+    "read_text",
+    "create_note",
+    "ask_d3vonn",
+    "recall_memory"
+  ],
+  "guardian_only_actions": [
+    "start_recording",
+    "stop_recording",
+    "get_location",
+    "delete_data",
+    "send_money"
+  ],
+  "rate_limits": {
+    "per_device_requests_per_minute": 30,
+    "capture_photo_per_minute": 5,
+    "remote_reasoning_per_minute": 10
+  },
+  "rollback": {
+    "global_kill_switch_required": true,
+    "automatic_disable_on_unsafe_dispatch": true,
+    "automatic_disable_on_false_dispatch": true,
+    "automatic_disable_on_audit_failure": true
+  },
+  "audit": {
+    "correlation_id_required": true,
+    "device_id_required": true,
+    "action_required": true,
+    "decision_required": true,
+    "policy_version_required": true,
+    "raw_audio_retention_required": false
+  },
+  "activation_requirements": {
+    "sg3_status": "PASS",
+    "minimum_canary_hours": 24,
+    "maximum_unsafe_dispatches": 0,
+    "maximum_false_dispatch_rate": 0.0,
+    "maximum_error_rate": 0.02,
+    "maximum_p95_latency_ms": 750,
+    "rollback_test_verified": true,
+    "kill_switch_test_verified": true,
+    "human_reviewer_required": true
+  }
+}

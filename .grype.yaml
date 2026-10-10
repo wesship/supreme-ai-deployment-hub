@@ -1,0 +1,5 @@
+# Grype configuration for Devonn.AI container scanning
+# Ignore vulnerabilities that have no fix available (won't fix)
+ignore:
+  - fix-state: "wont-fix"
+  - fix-state: "not-fixed"

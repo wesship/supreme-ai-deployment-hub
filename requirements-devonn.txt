@@ -1,0 +1,8 @@
+# requirements-devonn.txt
+# Dependencies for the Devonn.ai Auto-Healer Mesh (run_all.sh, run_devonn_ai.py, clone_repos_auto.py)
+
+requests>=2.33.1
+python-dotenv>=1.0.0
+uvicorn[standard]>=0.43.0
+fastapi>=0.115.0
+httpx>=0.28.1

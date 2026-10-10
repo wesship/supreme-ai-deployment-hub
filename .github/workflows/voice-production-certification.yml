@@ -1,0 +1,334 @@
+name: D3VONN Voice Production Certification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - backend/app/routers/voice_orchestration.py
+      - backend/tests/test_voice_orchestration.py
+      - .github/workflows/voice-production-certification.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d3vonn-voice-production
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Activate and certify Vapi + ElevenLabs + Hermes
+    runs-on: [self-hosted, linux, x64]
+    environment: production
+    timeout-minutes: 30
+    env:
+      VAPI_PRIVATE_KEY_INPUT: ${{ secrets.VAPI_PRIVATE_KEY }}
+      VAPI_WEBHOOK_SECRET_INPUT: ${{ secrets.VAPI_WEBHOOK_SECRET }}
+      VAPI_ASSISTANT_ID_INPUT: ${{ secrets.VAPI_ASSISTANT_ID }}
+      VAPI_ASSISTANT_ID_VAR: ${{ vars.VAPI_ASSISTANT_ID }}
+      ELEVENLABS_API_KEY_INPUT: ${{ secrets.ELEVENLABS_API_KEY }}
+      ELEVENLABS_DEFAULT_VOICE_ID_INPUT: ${{ secrets.ELEVENLABS_DEFAULT_VOICE_ID }}
+      ELEVENLABS_VOICE_ID_INPUT: ${{ secrets.ELEVENLABS_VOICE_ID }}
+
+    steps:
+      - name: Check out exact release
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+
+      - name: Resolve and protect provider configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          reject_placeholder() {
+            local name="$1"
+            local value="$2"
+            case "${value,,}" in
+              ""|paste_*|change_me*|your_*|placeholder*)
+                echo "::error::${name} is missing or still contains a placeholder."
+                return 1
+                ;;
+            esac
+          }
+
+          VAPI_PRIVATE_KEY="$VAPI_PRIVATE_KEY_INPUT"
+          ELEVENLABS_API_KEY="$ELEVENLABS_API_KEY_INPUT"
+          VAPI_ASSISTANT_ID="${VAPI_ASSISTANT_ID_INPUT:-${VAPI_ASSISTANT_ID_VAR:-8491eea7-e385-426b-8cdc-3e2aaf9a4cbf}}"
+          ELEVENLABS_DEFAULT_VOICE_ID="${ELEVENLABS_DEFAULT_VOICE_ID_INPUT:-${ELEVENLABS_VOICE_ID_INPUT:-21m00Tcm4TlvDq8ikWAM}}"
+          VAPI_WEBHOOK_SECRET="${VAPI_WEBHOOK_SECRET_INPUT:-$(openssl rand -hex 32)}"
+
+          reject_placeholder VAPI_PRIVATE_KEY "$VAPI_PRIVATE_KEY"
+          reject_placeholder ELEVENLABS_API_KEY "$ELEVENLABS_API_KEY"
+          reject_placeholder VAPI_ASSISTANT_ID "$VAPI_ASSISTANT_ID"
+          reject_placeholder ELEVENLABS_DEFAULT_VOICE_ID "$ELEVENLABS_DEFAULT_VOICE_ID"
+          reject_placeholder VAPI_WEBHOOK_SECRET "$VAPI_WEBHOOK_SECRET"
+
+          for value in "$VAPI_PRIVATE_KEY" "$ELEVENLABS_API_KEY" "$VAPI_WEBHOOK_SECRET"; do
+            echo "::add-mask::$value"
+          done
+
+          {
+            echo "VAPI_PRIVATE_KEY=$VAPI_PRIVATE_KEY"
+            echo "VAPI_ASSISTANT_ID=$VAPI_ASSISTANT_ID"
+            echo "VAPI_WEBHOOK_SECRET=$VAPI_WEBHOOK_SECRET"
+            echo "ELEVENLABS_API_KEY=$ELEVENLABS_API_KEY"
+            echo "ELEVENLABS_DEFAULT_VOICE_ID=$ELEVENLABS_DEFAULT_VOICE_ID"
+            echo "ELEVENLABS_DEFAULT_MODEL=eleven_turbo_v2_5"
+          } >> "$GITHUB_ENV"
+
+      - name: Install voice configuration into the VPS environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          ENV_FILE="/opt/supreme-ai-deployment-hub/deploy/vps/env/.env.production"
+          INPUT_FILE="$(mktemp)"
+          UPDATER_FILE="$(mktemp)"
+          trap 'shred -u "$INPUT_FILE" "$UPDATER_FILE" 2>/dev/null || rm -f "$INPUT_FILE" "$UPDATER_FILE"' EXIT
+
+          python3 - "$INPUT_FILE" <<'PY'
+          import json
+          import os
+          import sys
+
+          keys = (
+              "VAPI_PRIVATE_KEY",
+              "VAPI_ASSISTANT_ID",
+              "VAPI_WEBHOOK_SECRET",
+              "ELEVENLABS_API_KEY",
+              "ELEVENLABS_DEFAULT_VOICE_ID",
+              "ELEVENLABS_DEFAULT_MODEL",
+          )
+          with open(sys.argv[1], "w", encoding="utf-8") as handle:
+              json.dump({key: os.environ[key] for key in keys}, handle)
+          PY
+
+          cat > "$UPDATER_FILE" <<'PY'
+          import json
+          import os
+          import pathlib
+          import sys
+          import tempfile
+
+          env_path = pathlib.Path(sys.argv[1])
+          updates = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-8"))
+          env_path.parent.mkdir(parents=True, exist_ok=True)
+          existing = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+          output = []
+          written = set()
+
+          for line in existing:
+              key = line.split("=", 1)[0] if "=" in line else None
+              if key in updates:
+                  if key not in written:
+                      output.append(f"{key}={updates[key]}")
+                      written.add(key)
+              else:
+                  output.append(line)
+
+          for key, value in updates.items():
+              if key not in written:
+                  output.append(f"{key}={value}")
+
+          fd, temp_name = tempfile.mkstemp(prefix=".env.production.", dir=str(env_path.parent))
+          try:
+              with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                  handle.write("\n".join(output) + "\n")
+              os.chmod(temp_name, 0o600)
+              os.replace(temp_name, env_path)
+              os.chmod(env_path, 0o600)
+          finally:
+              if os.path.exists(temp_name):
+                  os.unlink(temp_name)
+          PY
+
+          if [[ "$(id -u)" == "0" || -w "$ENV_FILE" || -w "$(dirname "$ENV_FILE")" ]]; then
+            python3 "$UPDATER_FILE" "$ENV_FILE" "$INPUT_FILE"
+          elif sudo -n true 2>/dev/null; then
+            sudo -n python3 "$UPDATER_FILE" "$ENV_FILE" "$INPUT_FILE"
+          else
+            echo "::error::The self-hosted runner cannot securely update $ENV_FILE."
+            exit 1
+          fi
+
+          if [[ "$(id -u)" == "0" ]]; then
+            chown root:root "$ENV_FILE"
+          elif sudo -n true 2>/dev/null; then
+            sudo -n chown root:root "$ENV_FILE"
+          fi
+
+          echo "Voice provider variables installed without printing their values."
+
+      - name: Deploy the exact voice release
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo -n /usr/local/sbin/d3vonn-deploy-release "$GITHUB_SHA"
+
+      - name: Validate ElevenLabs and configure the Vapi assistant
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          assistant_id = os.environ["VAPI_ASSISTANT_ID"]
+          vapi_key = os.environ["VAPI_PRIVATE_KEY"]
+          webhook_secret = os.environ["VAPI_WEBHOOK_SECRET"]
+          eleven_key = os.environ["ELEVENLABS_API_KEY"]
+          voice_id = os.environ["ELEVENLABS_DEFAULT_VOICE_ID"]
+          voice_model = os.environ["ELEVENLABS_DEFAULT_MODEL"]
+          webhook_url = "https://api.d3vonn.io/api/voice/vapi/webhook"
+
+          def request_json(url, *, method="GET", headers=None, payload=None):
+              body = None if payload is None else json.dumps(payload).encode("utf-8")
+              req = urllib.request.Request(url, data=body, method=method)
+              for key, value in (headers or {}).items():
+                  req.add_header(key, value)
+              if payload is not None:
+                  req.add_header("Content-Type", "application/json")
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as exc:
+                  safe_body = exc.read().decode("utf-8", errors="replace")[:1500]
+                  raise SystemExit(f"Provider API returned HTTP {exc.code}: {safe_body}") from exc
+
+          eleven_status, voice = request_json(
+              f"https://api.elevenlabs.io/v1/voices/{voice_id}",
+              headers={"xi-api-key": eleven_key},
+          )
+          if eleven_status != 200 or voice.get("voice_id") != voice_id:
+              raise SystemExit("ElevenLabs voice validation failed.")
+
+          vapi_headers = {"Authorization": f"Bearer {vapi_key}"}
+          status, assistant = request_json(
+              f"https://api.vapi.ai/assistant/{assistant_id}",
+              headers=vapi_headers,
+          )
+          if status != 200 or assistant.get("id") != assistant_id:
+              raise SystemExit("Vapi assistant validation failed.")
+
+          current_voice = assistant.get("voice") if isinstance(assistant.get("voice"), dict) else {}
+          eleven_voice = {
+              key: value
+              for key, value in current_voice.items()
+              if key in {
+                  "stability",
+                  "similarityBoost",
+                  "style",
+                  "speed",
+                  "useSpeakerBoost",
+                  "optimizeStreamingLatency",
+                  "pronunciationDictionaryLocators",
+              }
+          }
+          eleven_voice.update({
+              "provider": "11labs",
+              "voiceId": voice_id,
+              "model": voice_model,
+          })
+
+          server_messages = set(assistant.get("serverMessages") or [])
+          server_messages.update({
+              "assistant-request",
+              "tool-calls",
+              "status-update",
+              "end-of-call-report",
+              "transcript",
+          })
+
+          patch = {
+              "server": {
+                  "url": webhook_url,
+                  "secret": webhook_secret,
+                  "timeoutSeconds": 20,
+              },
+              "serverMessages": sorted(server_messages),
+              "voice": eleven_voice,
+          }
+          patch_status, updated = request_json(
+              f"https://api.vapi.ai/assistant/{assistant_id}",
+              method="PATCH",
+              headers=vapi_headers,
+              payload=patch,
+          )
+          if patch_status != 200:
+              raise SystemExit("Vapi assistant update failed.")
+
+          updated_server = updated.get("server") or {}
+          updated_voice = updated.get("voice") or {}
+          if updated_server.get("url") != webhook_url:
+              raise SystemExit("Vapi server URL did not persist.")
+          if updated_voice.get("provider") != "11labs" or updated_voice.get("voiceId") != voice_id:
+              raise SystemExit("Vapi ElevenLabs voice did not persist.")
+
+          print(f"ElevenLabs voice validated: {voice.get('name', 'configured voice')}")
+          print("Vapi assistant server and ElevenLabs voice configuration verified.")
+          PY
+
+      - name: Certify production health and authenticated webhook delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error \
+              https://api.d3vonn.io/api/voice/health \
+              -o /tmp/d3vonn-voice-health.json; then
+              break
+            fi
+            sleep 5
+          done
+
+          python3 - /tmp/d3vonn-voice-health.json <<'PY'
+          import json
+          import sys
+
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          if data.get("status") != "configured":
+              raise SystemExit(f"Voice health is not configured: {data}")
+          if data.get("secrets_exposed") is not False:
+              raise SystemExit("Voice health endpoint failed secret-exposure assertion.")
+          required = {
+              "vapi_public_configuration",
+              "vapi_private_key",
+              "vapi_webhook_auth",
+              "elevenlabs_api",
+              "elevenlabs_voice",
+              "hermes_internal_adapter",
+          }
+          checks = data.get("checks") or {}
+          missing = sorted(name for name in required if checks.get(name) is not True)
+          if missing:
+              raise SystemExit(f"Voice readiness checks failed: {missing}")
+          print("Production voice health reports configured.")
+          PY
+
+          EVENT_ID="voice-cert-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RESPONSE_FILE="$(mktemp)"
+          trap 'rm -f "$RESPONSE_FILE" /tmp/d3vonn-voice-health.json' EXIT
+
+          curl --fail --silent --show-error \
+            -X POST https://api.d3vonn.io/api/voice/vapi/webhook \
+            -H 'Content-Type: application/json' \
+            -H "x-vapi-secret: $VAPI_WEBHOOK_SECRET" \
+            --data "{\"message\":{\"id\":\"$EVENT_ID\",\"type\":\"status-update\",\"status\":\"voice-production-certified\"}}" \
+            -o "$RESPONSE_FILE"
+
+          python3 - "$RESPONSE_FILE" "$EVENT_ID" <<'PY'
+          import json
+          import sys
+
+          data = json.load(open(sys.argv[1], encoding="utf-8"))
+          if data.get("ok") is not True or data.get("event_id") != sys.argv[2]:
+              raise SystemExit(f"Authenticated Vapi webhook certification failed: {data}")
+          if data.get("hermes_recorded") is not True:
+              raise SystemExit(f"Hermes did not record the certified voice event: {data}")
+          print("Authenticated Vapi webhook reached Hermes successfully.")
+          PY

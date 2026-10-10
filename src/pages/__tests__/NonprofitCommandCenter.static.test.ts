@@ -1,0 +1,348 @@
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const app = readFileSync('src/App.tsx', 'utf8');
+const page = readFileSync('src/pages/NonprofitCommandCenter.tsx', 'utf8');
+const api = readFileSync('src/lib/nonprofitCommandCenterApi.ts', 'utf8');
+const attachmentMigration = readFileSync('supabase/migrations/20260917112000_gate21_nonprofit_attachment_compliance.sql', 'utf8');
+const readinessMigration = readFileSync('supabase/migrations/20260917114500_gate22_nonprofit_final_submission_readiness.sql', 'utf8');
+const authorizationMigration = readFileSync('supabase/migrations/20260917171500_gate23_nonprofit_submission_authorization.sql', 'utf8');
+const previewMigration = readFileSync('supabase/migrations/20260918043000_gate24_nonprofit_submission_preview.sql', 'utf8');
+const certificationMigration = readFileSync('supabase/migrations/20260918050000_gate25_nonprofit_preview_certification.sql', 'utf8');
+const canaryMigration = readFileSync('supabase/migrations/20260918054500_gate26_nonprofit_transmission_canary.sql', 'utf8');
+const externalSandboxMigration = readFileSync('supabase/migrations/20260918062000_gate27_nonprofit_external_sandbox_connector.sql', 'utf8');
+const externalSandboxFunction = readFileSync('supabase/functions/nonprofit-submission-sandbox/index.ts', 'utf8');
+const promotionMigration = readFileSync('supabase/migrations/20260918070000_gate28_nonprofit_production_promotion.sql', 'utf8');
+
+describe('Gate 20 nonprofit command center wiring', () => {
+  it('registers authenticated nonprofit routes', () => {
+    expect(app).toContain('NonprofitCommandCenter');
+    expect(app).toContain('path="/nonprofit"');
+    expect(app).toContain('<AuthenticatedRoute><NonprofitCommandCenter /></AuthenticatedRoute>');
+  });
+
+  it('reads only command-center summary views', () => {
+    expect(api).toContain('nonprofit_command_org_v1');
+    expect(api).toContain('nonprofit_programs_v1');
+    expect(api).toContain('nonprofit_grant_pipeline_v1');
+    expect(api).toContain('nonprofit_pending_approvals_v1');
+    expect(api).toContain('nonprofit_approval_steps_v1');
+    expect(api).toContain('nonprofit_compliance_alerts_v1');
+    expect(api).toContain('nonprofit_attachment_compliance_v1');
+    expect(api).toContain('nonprofit_submission_readiness_v1');
+    expect(api).toContain('nonprofit_submission_authorizations_v1');
+    expect(api).toContain('nonprofit_submission_previews_v1');
+    expect(api).toContain('nonprofit_submission_preview_certifications_v1');
+    expect(api).toContain('nonprofit_submission_canaries_v1');
+    expect(api).toContain('nonprofit_external_sandbox_transmissions_v1');
+    expect(api).toContain('nonprofit_sandbox_receipt_certifications_v1');
+    expect(api).toContain('nonprofit_production_connector_promotions_v1');
+    expect(api).toContain('nonprofit_audit_summary_v1');
+    expect(api).not.toContain('nonprofit_vault.documents');
+  });
+
+  it('uses the guarded approval RPC and exposes no direct execution control', () => {
+    expect(api).toContain("rpc('nonprofit_decide_approval_step'");
+    expect(page).toContain('MFA + role + policy guarded');
+    expect(page).toContain('RED policy decisions are blocked');
+    expect(page).toContain('The action itself was not executed.');
+  });
+});
+
+describe('Gate 21 attachment compliance engine', () => {
+  it('is fail-closed on required attachment failures', () => {
+    expect(attachmentMigration).toContain("'BLOCKED_MISSING'");
+    expect(attachmentMigration).toContain("'BLOCKED_UNVERIFIED_CONTENT'");
+    expect(attachmentMigration).toContain("'BLOCKED_UNSIGNED'");
+    expect(attachmentMigration).toContain("'BLOCKED_EXPIRED'");
+    expect(attachmentMigration).toContain("'BLOCKED_STALE'");
+    expect(attachmentMigration).toContain("'BLOCKED_FILE_SIZE'");
+    expect(attachmentMigration).toContain("'BLOCKED_PAGE_COUNT'");
+    expect(attachmentMigration).toContain("'BLOCKED_FILE_TYPE'");
+  });
+
+  it('protects attachment rows with authenticated membership RLS', () => {
+    expect(attachmentMigration).toContain('enable row level security');
+    expect(attachmentMigration).toContain('nonprofit_security.memberships');
+    expect(attachmentMigration).toContain('auth.uid()');
+    expect(attachmentMigration).toContain('revoke all on public.nonprofit_attachment_compliance_v1 from anon');
+  });
+
+  it('shows submission blockers in the command center', () => {
+    expect(page).toContain('Attachment compliance');
+    expect(page).toContain('NOT SUBMISSION READY');
+    expect(page).toContain('hard blockers');
+    expect(page).toContain('Hard failures remain fail-closed.');
+  });
+});
+
+describe('Gate 22 final application QA and submission readiness', () => {
+  it('aggregates all hard readiness dimensions', () => {
+    expect(readinessMigration).toContain("'BLOCKED_DEADLINE'");
+    expect(readinessMigration).toContain("'BLOCKED_GO_NO_GO_REQUIRED'");
+    expect(readinessMigration).toContain("'BLOCKED_ELIGIBILITY'");
+    expect(readinessMigration).toContain("'BLOCKED_READINESS_UNKNOWN'");
+    expect(readinessMigration).toContain("'BLOCKED_READINESS_INCOMPLETE'");
+    expect(readinessMigration).toContain("'BLOCKED_ATTACHMENTS'");
+    expect(readinessMigration).toContain("'BLOCKED_REJECTED_APPROVAL'");
+    expect(readinessMigration).toContain("'BLOCKED_PENDING_APPROVAL'");
+    expect(readinessMigration).toContain("'BLOCKED_POLICY'");
+    expect(readinessMigration).toContain("'SUBMISSION_READY'");
+  });
+
+  it('remains read-only and fail-closed', () => {
+    expect(readinessMigration).toContain('create or replace view public.nonprofit_submission_readiness_v1');
+    expect(readinessMigration).toContain('hard_blocker');
+    expect(readinessMigration).toContain('blocker_reasons');
+    expect(readinessMigration).toContain('revoke all on public.nonprofit_submission_readiness_v1 from anon');
+    expect(readinessMigration).not.toContain('insert into');
+    expect(readinessMigration).not.toContain('update nonprofit');
+  });
+
+  it('surfaces one final verdict without adding a submit action', () => {
+    expect(page).toContain('Final application QA + submission readiness');
+    expect(page).toContain('One deterministic verdict');
+    expect(page).toContain('This view does not submit anything.');
+    expect(page).toContain('Blocker reasons:');
+    expect(page).not.toContain('Submit application');
+  });
+});
+
+
+describe('Gate 23 submission authorization and human approval', () => {
+  it('allows authorization requests only after deterministic submission readiness', () => {
+    expect(authorizationMigration).toContain("v_ready.submission_status <> 'SUBMISSION_READY'");
+    expect(authorizationMigration).toContain('WORKFLOW_NOT_SUBMISSION_READY');
+    expect(authorizationMigration).toContain('LIVE_SUBMISSION_AUTHORIZATION_EXISTS');
+    expect(authorizationMigration).toContain("status in ('PENDING','APPROVED')");
+  });
+
+  it('requires MFA, approval authority, and separation of duties for approval', () => {
+    expect(authorizationMigration).toContain('MFA_AAL2_REQUIRED');
+    expect(authorizationMigration).toContain('can_approve');
+    expect(authorizationMigration).toContain('SEPARATION_OF_DUTIES_REQUIRED');
+    expect(authorizationMigration).toContain('READINESS_CHANGED_REAUTHORIZATION_REQUIRED');
+  });
+
+  it('does not execute an external grant submission', () => {
+    expect(authorizationMigration).not.toContain('http_request');
+    expect(authorizationMigration).not.toContain('net.http');
+    expect(authorizationMigration).not.toContain('submit_grant');
+    expect(page).toContain('This gate still does not execute or transmit a grant submission.');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires guarded authorization request and decision RPCs', () => {
+    expect(api).toContain("rpc('nonprofit_request_submission_authorization'");
+    expect(api).toContain("rpc('nonprofit_decide_submission_authorization'");
+    expect(page).toContain('Request human authorization');
+    expect(page).toContain('Approve authorization');
+    expect(page).toContain('A different authorized human must decide this request.');
+  });
+});
+
+
+describe('Gate 24 controlled submission connector dry-run preview', () => {
+  it('requires both live human authorization and current submission readiness', () => {
+    expect(previewMigration).toContain('LIVE_HUMAN_AUTHORIZATION_REQUIRED');
+    expect(previewMigration).toContain("v_ready.submission_status <> 'SUBMISSION_READY'");
+    expect(previewMigration).toContain('WORKFLOW_NOT_SUBMISSION_READY');
+    expect(previewMigration).toContain('ATTACHMENT_COMPLIANCE_CHANGED');
+  });
+
+  it('creates a deterministic preview package with a SHA-256 payload hash', () => {
+    expect(previewMigration).toContain("'grantassist.submission-preview.v1'");
+    expect(previewMigration).toContain("'DRY_RUN'");
+    expect(previewMigration).toContain('attachment_manifest');
+    expect(previewMigration).toContain("'sha256'");
+    expect(previewMigration).toContain('payload_hash');
+  });
+
+  it('does not transmit anything externally', () => {
+    expect(previewMigration).not.toContain('http_request');
+    expect(previewMigration).not.toContain('net.http');
+    expect(previewMigration).not.toContain('curl');
+    expect(previewMigration).toContain('false as external_transmission_performed');
+    expect(page).toContain('performs no network transmission');
+    expect(page).toContain('External transmission');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires preview generation into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_generate_submission_preview'");
+    expect(api).toContain('nonprofit_submission_previews_v1');
+    expect(page).toContain('Controlled submission preview');
+    expect(page).toContain('Generate dry-run preview');
+    expect(page).toContain('Payload hash');
+  });
+});
+
+
+describe('Gate 25 preview certification and payload freeze', () => {
+  it('binds certification to the exact expected SHA-256 payload hash', () => {
+    expect(certificationMigration).toContain('p_expected_payload_hash');
+    expect(certificationMigration).toContain('EXPECTED_PAYLOAD_HASH_MISMATCH');
+    expect(certificationMigration).toContain('certified_payload_hash');
+    expect(certificationMigration).toContain('frozen_payload');
+    expect(certificationMigration).toContain('frozen_attachment_manifest');
+  });
+
+  it('recomputes the current package fingerprint and invalidates changed state', () => {
+    expect(certificationMigration).toContain('nonprofit_submission_preview_fingerprints_v1');
+    expect(certificationMigration).toContain('current_payload_hash');
+    expect(certificationMigration).toContain('package_unchanged');
+    expect(certificationMigration).toContain('INVALID_PACKAGE_CHANGED');
+    expect(certificationMigration).toContain('INVALID_READINESS_CHANGED');
+    expect(certificationMigration).toContain('INVALID_AUTHORIZATION_EXPIRED');
+  });
+
+  it('requires AAL2, can_approve authority, and separation of duties', () => {
+    expect(certificationMigration).toContain('MFA_AAL2_REQUIRED');
+    expect(certificationMigration).toContain('can_approve');
+    expect(certificationMigration).toContain('SEPARATION_OF_DUTIES_REQUIRED');
+  });
+
+  it('keeps certification immutable and adds no external transmission path', () => {
+    expect(certificationMigration).toContain('revoke insert, update, delete on nonprofit.submission_preview_certifications from authenticated');
+    expect(certificationMigration).not.toContain('http_request');
+    expect(certificationMigration).not.toContain('net.http');
+    expect(page).toContain('Preview certification + payload freeze');
+    expect(page).toContain('Certify exact payload hash');
+    expect(page).toContain('Hash still matches:');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires certification RPC and view into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_certify_submission_preview'");
+    expect(api).toContain('nonprofit_submission_preview_certifications_v1');
+    expect(page).toContain('Certified freezes');
+    expect(page).toContain('Package unchanged:');
+  });
+});
+
+
+describe('Gate 26 certified payload transmission canary', () => {
+  it('requires a valid frozen certification and current exact hash', () => {
+    expect(canaryMigration).toContain('VALID_CERTIFICATION_REQUIRED');
+    expect(canaryMigration).toContain('CERTIFIED_HASH_NO_LONGER_CURRENT');
+    expect(canaryMigration).toContain('certified_payload_hash <> v_cert.current_payload_hash');
+    expect(canaryMigration).toContain('hash_still_matches');
+    expect(canaryMigration).toContain('package_unchanged');
+  });
+
+  it('requires AAL2, approval authority, and separation of duties', () => {
+    expect(canaryMigration).toContain('MFA_AAL2_REQUIRED');
+    expect(canaryMigration).toContain('can_approve');
+    expect(canaryMigration).toContain('SEPARATION_OF_DUTIES_REQUIRED');
+  });
+
+  it('crosses only the internal sandbox boundary and verifies the received hash', () => {
+    expect(canaryMigration).toContain("'INTERNAL_SANDBOX_CANARY'");
+    expect(canaryMigration).toContain('external_network_performed boolean not null default false');
+    expect(canaryMigration).toContain('production_destination boolean not null default false');
+    expect(canaryMigration).toContain('v_received_hash');
+    expect(canaryMigration).toContain('CANARY_HASH_MISMATCH');
+    expect(canaryMigration).toContain("'HASH_VERIFIED'");
+    expect(canaryMigration).not.toContain('http_request');
+    expect(canaryMigration).not.toContain('net.http');
+  });
+
+  it('wires the sandbox canary and receipt evidence into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_run_submission_canary'");
+    expect(api).toContain('nonprofit_submission_canaries_v1');
+    expect(page).toContain('Certified payload transmission canary');
+    expect(page).toContain('Run sandbox canary');
+    expect(page).toContain('Received hash:');
+    expect(page).toContain('NON-PROD / NO NETWORK');
+    expect(page).not.toContain('Submit application');
+  });
+});
+
+
+describe('Gate 27 external sandbox connector certification', () => {
+  it('requires a passed Gate 26 canary and current valid certification', () => {
+    expect(externalSandboxMigration).toContain('PASSED_INTERNAL_CANARY_REQUIRED');
+    expect(externalSandboxMigration).toContain('VALID_CERTIFICATION_REQUIRED');
+    expect(externalSandboxMigration).toContain('CERTIFIED_HASH_NO_LONGER_CURRENT');
+  });
+
+  it('enforces TLS, exact host allowlisting, and explicit production-domain blocking', () => {
+    expect(externalSandboxFunction).toContain('HTTPS_REQUIRED');
+    expect(externalSandboxFunction).toContain('SANDBOX_HOST_NOT_ALLOWLISTED');
+    expect(externalSandboxFunction).toContain('PRODUCTION_DOMAIN_BLOCKED');
+    expect(externalSandboxFunction).toContain('NON_PRODUCTION_HOST_MARKER_REQUIRED');
+    expect(externalSandboxFunction).toContain('grants.gov');
+    expect(externalSandboxFunction).toContain('sam.gov');
+  });
+
+  it('uses idempotency and requires a matching sandbox receipt hash', () => {
+    expect(externalSandboxMigration).toContain('idempotency_key text not null unique');
+    expect(externalSandboxFunction).toContain('Idempotency-Key');
+    expect(externalSandboxFunction).toContain('X-GrantAssist-Payload-SHA256');
+    expect(externalSandboxFunction).toContain('x-grantassist-received-sha256');
+    expect(externalSandboxFunction).toContain('hash_verified');
+  });
+
+  it('never marks the destination as production', () => {
+    expect(externalSandboxMigration).toContain('check (production_destination = false)');
+    expect(externalSandboxFunction).toContain('production_destination: false');
+    expect(page).toContain('External sandbox connector certification');
+    expect(page).toContain('Run external sandbox connector');
+    expect(page).toContain('Gate 26 internal canary must pass first.');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires the edge function and receipt view into the command center', () => {
+    expect(api).toContain("supabase.functions.invoke('nonprofit-submission-sandbox'");
+    expect(api).toContain('nonprofit_external_sandbox_transmissions_v1');
+    expect(page).toContain('External sandbox');
+    expect(page).toContain('allowlisted receipts');
+  });
+});
+
+
+describe('Gate 28 sandbox receipt certification and production promotion', () => {
+  it('requires three acknowledged receipts across two workflows with zero failures', () => {
+    expect(promotionMigration).toContain('THREE_ACKNOWLEDGED_SANDBOX_RECEIPTS_REQUIRED');
+    expect(promotionMigration).toContain('TWO_DISTINCT_WORKFLOWS_REQUIRED');
+    expect(promotionMigration).toContain('FAILED_OR_BLOCKED_SANDBOX_RECEIPTS_PRESENT');
+    expect(promotionMigration).toContain('acknowledged_count >= 3');
+    expect(promotionMigration).toContain('distinct_workflow_count >= 2');
+    expect(promotionMigration).toContain('failed_or_blocked_count = 0');
+  });
+
+  it('requires guarded production connector contract controls', () => {
+    expect(promotionMigration).toContain('PRODUCTION_CONTRACT_GUARDS_REQUIRED');
+    expect(promotionMigration).toContain("'tls_required'");
+    expect(promotionMigration).toContain("'idempotency_required'");
+    expect(promotionMigration).toContain("'payload_hash_required'");
+    expect(promotionMigration).toContain("'receipt_hash_required'");
+  });
+
+  it('requires a separate service-role protected-environment approval', () => {
+    expect(promotionMigration).toContain('PENDING_PROTECTED_ENVIRONMENT');
+    expect(promotionMigration).toContain('PROTECTED_ENVIRONMENT_APPROVAL_REF_REQUIRED');
+    expect(promotionMigration).toContain('SERVICE_ROLE_REQUIRED');
+    expect(promotionMigration).toContain('APPROVED_FOR_IMPLEMENTATION');
+  });
+
+  it('hard-disables production execution even after promotion approval', () => {
+    expect(promotionMigration).toContain('check (production_execution_enabled = false)');
+    expect(promotionMigration).toContain('production_execution_enabled = false');
+    expect(promotionMigration).toContain('false as production_send_available');
+    expect(page).toContain('Production send');
+    expect(page).toContain('DISABLED');
+    expect(page).toContain('production send available: NO');
+    expect(page).not.toContain('Submit application');
+  });
+
+  it('wires sandbox certification and promotion requests into the command center', () => {
+    expect(api).toContain("rpc('nonprofit_certify_sandbox_receipts'");
+    expect(api).toContain("rpc('nonprofit_request_production_connector_promotion'");
+    expect(api).toContain('nonprofit_sandbox_receipt_certifications_v1');
+    expect(api).toContain('nonprofit_production_connector_promotions_v1');
+    expect(page).toContain('Sandbox receipt certification + production promotion');
+    expect(page).toContain('Certify sandbox receipts');
+    expect(page).toContain('Request production promotion');
+  });
+});

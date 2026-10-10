@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "classification": "SIMULATION",
+  "company": {
+    "name": "Acme Manufacturing",
+    "domain": "acme-manufacturing.example.com",
+    "industry": "Industrial manufacturing",
+    "headquarters": "Cleveland, Ohio",
+    "employee_count": 750,
+    "annual_revenue_usd": 185000000,
+    "revenue_is_simulated": true,
+    "summary": "Fictional mid-market manufacturer modernizing sales operations, procurement visibility, and executive reporting."
+  },
+  "business_priorities": [
+    "Reduce manual executive reporting",
+    "Improve lead research and qualification",
+    "Connect sales, operations, and procurement knowledge",
+    "Introduce governed automation with human approvals"
+  ],
+  "stakeholders": [
+    {
+      "name": "Jordan Ellis",
+      "title": "Chief Operating Officer",
+      "email": "jordan.ellis@example.com",
+      "role_in_demo": "Executive sponsor"
+    },
+    {
+      "name": "Priya Shah",
+      "title": "VP of Revenue Operations",
+      "email": "priya.shah@example.com",
+      "role_in_demo": "Primary prospect"
+    },
+    {
+      "name": "Marcus Reed",
+      "title": "Director of Compliance",
+      "email": "marcus.reed@example.com",
+      "role_in_demo": "Approval reviewer"
+    }
+  ],
+  "signals": [
+    {
+      "type": "initiative",
+      "value": "Enterprise operations modernization program",
+      "confidence": 0.91,
+      "source_id": "KB-001"
+    },
+    {
+      "type": "pain_point",
+      "value": "Weekly executive reporting requires manual consolidation from five systems",
+      "confidence": 0.88,
+      "source_id": "KB-002"
+    },
+    {
+      "type": "governance_requirement",
+      "value": "External outreach and changes to customer systems require human approval",
+      "confidence": 0.97,
+      "source_id": "KB-003"
+    }
+  ]
+}

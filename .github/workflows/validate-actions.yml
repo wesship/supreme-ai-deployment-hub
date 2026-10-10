@@ -1,0 +1,132 @@
+name: Validate Action References
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-actions-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-sha-pins:
+    name: Validate Action SHA Pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Detect invalid or dangerous action references
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          from pathlib import Path
+          import re
+          import sys
+
+          errors = []
+          uses_pattern = re.compile(r'^\s*uses:\s*([^\s#]+)', re.MULTILINE)
+          core_actions = {
+              'actions/checkout',
+              'actions/setup-node',
+              'actions/setup-python',
+          }
+          workflow_files = sorted(
+              list(Path('.github/workflows').glob('*.yml'))
+              + list(Path('.github/workflows').glob('*.yaml'))
+          )
+
+          for workflow in workflow_files:
+              with workflow.open(encoding='utf-8') as handle:
+                  content = handle.read()
+
+              for match in uses_pattern.finditer(content):
+                  reference = match.group(1)
+                  if reference.startswith('./') or reference.startswith('docker://'):
+                      continue
+                  if '@' not in reference:
+                      errors.append(f'{workflow}: action reference has no ref: {reference}')
+                      continue
+                  action, ref = reference.rsplit('@', 1)
+                  if ref in {'main', 'master', 'HEAD'}:
+                      errors.append(f'{workflow}: mutable branch reference is forbidden: {reference}')
+                  elif re.fullmatch(r'[0-9a-fA-F]{7,39}', ref):
+                      errors.append(f'{workflow}: abbreviated SHA is forbidden: {reference}')
+                  elif re.fullmatch(r'[0-9a-fA-F]{40}', ref) and len(set(ref.lower())) <= 2:
+                      errors.append(f'{workflow}: suspicious/fake SHA: {reference}')
+                  elif action in core_actions and not re.fullmatch(r'[0-9a-fA-F]{40}', ref):
+                      errors.append(
+                          f'{workflow}: core action must use a full 40-character immutable SHA: {reference}'
+                      )
+
+          if errors:
+              for error in errors:
+                  print(f'::error::{error}')
+              sys.exit(1)
+
+          print(
+              f'Validated {len(workflow_files)} workflow files: no mutable branches, abbreviated SHAs, '
+              'obvious fake SHAs, or unpinned core actions.'
+          )
+          PYEOF
+
+      - name: Validate workflow YAML structure
+        run: |
+          python3 - <<'PYEOF'
+          from pathlib import Path
+          import re
+          import sys
+          import yaml
+
+          expression_pattern = re.compile(r'\$\{\{.*?\}\}', re.DOTALL)
+          if_pattern = re.compile(r'^(\s*if:\s*)(.*?)(\s*(?:#.*)?)$', re.MULTILINE)
+
+          def normalize_github_syntax(content):
+              content = expression_pattern.sub('GITHUB_EXPRESSION', content)
+
+              def replace_if(match):
+                  prefix, value, suffix = match.groups()
+                  stripped = value.strip()
+                  block_scalar_headers = {'|', '|-', '|+', '>', '>-', '>+'}
+                  if (
+                      not stripped
+                      or stripped[0] in {'"', "'"}
+                      or stripped in block_scalar_headers
+                  ):
+                      return match.group(0)
+                  return f'{prefix}"GITHUB_CONDITION"{suffix}'
+
+              return if_pattern.sub(replace_if, content)
+
+          errors = []
+          workflow_files = sorted(
+              list(Path('.github/workflows').glob('*.yml'))
+              + list(Path('.github/workflows').glob('*.yaml'))
+          )
+          for workflow in workflow_files:
+              try:
+                  with workflow.open(encoding='utf-8') as handle:
+                      yaml.safe_load(normalize_github_syntax(handle.read()))
+              except yaml.YAMLError as error:
+                  errors.append(f'{workflow}: {error}')
+
+          if errors:
+              for error in errors:
+                  print(f'::error::{error}')
+              sys.exit(1)
+
+          print(f'All {len(workflow_files)} workflow files have valid YAML structure.')
+          PYEOF

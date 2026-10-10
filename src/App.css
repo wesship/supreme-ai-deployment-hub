@@ -1,0 +1,100 @@
+
+/* Base container styles */
+.layout-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* Animation for logo if needed */
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Only apply animation if user hasn't set reduced motion preference */
+@media (prefers-reduced-motion: no-preference) {
+  .spin-animation {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+/* Status indicator colors */
+.status-success {
+  @apply bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300;
+}
+
+.status-error {
+  @apply bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300;
+}
+
+.status-warning {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300;
+}
+
+.status-info {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300;
+}
+
+/* API method tags */
+.method-get {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300;
+}
+
+.method-post {
+  @apply bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300;
+}
+
+.method-put {
+  @apply bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300;
+}
+
+.method-delete {
+  @apply bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300;
+}
+
+.method-patch {
+  @apply bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300;
+}
+
+/* Dashboard styles */
+.dashboard-card {
+  @apply transition-all duration-200 hover:shadow-md;
+}
+
+.dashboard-stat {
+  @apply flex flex-col items-center justify-center p-4 rounded-lg;
+}
+
+.dashboard-stat-value {
+  @apply text-2xl font-bold;
+}
+
+.dashboard-stat-label {
+  @apply text-sm text-muted-foreground;
+}
+
+/* API response formatting */
+.json-key {
+  @apply text-blue-600 dark:text-blue-400;
+}
+
+.json-string {
+  @apply text-green-600 dark:text-green-400;
+}
+
+.json-number {
+  @apply text-purple-600 dark:text-purple-400;
+}
+
+.json-boolean {
+  @apply text-amber-600 dark:text-amber-400;
+}
+
+.json-null {
+  @apply text-gray-500 dark:text-gray-400;
+}

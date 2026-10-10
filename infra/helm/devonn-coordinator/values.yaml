@@ -1,0 +1,10 @@
+replicaCount: 2
+image:
+  repository: devonn/devonn-coordinator
+  tag: latest
+service:
+  port: 80
+resources:
+  limits:
+    cpu: 1
+    memory: 1Gi

@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "standard": "docs/agents/prompt-engineering-standard.md",
+  "agents": {
+    "HERMES": {
+      "role": "orchestrator",
+      "prompt": "prompts/agents/hermes.system.xml",
+      "defaultRisk": "MEDIUM",
+      "requiresAudit": true
+    },
+    "TARS": {
+      "role": "research",
+      "prompt": "prompts/agents/tars.system.xml",
+      "defaultRisk": "MEDIUM",
+      "requiresAudit": true
+    },
+    "ION": {
+      "role": "implementation",
+      "prompt": "prompts/agents/ion.system.xml",
+      "defaultRisk": "HIGH",
+      "requiresAudit": true
+    },
+    "SAPPHIRE": {
+      "role": "communication",
+      "prompt": "prompts/agents/sapphire.system.xml",
+      "defaultRisk": "LOW",
+      "requiresAudit": true
+    },
+    "GUARDIAN": {
+      "role": "security_compliance",
+      "prompt": "prompts/agents/guardian.system.xml",
+      "defaultRisk": "HIGH",
+      "requiresAudit": true
+    }
+  },
+  "decisions": [
+    "EXECUTE",
+    "ASK_CLARIFYING_QUESTION",
+    "REQUIRE_APPROVAL",
+    "DENY",
+    "FLAG_UNCERTAIN",
+    "HANDOFF",
+    "COMPLETE",
+    "FAILED",
+    "ALLOW",
+    "ALLOW_WITH_CONSTRAINTS"
+  ],
+  "workflowStates": [
+    "PENDING",
+    "RUNNING",
+    "BLOCKED",
+    "REQUIRE_APPROVAL",
+    "COMPLETED",
+    "FAILED",
+    "MANUAL_REVIEW"
+  ],
+  "riskLevels": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+}

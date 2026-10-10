@@ -1,0 +1,74 @@
+name: Hermes Upstream Release Gate
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hermes-upstream-smoke.yml"
+      - "deploy/vps/hermes-upstream.env.example"
+      - "deploy/vps/scripts/update-hermes-upstream.sh"
+      - "docs/HERMES_UPSTREAM_RUNTIME.md"
+      - "docs/HERMES_V0_20_6_COMPATIBILITY_MATRIX.md"
+      - "tests/test_hermes_upstream_release_gate.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hermes-upstream-smoke.yml"
+      - "deploy/vps/hermes-upstream.env.example"
+      - "deploy/vps/scripts/update-hermes-upstream.sh"
+      - "docs/HERMES_UPSTREAM_RUNTIME.md"
+      - "docs/HERMES_V0_20_6_COMPATIBILITY_MATRIX.md"
+      - "tests/test_hermes_upstream_release_gate.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  locked-install:
+    name: Verify pinned source and locked install
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HERMES_UPSTREAM_REPO: https://github.com/NousResearch/hermes-agent.git
+      HERMES_UPSTREAM_TAG: v2026.8.27
+      HERMES_UPSTREAM_COMMIT: 5fc308a70719a83cccdbba4c0e39c23f5a8239d5
+      HERMES_UPSTREAM_VERSION: 0.20.6
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Validate release gate assets
+        run: |
+          python -m unittest tests.test_hermes_upstream_release_gate
+          bash -n deploy/vps/scripts/update-hermes-upstream.sh
+
+      - name: Stage exact upstream release
+        env:
+          HERMES_UPSTREAM_ROOT: ${{ runner.temp }}/hermes-upstream
+        run: deploy/vps/scripts/update-hermes-upstream.sh
+
+      - name: Verify staged release identity
+        env:
+          HERMES_UPSTREAM_ROOT: ${{ runner.temp }}/hermes-upstream
+        run: |
+          set -euo pipefail
+          test "$(readlink -f "$HERMES_UPSTREAM_ROOT/staged")" = "$HERMES_UPSTREAM_ROOT/releases/$HERMES_UPSTREAM_COMMIT"
+          test ! -e "$HERMES_UPSTREAM_ROOT/current"
+          python - "$HERMES_UPSTREAM_ROOT/staged/release.json" <<'PY'
+          import json
+          import os
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              manifest = json.load(handle)
+          assert manifest["repository"] == os.environ["HERMES_UPSTREAM_REPO"]
+          assert manifest["tag"] == os.environ["HERMES_UPSTREAM_TAG"]
+          assert manifest["commit"] == os.environ["HERMES_UPSTREAM_COMMIT"]
+          assert manifest["version"] == os.environ["HERMES_UPSTREAM_VERSION"]
+          assert manifest["state"] == "staged"
+          assert len(manifest["uv_lock_sha256"]) == 64
+          PY

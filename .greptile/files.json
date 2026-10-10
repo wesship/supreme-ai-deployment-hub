@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "path": "CLAUDE.md",
+      "description": "Repository operating rules, agent authority, production guardrails, and validation commands."
+    },
+    {
+      "path": "docs/architecture/D3VONN_PLATFORM_INTEGRATION.md",
+      "description": "D3VONN.IO platform integration architecture and reuse boundaries."
+    },
+    {
+      "path": "docs/architecture/D3VONN_CAPABILITY_MAP.md",
+      "description": "Capability ownership map used to avoid duplicated platform logic and preserve governed processes."
+    },
+    {
+      "path": "docs/assurance-platform-architecture.md",
+      "description": "Assurance and operational control-plane architecture for public and production surfaces."
+    }
+  ]
+}

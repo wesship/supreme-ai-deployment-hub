@@ -1,0 +1,37 @@
+services:
+  python-kernel-gateway:
+    build:
+      context: ./kernel-gateway
+    restart: unless-stopped
+    environment:
+      KERNEL_GATEWAY_API_TOKEN: ${KERNEL_GATEWAY_API_TOKEN:?set KERNEL_GATEWAY_API_TOKEN}
+      KERNEL_MAX_SESSIONS: ${KERNEL_MAX_SESSIONS:-8}
+      KERNEL_SESSION_TTL_SECONDS: ${KERNEL_SESSION_TTL_SECONDS:-1800}
+      KERNEL_EXECUTION_TIMEOUT_SECONDS: ${KERNEL_EXECUTION_TIMEOUT_SECONDS:-15}
+      KERNEL_MAX_CODE_BYTES: ${KERNEL_MAX_CODE_BYTES:-65536}
+      KERNEL_MAX_OUTPUT_BYTES: ${KERNEL_MAX_OUTPUT_BYTES:-1048576}
+    expose:
+      - "8000"
+    networks:
+      - agent-kernel-internal
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+      - /home/kernel:size=64m,uid=10001,gid=10001,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  agent-kernel-internal:
+    internal: true

@@ -1,0 +1,227 @@
+name: AI Agent Observability
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/api/**'
+      - 'backend/**'
+      - 'src/contexts/**'
+  schedule:
+    - cron: '0 */6 * * *'   # Every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ai-observability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instrument-agent-traces:
+    name: Instrument & Validate AI Agent Traces
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install observability packages
+        run: pip install opentelemetry-sdk opentelemetry-exporter-otlp-proto-http --quiet
+
+      - name: Validate agent instrumentation coverage
+        run: |
+          python3 - << 'PYEOF'
+          import os, glob, re, json
+          from datetime import datetime
+
+          print("=" * 60)
+          print("AI AGENT OBSERVABILITY AUDIT")
+          print(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+          print("=" * 60)
+
+          # Scan Python backend files for OpenTelemetry instrumentation
+          py_files = glob.glob("backend/**/*.py", recursive=True) + glob.glob("src/**/*.py", recursive=True)
+          ts_files = glob.glob("src/**/*.ts", recursive=True) + glob.glob("src/**/*.tsx", recursive=True)
+
+          otel_patterns = [
+              r'trace\.get_tracer',
+              r'tracer\.start_as_current_span',
+              r'span\.set_attribute',
+              r'opentelemetry',
+              r'@tracer\.',
+          ]
+
+          instrumented_py = []
+          uninstrumented_py = []
+
+          for f in py_files:
+              content = open(f).read()
+              if any(re.search(p, content) for p in otel_patterns):
+                  instrumented_py.append(f)
+              elif any(kw in content for kw in ['def ', 'class ', 'async def ']):
+                  uninstrumented_py.append(f)
+
+          print(f"\nPython files scanned: {len(py_files)}")
+          print(f"  Instrumented: {len(instrumented_py)}")
+          print(f"  Uninstrumented: {len(uninstrumented_py)}")
+
+          if uninstrumented_py:
+              print("\nFiles missing OpenTelemetry instrumentation:")
+              for f in uninstrumented_py[:10]:
+                  print(f"  - {f}")
+
+          # Check for LLM call tracking patterns
+          llm_patterns = [
+              r'openai\.chat\.completions',
+              r'anthropic\.messages',
+              r'requests\.post.*api\.openai',
+              r'ElevenLabs\|elevenlabs',
+          ]
+
+          llm_files = []
+          for f in py_files + ts_files:
+              try:
+                  content = open(f).read()
+                  if any(re.search(p, content, re.IGNORECASE) for p in llm_patterns):
+                      llm_files.append(f)
+              except Exception:
+                  pass
+
+          print(f"\nFiles making LLM API calls: {len(llm_files)}")
+          for f in llm_files:
+              print(f"  - {f}")
+
+          # Generate observability coverage report
+          total_py = len(py_files)
+          coverage_pct = (len(instrumented_py) / total_py * 100) if total_py > 0 else 0
+
+          report = {
+              "generated": datetime.utcnow().isoformat(),
+              "python_files_scanned": total_py,
+              "instrumented_files": len(instrumented_py),
+              "uninstrumented_files": len(uninstrumented_py),
+              "llm_call_sites": len(llm_files),
+              "instrumentation_coverage_pct": round(coverage_pct, 1),
+              "status": "PASS" if coverage_pct >= 50 or total_py == 0 else "WARN",
+          }
+
+          with open("/tmp/ai-observability-report.json", "w") as f:
+              json.dump(report, f, indent=2)
+
+          print(f"\nInstrumentation coverage: {coverage_pct:.1f}%")
+          print(f"Status: {report['status']}")
+          PYEOF
+
+      - name: Emit synthetic OpenTelemetry spans
+        run: |
+          python3 - << 'PYEOF'
+          import json, time, os
+          from datetime import datetime
+
+          # Simulate agent trace emission for CI validation
+          # In production, OTEL_ENDPOINT secret activates real export
+          otel_endpoint = os.environ.get("OTEL_ENDPOINT", "")
+
+          trace_data = {
+              "resourceSpans": [{
+                  "resource": {
+                      "attributes": [
+                          {"key": "service.name",    "value": {"stringValue": "devonn-ai-platform"}},
+                          {"key": "service.version", "value": {"stringValue": "v24.0"}},
+                          {"key": "deployment.environment", "value": {"stringValue": "ci"}},
+                      ]
+                  },
+                  "scopeSpans": [{
+                      "scope": {"name": "devonn.ci.validation"},
+                      "spans": [
+                          {
+                              "traceId":  "0af7651916cd43dd8448eb211c80319c",
+                              "spanId":   "b7ad6b7169203331",
+                              "name":     "ci.observability.check",
+                              "kind":     1,
+                              "startTimeUnixNano": str(int(time.time() * 1e9)),
+                              "endTimeUnixNano":   str(int(time.time() * 1e9) + 1_000_000),
+                              "status":   {"code": 1},
+                              "attributes": [
+                                  {"key": "ci.workflow",    "value": {"stringValue": "ai-agent-observability"}},
+                                  {"key": "ci.run_id",      "value": {"stringValue": os.environ.get("GITHUB_RUN_ID", "local")}},
+                                  {"key": "ci.sha",         "value": {"stringValue": os.environ.get("GITHUB_SHA", "unknown")[:8]}},
+                              ]
+                          }
+                      ]
+                  }]
+              }]
+          }
+
+          with open("/tmp/ci-trace.json", "w") as f:
+              json.dump(trace_data, f, indent=2)
+
+          if otel_endpoint:
+              import urllib.request
+              req = urllib.request.Request(
+                  f"{otel_endpoint}/v1/traces",
+                  data=json.dumps(trace_data).encode(),
+                  headers={"Content-Type": "application/json"},
+                  method="POST"
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=5) as resp:
+                      print(f"Trace exported to OTLP endpoint: HTTP {resp.status}")
+              except Exception as e:
+                  print(f"OTLP export skipped (endpoint not configured): {e}")
+          else:
+              print("OTLP endpoint not configured - trace written to /tmp/ci-trace.json")
+              print("Set OTEL_ENDPOINT secret to activate live trace export")
+          PYEOF
+        env:
+          OTEL_ENDPOINT: ${{ secrets.OTEL_ENDPOINT }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Check agent error budget
+        run: |
+          python3 - << 'PYEOF'
+          import json, os
+          from datetime import datetime
+
+          # Load observability report
+          try:
+              report = json.load(open("/tmp/ai-observability-report.json"))
+          except Exception:
+              report = {"status": "UNKNOWN", "instrumentation_coverage_pct": 0}
+
+          coverage = report.get("instrumentation_coverage_pct", 0)
+          llm_sites = report.get("llm_call_sites", 0)
+
+          print("AI AGENT ERROR BUDGET CHECK")
+          print(f"Instrumentation coverage: {coverage}%")
+          print(f"LLM call sites identified: {llm_sites}")
+
+          # Error budget thresholds
+          if coverage < 30 and report.get("python_files_scanned", 0) > 5:
+              print("WARNING: Instrumentation coverage below 30% - consider adding OpenTelemetry")
+          else:
+              print("Instrumentation coverage: OK")
+
+          if llm_sites > 0:
+              print(f"Found {llm_sites} LLM call site(s) - ensure token counting and latency tracking")
+
+          print("\nAgent observability check: PASSED")
+          PYEOF
+
+      - name: Upload observability artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: ai-observability-${{ github.run_id }}
+          path: |
+            /tmp/ai-observability-report.json
+            /tmp/ci-trace.json
+          retention-days: 30

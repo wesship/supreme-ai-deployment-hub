@@ -1,0 +1,1 @@
+Temporary staging directory. CI policy files will be moved to a dedicated hardening branch.

@@ -1,0 +1,385 @@
+--- a/src/lib/supabase.ts
++++ b/src/lib/supabase.ts
+@@ -6,25 +6,13 @@
+ // Single shared Supabase client for the whole app (singleton pattern).
+ let _client: SupabaseClient | null = null;
+ 
+-// Capped lock so cross-tab auth contention can never freeze the page.
+-function acquireLock(name: string, timeout: number): Promise<() => void> {
+-  return new Promise((resolve) => {
+-    if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+-      void navigator.locks
+-        .request(name, { ifAvailable: true }, () => new Promise((res) => setTimeout(res, 0)))
+-        .catch(() => {});
+-    }
+-    resolve(() => {});
+-  });
+-}
+-
++// Use the SDK default lock; it executes and awaits the auth operation under the lock.
+ export function getSupabaseClient(): SupabaseClient {
+   if (!_client) {
+     _client = createClient(supabaseUrl, supabaseAnonKey, {
+       auth: {
+         persistSession: true,
+         autoRefreshToken: true,
+-        lock: acquireLock,
+       },
+     });
+   }
+--- a/src/pages/home/components/Agents.tsx
++++ b/src/pages/home/components/Agents.tsx
+@@ -1,7 +1,6 @@
+ import { useEffect, useState } from 'react';
+ import Reveal from './Reveal';
+ import SectionHeader from './SectionHeader';
+-import { Link } from 'react-router-dom';
+ 
+ const agents = [
+   { name: 'Orion', role: 'Orchestrator', status: 'Supervising', tone: 'accent', icon: 'ri-radar-line', live: true },
+@@ -109,13 +108,13 @@
+             />
+           </Reveal>
+           <Reveal delay={120}>
+-            <Link
+-              to="/agents"
++            <a
++              href="https://www.d3vonn.io/agents"
+               className="btn-ghost inline-flex min-h-12 items-center gap-2.5 rounded-md px-6 text-sm font-medium cursor-pointer whitespace-nowrap"
+             >
+               Explore AI Agents
+               <i className="ri-arrow-right-line"></i>
+-            </Link>
++            </a>
+           </Reveal>
+         </div>
+ 
+--- a/src/pages/home/components/Films.tsx
++++ b/src/pages/home/components/Films.tsx
+@@ -1,6 +1,5 @@
+ import Reveal from './Reveal';
+ import SectionHeader from './SectionHeader';
+-import { Link } from 'react-router-dom';
+ 
+ const workflow = [
+   { icon: 'ri-quill-pen-line', label: 'Story development' },
+@@ -59,13 +58,13 @@
+             />
+           </Reveal>
+           <Reveal delay={120}>
+-            <Link
+-              to="/films"
++            <a
++              href="https://www.d3vonn.io/ai-films"
+               className="btn-primary group inline-flex min-h-12 items-center gap-2.5 rounded-md px-6 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
+             >
+               Enter AI Films
+               <i className="ri-arrow-right-line transition-transform duration-300 group-hover:translate-x-1"></i>
+-            </Link>
++            </a>
+           </Reveal>
+         </div>
+ 
+--- a/src/pages/home/components/FinalCTA.tsx
++++ b/src/pages/home/components/FinalCTA.tsx
+@@ -31,7 +31,7 @@
+ 
+           <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
+             <a
+-              href="#platform"
++              href="https://www.d3vonn.io/app"
+               className="btn-primary group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-9 py-3.5 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
+             >
+               Launch D3VONN
+--- a/src/pages/home/components/Footer.tsx
++++ b/src/pages/home/components/Footer.tsx
+@@ -1,5 +1,4 @@
+ import { useState, type FormEvent } from 'react';
+-import { Link } from 'react-router-dom';
+ import Logo from './Logo';
+ import ReduceMotionToggle from '@/components/feature/ReduceMotionToggle';
+ 
+@@ -7,21 +6,21 @@
+ 
+ const nav = [
+   { label: 'Platform', href: '#platform' },
+-  { label: 'Command Core', href: '/command', isRoute: true },
+-  { label: 'AI Agents', href: '/agents', isRoute: true },
+-  { label: 'AI Films', href: '/films', isRoute: true },
++  { label: 'Command Core', href: 'https://www.d3vonn.io/command-center', isRoute: true },
++  { label: 'AI Agents', href: 'https://www.d3vonn.io/agents', isRoute: true },
++  { label: 'AI Films', href: 'https://www.d3vonn.io/ai-films', isRoute: true },
+   { label: 'Infrastructure', href: '#infrastructure' },
+   { label: 'About', href: '#about' },
+-  { label: 'Marketplace', href: '/marketplace', isRoute: true },
+-  { label: 'Pricing', href: '/pricing', isRoute: true },
++  { label: 'Marketplace', href: 'https://www.d3vonn.io/marketplace', isRoute: true },
++  { label: 'Pricing', href: 'https://www.d3vonn.io/pricing', isRoute: true },
+ ];
+ 
+ const legal = [
+-  { label: 'Blog', href: '/blog', isRoute: true },
+-  { label: 'Privacy', href: '/privacy', isRoute: true },
+-  { label: 'Terms', href: '/terms', isRoute: true },
+-  { label: 'Contact', href: '/contact', isRoute: true },
+-  { label: 'Admin OCC', href: '/admin', isRoute: true },
++  { label: 'Blog', href: 'https://www.d3vonn.io/resources', isRoute: true },
++  { label: 'Privacy', href: 'https://www.d3vonn.io/privacy', isRoute: true },
++  { label: 'Terms', href: 'https://www.d3vonn.io/terms', isRoute: true },
++  { label: 'Contact', href: 'https://www.d3vonn.io/contact', isRoute: true },
++  { label: 'Admin OCC', href: 'https://www.d3vonn.io/occ', isRoute: true },
+ ];
+ 
+ export default function Footer() {
+@@ -183,12 +182,12 @@
+               {nav.map((l) => (
+                 <li key={l.label}>
+                   {l.isRoute ? (
+-                    <Link
+-                      to={l.href}
++                    <a
++                      href={l.href}
+                       className="text-sm text-foreground-200 font-medium transition-colors hover:text-foreground-900 cursor-pointer"
+                     >
+                       {l.label}
+-                    </Link>
++                    </a>
+                   ) : (
+                     <a
+                       href={l.href}
+@@ -210,12 +209,12 @@
+             <ul className="mt-6 space-y-3">
+               {legal.map((l) => (
+                 <li key={l.label}>
+-                  <Link
+-                    to={l.href}
++                  <a
++                    href={l.href}
+                     className="text-sm text-foreground-200 font-medium transition-colors hover:text-foreground-900 cursor-pointer"
+                   >
+                     {l.label}
+-                  </Link>
++                  </a>
+                 </li>
+               ))}
+             </ul>
+--- a/src/pages/home/components/Hero.tsx
++++ b/src/pages/home/components/Hero.tsx
+@@ -1,5 +1,4 @@
+ import { useEffect, useState } from 'react';
+-import { Link } from 'react-router-dom';
+ import SignalField from './SignalField';
+ import Logo3D from './Logo3D';
+ 
+@@ -74,7 +73,7 @@
+               }`}
+             >
+               <a
+-                href="#platform"
++                href="https://www.d3vonn.io/app"
+                 className="btn-primary group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
+               >
+                 Enter the Platform
+@@ -86,13 +85,13 @@
+               >
+                 Explore the Signal
+               </a>
+-              <Link
+-                to="/command"
++              <a
++                href="https://www.d3vonn.io/command-center"
+                 className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
+               >
+                 <i className="ri-radar-line"></i>
+                 Command Core
+-              </Link>
++              </a>
+             </div>
+ 
+             {/* status line */}
+--- a/src/pages/home/components/Navbar.tsx
++++ b/src/pages/home/components/Navbar.tsx
+@@ -1,5 +1,4 @@
+ import { useEffect, useState, useCallback } from 'react';
+-import { Link } from 'react-router-dom';
+ import Logo from './Logo';
+ 
+ const links = [
+@@ -62,41 +61,41 @@
+                   <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
+                 </a>
+               ))}
+-              <Link
+-                to="/marketplace"
++              <a
++                href="https://www.d3vonn.io/marketplace"
+                 className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-secondary-300 transition-colors hover:text-secondary-400 cursor-pointer whitespace-nowrap"
+               >
+                 Marketplace
+                 <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-secondary-500 transition-all duration-300 group-hover:w-full"></span>
+-              </Link>
+-              <Link
+-                to="/studio"
++              </a>
++              <a
++                href="https://www.d3vonn.io/music"
+                 className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-primary-300 transition-colors hover:text-primary-400 cursor-pointer whitespace-nowrap"
+               >
+                 Music Studio
+                 <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
+-              </Link>
+-              <Link
+-                to="/music"
++              </a>
++              <a
++                href="https://www.d3vonn.io/voice-studio"
+                 className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-accent-300 transition-colors hover:text-accent-400 cursor-pointer whitespace-nowrap"
+               >
+-                Sound Lab
++                Voice Studio
+                 <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-accent-500 transition-all duration-300 group-hover:w-full"></span>
+-              </Link>
+-              <Link
+-                to="/agents"
++              </a>
++              <a
++                href="https://www.d3vonn.io/agents"
+                 className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-foreground-200 transition-colors hover:text-foreground-900 cursor-pointer whitespace-nowrap"
+               >
+                 AI Agents
+                 <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
+-              </Link>
+-              <Link
+-                to="/command"
++              </a>
++              <a
++                href="https://www.d3vonn.io/command-center"
+                 className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-foreground-200 transition-colors hover:text-foreground-900 cursor-pointer whitespace-nowrap"
+               >
+                 Command Core
+                 <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
+-              </Link>
++              </a>
+             </nav>
+ 
+             <div className="flex items-center gap-3">
+@@ -108,8 +107,8 @@
+                 Systems active
+               </span>
+               <a
+-                href="#signal"
+-                onClick={(e) => smoothScroll(e, '#signal')}
++                href="https://www.d3vonn.io/app"
++                onClick={() => setOpen(false)}
+                 className="btn-primary hidden items-center gap-2 rounded-md px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-white cursor-pointer whitespace-nowrap sm:inline-flex"
+               >
+                 Launch D3VONN
+@@ -159,8 +158,8 @@
+                 <span className="font-mono text-[10px] text-foreground-300/70">0{i + 1}</span>
+               </a>
+             ))}
+-            <Link
+-              to="/marketplace"
++            <a
++              href="https://www.d3vonn.io/marketplace"
+               onClick={() => setOpen(false)}
+               className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
+               style={{ animationDelay: '240ms' }}
+@@ -169,9 +168,9 @@
+                 Marketplace
+               </span>
+               <span className="font-mono text-[10px] text-foreground-300/70">05</span>
+-            </Link>
+-            <Link
+-              to="/studio"
++            </a>
++            <a
++              href="https://www.d3vonn.io/music"
+               onClick={() => setOpen(false)}
+               className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
+               style={{ animationDelay: '300ms' }}
+@@ -180,20 +179,20 @@
+                 Music Studio
+               </span>
+               <span className="font-mono text-[10px] text-foreground-300/70">06</span>
+-            </Link>
+-            <Link
+-              to="/music"
++            </a>
++            <a
++              href="https://www.d3vonn.io/voice-studio"
+               onClick={() => setOpen(false)}
+               className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
+               style={{ animationDelay: '360ms' }}
+             >
+               <span className="font-heading text-3xl font-bold tracking-tight text-accent-400 transition-colors hover:text-accent-500">
+-                Sound Lab
++                Voice Studio
+               </span>
+               <span className="font-mono text-[10px] text-foreground-300/70">07</span>
+-            </Link>
+-            <Link
+-              to="/agents"
++            </a>
++            <a
++              href="https://www.d3vonn.io/agents"
+               onClick={() => setOpen(false)}
+               className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
+               style={{ animationDelay: '420ms' }}
+@@ -202,9 +201,9 @@
+                 AI Agents
+               </span>
+               <span className="font-mono text-[10px] text-foreground-300/70">08</span>
+-            </Link>
+-            <Link
+-              to="/command"
++            </a>
++            <a
++              href="https://www.d3vonn.io/command-center"
+               onClick={() => setOpen(false)}
+               className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
+               style={{ animationDelay: '480ms' }}
+@@ -213,12 +212,12 @@
+                 Command Core
+               </span>
+               <span className="font-mono text-[10px] text-foreground-300/70">09</span>
+-            </Link>
++            </a>
+           </nav>
+           <div className="px-7 pb-10">
+             <a
+-              href="#signal"
+-              onClick={(e) => smoothScroll(e, '#signal')}
++              href="https://www.d3vonn.io/app"
++              onClick={() => setOpen(false)}
+               className="btn-primary flex w-full items-center justify-center gap-2 rounded-md py-4 font-mono text-xs uppercase tracking-[0.2em] text-white cursor-pointer"
+             >
+               Launch D3VONN
+--- a/src/pages/music/components/MusicGenerator.tsx
++++ b/src/pages/music/components/MusicGenerator.tsx
+@@ -201,14 +201,14 @@
+           <span className="mb-3 block font-mono text-[10px] uppercase tracking-[0.18em] text-foreground-300">
+             Scale
+           </span>
+-          <Segment options={SCALE_OPTIONS} value={scale} onChange={setScale} />
++          <Segment<ScaleName> options={SCALE_OPTIONS} value={scale} onChange={setScale} />
+         </div>
+ 
+         <div>
+           <span className="mb-3 block font-mono text-[10px] uppercase tracking-[0.18em] text-foreground-300">
+             Waveform
+           </span>
+-          <Segment options={WAVE_OPTIONS} value={waveform} onChange={setWaveform} />
++          <Segment<Waveform> options={WAVE_OPTIONS} value={waveform} onChange={setWaveform} />
+         </div>
+ 
+         <Slider
+@@ -225,7 +225,7 @@
+           <span className="mb-3 block font-mono text-[10px] uppercase tracking-[0.18em] text-foreground-300">
+             Octave range
+           </span>
+-          <Segment options={OCTAVE_OPTIONS} value={octaves} onChange={setOctaves} format={(v) => `${v} oct`} />
++          <Segment<number> options={OCTAVE_OPTIONS} value={octaves} onChange={setOctaves} format={(v) => `${v} oct`} />
+         </div>
+ 
+         <StepGrid melody={melody} />

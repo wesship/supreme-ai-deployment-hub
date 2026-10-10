@@ -1,0 +1,98 @@
+name: MoneyHub Run Accounting Staging Rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Preview or apply the exact MoneyHub run-accounting migration
+        required: true
+        default: preview
+        type: choice
+        options: [preview, apply]
+      confirmation:
+        description: Type APPLY_MONEYHUB_RUN_ACCOUNTING for apply mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: moneyhub-run-accounting-staging
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    name: ${{ inputs.mode }} MoneyHub run accounting on staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      MIGRATION_FILE: supabase/migrations/20260913103000_moneyhub_governed_run_accounting.sql
+      EXPECTED_BLOB_SHA: 7a31fe9b759c6a7fb7633a5c1b83f44a17495704
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Validate protected staging operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${SUPABASE_ACCESS_TOKEN:-}" || { echo "::error::SUPABASE_ACCESS_TOKEN is missing from staging environment secrets"; exit 1; }
+          test -n "${SUPABASE_PROJECT_ID:-}" || { echo "::error::SUPABASE_PROJECT_ID is missing from staging environment secrets"; exit 1; }
+          test "$SUPABASE_PROJECT_ID" = "ypomzwhtaamxdmcwtpyf" || { echo "::error::Refusing non-staging Supabase project"; exit 1; }
+          if [[ "${{ inputs.mode }}" == "apply" && "${{ inputs.confirmation }}" != "APPLY_MONEYHUB_RUN_ACCOUNTING" ]]; then
+            echo "::error::Apply mode requires confirmation APPLY_MONEYHUB_RUN_ACCOUNTING"
+            exit 1
+          fi
+
+      - name: Verify exact migration artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$MIGRATION_FILE"
+          actual="$(git hash-object "$MIGRATION_FILE")"
+          test "$actual" = "$EXPECTED_BLOB_SHA" || { echo "::error::Migration blob SHA mismatch: $actual"; exit 1; }
+
+      - name: Preview exact SQL
+        if: inputs.mode == 'preview'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Exact migration verified: $MIGRATION_FILE"
+          echo "Blob SHA: $EXPECTED_BLOB_SHA"
+          echo "No database changes applied."
+
+      - name: Apply exact SQL to staging only
+        if: inputs.mode == 'apply'
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$(jq -Rs '{query: .}' < "$MIGRATION_FILE")"
+          curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "$payload" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/database/query" \
+            > /tmp/moneyhub-run-accounting-result.json
+          jq -e '.' /tmp/moneyhub-run-accounting-result.json >/dev/null
+
+      - name: Write rollout summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## MoneyHub Run Accounting Staging Rollout"
+            echo ""
+            echo "- Mode: \`${{ inputs.mode }}\`"
+            echo "- Target: \`staging\`"
+            echo "- Project ref pinned: \`ypomzwhtaamxdmcwtpyf\`"
+            echo "- Migration: \`$MIGRATION_FILE\`"
+            echo "- Expected blob SHA: \`$EXPECTED_BLOB_SHA\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,17 @@
+[profile.default]
+src = "src"
+test = "test"
+script = "script"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+fs_permissions = [{ access = "read-write", path = "./reports" }]
+
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@uniswap/v4-core/=lib/v4-core/",
+  "@uniswap/v4-periphery/=lib/v4-periphery/"
+]

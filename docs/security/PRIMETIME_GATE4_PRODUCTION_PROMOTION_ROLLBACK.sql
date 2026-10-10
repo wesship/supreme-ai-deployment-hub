@@ -1,0 +1,16 @@
+-- Emergency rollback notes for PRIMETIME Gate 4 production promotion.
+-- Do not run unless an actual production dependency is confirmed.
+--
+-- Quantum tables were the only targeted tables with browser SELECT before Gate 4.
+-- Restoring those grants reintroduces a deprecated security posture and must be
+-- followed by a corrective incident/remediation.
+
+-- Example emergency rollback for Quantum only:
+-- DROP POLICY IF EXISTS "Deny direct browser access" ON public.quantum_optimization_experiments;
+-- DROP POLICY IF EXISTS "Deny direct browser access" ON public.quantum_optimization_metrics;
+-- GRANT SELECT ON public.quantum_optimization_experiments TO anon, authenticated;
+-- GRANT SELECT ON public.quantum_optimization_metrics TO anon, authenticated;
+--
+-- Jetson tables had no browser privileges before Gate 4. If a Jetson dependency
+-- is unexpectedly found, restore only the minimum specific privilege needed and
+-- keep RLS enabled; do not broadly grant ALL to browser roles.

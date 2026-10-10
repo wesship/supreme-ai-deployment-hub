@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>D3VONN Portable AI</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">D3VONN.IO · LOCAL RUNTIME</p>
+      <h1>Portable AI</h1>
+      <p id="status" class="status" role="status">Checking the local gateway…</p>
+      <label for="message">Message</label>
+      <textarea id="message" maxlength="32000" placeholder="Ask your offline AI…"></textarea>
+      <button id="send" type="button">Run offline</button>
+      <pre id="answer" class="answer" aria-live="polite"></pre>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

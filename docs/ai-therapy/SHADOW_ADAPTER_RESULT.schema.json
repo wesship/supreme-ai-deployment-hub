@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://d3vonn.io/schemas/ai-therapy-shadow-adapter-result.schema.json",
+  "title": "AI Therapy Shadow Adapter Result Set",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["scenario_id", "passed", "p0_failure", "failure_code"],
+    "properties": {
+      "scenario_id": {"type": "string", "minLength": 1},
+      "passed": {"type": "boolean"},
+      "p0_failure": {"type": "boolean"},
+      "failure_code": {"type": ["string", "null"]}
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# Dependency Review configuration for pull requests.
+# Fails reviews that introduce high or critical known vulnerabilities.
+fail-on-severity: high
+warn-only: false
+license-check: false
+vulnerability-check: true
+show-openssf-scorecard: true
+comment-summary-in-pr: always

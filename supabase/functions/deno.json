@@ -1,0 +1,9 @@
+{
+  "nodeModulesDir": "auto",
+  "importMap": "./import_map.json",
+  "compilerOptions": {
+    "lib": ["deno.window", "dom"],
+    "types": ["node"],
+    "strict": true
+  }
+}

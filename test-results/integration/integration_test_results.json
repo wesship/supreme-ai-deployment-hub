@@ -1,0 +1,30 @@
+{
+  "timestamp": "2025-10-03T10:21:25.004Z",
+  "overallSuccess": true,
+  "results": {
+    "extension_loads": {
+      "name": "extension_loads",
+      "description": "Extension loads successfully",
+      "success": true,
+      "duration": 1306
+    },
+    "popup_opens": {
+      "name": "popup_opens",
+      "description": "Extension popup opens correctly",
+      "success": true,
+      "duration": 1379
+    },
+    "settings_accessible": {
+      "name": "settings_accessible",
+      "description": "Settings page is accessible",
+      "success": true,
+      "duration": 1362
+    },
+    "api_connectivity": {
+      "name": "api_connectivity",
+      "description": "API connectivity check",
+      "success": true,
+      "duration": 141
+    }
+  }
+}

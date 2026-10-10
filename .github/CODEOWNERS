@@ -1,0 +1,38 @@
+# CODEOWNERS — Devonn.AI Repository
+# Defines required reviewers for each area of the codebase.
+# Format: <pattern> <owner> [<owner> ...]
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ── Default owner for everything not explicitly listed ─────────────────────
+*                               @wesship
+
+# ── CI/CD workflows ────────────────────────────────────────────────────────
+.github/workflows/              @wesship
+.github/CODEOWNERS              @wesship
+
+# ── Infrastructure / Terraform ─────────────────────────────────────────────
+infrastructure/                 @wesship
+terraform/                      @wesship
+k8s/                            @wesship
+
+# ── Backend (FastAPI / Python) ─────────────────────────────────────────────
+backend/                        @wesship
+backend/main.py                 @wesship
+backend/api/                    @wesship
+backend/middleware/              @wesship
+
+# ── Frontend (React / TypeScript) ──────────────────────────────────────────
+src/                            @wesship
+src/components/                 @wesship
+src/lib/                        @wesship
+
+# ── Security-sensitive files ───────────────────────────────────────────────
+.gitignore                      @wesship
+.env.example                    @wesship
+.env.production.template        @wesship
+scripts/rotate_secrets.sh       @wesship
+supabase/migrations/            @wesship
+
+# ── Documentation ──────────────────────────────────────────────────────────
+docs/                           @wesship
+README.md                       @wesship

@@ -1,0 +1,136 @@
+/* D3VONN.IO — OS visual system (scoped to .d3os, does not affect the app shell) */
+
+.d3os {
+  --os-pearl: #faf8f4;
+  --os-pearl-2: #f5f2ec;
+  --os-footer: #efeae0;
+  --os-ink: #0e0e0c;
+  --os-ink-60: rgba(14, 14, 12, 0.62);
+  --os-ink-40: rgba(14, 14, 12, 0.42);
+  --os-line: rgba(14, 14, 12, 0.12);
+  --os-line-soft: rgba(14, 14, 12, 0.07);
+  --os-lime: #b7e017;
+  --os-lime-deep: #8fae0c;
+  --os-orange: #ff7a1a;
+  --os-chrome-1: #ffffff;
+  --os-chrome-2: #e6e3dc;
+  --os-chrome-3: #c9c6bd;
+
+  background: var(--os-pearl);
+  color: var(--os-ink);
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.d3os h1,
+.d3os h2,
+.d3os h3,
+.d3os .os-display {
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.d3os .os-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Surfaces — hierarchy from borders, chrome and transparency. No box shadows. */
+.d3os .os-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--os-line);
+  border-radius: 0.5rem;
+  backdrop-filter: blur(8px);
+  transition: border-color 220ms ease, background-color 220ms ease, transform 220ms ease;
+}
+
+.d3os .os-card:hover {
+  border-color: rgba(14, 14, 12, 0.28);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.d3os .os-chrome {
+  background: linear-gradient(135deg, var(--os-chrome-1) 0%, var(--os-chrome-2) 46%, var(--os-chrome-3) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  outline: 1px solid var(--os-line-soft);
+}
+
+.d3os .os-grain {
+  background-image: radial-gradient(rgba(14, 14, 12, 0.055) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.d3os .os-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--os-line), transparent);
+}
+
+.d3os .os-pill {
+  border-radius: 9999px;
+  border: 1px solid var(--os-line);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Motion */
+@keyframes os-pulse-ring {
+  0% { transform: scale(0.82); opacity: 0.65; }
+  70% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes os-dash-flow {
+  to { stroke-dashoffset: -220; }
+}
+
+@keyframes os-scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(1000%); }
+}
+
+@keyframes os-blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+}
+
+@keyframes os-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.d3os .os-pulse-ring { animation: os-pulse-ring 2.4s ease-out infinite; }
+.d3os .os-flow { stroke-dasharray: 6 10; animation: os-dash-flow 3.2s linear infinite; }
+.d3os .os-blink { animation: os-blink 1.1s steps(1, end) infinite; }
+.d3os .os-rise { animation: os-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+.d3os .os-magnetic {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, background-color 180ms ease;
+}
+
+.d3os :focus-visible {
+  outline: 2px solid var(--os-ink);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d3os *,
+  .d3os *::before,
+  .d3os *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* The global dark theme colours anchors light; inside the light OS surface,
+   links inherit the near-black ink so they stay legible. */
+.d3os a,
+.d3os a:hover,
+.d3os a:visited {
+  color: inherit;
+}
+.d3os .os-invert,
+.d3os .os-invert:hover {
+  color: var(--os-pearl);
+}

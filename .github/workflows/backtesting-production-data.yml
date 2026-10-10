@@ -1,0 +1,42 @@
+name: Backtesting Production Data Certification
+
+on:
+  pull_request:
+    paths:
+      - 'config/backtesting/**'
+      - 'scripts/validate-backtesting-production-data.mjs'
+      - 'src/lib/backtesting*.ts'
+      - 'src/lib/__tests__/backtesting*.test.ts'
+      - 'docs/backtesting/**'
+      - '.github/workflows/backtesting-production-data.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'config/backtesting/**'
+      - 'scripts/validate-backtesting-production-data.mjs'
+      - 'src/lib/backtesting*.ts'
+      - 'src/lib/__tests__/backtesting*.test.ts'
+      - 'docs/backtesting/**'
+      - '.github/workflows/backtesting-production-data.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate certification manifest
+        run: node -e "JSON.parse(require('fs').readFileSync('config/backtesting/production-data-certification.json','utf8'))"
+      - name: Enforce fail-closed data gate
+        run: node scripts/validate-backtesting-production-data.mjs
+      - name: Enable pnpm
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Run backtesting regression tests
+        run: pnpm exec vitest run src/lib/__tests__/backtesting.test.ts src/lib/__tests__/backtesting-governance.test.ts

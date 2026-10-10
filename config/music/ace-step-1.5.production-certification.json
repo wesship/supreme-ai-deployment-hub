@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "provider_id": "ace-step-1.5",
+  "status": "PENDING_EXTERNAL_EVIDENCE",
+  "production_enabled": false,
+  "requirements": {
+    "immutable_source_revision": true,
+    "immutable_model_revision": true,
+    "all_loaded_weight_files_sha256": true,
+    "dependency_license_review": "verified",
+    "private_gpu_smoke_test": "passed",
+    "deterministic_generation_test": "passed",
+    "audio_qa_test": "passed",
+    "provenance_manifest_complete": true,
+    "maximum_generation_error_rate": 0.02,
+    "maximum_p95_generation_seconds": 120,
+    "minimum_successful_generations": 25,
+    "reviewer_approval_required": true
+  },
+  "evidence": {
+    "weights_manifest_sha256": null,
+    "loaded_weight_files": [],
+    "gpu_model": null,
+    "gpu_driver": null,
+    "cuda_version": null,
+    "torch_version": null,
+    "ace_step_version": null,
+    "successful_generations": null,
+    "generation_error_rate": null,
+    "p50_generation_seconds": null,
+    "p95_generation_seconds": null,
+    "peak_vram_gb": null,
+    "deterministic_seed_match": null,
+    "audio_qa_passed": null,
+    "audio_qa_report_sha256": null,
+    "provenance_manifest_sha256": null,
+    "reviewer": null,
+    "reviewed_at": null
+  }
+}

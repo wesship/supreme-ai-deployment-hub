@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devonn.AI Assistant Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Devonn.AI Assistant Settings</h1>
+    </header>
+    
+    <div class="settings-form">
+      <div class="form-group">
+        <label for="api-url">API URL</label>
+        <input type="text" id="api-url" placeholder="http://localhost:8000">
+        <button id="test-connection">Test Connection</button>
+        <span id="connection-status"></span>
+      </div>
+      
+      <div class="form-group">
+        <label for="user-id">User ID</label>
+        <input type="text" id="user-id" placeholder="Your user identifier">
+      </div>
+      
+      <div class="form-group">
+        <label>Notifications</label>
+        <div class="checkbox-group">
+          <input type="checkbox" id="notify-task-complete" checked>
+          <label for="notify-task-complete">Task completion</label>
+        </div>
+        <div class="checkbox-group">
+          <input type="checkbox" id="notify-errors" checked>
+          <label for="notify-errors">Errors</label>
+        </div>
+      </div>
+      
+      <div class="button-row">
+        <button id="save-settings" class="primary">Save Settings</button>
+        <button id="reset-settings">Reset to Default</button>
+      </div>
+    </div>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

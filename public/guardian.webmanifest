@@ -1,0 +1,34 @@
+{
+  "name": "D3VONN Security Guardian",
+  "short_name": "Guardian",
+  "description": "Personal security monitoring, emergency recovery, and trusted-contact protection from D3VONN.IO.",
+  "id": "/guardian",
+  "start_url": "/guardian",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#070A0F",
+  "theme_color": "#070A0F",
+  "orientation": "portrait-primary",
+  "categories": ["security", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/d3vonn-icon.svg?v=20260724-official",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open Guardian",
+      "short_name": "Guardian",
+      "url": "/guardian"
+    },
+    {
+      "name": "Emergency Help",
+      "short_name": "Emergency",
+      "url": "/guardian?mode=emergency"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "project": "PRIMETIME",
+  "release": "release-7",
+  "release_gates_version": "7.0.0",
+  "status": "in_progress",
+  "dependencies": {
+    "requires_release6_staging_gate": true,
+    "requires_compliance_signoff": true,
+    "requires_rollback_plan": true
+  },
+  "telemetry_boundaries": {
+    "operational_metadata_only": true,
+    "forbid_customer_payloads": true,
+    "forbid_credentials_and_tokens": true,
+    "max_dimensions_per_signal": 12,
+    "no_autonomous_remediation": true
+  },
+  "blocked_endpoint_fragments": [
+    "/send",
+    "/quote",
+    "/recommend-policy",
+    "/submit-application"
+  ],
+  "blocked_http_methods_for_primetime": [
+    "DELETE"
+  ],
+  "required_runtime_surfaces": [
+    "/primetime/v1/observability/overview",
+    "/primetime/v1/observability/signals",
+    "/primetime/v1/observability/slos",
+    "/primetime/v1/observability/evaluations",
+    "/primetime/v1/observability/alerts"
+  ],
+  "required_frontend_routes": [
+    "/primetime/observability",
+    "/primetime/release-7"
+  ]
+}

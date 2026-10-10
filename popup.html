@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devonn.AI Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icons/icon48.png" alt="Devonn.AI Logo" class="logo">
+      <h1>Devonn.AI</h1>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="agents">Agents</button>
+      <button class="tab" data-tab="memory">Memory</button>
+      <button class="tab" data-tab="tools">Tools</button>
+    </div>
+    <div id="agents-tab" class="tab-content active">
+      <div class="loading-spinner" id="agents-loading">Loading agents...</div>
+      <div class="agents-list" id="agents-list"></div>
+      <div class="task-input">
+        <textarea id="task-description" placeholder="Describe your task..."></textarea>
+        <button id="run-task-btn" disabled>Run Task</button>
+      </div>
+    </div>
+    <div id="memory-tab" class="tab-content">
+      <div class="search-bar">
+        <input type="text" id="memory-search" placeholder="Search memories...">
+        <button id="search-btn">Search</button>
+      </div>
+      <div class="memories-list" id="memories-list"></div>
+    </div>
+    <div id="tools-tab" class="tab-content">
+      <div class="loading-spinner" id="tools-loading">Loading tools...</div>
+      <div class="tools-list" id="tools-list"></div>
+    </div>
+    <div class="settings-footer">
+      <button id="settings-btn">Settings</button>
+      <span id="connection-status" class="status">Not connected</span>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

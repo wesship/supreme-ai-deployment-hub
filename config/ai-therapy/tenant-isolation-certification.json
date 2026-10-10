@@ -1,0 +1,18 @@
+{
+  "certification": "AI_THERAPY_TENANT_ISOLATION",
+  "environment": "staging",
+  "synthetic_only": true,
+  "production_enabled": false,
+  "state": "PENDING_LIVE_IDENTITIES",
+  "schema_verified": true,
+  "rls_verified": true,
+  "live_two_identity_test": false,
+  "required_checks": [
+    "own_read_allowed",
+    "cross_tenant_read_denied",
+    "cross_tenant_write_denied",
+    "export_scoped_to_identity",
+    "delete_scoped_to_identity",
+    "audit_scoped_to_identity"
+  ]
+}

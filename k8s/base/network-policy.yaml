@@ -1,0 +1,79 @@
+---
+# Default deny-all ingress and egress within the devonn namespace.
+# Explicit allow rules below override this for required traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: devonn
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Allow frontend pods to receive traffic from the ingress controller only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: devonn
+spec:
+  podSelector:
+    matchLabels:
+      app: devonn-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# Allow backend pods to receive traffic from frontend only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: devonn
+spec:
+  podSelector:
+    matchLabels:
+      app: devonn-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: devonn-frontend
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# Allow backend pods to reach external services (Supabase, OpenAI, AWS)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-egress
+  namespace: devonn
+spec:
+  podSelector:
+    matchLabels:
+      app: devonn-backend
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 443   # HTTPS to external APIs
+        - protocol: TCP
+          port: 5432  # PostgreSQL (Supabase)
+        - protocol: UDP
+          port: 53    # DNS resolution

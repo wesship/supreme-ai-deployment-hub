@@ -1,0 +1,50 @@
+name: Workflow Audit Refresh Validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/workflow-audit/inventory.sh"
+      - "scripts/workflow-audit/reports/inventory.tsv"
+      - ".github/workflows/workflow-audit-refresh-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-audit-refresh-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate workflow audit inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Validate shell syntax
+        run: bash -n scripts/workflow-audit/inventory.sh
+
+      - name: Generate current inventory
+        run: scripts/workflow-audit/inventory.sh write
+
+      - name: Verify deterministic currentness
+        run: scripts/workflow-audit/inventory.sh --check
+
+      - name: Reject secret values
+        run: |
+          set -euo pipefail
+          if grep -E '(sk-[A-Za-z0-9_-]{20,}|pcsk_[A-Za-z0-9_-]{20,}|-----BEGIN .*PRIVATE KEY-----)' scripts/workflow-audit/reports/inventory.tsv; then
+            echo 'Potential secret value detected in generated inventory.'
+            exit 1
+          fi
+
+      - name: Upload generated inventory
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: workflow-audit-inventory
+          path: scripts/workflow-audit/reports/inventory.tsv
+          retention-days: 14

@@ -1,0 +1,198 @@
+name: Usage Analytics Pipeline
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # Daily 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      period:
+        description: 'Analysis period in days'
+        required: false
+        default: '7'
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: usage-analytics-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  api-usage-analysis:
+    name: API Call Tracking & Feature Adoption
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip3 install requests numpy
+
+      - name: Analyse API usage patterns
+        run: |
+          python3 - << 'PYEOF'
+          import json, math
+          from datetime import datetime, timedelta
+
+          # Simulated API telemetry (replace with real Datadog/Grafana/PostHog API calls)
+          ENDPOINTS = {
+              "POST /api/v1/chat":           {"calls": 45_230, "p50_ms": 320,  "p99_ms": 1200, "errors": 45,   "feature": "AI Chat"},
+              "POST /api/v1/voice/synthesise":{"calls": 12_450, "p50_ms": 890,  "p99_ms": 3200, "errors": 120,  "feature": "Voice AI"},
+              "GET  /api/v1/agents":          {"calls": 89_100, "p50_ms": 45,   "p99_ms": 180,  "errors": 12,   "feature": "Agent Management"},
+              "POST /api/v1/agents/run":      {"calls": 23_670, "p50_ms": 2100, "p99_ms": 8900, "errors": 234,  "feature": "Agent Execution"},
+              "GET  /api/v1/models":          {"calls": 34_500, "p50_ms": 28,   "p99_ms": 95,   "errors": 3,    "feature": "Model Registry"},
+              "POST /api/v1/models/infer":    {"calls": 67_800, "p50_ms": 450,  "p99_ms": 2100, "errors": 89,   "feature": "Model Inference"},
+              "GET  /api/v1/health":          {"calls": 288_000,"p50_ms": 8,    "p99_ms": 25,   "errors": 0,    "feature": "Health Check"},
+              "POST /api/v1/auth/login":      {"calls": 8_900,  "p50_ms": 120,  "p99_ms": 450,  "errors": 156,  "feature": "Authentication"},
+              "GET  /api/v1/usage":           {"calls": 3_200,  "p50_ms": 85,   "p99_ms": 320,  "errors": 2,    "feature": "Usage Analytics"},
+          }
+
+          period_days = int("${{ github.event.inputs.period || '7' }}")
+          print(f"=== API USAGE ANALYTICS ({period_days}-day window) ===")
+          print(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+          print()
+
+          total_calls = sum(e["calls"] for e in ENDPOINTS.values())
+          total_errors = sum(e["errors"] for e in ENDPOINTS.values())
+          error_rate = total_errors / max(total_calls, 1) * 100
+
+          print(f"Total API calls:    {total_calls:,}")
+          print(f"Total errors:       {total_errors:,}")
+          print(f"Overall error rate: {error_rate:.3f}%")
+          print(f"Calls per day:      {total_calls // period_days:,}")
+          print()
+
+          print(f"{'Endpoint':<40} {'Calls':>10} {'p50ms':>7} {'p99ms':>7} {'Errors':>8} {'Err%':>6}")
+          print("-" * 82)
+          for endpoint, stats in sorted(ENDPOINTS.items(), key=lambda x: x[1]["calls"], reverse=True):
+              err_pct = stats["errors"] / max(stats["calls"], 1) * 100
+              flag = " ⚠" if err_pct > 1.0 else ""
+              print(f"{endpoint:<40} {stats['calls']:>10,} {stats['p50_ms']:>7} {stats['p99_ms']:>7} {stats['errors']:>8,} {err_pct:>5.2f}%{flag}")
+
+          # Feature adoption
+          print()
+          print("=== FEATURE ADOPTION ===")
+          features = {}
+          for ep, stats in ENDPOINTS.items():
+              feat = stats["feature"]
+              features[feat] = features.get(feat, 0) + stats["calls"]
+
+          for feat, calls in sorted(features.items(), key=lambda x: x[1], reverse=True):
+              pct = calls / total_calls * 100
+              bar = "█" * int(pct / 2)
+              print(f"  {feat:<22} {calls:>10,}  {pct:>5.1f}%  {bar}")
+
+          # SLO violations
+          print()
+          print("=== SLO VIOLATIONS ===")
+          SLO_P99_MS = 2000
+          violations = [(ep, s) for ep, s in ENDPOINTS.items() if s["p99_ms"] > SLO_P99_MS]
+          if violations:
+              for ep, s in violations:
+                  print(f"  ⚠ {ep}: p99={s['p99_ms']}ms > SLO {SLO_P99_MS}ms")
+          else:
+              print("  ✓ All endpoints within p99 SLO")
+
+          report = {
+              "generated_at": datetime.utcnow().isoformat(),
+              "period_days": period_days,
+              "total_calls": total_calls,
+              "total_errors": total_errors,
+              "error_rate_pct": round(error_rate, 3),
+              "feature_adoption": {k: v for k, v in features.items()},
+              "slo_violations": [ep for ep, s in violations],
+          }
+          with open("/tmp/usage-analytics.json", "w") as f:
+              json.dump(report, f, indent=2)
+          PYEOF
+
+      - name: Upload analytics report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: usage-analytics-${{ github.run_id }}
+          path: /tmp/usage-analytics.json
+          retention-days: 90
+
+  user-journey-telemetry:
+    name: User Journey & Retention Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Analyse user journeys
+        run: |
+          python3 - << 'PYEOF'
+          import json
+          from datetime import datetime
+
+          # Simulated cohort data (replace with PostHog/Mixpanel/Amplitude API)
+          COHORTS = {
+              "Week 1 (May 1-7)":   {"new_users": 342, "retained_w2": 198, "retained_w4": 145, "converted": 89},
+              "Week 2 (May 8-14)":  {"new_users": 418, "retained_w2": 251, "retained_w4": 0,   "converted": 112},
+              "Week 3 (May 15-21)": {"new_users": 389, "retained_w2": 0,   "retained_w4": 0,   "converted": 98},
+          }
+
+          FUNNEL = {
+              "Landing Page Visit":  12_450,
+              "Sign Up Started":     3_890,
+              "Sign Up Completed":   2_340,
+              "First API Call":      1_890,
+              "Used AI Chat":        1_240,
+              "Used Voice AI":       456,
+              "Became Paid User":    234,
+          }
+
+          print("=== USER JOURNEY & RETENTION ANALYSIS ===")
+          print(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
+          print()
+
+          print("Conversion Funnel:")
+          prev = None
+          for step, count in FUNNEL.items():
+              if prev:
+                  drop = (1 - count / prev) * 100
+                  print(f"  {step:<30} {count:>8,}  (drop-off: {drop:.1f}%)")
+              else:
+                  print(f"  {step:<30} {count:>8,}")
+              prev = count
+
+          overall_cvr = FUNNEL["Became Paid User"] / FUNNEL["Landing Page Visit"] * 100
+          print(f"\n  Overall conversion rate: {overall_cvr:.2f}%")
+
+          print()
+          print("Cohort Retention:")
+          print(f"  {'Cohort':<25} {'New':>8} {'W2 Ret%':>9} {'W4 Ret%':>9} {'Converted':>10}")
+          print("  " + "-" * 65)
+          for cohort, data in COHORTS.items():
+              w2_pct = data["retained_w2"] / data["new_users"] * 100 if data["retained_w2"] else 0
+              w4_pct = data["retained_w4"] / data["new_users"] * 100 if data["retained_w4"] else 0
+              cvr = data["converted"] / data["new_users"] * 100
+              print(f"  {cohort:<25} {data['new_users']:>8,} {w2_pct:>8.1f}% {w4_pct:>8.1f}% {data['converted']:>10,} ({cvr:.1f}%)")
+
+          report = {
+              "generated_at": datetime.utcnow().isoformat(),
+              "funnel": FUNNEL,
+              "overall_conversion_rate_pct": round(overall_cvr, 2),
+              "cohorts": COHORTS,
+          }
+          with open("/tmp/user-journey.json", "w") as f:
+              json.dump(report, f, indent=2)
+          PYEOF
+
+      - name: Upload user journey report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: user-journey-${{ github.run_id }}
+          path: /tmp/user-journey.json
+          retention-days: 90

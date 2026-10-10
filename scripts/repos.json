@@ -1,0 +1,23 @@
+[
+  {
+    "owner": "wesship",
+    "name": "supreme-ai-deployment-hub",
+    "branch": "main",
+    "dest": "supreme-ai-deployment-hub",
+    "description": "Main Devonn.AI deployment hub"
+  },
+  {
+    "owner": "wesship",
+    "name": "devonn-coordinator",
+    "branch": "main",
+    "dest": "devonn-coordinator",
+    "description": "Devonn.AI agent coordinator service"
+  },
+  {
+    "owner": "wesship",
+    "name": "openclaw-bridge",
+    "branch": "main",
+    "dest": "openclaw-bridge",
+    "description": "OpenClaw bridge service for external integrations"
+  }
+]

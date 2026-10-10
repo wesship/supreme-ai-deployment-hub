@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devonn-coordinator
+  namespace: devonn-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devonn-coordinator
+  template:
+    metadata:
+      labels:
+        app: devonn-coordinator
+    spec:
+      containers:
+        - name: app
+          image: devonn/devonn-coordinator:latest
+          ports:
+            - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devonn-coordinator
+  namespace: devonn-system
+spec:
+  selector:
+    app: devonn-coordinator
+  ports:
+    - port: 80
+      targetPort: 8000

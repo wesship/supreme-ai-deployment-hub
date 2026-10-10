@@ -1,0 +1,332 @@
+name: Hermes Recency Sync Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_mode:
+        description: "Hermes recency sync mode"
+        required: true
+        default: "verify"
+        type: choice
+        options:
+          - verify
+          - dry-run
+          - post-deploy
+  schedule:
+    - cron: "0 7 * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - "docs/HERMES_SELF_UPDATE_RECENCY_LOOP.md"
+      - "MASTER_CONTEXT.md"
+      - "public/llms.txt"
+      - "backend/**"
+      - "server/**"
+      - "api/**"
+      - "supabase/functions/**"
+      - "supabase/migrations/**"
+      - "agents/**"
+      - "packages/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hermes-recency-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  recency-sync-gate:
+    name: Verify Hermes Recency Sync Readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Build recency context
+        id: context
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "commit_sha=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "sync_mode=${{ github.event.inputs.sync_mode || 'scheduled-or-push' }}" >> "$GITHUB_OUTPUT"
+
+          git log -1 --pretty=format:'%H%n%an%n%ae%n%s' > hermes-recency-commit.txt
+          git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" > hermes-recency-changed-files.txt || true
+
+          echo "Latest commit: $GITHUB_SHA"
+          echo "Changed files:"
+          cat hermes-recency-changed-files.txt || true
+
+      - name: Verify required contract files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f docs/HERMES_SELF_UPDATE_RECENCY_LOOP.md
+          test -f MASTER_CONTEXT.md
+          test -f .github/workflows/validate-secrets.yml
+
+          echo "✓ Hermes recency contract present"
+          echo "✓ Required secrets validation workflow present"
+
+      - name: Detect recency-sensitive changes
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sensitive=0
+
+          if grep -E '^(MASTER_CONTEXT\.md|public/llms\.txt|(backend|server|api|supabase/functions|supabase/migrations|agents|packages|\.github/workflows)/)' hermes-recency-changed-files.txt >/dev/null 2>&1; then
+            sensitive=1
+          fi
+
+          echo "sensitive_changes=$sensitive" >> "$GITHUB_OUTPUT"
+
+          if [ "$sensitive" = "1" ]; then
+            echo "::notice::Recency-sensitive changes detected. Hermes memory/KG should be refreshed after deploy."
+          else
+            echo "No recency-sensitive changes detected."
+          fi
+
+      - name: Emit Hermes sync payload
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          changed = Path('hermes-recency-changed-files.txt').read_text().splitlines() if Path('hermes-recency-changed-files.txt').exists() else []
+          canonical_content = Path('MASTER_CONTEXT.md').read_text(encoding='utf-8')
+          version_match = re.search(r'\*\*Context version:\*\*\s*([^\n]+)', canonical_content)
+          canonical_version = version_match.group(1).strip() if version_match else 'unversioned'
+          canonical_sha256 = hashlib.sha256(canonical_content.encode('utf-8')).hexdigest()
+          payload = {
+              "sync_type": "repo_recency",
+              "source": "github_main",
+              "commit_sha": os.environ.get("GITHUB_SHA"),
+              "canonical_context_version": canonical_version,
+              "canonical_context_sha256": canonical_sha256,
+              "changed_files": changed,
+              "detected_risks": [],
+              "required_actions": [
+                  "Verify backend /api/health after deployment",
+                  "Verify /api/knowledge/status reports the deployed canonical context version and SHA-256",
+                  "Verify Hermes job intake, worker claim, callback completion, and memory write-back"
+              ],
+              "memory_updates": [
+                  f"Refresh Hermes context from MASTER_CONTEXT.md version {canonical_version} ({canonical_sha256})"
+              ],
+              "kg_updates": [
+                  f"Link canonical context {canonical_sha256} and latest operational changes to Hermes graph"
+              ],
+              "status": "MANUAL_REVIEW" if changed else "COMPLETED"
+          }
+          print(json.dumps(payload, indent=2))
+          Path('hermes-recency-sync-payload.json').write_text(json.dumps(payload, indent=2))
+          PY
+
+      - name: Upload recency payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-recency-sync-payload
+          path: hermes-recency-sync-payload.json
+          if-no-files-found: error
+
+
+  live-context-verification:
+    name: Verify Live Canonical Context
+    needs: recency-sync-gate
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.sync_mode == 'post-deploy' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      KNOWLEDGE_STATUS_URL: ${{ vars.HERMES_KNOWLEDGE_STATUS_URL || 'https://api.d3vonn.io/api/knowledge/status' }}
+      RECENCY_ACK_URL: ${{ vars.HERMES_RECENCY_ACK_URL || 'https://api.d3vonn.io/api/hermes/recency/acknowledge' }}
+      RECENCY_WRITE_TOKEN: ${{ secrets.HERMES_RECENCY_WRITE_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Compare repository context with live runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import subprocess
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          endpoint = os.environ["KNOWLEDGE_STATUS_URL"]
+          expected_content = Path("MASTER_CONTEXT.md").read_text(encoding="utf-8")
+          version_match = re.search(r"\*\*Context version:\*\*\s*([^\n]+)", expected_content)
+          expected_version = version_match.group(1).strip() if version_match else "unversioned"
+          expected_sha256 = hashlib.sha256(expected_content.encode("utf-8")).hexdigest()
+          expected_commit = os.environ.get("GITHUB_SHA")
+
+          runtime_sensitive_roots = ("backend/", "server/", "api/")
+          runtime_sensitive_files = {
+              "MASTER_CONTEXT.md",
+              "Dockerfile",
+              "railway.toml",
+              "Procfile",
+              "requirements.txt",
+          }
+
+          def commit_compatible(actual_commit: str | None) -> tuple[bool, list[str]]:
+              if not actual_commit or actual_commit == expected_commit:
+                  return True, []
+              if not expected_commit:
+                  return False, []
+              ancestor = subprocess.run(
+                  ["git", "merge-base", "--is-ancestor", actual_commit, expected_commit],
+                  check=False,
+              )
+              if ancestor.returncode != 0:
+                  return False, []
+              changed = subprocess.check_output(
+                  ["git", "diff", "--name-only", f"{actual_commit}..{expected_commit}"],
+                  text=True,
+              ).splitlines()
+              blocking = [
+                  path
+                  for path in changed
+                  if path in runtime_sensitive_files
+                  or path.startswith(runtime_sensitive_roots)
+                  or path.startswith("backend/requirements")
+              ]
+              return not blocking, blocking
+
+          report = {
+              "endpoint": endpoint,
+              "expected": {
+                  "version": expected_version,
+                  "content_sha256": expected_sha256,
+                  "commit_sha": expected_commit,
+              },
+              "attempts": [],
+              "verified": False,
+          }
+
+          for attempt in range(1, 31):
+              observation = {"attempt": attempt}
+              try:
+                  request = urllib.request.Request(
+                      endpoint,
+                      headers={"Accept": "application/json", "User-Agent": "Hermes-Recency-Verifier/1.0"},
+                  )
+                  with urllib.request.urlopen(request, timeout=15) as response:
+                      payload = json.loads(response.read().decode("utf-8"))
+                  canonical = payload.get("canonical_context") or {}
+                  actual_commit = payload.get("deployed_commit_sha")
+                  commit_matches, blocking_changes = commit_compatible(actual_commit)
+                  observation.update(
+                      {
+                          "http_status": response.status,
+                          "mode": payload.get("mode"),
+                          "version": canonical.get("version"),
+                          "content_sha256": canonical.get("content_sha256"),
+                          "commit_sha": actual_commit,
+                          "runtime_sensitive_changes_since_deploy": blocking_changes,
+                      }
+                  )
+                  version_matches = canonical.get("version") == expected_version
+                  hash_matches = canonical.get("content_sha256") == expected_sha256
+                  observation["matches"] = {
+                      "version": version_matches,
+                      "content_sha256": hash_matches,
+                      "commit_sha": commit_matches,
+                  }
+                  if version_matches and hash_matches and commit_matches:
+                      report["verified"] = True
+                      report["runtime"] = payload
+                      report["attempts"].append(observation)
+                      break
+              except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
+                  observation["error"] = str(exc)
+
+              report["attempts"].append(observation)
+              if attempt < 30:
+                  time.sleep(10)
+
+          Path("hermes-live-context-verification.json").write_text(
+              json.dumps(report, indent=2),
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2))
+
+          if not report["verified"]:
+              raise SystemExit(
+                  "Live Knowledge API did not match MASTER_CONTEXT.md or is behind runtime-sensitive repository changes"
+              )
+          PY
+
+      - name: Persist verified acknowledgement in Hermes
+        if: env.RECENCY_WRITE_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("hermes-live-context-verification.json").read_text())
+          expected = report["expected"]
+          acknowledgement = {
+              "commit_sha": expected["commit_sha"],
+              "canonical_context_version": expected["version"],
+              "canonical_context_sha256": expected["content_sha256"],
+              "verification_status": "VERIFIED" if report.get("verified") else "MISMATCH",
+              "source": "github_actions",
+              "verification_report": report,
+          }
+          Path("hermes-recency-acknowledgement.json").write_text(
+              json.dumps(acknowledgement),
+              encoding="utf-8",
+          )
+          PY
+
+          curl --fail-with-body --silent --show-error \
+            --retry 5 --retry-all-errors --retry-delay 5 \
+            -X POST "$RECENCY_ACK_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Hermes-Recency-Token: $RECENCY_WRITE_TOKEN" \
+            --data-binary @hermes-recency-acknowledgement.json \
+            > hermes-recency-acknowledgement-response.json
+
+          python -m json.tool hermes-recency-acknowledgement-response.json
+
+      - name: Report disabled acknowledgement
+        if: env.RECENCY_WRITE_TOKEN == ''
+        run: echo "::notice::Set HERMES_RECENCY_WRITE_TOKEN in GitHub and Railway to enable persisted write-back."
+
+      - name: Upload live verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-live-context-verification
+          path: |
+            hermes-live-context-verification.json
+            hermes-recency-acknowledgement-response.json
+          if-no-files-found: error

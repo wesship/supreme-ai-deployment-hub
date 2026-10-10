@@ -1,0 +1,3 @@
+# Open-source, self-hosted web acquisition engine.
+# Exact pin: upgrades require normal dependency and security review.
+crawlee[parsel]==1.8.3

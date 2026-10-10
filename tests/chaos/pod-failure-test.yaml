@@ -1,0 +1,89 @@
+# pod-failure-test.yaml — Devonn.AI Chaos Engineering
+#
+# Tests that the devonn-backend deployment recovers correctly when a pod is
+# randomly killed. This validates that:
+#   1. The PodDisruptionBudget keeps at least 1 pod running
+#   2. The HPA replaces the killed pod within 60 seconds
+#   3. The Prometheus alert "BackendPodCrashLooping" does NOT fire (expected restart)
+#
+# Requires: Chaos Mesh installed in the cluster
+#   helm install chaos-mesh chaos-mesh/chaos-mesh -n chaos-mesh --create-namespace
+#
+# Apply: kubectl apply -f tests/chaos/pod-failure-test.yaml
+# Monitor: kubectl get podchaos -n devonn
+# Cleanup: kubectl delete -f tests/chaos/pod-failure-test.yaml
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: devonn-backend-pod-failure
+  namespace: devonn
+  labels:
+    test-type: chaos
+    component: backend
+spec:
+  action: pod-failure
+  mode: one              # Kill exactly one pod at a time
+  duration: "30s"        # Pod failure lasts 30 seconds
+  selector:
+    namespaces:
+      - devonn
+    labelSelectors:
+      app: devonn-backend
+  scheduler:
+    cron: "@every 10m"   # Run every 10 minutes during chaos test window
+
+---
+# Network partition test — simulates a network split between frontend and backend
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: devonn-network-partition
+  namespace: devonn
+  labels:
+    test-type: chaos
+    component: network
+spec:
+  action: partition
+  mode: one
+  duration: "20s"
+  selector:
+    namespaces:
+      - devonn
+    labelSelectors:
+      app: devonn-frontend
+  direction: both
+  target:
+    mode: one
+    selector:
+      namespaces:
+        - devonn
+      labelSelectors:
+        app: devonn-backend
+  scheduler:
+    cron: "@every 15m"
+
+---
+# CPU stress test — validates HPA scales up under load
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: devonn-backend-cpu-stress
+  namespace: devonn
+  labels:
+    test-type: chaos
+    component: backend
+spec:
+  mode: one
+  duration: "2m"
+  selector:
+    namespaces:
+      - devonn
+    labelSelectors:
+      app: devonn-backend
+  stressors:
+    cpu:
+      workers: 2
+      load: 80    # 80% CPU load — should trigger HPA scale-up
+  scheduler:
+    cron: "@every 30m"

@@ -1,0 +1,217 @@
+name: Pollo Entitlement + E2E Retry 2026-08-10
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/pollo-entitlement-e2e-retry-20260810'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: pollo-entitlement-e2e-retry-20260810
+  cancel-in-progress: false
+
+jobs:
+  configure-and-test:
+    name: Configure Railway entitlement and run one-shot E2E
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 35
+    env:
+      E2E_USER_ID: 80f20fbd-c1d0-4dde-9d6e-052d23edcb3f
+      RAILWAY_PROJECT_TOKEN_VALUE: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_ACCOUNT_TOKEN_VALUE: ${{ secrets.RAILWAY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Create one-shot retry guard issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --search 'Pollo Production E2E Retry 2026-08-10 in:title' --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            echo "POLLO_RETRY_SKIP=1" >> "$GITHUB_ENV"
+            echo "POLLO_RETRY_ISSUE=$existing" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          issue_url="$(gh issue create --repo "$GITHUB_REPOSITORY" --title 'Pollo Production E2E Retry 2026-08-10' --body 'Status: ARMED. This issue prevents duplicate paid retry dispatches.')"
+          issue_number="${issue_url##*/}"
+          echo "POLLO_RETRY_SKIP=0" >> "$GITHUB_ENV"
+          echo "POLLO_RETRY_ISSUE=$issue_number" >> "$GITHUB_ENV"
+
+      - name: Setup Node
+        if: env.POLLO_RETRY_SKIP != '1'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+
+      - name: Install Railway CLI
+        if: env.POLLO_RETRY_SKIP != '1'
+        run: npm install --global @railway/cli
+
+      - name: Configure Railway authentication
+        if: env.POLLO_RETRY_SKIP != '1'
+        run: |
+          set -euo pipefail
+          if [ -n "${RAILWAY_PROJECT_TOKEN_VALUE:-}" ]; then
+            echo "RAILWAY_TOKEN=${RAILWAY_PROJECT_TOKEN_VALUE}" >> "$GITHUB_ENV"
+          elif [ -n "${RAILWAY_ACCOUNT_TOKEN_VALUE:-}" ]; then
+            echo "RAILWAY_API_TOKEN=${RAILWAY_ACCOUNT_TOKEN_VALUE}" >> "$GITHUB_ENV"
+          else
+            echo '{"status":"FAILED","message":"No Railway token is configured in the production GitHub environment"}' > /tmp/pollo-retry-result.json
+            exit 1
+          fi
+
+      - name: Set Pollo entitlement on Railway backend
+        id: railway
+        if: env.POLLO_RETRY_SKIP != '1'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          railway variable set "POLLO_ENTITLED_USER_IDS=${E2E_USER_ID}" --service devonn-ai-api --environment production --json >/tmp/railway-variable-result.json
+          echo '{"status":"ENTITLEMENT_SET","message":"Railway accepted POLLO_ENTITLED_USER_IDS for devonn-ai-api/production"}' > /tmp/pollo-retry-result.json
+
+      - name: Wait for Railway variable redeploy
+        if: env.POLLO_RETRY_SKIP != '1' && steps.railway.outcome == 'success'
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            if curl --fail --silent --show-error --max-time 15 https://api.d3vonn.io/health/deployment >/tmp/deployment.json 2>/dev/null; then
+              if jq -e '.status == "ok" and .entrypoint == "backend.railway_app:app" and .workers.ai_films_commerce_handoff == "running"' /tmp/deployment.json >/dev/null; then
+                sleep 30
+                exit 0
+              fi
+            fi
+            sleep 10
+          done
+          echo '{"status":"FAILED","message":"Railway backend did not return ready commerce handoff health after entitlement update"}' > /tmp/pollo-retry-result.json
+          exit 1
+
+      - name: Setup pnpm
+        if: env.POLLO_RETRY_SKIP != '1' && steps.railway.outcome == 'success'
+        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093
+
+      - name: Install dependencies and Chromium
+        if: env.POLLO_RETRY_SKIP != '1' && steps.railway.outcome == 'success'
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Dispatch exactly one minimal Pollo production render
+        id: dispatch
+        if: env.POLLO_RETRY_SKIP != '1' && steps.railway.outcome == 'success'
+        continue-on-error: true
+        env:
+          E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          FRONTEND_BASE_URL: https://d3vonn.io
+          API_BASE_URL: https://api.d3vonn.io
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { chromium } from '@playwright/test';
+
+          const resultPath = '/tmp/pollo-retry-result.json';
+          const writeResult = (value) => fs.writeFileSync(resultPath, JSON.stringify(value, null, 2));
+          const fail = (message) => { writeResult({ status: 'FAILED', message }); throw new Error(message); };
+          const email = (process.env.E2E_TEST_EMAIL ?? '').trim();
+          const password = (process.env.E2E_TEST_PASSWORD ?? '').trim();
+          const frontend = (process.env.FRONTEND_BASE_URL ?? '').replace(/\/$/, '');
+          const api = (process.env.API_BASE_URL ?? '').replace(/\/$/, '');
+          if (!email || !password) fail('Production E2E credentials are not configured');
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext();
+          const page = await context.newPage();
+          try {
+            const providerResponse = await context.request.get(`${api}/api/ai-films/providers/health`);
+            if (!providerResponse.ok()) fail(`Provider health returned HTTP ${providerResponse.status()}`);
+            const providerHealth = await providerResponse.json();
+            for (const capability of ['video', 'commerce_generation', 'virtual_try_on', 'product_image']) {
+              const ready = providerHealth?.providers?.some((item) => item?.provider === 'pollo' && item?.capability === capability && item?.status === 'configured');
+              if (!ready) fail(`Pollo capability not configured: ${capability}`);
+            }
+
+            await page.goto(`${frontend}/login?redirect=%2Fai-films%2Fcommerce`, { waitUntil: 'domcontentloaded' });
+            await page.waitForLoadState('networkidle');
+            await page.locator('input[type="email"]').fill(email);
+            await page.locator('input[type="password"]').fill(password);
+            await page.locator('button[type="submit"]').filter({ hasText: /sign in|log in/i }).first().click();
+
+            let accessToken = null;
+            for (let attempt = 0; attempt < 30 && !accessToken; attempt += 1) {
+              accessToken = await page.evaluate(() => {
+                for (let index = 0; index < window.localStorage.length; index += 1) {
+                  const key = window.localStorage.key(index);
+                  if (!key?.endsWith('-auth-token')) continue;
+                  const raw = window.localStorage.getItem(key);
+                  if (!raw) continue;
+                  try {
+                    const parsed = JSON.parse(raw);
+                    return parsed.access_token ?? parsed.currentSession?.access_token ?? parsed.session?.access_token ?? null;
+                  } catch {}
+                }
+                return null;
+              });
+              if (!accessToken) await page.waitForTimeout(1000);
+            }
+            if (!accessToken) fail('Authenticated production session did not expose a Supabase access token');
+
+            const response = await context.request.post(`${api}/api/ai-films/commerce/providers/pollo/dispatch`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+              data: {
+                prompt: 'D3VONN AI Films production acceptance test: clean neutral cinematic abstract geometric light motion, no people, no logos, no text, no audio.',
+                length: 4,
+                resolution: '720p',
+                mode: 'basic',
+                generate_audio: false,
+              },
+            });
+            const text = await response.text();
+            let body = {};
+            try { body = JSON.parse(text); } catch {}
+            if (response.status() !== 202) fail(`Pollo dispatch returned HTTP ${response.status()}: ${body?.detail ?? text.slice(0, 250)}`);
+            if (!body?.job_id || !body?.task_id) fail('Pollo dispatch did not return job_id and task_id');
+            writeResult({ status: 'DISPATCHED', job_id: String(body.job_id), task_id: String(body.task_id), provider: body.provider ?? 'pollo', model: body.model ?? 'pollo-v2-5' });
+          } catch (error) {
+            if (!fs.existsSync(resultPath)) writeResult({ status: 'FAILED', message: String(error?.message ?? error) });
+            process.exitCode = 1;
+          } finally {
+            await context.close();
+            await browser.close();
+          }
+          NODE
+
+      - name: Publish retry result
+        if: always() && env.POLLO_RETRY_SKIP != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -f /tmp/pollo-retry-result.json ]; then
+            result="$(cat /tmp/pollo-retry-result.json)"
+          else
+            result='{"status":"FAILED","message":"workflow ended before result creation"}'
+          fi
+          body=$(cat <<EOF
+          Pollo production E2E retry result:
+
+          \`\`\`json
+          ${result}
+          \`\`\`
+
+          Railway entitlement target: devonn-ai-api / production. No credentials, Railway tokens, or bearer tokens are published.
+          EOF
+          )
+          gh issue edit "$POLLO_RETRY_ISSUE" --repo "$GITHUB_REPOSITORY" --body "$body"
+
+      - name: Enforce result
+        if: env.POLLO_RETRY_SKIP != '1' && (steps.railway.outcome != 'success' || steps.dispatch.outcome != 'success')
+        run: exit 1

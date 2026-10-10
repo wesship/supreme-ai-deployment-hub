@@ -1,0 +1,13 @@
+:root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #07090d; color: #f7f8fa; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #17202d 0, #07090d 48%); }
+main { width: min(760px, calc(100% - 32px)); margin: 8vh auto; padding: 32px; border: 1px solid #2b3442; border-radius: 20px; background: rgba(12, 16, 23, .92); box-shadow: 0 24px 80px rgba(0, 0, 0, .45); }
+.eyebrow { color: #75e6b4; font-size: .78rem; font-weight: 700; letter-spacing: .16em; }
+h1 { margin: 0 0 12px; font-size: clamp(2.2rem, 8vw, 4.5rem); letter-spacing: -.05em; }
+.status { margin: 0 0 28px; color: #aab4c3; }
+label { display: block; margin-bottom: 8px; font-weight: 650; }
+textarea { width: 100%; min-height: 150px; resize: vertical; border: 1px solid #394455; border-radius: 12px; padding: 14px; background: #0d121a; color: inherit; font: inherit; }
+textarea:focus { outline: 2px solid #75e6b4; outline-offset: 2px; }
+button { margin-top: 14px; padding: 12px 18px; border: 0; border-radius: 10px; background: #75e6b4; color: #07100c; font-weight: 750; cursor: pointer; }
+button:disabled { cursor: wait; opacity: .55; }
+.answer { min-height: 64px; margin-top: 22px; padding: 16px; overflow-wrap: anywhere; white-space: pre-wrap; border-radius: 12px; background: #0d121a; color: #e8edf5; }

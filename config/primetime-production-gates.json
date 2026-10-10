@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0",
+  "product": "PRIMETIME",
+  "canonical_release_sequence": [
+    {
+      "release": 1,
+      "name": "Governed CRM Foundation",
+      "must_build": ["authentication", "workspaces", "roles", "people", "households", "leads", "pipeline", "tasks", "activities", "consent_registry", "audit_records"],
+      "exit_gate": ["100_percent_open_leads_have_owner", "100_percent_open_leads_have_stage", "100_percent_open_leads_have_next_action", "100_percent_open_leads_have_consent_state", "100_percent_open_leads_have_last_activity_or_exception"]
+    },
+    {
+      "release": 2,
+      "name": "Scheduling and Daily Operations",
+      "must_build": ["appointments", "calendar_sync", "booking_page", "reminders", "no_show_recovery", "daily_dashboard", "mobile_quick_actions"],
+      "exit_gate": ["appointments_booked_confirmed_rescheduled_completed", "appointment_events_visible_in_crm", "missed_appointments_create_followup_tasks"]
+    },
+    {
+      "release": 3,
+      "name": "Governed Communications",
+      "must_build": ["sms", "email", "template_management", "template_approvals", "quiet_hours", "opt_out_handling", "delivery_tracking", "communication_audit_logs"],
+      "exit_gate": ["no_communication_without_policy_check", "opt_outs_enforced_immediately", "every_outbound_message_has_template_or_approval"]
+    },
+    {
+      "release": 4,
+      "name": "AI Assistance",
+      "must_build": ["intake_agent", "followup_agent", "scheduling_agent", "meeting_preparation_agent", "compliance_reviewer", "knowledge_agent"],
+      "exit_gate": ["every_ai_action_logged", "restricted_actions_require_approval", "rag_responses_cite_approved_sources", "no_independent_ai_product_recommendations"]
+    }
+  ],
+  "non_negotiable_rules": [
+    "no_lead_without_owner",
+    "no_open_opportunity_without_next_action",
+    "no_communication_without_consent_check",
+    "no_ai_execution_without_audit_record",
+    "no_regulated_recommendation_without_licensed_human",
+    "no_business_critical_state_only_in_n8n"
+  ]
+}

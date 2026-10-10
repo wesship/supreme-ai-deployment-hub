@@ -1,0 +1,11 @@
+name: Hermes Governance Review v3
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-certification:
+    uses: ./.github/workflows/hermes-gate.yml
