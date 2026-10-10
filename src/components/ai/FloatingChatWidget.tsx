@@ -21,7 +21,12 @@ interface WidgetMessage {
 
 const DEMO_LIMIT = 3;
 
-const DEMO_SYSTEM = `You are Devonn, the AI assistant for Devonn.ai. You are in demo mode — keep responses brief (2-3 sentences max). After the user's ${DEMO_LIMIT}rd message, invite them to sign up for full access.`;
+const demoReply = (text: string): string => {
+  const question = text.toLowerCase();
+  if (/name|who are you/.test(question)) return "I'm Devonn AI, the D3VONN.IO platform assistant. This is a scripted preview, not a live AI response. Sign in to chat with the connected assistant.";
+  if (/voice|hear|microphone|audio/.test(question)) return "I received your message as text. This scripted preview does not place a Vapi call or generate speech. Open Voice Studio to test live voice, or sign in for authenticated chat.";
+  return "This is a scripted preview of Devonn AI. Sign in to ask your question using the live D3VONN assistant and its authorized tools.";
+};
 
 export const FloatingChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,6 +34,7 @@ export const FloatingChatWidget: React.FC = () => {
   const [input, setInput] = useState('');
   const [userId, setUserId] = useState<string | undefined>();
   const [demoCount, setDemoCount] = useState(0);
+  const [demoMessages, setDemoMessages] = useState<WidgetMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +50,7 @@ export const FloatingChatWidget: React.FC = () => {
   }, []);
 
   const isAuthenticated = !!userId;
+  const visibleMessages = isAuthenticated ? messages : demoMessages;
   const config = isAuthenticated
     ? { model: 'gpt-4.1-mini' }
     : { model: 'gpt-4.1-nano' };
@@ -59,7 +66,7 @@ export const FloatingChatWidget: React.FC = () => {
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [visibleMessages]);
 
   // Focus input when opened
   useEffect(() => {
@@ -72,8 +79,16 @@ export const FloatingChatWidget: React.FC = () => {
     if (!isAuthenticated && demoCount >= DEMO_LIMIT) return;
 
     setDemoCount(c => c + 1);
-    const text = input;
+    const text = input.trim();
     setInput('');
+    if (!isAuthenticated) {
+      const id = `${Date.now()}-${demoCount}`;
+      setDemoMessages(previous => [...previous,
+        { id: `${id}-user`, role: 'user', content: text },
+        { id: `${id}-assistant`, role: 'assistant', content: demoReply(text) },
+      ]);
+      return;
+    }
     await sendMessage(text);
   };
 
@@ -174,7 +189,7 @@ export const FloatingChatWidget: React.FC = () => {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-green-500/20">
-              {messages.length === 0 && (
+              {visibleMessages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
                     <MessageSquare className="w-5 h-5 text-green-400/60" />
@@ -184,13 +199,13 @@ export const FloatingChatWidget: React.FC = () => {
                     <p className="text-white/30 text-xs mt-1">
                       {isAuthenticated
                         ? 'Deployments, agents, workflows, infrastructure...'
-                        : 'Try a quick question — sign in for full access'}
+                        : 'Scripted preview only — sign in for live AI responses'}
                     </p>
                   </div>
                 </div>
               )}
 
-              {messages.map(msg => (
+              {visibleMessages.map(msg => (
                 <div
                   key={msg.id}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
