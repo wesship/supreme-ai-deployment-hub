@@ -102,6 +102,18 @@ jobs:
 
           # Fail closed on fixable Critical vulnerabilities. The .grype.yaml
           # configuration excludes findings that have no upstream fix.
+          # Persist source package and file locations before the blocking scan.
+          # This makes remediation actionable without weakening the severity gate.
+          grype devonn-api:hardened-${{ github.sha }} \
+            --output json \
+            --config .grype.yaml > /tmp/grype-findings.json
+          jq -r '
+            .matches[] |
+            select(.vulnerability.severity == "Critical") |
+            [.vulnerability.id, .artifact.name, .artifact.version,
+             ((.artifact.locations // []) | map(.path) | join(", ")),
+             (.vulnerability.fix.versions // [] | join(", "))] | @tsv
+          ' /tmp/grype-findings.json
           grype devonn-api:hardened-${{ github.sha }} \
             --fail-on critical \
             --output table \
@@ -157,5 +169,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: container-scan-${{ github.run_id }}
-          path: /tmp/devonn-api.tar
+          path: |
+            /tmp/grype-findings.json
+            /tmp/devonn-api.tar
           retention-days: 7

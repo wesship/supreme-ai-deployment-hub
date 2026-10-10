@@ -80,10 +80,23 @@ const LegacyVoiceControls: React.FC<VoiceControlsProps> = ({
     try {
       await speak(lastAssistantMessage);
     } catch (error) {
-      console.warn('[VoiceControls] Backend TTS failed; trying browser speech.', error);
+      // Keep browser speech available, but surface a useful and safe reason.
+      const detail = error instanceof Error ? error.message : '';
+      const reason = /session has expired|sign in again/i.test(detail)
+        ? 'Sign in again to enable premium voice.'
+        : /provider_limit/.test(detail)
+          ? 'Premium voice reached a provider usage limit.'
+          : /provider_auth/.test(detail)
+            ? 'Premium voice provider authorization failed.'
+            : /provider_invalid_request/.test(detail)
+              ? 'Premium voice rejected the requested voice or model.'
+              : /503|not configured/i.test(detail)
+                ? 'Premium voice is not configured on the server.'
+                : 'Premium voice could not generate or play audio.';
+      console.warn('[VoiceControls] Premium TTS failed; browser fallback selected.', reason);
       try {
         await speakBrowser(lastAssistantMessage);
-        toast.info('Using your browser voice because premium voice was unavailable.');
+        toast.info('Using browser speech', { description: reason });
       } catch (fallbackError) {
         toast.error('Voice playback failed', {
           description: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
