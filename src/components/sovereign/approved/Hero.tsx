@@ -14,7 +14,7 @@ export default function Hero() {
     <section id="top" className="relative isolate flex min-h-screen items-center overflow-hidden">
       <SignalField />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1680px] px-5 pt-28 pb-20 md:px-8">
+      <div className="relative z-10 mx-auto w-full max-w-[1680px] px-5 pt-24 pb-12 md:px-8">
         {/* telemetry label */}
         <div
           className={`flex items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em] text-accent-400/80 transition-all duration-700 ${
@@ -22,17 +22,17 @@ export default function Hero() {
           }`}
         >
           <span className="h-px w-10 bg-accent-500/40"></span>
-          D3VONN NETWORK // SYSTEMS ACTIVE
+          D3VONN NETWORK // GOVERNED AI
           <span className="h-px w-10 bg-accent-500/40"></span>
         </div>
 
         {/* logo emblem — full width */}
         <div
-          className={`mt-10 flex w-full items-center justify-center transition-all duration-1000 ${
+          className={`mt-5 flex w-full items-center justify-center transition-all duration-1000 ${
             booted ? 'opacity-100 scale-100' : 'opacity-0 scale-90'
           }`}
         >
-          <div className="w-full max-w-[900px]">
+          <div className="w-full max-w-[560px]">
             <Logo3D />
           </div>
         </div>
@@ -47,7 +47,7 @@ export default function Hero() {
           <div className="relative">
             {/* headline */}
             <h1
-              className={`mt-8 font-heading text-[clamp(3rem,9vw,7rem)] font-bold leading-[0.94] tracking-[-0.03em] text-white transition-all duration-1000 delay-150 drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)] ${
+              className={`mt-4 font-heading text-[clamp(2.25rem,5vw,4.5rem)] font-bold leading-[0.94] tracking-[-0.03em] text-white transition-all duration-1000 delay-150 drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)] ${
                 booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
               }`}
             >
@@ -59,16 +59,16 @@ export default function Hero() {
 
             {/* supporting copy */}
             <p
-              className={`mx-auto mt-8 max-w-2xl text-lg leading-8 text-white/90 font-medium transition-all duration-1000 delay-300 drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)] ${
+              className={`mx-auto mt-4 max-w-2xl text-base leading-7 text-white/90 font-medium transition-all duration-1000 delay-300 drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)] ${
                 booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
               }`}
             >
-              Build, deploy, and direct sovereign AI systems from one expanding creative and operational ecosystem.
+              Run AI agents, organize your knowledge, and create voice and film projects from one platform—with human oversight.
             </p>
 
             {/* CTAs */}
             <div
-              className={`mt-11 flex flex-col items-center justify-center gap-3 sm:flex-row transition-all duration-1000 delay-500 ${
+              className={`mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row transition-all duration-1000 delay-500 ${
                 booted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
               }`}
             >
@@ -96,20 +96,20 @@ export default function Hero() {
 
             {/* status line */}
             <div
-              className={`mx-auto mt-14 flex max-w-md items-center justify-center gap-3 transition-all duration-1000 delay-700 ${
+              className={`mx-auto mt-6 flex max-w-md items-center justify-center gap-3 transition-all duration-1000 delay-700 ${
                 booted ? 'opacity-100' : 'opacity-0'
               }`}
             >
               <span className="h-px flex-1 bg-white/20"></span>
               <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-white/60">
-                Sovereign Signal // Link Established
+                Sovereign Signal // Under Your Command
               </span>
               <span className="h-px flex-1 bg-white/20"></span>
             </div>
 
             {/* scroll cue */}
             <div
-              className={`mt-12 flex flex-col items-center gap-2 transition-all duration-1000 delay-900 ${
+              className={`mt-6 flex flex-col items-center gap-2 transition-all duration-1000 delay-900 ${
                 booted ? 'opacity-100' : 'opacity-0'
               }`}
             >

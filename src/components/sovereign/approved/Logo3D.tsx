@@ -122,7 +122,7 @@ export default function Logo3D() {
       </div>
 
       {/* water puddle reflection — feathered so it melts into the field */}
-      <div className="relative mt-4 h-32 w-full md:h-40">
+      <div className="relative mt-2 h-12 w-full md:h-16">
         <div className="water-reflect absolute inset-x-0 top-0 mx-auto h-full w-[86%]">
           <img
             src={LOGO}
@@ -138,7 +138,7 @@ export default function Logo3D() {
             }}
           />
         </div>
-        <div className="water-puddle absolute bottom-0 left-1/2 h-24 w-[92%] -translate-x-1/2 md:h-32">
+        <div className="water-puddle absolute bottom-0 left-1/2 h-10 w-[92%] -translate-x-1/2 md:h-14">
           <span className="water-ripple"></span>
           <span className="water-ripple" style={{ animationDelay: '1.1s' }}></span>
           <span className="water-ripple" style={{ animationDelay: '2.2s' }}></span>

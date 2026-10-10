@@ -126,14 +126,15 @@ test.describe('D3VONN.IO production interaction audit', () => {
     const dialogVideo = sovereignSignalDialog.locator('video');
     await expect(dialogVideo).toHaveAttribute('src', '/films/sovereign-signal.mp4');
     await expect(dialogVideo).toHaveAttribute('poster', '/films/sovereign-signal-keyframe.webp');
-    await expect(sovereignSignalDialog.getByRole('button', { name: 'Track Preview Progress' })).toBeVisible();
+    await expect(sovereignSignalDialog.getByText(/Approx\. 4-second concept preview/)).toBeVisible();
+    await expect(dialogVideo).toHaveAttribute('controls', '');
     await expect(sovereignSignalDialog.getByRole('button', { name: 'My Library' })).toBeVisible();
     await sovereignSignalDialog.getByRole('button', { name: 'Close film details' }).click();
     await expect(sovereignSignalDialog).toHaveCount(0);
 
     const genesisCard = filmsSection.locator('article').filter({ hasText: 'Genesis Protocol' }).first();
     await expect(genesisCard).toBeVisible();
-    await expect(genesisCard.getByText('Coming Soon', { exact: true })).toBeVisible();
+    await expect(genesisCard.getByText('Approx. 4 sec preview', { exact: true })).toBeVisible();
     await expect(genesisCard.getByRole('button', { name: 'Watch Genesis Protocol preview' })).toBeVisible();
 
     const createFilm = filmsSection.getByRole('button', { name: 'Create a Film', exact: true }).first();
@@ -213,7 +214,10 @@ test.describe('D3VONN.IO production interaction audit', () => {
       expect(dimensions.heroWidth).toBe(dimensions.viewport);
       expect(dimensions.headerWidth).toBe(dimensions.viewport);
       expect(dimensions.scrollWidth).toBeLessThanOrEqual(width + 1);
-      expect(dimensions.artWidth).toBeGreaterThan(Math.min(width * 0.65, 700));
+      // The compact hero keeps the original artwork visible without pushing
+      // its purpose and primary actions below the first desktop viewport.
+      expect(dimensions.artWidth).toBeGreaterThan(Math.min(width * 0.65, 400));
+      expect(dimensions.artWidth).toBeLessThanOrEqual(600);
       await expect(page.locator('#top .water-puddle')).toBeVisible();
       const headerLinks = await page.locator('header a:visible').evaluateAll((links) => links.map((link) => link.getBoundingClientRect().right));
       for (const right of headerLinks) expect(right).toBeLessThanOrEqual(dimensions.viewport + 1);

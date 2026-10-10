@@ -25,6 +25,10 @@ const legal = [
 
 export default function Footer({ systemStatus }: { systemStatus: string }) {
   const navigate = useNavigate();
+  const status = systemStatus.trim();
+  const statusLabel = !status || /^(unknown|unavailable|not connected)$/i.test(status)
+    ? 'Status unavailable — view checks'
+    : `Reported status: ${status}`;
   const [email, setEmail] = useState('');
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -147,17 +151,14 @@ export default function Footer({ systemStatus }: { systemStatus: string }) {
             </ul>
 
             {/* system status */}
-            <div className="mt-8 rounded-md border border-foreground-200/10 bg-background-50 p-4">
+            <a href="/status" className="mt-8 block rounded-md border border-foreground-200/10 bg-background-50 p-4 focus-visible:outline focus-visible:outline-2">
               <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute h-2 w-2 animate-ping rounded-full bg-accent-500/60"></span>
-                  <span className="relative h-2 w-2 rounded-full bg-accent-500"></span>
-                </span>
+                <i className="ri-information-line" aria-hidden="true" />
                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-foreground-200">
-                  {systemStatus}
+                  {statusLabel}
                 </span>
               </div>
-            </div>
+            </a>
           </div>
         </div>
 

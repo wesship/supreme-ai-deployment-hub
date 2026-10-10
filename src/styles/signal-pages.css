@@ -1,0 +1,90 @@
+/* Shared atmosphere from the approved Sovereign Signal homepage. */
+.d3-signal-pages {
+  position: relative;
+  isolation: isolate;
+  background: #050607;
+  color: #f4f6f9;
+  --background: 210 17% 3%;
+  --foreground: 220 29% 97%;
+  --card: 210 18% 6%;
+  --card-foreground: 220 29% 97%;
+  --muted: 210 16% 11%;
+  --muted-foreground: 215 16% 70%;
+  --border: 215 18% 18%;
+}
+.d3-signal-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.d3-signal-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(59,155,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(59,155,255,.045) 1px,transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(#000,transparent 90%);
+}
+.d3-signal-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,rgba(5,6,7,.35),rgba(5,6,7,.72) 65%,rgba(5,6,7,.88));
+}
+.d3-signal-grain {
+  position: absolute;
+  inset: 0;
+  opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.d3-signal-content { position: relative; z-index: 1; }
+.d3-signal-network {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: .38;
+  filter: drop-shadow(0 0 7px rgba(111,240,255,.25));
+}
+.d3-signal-core { animation: d3-signal-pulse 5s ease-in-out infinite; }
+@keyframes d3-signal-pulse { 50% { opacity: .3; } }
+.d3-signal-content > :where(div,section),
+.d3-signal-pages .d3-public-page,
+.d3-signal-pages .d3-marketing-page,
+.d3-signal-pages .d3-homepage-world,
+.d3-signal-pages .d3-world,
+.d3-signal-pages .d3-os-shell { background: transparent; }
+.d3-signal-pages :where(h1,h2,h3,h4) {
+  font-family: 'Space Grotesk', Inter, system-ui, sans-serif;
+  letter-spacing: -.025em;
+}
+.d3-signal-pages :where(.d3-surface,.d3-chrome-panel,.bg-card) {
+  background: linear-gradient(160deg,rgba(59,155,255,.05),transparent 45%),rgba(9,11,13,.88);
+  border-color: rgba(111,240,255,.15);
+  backdrop-filter: blur(16px);
+}
+.d3-signal-pages :where(input,textarea,select) { color-scheme: dark; }
+.d3-signal-motion {
+  position: fixed;
+  right: 84px;
+  bottom: max(12px,env(safe-area-inset-bottom));
+  z-index: 35;
+  border: 1px solid rgba(111,240,255,.2);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #c9d8e4;
+  background: rgba(5,6,7,.9);
+  backdrop-filter: blur(12px);
+}
+.d3-signal-motion button { color: inherit; }
+.d3-signal-motion button:focus-visible { outline: 2px solid #6ff0ff; outline-offset: 3px; }
+@media (max-width: 767px) {
+  .d3-signal-shade { background: linear-gradient(rgba(5,6,7,.5),rgba(5,6,7,.88)); }
+  .d3-signal-motion { bottom: max(80px,calc(env(safe-area-inset-bottom) + 64px)); }
+  .d3-signal-motion { right: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .d3-signal-pages { scroll-behavior: auto; }
+  .d3-signal-core { animation: none; }
+}
+html.reduce-motion .d3-signal-core { animation: none; }

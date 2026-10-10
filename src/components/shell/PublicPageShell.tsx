@@ -15,8 +15,8 @@ const PublicPageShell = ({
   breadcrumbs,
   className,
 }: PublicPageShellProps) => (
-  <div className="min-h-screen bg-[#020714] text-white">
-    <div className="pt-16 lg:pt-[72px]">
+  <div className="d3-public-page min-h-screen text-white">
+    <div>
       {breadcrumbs !== false && (
         <div className="border-b border-white/[0.06] bg-black/10">
           <Breadcrumbs items={breadcrumbs || undefined} />
