@@ -9,6 +9,7 @@ import AuthenticatedRoute from "./components/auth/AuthenticatedRoute";
 import AdminRoute from "./components/auth/AdminRoute";
 import { ThemeProvider } from 'next-themes';
 import { startRumCollection } from './lib/assurance/rum';
+import { isLocalPreviewHost } from './lib/isLocalPreview';
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -306,10 +307,11 @@ function App() {
           </MainRegion>
           <Suspense fallback={null}><FloatingChatWidget /></Suspense>
         </DeferredProviders>
-        <Suspense fallback={null}><Toaster /><Analytics /></Suspense>
+        <Suspense fallback={null}><Toaster />{!isLocalPreviewHost() && <Analytics />}</Suspense>
       </Router>
     </ThemeProvider>
   );
 }
 
 export default App;
+
