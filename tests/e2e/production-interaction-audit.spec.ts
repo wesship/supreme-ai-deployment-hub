@@ -134,7 +134,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
 
     const genesisCard = filmsSection.locator('article').filter({ hasText: 'Genesis Protocol' }).first();
     await expect(genesisCard).toBeVisible();
-    await expect(genesisCard.getByText('Coming Soon', { exact: true })).toBeVisible();
+    await expect(genesisCard.getByText('Approx. 4 sec preview', { exact: true })).toBeVisible();
     await expect(genesisCard.getByRole('button', { name: 'Watch Genesis Protocol preview' })).toBeVisible();
 
     const createFilm = filmsSection.getByRole('button', { name: 'Create a Film', exact: true }).first();
