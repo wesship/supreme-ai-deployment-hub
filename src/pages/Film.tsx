@@ -154,11 +154,9 @@ const MovieCard = ({ movie, onPlay }: { movie: Movie; onPlay: (movie: Movie) => 
       <video
         src={movie.videoSrc}
         poster={movie.posterSrc}
-        autoPlay
         muted
-        loop
         playsInline
-        preload="metadata"
+        preload="none"
         aria-hidden="true"
         className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105 group-hover:opacity-100"
       />

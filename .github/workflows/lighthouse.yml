@@ -41,6 +41,7 @@ jobs:
       - name: Build production bundle
         run: npm run build
         env:
+          VITE_API_URL: https://api.d3vonn.io
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder_anon_key
 
@@ -59,6 +60,7 @@ jobs:
           configPath: ./lighthouse-config.json
           urls: |
             http://localhost:4173/
+            http://localhost:4173/film
           # Use the existing lighthouse-config.json but override startServerCommand
           # since we already started the server above
           runs: 3

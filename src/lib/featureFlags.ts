@@ -22,6 +22,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { env } from './env';
+import { isLocalPreviewHost } from './isLocalPreview';
 
 // ── Flag Definitions ──────────────────────────────────────────────────────────
 
@@ -74,6 +75,11 @@ export function clearLocalOverrides(): void {
 }
 
 async function fetchRemoteFlags(): Promise<Partial<FeatureFlags>> {
+  // CI's credential-free preview uses safe defaults. Do not issue requests
+  // to its deliberate placeholder host; real configured previews still fetch.
+  if (isLocalPreviewHost() && new URL(env.supabaseUrl).hostname === 'placeholder.supabase.co') {
+    return {};
+  }
   try {
     const { data, error } = await supabase
       .from('feature_flags')
