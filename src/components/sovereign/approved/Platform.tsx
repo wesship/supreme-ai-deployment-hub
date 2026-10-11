@@ -57,7 +57,7 @@ export default function Platform() {
             index="01"
             label="The Platform"
             title="One Signal. Multiple Systems."
-            copy="D3VONN.IO is a single operating environment connecting intelligent capabilities — not a set of separate companies. Each surface is an instrument panel embedded in the same command layer."
+            copy="D3VONN.IO connects intelligent capabilities in one governed operating environment. Its Quantum Intelligence Layer explores optimization alternatives using classical benchmarking and a local simulator; physical quantum computing is not a currently verified production capability."
           />
         </Reveal>
 
