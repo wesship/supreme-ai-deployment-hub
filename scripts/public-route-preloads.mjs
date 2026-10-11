@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { transformSync } from 'esbuild';
 
 // Walk only static imports. Lazy workspace, graph and studio modules stay lazy.
 export function collectPreloads(bundle, entry) {
@@ -59,13 +60,18 @@ export function publicRoutePreloads() {
         image: 'films/sovereign-signal-keyframe.webp',
       };
       const routes = {
-        '/': { ...homeAssets, image: 'approved-home/emblem.webp' },
+        // Homepage audits showed contention when warming the full App graph.
+        // Its heading keeps the normal guarded loading path; only warm its logo.
+        '/': { modules: [], styles: [], image: 'approved-home/emblem.webp' },
         '/film': filmRoute,
         '/ai-films': filmRoute,
       };
       // External script respects the production script-src 'self' policy. It
       // fetches modules without executing them; main.tsx retains its watchdog.
-      const source = `(${preloadPublicRoute.toString()})(${JSON.stringify(routes)},${JSON.stringify(base)});`;
+      const source = transformSync(
+        `(${preloadPublicRoute.toString()})(${JSON.stringify(routes)},${JSON.stringify(base)});`,
+        { minify: true, target: 'es2020' },
+      ).code;
       const hash = createHash('sha256').update(source).digest('hex').slice(0, 12);
       const fileName = `assets/public-route-preloads-${hash}.js`;
       this.emitFile({ type: 'asset', fileName, source });

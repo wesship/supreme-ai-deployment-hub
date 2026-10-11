@@ -17,6 +17,11 @@ test('build hook resolves merged chunks and emits an external content-hashed scr
   assert.match(emitted.fileName, /^assets\/public-route-preloads-[a-f0-9]{12}\.js$/);
   assert.match(bundle['index.html'].source, /<script async src="\/assets\/public-route-preloads-/);
   assert.match(emitted.source, /sovereign-signal-keyframe\.webp/);
+  const dom = new JSDOM('<head></head>', { url: 'https://example.com/', runScripts: 'outside-only' });
+  dom.window.eval(emitted.source);
+  assert.equal(dom.window.document.querySelectorAll('link').length, 1);
+  assert.equal(dom.window.document.querySelector('link').getAttribute('href'), '/approved-home/emblem.webp');
+  dom.window.close();
   delete bundle['Film.js'];
   assert.throws(() => plugin.generateBundle.handler.call(context, {}, bundle), /Film=false/);
 });
