@@ -107,7 +107,7 @@ export default defineConfig(({ mode }) => {
               return "vendor-query";
             }
             // Recharts + D3 — only used in dashboard pages
-            if (id.includes("recharts") || id.includes("d3-")) {
+            if (id.includes("node_modules/") && (id.includes("/recharts") || id.includes("/d3-"))) {
               return "vendor-charts";
             }
             // Lucide icons — tree-shakeable but still significant
