@@ -82,7 +82,7 @@ def authenticate_operator() -> None:
         f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
         method="POST",
         headers={"apikey": SERVICE_ROLE_KEY},
-        payload={"email": os.environ["E2E_TEST_EMAIL"], "password": os.environ["E2E_TEST_PASSWORD"]},
+        payload={"email": os.environ["HERMES_CERT_EMAIL"], "password": os.environ["HERMES_CERT_PASSWORD"]},
     )
     token = session.get("access_token") if isinstance(session, dict) else None
     if not isinstance(token, str) or not token:
