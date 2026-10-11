@@ -4,6 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
+import { publicRoutePreloads } from "./scripts/public-route-preloads.mjs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -24,6 +25,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      publicRoutePreloads(),
       mcpPlugin({ mcpEntry: "src/lib/mcp-server/index.ts" }),
       mode === "development" && componentTagger(),
       viteStaticCopy({
