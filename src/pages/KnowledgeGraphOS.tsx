@@ -37,6 +37,7 @@ import {
   type NexusTransitionPhase,
 } from '@/features/knowledge-graph/lib/transitionChoreography';
 import {
+  type LucideIcon,
   Hand,
   Activity,
   Bot,
@@ -469,7 +470,12 @@ const edgeTypes = { cinematic: CinematicEdge };
 const majorClusterNodeIds = new Set(['intent', 'agents', 'knowledge', 'models', 'tools', 'films', 'radio', 'workflow', 'infrastructure', 'security', 'analytics']);
 
 
-const nexusNavItems = [
+const nexusNavItems: ReadonlyArray<{
+  label: string;
+  route: string;
+  icon: LucideIcon;
+  active?: boolean;
+}> = [
   { label: 'Hand workspace', route: '/holo', icon: Hand },
   { label: 'Command Center', route: '/command-center', icon: Gauge },
   { label: 'Knowledge Graph', route: '/knowledge-graph', icon: Network, active: true },
@@ -1548,7 +1554,7 @@ const KnowledgeGraphOS: React.FC = () => {
               <h2 className="text-sm font-bold text-white">Recent activity</h2>
             </div>
             <div className="mt-3 space-y-2">
-              {(livePanels.latestActivity.length ? livePanels.latestActivity : activity.map((message, index) => ({
+              {(livePanels.latestActivity.length ? livePanels.latestActivity : activity.map<HermesStreamEvent>((message, index) => ({
                 id: `preview-${index}`,
                 type: 'preview',
                 message,
@@ -1557,7 +1563,7 @@ const KnowledgeGraphOS: React.FC = () => {
                 <div key={item.id} className="border border-[#25241f] bg-[#090907] px-3 py-2 text-[11px] leading-5 text-stone-400">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-semibold text-stone-300">{item.type}</span>
-                    {'timestamp' in item && item.timestamp ? (
+                    {item.timestamp ? (
                       <span className="text-[9px] text-stone-400">{new Date(item.timestamp).toLocaleTimeString()}</span>
                     ) : null}
                   </div>

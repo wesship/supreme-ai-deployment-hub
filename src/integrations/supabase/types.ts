@@ -960,6 +960,74 @@ export type Database = {
           },
         ]
       }
+      hermes_runs: {
+        Row: {
+          agent_name: string
+          cost_usd: number | null
+          created_at: string
+          duration_ms: number | null
+          ended_at: string | null
+          error_detail: string | null
+          exit_status: string | null
+          finished_at: string | null
+          id: string
+          input_snapshot: Json | null
+          output: Json | null
+          output_snapshot: Json | null
+          run_number: number
+          started_at: string
+          status: string
+          task_id: string
+          tokens_used: number | null
+        }
+        Insert: {
+          agent_name: string
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          error_detail?: string | null
+          exit_status?: string | null
+          finished_at?: string | null
+          id?: string
+          input_snapshot?: Json | null
+          output?: Json | null
+          output_snapshot?: Json | null
+          run_number?: number
+          started_at?: string
+          status?: string
+          task_id: string
+          tokens_used?: number | null
+        }
+        Update: {
+          agent_name?: string
+          cost_usd?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          ended_at?: string | null
+          error_detail?: string | null
+          exit_status?: string | null
+          finished_at?: string | null
+          id?: string
+          input_snapshot?: Json | null
+          output?: Json | null
+          output_snapshot?: Json | null
+          run_number?: number
+          started_at?: string
+          status?: string
+          task_id?: string
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hermes_runs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hermes_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hermes_tasks: {
         Row: {
           completed_at: string | null
