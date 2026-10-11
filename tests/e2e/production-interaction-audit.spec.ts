@@ -119,6 +119,10 @@ test.describe('D3VONN.IO production interaction audit', () => {
   });
 
   test('AI Films keeps the featured shell lightweight and loads OpenMontage on demand', async ({ page }) => {
+    const unrelatedShellRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/assets\/(?:App-|SignalGraphScene-)[^/]+\.js(?:\?|$)/.test(request.url())) unrelatedShellRequests.push(request.url());
+    });
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
 
@@ -135,6 +139,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(featuredPoster).toHaveAttribute('loading', 'eager');
     await expect(featuredPoster).toHaveAttribute('fetchpriority', 'high');
     await expect(featuredMedia.locator('video')).toHaveCount(0);
+    expect(unrelatedShellRequests).toEqual([]);
 
     // The expensive embedded studio must not be part of the initial render.
     await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toHaveCount(0);

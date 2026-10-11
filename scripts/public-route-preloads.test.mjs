@@ -7,7 +7,7 @@ test('build hook resolves merged chunks and emits an external content-hashed scr
   const plugin = publicRoutePreloads();
   plugin.configResolved({ base: '/' });
   const bundle = {
-    'App.js': { type: 'chunk', fileName: 'App.js', moduleIds: ['/repo/src/App.tsx'], imports: [] },
+    'PublicFilmApp.js': { type: 'chunk', fileName: 'PublicFilmApp.js', moduleIds: ['/repo/src/PublicFilmApp.tsx'], imports: [] },
     'Film.js': { type: 'chunk', fileName: 'Film.js', moduleIds: ['/repo/src/pages/AIFilms.tsx'], imports: [] },
     'index.html': { type: 'asset', source: '<html><head></head><body></body></html>' },
   };
@@ -22,6 +22,10 @@ test('build hook resolves merged chunks and emits an external content-hashed scr
   assert.equal(dom.window.document.querySelectorAll('link').length, 1);
   assert.equal(dom.window.document.querySelector('link').getAttribute('href'), '/approved-home/emblem.webp');
   dom.window.close();
+  const filmDom = new JSDOM('<head></head>', { url: 'https://example.com/film', runScripts: 'outside-only' });
+  filmDom.window.eval(emitted.source);
+  assert.deepEqual([...filmDom.window.document.querySelectorAll('link[rel="modulepreload"]')].map((link) => link.getAttribute('href')), ['/PublicFilmApp.js', '/Film.js']);
+  filmDom.window.close();
   delete bundle['Film.js'];
   assert.throws(() => plugin.generateBundle.handler.call(context, {}, bundle), /Film=false/);
 });

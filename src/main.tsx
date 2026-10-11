@@ -83,7 +83,9 @@ const appModulePromise = isClientAIWorkspacePath
     ? import('./pages/ClientAI.tsx')
     : pathname === '/'
       ? import('./PublicHomepageApp.tsx')
-      : import('./App.tsx');
+      : /^\/(?:film|ai-films)\/?$/.test(pathname)
+        ? import('./PublicFilmApp.tsx')
+        : import('./App.tsx');
 
 void appModulePromise
   .then(({ default: App }) => {

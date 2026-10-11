@@ -66,6 +66,10 @@ export default defineConfig(({ mode }) => {
             // Shared homepage presentation must never be placed in App's chunk
             // when telemetry is tree-shaken. Both entries import these modules.
             const modulePath = id.replaceAll('\\', '/');
+            if (['/src/pages/AIFilms.tsx', '/src/components/shell/SignalAtmosphere.tsx',
+              '/src/lib/mountPageVoiceReader.tsx'].some((path) => modulePath.endsWith(path))) {
+              return 'film-presentation';
+            }
             if (
               ['/src/pages/Index.tsx', '/src/components/ScrollToTop.tsx',
                 '/src/components/SkipToContent.tsx', '/src/lib/isLocalPreview.ts',

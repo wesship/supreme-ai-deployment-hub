@@ -46,11 +46,11 @@ export function publicRoutePreloads() {
       const chunks = Object.values(bundle).filter((entry) => entry.type === 'chunk');
       const find = (suffix) => chunks.find((chunk) =>
         [chunk.facadeModuleId, ...chunk.moduleIds].some((id) => id?.replaceAll('\\', '/').endsWith(suffix)));
-      const app = find('/src/App.tsx');
+      const app = find('/src/PublicFilmApp.tsx');
       const film = find('/src/pages/AIFilms.tsx');
       const html = bundle['index.html'];
       if (!app || !film || !html || html.type !== 'asset') {
-        this.error(`Public route preload entries are missing: App=${Boolean(app)}, Film=${Boolean(film)}, HTML=${Boolean(html)}.`);
+        this.error(`Public route preload entries are missing: PublicFilmApp=${Boolean(app)}, Film=${Boolean(film)}, HTML=${Boolean(html)}.`);
       }
       const homeAssets = collectPreloads(bundle, app.fileName);
       const filmAssets = collectPreloads(bundle, film.fileName);
