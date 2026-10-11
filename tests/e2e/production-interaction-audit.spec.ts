@@ -71,6 +71,36 @@ async function bridgeMarketplaceApiForLocalPreview(page: Page) {
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
+  test('homepage defers the general shell and hands newsletter navigation to canonical routes', async ({ page }) => {
+    const errors = await collectRuntimeErrors(page);
+    const requests: string[] = [];
+    page.on('request', (request) => requests.push(new URL(request.url()).pathname));
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForApplication(page);
+    await expect(page.locator('#top h1')).toBeVisible();
+    const generalShellAsset = /\/assets\/(?:App-|vendor-supabase-|vendor-ui-|vendor-motion-|PageVoiceReader-).*\.js$/;
+    expect(requests.filter((path) => generalShellAsset.test(path))).toEqual([]);
+    await expect(page.locator('#page-voice-reader-root')).toHaveCount(0);
+
+    // The newsletter uses React Router navigation, so this exercises the lazy
+    // shell handoff without a fresh document load or submitting an inquiry.
+    const documentRequests = requests.filter((path) => path === '/').length;
+    await page.locator('#newsletter-email').fill('browser-check@example.com');
+    await page.locator('#newsletter-form').getByRole('button', { name: 'Subscribe' }).click();
+    await expect(page).toHaveURL(/\/contact\?inquiry=newsletter$/);
+    await expect(page.locator('#email')).toHaveValue('browser-check@example.com');
+    await expect(page.locator('#page-voice-reader-root')).toHaveCount(1);
+    expect(requests.some((path) => /\/assets\/App-.*\.js$/.test(path))).toBe(true);
+    expect(requests.filter((path) => path === '/')).toHaveLength(documentRequests);
+
+    await page.goBack();
+    await expect(page.locator('#top h1')).toBeVisible();
+    await page.getByRole('link', { name: 'Admin OCC', exact: true }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.locator('#password')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test('the wearable display preview is CSP-safe and keyboard operable', async ({ page }) => {
     const runtimeErrors = await collectRuntimeErrors(page);
     const response = await page.goto('/glasses/', { waitUntil: 'domcontentloaded' });
@@ -88,7 +118,34 @@ test.describe('D3VONN.IO production interaction audit', () => {
     expect(runtimeErrors).toEqual([]);
   });
 
+  test('Film activates chat and voice only when the launcher is opened', async ({ page }) => {
+    const engineRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/assets\/(?:FloatingChatSession-|VoiceControls-|useDevonnChat-|toolRouter-)[^/]+\.js(?:\?|$)/.test(request.url())) engineRequests.push(request.url());
+    });
+    await page.goto('/film', { waitUntil: 'networkidle' });
+    await waitForApplication(page);
+    const launcher = page.getByRole('button', { name: 'Open Devonn AI Chat', exact: true });
+    await expect(launcher).toBeVisible();
+    expect(engineRequests).toEqual([]);
+    await launcher.click();
+    const input = page.getByPlaceholder('Ask Devonn...');
+    await expect(input).toBeVisible();
+    await expect(input).toBeFocused();
+    expect(engineRequests.some((url) => url.includes('/FloatingChatSession-'))).toBe(true);
+    await input.fill('Keep this draft');
+    await page.getByRole('button', { name: 'Close Devonn AI Chat', exact: true }).click();
+    await expect(input).toHaveCount(0);
+    await launcher.click();
+    await expect(input).toHaveValue('Keep this draft');
+    await expect(input).toBeFocused();
+  });
+
   test('AI Films keeps the featured shell lightweight and loads OpenMontage on demand', async ({ page }) => {
+    const unrelatedShellRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/assets\/(?:App-|SignalGraphScene-|vendor-charts-|homepage-presentation-)[^/]+\.js(?:\?|$)/.test(request.url())) unrelatedShellRequests.push(request.url());
+    });
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
 
@@ -105,6 +162,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
     await expect(featuredPoster).toHaveAttribute('loading', 'eager');
     await expect(featuredPoster).toHaveAttribute('fetchpriority', 'high');
     await expect(featuredMedia.locator('video')).toHaveCount(0);
+    expect(unrelatedShellRequests).toEqual([]);
 
     // The expensive embedded studio must not be part of the initial render.
     await expect(page.getByRole('heading', { name: 'AI Films', exact: true })).toHaveCount(0);

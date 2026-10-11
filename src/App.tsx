@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import "./App.css";
 import './styles/signal-pages.css';
@@ -11,6 +11,9 @@ import { ThemeProvider } from 'next-themes';
 import { startRumCollection } from './lib/assurance/rum';
 import { isLocalPreviewHost } from './lib/isLocalPreview';
 
+import DeferredProviders from './components/shell/DeferredProviders';
+import { mountPageVoiceReader } from './lib/mountPageVoiceReader';
+
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import OAuthConsent from "./pages/OAuthConsent";
@@ -20,10 +23,6 @@ const FloatingChatWidget = lazy(() =>
 );
 const HoloWorkspace = lazy(() => import('./pages/HoloWorkspace'));
 const Navbar = lazy(() => import("./components/Navbar"));
-const ChatProvider = lazy(() => import("./contexts/ChatContext").then(m => ({ default: m.ChatProvider })));
-const DeploymentProvider = lazy(() => import("./contexts/DeploymentContext").then(m => ({ default: m.DeploymentProvider })));
-const APIProvider = lazy(() => import("./contexts/APIContext").then(m => ({ default: m.APIProvider })));
-const AGUIProvider = lazy(() => import("./contexts/agui/AGUIContext").then(m => ({ default: m.AGUIProvider })));
 const Toaster = lazy(() => import("./components/ui/sonner").then(m => ({ default: m.Toaster })));
 const Analytics = lazy(() => import("@vercel/analytics/react").then(m => ({ default: m.Analytics })));
 
@@ -133,36 +132,6 @@ function LegacyFilmPathRepair() {
   return null;
 }
 
-function DeferredProviders({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const id = ('requestIdleCallback' in window)
-      ? (window as any).requestIdleCallback(() => setReady(true))
-      : setTimeout(() => setReady(true), 50);
-    return () => {
-      if ('cancelIdleCallback' in window) {
-        (window as any).cancelIdleCallback(id);
-      } else {
-        clearTimeout(id);
-      }
-    };
-  }, []);
-
-  if (!ready) return <>{children}</>;
-
-  return (
-    <Suspense fallback={<>{children}</>}>
-      <DeploymentProvider>
-        <APIProvider>
-          <ChatProvider>
-            <AGUIProvider>{children}</AGUIProvider>
-          </ChatProvider>
-        </APIProvider>
-      </DeploymentProvider>
-    </Suspense>
-  );
-}
 
 /**
  * The homepage ships its own full-width operating-system chrome (OsNav/OsFooter),
@@ -188,11 +157,10 @@ function MainRegion({ children }: { children: ReactNode }) {
   );
 }
 
-function App() {
-  useEffect(() => { startRumCollection(); }, []);
+export function CanonicalAppShell() {
+  useEffect(mountPageVoiceReader, []);
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <Router>
+    <>
         <ScrollToTop />
         <LegacyFilmPathRepair />
         <SkipToContent />
@@ -308,7 +276,15 @@ function App() {
           <Suspense fallback={null}><FloatingChatWidget /></Suspense>
         </DeferredProviders>
         <Suspense fallback={null}><Toaster />{!isLocalPreviewHost() && <Analytics />}</Suspense>
-      </Router>
+    </>
+  );
+}
+
+function App() {
+  useEffect(() => { startRumCollection(); }, []);
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <Router><CanonicalAppShell /></Router>
     </ThemeProvider>
   );
 }

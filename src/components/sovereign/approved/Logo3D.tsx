@@ -59,7 +59,7 @@ export default function Logo3D() {
                 src={LOGO}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-full object-cover object-center opacity-80"
+                className="absolute inset-0 hidden h-full w-full object-cover object-center opacity-80 md:block"
                 style={{
                   transform: `translateZ(${z}px)`,
                   filter: `brightness(${0.55 + Math.abs(z) / 80})`,

@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react';
 import type { HomepageTelemetry } from '@/lib/homepageTelemetry';
 import Navbar from './approved/Navbar';
 import Hero from './approved/Hero';
@@ -14,14 +13,14 @@ import Footer from './approved/Footer';
 import '@/styles/approved-home.css';
 import '@/styles/approved-icons.css';
 
-const ThreeBackground = lazy(() => import('./approved/ThreeBackground'));
+import DecorativeGraph from './approved/DecorativeGraph';
 
 export default function SovereignSignalHomepage({ telemetry }: { telemetry: HomepageTelemetry }) {
   return (
     <div className="approved-home min-h-screen bg-background-50 text-foreground-900">
       <a className="approved-skip-link" href="#approved-main">Skip to main content</a>
       <div className="film-grain" aria-hidden="true" />
-      <Suspense fallback={null}><ThreeBackground /></Suspense>
+      <DecorativeGraph />
       <div className="relative z-10">
         <Navbar />
         <div id="approved-main" tabIndex={-1}>

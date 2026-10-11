@@ -1,8 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useLocation } from 'react-router-dom';
 import ReduceMotionToggle from '@/components/sovereign/approved/ReduceMotionToggle';
 
-const ThreeBackground = lazy(() => import('@/components/sovereign/approved/ThreeBackground'));
+const SignalGraphScene = lazy(() => import('./SignalGraphScene'));
 const nodes = [[120,160],[280,100],[460,180],[650,80],[850,170],
   [100,380],[300,310],[480,420],[690,300],[910,390],
   [150,600],[340,540],[520,660],[720,540],[880,620]] as const;
@@ -12,6 +12,8 @@ const links = [[0,1],[1,2],[2,3],[3,4],[0,5],[1,6],[2,6],[2,8],[3,8],[4,9],
 
 /** Reuse the approved homepage graph without duplicating its WebGL scene. */
 export default function SignalAtmosphere() {
+  const { pathname } = useLocation();
+  const isFilm = /^\/(?:film|ai-films)\/?$/.test(pathname);
   return (
     <>
       <div className="d3-signal-atmosphere" aria-hidden="true">
@@ -28,9 +30,7 @@ export default function SignalAtmosphere() {
             <circle className="d3-signal-core" cx="500" cy="380" r="8" />
           </g>
         </svg>
-        <ErrorBoundary fallback={<span />}>
-          <Suspense fallback={null}><ThreeBackground compact /></Suspense>
-        </ErrorBoundary>
+        {!isFilm && <Suspense fallback={null}><SignalGraphScene /></Suspense>}
         <div className="d3-signal-shade" />
         <div className="d3-signal-grain" />
       </div>

@@ -7,6 +7,19 @@ import './index.css';
 import './styles/d3vonn-new-ui.css';
 import './styles/d3vonn-design-system.css';
 
+/**
+ * Google Fonts CSS is fetched with media=print to avoid blocking the first paint.
+ * Promote it once fetched; CSS font-display=swap keeps text visible in fallback.
+ * Register before the app's dynamic imports so the load event cannot be missed.
+ */
+const nonblockingFonts = document.getElementById('d3vonn-google-fonts') as HTMLLinkElement | null;
+if (nonblockingFonts) {
+  const activateFonts = () => { nonblockingFonts.media = 'all'; };
+  nonblockingFonts.addEventListener('load', activateFonts, { once: true });
+  if (nonblockingFonts.sheet) activateFonts();
+}
+
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -81,7 +94,11 @@ const appModulePromise = isClientAIWorkspacePath
   ? import('./pages/ClientAIWorkspace.tsx')
   : isClientAIPath
     ? import('./pages/ClientAI.tsx')
-    : import('./App.tsx');
+    : pathname === '/'
+      ? import('./PublicHomepageApp.tsx')
+      : /^\/(?:film|ai-films)\/?$/.test(pathname)
+        ? import('./PublicFilmApp.tsx')
+        : import('./App.tsx');
 
 void appModulePromise
   .then(({ default: App }) => {
@@ -96,15 +113,6 @@ void appModulePromise
       </StrictMode>,
     );
 
-    if (!isClientAIPath) {
-      const voiceRootElement = document.createElement('div');
-      voiceRootElement.id = 'page-voice-reader-root';
-      voiceRootElement.setAttribute('data-voice-skip', 'true');
-      document.body.appendChild(voiceRootElement);
-      void import('./components/accessibility/PageVoiceReader')
-        .then(({ default: PageVoiceReader }) => { createRoot(voiceRootElement).render(<StrictMode><PageVoiceReader /></StrictMode>); })
-        .catch((error) => console.error('[D3VONN] Page voice reader failed to load:', error));
-    }
   })
   .catch((error: unknown) => {
     if (!startupWatchdog.settle()) return;
@@ -118,8 +126,10 @@ const initializeSentry = () => {
     .catch((error) => console.error('Sentry module load failed:', error));
 };
 
-if ('requestIdleCallback' in window) {
-  (window as Window & { requestIdleCallback: (callback: () => void) => number }).requestIdleCallback(initializeSentry);
-} else {
-  setTimeout(initializeSentry, 2000);
+if (import.meta.env.VITE_SENTRY_DSN && import.meta.env.PROD) {
+  if ('requestIdleCallback' in window) {
+    (window as Window & { requestIdleCallback: (callback: () => void) => number }).requestIdleCallback(initializeSentry);
+  } else {
+    setTimeout(initializeSentry, 2000);
+  }
 }

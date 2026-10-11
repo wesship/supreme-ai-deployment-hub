@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck, SlidersHorizontal, Zap } from 'lucide-react';
 import { API_BASE_URL } from '@/api/config';
 import { supabase } from '@/integrations/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { HermesRuntimeDatabase } from '../lib/hermesRuntimeTypes';
+
+const telemetryClient = supabase as SupabaseClient<HermesRuntimeDatabase>;
 
 type TaskRow = {
   id: string;
@@ -142,7 +146,7 @@ const HermesGovernancePanel: React.FC = () => {
         .select('id,title,kind,task_type,status,agent_name,retry_count,created_at')
         .order('created_at', { ascending: false })
         .limit(150),
-      supabase
+      telemetryClient
         .from('hermes_runs')
         .select('id,task_id,agent_name,status,duration_ms,cost_usd')
         .order('created_at', { ascending: false })
@@ -151,7 +155,7 @@ const HermesGovernancePanel: React.FC = () => {
     if (taskResult.error) throw taskResult.error;
     if (runResult.error) throw runResult.error;
     setTasks((taskResult.data ?? []) as unknown as TaskRow[]);
-    setRuns((runResult.data ?? []) as unknown as RunRow[]);
+    setRuns(runResult.data ?? []);
   }, [accessToken]);
 
   const refreshGovernance = useCallback(async () => {

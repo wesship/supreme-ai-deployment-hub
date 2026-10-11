@@ -4,6 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
+import { publicRoutePreloads } from "./scripts/public-route-preloads.mjs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -24,6 +25,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      publicRoutePreloads(),
       mcpPlugin({ mcpEntry: "src/lib/mcp-server/index.ts" }),
       mode === "development" && componentTagger(),
       viteStaticCopy({
@@ -61,6 +63,27 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
+            // Shared homepage presentation must never be placed in App's chunk
+            // when telemetry is tree-shaken. Both entries import these modules.
+            const modulePath = id.replaceAll('\\', '/');
+            if (['/src/pages/AIFilms.tsx', '/src/components/shell/SignalAtmosphere.tsx',
+              '/src/lib/mountPageVoiceReader.tsx'].some((path) => modulePath.endsWith(path))) {
+              return 'film-presentation';
+            }
+            if (modulePath.endsWith('/src/pages/Index.tsx')) {
+              return 'homepage-presentation';
+            }
+            if (
+              ['/src/components/ScrollToTop.tsx',
+                '/src/components/SkipToContent.tsx', '/src/lib/isLocalPreview.ts',
+                '/src/lib/assurance/rum.ts',
+                '/src/components/sovereign/approved/ReduceMotionToggle.tsx'].some((path) => modulePath.endsWith(path))
+              || modulePath.includes('/node_modules/next-themes/')
+              || modulePath.includes('/node_modules/react-helmet-async/')
+              || modulePath === '\0vite/preload-helper.js'
+            ) {
+              return 'public-shell';
+            }
             // Core React runtime — always needed on first paint
             if (
               id.includes("node_modules/react/") ||
@@ -73,10 +96,8 @@ export default defineConfig(({ mode }) => {
             if (id.includes("framer-motion")) {
               return "vendor-motion";
             }
-            // Radix UI components
-            if (id.includes("@radix-ui")) {
-              return "vendor-ui";
-            }
+            // Let Rollup split Radix by actual route usage. A single vendor-ui
+            // chunk makes a public button download every private UI primitive.
             // Supabase — only needed for auth/data operations
             if (id.includes("@supabase")) {
               return "vendor-supabase";
@@ -90,7 +111,7 @@ export default defineConfig(({ mode }) => {
               return "vendor-query";
             }
             // Recharts + D3 — only used in dashboard pages
-            if (id.includes("recharts") || id.includes("d3-")) {
+            if (id.includes("node_modules/") && (id.includes("/recharts") || id.includes("/d3-"))) {
               return "vendor-charts";
             }
             // Lucide icons — tree-shakeable but still significant
