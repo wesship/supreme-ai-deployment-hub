@@ -11,8 +11,8 @@ def canary(monkeypatch):
     for name, value in {"SUPABASE_URL": "https://storage.invalid",
                         "SUPABASE_SERVICE_ROLE_KEY": "test-storage-only",
                         "CERTIFIED_SHA": "a" * 40,
-                        "E2E_TEST_EMAIL": "operator@example.invalid",
-                        "E2E_TEST_PASSWORD": "test-password"}.items():
+                        "HERMES_CERT_EMAIL": "operator@example.invalid",
+                        "HERMES_CERT_PASSWORD": "test-password"}.items():
         monkeypatch.setenv(name, value)
     path = Path(__file__).parents[2] / "scripts/hermes/production_lifecycle_canary.py"
     spec = importlib.util.spec_from_file_location("production_canary", path)
