@@ -1,4 +1,4 @@
-@font-face{font-family:remixicon;src:url('/approved-home/remixicon.woff2') format('woff2');font-display:swap}
+@font-face{font-family:remixicon;src:url('/approved-home/remixicon-approved.woff2') format('woff2');font-display:swap}
 .approved-home [class*=" ri-"],.approved-home [class^=ri-]{font-family:remixicon!important;font-style:normal;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .approved-home .ri-arrow-right-line:before{content:"\ea6c"}
 .approved-home .ri-arrow-up-line:before{content:"\ea76"}
@@ -12,6 +12,7 @@
 .approved-home .ri-double-quotes-l:before{content:"\ec51"}
 .approved-home .ri-film-line:before{content:"\ed21"}
 .approved-home .ri-flow-chart:before{content:"\ed46"}
+.approved-home .ri-information-line:before{content:"\ee59"}
 .approved-home .ri-keyboard-line:before{content:"\ee75"}
 .approved-home .ri-landscape-line:before{content:"\ee7d"}
 .approved-home .ri-loader-4-line:before{content:"\eec6"}

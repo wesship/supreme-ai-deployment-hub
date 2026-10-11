@@ -2,6 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import postcss from 'postcss';
 import tailwindcss from 'tailwindcss';
 import config from '../config/approved-home-tailwind.mjs';
+import { verifyApprovedIcons } from './verify-approved-icons.mjs';
+
+verifyApprovedIcons();
 
 // Compile the approved design against its own palette, then scope every rule.
 // Protected application surfaces retain their existing Tailwind theme/reset.
