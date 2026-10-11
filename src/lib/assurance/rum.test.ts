@@ -18,6 +18,20 @@ describe('RUM environment boundary', () => {
     expect(beacon).not.toHaveBeenCalled();
   });
 
+  it.each(['/login', '/voice-studio', '/app', '/artist/private-slug', '/pricing/private'])('does not send unregistered or sensitive route %s', (pathname) => {
+    const beacon = setHost('www.d3vonn.io');
+    vi.stubGlobal('window', { location: { hostname: 'www.d3vonn.io', pathname } });
+    recordVital('LCP', 1200);
+    expect(beacon).not.toHaveBeenCalled();
+  });
+
+  it.each(['/pricing', '/security/disclosure', '/marketplace'])('sends approved public route %s', (pathname) => {
+    const beacon = setHost('www.d3vonn.io');
+    vi.stubGlobal('window', { location: { hostname: 'www.d3vonn.io', pathname } });
+    recordVital('LCP', 1200);
+    expect(beacon).toHaveBeenCalledTimes(1);
+  });
+
   it.each(['www.d3vonn.io', 'd3vonn.io', 'preview.vercel.app'])('retains hosted telemetry collection for %s', (host) => {
     const beacon = setHost(host);
     recordVital('LCP', 1200);
