@@ -5,9 +5,19 @@ type VitalName = 'LCP' | 'INP' | 'CLS';
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.d3vonn.io';
 const RUM_ENABLED = import.meta.env.VITE_RUM_ENABLED !== 'false';
 
+// Keep this list aligned with backend/app/assurance/router.py PUBLIC_ROUTE_PATHS.
+// Never transmit signed-in, dynamic, or user-specific paths to public assurance.
+const PUBLIC_RUM_ROUTES = new Set([
+  '/', '/solutions', '/pricing', '/security', '/security/disclosure',
+  '/resources', '/ai-agents', '/business-automation', '/marketplace',
+  '/mcp', '/film', '/mile-high-golden-elevation', '/documentation',
+  '/about', '/contact', '/enterprise-readiness', '/terms', '/privacy',
+]);
+
 export function recordVital(name: VitalName, value: number): void {
   if (!RUM_ENABLED || isLocalPreviewHost()) return;
   const route = window.location.pathname || '/';
+  if (!PUBLIC_RUM_ROUTES.has(route)) return;
   const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
   const body = JSON.stringify({
     name,
