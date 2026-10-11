@@ -118,6 +118,29 @@ test.describe('D3VONN.IO production interaction audit', () => {
     expect(runtimeErrors).toEqual([]);
   });
 
+  test('Film activates chat and voice only when the launcher is opened', async ({ page }) => {
+    const engineRequests: string[] = [];
+    page.on('request', (request) => {
+      if (/\/assets\/(?:FloatingChatSession-|VoiceControls-|useDevonnChat-|toolRouter-)[^/]+\.js(?:\?|$)/.test(request.url())) engineRequests.push(request.url());
+    });
+    await page.goto('/film', { waitUntil: 'networkidle' });
+    await waitForApplication(page);
+    const launcher = page.getByRole('button', { name: 'Open Devonn AI Chat', exact: true });
+    await expect(launcher).toBeVisible();
+    expect(engineRequests).toEqual([]);
+    await launcher.click();
+    const input = page.getByPlaceholder('Ask Devonn...');
+    await expect(input).toBeVisible();
+    await expect(input).toBeFocused();
+    expect(engineRequests.some((url) => url.includes('/FloatingChatSession-'))).toBe(true);
+    await input.fill('Keep this draft');
+    await page.getByRole('button', { name: 'Close Devonn AI Chat', exact: true }).click();
+    await expect(input).toHaveCount(0);
+    await launcher.click();
+    await expect(input).toHaveValue('Keep this draft');
+    await expect(input).toBeFocused();
+  });
+
   test('AI Films keeps the featured shell lightweight and loads OpenMontage on demand', async ({ page }) => {
     const unrelatedShellRequests: string[] = [];
     page.on('request', (request) => {
