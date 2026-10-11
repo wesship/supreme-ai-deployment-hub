@@ -1,3 +1,4 @@
+import AvatarStudioLink from '@/features/avatar-studio/AvatarStudioLink';
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -70,6 +71,7 @@ const WorkflowManagement: React.FC = () => {
                   Trigger → Decide → Execute → Verify → Remember
                 </span>
               </div>
+              <AvatarStudioLink />
               <WorkflowManager />
             </D3Surface>
           </motion.div>

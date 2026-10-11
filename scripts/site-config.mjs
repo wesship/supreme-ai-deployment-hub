@@ -10,6 +10,7 @@ export const PUBLIC_ROUTES = [
   ['/ai-agents', 'AI Agents | D3VONN.IO', 'Build, deploy, and coordinate specialized AI agents with D3VONN.IO.', 'SoftwareApplication', 'weekly', '0.95'],
   ['/business-automation', 'Business Automation | D3VONN.IO', 'Automate business workflows and coordinate intelligent operations with D3VONN.IO.', 'Service', 'weekly', '0.95'],
   ['/marketplace', 'AI Agent Marketplace | D3VONN.IO', 'Discover and deploy AI agents from the D3VONN.IO marketplace.', 'CollectionPage', 'weekly', '0.9'],
+  ['/avatar-studio', 'Avatar Studio Workflows | D3VONN.IO', 'Prepare reviewed avatar workflows for podcasts, interviews, presentations, films and HNF Academy teaching.', 'WebApplication', 'weekly', '0.8'],
   ['/film', 'OpenMontage AI Film Studio | D3VONN.IO', 'Create a governed AI screenplay and film through the D3VONN.IO OpenMontage production workflow.', 'WebApplication', 'weekly', '0.8'],
   ['/documentation', 'Documentation | D3VONN.IO', 'Read D3VONN.IO documentation for platform setup, AI agents, workflows, APIs, and deployment.', 'TechArticle', 'weekly', '0.8'],
   ['/about', 'About D3VONN.IO', 'Learn about D3VONN.IO and its mission to power autonomous AI-driven businesses.', 'AboutPage', 'monthly', '0.6'],

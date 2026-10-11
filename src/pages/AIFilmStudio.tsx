@@ -1,3 +1,4 @@
+import AvatarStudioLink from '@/features/avatar-studio/AvatarStudioLink';
 import { useEffect, useMemo, useState } from 'react';
 import { Archive, CheckCircle2, Database, Film, FolderKanban, Import, Search, ShieldCheck } from 'lucide-react';
 import PublicPageShell from '@/components/shell/PublicPageShell';
@@ -126,6 +127,7 @@ const AIFilmStudio = () => {
 
           <Card className="border-primary/20 p-4 text-sm text-muted-foreground" role="status" aria-live="polite">{message}</Card>
 
+          <AvatarStudioLink />
           <DrivePickerWorkspace />
           <CanonSceneWorkspace project={project} assets={assets} />
           <StoryboardWorkspace project={project} />
