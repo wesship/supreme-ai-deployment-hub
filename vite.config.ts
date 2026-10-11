@@ -70,13 +70,19 @@ export default defineConfig(({ mode }) => {
               '/src/lib/mountPageVoiceReader.tsx'].some((path) => modulePath.endsWith(path))) {
               return 'film-presentation';
             }
-            if (
-              ['/src/pages/Index.tsx', '/src/components/ScrollToTop.tsx',
-                '/src/components/SkipToContent.tsx', '/src/lib/isLocalPreview.ts',
-                '/src/lib/assurance/rum.ts'].some((path) => modulePath.endsWith(path))
-              || modulePath.includes('/node_modules/next-themes/')
-            ) {
+            if (modulePath.endsWith('/src/pages/Index.tsx')) {
               return 'homepage-presentation';
+            }
+            if (
+              ['/src/components/ScrollToTop.tsx',
+                '/src/components/SkipToContent.tsx', '/src/lib/isLocalPreview.ts',
+                '/src/lib/assurance/rum.ts',
+                '/src/components/sovereign/approved/ReduceMotionToggle.tsx'].some((path) => modulePath.endsWith(path))
+              || modulePath.includes('/node_modules/next-themes/')
+              || modulePath.includes('/node_modules/react-helmet-async/')
+              || modulePath === '\0vite/preload-helper.js'
+            ) {
+              return 'public-shell';
             }
             // Core React runtime — always needed on first paint
             if (
@@ -90,10 +96,8 @@ export default defineConfig(({ mode }) => {
             if (id.includes("framer-motion")) {
               return "vendor-motion";
             }
-            // Radix UI components
-            if (id.includes("@radix-ui")) {
-              return "vendor-ui";
-            }
+            // Let Rollup split Radix by actual route usage. A single vendor-ui
+            // chunk makes a public button download every private UI primitive.
             // Supabase — only needed for auth/data operations
             if (id.includes("@supabase")) {
               return "vendor-supabase";

@@ -121,7 +121,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
   test('AI Films keeps the featured shell lightweight and loads OpenMontage on demand', async ({ page }) => {
     const unrelatedShellRequests: string[] = [];
     page.on('request', (request) => {
-      if (/\/assets\/(?:App-|SignalGraphScene-|vendor-charts-)[^/]+\.js(?:\?|$)/.test(request.url())) unrelatedShellRequests.push(request.url());
+      if (/\/assets\/(?:App-|SignalGraphScene-|vendor-charts-|homepage-presentation-)[^/]+\.js(?:\?|$)/.test(request.url())) unrelatedShellRequests.push(request.url());
     });
     await page.goto('/film', { waitUntil: 'domcontentloaded' });
     await waitForApplication(page);
