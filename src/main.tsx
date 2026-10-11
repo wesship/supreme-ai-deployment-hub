@@ -7,6 +7,19 @@ import './index.css';
 import './styles/d3vonn-new-ui.css';
 import './styles/d3vonn-design-system.css';
 
+/**
+ * Google Fonts CSS is fetched with media=print to avoid blocking the first paint.
+ * Promote it once fetched; CSS font-display=swap keeps text visible in fallback.
+ * Register before the app's dynamic imports so the load event cannot be missed.
+ */
+const nonblockingFonts = document.getElementById('d3vonn-google-fonts') as HTMLLinkElement | null;
+if (nonblockingFonts) {
+  const activateFonts = () => { nonblockingFonts.media = 'all'; };
+  nonblockingFonts.addEventListener('load', activateFonts, { once: true });
+  if (nonblockingFonts.sheet) activateFonts();
+}
+
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
