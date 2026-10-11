@@ -200,7 +200,8 @@ const FilmPage = () => {
 
   useEffect(() => {
     const alreadySeen = window.localStorage.getItem(INTRO_STORAGE_KEY) === 'true';
-    if (!alreadySeen && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) setShowIntro(true);
+    const introRequested = new URLSearchParams(window.location.search).get('intro') === '1';
+    if (introRequested && !alreadySeen && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) setShowIntro(true);
   }, []);
 
   useEffect(() => {
