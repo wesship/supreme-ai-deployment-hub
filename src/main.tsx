@@ -81,7 +81,9 @@ const appModulePromise = isClientAIWorkspacePath
   ? import('./pages/ClientAIWorkspace.tsx')
   : isClientAIPath
     ? import('./pages/ClientAI.tsx')
-    : import('./App.tsx');
+    : pathname === '/'
+      ? import('./PublicHomepageApp.tsx')
+      : import('./App.tsx');
 
 void appModulePromise
   .then(({ default: App }) => {
@@ -96,15 +98,6 @@ void appModulePromise
       </StrictMode>,
     );
 
-    if (!isClientAIPath) {
-      const voiceRootElement = document.createElement('div');
-      voiceRootElement.id = 'page-voice-reader-root';
-      voiceRootElement.setAttribute('data-voice-skip', 'true');
-      document.body.appendChild(voiceRootElement);
-      void import('./components/accessibility/PageVoiceReader')
-        .then(({ default: PageVoiceReader }) => { createRoot(voiceRootElement).render(<StrictMode><PageVoiceReader /></StrictMode>); })
-        .catch((error) => console.error('[D3VONN] Page voice reader failed to load:', error));
-    }
   })
   .catch((error: unknown) => {
     if (!startupWatchdog.settle()) return;

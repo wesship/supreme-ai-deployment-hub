@@ -71,6 +71,36 @@ async function bridgeMarketplaceApiForLocalPreview(page: Page) {
 }
 
 test.describe('D3VONN.IO production interaction audit', () => {
+  test('homepage defers the general shell and hands newsletter navigation to canonical routes', async ({ page }) => {
+    const errors = await collectRuntimeErrors(page);
+    const requests: string[] = [];
+    page.on('request', (request) => requests.push(new URL(request.url()).pathname));
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForApplication(page);
+    await expect(page.locator('#top h1')).toBeVisible();
+    const generalShellAsset = /\/assets\/(?:App-|vendor-supabase-|vendor-ui-|vendor-motion-|PageVoiceReader-).*\.js$/;
+    expect(requests.filter((path) => generalShellAsset.test(path))).toEqual([]);
+    await expect(page.locator('#page-voice-reader-root')).toHaveCount(0);
+
+    // The newsletter uses React Router navigation, so this exercises the lazy
+    // shell handoff without a fresh document load or submitting an inquiry.
+    const documentRequests = requests.filter((path) => path === '/').length;
+    await page.locator('#newsletter-email').fill('browser-check@example.com');
+    await page.locator('#newsletter-form').getByRole('button', { name: 'Subscribe' }).click();
+    await expect(page).toHaveURL(/\/contact\?inquiry=newsletter$/);
+    await expect(page.locator('#email')).toHaveValue('browser-check@example.com');
+    await expect(page.locator('#page-voice-reader-root')).toHaveCount(1);
+    expect(requests.some((path) => /\/assets\/App-.*\.js$/.test(path))).toBe(true);
+    expect(requests.filter((path) => path === '/')).toHaveLength(documentRequests);
+
+    await page.goBack();
+    await expect(page.locator('#top h1')).toBeVisible();
+    await page.getByRole('link', { name: 'Admin OCC', exact: true }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.locator('#password')).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test('the wearable display preview is CSP-safe and keyboard operable', async ({ page }) => {
     const runtimeErrors = await collectRuntimeErrors(page);
     const response = await page.goto('/glasses/', { waitUntil: 'domcontentloaded' });

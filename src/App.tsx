@@ -12,6 +12,7 @@ import { startRumCollection } from './lib/assurance/rum';
 import { isLocalPreviewHost } from './lib/isLocalPreview';
 
 import DeferredProviders from './components/shell/DeferredProviders';
+import { mountPageVoiceReader } from './lib/mountPageVoiceReader';
 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -156,11 +157,10 @@ function MainRegion({ children }: { children: ReactNode }) {
   );
 }
 
-function App() {
-  useEffect(() => { startRumCollection(); }, []);
+export function CanonicalAppShell() {
+  useEffect(mountPageVoiceReader, []);
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <Router>
+    <>
         <ScrollToTop />
         <LegacyFilmPathRepair />
         <SkipToContent />
@@ -276,7 +276,15 @@ function App() {
           <Suspense fallback={null}><FloatingChatWidget /></Suspense>
         </DeferredProviders>
         <Suspense fallback={null}><Toaster />{!isLocalPreviewHost() && <Analytics />}</Suspense>
-      </Router>
+    </>
+  );
+}
+
+function App() {
+  useEffect(() => { startRumCollection(); }, []);
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <Router><CanonicalAppShell /></Router>
     </ThemeProvider>
   );
 }
