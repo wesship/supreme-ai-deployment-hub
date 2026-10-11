@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGraphFrameScheduler } from './useGraphFrameScheduler';
+import { GRAPH_CONTEXT_ATTRIBUTES, supportsGraphWebGL } from './graphWebGL';
 
 const BLUE = '#4da8ff';
 const CYAN = '#6ff0ff';
@@ -344,16 +345,7 @@ export default function ThreeBackground({ compact = false }: { compact?: boolean
   );
 
   useEffect(() => {
-    let ok = true;
-    try {
-      const c = document.createElement('canvas');
-      const gl = c.getContext('webgl2') || c.getContext('webgl');
-      if (!gl) ok = false;
-      gl?.getExtension('WEBGL_lose_context')?.loseContext();
-    } catch {
-      ok = false;
-    }
-    setSupported(ok);
+    setSupported(supportsGraphWebGL());
   }, []);
 
   useEffect(() => {
@@ -382,7 +374,7 @@ export default function ThreeBackground({ compact = false }: { compact?: boolean
         frameloop="demand"
         dpr={[1, 1.5]}
         camera={{ position: [0, 0, 12], fov: 60, near: 0.1, far: 120 }}
-        gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
+        gl={GRAPH_CONTEXT_ATTRIBUTES}
       >
         <FrameScheduler paused={reduceMotion} />
         <Rig />
