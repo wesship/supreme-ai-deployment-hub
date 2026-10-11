@@ -151,13 +151,11 @@ const MovieCard = ({ movie, onPlay }: { movie: Movie; onPlay: (movie: Movie) => 
     aria-label={`Open ${movie.title}`}
   >
     <div className={`relative aspect-video bg-gradient-to-br ${movie.accent}`}>
-      <video
-        src={movie.videoSrc}
-        poster={movie.posterSrc}
-        muted
-        playsInline
-        preload="none"
-        aria-hidden="true"
+      <img
+        src={movie.posterSrc}
+        alt=""
+        loading="lazy"
+        decoding="async"
         className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105 group-hover:opacity-100"
       />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(2,5,10,0.05),rgba(2,5,10,0.5)),radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.16),transparent_30%),linear-gradient(120deg,transparent,rgba(34,211,238,0.1),transparent)]" />
