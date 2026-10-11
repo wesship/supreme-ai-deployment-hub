@@ -366,7 +366,11 @@ export default function ThreeBackground({ compact = false }: { compact?: boolean
     };
   }, []);
 
-  if (!supported) return null;
+  // Film has its own opaque cinematic backdrop. Keep the global WebGL scene
+  // unmounted there instead of spending main-thread/GPU time rendering behind it.
+  // On the homepage and other routes, preserve the original graph experience.
+  const isFilmPage = typeof window !== 'undefined' && /^\/film\/?$/.test(window.location.pathname);
+  if (!supported || isFilmPage) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
