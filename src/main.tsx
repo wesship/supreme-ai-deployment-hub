@@ -118,8 +118,10 @@ const initializeSentry = () => {
     .catch((error) => console.error('Sentry module load failed:', error));
 };
 
-if ('requestIdleCallback' in window) {
-  (window as Window & { requestIdleCallback: (callback: () => void) => number }).requestIdleCallback(initializeSentry);
-} else {
-  setTimeout(initializeSentry, 2000);
+if (import.meta.env.VITE_SENTRY_DSN && import.meta.env.PROD) {
+  if ('requestIdleCallback' in window) {
+    (window as Window & { requestIdleCallback: (callback: () => void) => number }).requestIdleCallback(initializeSentry);
+  } else {
+    setTimeout(initializeSentry, 2000);
+  }
 }

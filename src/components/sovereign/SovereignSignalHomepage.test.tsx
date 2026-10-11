@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { defaultHomepageTelemetry } from '@/lib/homepageTelemetry';
 import SovereignSignalHomepage from './SovereignSignalHomepage';
 
-vi.mock('./approved/ThreeBackground', () => ({ default: () => null }));
+vi.mock('./approved/DecorativeGraph', () => ({ default: () => null }));
 vi.mock('./approved/Reveal', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 afterEach(cleanup);
 

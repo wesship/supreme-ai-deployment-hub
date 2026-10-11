@@ -1,8 +1,7 @@
-import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import ReduceMotionToggle from '@/components/sovereign/approved/ReduceMotionToggle';
 
-const ThreeBackground = lazy(() => import('@/components/sovereign/approved/ThreeBackground'));
+import DecorativeGraph from '@/components/sovereign/approved/DecorativeGraph';
 const nodes = [[120,160],[280,100],[460,180],[650,80],[850,170],
   [100,380],[300,310],[480,420],[690,300],[910,390],
   [150,600],[340,540],[520,660],[720,540],[880,620]] as const;
@@ -29,7 +28,7 @@ export default function SignalAtmosphere() {
           </g>
         </svg>
         <ErrorBoundary fallback={<span />}>
-          <Suspense fallback={null}><ThreeBackground compact /></Suspense>
+          <DecorativeGraph compact />
         </ErrorBoundary>
         <div className="d3-signal-shade" />
         <div className="d3-signal-grain" />

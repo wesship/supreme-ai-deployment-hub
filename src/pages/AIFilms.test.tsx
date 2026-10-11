@@ -22,6 +22,13 @@ afterEach(() => {
 });
 
 describe('Public film preview progress', () => {
+  it('keeps catalog media idle until a preview is opened', () => {
+    const { container } = render(<AIFilms />);
+    const previews = [...container.querySelectorAll('video')];
+    expect(previews.length).toBeGreaterThan(0);
+    expect(previews.every(video => !video.autoplay && video.preload === 'none')).toBe(true);
+  });
+
   it('does not record viewing progress just from opening a preview', () => {
     render(<AIFilms />);
     fireEvent.click(screen.getByRole('button', { name: 'Watch Preview' }));

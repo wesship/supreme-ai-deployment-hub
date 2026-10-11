@@ -52,7 +52,7 @@ function FilmPreviewMedia({ film, featured = false }: { film: AIFilm; featured?:
         <video
           aria-hidden="true"
           className="h-full w-full object-cover object-[68%_center] transition duration-700 group-hover:scale-105"
-          autoPlay={!featured}
+          autoPlay={false}
           loop
           muted
           playsInline
