@@ -63,6 +63,17 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
+            // Shared homepage presentation must never be placed in App's chunk
+            // when telemetry is tree-shaken. Both entries import these modules.
+            const modulePath = id.replaceAll('\\', '/');
+            if (
+              ['/src/pages/Index.tsx', '/src/components/ScrollToTop.tsx',
+                '/src/components/SkipToContent.tsx', '/src/lib/isLocalPreview.ts',
+                '/src/lib/assurance/rum.ts'].some((path) => modulePath.endsWith(path))
+              || modulePath.includes('/node_modules/next-themes/')
+            ) {
+              return 'homepage-presentation';
+            }
             // Core React runtime — always needed on first paint
             if (
               id.includes("node_modules/react/") ||
