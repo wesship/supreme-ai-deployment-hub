@@ -16,7 +16,7 @@ sqlalchemy[asyncio]==2.0.50
 
 # ── Caching ────────────────────────────────────────────────────────────────
 redis==5.2.0
-hiredis==3.3.1
+hiredis==3.4.0
 
 # ── Authentication ─────────────────────────────────────────────────────────
 cryptography>=42.0.0          # Fernet vault encryption (proxy_vault.py)
