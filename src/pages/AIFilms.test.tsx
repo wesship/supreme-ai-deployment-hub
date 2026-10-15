@@ -24,7 +24,7 @@ afterEach(() => {
 describe('Public film preview progress', () => {
   it('does not record viewing progress just from opening a preview', () => {
     render(<AIFilms />);
-    fireEvent.click(screen.getByRole('button', { name: 'Watch Preview', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Preview' }));
     expect(JSON.parse(window.localStorage.getItem('d3vonn-ai-films-library-v1')!).progress).toEqual({});
     expect(screen.queryByRole('button', { name: 'Track Preview Progress' })).toBeNull();
     expect(screen.getByText(/Full productions are not available/)).toBeTruthy();
@@ -32,7 +32,7 @@ describe('Public film preview progress', () => {
 
   it('records progress from finite playback duration and completes when the clip ends', () => {
     const { container } = render(<AIFilms />);
-    fireEvent.click(screen.getByRole('button', { name: 'Watch Preview', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Watch Preview' }));
     const video = container.querySelector<HTMLVideoElement>('video[aria-label="Sovereign Signal preview"]')!;
     Object.defineProperty(video, 'duration', { configurable: true, value: Number.NaN });
     fireEvent.timeUpdate(video);
