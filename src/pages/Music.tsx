@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Headphones, Pause, Play, Radio, RefreshCw, Users } from 'lucide-react';
+import StemStudio from '@/components/music/StemStudio';
 import { dispatchTool } from '@/services/ai/toolRouter';
 import {
   fetchHnfNowPlaying,
@@ -222,6 +223,8 @@ const Music = () => {
             <p className={`text-xs ${hermesState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>{hermesMessage}</p>
           </article>
         </section>
+
+        <StemStudio />
 
         <section className="grid gap-4 md:grid-cols-3">
           {[

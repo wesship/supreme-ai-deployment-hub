@@ -125,6 +125,7 @@ _OPTIONAL_ROUTERS = (
     ("backend.client_ai.memory_router", "router", None),
     ("backend.hermes.proactivity_router", "router", None),
     ("backend.hnf.router", "router", None),
+    ("backend.music.router", "router", None),
     ("backend.intelligence.api_router", "router", "/api"),
     ("backend.intelligence.worldmonitor.router", "router", None),
     ("backend.visual_intelligence.router", "router", "/api"),
