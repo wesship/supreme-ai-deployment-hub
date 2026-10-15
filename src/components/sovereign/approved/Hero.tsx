@@ -1,108 +1,42 @@
 import SignalField from './SignalField';
 import Logo3D from './Logo3D';
 
+const workflow = [
+  ['Choose an agent', 'Start with the right capability.'],
+  ['Set a task', 'Give your work a clear direction.'],
+  ['Review the work', 'Inspect the result and context.'],
+  ['Approve the action', 'Keep consequential decisions yours.'],
+];
+
 export default function Hero() {
   return (
-    <section id="top" className="relative isolate flex min-h-screen items-center overflow-hidden">
+    <section id="top" className="signal-hero relative isolate overflow-hidden" aria-labelledby="signal-hero-title">
       <SignalField />
-
-      <div className="relative z-10 mx-auto w-full max-w-[1680px] px-5 pt-24 pb-12 md:px-8">
-        {/* telemetry label */}
-        <div
-          className="flex items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.3em] text-accent-400/80"
-        >
-          <span className="h-px w-10 bg-accent-500/40"></span>
-          D3VONN NETWORK // GOVERNED AI
-          <span className="h-px w-10 bg-accent-500/40"></span>
-        </div>
-
-        {/* logo emblem — full width */}
-        <div
-          className="mt-5 flex w-full items-center justify-center"
-        >
-          <div className="w-full max-w-[560px]">
-            <Logo3D />
+      <div className="signal-shell relative z-10">
+        <div className="signal-hero__layout">
+          <div className="signal-hero__copy">
+            <p className="signal-eyebrow"><span className="signal-eyebrow__line" />D3VONN NETWORK // GOVERNED AI</p>
+            <h1 id="signal-hero-title">INTELLIGENCE{' '}<span>UNDER YOUR{' '}</span><span className="text-signal">COMMAND.</span></h1>
+            <p className="signal-hero__description">Run AI agents, organize your knowledge, and create voice and film projects from one platform—with human oversight.</p>
+            <div className="signal-hero__actions">
+              <a href="/app" className="btn-primary signal-button">Enter the Platform<i className="ri-arrow-right-line" aria-hidden="true" /></a>
+              <a href="#platform" className="btn-ghost signal-button">Explore the Platform<i className="ri-arrow-right-line signal-chevron" aria-hidden="true" /></a>
+            </div>
+            <a href="/command-center" className="signal-hero__command"><i className="ri-radar-line" aria-hidden="true" />Open Command Core<i className="ri-arrow-right-line" aria-hidden="true" /></a>
+          </div>
+          <div className="signal-hero__visual">
+            <div className="signal-hero__visual-label"><span>Sovereign Signal</span><span>Human + machine</span></div>
+            <div className="signal-hero__emblem"><Logo3D /></div>
+            <div className="signal-hero__surfaces" aria-label="Explore D3VONN tools">
+              <a href="/agents"><i className="ri-robot-2-line" aria-hidden="true" /><span>AI Agents</span><i className="ri-arrow-right-line" aria-hidden="true" /></a>
+              <a href="/ai-films"><i className="ri-film-line" aria-hidden="true" /><span>AI Films</span><i className="ri-arrow-right-line" aria-hidden="true" /></a>
+              <a href="/voice-studio"><i className="ri-voiceprint-line" aria-hidden="true" /><span>Voice Studio</span><i className="ri-arrow-right-line" aria-hidden="true" /></a>
+            </div>
           </div>
         </div>
-
-        {/* text block with dark backdrop for readability */}
-        <div className="relative mx-auto max-w-4xl text-center">
-          {/* readability backdrop — stronger, wider */}
-          <div className="pointer-events-none absolute -inset-x-16 -inset-y-8 rounded-[2.5rem] bg-[radial-gradient(ellipse_70%_60%_at_50%_50%,rgba(5,6,7,0.78)_0%,rgba(5,6,7,0.42)_55%,transparent_85%)]"></div>
-          {/* bottom edge softener for transition into next section */}
-          <div className="pointer-events-none absolute -inset-x-16 bottom-0 h-24 bg-gradient-to-t from-background-50/40 to-transparent rounded-b-[2.5rem]"></div>
-
-          <div className="relative">
-            {/* headline */}
-            <h1
-              className="mt-4 font-heading text-[clamp(2.25rem,5vw,4.5rem)] font-bold leading-[0.94] tracking-[-0.03em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)]"
-            >
-              INTELLIGENCE
-              <span className="block text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)]" style={{ textShadow: '0 0 40px rgba(0,0,0,0.9), 0 2px 12px rgba(0,0,0,0.8)' }}>
-                UNDER YOUR COMMAND.
-              </span>
-            </h1>
-
-            {/* supporting copy */}
-            <p
-              className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/90 font-medium drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]"
-            >
-              Run AI agents, organize your knowledge, and create voice and film projects from one platform—with human oversight.
-            </p>
-
-            {/* CTAs */}
-            <div
-              className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row"
-            >
-              <a
-                href="/app"
-                className="btn-primary group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
-              >
-                Enter the Platform
-                <i className="ri-arrow-right-line transition-transform duration-300 group-hover:translate-x-1"></i>
-              </a>
-              <a
-                href="#signal"
-                className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
-              >
-                Explore the Signal
-              </a>
-              <a
-                href="/command-center"
-                className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
-              >
-                <i className="ri-radar-line"></i>
-                Command Core
-              </a>
-            </div>
-
-            {/* status line */}
-            <div
-              className="mx-auto mt-6 flex max-w-md items-center justify-center gap-3"
-            >
-              <span className="h-px flex-1 bg-white/20"></span>
-              <span className="font-mono text-[9px] uppercase tracking-[0.24em] text-white/60">
-                Sovereign Signal // Under Your Command
-              </span>
-              <span className="h-px flex-1 bg-white/20"></span>
-            </div>
-
-            {/* scroll cue */}
-            <div
-              className="mt-6 flex flex-col items-center gap-2"
-            >
-              <a
-                href="#platform"
-                className="group flex flex-col items-center gap-2 text-white/50 transition-colors hover:text-white cursor-pointer"
-                aria-label="Scroll to explore"
-              >
-                <span className="font-mono text-[9px] uppercase tracking-[0.24em]">Scroll</span>
-                <span className="flex h-8 w-5 items-start justify-center rounded-full border border-white/25 p-1">
-                  <span className="h-2 w-px animate-pulse-glow bg-accent-400"></span>
-                </span>
-              </a>
-            </div>
-          </div>
+        <div className="signal-workflow">
+          <div className="signal-workflow__intro"><p className="signal-eyebrow">Under your command</p><p>A human-led workflow.</p></div>
+          <ol aria-label="How the platform works">{workflow.map(([title, description], index) => <li key={title}><span className="signal-workflow__number">0{index + 1}</span><div><h2>{title}</h2><p>{description}</p></div></li>)}</ol>
         </div>
       </div>
     </section>

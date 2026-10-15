@@ -511,6 +511,9 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .visible {
   visibility: visible;
 }
+.approved-home .invisible {
+  visibility: hidden;
+}
 .approved-home .fixed {
   position: fixed;
 }
@@ -547,14 +550,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .inset-\[3px\] {
   inset: 3px;
 }
-.approved-home .-inset-x-16 {
-  left: -4rem;
-  right: -4rem;
-}
-.approved-home .-inset-y-8 {
-  top: -2rem;
-  bottom: -2rem;
-}
 .approved-home .inset-x-0 {
   left: 0px;
   right: 0px;
@@ -562,9 +557,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .inset-y-0 {
   top: 0px;
   bottom: 0px;
-}
-.approved-home .-bottom-1\.5 {
-  bottom: -0.375rem;
 }
 .approved-home .-bottom-8 {
   bottom: -2rem;
@@ -635,12 +627,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .z-10 {
   z-index: 10;
 }
-.approved-home .z-50 {
-  z-index: 50;
-}
-.approved-home .z-\[100\] {
-  z-index: 100;
-}
 .approved-home .m-6 {
   margin: 1.5rem;
 }
@@ -658,9 +644,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .mb-14 {
   margin-bottom: 3.5rem;
-}
-.approved-home .mb-8 {
-  margin-bottom: 2rem;
 }
 .approved-home .ml-3 {
   margin-left: 0.75rem;
@@ -694,9 +677,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .mt-3 {
   margin-top: 0.75rem;
-}
-.approved-home .mt-4 {
-  margin-top: 1rem;
 }
 .approved-home .mt-5 {
   margin-top: 1.25rem;
@@ -758,9 +738,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .h-2\.5 {
   height: 0.625rem;
 }
-.approved-home .h-24 {
-  height: 6rem;
-}
 .approved-home .h-3\.5 {
   height: 0.875rem;
 }
@@ -794,9 +771,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .h-\[560px\] {
   height: 560px;
 }
-.approved-home .h-\[68px\] {
-  height: 68px;
-}
 .approved-home .h-full {
   height: 100%;
 }
@@ -812,14 +786,8 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .min-h-\[3rem\] {
   min-height: 3rem;
 }
-.approved-home .min-h-\[560px\] {
-  min-height: 560px;
-}
-.approved-home .min-h-screen {
-  min-height: 100vh;
-}
-.approved-home .w-0 {
-  width: 0px;
+.approved-home .min-h-\[480px\] {
+  min-height: 480px;
 }
 .approved-home .w-1 {
   width: 0.25rem;
@@ -859,9 +827,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .w-40 {
   width: 10rem;
-}
-.approved-home .w-5 {
-  width: 1.25rem;
 }
 .approved-home .w-6 {
   width: 1.5rem;
@@ -923,9 +888,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .max-w-\[380px\] {
   max-width: 380px;
 }
-.approved-home .max-w-\[560px\] {
-  max-width: 560px;
-}
 .approved-home .max-w-md {
   max-width: 28rem;
 }
@@ -960,34 +922,8 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   --tw-translate-x: 3px;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
-.approved-home .translate-y-0 {
-  --tw-translate-y: 0px;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-.approved-home .translate-y-2 {
-  --tw-translate-y: 0.5rem;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-.approved-home .translate-y-4 {
-  --tw-translate-y: 1rem;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-.approved-home .translate-y-6 {
-  --tw-translate-y: 1.5rem;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
 .approved-home .rotate-45 {
   --tw-rotate: 45deg;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-.approved-home .scale-100 {
-  --tw-scale-x: 1;
-  --tw-scale-y: 1;
-  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
-}
-.approved-home .scale-90 {
-  --tw-scale-x: .9;
-  --tw-scale-y: .9;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
 }
 .approved-home .transform {
@@ -1044,9 +980,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .items-center {
   align-items: center;
-}
-.approved-home .items-baseline {
-  align-items: baseline;
 }
 .approved-home .justify-center {
   justify-content: center;
@@ -1106,14 +1039,8 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .overflow-x-auto {
   overflow-x: auto;
 }
-.approved-home .overflow-y-auto {
-  overflow-y: auto;
-}
 .approved-home .whitespace-nowrap {
   white-space: nowrap;
-}
-.approved-home .rounded-\[2\.5rem\] {
-  border-radius: 2.5rem;
 }
 .approved-home .rounded-full {
   border-radius: 9999px;
@@ -1123,10 +1050,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .rounded-md {
   border-radius: 0.375rem;
-}
-.approved-home .rounded-b-\[2\.5rem\] {
-  border-bottom-right-radius: 2.5rem;
-  border-bottom-left-radius: 2.5rem;
 }
 .approved-home .border {
   border-width: 1px;
@@ -1199,9 +1122,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .border-transparent {
   border-color: transparent;
 }
-.approved-home .border-white\/25 {
-  border-color: rgb(255 255 255 / 0.25);
-}
 .approved-home .bg-accent-400 {
   --tw-bg-opacity: 1;
   background-color: rgb(125 241 255 / var(--tw-bg-opacity, 1));
@@ -1218,9 +1138,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .bg-accent-500\/30 {
   background-color: rgb(61 220 255 / 0.3);
-}
-.approved-home .bg-accent-500\/40 {
-  background-color: rgb(61 220 255 / 0.4);
 }
 .approved-home .bg-accent-500\/60 {
   background-color: rgb(61 220 255 / 0.6);
@@ -1296,19 +1213,9 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .bg-primary-500\/\[0\.06\] {
   background-color: rgb(59 155 255 / 0.06);
 }
-.approved-home .bg-secondary-500 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(77 124 255 / var(--tw-bg-opacity, 1));
-}
-.approved-home .bg-transparent {
-  background-color: transparent;
-}
 .approved-home .bg-white {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
-}
-.approved-home .bg-white\/20 {
-  background-color: rgb(255 255 255 / 0.2);
 }
 .approved-home .bg-\[radial-gradient\(circle\2c rgba\(59\2c 155\2c 255\2c 0\.14\)\2c transparent_65\%\)\] {
   background-image: radial-gradient(circle,rgba(59,155,255,0.14),transparent 65%);
@@ -1334,9 +1241,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .bg-\[radial-gradient\(circle_at_80\%_30\%\2c rgba\(59\2c 155\2c 255\2c 0\.10\)\2c transparent_50\%\)\] {
   background-image: radial-gradient(circle at 80% 30%,rgba(59,155,255,0.10),transparent 50%);
 }
-.approved-home .bg-\[radial-gradient\(ellipse_70\%_60\%_at_50\%_50\%\2c rgba\(5\2c 6\2c 7\2c 0\.78\)_0\%\2c rgba\(5\2c 6\2c 7\2c 0\.42\)_55\%\2c transparent_85\%\)\] {
-  background-image: radial-gradient(ellipse 70% 60% at 50% 50%,rgba(5,6,7,0.78) 0%,rgba(5,6,7,0.42) 55%,transparent 85%);
-}
 .approved-home .bg-gradient-to-b {
   background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
 }
@@ -1351,11 +1255,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .from-background-50 {
   --tw-gradient-from: #050607 var(--tw-gradient-from-position);
-  --tw-gradient-to: rgb(5 6 7 / 0) var(--tw-gradient-to-position);
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
-}
-.approved-home .from-background-50\/40 {
-  --tw-gradient-from: rgb(5 6 7 / 0.4) var(--tw-gradient-from-position);
   --tw-gradient-to: rgb(5 6 7 / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }
@@ -1418,9 +1317,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .object-top {
   object-position: top;
 }
-.approved-home .p-1 {
-  padding: 0.25rem;
-}
 .approved-home .p-4 {
   padding: 1rem;
 }
@@ -1453,10 +1349,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   padding-left: 1.5rem;
   padding-right: 1.5rem;
 }
-.approved-home .px-7 {
-  padding-left: 1.75rem;
-  padding-right: 1.75rem;
-}
 .approved-home .px-8 {
   padding-left: 2rem;
   padding-right: 2rem;
@@ -1472,10 +1364,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .py-16 {
   padding-top: 4rem;
   padding-bottom: 4rem;
-}
-.approved-home .py-2 {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
 }
 .approved-home .py-24 {
   padding-top: 6rem;
@@ -1501,12 +1389,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   padding-top: 1.25rem;
   padding-bottom: 1.25rem;
 }
-.approved-home .pb-10 {
-  padding-bottom: 2.5rem;
-}
-.approved-home .pb-12 {
-  padding-bottom: 3rem;
-}
 .approved-home .pb-3 {
   padding-bottom: 0.75rem;
 }
@@ -1518,9 +1400,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .pl-6 {
   padding-left: 1.5rem;
-}
-.approved-home .pt-24 {
-  padding-top: 6rem;
 }
 .approved-home .pt-4 {
   padding-top: 1rem;
@@ -1544,10 +1423,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   font-size: 1.5rem;
   line-height: 2rem;
 }
-.approved-home .text-3xl {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-}
 .approved-home .text-4xl {
   font-size: 2.25rem;
   line-height: 2.5rem;
@@ -1569,9 +1444,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .text-\[9px\] {
   font-size: 9px;
-}
-.approved-home .text-\[clamp\(2\.25rem\2c 5vw\2c 4\.5rem\)\] {
-  font-size: clamp(2.25rem, 5vw, 4.5rem);
 }
 .approved-home .text-\[clamp\(3rem\2c 8vw\2c 6\.5rem\)\] {
   font-size: clamp(3rem, 8vw, 6.5rem);
@@ -1625,9 +1497,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 }
 .approved-home .leading-9 {
   line-height: 2.25rem;
-}
-.approved-home .leading-\[0\.94\] {
-  line-height: 0.94;
 }
 .approved-home .leading-\[0\.95\] {
   line-height: 0.95;
@@ -1691,9 +1560,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .text-accent-400\/70 {
   color: rgb(125 241 255 / 0.7);
 }
-.approved-home .text-accent-400\/80 {
-  color: rgb(125 241 255 / 0.8);
-}
 .approved-home .text-background-50\/80 {
   color: rgb(5 6 7 / 0.8);
 }
@@ -1732,38 +1598,15 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
 .approved-home .text-primary-500\/80 {
   color: rgb(59 155 255 / 0.8);
 }
-.approved-home .text-secondary-300 {
-  --tw-text-opacity: 1;
-  color: rgb(183 197 255 / var(--tw-text-opacity, 1));
-}
-.approved-home .text-secondary-400 {
-  --tw-text-opacity: 1;
-  color: rgb(126 168 255 / var(--tw-text-opacity, 1));
-}
 .approved-home .text-white {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
-.approved-home .text-white\/50 {
-  color: rgb(255 255 255 / 0.5);
-}
-.approved-home .text-white\/60 {
-  color: rgb(255 255 255 / 0.6);
-}
-.approved-home .text-white\/90 {
-  color: rgb(255 255 255 / 0.9);
-}
 .approved-home .opacity-0 {
   opacity: 0;
 }
-.approved-home .opacity-100 {
-  opacity: 1;
-}
 .approved-home .opacity-40 {
   opacity: 0.4;
-}
-.approved-home .opacity-60 {
-  opacity: 0.6;
 }
 .approved-home .opacity-70 {
   opacity: 0.7;
@@ -1820,26 +1663,12 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   --tw-blur: blur(90px);
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
-.approved-home .drop-shadow-\[0_2px_16px_rgba\(0\2c 0\2c 0\2c 0\.85\)\] {
-  --tw-drop-shadow: drop-shadow(0 2px 16px rgba(0,0,0,0.85));
-  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
 .approved-home .drop-shadow-\[0_2px_24px_rgba\(0\2c 0\2c 0\2c 0\.85\)\] {
   --tw-drop-shadow: drop-shadow(0 2px 24px rgba(0,0,0,0.85));
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
 .approved-home .filter {
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
-.approved-home .backdrop-blur-2xl {
-  --tw-backdrop-blur: blur(40px);
-  -webkit-backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
-  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
-}
-.approved-home .backdrop-saturate-150 {
-  --tw-backdrop-saturate: saturate(1.5);
-  -webkit-backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
-  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
 .approved-home .transition {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
@@ -1865,18 +1694,6 @@ Constrain images and videos to the parent width and preserve their intrinsic asp
   transition-property: transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
-}
-.approved-home .delay-150 {
-  transition-delay: 150ms;
-}
-.approved-home .delay-300 {
-  transition-delay: 300ms;
-}
-.approved-home .delay-500 {
-  transition-delay: 500ms;
-}
-.approved-home .delay-700 {
-  transition-delay: 700ms;
 }
 .approved-home .duration-1000 {
   transition-duration: 1000ms;
@@ -2472,6 +2289,123 @@ html.reduce-motion .approved-home * {
 .approved-home .animate-core-breathe {
   animation: approved-core-breathe 3.6s ease-in-out infinite;
 }
+/* Professional presentation pass. Scoped by the existing homepage compiler. */
+.approved-home .signal-shell { width: min(100% - 64px, 1280px); margin-inline: auto; }
+.approved-home .signal-eyebrow { display: flex; align-items: center; gap: 12px; color: #a9c3d6; font: 500 10px/1.6 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .16em; text-transform: uppercase; }
+.approved-home .signal-eyebrow__line { width: 28px; height: 1px; background: #6eb8ff; flex-shrink: 0; }
+.approved-home .signal-header { position: fixed; inset: 0 0 auto; z-index: 50; background: linear-gradient(180deg, rgba(5,6,7,.92), rgba(5,6,7,.55)); border-bottom: 1px solid rgba(169,214,255,.08); backdrop-filter: blur(20px); transition: background .25s, border-color .25s; }
+.approved-home .signal-header--scrolled { background: rgba(9,11,13,.92); border-color: rgba(169,214,255,.16); }
+.approved-home .signal-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 28px; height: 84px; }
+.approved-home .signal-header__actions { display: flex; align-items: center; gap: 12px; }
+.approved-home .signal-launch { display: inline-flex; align-items: center; gap: 12px; padding: 12px 18px; min-height: 44px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.approved-home .signal-desktop-nav { display: flex; align-items: center; gap: 30px; }
+.approved-home .signal-desktop-nav > a, .approved-home .signal-nav-group > button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: #c4d6e4; background: none; border: 0; font-size: 13px; font-weight: 500; cursor: pointer; transition: color .2s; }
+.approved-home .signal-desktop-nav > a:hover, .approved-home .signal-nav-group > button:hover, .approved-home .signal-nav-group > button[aria-expanded='true'] { color: #fff; }
+.approved-home .signal-nav-group { position: relative; }
+.approved-home .signal-chevron { display: inline-block; transform: rotate(90deg); }
+.approved-home .signal-nav-panel { position: absolute; top: calc(100% + 12px); left: -20px; width: 250px; padding: 12px; border: 1px solid rgba(169,214,255,.18); border-radius: 12px; background: #0d1219; box-shadow: 0 20px 60px #0009; }
+.approved-home .signal-nav-panel > p { margin: 6px 10px 10px; font-size: 11px; color: #a9c3d6; }
+.approved-home .signal-nav-panel > a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 10px; color: #e6f1fa; border-radius: 6px; font-size: 14px; }
+.approved-home .signal-nav-panel > a:hover, .approved-home .signal-nav-panel > a:focus-visible { background: #3b9bff15; color: #a9d6ff; }
+.approved-home .signal-menu-trigger { display: none; width: 44px; height: 44px; border: 1px solid #ffffff24; border-radius: 8px; font-size: 22px; color: #e6f1fa; cursor: pointer; }
+.approved-home .signal-mobile-nav { position: fixed; inset: 0; z-index: 100; overflow-y: auto; background: #090d13; }
+.approved-home .signal-mobile-nav__header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-bottom: 1px solid #ffffff14; }
+.approved-home .signal-mobile-nav__header button { width: 44px; height: 44px; font-size: 28px; color: #e6f1fa; cursor: pointer; }
+.approved-home .signal-mobile-nav > nav { max-width: 640px; margin: auto; padding: 28px 24px 40px; }
+.approved-home .signal-mobile-nav__main { display: flex; align-items: center; justify-content: space-between; padding-block: 18px; border-bottom: 1px solid #ffffff14; font: 600 24px/1.3 'Space Grotesk', sans-serif; }
+.approved-home .signal-mobile-nav__group { margin-top: 28px; }
+.approved-home .signal-mobile-nav__group .signal-eyebrow { margin-bottom: 8px; }
+.approved-home .signal-mobile-nav__group a { display: block; padding-block: 12px; color: #c4d6e4; font-size: 17px; }
+.approved-home .signal-mobile-nav__launch { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; padding: 16px; border-radius: 8px; font-weight: 600; }
+.approved-home .signal-hero { padding-top: 156px; padding-bottom: 48px; background: radial-gradient(ellipse at 78% 35%, #16345b25, transparent 55%); }
+.approved-home .signal-hero__layout { display: grid; grid-template-columns: 1.05fr 1fr; align-items: center; gap: 48px; min-height: 540px; padding-block: 24px 64px; }
+.approved-home .signal-hero__copy { position: relative; z-index: 2; }
+.approved-home .signal-hero h1 { margin-top: 26px; color: #f7fbff; font-family: 'Space Grotesk', Inter, system-ui, sans-serif; font-weight: 700; font-size: clamp(42px, 4.4vw, 66px); line-height: 1.06; letter-spacing: -.045em; }
+.approved-home .signal-hero h1 span { display: block; }
+.approved-home .signal-hero__description { max-width: 490px; margin-top: 24px; font-size: 17px; line-height: 1.8; color: #c4d6e4; text-wrap: pretty; }
+.approved-home .signal-hero__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 32px; }
+.approved-home .signal-button { display: inline-flex; align-items: center; justify-content: center; gap: 14px; min-height: 50px; padding: 14px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+.approved-home .signal-button i { font-size: 17px; }
+.approved-home .signal-hero__command { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 14px; font-size: 13px; color: #a9c3d6; transition: color .2s; }
+.approved-home .signal-hero__command:hover { color: #a9d6ff; }
+.approved-home .signal-hero__visual { position: relative; min-width: 0; padding: 24px 20px 20px; border: 1px solid #a9d6ff20; border-radius: 20px; background: radial-gradient(ellipse at 50% 45%, #3b9bff14, transparent 72%), linear-gradient(150deg, #ffffff06, #ffffff01); box-shadow: inset 0 1px 0 #ffffff0a, 0 28px 90px #0005; }
+.approved-home .signal-hero__visual-label { display: flex; justify-content: space-between; gap: 16px; color: #a9c3d6; font: 10px/1.5 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+.approved-home .signal-hero__visual-label span:first-child { color: #7df1ff; }
+.approved-home .signal-hero__emblem { padding-block: 46px 28px; }
+.approved-home .signal-hero__surfaces { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.approved-home .signal-hero__surfaces a { display: flex; align-items: center; gap: 7px; min-height: 48px; padding: 10px; border: 1px solid #ffffff14; border-radius: 8px; background: #090b0d80; color: #c4d6e4; font-size: 11px; transition: border-color .2s, background .2s; }
+.approved-home .signal-hero__surfaces a > i:first-child { color: #6eb8ff; font-size: 17px; }
+.approved-home .signal-hero__surfaces a > i:last-child { margin-left: auto; color: #a9c3d6; }
+.approved-home .signal-hero__surfaces a:hover { border-color: #6eb8ff80; background: #3b9bff12; }
+.approved-home .signal-workflow { display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 28px; padding-top: 30px; border-top: 1px solid #a9d6ff24; }
+.approved-home .signal-workflow__intro > p:last-child { margin-top: 6px; color: #e6f1fa; font-size: 14px; }
+.approved-home .signal-workflow ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+.approved-home .signal-workflow li { display: flex; align-items: flex-start; gap: 10px; }
+.approved-home .signal-workflow__number { margin-top: 2px; color: #6eb8ff; font: 10px/1.6 'JetBrains Mono', ui-monospace, monospace; }
+.approved-home .signal-workflow h2 { font-size: 13px; font-weight: 600; line-height: 1.6; color: #e6f1fa; }
+.approved-home .signal-workflow li p { margin-top: 5px; color: #a9c3d6; font-size: 12px; line-height: 1.7; }
+.approved-home .signal-section-heading h2 { font-size: clamp(32px, 3.6vw, 48px); line-height: 1.15; letter-spacing: -.035em; }
+.approved-home .signal-section-heading > p { color: #b5c9da; font-weight: 400; line-height: 1.8; }
+.approved-home .signal-platform__layout { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.3fr); align-items: start; gap: 24px; margin-top: 44px; }
+.approved-home .signal-platform__map { position: sticky; top: 108px; }
+.approved-home .signal-platform__cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.approved-home .signal-platform__cards .glass { padding: 24px; border-radius: 12px; background: linear-gradient(145deg, #151c25dd, #0b1018dd); box-shadow: inset 0 1px 0 #ffffff08; }
+.approved-home .signal-platform__cards h3 { font-size: 17px; line-height: 1.4; font-weight: 600; }
+.approved-home .signal-platform__cards p { font-weight: 400; color: #b5c9da; }
+/* Keep glows intentional: stronger interaction feedback, quieter resting state. */
+.approved-home .btn-primary { background: linear-gradient(150deg, #2477cb, #1a5fb3); border-color: #6eb8ff80; box-shadow: inset 0 1px 0 #ffffff30, 0 6px 24px #2378e033; }
+.approved-home .btn-primary::before { opacity: .4; }
+.approved-home .btn-primary:hover { box-shadow: inset 0 1px 0 #ffffff40, 0 8px 32px #2378e066; }
+.approved-home .btn-ghost { background: #111a2480; box-shadow: inset 0 1px 0 #ffffff08; }
+@media (max-width: 1199px) {
+  .approved-home .signal-header__inner { gap: 20px; }
+  .approved-home .signal-desktop-nav { gap: 20px; }
+  .approved-home .signal-hero__layout { gap: 28px; }
+  .approved-home .signal-workflow { grid-template-columns: 1fr; gap: 20px; }
+}
+@media (max-width: 1023px) {
+  .approved-home .signal-header__inner { height: 76px; }
+  .approved-home .signal-desktop-nav { display: none; }
+  .approved-home .signal-menu-trigger { display: inline-flex; align-items: center; justify-content: center; }
+  .approved-home .signal-hero { padding-top: 116px; }
+  .approved-home .signal-hero__layout { grid-template-columns: 1fr; gap: 40px; padding-bottom: 40px; }
+  .approved-home .signal-hero__copy { max-width: 640px; }
+  .approved-home .signal-hero h1 { font-size: clamp(42px, 7vw, 64px); }
+  .approved-home .signal-hero__visual { width: 100%; max-width: 640px; margin-inline: auto; }
+  .approved-home .signal-hero__emblem { max-width: 480px; margin: auto; padding-block: 30px 18px; }
+  .approved-home .signal-platform__layout { grid-template-columns: 1fr; }
+  .approved-home .signal-platform__map { position: static; }
+  .approved-home .signal-platform__map > .glass { min-height: 460px; }
+}
+@media (max-width: 599px) {
+  .approved-home .signal-shell { width: calc(100% - 40px); }
+  .approved-home .signal-header__inner { gap: 12px; height: 76px; }
+  .approved-home .signal-launch { display: none; }
+  .approved-home .signal-eyebrow { font-size: 9px; letter-spacing: .12em; gap: 8px; }
+  .approved-home .signal-eyebrow__line { width: 18px; }
+  .approved-home .signal-hero { padding-top: 104px; padding-bottom: 32px; }
+  .approved-home .signal-hero__layout { padding-top: 12px; gap: 28px; }
+  .approved-home .signal-hero h1 { font-size: clamp(31px, 8.3vw, 46px); line-height: 1.1; margin-top: 20px; }
+  .approved-home .signal-hero__description { font-size: 15px; margin-top: 20px; line-height: 1.8; }
+  .approved-home .signal-hero__actions { display: grid; grid-template-columns: 1fr; margin-top: 24px; }
+  .approved-home .signal-hero__visual { padding: 18px 12px 12px; border-radius: 14px; }
+  .approved-home .signal-hero__visual-label { font-size: 8px; gap: 8px; }
+  .approved-home .signal-hero__emblem { padding-block: 30px 12px; }
+  .approved-home .signal-hero__surfaces { gap: 6px; }
+  .approved-home .signal-hero__surfaces a { flex-direction: column; justify-content: center; padding: 10px 4px; font-size: 10px; gap: 5px; }
+  .approved-home .signal-hero__surfaces a > i:last-child { display: none; }
+  .approved-home .signal-workflow { gap: 20px; padding-top: 24px; }
+  .approved-home .signal-workflow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 16px; }
+  .approved-home .signal-workflow h2 { font-size: 12px; }
+  .approved-home .signal-workflow li p { font-size: 11px; }
+  .approved-home .signal-platform { padding-block: 64px; }
+  .approved-home .signal-platform__layout { margin-top: 32px; }
+  .approved-home .signal-platform__cards { grid-template-columns: 1fr; }
+  .approved-home .signal-platform__map > .glass { min-height: 420px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .approved-home .signal-header, .approved-home .signal-nav-panel, .approved-home .signal-hero__surfaces a { transition: none; }
+}
 .approved-home .placeholder\:text-foreground-300::placeholder {
   --tw-text-opacity: 1;
   color: rgb(211 224 236 / var(--tw-text-opacity, 1));
@@ -2494,33 +2428,9 @@ html.reduce-motion .approved-home * {
 .approved-home .hover\:bg-background-200\/60:hover {
   background-color: rgb(17 20 25 / 0.6);
 }
-.approved-home .hover\:text-accent-400:hover {
-  --tw-text-opacity: 1;
-  color: rgb(125 241 255 / var(--tw-text-opacity, 1));
-}
-.approved-home .hover\:text-accent-500:hover {
-  --tw-text-opacity: 1;
-  color: rgb(61 220 255 / var(--tw-text-opacity, 1));
-}
 .approved-home .hover\:text-foreground-900:hover {
   --tw-text-opacity: 1;
   color: rgb(247 251 255 / var(--tw-text-opacity, 1));
-}
-.approved-home .hover\:text-primary-400:hover {
-  --tw-text-opacity: 1;
-  color: rgb(110 184 255 / var(--tw-text-opacity, 1));
-}
-.approved-home .hover\:text-primary-500:hover {
-  --tw-text-opacity: 1;
-  color: rgb(59 155 255 / var(--tw-text-opacity, 1));
-}
-.approved-home .hover\:text-secondary-400:hover {
-  --tw-text-opacity: 1;
-  color: rgb(126 168 255 / var(--tw-text-opacity, 1));
-}
-.approved-home .hover\:text-white:hover {
-  --tw-text-opacity: 1;
-  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
 }
 .approved-home .hover\:shadow-\[0_0_28px_rgba\(59\2c 155\2c 255\2c 0\.22\)\]:hover {
   --tw-shadow: 0 0 28px rgba(59,155,255,0.22);
@@ -2569,9 +2479,6 @@ html.reduce-motion .approved-home * {
 .approved-home .disabled\:opacity-60:disabled {
   opacity: 0.6;
 }
-.approved-home .group:hover .group-hover\:w-full {
-  width: 100%;
-}
 .approved-home .group:hover .group-hover\:translate-x-1 {
   --tw-translate-x: 0.25rem;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
@@ -2604,10 +2511,6 @@ html.reduce-motion .approved-home * {
   --tw-text-opacity: 1;
   color: rgb(110 184 255 / var(--tw-text-opacity, 1));
 }
-.approved-home .group:hover .group-hover\:text-secondary-500 {
-  --tw-text-opacity: 1;
-  color: rgb(77 124 255 / var(--tw-text-opacity, 1));
-}
 .approved-home .group:hover .group-hover\:opacity-100 {
   opacity: 1;
 }
@@ -2628,10 +2531,6 @@ html.reduce-motion .approved-home * {
 
   .approved-home .sm\:block {
     display: block;
-  }
-
-  .approved-home .sm\:inline-flex {
-    display: inline-flex;
   }
 
   .approved-home .sm\:grid-cols-2 {
@@ -2724,16 +2623,8 @@ html.reduce-motion .approved-home * {
 }
 @media (min-width: 1024px) {
 
-  .approved-home .lg\:col-span-5 {
-    grid-column: span 5 / span 5;
-  }
-
   .approved-home .lg\:col-span-6 {
     grid-column: span 6 / span 6;
-  }
-
-  .approved-home .lg\:col-span-7 {
-    grid-column: span 7 / span 7;
   }
 
   .approved-home .lg\:grid-cols-12 {
@@ -2780,22 +2671,7 @@ html.reduce-motion .approved-home * {
     border-right-width: 1px;
   }
 }
-@media (min-width: 1280px) {
 
-  .approved-home .xl\:flex {
-    display: flex;
-  }
-
-  .approved-home .xl\:hidden {
-    display: none;
-  }
-}
-@media (min-width: 1536px) {
-
-  .approved-home .\32xl\:flex {
-    display: flex;
-  }
-}
 
 /* Match the approved page scrollbar and keep its cinematic chrome unobstructed. */
 :is(html,body):has(.approved-home)::-webkit-scrollbar { width: 10px; height: 10px; }
