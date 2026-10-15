@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { defaultHomepageTelemetry } from '@/lib/homepageTelemetry';
 import SovereignSignalHomepage from './SovereignSignalHomepage';
+import Navbar from './approved/Navbar';
 
 vi.mock('./approved/ThreeBackground', () => ({ default: () => null }));
 vi.mock('./approved/Reveal', () => ({ default: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
@@ -22,7 +23,7 @@ describe('Approved responsive homepage handoff', () => {
   });
 
   it('keeps studio destinations accessible in a keyboard-dismissable disclosure', () => {
-    render(<MemoryRouter><SovereignSignalHomepage telemetry={defaultHomepageTelemetry} /></MemoryRouter>);
+    render(<><Navbar /><section id="platform" /></>);
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     const studios = within(nav).getByRole('button', { name: 'Studios' });
     expect(studios).toHaveAttribute('aria-expanded', 'false');
@@ -37,7 +38,7 @@ describe('Approved responsive homepage handoff', () => {
   });
 
   it('closes a desktop disclosure when another group opens or the user clicks outside', () => {
-    render(<MemoryRouter><SovereignSignalHomepage telemetry={defaultHomepageTelemetry} /></MemoryRouter>);
+    render(<><Navbar /><section id="platform" /></>);
     const nav = screen.getByRole('navigation', { name: 'Primary navigation' });
     const studios = within(nav).getByRole('button', { name: 'Studios' });
     const resources = within(nav).getByRole('button', { name: 'Resources' });
@@ -51,7 +52,7 @@ describe('Approved responsive homepage handoff', () => {
 
   it('moves keyboard focus to the selected section when mobile navigation closes', () => {
     const scrollIntoView = vi.fn();
-    const { container } = render(<MemoryRouter><SovereignSignalHomepage telemetry={defaultHomepageTelemetry} /></MemoryRouter>);
+    const { container } = render(<><Navbar /><section id="platform" /></>);
     const platform = container.querySelector<HTMLElement>('#platform')!;
     platform.scrollIntoView = scrollIntoView;
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
