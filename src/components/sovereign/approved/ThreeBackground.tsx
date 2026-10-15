@@ -377,7 +377,7 @@ export default function ThreeBackground({ compact = false }: { compact?: boolean
   if (!supported) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
+    <div className="signal-three-background pointer-events-none fixed inset-0 z-0" aria-hidden="true">
       <Canvas
         frameloop="demand"
         dpr={[1, 1.5]}

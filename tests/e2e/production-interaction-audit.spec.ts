@@ -200,7 +200,7 @@ test.describe('D3VONN.IO production interaction audit', () => {
       const errors = await collectRuntimeErrors(page);
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await waitForApplication(page);
-      await expect(page.locator('#top h1')).toHaveText('INTELLIGENCEUNDER YOUR COMMAND.');
+      await expect(page.locator('#top h1')).toHaveText('INTELLIGENCE UNDER YOUR COMMAND.');
       const artwork = page.locator('#top img[alt="D3VONN"]');
       await expect(artwork).toHaveAttribute('src', '/approved-home/emblem.webp');
       await expect(artwork).toBeVisible();
@@ -227,9 +227,10 @@ test.describe('D3VONN.IO production interaction audit', () => {
         const trigger = page.getByRole('button', { name: 'Open navigation' });
         await trigger.click();
         await expect(page.getByRole('dialog', { name: 'Navigation' })).toBeVisible();
-        const mobileNav = page.getByRole('navigation', { name: 'Primary navigation' });
+        const mobileNav = page.getByRole('dialog', { name: 'Navigation' }).getByRole('navigation', { name: 'Mobile navigation' });
         await expect(mobileNav.getByRole('link', { name: /Platform/ })).toBeVisible();
         await expect(mobileNav.getByRole('link', { name: 'Infrastructure' })).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath(`approved-navigation-${width}.png`), fullPage: false });
         await page.getByRole('button', { name: 'Close menu' }).click();
         await expect(page.getByRole('dialog', { name: 'Navigation' })).toHaveCount(0);
         await expect(trigger).toHaveAttribute('aria-expanded', 'false');

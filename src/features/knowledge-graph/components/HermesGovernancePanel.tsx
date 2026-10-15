@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck, SlidersHorizontal, Zap } from 'lucide-react';
 import { API_BASE_URL } from '@/api/config';
 import { supabase } from '@/integrations/supabase/client';
+import { hermesTelemetry } from '@/integrations/supabase/hermesTelemetry';
 
 type TaskRow = {
   id: string;
@@ -142,7 +143,7 @@ const HermesGovernancePanel: React.FC = () => {
         .select('id,title,kind,task_type,status,agent_name,retry_count,created_at')
         .order('created_at', { ascending: false })
         .limit(150),
-      supabase
+      hermesTelemetry
         .from('hermes_runs')
         .select('id,task_id,agent_name,status,duration_ms,cost_usd')
         .order('created_at', { ascending: false })

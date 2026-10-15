@@ -9,7 +9,7 @@ interface SectionHeaderProps {
 export default function SectionHeader({ index, label, title, copy, align = 'left' }: SectionHeaderProps) {
   const centered = align === 'center';
   return (
-    <div className={`max-w-3xl ${centered ? 'mx-auto text-center' : ''}`}>
+    <div className={`signal-section-heading max-w-3xl ${centered ? 'mx-auto text-center' : ''}`}>
       <div className={`flex items-center gap-3 ${centered ? 'justify-center' : ''}`}>
         {index && (
           <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-primary-500/80">{index}</span>

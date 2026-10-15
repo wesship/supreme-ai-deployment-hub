@@ -49,22 +49,22 @@ export default function Platform() {
   }, []);
 
   return (
-    <section id="platform" className="relative overflow-hidden bg-background-50/50 py-24 md:py-32">
+    <section id="platform" className="signal-platform relative overflow-hidden bg-background-50/50 py-24 md:py-32">
       <div className="coord-grid pointer-events-none absolute inset-0 opacity-40"></div>
-      <div className="relative mx-auto max-w-[1680px] px-5 md:px-8">
+      <div className="signal-shell relative">
         <Reveal>
           <SectionHeader
             index="01"
             label="The Platform"
             title="One Signal. Multiple Systems."
-            copy="D3VONN.IO is a single operating environment connecting intelligent capabilities — not a set of separate companies. Each surface is an instrument panel embedded in the same command layer."
+            copy="Agents, filmmaking, voice, and infrastructure. Connected through one command layer, with you in control."
           />
         </Reveal>
 
-        <div className="mt-16 grid gap-10 lg:grid-cols-12">
+        <div className="signal-platform__layout">
           {/* Core mind-map */}
-          <Reveal className="lg:col-span-5">
-            <div className="glass relative flex h-full min-h-[560px] flex-col overflow-hidden rounded-lg">
+          <Reveal className="signal-platform__map">
+            <div className="glass relative flex h-full min-h-[480px] flex-col overflow-hidden rounded-lg">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(59,155,255,0.13),transparent_62%)]"></div>
 
               {/* telemetry readouts */}
@@ -200,7 +200,7 @@ export default function Platform() {
           </Reveal>
 
           {/* Surface panels */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:col-span-7">
+          <div className="signal-platform__cards">
             {surfaces.map((s, i) => {
               const cardInner = (
                 <>
@@ -220,9 +220,9 @@ export default function Platform() {
                       </span>
                     </div>
                   </div>
-                  <h4 className="mt-5 font-heading text-lg font-bold text-foreground-900">
+                  <h3 className="mt-5 font-heading text-lg font-bold text-foreground-900">
                     {s.name}
-                  </h4>
+                  </h3>
                   <p className="mt-2 text-sm font-medium leading-6 text-foreground-200">{s.desc}</p>
                   {s.href ? (
                     <span className="mt-5 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-primary-400 transition-colors group-hover:text-primary-300">

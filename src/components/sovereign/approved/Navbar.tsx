@@ -1,35 +1,66 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Logo from './Logo';
 
+const groups = [
+  { label: 'Studios', links: [
+    { label: 'AI Films', href: '/ai-films' },
+    { label: 'Music Studio', href: '/music' },
+    { label: 'Voice Studio', href: '/voice-studio' },
+  ] },
+  { label: 'Resources', links: [
+    { label: 'AI Agents', href: '/agents' },
+    { label: 'Command Core', href: '/command-center' },
+    { label: 'Marketplace', href: '/marketplace' },
+    { label: 'About D3VONN', href: '#about' },
+  ] },
+];
 const links = [
   { label: 'Platform', href: '#platform' },
-  { label: 'AI Films', href: '#films' },
   { label: 'Infrastructure', href: '#infrastructure' },
-  { label: 'About', href: '#about' },
 ];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
+  const desktopNav = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!activeGroup) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!desktopNav.current?.contains(event.target as Node)) setActiveGroup(null);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        desktopNav.current?.querySelector<HTMLButtonElement>('[aria-expanded="true"]')?.focus();
+        setActiveGroup(null);
+      }
+    };
+    document.addEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [activeGroup]);
 
   useEffect(() => {
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     menu.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    const close = () => { setOpen(false); trigger.current?.focus(); };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        trigger.current?.focus();
-      }
+      if (event.key === 'Escape') close();
       if (event.key === 'Tab') {
         const controls = menu.current?.querySelectorAll<HTMLElement>('a, button');
         if (!controls?.length) return;
@@ -42,214 +73,71 @@ export default function Navbar() {
         }
       }
     };
+    // Avoid an invisible modal/body lock if the viewport grows to desktop width.
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const onResize = () => { if (desktop.matches) setOpen(false); };
+    desktop.addEventListener('change', onResize);
     document.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = previousOverflow;
+      desktop.removeEventListener('change', onResize);
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
 
-  const smoothScroll = useCallback((e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith('#')) {
-      e.preventDefault();
-      const target = document.querySelector(href);
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-      setOpen(false);
-    }
+  const navigate = useCallback((event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    setActiveGroup(null);
+    setOpen(false);
+    if (!href.startsWith('#')) return;
+    const target = document.querySelector<HTMLElement>(href);
+    if (!target) return;
+    event.preventDefault();
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('reduce-motion');
+    target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    // Keep keyboard navigation on the section reached, outside the closed dialog.
+    if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
   }, []);
 
   return (
     <>
-      <header
-        className={`fixed top-0 z-50 w-full transition-all duration-500 ${
-          scrolled
-            ? 'border-b border-foreground-200/10 bg-background-100/60 backdrop-blur-2xl backdrop-saturate-150'
-            : 'border-b border-transparent bg-transparent'
-        }`}
-      >
-        <div className="mx-auto max-w-[1680px] px-5 md:px-8">
-          <div className="flex h-[68px] items-center justify-between gap-4">
-            <Logo />
-
-            <nav className="hidden items-center gap-3 xl:flex">
-              {links.map((l) => (
-                <a
-                  key={l.label}
-                  href={l.href}
-                  onClick={(e) => smoothScroll(e, l.href)}
-                  className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-foreground-200 transition-colors hover:text-foreground-900 cursor-pointer whitespace-nowrap"
-                >
-                  {l.label}
-                  <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
-                </a>
-              ))}
-              <a
-                href="/marketplace"
-                className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-secondary-300 transition-colors hover:text-secondary-400 cursor-pointer whitespace-nowrap"
-              >
-                Marketplace
-                <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-secondary-500 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a
-                href="/music"
-                className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-primary-300 transition-colors hover:text-primary-400 cursor-pointer whitespace-nowrap"
-              >
-                Music Studio
-                <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a
-                href="/voice-studio"
-                className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-accent-300 transition-colors hover:text-accent-400 cursor-pointer whitespace-nowrap"
-              >
-                Voice Studio
-                <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-accent-500 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a
-                href="/agents"
-                className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-foreground-200 transition-colors hover:text-foreground-900 cursor-pointer whitespace-nowrap"
-              >
-                AI Agents
-                <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-              <a
-                href="/command-center"
-                className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-foreground-200 transition-colors hover:text-foreground-900 cursor-pointer whitespace-nowrap"
-              >
-                Command Core
-                <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
-              </a>
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <span className="hidden items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-foreground-300/80 2xl:flex">
-                <span className="relative flex h-1.5 w-1.5 items-center justify-center">
-                  <span className="absolute h-1.5 w-1.5 animate-ping rounded-full bg-accent-500/60"></span>
-                  <span className="relative h-1.5 w-1.5 rounded-full bg-accent-500"></span>
-                </span>
-                Systems active
-              </span>
-              <a
-                href="/app"
-                onClick={() => setOpen(false)}
-                className="btn-primary hidden items-center gap-2 rounded-md px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-white cursor-pointer whitespace-nowrap sm:inline-flex"
-              >
-                Launch D3VONN
-              </a>
-              <button
-                onClick={() => setOpen(true)}
-                className="flex h-10 w-10 items-center justify-center text-foreground-200 transition-colors hover:text-foreground-900 cursor-pointer xl:hidden"
-                ref={trigger}
-                aria-label="Open navigation"
-                aria-expanded={open}
-                aria-controls="approved-mobile-nav"
-              >
-                <i className="ri-menu-2-line text-2xl"></i>
-              </button>
-            </div>
+      <header className={`signal-header ${scrolled ? 'signal-header--scrolled' : ''}`}>
+        <div className="signal-shell signal-header__inner">
+          <Logo />
+          <nav ref={desktopNav} className="signal-desktop-nav" aria-label="Primary navigation" onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActiveGroup(null);
+          }}>
+            <a href="#platform" onClick={(event) => navigate(event, '#platform')}>Platform</a>
+            {groups.map((group) => (
+              <div className="signal-nav-group" key={group.label}>
+                <button type="button" aria-expanded={activeGroup === group.label} aria-controls={`signal-nav-${group.label.toLowerCase()}`} onClick={() => setActiveGroup(activeGroup === group.label ? null : group.label)}>
+                  {group.label}<i className="ri-arrow-right-line signal-chevron" aria-hidden="true" />
+                </button>
+                {activeGroup === group.label && (
+                  <div id={`signal-nav-${group.label.toLowerCase()}`} className="signal-nav-panel">
+                    <p>{group.label === 'Studios' ? 'Create with D3VONN' : 'Explore the ecosystem'}</p>
+                    {group.links.map((link) => <a key={link.href} href={link.href} onClick={(event) => navigate(event, link.href)}>{link.label}<i className="ri-arrow-right-line" aria-hidden="true" /></a>)}
+                  </div>
+                )}
+              </div>
+            ))}
+            <a href="#infrastructure" onClick={(event) => navigate(event, '#infrastructure')}>Infrastructure</a>
+          </nav>
+          <div className="signal-header__actions">
+            <a href="/app" className="btn-primary signal-launch">Launch D3VONN<i className="ri-arrow-right-line" aria-hidden="true" /></a>
+            <button type="button" className="signal-menu-trigger" ref={trigger} aria-label="Open navigation" aria-expanded={open} aria-controls="approved-mobile-nav" onClick={() => { setActiveGroup(null); setOpen(true); }}><i className="ri-menu-2-line" aria-hidden="true" /></button>
           </div>
         </div>
-        {scrolled && <div className="seam opacity-60"></div>}
       </header>
-
-      {/* Mobile full-screen cinematic overlay */}
       {open && (
-        <div ref={menu} id="approved-mobile-nav" role="dialog" aria-modal="true" aria-label="Navigation" className="fixed inset-0 z-[100] flex flex-col overflow-y-auto bg-background-50/97 backdrop-blur-2xl">
-          <div className="contour pointer-events-none absolute inset-0"></div>
-          <div className="flex h-[68px] items-center justify-between px-5 md:px-8">
-            <Logo />
-            <button
-              onClick={() => { setOpen(false); trigger.current?.focus(); }}
-              className="flex h-10 w-10 items-center justify-center text-foreground-200 hover:text-foreground-900 cursor-pointer"
-              aria-label="Close menu"
-            >
-              <i className="ri-close-line text-3xl"></i>
-            </button>
-          </div>
-          <nav aria-label="Primary navigation" className="flex flex-1 flex-col justify-center px-7">
-            <p className="mb-8 font-mono text-[10px] uppercase tracking-[0.3em] text-foreground-300/70">
-              D3VONN NETWORK // NAVIGATION
-            </p>
-            {links.map((l, i) => (
-              <a
-                key={l.label}
-                href={l.href}
-                onClick={(e) => smoothScroll(e, l.href)}
-                className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <span className="font-heading text-3xl font-bold tracking-tight text-foreground-900 transition-colors group-hover:text-primary-300">
-                  {l.label}
-                </span>
-                <span className="font-mono text-[10px] text-foreground-300/70">0{i + 1}</span>
-              </a>
-            ))}
-            <a
-              href="/marketplace"
-              onClick={() => setOpen(false)}
-              className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
-              style={{ animationDelay: '240ms' }}
-            >
-              <span className="font-heading text-3xl font-bold tracking-tight text-secondary-400 transition-colors group-hover:text-secondary-500">
-                Marketplace
-              </span>
-              <span className="font-mono text-[10px] text-foreground-300/70">05</span>
-            </a>
-            <a
-              href="/music"
-              onClick={() => setOpen(false)}
-              className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
-              style={{ animationDelay: '300ms' }}
-            >
-              <span className="font-heading text-3xl font-bold tracking-tight text-primary-400 transition-colors hover:text-primary-500">
-                Music Studio
-              </span>
-              <span className="font-mono text-[10px] text-foreground-300/70">06</span>
-            </a>
-            <a
-              href="/voice-studio"
-              onClick={() => setOpen(false)}
-              className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
-              style={{ animationDelay: '360ms' }}
-            >
-              <span className="font-heading text-3xl font-bold tracking-tight text-accent-400 transition-colors hover:text-accent-500">
-                Voice Studio
-              </span>
-              <span className="font-mono text-[10px] text-foreground-300/70">07</span>
-            </a>
-            <a
-              href="/agents"
-              onClick={() => setOpen(false)}
-              className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
-              style={{ animationDelay: '420ms' }}
-            >
-              <span className="font-heading text-3xl font-bold tracking-tight text-foreground-900 transition-colors group-hover:text-primary-300">
-                AI Agents
-              </span>
-              <span className="font-mono text-[10px] text-foreground-300/70">08</span>
-            </a>
-            <a
-              href="/command-center"
-              onClick={() => setOpen(false)}
-              className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
-              style={{ animationDelay: '480ms' }}
-            >
-              <span className="font-heading text-3xl font-bold tracking-tight text-foreground-900 transition-colors group-hover:text-primary-300">
-                Command Core
-              </span>
-              <span className="font-mono text-[10px] text-foreground-300/70">09</span>
-            </a>
+        <div ref={menu} id="approved-mobile-nav" role="dialog" aria-modal="true" aria-label="Navigation" className="signal-mobile-nav">
+          <div className="signal-mobile-nav__header"><Logo /><button type="button" aria-label="Close menu" onClick={() => { setOpen(false); trigger.current?.focus(); }}><i className="ri-close-line" aria-hidden="true" /></button></div>
+          <nav aria-label="Mobile navigation">
+            <p className="signal-eyebrow">Your command layer</p>
+            {links.map((link) => <a className="signal-mobile-nav__main" key={link.href} href={link.href} onClick={(event) => navigate(event, link.href)}>{link.label}<i className="ri-arrow-right-line" aria-hidden="true" /></a>)}
+            {groups.map((group) => <div className="signal-mobile-nav__group" key={group.label}><p className="signal-eyebrow">{group.label}</p>{group.links.map((link) => <a key={link.href} href={link.href} onClick={(event) => navigate(event, link.href)}>{link.label}</a>)}</div>)}
+            <a href="/app" className="btn-primary signal-mobile-nav__launch" onClick={() => setOpen(false)}>Launch D3VONN<i className="ri-arrow-right-line" aria-hidden="true" /></a>
           </nav>
-          <div className="px-7 pb-10">
-            <a
-              href="/app"
-              onClick={() => setOpen(false)}
-              className="btn-primary flex w-full items-center justify-center gap-2 rounded-md py-4 font-mono text-xs uppercase tracking-[0.2em] text-white cursor-pointer"
-            >
-              Launch D3VONN
-            </a>
-          </div>
         </div>
       )}
     </>
