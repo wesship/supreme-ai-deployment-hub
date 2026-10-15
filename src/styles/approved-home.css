@@ -2406,6 +2406,12 @@ html.reduce-motion .approved-home * {
 @media (prefers-reduced-motion: reduce) {
   .approved-home .signal-header, .approved-home .signal-nav-panel, .approved-home .signal-hero__surfaces a { transition: none; }
 }
+
+/* Preserve the neural scene without letting its wireframe compete with copy. */
+.approved-home .signal-three-background { opacity: .5; }
+@media (max-width: 1023px) {
+  .approved-home .signal-three-background { opacity: .28; }
+}
 .approved-home .placeholder\:text-foreground-300::placeholder {
   --tw-text-opacity: 1;
   color: rgb(211 224 236 / var(--tw-text-opacity, 1));

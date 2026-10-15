@@ -685,3 +685,9 @@ html.reduce-motion * {
 @media (prefers-reduced-motion: reduce) {
   .signal-header, .signal-nav-panel, .signal-hero__surfaces a { transition: none; }
 }
+
+/* Preserve the neural scene without letting its wireframe compete with copy. */
+.signal-three-background { opacity: .5; }
+@media (max-width: 1023px) {
+  .signal-three-background { opacity: .28; }
+}
