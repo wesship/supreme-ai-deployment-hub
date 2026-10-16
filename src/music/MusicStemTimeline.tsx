@@ -113,7 +113,12 @@ export default function MusicStemTimeline() {
         setError('One or more files could not be loaded.');
       }
     }
-    if (added.length) setTracks(prev => [...prev, ...added]);
+    if (added.length) {
+      setTracks(prev => [...prev, ...added]);
+      const allDurations = [...tracksRef.current.map(t => t.duration), ...added.map(t => t.duration)];
+      const maximum = Math.min(...allDurations);
+      if (timeRef.current >= maximum) seek(0);
+    }
   };
   const seek = (next: number) => {
     timeRef.current = next;
