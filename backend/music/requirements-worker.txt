@@ -1,0 +1,6 @@
+# Install in a separate, tested Python 3.11 worker environment.
+# FFmpeg and FFprobe must also be installed. No LLM API key is required.
+demucs==4.0.1
+torch==2.5.1
+torchaudio==2.5.1
+numpy==1.26.4

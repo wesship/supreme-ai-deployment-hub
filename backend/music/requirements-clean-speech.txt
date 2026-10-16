@@ -1,0 +1,2 @@
+# Separate environment; Torch/torchaudio must match the host.
+deepfilternet==0.5.6

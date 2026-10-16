@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Headphones, Pause, Play, Radio, RefreshCw, Users } from 'lucide-react';
+import MusicProductionStudio from '@/components/music/MusicProductionStudio';
+import MusicWorkbench from '@/components/music/MusicWorkbench';
 import { dispatchTool } from '@/services/ai/toolRouter';
 import {
   fetchHnfNowPlaying,
@@ -222,6 +224,10 @@ const Music = () => {
             <p className={`text-xs ${hermesState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>{hermesMessage}</p>
           </article>
         </section>
+
+        <MusicProductionStudio />
+
+        <MusicWorkbench />
 
         <section className="grid gap-4 md:grid-cols-3">
           {[

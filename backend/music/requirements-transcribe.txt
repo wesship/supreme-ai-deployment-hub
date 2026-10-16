@@ -1,0 +1,2 @@
+# Separate environment; optional diarization also requires model access.
+whisperx==3.8.6

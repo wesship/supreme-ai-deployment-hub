@@ -1,0 +1,4 @@
+# Lightweight analysis and loudness interpreter. No Torch or provider key.
+librosa==0.11.0
+pyloudnorm==0.2.0
+soundfile==0.13.1

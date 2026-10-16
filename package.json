@@ -132,7 +132,9 @@
     "vitest": "^4.1.11",
     "zod": "^4.6.5",
     "@react-three/fiber": "8.18.0",
-    "three": "0.179.1"
+    "three": "0.179.1",
+    "tone": "15.1.22",
+    "wavesurfer.js": "8.0.2"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

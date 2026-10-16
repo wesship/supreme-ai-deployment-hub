@@ -1,0 +1,5 @@
+# Separate Python 3.11 environment; qualify its selected model runtime.
+basic-pitch[onnx]==0.4.0
+# resampy 0.4.2 still imports pkg_resources.
+resampy==0.4.2
+setuptools==80.9.0
