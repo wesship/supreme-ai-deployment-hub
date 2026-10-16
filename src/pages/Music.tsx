@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Headphones, Pause, Play, Radio, RefreshCw, Users } from 'lucide-react';
 import { dispatchTool } from '@/services/ai/toolRouter';
 import MusicWaveformEditor from '@/music/MusicWaveformEditor';
+import MusicStemTimeline from '@/music/MusicStemTimeline';
 import {
   fetchHnfNowPlaying,
   getHnfRadioConfig,
@@ -224,7 +225,7 @@ const Music = () => {
           </article>
         </section>
 
-        {import.meta.env.VITE_MUSIC_WAVEFORM_EDITOR === "true" && <MusicWaveformEditor />}
+        {import.meta.env.VITE_MUSIC_WAVEFORM_EDITOR === "true" && <><MusicWaveformEditor /><MusicStemTimeline /></>}
 
         <section className="grid gap-4 md:grid-cols-3">
           {[
