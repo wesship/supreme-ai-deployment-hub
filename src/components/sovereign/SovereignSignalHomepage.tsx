@@ -50,16 +50,30 @@ export default function SovereignSignalHomepage({ telemetry }: { telemetry: Home
         <Navbar />
         <div id="approved-main" tabIndex={-1}>
           <Hero />
-          {/* Keep the complete approved layout and anchor IDs, but let the browser
-              skip offscreen section layout/paint until they approach the viewport. */}
+          {/* Per-section containment lets the browser skip offscreen paint independently.
+              A single wrapper around all sections would defeat the optimization. */}
           <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <SignalRail />
+          </div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <Platform />
+          </div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <Agents />
+          </div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <Films />
+          </div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <Infrastructure />
+          </div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <Voice />
+          </div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <Manifesto />
+          </div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
             <FinalCTA />
           </div>
         </div>
