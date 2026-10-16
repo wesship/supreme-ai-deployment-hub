@@ -50,14 +50,18 @@ export default function SovereignSignalHomepage({ telemetry }: { telemetry: Home
         <Navbar />
         <div id="approved-main" tabIndex={-1}>
           <Hero />
-          <SignalRail />
-          <Platform />
-          <Agents />
-          <Films />
-          <Infrastructure />
-          <Voice />
-          <Manifesto />
-          <FinalCTA />
+          {/* Keep the complete approved layout and anchor IDs, but let the browser
+              skip offscreen section layout/paint until they approach the viewport. */}
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 800px' }}>
+            <SignalRail />
+            <Platform />
+            <Agents />
+            <Films />
+            <Infrastructure />
+            <Voice />
+            <Manifesto />
+            <FinalCTA />
+          </div>
         </div>
         <Footer systemStatus={telemetry.systemStatus} />
       </div>
