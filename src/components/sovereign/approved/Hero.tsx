@@ -1,7 +1,10 @@
+import { useGlobalLanguage } from '../../../hooks/useGlobalLanguage';
 import SignalField from './SignalField';
 import Logo3D from './Logo3D';
 
 export default function Hero() {
+  const locale = useGlobalLanguage();
+  const copy = heroCopy[locale];
   return (
     <section id="top" className="relative isolate flex min-h-screen items-center overflow-hidden">
       <SignalField />
@@ -37,9 +40,9 @@ export default function Hero() {
             <h1
               className="mt-4 font-heading text-[clamp(2.25rem,5vw,4.5rem)] font-bold leading-[0.94] tracking-[-0.03em] text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)]"
             >
-              INTELLIGENCE
+              {copy.headline}
               <span className="block text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.85)]" style={{ textShadow: '0 0 40px rgba(0,0,0,0.9), 0 2px 12px rgba(0,0,0,0.8)' }}>
-                UNDER YOUR COMMAND.
+                {copy.command}
               </span>
             </h1>
 
@@ -47,7 +50,7 @@ export default function Hero() {
             <p
               className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/90 font-medium drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]"
             >
-              Run AI agents, organize your knowledge, and create voice and film projects from one platform—with human oversight.
+              {copy.description}
             </p>
 
             {/* CTAs */}
@@ -58,21 +61,21 @@ export default function Hero() {
                 href="/app"
                 className="btn-primary group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
               >
-                Enter the Platform
+                {copy.enter}
                 <i className="ri-arrow-right-line transition-transform duration-300 group-hover:translate-x-1"></i>
               </a>
               <a
                 href="#signal"
                 className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
               >
-                Explore the Signal
+                {copy.explore}
               </a>
               <a
                 href="/command-center"
                 className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-8 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
               >
                 <i className="ri-radar-line"></i>
-                Command Core
+                {copy.core}
               </a>
             </div>
 
@@ -108,3 +111,13 @@ export default function Hero() {
     </section>
   );
 }
+const heroCopy = {
+ en: { headline: 'INTELLIGENCE', command: 'UNDER YOUR COMMAND.', description: 'Run AI agents, organize your knowledge, and create voice and film projects from one platform—with human oversight.', enter: 'Enter the Platform', explore: 'Explore the Signal', core: 'Command Core' },
+ es: { headline: 'INTELIGENCIA', command: 'BAJO TU CONTROL.', description: 'Gestiona agentes de IA, organiza tus conocimientos y crea proyectos de voz y cine desde una plataforma con supervisión humana.', enter: 'Entrar a la plataforma', explore: 'Explorar la señal', core: 'Centro de mando' },
+ fr: { headline: 'INTELLIGENCE', command: 'SOUS VOTRE CONTRÔLE.', description: 'Pilotez des agents IA, organisez vos connaissances et créez des projets vocaux et vidéo sur une plateforme avec supervision humaine.', enter: 'Accéder à la plateforme', explore: 'Explorer le signal', core: 'Centre de commande' },
+ de: { headline: 'INTELLIGENZ', command: 'UNTER IHRER KONTROLLE.', description: 'Steuern Sie KI-Agenten, organisieren Sie Wissen und erstellen Sie Sprach- und Filmprojekte auf einer Plattform mit menschlicher Aufsicht.', enter: 'Plattform öffnen', explore: 'Signal erkunden', core: 'Kommandozentrale' },
+ pt: { headline: 'INTELIGÊNCIA', command: 'SOB SEU COMANDO.', description: 'Gerencie agentes de IA, organize conhecimento e crie projetos de voz e filmes em uma plataforma com supervisão humana.', enter: 'Entrar na plataforma', explore: 'Explorar o sinal', core: 'Central de comando' },
+ ar: { headline: 'الذكاء', command: 'تحت سيطرتك.', description: 'أدِر وكلاء الذكاء الاصطناعي ونظّم معرفتك وأنشئ مشاريع صوتية وسينمائية على منصة واحدة بإشراف بشري.', enter: 'دخول المنصة', explore: 'استكشاف الإشارة', core: 'مركز القيادة' },
+ zh: { headline: '智能', command: '尽在掌控。', description: '在一个有人类监督的平台上运行 AI 智能体、整理知识并创建语音和影视项目。', enter: '进入平台', explore: '探索信号', core: '指挥中心' },
+ hi: { headline: 'बुद्धिमत्ता', command: 'आपके नियंत्रण में।', description: 'मानवीय निगरानी के साथ एक ही मंच पर एआई एजेंट चलाएँ, ज्ञान व्यवस्थित करें और आवाज़ व फ़िल्म परियोजनाएँ बनाएँ।', enter: 'प्लेटफ़ॉर्म खोलें', explore: 'सिग्नल देखें', core: 'कमांड केंद्र' },
+} as const;
