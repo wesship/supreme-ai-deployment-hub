@@ -29,6 +29,7 @@ class REAApproval:
     artifact_sha256: str
     expires_at: datetime
     approved: bool
+    approval_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -37,7 +38,7 @@ class REAAdmission:
     artifact_sha256: str
 
 
-def admit_rea_job(request: REARequest, approval: REAApproval | None, *, now: datetime | None = None) -> REAAdmission:
+def admit_rea_job(request: REARequest, approval: REAApproval | None, *, now: datetime | None = None, revoked_approval_ids: frozenset[str] | None = None) -> REAAdmission:
     """Validate admission only; never starts a worker."""
     if os.getenv("OPPORTUNITY_REA_ENABLED") != "true":
         raise REAAdmissionError("REA is disabled")
@@ -51,6 +52,12 @@ def admit_rea_job(request: REARequest, approval: REAApproval | None, *, now: dat
         approval.tenant_id, approval.requester_id, approval.artifact_sha256
     ):
         raise REAAdmissionError("Approval scope mismatch")
+    if not approval.approval_id.strip():
+        raise REAAdmissionError("Durable approval identifier required")
+    if revoked_approval_ids is None:
+        raise REAAdmissionError("Revocation state unavailable")
+    if approval.approval_id in revoked_approval_ids:
+        raise REAAdmissionError("Approval revoked")
     if approval.expires_at.tzinfo is None:
         raise REAAdmissionError("Approval expiry must be timezone-aware")
     current = now if now is not None else datetime.now(timezone.utc)
