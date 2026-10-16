@@ -169,8 +169,16 @@ test.describe('D3VONN.IO production interaction audit', () => {
       for (let index = 0; index < linkCount; index += 1) {
         const link = visibleLinks.nth(index);
         const href = (await link.getAttribute('href'))?.trim() ?? '';
-        const label = ((await link.getAttribute('aria-label')) ?? (await link.innerText())).trim();
-        expect(label, `Unnamed visible link at ${route} index ${index}`).not.toBe('');
+        // innerText can be empty for offscreen content-visibility:auto sections,
+        // even when a link has real text and an accessible name.
+        const label = ((await link.getAttribute('aria-label')) ?? (await link.textContent()) ?? '').trim();
+        // Include the actual element in CI failures so the offending link can be
+        // repaired without guessing from an unstable DOM index.
+        const diagnostic = await link.evaluate((element) => ({
+          html: element.outerHTML.slice(0, 700),
+          accessibleImageAlt: Array.from(element.querySelectorAll('img')).map((img) => img.alt),
+        }));
+        expect(label, `Unnamed visible link at ${route} index ${index}; href=${href}; element=${JSON.stringify(diagnostic)}`).not.toBe('');
         expect(DISALLOWED_HREFS.has(href.toLowerCase()), `Dead link "${label}" on ${route}: ${href}`).toBeFalsy();
         if (href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/api/') && !href.includes('#')) {
           const target = await request.get(href, { failOnStatusCode: false });

@@ -57,6 +57,8 @@ export default function Logo3D() {
               <img
                 key={z}
                 src={LOGO}
+                loading="lazy"
+                decoding="async"
                 alt=""
                 aria-hidden="true"
                 className="absolute inset-0 h-full w-full object-cover object-center opacity-80"
@@ -128,6 +130,8 @@ export default function Logo3D() {
         <div className="water-reflect absolute inset-x-0 top-0 mx-auto h-full w-[86%]">
           <img
             src={LOGO}
+            loading="lazy"
+            decoding="async"
             alt=""
             aria-hidden="true"
             className="h-full w-full object-cover object-top"

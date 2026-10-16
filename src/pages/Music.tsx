@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Headphones, Pause, Play, Radio, RefreshCw, Users } from 'lucide-react';
 import { dispatchTool } from '@/services/ai/toolRouter';
+import MusicWaveformEditor from '@/music/MusicWaveformEditor';
+import MusicStemTimeline from '@/music/MusicStemTimeline';
+import MusicWebAudioMixer from '@/music/MusicWebAudioMixer';
 import {
   fetchHnfNowPlaying,
   getHnfRadioConfig,
@@ -222,6 +225,8 @@ const Music = () => {
             <p className={`text-xs ${hermesState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>{hermesMessage}</p>
           </article>
         </section>
+
+        {import.meta.env.VITE_MUSIC_WAVEFORM_EDITOR === "true" && <><MusicWaveformEditor /><MusicStemTimeline />{import.meta.env.VITE_MUSIC_WEB_AUDIO_MIXER === "true" && <MusicWebAudioMixer />}</>}
 
         <section className="grid gap-4 md:grid-cols-3">
           {[
