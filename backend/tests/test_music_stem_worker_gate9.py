@@ -37,7 +37,9 @@ def test_rejects_empty_audio_source(tmp_path: Path):
 def test_approved_test_adapter_uses_argument_array_never_shell(tmp_path: Path):
     root = tmp_path / "private"
     root.mkdir()
-    source = root / "source.wav"
+    owner = root / "owner1"
+    owner.mkdir()
+    source = owner / "source.wav"
     source.write_bytes(b"test-payload")
     binary = root / "fake-worker"
     binary.write_bytes(b"fake-binary")
@@ -54,7 +56,7 @@ def test_approved_test_adapter_uses_argument_array_never_shell(tmp_path: Path):
         calls.append((cmd, kwargs))
         return subprocess.CompletedProcess(cmd, 0, "", "")
     run_private_worker(
-        SeparationRequest("job1", "owner1", source, root),
+        SeparationRequest("job1", "owner1", source, owner),
         qualification=config, executable=binary, checkpoint=checkpoint,
         private_root=root, execute=fake_execute,
     )
