@@ -3,6 +3,7 @@ import { Bot, Headphones, Pause, Play, Radio, RefreshCw, Users } from 'lucide-re
 import { dispatchTool } from '@/services/ai/toolRouter';
 import MusicWaveformEditor from '@/music/MusicWaveformEditor';
 import MusicStemTimeline from '@/music/MusicStemTimeline';
+import MusicWebAudioMixer from '@/music/MusicWebAudioMixer';
 import {
   fetchHnfNowPlaying,
   getHnfRadioConfig,
@@ -225,7 +226,7 @@ const Music = () => {
           </article>
         </section>
 
-        {import.meta.env.VITE_MUSIC_WAVEFORM_EDITOR === "true" && <><MusicWaveformEditor /><MusicStemTimeline /></>}
+        {import.meta.env.VITE_MUSIC_WAVEFORM_EDITOR === "true" && <><MusicWaveformEditor /><MusicStemTimeline />{import.meta.env.VITE_MUSIC_WEB_AUDIO_MIXER === "true" && <MusicWebAudioMixer />}</>}
 
         <section className="grid gap-4 md:grid-cols-3">
           {[
