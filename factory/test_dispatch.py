@@ -33,6 +33,38 @@ class DispatchTests(unittest.TestCase):
         with self.assertRaises(FactorySafetyError):
             plan_dispatch(**self.args)
 
+    def test_incomplete_transitive_dependency_denied(self):
+        self.args["dependency_graph"] = {
+            "foundation": [], "1424": ["foundation"], "1425": ["1424"],
+        }
+        with self.assertRaises(FactorySafetyError):
+            plan_dispatch(**self.args)
+
+    def test_complete_transitive_dependencies_allowed(self):
+        self.args["dependency_graph"] = {
+            "foundation": [], "1424": ["foundation"], "1425": ["1424"],
+            "unrelated": [],
+        }
+        self.args["completed_issues"] = frozenset({"foundation", "1424"})
+        self.assertEqual(plan_dispatch(**self.args).issue_id, "1425")
+
+    def test_shared_ancestor_checked_across_branches(self):
+        self.args["dependency_graph"] = {
+            "root": [], "left": ["root"], "right": ["root"],
+            "1425": ["left", "right"],
+        }
+        self.args["completed_issues"] = frozenset({"left", "right"})
+        with self.assertRaises(FactorySafetyError):
+            plan_dispatch(**self.args)
+
+    def test_dependency_denial_does_not_call_verifier(self):
+        calls = []
+        self.args["trusted_verifier"] = lambda record: calls.append(record) or True
+        self.args["completed_issues"] = frozenset()
+        with self.assertRaises(FactorySafetyError):
+            plan_dispatch(**self.args)
+        self.assertEqual(calls, [])
+
     def test_unknown_issue_denied(self):
         self.args["dependency_graph"] = {"1424": []}
         with self.assertRaises(FactorySafetyError):

@@ -49,7 +49,16 @@ def plan_dispatch(
         raise FactorySafetyError("completed issues must be a frozen set")
     if not all(isinstance(item, str) for item in completed_issues):
         raise FactorySafetyError("invalid completed issue")
-    if not set(dependency_graph[issue_id]).issubset(completed_issues):
+    # Completion evidence must cover the entire prerequisite chain. A direct
+    # dependency marked complete cannot conceal an incomplete ancestor.
+    required: set[str] = set()
+    pending = list(dependency_graph[issue_id])
+    while pending:
+        dependency = pending.pop()
+        if dependency not in required:
+            required.add(dependency)
+            pending.extend(dependency_graph[dependency])
+    if not required.issubset(completed_issues):
         raise FactorySafetyError("unmet dependencies")
     authorize_dispatch(
         approval, issue_id=issue_id, repository=repository,
