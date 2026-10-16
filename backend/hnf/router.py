@@ -15,6 +15,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from backend.hnf.mcp_identity import MCPIdentityError, verify_mcp_service_identity
 from backend.hnf.registry import PERSONAS, WORKFLOWS, list_capabilities
 from backend.hnf.service import decide_hnf_request, get_hnf_request, submit_hnf_workflow
 
@@ -195,7 +196,11 @@ async def mcp(
         }
 
     request_id = str(arguments.get("request_id") or f"mcp-{uuid.uuid4()}")
-    actor_id = str(arguments.get("actor_id") or "hnf-mcp")
+    try:
+        identity = verify_mcp_service_identity(arguments)
+    except MCPIdentityError as exc:
+        return {"jsonrpc": "2.0", "id": body.id, "error": {"code": -32602, "message": str(exc)}}
+    actor_id = identity.actor_id
     persona_id = arguments.get("persona_id")
     if persona_id and persona_id not in PERSONAS:
         return {
@@ -207,7 +212,7 @@ async def mcp(
         workflow_name=name,
         request_id=request_id,
         actor_id=actor_id,
-        actor_type=str(arguments.get("actor_type") or "service"),
+        actor_type=identity.actor_type,
         context=arguments.get("context") if isinstance(arguments.get("context"), dict) else {},
         persona_id=persona_id,
         budget_max_usd=arguments.get("budget_max_usd"),
