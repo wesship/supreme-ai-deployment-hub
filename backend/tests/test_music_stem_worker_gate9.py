@@ -28,10 +28,12 @@ def test_job_must_be_inside_private_storage(tmp_path: Path):
 def test_rejects_empty_audio_source(tmp_path: Path):
     root = tmp_path / "private"
     root.mkdir()
-    source = root / "audio.wav"
+    owner = root / "owner1"
+    owner.mkdir()
+    source = owner / "audio.wav"
     source.touch()
     with pytest.raises(SeparationBlocked, match="SOURCE_SIZE"):
-        prepare_request(SeparationRequest("job1", "owner1", source, root), private_root=root)
+        prepare_request(SeparationRequest("job1", "owner1", source, owner), private_root=root)
 
 
 def test_approved_test_adapter_uses_argument_array_never_shell(tmp_path: Path):
