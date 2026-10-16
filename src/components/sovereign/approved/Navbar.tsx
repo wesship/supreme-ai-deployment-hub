@@ -1,3 +1,4 @@
+import { useGlobalLanguage } from '../../../hooks/useGlobalLanguage';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Logo from './Logo';
 
@@ -9,6 +10,8 @@ const links = [
 ];
 
 export default function Navbar() {
+  const locale = useGlobalLanguage();
+  const navText = navTranslations[locale];
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -76,12 +79,12 @@ export default function Navbar() {
             <nav className="hidden items-center gap-3 xl:flex">
               {links.map((l) => (
                 <a
-                  key={l.label}
+                  key={navText[l.label as keyof typeof navText] || l.label}
                   href={l.href}
                   onClick={(e) => smoothScroll(e, l.href)}
                   className="group relative font-mono text-[11px] uppercase tracking-[0.18em] text-foreground-200 transition-colors hover:text-foreground-900 cursor-pointer whitespace-nowrap"
                 >
-                  {l.label}
+                  {navText[l.label as keyof typeof navText] || l.label}
                   <span className="absolute -bottom-1.5 left-0 h-px w-0 bg-primary-500 transition-all duration-300 group-hover:w-full"></span>
                 </a>
               ))}
@@ -173,14 +176,14 @@ export default function Navbar() {
             </p>
             {links.map((l, i) => (
               <a
-                key={l.label}
+                key={navText[l.label as keyof typeof navText] || l.label}
                 href={l.href}
                 onClick={(e) => smoothScroll(e, l.href)}
                 className="animate-fade-up group flex items-baseline justify-between border-b border-foreground-200/10 py-5 cursor-pointer"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 <span className="font-heading text-3xl font-bold tracking-tight text-foreground-900 transition-colors group-hover:text-primary-300">
-                  {l.label}
+                  {navText[l.label as keyof typeof navText] || l.label}
                 </span>
                 <span className="font-mono text-[10px] text-foreground-300/70">0{i + 1}</span>
               </a>
@@ -255,3 +258,13 @@ export default function Navbar() {
     </>
   );
 }
+const navTranslations: Record<import('../../../lib/global-language').SupportedLocale, Record<string, string>> = {
+ en: { Platform:'Platform','AI Films':'AI Films',Infrastructure:'Infrastructure',About:'About',marketplace:'Marketplace',music:'Music Studio',voice:'Voice Studio',agents:'AI Agents',core:'Command Core',launch:'Launch D3VONN' },
+ es: { Platform:'Plataforma','AI Films':'Cine IA',Infrastructure:'Infraestructura',About:'Acerca de',marketplace:'Mercado',music:'Estudio musical',voice:'Estudio de voz',agents:'Agentes IA',core:'Centro de mando',launch:'Iniciar D3VONN' },
+ fr: { Platform:'Plateforme','AI Films':'Films IA',Infrastructure:'Infrastructure',About:'À propos',marketplace:'Marché',music:'Studio musical',voice:'Studio vocal',agents:'Agents IA',core:'Centre de commande',launch:'Lancer D3VONN' },
+ de: { Platform:'Plattform','AI Films':'KI-Filme',Infrastructure:'Infrastruktur',About:'Über uns',marketplace:'Marktplatz',music:'Musikstudio',voice:'Sprachstudio',agents:'KI-Agenten',core:'Kommandozentrale',launch:'D3VONN starten' },
+ pt: { Platform:'Plataforma','AI Films':'Filmes IA',Infrastructure:'Infraestrutura',About:'Sobre',marketplace:'Mercado',music:'Estúdio musical',voice:'Estúdio de voz',agents:'Agentes IA',core:'Central de comando',launch:'Iniciar D3VONN' },
+ ar: { Platform:'المنصة','AI Films':'أفلام الذكاء الاصطناعي',Infrastructure:'البنية التحتية',About:'حول',marketplace:'السوق',music:'استوديو الموسيقى',voice:'استوديو الصوت',agents:'وكلاء الذكاء الاصطناعي',core:'مركز القيادة',launch:'تشغيل D3VONN' },
+ zh: { Platform:'平台','AI Films':'AI 电影',Infrastructure:'基础设施',About:'关于',marketplace:'市场',music:'音乐工作室',voice:'语音工作室',agents:'AI 智能体',core:'指挥中心',launch:'启动 D3VONN' },
+ hi: { Platform:'प्लेटफ़ॉर्म','AI Films':'एआई फ़िल्में',Infrastructure:'अवसंरचना',About:'परिचय',marketplace:'मार्केटप्लेस',music:'संगीत स्टूडियो',voice:'वॉइस स्टूडियो',agents:'एआई एजेंट',core:'कमांड केंद्र',launch:'D3VONN शुरू करें' },
+};
