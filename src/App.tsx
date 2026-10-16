@@ -4,6 +4,7 @@ import "./App.css";
 import './styles/signal-pages.css';
 import SignalAtmosphere from './components/shell/SignalAtmosphere';
 import ScrollToTop from "./components/ScrollToTop";
+import LanguageSwitcher from "./components/global-language/LanguageSwitcher";
 import SkipToContent from "./components/SkipToContent";
 import AuthenticatedRoute from "./components/auth/AuthenticatedRoute";
 import AdminRoute from "./components/auth/AdminRoute";
@@ -196,6 +197,7 @@ function App() {
         <ScrollToTop />
         <LegacyFilmPathRepair />
         <SkipToContent />
+        <LanguageSwitcher />
         <ShellChrome />
         <DeferredProviders>
           <MainRegion>
