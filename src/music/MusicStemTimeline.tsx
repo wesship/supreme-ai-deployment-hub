@@ -19,38 +19,36 @@ export default function MusicStemTimeline() {
   const tracksRef = useRef<StemTrack[]>([]);
   const timeRef = useRef(0);
   const playingRef = useRef(false);
-  const lastFrameRef = useRef(0);
   const duration = tracks.length ? Math.min(...tracks.map(t => t.duration)) : 0;
   const anySolo = tracks.some(t => t.solo);
   tracksRef.current = tracks;
 
   useEffect(() => {
-    const update = (stamp: number) => {
+    const update = () => {
       if (!playingRef.current) return;
-      const delta = Math.min((stamp - lastFrameRef.current) / 1000, .2);
-      lastFrameRef.current = stamp;
-      const all = tracksRef.current;
-      const limit = Math.min(...all.map(t => t.duration));
-      const next = timeRef.current + delta;
-      if (!Number.isFinite(limit) || next >= limit) {
+      const players = Array.from(audioRefs.current.values());
+      const master = players[0];
+      if (!master) { setPlaying(false); return; }
+      const limit = Math.min(...tracksRef.current.map(t => t.duration));
+      const next = master.currentTime;
+      if (!Number.isFinite(limit) || master.ended || next >= limit) {
         playingRef.current = false;
-        audioRefs.current.forEach(a => a.pause());
-        setPlaying(false);
+        players.forEach(audio => { audio.pause(); audio.currentTime = 0; });
         timeRef.current = 0;
         setTime(0);
-        audioRefs.current.forEach(a => { a.currentTime = 0; });
+        setPlaying(false);
         return;
       }
       timeRef.current = next;
       setTime(next);
-      audioRefs.current.forEach(a => {
-        if (Math.abs(a.currentTime - next) > .1) a.currentTime = next;
+      players.slice(1).forEach(audio => {
+        // Browser-media-element transport is approximate, not sample accurate.
+        if (Math.abs(audio.currentTime - next) > 0.08) audio.currentTime = next;
       });
       rafRef.current = requestAnimationFrame(update);
     };
     if (playing) {
       playingRef.current = true;
-      lastFrameRef.current = performance.now();
       rafRef.current = requestAnimationFrame(update);
     } else {
       playingRef.current = false;
@@ -129,7 +127,10 @@ export default function MusicStemTimeline() {
       setPlaying(false);
       return;
     }
-    const result = await Promise.allSettled(Array.from(audioRefs.current.values(), a => a.play()));
+    setError('');
+    const players = Array.from(audioRefs.current.values());
+    players.forEach(audio => { audio.currentTime = timeRef.current; });
+    const result = await Promise.allSettled(players.map(audio => audio.play()));
     if (result.some(r => r.status === 'rejected')) {
       audioRefs.current.forEach(a => a.pause());
       setError('Playback could not start for every stem.');
