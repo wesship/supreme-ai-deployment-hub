@@ -61,9 +61,10 @@ def prepare_request(request: SeparationRequest, *, private_root: Path) -> None:
     root = private_root.resolve(strict=True)
     source = request.source_file.resolve(strict=True)
     output = request.output_dir.resolve(strict=True)
-    if not request.owner_id or not request.job_id or "/" in request.job_id or ".." in request.job_id:
+    if not request.owner_id or not request.job_id or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in request.owner_id + request.job_id):
         raise SeparationBlocked("STEM_JOB_IDENTITY_INVALID")
-    if not source.is_file() or not source.is_relative_to(root) or not output.is_relative_to(root):
+    owner_root = root / request.owner_id
+    if not owner_root.is_dir() or not source.is_file() or not source.is_relative_to(owner_root) or not output.is_relative_to(owner_root):
         raise SeparationBlocked("STEM_JOB_STORAGE_SCOPE_INVALID")
     if source.stat().st_size == 0 or source.stat().st_size > 100 * 1024 * 1024:
         raise SeparationBlocked("STEM_JOB_SOURCE_SIZE_INVALID")
