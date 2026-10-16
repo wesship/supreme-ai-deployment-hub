@@ -72,3 +72,17 @@ describe('Gate 7 deterministic signal checks', () => {
     expect(safeMixScale(measurePeak([new Float32Array([.02, -.15])]))).toBe(1);
   });
 });
+
+describe('Gate 7 defensive WAV export constraints', () => {
+  it('rejects missing and mismatched channels', () => {
+    expect(() => encodeWav([], 44100)).toThrow(RangeError);
+    expect(() => encodeWav([new Float32Array(2), new Float32Array(3)], 44100)).toThrow(RangeError);
+    expect(() => encodeWav([new Float32Array(0)], 44100)).toThrow(RangeError);
+    expect(() => encodeWav([new Float32Array(1), new Float32Array(1), new Float32Array(1)], 44100)).toThrow(RangeError);
+  });
+  it('rejects invalid or implausible sample rates', () => {
+    expect(() => encodeWav([new Float32Array(1)], 0)).toThrow(RangeError);
+    expect(() => encodeWav([new Float32Array(1)], 44100.5)).toThrow(RangeError);
+    expect(() => encodeWav([new Float32Array(1)], 384000)).toThrow(RangeError);
+  });
+});
