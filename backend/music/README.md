@@ -195,9 +195,36 @@ Verification for this expansion:
   persistence/retention remain qualification gates. No providers were enabled,
   and no live deployment or merge was performed.
 
-PR #1422 contains parallel waveform/mixer work. This expansion extends #1421
-without replacing that branch or importing its homepage changes. Before either
-is merged, review the combined Music route and reconcile overlapping editors.
+### Shared-clock mixer integration
+
+The Music route now uses an account-keyed `MusicProductionStudio` bridge. Set
+`VITE_MUSIC_WEB_AUDIO_MIXER=true` at build time to expose the mixer; it remains
+off by default. Loaded Stem Studio previews can be opened directly in the mixer
+using their existing decoded buffers. These remain previews of up to 30 seconds;
+full-length mixing requires importing the full stems separately. Switching
+accounts remounts the session and clears its buffers.
+
+| Parallel work reviewed | Integration decision |
+| --- | --- |
+| #1421 WaveSurfer workbench | Retained as the single recording editor |
+| #1422 shared-clock mixer at `8e9a4e1109980d7e30dcc57d218378a124dffae6` | Ported and hardened with cancellation and memory bounds |
+| #1422 HTML-media timeline and duplicate editor | Not mounted on the combined Music route |
+| #1422 homepage, Lighthouse, database and migration changes | Not imported in this integration |
+| #1421 authenticated processing API and worker | Retained; no new database or worker path |
+
+The mixer supports eight mono/stereo tracks, at most 128 MiB of decoded audio,
+and a ten-minute input duration limit. Metadata is checked before local decode;
+offline rendering has a separate 128 MiB estimated working-set limit. Playback
+uses one Web Audio clock, supports live mute/solo/gain, and exports stereo PCM16
+WAV with sample-peak reduction above 0.98. It does not provide loudness mastering
+or true-peak limiting. Cancellation suppresses stale playback, imports and exports.
+
+Integration verification: 48 frontend tests cover buffer handoff, account reset,
+synchronized scheduling, cancellation, mute/solo gain, resource cleanup, metadata
+limits, PCM encoding and existing Music behavior. These use controlled browser
+and audio fakes; real-device playback, full model qualification and production
+persistence remain open. The separate #1422 branch is unchanged and still needs
+review before any eventual merge.
 
 Extended checks (install analysis requirements for real DSP tests):
 

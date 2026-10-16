@@ -72,12 +72,14 @@ describe('Stem Studio', () => {
   });
   it('loads short previews and schedules every stem on the same audio clock', async () => {
     const starts: ReturnType<typeof vi.fn>[] = [];
+    const decodedBuffer = { duration: 30 };
+    const onMixSession = vi.fn();
     class FakeAudioContext {
       currentTime = 10;
       destination = {};
       resume = vi.fn().mockResolvedValue(undefined);
       close = vi.fn().mockResolvedValue(undefined);
-      decodeAudioData = vi.fn().mockResolvedValue({ duration: 30 });
+      decodeAudioData = vi.fn().mockResolvedValue(decodedBuffer);
       createGain = () => ({ gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() });
       createBufferSource = () => {
         const start = vi.fn(); starts.push(start);
@@ -88,7 +90,7 @@ describe('Stem Studio', () => {
     vi.mocked(createStemJob).mockResolvedValue(pending);
     vi.mocked(getStemJob).mockResolvedValue({ ...pending, status: 'completed', stems: ['vocals', 'no_vocals'] });
     vi.mocked(stemRequest).mockResolvedValue({ blob: async () => ({ arrayBuffer: async () => new ArrayBuffer(8) }) } as unknown as Response);
-    render(<StemStudio />);
+    render(<StemStudio onMixSession={onMixSession} />);
     await submitRecording(true);
     await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Load 30-second stem previews' })); });
@@ -98,6 +100,13 @@ describe('Stem Studio', () => {
     expect(starts[0]).toHaveBeenCalledWith(10.05, 0);
     expect(starts[1]).toHaveBeenCalledWith(10.05, 0);
     expect(screen.getByRole('button', { name: 'Download instrumental WAV' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Open previews in mixer' }));
+    const session = onMixSession.mock.calls[onMixSession.mock.calls.length - 1][0];
+    expect(session.id).toBe('job-1');
+    expect(session.stems).toHaveLength(2);
+    expect(session.stems[0].buffer).toBe(decodedBuffer);
+    expect(session.stems[1].buffer).toBe(decodedBuffer);
+    expect(stemRequest).toHaveBeenCalledTimes(2);
   });
 
 });

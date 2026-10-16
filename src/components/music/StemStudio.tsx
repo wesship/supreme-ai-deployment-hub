@@ -2,19 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import { createStemJob, getStemJob, stemRequest, type StemJob, type StemMode } from '@/services/stemStudio';
 import { API_BASE_URL } from '@/services/config';
 import { supabase } from '@/integrations/supabase/client';
+import type { MixerSession } from '@/music/musicMixer';
 
 type Track = { name: string; buffer: AudioBuffer; gain: GainNode };
 
-export default function StemStudio() {
+interface Props { onMixSession?: (session: MixerSession | null) => void }
+
+export default function StemStudio({ onMixSession }: Props = {}) {
   const [account, setAccount] = useState<string | null>(null);
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setAccount(session?.user.id ?? null));
     return () => subscription.unsubscribe();
   }, []);
-  return <StudioPanel key={account ?? 'signed-out'} />;
+  return <StudioPanel key={account ?? 'signed-out'} onMixSession={onMixSession} />;
 }
 
-function StudioPanel() {
+function StudioPanel({ onMixSession }: Props) {
   const [enabled, setEnabled] = useState(false);
   const [availability, setAvailability] = useState('Checking Stem Studio availability…');
   const [file, setFile] = useState<File | null>(null);
@@ -99,6 +102,7 @@ function StudioPanel() {
   const submit = async () => {
     if (!file || !rights) return;
     stop();
+    onMixSession?.(null);
     loadController.current?.abort();
     urls.current.forEach(url => URL.revokeObjectURL(url));
     urls.current = [];
@@ -198,6 +202,11 @@ function StudioPanel() {
       {job?.status === 'completed' && <div className="flex flex-wrap gap-3" aria-label="Full stem downloads">
         {job.stems.map(name => <button key={name} disabled={busy} onClick={() => void download(name)} className={button}>Download {name === 'no_vocals' ? 'instrumental' : name} WAV</button>)}
       </div>}
+      {tracks.length > 0 && onMixSession && <button className={button} disabled={busy} onClick={() => {
+        if (!job) return;
+        stop();
+        onMixSession({ id: job.id, label: 'Stem Studio previews · up to 30 seconds. Import full stems separately for a full-length mix.', stems: tracks.map(track => ({ id: `${job.id}:${track.name}`, name: `${track.name} preview`, buffer: track.buffer })) });
+      }}>Open previews in mixer</button>}
       {tracks.length > 0 && <div className="space-y-4">
         <div className="flex flex-wrap gap-3 items-center"><button className={button} onClick={() => void toggle()}>{playing ? 'Pause stems' : 'Play stems'}</button>
           <button className={button} onClick={() => { stop(); offset.current = 0; setPosition(0); }}>Restart</button>

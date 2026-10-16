@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Headphones, Pause, Play, Radio, RefreshCw, Users } from 'lucide-react';
-import StemStudio from '@/components/music/StemStudio';
+import MusicProductionStudio from '@/components/music/MusicProductionStudio';
 import MusicWorkbench from '@/components/music/MusicWorkbench';
 import { dispatchTool } from '@/services/ai/toolRouter';
 import {
@@ -225,7 +225,7 @@ const Music = () => {
           </article>
         </section>
 
-        <StemStudio />
+        <MusicProductionStudio />
 
         <MusicWorkbench />
 
