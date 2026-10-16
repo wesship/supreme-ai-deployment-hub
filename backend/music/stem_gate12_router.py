@@ -5,8 +5,6 @@ owner IDs, production uploads, queue writes, signed URLs or model execution.
 """
 from __future__ import annotations
 
-import os
-import re
 import uuid
 
 from fastapi import APIRouter, Header, HTTPException
@@ -15,7 +13,6 @@ from pydantic import BaseModel
 from backend.ai_films.orchestration import OrchestrationError, SupabaseRLSClient
 
 router = APIRouter(prefix="/music/stems", tags=["music-stems"])
-UUID_PATTERN = re.compile(r"^[a-fA-F0-9-]{36}$")
 
 
 class StemGateStatus(BaseModel):
