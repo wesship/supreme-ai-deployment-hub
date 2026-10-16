@@ -1,0 +1,2 @@
+# Separate environment, selected model terms and hardware must be qualified.
+audio-separator==0.47.0

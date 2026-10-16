@@ -48,7 +48,7 @@ shared deployments.
 The feature defaults to unavailable unless explicitly enabled with a data
 volume. The capabilities endpoint reports configuration, **not worker health**.
 A queued job means accepted by the spool, not that inference has started. A
-job with no update for 4000 seconds fails on the next status read. Ten jobs per
+job with no update for 4500 seconds fails on the next status read. Ten jobs per
 user per rolling 24 hours and 100 retained jobs globally bound pilot capacity.
 Expired records and files are purged while the worker is running; if the
 worker is stopped, the operator must resume it to run retention cleanup.
@@ -99,3 +99,109 @@ model expansion: https://github.com/nomadkaraoke/python-audio-separator .
   two-account tests, and actual model inference remain open.
 
 No live deployment, merge, paid provider setup, or publishing was performed.
+
+## Music Workbench expansion — 2026-10-16
+
+The Music Hub now includes Recording Tools and Beat & Melody Lab alongside
+Stem Studio. The eight recommended projects are integrated as documented in
+`THIRD_PARTY.md`; this describes implementation, not deployment approval.
+
+Browser features (lazy-loaded audio libraries):
+
+- WaveSurfer waveform playback, draggable selection, numeric/keyboard selection
+  boundaries, local PCM16 WAV selection export, and estimated beat overlays
+  when an analysis report is loaded.
+- Tone.js 16-step kick/snare/hi-hat sequencer, tempo control, pattern JSON export,
+  three synth sounds, editable note audition, and edited Standard MIDI export.
+- Original full MIDI files download separately from the 30-second/512-note
+  audition window; the first 32 preview notes have visible editing controls.
+- Local files and note previews clear when the authenticated account changes.
+
+Worker operations:
+
+| Mode | Output | Runtime qualification |
+| --- | --- | --- |
+| analyze | Estimated tempo, beat times, key/correlation JSON | Real generated-audio job passed |
+| trim | Selected WAV and short preview | Real FFmpeg job passed |
+| loudness | Gain-adjusted WAV, achieved/target LUFS report | Real pyloudnorm job passed |
+| midi | Original MIDI, editable notes JSON | Real Basic Pitch ONNX CPU smoke passed |
+| transcribe | Aligned word/segment JSON, text, SRT | Adapter tested with fakes; actual model pending |
+| clean_speech | Mono noise-reduced WAV | Adapter tested with fakes; actual model pending |
+| separate_advanced | Alternative model stem WAVs | Adapter tested with fakes; actual checkpoint pending |
+
+All worker tools default to unavailable. The API's capabilities endpoint reports
+configured operation flags, not hardware health or a qualification certificate.
+A host operator should enable an operation only after testing its environment.
+Use the existing shared persistent pilot volume and canonical authentication.
+An example configuration for the lightweight tool pilot is:
+
+```sh
+export MUSIC_STEMS_ENABLED=true
+export MUSIC_STEM_DATA_DIR=/absolute/private/persistent/stem-studio
+export MUSIC_TOOLS_ENABLED=analyze,trim,loudness
+```
+
+Install `requirements-analysis.txt` in the worker interpreter for these tools.
+Each ML package has a separate `requirements-*.txt` file because their Python,
+Torch, NumPy, TensorFlow, and ONNX constraints can conflict. Select a separate
+interpreter per mode as needed, for example:
+
+```sh
+export MUSIC_TOOL_PYTHON_ANALYZE=/absolute/analysis-env/bin/python
+export MUSIC_TOOL_PYTHON_LOUDNESS=/absolute/analysis-env/bin/python
+export MUSIC_TOOL_PYTHON_MIDI=/absolute/midi-env/bin/python
+export MUSIC_TOOL_PYTHON_TRANSCRIBE=/absolute/transcribe-env/bin/python
+export MUSIC_TOOL_PYTHON_CLEAN_SPEECH=/absolute/cleanup-env/bin/python
+export MUSIC_TOOL_PYTHON_SEPARATE_ADVANCED=/absolute/separation-env/bin/python
+```
+
+Run the coordinator from the repository root so its child interpreters can
+import `backend.music.tools_cli`. Keep interpreters, model selectors, model
+caches, and optional tokens server-side. `MUSIC_SEPARATOR_MODEL` must name a
+qualified registry checkpoint (no paths/URLs supplied by users). WhisperX uses
+its small model; `MUSIC_TRANSCRIBE_DEVICE` defaults to CPU/int8. Optional speaker
+diarization requires `MUSIC_DIARIZATION_ENABLED=true`, a server-side `HF_TOKEN`,
+and access to its upstream model. The default transcription path does not
+require the diarization token. No paid provider is configured.
+
+Job settings accept only operation-specific numeric selection boundaries or
+LUFS targets. Artifact downloads and previews enforce canonical job ownership.
+The existing SQLite spool is migrated additively to store options, and database
+connections now close explicitly. Interrupted jobs time out after 4500 seconds
+to cover bounded tool execution and preview generation. The single-host and
+worker-driven 24-hour retention constraints still apply.
+
+Verification for this expansion:
+
+- 39 backend tests passed, including real generated-audio analysis, trim, and
+  loudness jobs; cross-account artifact denial; option validation; additive
+  spool migration; model adapter contracts; and exact cleanup resample length.
+- 27 frontend tests passed (new recording/beat/export tests, existing Stem
+  Studio tests, and existing music-provider tests).
+- MIDI smoke: a real bundled Basic Pitch ONNX model transcribed a 3-second
+  harmonic C4 into a MIDI containing one pitch-60 note. This was an experimental
+  Python 3.12 environment with explicit ONNX dependencies and setuptools 80.9;
+  Basic Pitch's normal supported Python/runtime dependency set still needs
+  production qualification. Re-run the check with `python -m backend.music.smoke_midi`.
+- Changed frontend files pass ESLint. Production Vite build and client bundle
+  credential scan pass. The full application TypeScript check still reports
+  the five previously reproduced errors in untouched Knowledge Graph and AI
+  Films files; no expansion-file errors remain.
+- Rendered browser/audio QA remains blocked by corrupt/truncated Chromium
+  downloads, including the smaller headless-shell download. Component tests
+  use controlled browser/audio fakes and do not certify real device playback.
+- Actual speech cleanup, transcription/diarization, alternative separation,
+  GPU behavior, long recordings, two live authenticated accounts, and live
+  persistence/retention remain qualification gates. No providers were enabled,
+  and no live deployment or merge was performed.
+
+PR #1422 contains parallel waveform/mixer work. This expansion extends #1421
+without replacing that branch or importing its homepage changes. Before either
+is merged, review the combined Music route and reconcile overlapping editors.
+
+Extended checks (install analysis requirements for real DSP tests):
+
+```sh
+python -m pytest backend/tests/test_music_tools.py backend/tests/test_music_stem_studio.py -q
+pnpm exec vitest run src/components/music/__tests__ src/__tests__/musicProviderPolicy.test.ts src/__tests__/musicProviderRouter.test.ts
+```

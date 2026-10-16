@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bot, Headphones, Pause, Play, Radio, RefreshCw, Users } from 'lucide-react';
 import StemStudio from '@/components/music/StemStudio';
+import MusicWorkbench from '@/components/music/MusicWorkbench';
 import { dispatchTool } from '@/services/ai/toolRouter';
 import {
   fetchHnfNowPlaying,
@@ -225,6 +226,8 @@ const Music = () => {
         </section>
 
         <StemStudio />
+
+        <MusicWorkbench />
 
         <section className="grid gap-4 md:grid-cols-3">
           {[
