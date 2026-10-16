@@ -25,6 +25,24 @@ export const encodeWav = (channels: Float32Array[], sampleRate: number): Blob =>
   return new Blob([output], { type: 'audio/wav' });
 };
 
+export const measurePeak = (channels: Float32Array[]) => {
+  let peak = 0;
+  for (const channel of channels) for (let i = 0; i < channel.length; i++) {
+    peak = Math.max(peak, Math.abs(channel[i]));
+  }
+  return peak;
+};
+export const safeMixScale = (peak: number, ceiling = 0.98) =>
+  Number.isFinite(peak) && peak > ceiling ? ceiling / peak : 1;
+export const waveformBars = (buffer: AudioBuffer, count = 64): number[] => {
+  const samples = buffer.getChannelData(0);
+  const size = Math.max(1, Math.ceil(samples.length / count));
+  return Array.from({ length: count }, (_, x) => {
+    let peak = 0;
+    for (let i = x * size; i < Math.min(samples.length, (x + 1) * size); i++) peak = Math.max(peak, Math.abs(samples[i]));
+    return Math.min(1, peak);
+  });
+};
 const MAX_BYTES = 100 * 1024 * 1024;
 const format = (value: number) => `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`;
 export default function MusicWebAudioMixer() {
@@ -33,6 +51,7 @@ export default function MusicWebAudioMixer() {
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [exportReport, setExportReport] = useState('');
   const ctxRef = useRef<AudioContext | null>(null);
   const sourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const gainsRef = useRef<Map<string, GainNode>>(new Map());
@@ -171,7 +190,13 @@ export default function MusicWebAudioMixer() {
         source.start(0);
       });
       const rendered = await offline.startRendering();
-      const blob = encodeWav([rendered.getChannelData(0), rendered.getChannelData(1)], rate);
+      const left = rendered.getChannelData(0);
+      const right = rendered.getChannelData(1);
+      const peak = measurePeak([left, right]);
+      const scale = safeMixScale(peak);
+      const processed = [Float32Array.from(left, x => x * scale), Float32Array.from(right, x => x * scale)];
+      const blob = encodeWav(processed, rate);
+      setExportReport(`Mix peak: ${peak.toFixed(3)}; export gain: ${scale.toFixed(3)}; duration: ${rendered.duration.toFixed(2)}s; stereo PCM WAV.`);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -203,6 +228,11 @@ export default function MusicWebAudioMixer() {
         {stems.map(stem => (
           <div key={stem.id} className="rounded-lg border border-border p-4 space-y-2">
             <div className="flex flex-wrap justify-between gap-2"><span className="text-sm font-medium break-all">{stem.name}</span><span className="text-xs text-muted-foreground">{format(stem.buffer.duration)} · {stem.buffer.numberOfChannels} ch</span></div>
+            <div aria-label={`Waveform preview for ${stem.name}`} role="img" className="h-12 flex items-center gap-px overflow-hidden rounded bg-muted/30">
+              {waveformBars(stem.buffer).map((peak, index) => (
+                <span key={index} className="flex-1 bg-primary/70 rounded-sm" style={{ height: `${Math.max(2, peak * 95)}%` }} />
+              ))}
+            </div>
             <div className="flex flex-wrap gap-4 items-center">
               <label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={stem.muted} onChange={e => change(stem.id, 'muted', e.target.checked)} />Mute</label>
               <label className="text-sm flex gap-2 items-center"><input type="checkbox" checked={stem.solo} onChange={e => change(stem.id, 'solo', e.target.checked)} />Solo</label>
@@ -212,6 +242,7 @@ export default function MusicWebAudioMixer() {
         ))}
       </div>
       {!stems.length && <p className="text-sm text-muted-foreground">Add aligned audio files to start mixing.</p>}
+      {exportReport && <p role="status" className="text-xs text-muted-foreground">{exportReport}</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </section>
   );
