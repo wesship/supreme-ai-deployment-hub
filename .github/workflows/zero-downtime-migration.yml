@@ -142,9 +142,14 @@ jobs:
               # that privilege changes authorization only; it does not truncate
               # data. Normalize the privilege token before destructive scanning
               # while leaving executable TRUNCATE statements detectable.
+              # Match comma-separated privilege lists only in GRANT/REVOKE
+              # statements with ON ... TO/FROM. Executable TRUNCATE statements
+              # remain untouched and are still blocked.
               content = re.sub(
-                  r'\b(REVOKE|GRANT)\s+TRUNCATE\b',
-                  r'\1 __TRUNCATE_PRIVILEGE__',
+                  r'\\b(GRANT|REVOKE)\\s+([A-Z_,\\s]+?)\\s+ON\\s+',
+                  lambda match: match.group(1) + ' ' +
+                      re.sub(r'\\bTRUNCATE\\b', '__TRUNCATE_PRIVILEGE__',
+                             match.group(2), flags=re.IGNORECASE) + ' ON ',
                   content,
                   flags=re.IGNORECASE,
               )
