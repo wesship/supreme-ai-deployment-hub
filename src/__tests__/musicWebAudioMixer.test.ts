@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeWav, stemGain } from '../music/MusicWebAudioMixer';
+import { encodeWav, stemGain, measurePeak, safeMixScale, waveformBars } from '../music/MusicWebAudioMixer';
 
 describe('Music Web Audio mixer', () => {
   it('honors mute and solo before mixing', () => {
@@ -19,5 +19,18 @@ describe('Music Web Audio mixer', () => {
     expect(bytes.getInt16(46, true)).toBe(0);
     expect(bytes.getInt16(48, true)).toBe(32767);
     expect(bytes.getInt16(50, true)).toBe(-16384);
+  });
+});
+
+describe('Gate 6 export protection and waveform', () => {
+  it('measures peak and calculates a safe reduction without boosting quiet audio', () => {
+    expect(measurePeak([new Float32Array([-.5, 1.25]), new Float32Array([.2])])).toBeCloseTo(1.25);
+    expect(safeMixScale(1.25)).toBeCloseTo(.784);
+    expect(safeMixScale(.4)).toBe(1);
+    expect(safeMixScale(0)).toBe(1);
+  });
+  it('extracts a representative bounded peak display', () => {
+    const buffer = { getChannelData: () => new Float32Array([0, .5, -1, .25]) } as unknown as AudioBuffer;
+    expect(waveformBars(buffer, 4)).toEqual([0, .5, 1, .25]);
   });
 });
