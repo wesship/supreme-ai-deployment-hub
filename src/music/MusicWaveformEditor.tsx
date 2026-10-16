@@ -8,6 +8,7 @@ export default function MusicWaveformEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const urlRef = useRef<string | null>(null);
+  const loadIdRef = useRef(0);
   const peaksRef = useRef<number[]>([]);
   const durationRef = useRef(0);
   const [fileName, setFileName] = useState('');
@@ -50,6 +51,7 @@ export default function MusicWaveformEditor() {
 
   useEffect(paint, [current, duration, region]);
   useEffect(() => () => {
+    loadIdRef.current += 1;
     audioRef.current?.pause();
     if (urlRef.current) URL.revokeObjectURL(urlRef.current);
   }, []);
@@ -58,6 +60,7 @@ export default function MusicWaveformEditor() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    const loadId = ++loadIdRef.current;
     if (!file.type.startsWith('audio/') || file.size > MAX_FILE_BYTES) {
       setError('Choose an audio file under 100 MB.');
       return;
@@ -75,6 +78,7 @@ export default function MusicWaveformEditor() {
       } finally {
         await audioContext.close();
       }
+      if (loadId !== loadIdRef.current) return;
       const canvasWidth = 1000;
       const samples = decoded.getChannelData(0);
       const step = Math.max(1, Math.ceil(samples.length / canvasWidth));
@@ -98,6 +102,7 @@ export default function MusicWaveformEditor() {
       setDuration(decoded.duration);
       setFileName(file.name);
     } catch {
+      if (loadId !== loadIdRef.current) return;
       setError('This audio file could not be decoded. Try WAV or MP3.');
     }
   };
@@ -160,6 +165,8 @@ export default function MusicWaveformEditor() {
       </label>
       <p className="text-sm text-muted-foreground" aria-live="polite">{fileName || 'No recording selected'}</p>
       <canvas ref={canvasRef} width={1000} height={160} role="img" aria-label="Audio waveform. Drag to select a playback region." className="w-full rounded-lg border border-border touch-none cursor-crosshair" onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => setDragStart(null)} />
+      <label className="block text-sm" htmlFor="music-waveform-seek">Seek position</label>
+      <input id="music-waveform-seek" type="range" min={0} max={duration || 0} step={0.01} value={Math.min(current, duration)} disabled={!duration} onChange={event => { const next = Number(event.target.value); if (audioRef.current) audioRef.current.currentTime = next; setCurrent(next); }} className="w-full accent-primary" aria-valuetext={formatTime(current)} />
       <audio ref={audioRef} onTimeUpdate={tick} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
       <div className="flex items-center flex-wrap gap-4">
         <button type="button" disabled={!fileName} onClick={togglePlayback} className="rounded-lg bg-primary text-primary-foreground px-4 py-2 disabled:opacity-50 inline-flex items-center gap-2">
