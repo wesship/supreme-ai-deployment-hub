@@ -165,13 +165,11 @@ async def mcp(
                     "type": "object",
                     "properties": {
                         "request_id": {"type": "string"},
-                        "actor_id": {"type": "string"},
-                        "actor_type": {"type": "string", "enum": ["user", "agent", "service"]},
                         "context": {"type": "object"},
                         "persona_id": {"type": "string"},
                         "budget_max_usd": {"type": "number", "minimum": 0},
                     },
-                    "required": ["request_id", "actor_id"],
+                    "required": ["request_id"],
                     "additionalProperties": False,
                 },
             }
