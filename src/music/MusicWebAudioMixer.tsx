@@ -5,7 +5,11 @@ export type AudioStem = { id: string; name: string; buffer: AudioBuffer; muted: 
 export const stemGain = (stem: Pick<AudioStem, 'muted' | 'solo' | 'gain'>, anySolo: boolean) =>
   stem.muted || (anySolo && !stem.solo) ? 0 : stem.gain;
 export const encodeWav = (channels: Float32Array[], sampleRate: number): Blob => {
-  const frames = channels[0]?.length ?? 0;
+  if (!Number.isInteger(sampleRate) || sampleRate <= 0 || sampleRate > 192000) throw new RangeError('Unsupported WAV sample rate');
+  if (channels.length < 1 || channels.length > 2) throw new RangeError('WAV export requires mono or stereo channels');
+  const frames = channels[0].length;
+  if (!frames || channels.some(channel => channel.length !== frames)) throw new RangeError('WAV channels must have identical nonzero lengths');
+  if (44 + frames * 2 * channels.length > 250 * 1024 * 1024) throw new RangeError('WAV export exceeds size limit');
   const output = new ArrayBuffer(44 + frames * 2 * channels.length);
   const view = new DataView(output);
   const ascii = (offset: number, value: string) => {
