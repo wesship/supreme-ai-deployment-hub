@@ -1,0 +1,40 @@
+name: Hermes Two-Account Staging Certification
+
+# Explicitly initiated by a maintainer; never triggered by push or PR.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    # Allow protected staging secrets only for reviewed code on main.
+    if: github.ref == 'refs/heads/main'
+    name: Authenticated account isolation (staging only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Configure this environment with required reviewers and staging-only secrets
+    # before dispatching. GitHub must not allow production credentials here.
+    environment: hermes-staging-certification
+    env:
+      HERMES_STAGING_CERTIFY: "1"
+      STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
+      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      E2E_TEST_EMAIL_B: ${{ secrets.E2E_TEST_EMAIL_B }}
+      E2E_TEST_PASSWORD_B: ${{ secrets.E2E_TEST_PASSWORD_B }}
+      HERMES_TEST_CORRELATION_ID_A: ${{ secrets.HERMES_TEST_CORRELATION_ID_A }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test runner
+        run: python -m pip install 'pytest>=8,<9'
+      - name: Verify account-A owns stream and account-B is rejected
+        run: python -m pytest -q backend/tests/test_hermes_staging_two_account.py -rs
