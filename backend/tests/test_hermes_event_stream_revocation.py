@@ -15,6 +15,14 @@ class FakeRequest:
         return False
 
 
+async def _credentials():
+    return object()
+
+
+async def _current_user(request, credentials):
+    return "account-a"
+
+
 @pytest.mark.asyncio
 async def test_event_stream_closes_after_owner_revocation(monkeypatch):
     checks = 0
@@ -31,6 +39,8 @@ async def test_event_stream_closes_after_owner_revocation(monkeypatch):
             assert table == "hermes_logs"
             return [{"id": str(checks), "correlation_id": "execution-123", "event": "task.progress", "created_at": "2026-10-16T12:00:00Z"}]
 
+    monkeypatch.setattr(stream, "security", lambda request: _credentials())
+    monkeypatch.setattr(stream, "get_current_user_id", _current_user)
     monkeypatch.setattr(stream, "_authorized_correlation", authorize)
     monkeypatch.setattr(stream, "get_dependencies", lambda: SimpleNamespace(repository=Repository()))
     response = await stream.stream_hermes_events(FakeRequest(), correlation_id="execution-123", once=False, user_id="account-a")
@@ -52,6 +62,8 @@ async def test_stream_filters_mismatched_rows_from_privileged_repository(monkeyp
                 {"id": "right", "correlation_id": "execution-123", "event": "task.progress", "message": "owned"},
             ]
 
+    monkeypatch.setattr(stream, "security", lambda request: _credentials())
+    monkeypatch.setattr(stream, "get_current_user_id", _current_user)
     monkeypatch.setattr(stream, "_authorized_correlation", authorize)
     monkeypatch.setattr(stream, "get_dependencies", lambda: SimpleNamespace(repository=Repository()))
     response = await stream.stream_hermes_events(FakeRequest(), correlation_id="execution-123", once=True, user_id="account-a")
@@ -59,3 +71,52 @@ async def test_stream_filters_mismatched_rows_from_privileged_repository(monkeyp
     assert len(events) == 1
     assert events[0]["id"] == "right"
     assert json.loads(events[0]["data"])["message"] == "owned"
+
+
+@pytest.mark.asyncio
+async def test_stream_stops_when_session_is_revoked(monkeypatch):
+    validations = 0
+    async def current_user(request, credentials):
+        nonlocal validations
+        validations += 1
+        if validations > 1:
+            raise HTTPException(status_code=401, detail="revoked")
+        return "account-a"
+
+    async def authorize(correlation_id, user_id):
+        return {"input_data": {"authenticated_user_id": user_id}}
+
+    class Repository:
+        configured = True
+        async def list_rows(self, table, params):
+            return [{"id": str(validations), "correlation_id": "execution-123", "event": "task.progress"}]
+
+    monkeypatch.setattr(stream, "security", lambda request: _credentials())
+    monkeypatch.setattr(stream, "get_current_user_id", current_user)
+    monkeypatch.setattr(stream, "_authorized_correlation", authorize)
+    monkeypatch.setattr(stream, "get_dependencies", lambda: SimpleNamespace(repository=Repository()))
+    response = await stream.stream_hermes_events(FakeRequest(), correlation_id="execution-123", once=False, user_id="account-a")
+    events = [event async for event in response.body_iterator]
+    assert len(events) == 1
+    assert validations == 2
+
+
+@pytest.mark.asyncio
+async def test_stream_stops_if_session_changes_to_another_user(monkeypatch):
+    async def current_user(request, credentials):
+        return "account-b"
+
+    async def authorize(correlation_id, user_id):
+        return {"input_data": {"authenticated_user_id": user_id}}
+
+    class Repository:
+        configured = True
+        async def list_rows(self, table, params):
+            raise AssertionError("No privileged reads after identity change")
+
+    monkeypatch.setattr(stream, "security", lambda request: _credentials())
+    monkeypatch.setattr(stream, "get_current_user_id", current_user)
+    monkeypatch.setattr(stream, "_authorized_correlation", authorize)
+    monkeypatch.setattr(stream, "get_dependencies", lambda: SimpleNamespace(repository=Repository()))
+    response = await stream.stream_hermes_events(FakeRequest(), correlation_id="execution-123", once=True, user_id="account-a")
+    assert [event async for event in response.body_iterator] == []
