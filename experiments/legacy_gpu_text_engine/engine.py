@@ -51,3 +51,33 @@ class TextEngine:
         texts = list(self.documents.values())
         return {"urls": [x.group() for t in texts for x in URL.finditer(t)],
                 "years": [x.group() for t in texts for x in YEAR.finditer(t)]}
+
+    def generate(self, start: str, steps: int = 20, seed: int = 0) -> list[Hit]:
+        """Seeded Markov walk. Every generated token references an original span."""
+        import random
+        if steps < 0 or steps > 10000:
+            raise ValueError("steps must be between 0 and 10000")
+        occurrences: dict[str, list[tuple[str, int, int]]] = defaultdict(list)
+        edges: dict[str, list[tuple[str, str, int, int]]] = defaultdict(list)
+        for doc_id, content in self.documents.items():
+            matches = list(TOKEN.finditer(content))
+            for match in matches:
+                occurrences[match.group().casefold()].append(
+                    (doc_id, match.start(), match.end()))
+            for left, right in zip(matches, matches[1:]):
+                edges[left.group().casefold()].append(
+                    (right.group().casefold(), doc_id, right.start(), right.end()))
+        current = start.casefold()
+        if current not in occurrences:
+            raise ValueError("start token not found in corpus")
+        rng = random.Random(seed)
+        first_doc, first_start, first_end = rng.choice(occurrences[current])
+        output = [Hit(first_doc, first_start, first_end,
+                      self.documents[first_doc][first_start:first_end])]
+        for _ in range(steps):
+            options = edges.get(current)
+            if not options:
+                break
+            current, doc_id, begin, end = rng.choice(options)
+            output.append(Hit(doc_id, begin, end, self.documents[doc_id][begin:end]))
+        return output
