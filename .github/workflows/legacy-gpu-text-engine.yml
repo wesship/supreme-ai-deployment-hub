@@ -1,0 +1,28 @@
+name: Legacy GPU Text Engine CPU
+on:
+  pull_request:
+    paths:
+      - 'experiments/legacy_gpu_text_engine/**'
+      - '.github/workflows/legacy-gpu-text-engine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cpu-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile and test
+        working-directory: experiments/legacy_gpu_text_engine
+        run: |
+          python -m compileall -q .
+          python -m unittest discover -v -p 'test_*.py'
+      - name: Synthetic CPU benchmark
+        working-directory: experiments/legacy_gpu_text_engine
+        run: python benchmark.py --words 200000 --repeats 5
