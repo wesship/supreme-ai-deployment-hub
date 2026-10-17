@@ -665,7 +665,7 @@ async def voice_health() -> dict[str, Any]:
     return {
         "status": "configured" if all(core_checks.values()) else "partial",
         "browser_voice_ready": inline_session_ready and bool(effective_elevenlabs_voice_id()),
-        "film_intelligence_ready": jockey_ready,
+        "film_intelligence_ready": False,  # User-scoped search is not certified.\n        "film_intelligence_provider_ready": jockey_ready,
         "provider": "vapi-managed-elevenlabs",
         "checks": checks,
         "webhook_auth_mode": (
