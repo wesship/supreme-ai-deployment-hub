@@ -1,3 +1,4 @@
+import { authentikPilotEnabled } from '@/lib/authentikPilot';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
@@ -19,6 +20,9 @@ const Login = () => {
     () => `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
     [redirect]
   );
+  const pilotEnabled = authentikPilotEnabled(import.meta.env);
+  const [authentikLoading, setAuthentikLoading] = useState(false);
+  const [authentikError, setAuthentikError] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
@@ -36,6 +40,25 @@ const Login = () => {
     });
     return () => subscription.unsubscribe();
   }, [navigate, redirect]);
+
+  const handleAuthentik = async () => {
+    if (!pilotEnabled || authentikLoading || googleLoading || emailLoading) return;
+    setAuthentikLoading(true);
+    setAuthentikError(null);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'custom:authentik',
+        options: { redirectTo: authCallbackUrl },
+      });
+      if (error) {
+        setAuthentikError(error.message || 'Authentik sign-in failed');
+        setAuthentikLoading(false);
+      }
+    } catch (err) {
+      setAuthentikError(err instanceof Error ? err.message : 'Authentik sign-in failed');
+      setAuthentikLoading(false);
+    }
+  };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
@@ -65,7 +88,7 @@ const Login = () => {
 
   const handleEmailSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (emailLoading) return;
+    if (emailLoading || googleLoading || authentikLoading) return;
 
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
@@ -119,9 +142,27 @@ const Login = () => {
             <p className="text-muted-foreground">Enter the AI Ecosystem</p>
           </div>
 
+          {pilotEnabled && (
+            <>
+              <Button
+                onClick={handleAuthentik}
+                disabled={authentikLoading || googleLoading || emailLoading}
+                variant="outline"
+                className="w-full mb-4 font-medium"
+              >
+                {authentikLoading ? 'Redirecting…' : 'Continue with Authentik'}
+              </Button>
+              {authentikError && (
+                <p role="alert" className="text-sm text-destructive mb-3 text-center">
+                  {authentikError}
+                </p>
+              )}
+            </>
+          )}
+
           <Button
             onClick={handleGoogle}
-            disabled={googleLoading || emailLoading}
+            disabled={googleLoading || emailLoading || authentikLoading}
             variant="outline"
             className="w-full mb-4 font-medium"
           >
@@ -155,7 +196,7 @@ const Login = () => {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                disabled={emailLoading}
+                disabled={emailLoading || authentikLoading}
                 className="flex h-10 w-full rounded-md border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
@@ -171,11 +212,11 @@ const Login = () => {
                 required
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                disabled={emailLoading}
+                disabled={emailLoading || authentikLoading}
                 className="flex h-10 w-full rounded-md border border-border bg-background/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
-            <Button type="submit" disabled={emailLoading || googleLoading} className="w-full">
+            <Button type="submit" disabled={emailLoading || googleLoading || authentikLoading} className="w-full">
               {emailLoading ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
