@@ -9,8 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  issues: write
+  contents: read
   pull-requests: write
 
 jobs:
@@ -18,7 +17,7 @@ jobs:
     name: Configure native auto-merge
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
     # Trusted metadata-only context: never check out or execute pull-request code.
     # GitHub enforces every required review and status check before completing auto-merge.
     steps:
