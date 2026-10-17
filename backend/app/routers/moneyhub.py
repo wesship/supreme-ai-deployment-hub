@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
 from backend.auth.supabase_jwt import OCCAccess
+from backend.moneyhub.adapters import ProviderBatch
 
 router = APIRouter(prefix="/moneyhub")
 
@@ -537,6 +538,46 @@ async def get_cashflow_intelligence(principal: OCCAccess) -> dict[str, Any]:
             "payments": False,
             "lending_decisions": False,
             "brokerage_execution": False,
+        },
+    }
+
+
+@router.post("/financial-sources/ingest")
+async def ingest_financial_source_batch(
+    payload: ProviderBatch,
+    principal: OCCAccess,
+) -> dict[str, Any]:
+    """
+    Normalize and persist a provider batch through the service-role ingestion RPC.
+
+    This endpoint stores observations only. It cannot initiate transfers, payments,
+    withdrawals, brokerage orders, credit applications, or lending decisions.
+    """
+    accounts = [account.model_dump(mode="json") for account in payload.accounts]
+    transactions = [transaction.model_dump(mode="json") for transaction in payload.transactions]
+
+    result = await _call_moneyhub_rpc(
+        "moneyhub_ingest_provider_batch",
+        {
+            "p_user_id": principal.user_id,
+            "p_source_kind": payload.source_kind,
+            "p_provider": payload.provider.strip().lower(),
+            "p_cursor": payload.cursor,
+            "p_accounts": accounts,
+            "p_transactions": transactions,
+        },
+    )
+
+    return {
+        "status": "ingested",
+        "result": result,
+        "guardrails": {
+            "storage_only": True,
+            "transfers": False,
+            "payments": False,
+            "withdrawals": False,
+            "brokerage_execution": False,
+            "lending_decisions": False,
         },
     }
 
