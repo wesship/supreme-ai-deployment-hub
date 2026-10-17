@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.middleware.auth import get_current_user_id
 from backend.app.routers.hermes_event_stream import router
+from backend.app.routers import hermes_event_stream as stream_module
 from backend.hermes.dependencies import HermesDependencies, configure_dependencies, reset_dependencies
 from backend.hermes.testing import (
     FrozenClock,
@@ -81,7 +82,15 @@ def test_stream_returns_404_for_unknown_execution():
     assert response.status_code == 404
 
 
-def test_authorized_stream_emits_public_event():
+def test_authorized_stream_emits_public_event(monkeypatch):
+    async def fake_security(request):
+        return object()
+
+    async def fake_revalidate_user(request, credentials):
+        return "user-live-1"
+
+    monkeypatch.setattr(stream_module, "security", fake_security)
+    monkeypatch.setattr(stream_module, "get_current_user_id", fake_revalidate_user)
     correlation_id = "corr-live-12345"
     repository = InMemoryTaskRepository(
         tables={
