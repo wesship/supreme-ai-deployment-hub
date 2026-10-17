@@ -62,4 +62,4 @@ jobs:
               ...evidence.map(({name, run}) => [name, run?.conclusion || run?.status || 'missing']),
             ]).write();
             if (failed) core.setFailed('Required production evidence failed for this commit.');
-            else if (!passed) core.notice('Production acceptance remains pending until all required audits pass for the same commit.');
+            else if (!passed) core.setFailed('Production acceptance remains pending until all required audits pass for the same commit.');
