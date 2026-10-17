@@ -1,0 +1,40 @@
+services:
+  healthos-fhir:
+    image: ${HEALTHOS_FHIR_IMAGE:?Pin a reviewed FHIR sandbox image}
+    profiles: ["core"]
+    networks: [healthos-lab]
+
+  healthos-opa:
+    image: ${HEALTHOS_OPA_IMAGE:?Pin a reviewed OPA image}
+    profiles: ["core"]
+    networks: [healthos-lab]
+
+  healthos-postgres:
+    image: ${HEALTHOS_POSTGRES_IMAGE:?Pin a reviewed Postgres image}
+    profiles: ["core", "ehr"]
+    environment:
+      POSTGRES_DB: healthos_sandbox
+      POSTGRES_USER: healthos
+      POSTGRES_PASSWORD: ${HEALTHOS_SANDBOX_DB_PASSWORD:?Set a sandbox-only password}
+    networks: [healthos-lab]
+
+  healthos-temporal:
+    image: ${HEALTHOS_TEMPORAL_IMAGE:?Pin a reviewed Temporal image}
+    profiles: ["core"]
+    depends_on: [healthos-postgres]
+    networks: [healthos-lab]
+
+  healthos-openmrs:
+    image: ${HEALTHOS_OPENMRS_IMAGE:?Pin a reviewed OpenMRS image}
+    profiles: ["ehr"]
+    depends_on: [healthos-postgres]
+    networks: [healthos-lab]
+
+  healthos-oie:
+    image: ${HEALTHOS_OIE_IMAGE:?Pin a reviewed Open Integration Engine image}
+    profiles: ["ehr"]
+    networks: [healthos-lab]
+
+networks:
+  healthos-lab:
+    internal: true
