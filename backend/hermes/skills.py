@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from backend.hermes.contracts import ApprovalMode, SkillManifest, SkillRisk
+from backend.hermes.specialists import SPECIALIST_SKILLS
 
 
 class SkillRegistry:
@@ -97,4 +98,4 @@ BUILTIN_SKILLS = (
     ),
 )
 
-BUILTIN_SKILL_REGISTRY = SkillRegistry(BUILTIN_SKILLS)
+BUILTIN_SKILL_REGISTRY = SkillRegistry((*BUILTIN_SKILLS, *SPECIALIST_SKILLS))
