@@ -7,6 +7,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
 import json
 import os
+import threading
+import time
+from collections import deque
 from worker import Worker
 
 MAX_BODY = 16384
@@ -43,13 +46,39 @@ def dispatch(payload: dict, worker: Worker) -> dict:
 
 
 def handler_factory(worker: Worker, secret: str):
+    # Fixed-window limiter shared by loopback requests; cap parallel work.
+    timestamps = deque()
+    rate_lock = threading.Lock()
+    worker_lock = threading.Lock()
+
+    def admitted(now: float) -> bool:
+        with rate_lock:
+            while timestamps and now - timestamps[0] >= 60:
+                timestamps.popleft()
+            if len(timestamps) >= 60:
+                return False
+            timestamps.append(now)
+            return True
+
     class Handler(BaseHTTPRequestHandler):
+        timeout = 5
+
+        def setup(self):
+            super().setup()
+            self.connection.settimeout(self.timeout)
+
         def do_POST(self):
             if self.path != "/mcp":
                 self.send_error(404)
                 return
             if not hmac.compare_digest(self.headers.get("Authorization", ""), "Bearer " + secret):
                 self.send_error(401)
+                return
+            if not admitted(time.monotonic()):
+                self.send_error(429, "request rate exceeded")
+                return
+            if not worker_lock.acquire(blocking=False):
+                self.send_error(503, "worker busy")
                 return
             try:
                 length = int(self.headers.get("Content-Length", "0"))
@@ -65,6 +94,11 @@ def handler_factory(worker: Worker, secret: str):
                 encoded = json.dumps({"jsonrpc": "2.0", "id": None, "error": {
                     "code": -32602, "message": str(exc)}}).encode()
                 self.send_response(400)
+            except TimeoutError:
+                encoded = b'{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"request timeout"}}'
+                self.send_response(408)
+            finally:
+                worker_lock.release()
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(encoded)))
             self.end_headers()
