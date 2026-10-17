@@ -22,7 +22,6 @@ export default function SovereignSignalHomepage({ telemetry }: { telemetry: Home
   useEffect(() => {
     // Avoid loading WebGL/Three.js during the critical first-paint work.
     // Keep the branded 3D effect after the browser has reached idle.
-    let timeout: ReturnType<typeof setTimeout> | undefined;
     let idleId: number | undefined;
     let done = false;
     const enable = () => {
@@ -43,13 +42,13 @@ export default function SovereignSignalHomepage({ telemetry }: { telemetry: Home
         enable();
       }
     };
-    timeout = setTimeout(schedule, 12000);
+    const timeout = setTimeout(schedule, 12000);
     return () => {
       window.removeEventListener('pointerdown', onInteract);
       window.removeEventListener('keydown', onInteract);
       window.removeEventListener('scroll', onInteract);
       if (idleId !== undefined && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId);
-      if (timeout !== undefined) clearTimeout(timeout);
+      clearTimeout(timeout);
     };
   }, []);
 
