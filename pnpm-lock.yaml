@@ -356,7 +356,7 @@ importers:
         specifier: ^10.4.20
         version: 10.5.4(postcss@8.5.25)
       esbuild:
-        specifier: 0.28.1
+        specifier: ^0.28.1
         version: 0.28.1
       eslint:
         specifier: ^9.37.0
