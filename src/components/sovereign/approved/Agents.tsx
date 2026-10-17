@@ -110,6 +110,7 @@ export default function Agents() {
           <Reveal delay={120}>
             <a
               href="/agents"
+              aria-label="Explore AI Agents"
               className="btn-ghost inline-flex min-h-12 items-center gap-2.5 rounded-md px-6 text-sm font-medium cursor-pointer whitespace-nowrap"
             >
               Explore AI Agents
