@@ -11,6 +11,9 @@ export type HomepageTelemetry = {
   hermesQueue: string;
   systemStatus: string;
   lastActivityAt: string | null;
+  /** Legacy aliases used by older homepage variants. */
+  workflowsCompleted: string;
+  tasksProcessed: string;
 };
 
 /** Illustrative values shown (and labelled "Demo data") when live Hermes stats are unavailable. */
@@ -23,9 +26,47 @@ export const demoHomepageTelemetry: HomepageTelemetry = {
   hermesQueue: '3',
   systemStatus: 'Unknown',
   lastActivityAt: null,
+  workflowsCompleted: '1,284',
+  tasksProcessed: '1,284',
 };
 
-export const defaultHomepageTelemetry = demoHomepageTelemetry;
+/** Neutral placeholder used before the first fetch resolves (still flagged as non-live). */
+export const defaultHomepageTelemetry: HomepageTelemetry = {
+  source: 'demo',
+  activeAgents: 'Not reported',
+  activeGoals: 'Not reported',
+  tasksCompleted: 'Not reported',
+  tasksRunning: 'Not reported',
+  hermesQueue: 'Not reported',
+  systemStatus: 'Unknown',
+  lastActivityAt: null,
+  workflowsCompleted: 'Not reported',
+  tasksProcessed: 'Not reported',
+};
+
+type PublicStatsResponse = {
+  active_agents?: number | string | null;
+  completed_workflows?: number | string | null;
+  queue_pending?: number | string | null;
+  total_tasks_processed?: number | string | null;
+  system_health?: string;
+};
+const fmt = (v: unknown, f: string) =>
+  typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString() : typeof v === 'string' && v.trim() ? v : f;
+
+/** Legacy mapping for the external public stats API shape. */
+export const normalizePublicStats = (stats: PublicStatsResponse | null | undefined): HomepageTelemetry => {
+  const d = defaultHomepageTelemetry;
+  if (!stats) return d;
+  return {
+    ...d,
+    activeAgents: fmt(stats.active_agents, d.activeAgents),
+    workflowsCompleted: fmt(stats.completed_workflows, d.workflowsCompleted),
+    tasksProcessed: fmt(stats.total_tasks_processed, d.tasksProcessed),
+    systemStatus: stats.system_health || d.systemStatus,
+    hermesQueue: fmt(stats.queue_pending, d.hermesQueue),
+  };
+};
 
 type HermesStats = {
   active_agents?: number | null;
@@ -53,6 +94,8 @@ export const normalizeHermesStats = (stats: HermesStats | null | undefined): Hom
     hermesQueue: queue.toLocaleString(),
     systemStatus: 'Operational',
     lastActivityAt: stats.last_activity_at ?? null,
+    workflowsCompleted: done.toLocaleString(),
+    tasksProcessed: done.toLocaleString(),
   };
 };
 
