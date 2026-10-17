@@ -78,7 +78,10 @@ class RAGIngestResponse(BaseModel):
 
 class RAGRetrieveRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2_000)
-    topK: int = Field(default=5, ge=1, le=20)
+    # Each ingested chunk is capped at 4k characters (~1k estimated tokens).
+    # Limiting retrieval to eight chunks keeps worst-case retrieved text near the
+    # Token Governor utility prompt ceiling before framing/instructions are added.
+    topK: int = Field(default=5, ge=1, le=8)
     minScore: float = Field(default=0.70, ge=0.0, le=1.0)
 
 
