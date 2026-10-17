@@ -26,6 +26,25 @@ class TextEngineTests(unittest.TestCase):
         self.assertEqual(e.extract()["years"], ["2026"])
         self.assertEqual(e.extract()["urls"], ["https://example.org"])
 
+    def test_seeded_generation_and_provenance(self):
+        e = TextEngine()
+        e.add("a", "alpha beta gamma alpha delta")
+        e.add("b", "alpha epsilon")
+        a = e.generate("alpha", steps=8, seed=42)
+        b = e.generate("alpha", steps=8, seed=42)
+        self.assertEqual(a, b)
+        self.assertTrue(a)
+        for hit in a:
+            self.assertEqual(e.documents[hit.document_id][hit.start:hit.end], hit.passage)
+
+    def test_generate_missing_token_and_bounds(self):
+        e = TextEngine()
+        e.add("a", "hello world")
+        with self.assertRaises(ValueError):
+            e.generate("absent")
+        with self.assertRaises(ValueError):
+            e.generate("hello", steps=10001)
+
     def test_duplicate_document_rejected(self):
         e = TextEngine()
         e.add("x", "one")
