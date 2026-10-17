@@ -11,6 +11,7 @@ import threading
 import time
 from collections import deque
 from worker import Worker
+from staging_config import StagingConfig
 
 MAX_BODY = 16384
 TOOLS = [
@@ -108,7 +109,6 @@ def handler_factory(worker: Worker, secret: str):
 
 
 if __name__ == "__main__":
-    secret = os.environ.get("D3VONN_TEXT_ENGINE_TOKEN", "")
-    if len(secret) < 32:
-        raise SystemExit("D3VONN_TEXT_ENGINE_TOKEN must contain at least 32 characters")
-    ThreadingHTTPServer(("127.0.0.1", 8765), handler_factory(Worker(), secret)).serve_forever()
+    config = StagingConfig.from_environment()
+    ThreadingHTTPServer((config.host, config.port),
+                        handler_factory(Worker(), config.token)).serve_forever()
