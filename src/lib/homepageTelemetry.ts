@@ -1,70 +1,67 @@
-import { isLocalPreviewHost } from './isLocalPreview';
+import { supabase } from '@/integrations/supabase/client';
+
+export type TelemetrySource = 'live' | 'demo';
 
 export type HomepageTelemetry = {
+  source: TelemetrySource;
   activeAgents: string;
-  workflowsCompleted: string;
-  tasksProcessed: string;
-  systemStatus: string;
+  activeGoals: string;
+  tasksCompleted: string;
+  tasksRunning: string;
   hermesQueue: string;
+  systemStatus: string;
+  lastActivityAt: string | null;
 };
 
-export const defaultHomepageTelemetry: HomepageTelemetry = {
-  activeAgents: 'Not reported',
-  workflowsCompleted: 'Not reported',
-  tasksProcessed: 'Not reported',
+/** Illustrative values shown (and labelled "Demo data") when live Hermes stats are unavailable. */
+export const demoHomepageTelemetry: HomepageTelemetry = {
+  source: 'demo',
+  activeAgents: '12',
+  activeGoals: '4',
+  tasksCompleted: '1,284',
+  tasksRunning: '7',
+  hermesQueue: '3',
   systemStatus: 'Unknown',
-  hermesQueue: 'Not reported',
+  lastActivityAt: null,
 };
 
-type PublicStatsResponse = {
-  active_agents?: number | string | null;
-  completed_workflows?: number | string | null;
-  uptime_percent?: number | string | null;
-  queue_pending?: number | string | null;
-  total_tasks_processed?: number | string | null;
-  system_health?: string;
+export const defaultHomepageTelemetry = demoHomepageTelemetry;
+
+type HermesStats = {
+  active_agents?: number | null;
+  active_goals?: number | null;
+  tasks_completed?: number | null;
+  tasks_running?: number | null;
+  queue_pending?: number | null;
+  last_activity_at?: string | null;
 };
 
-const formatNumber = (value: unknown, fallback: string): string => {
-  if (typeof value === 'number' && Number.isFinite(value)) return value.toLocaleString();
-  if (typeof value === 'string' && value.trim()) return value;
-  return fallback;
-};
+const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 
-export const normalizePublicStats = (stats: PublicStatsResponse | null | undefined): HomepageTelemetry => {
-  if (!stats) return defaultHomepageTelemetry;
-
+/** Returns live telemetry only when every count is a real number; otherwise demo data. */
+export const normalizeHermesStats = (stats: HermesStats | null | undefined): HomepageTelemetry => {
+  if (!stats) return demoHomepageTelemetry;
+  const counts = [stats.active_agents, stats.active_goals, stats.tasks_completed, stats.tasks_running, stats.queue_pending];
+  if (!counts.every(isCount)) return demoHomepageTelemetry;
+  const [agents, goals, done, running, queue] = counts as number[];
   return {
-    activeAgents: formatNumber(stats.active_agents, defaultHomepageTelemetry.activeAgents),
-    workflowsCompleted: formatNumber(stats.completed_workflows, defaultHomepageTelemetry.workflowsCompleted),
-    tasksProcessed: formatNumber(stats.total_tasks_processed, defaultHomepageTelemetry.tasksProcessed),
-    systemStatus: stats.system_health || defaultHomepageTelemetry.systemStatus,
-    hermesQueue: formatNumber(stats.queue_pending, defaultHomepageTelemetry.hermesQueue),
+    source: 'live',
+    activeAgents: agents.toLocaleString(),
+    activeGoals: goals.toLocaleString(),
+    tasksCompleted: done.toLocaleString(),
+    tasksRunning: running.toLocaleString(),
+    hermesQueue: queue.toLocaleString(),
+    systemStatus: 'Operational',
+    lastActivityAt: stats.last_activity_at ?? null,
   };
 };
 
-const getPublicStatsUrl = (): string => {
-  const configuredBase = import.meta.env.VITE_API_URL?.trim();
-  const apiBase = configuredBase || 'https://api.d3vonn.io';
-  return `${apiBase.replace(/\/$/, '')}/api/public/stats`;
-};
-
 export async function fetchHomepageTelemetry(signal?: AbortSignal): Promise<HomepageTelemetry> {
-  // Local preview and CI hosts intentionally avoid calling the production API.
-  // This prevents cross-origin console failures while keeping production telemetry live.
-  if (isLocalPreviewHost()) return defaultHomepageTelemetry;
-
   try {
-    const response = await fetch(getPublicStatsUrl(), {
-      signal,
-      headers: { Accept: 'application/json' },
-    });
-
-    if (!response.ok) return defaultHomepageTelemetry;
-
-    const payload = (await response.json()) as PublicStatsResponse;
-    return normalizePublicStats(payload);
+    const { data, error } = await supabase.rpc('get_hermes_public_stats').abortSignal(signal as AbortSignal);
+    if (error || signal?.aborted) return demoHomepageTelemetry;
+    return normalizeHermesStats(data as HermesStats);
   } catch {
-    return defaultHomepageTelemetry;
+    return demoHomepageTelemetry;
   }
 }

@@ -4,6 +4,7 @@ import Navbar from './approved/Navbar';
 import Hero from './approved/Hero';
 import SignalRail from './approved/SignalRail';
 import Platform from './approved/Platform';
+import HermesTelemetry from './approved/HermesTelemetry';
 import Agents from './approved/Agents';
 import Films from './approved/Films';
 import Infrastructure from './approved/Infrastructure';
@@ -27,6 +28,7 @@ export default function SovereignSignalHomepage({ telemetry }: { telemetry: Home
         <div id="approved-main" tabIndex={-1}>
           <Hero />
           <SignalRail />
+          <HermesTelemetry telemetry={telemetry} />
           <Platform />
           <Agents />
           <Films />
