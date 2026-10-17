@@ -13,6 +13,40 @@ from collections import deque
 from worker import Worker
 from staging_config import StagingConfig
 
+
+
+class BoundedHTTPServer(ThreadingHTTPServer):
+    """Reject excess connections before allocating a handler thread."""
+    daemon_threads = True
+    max_active_connections = 8
+
+    def __init__(self, server_address, RequestHandlerClass):
+        self._slots = threading.BoundedSemaphore(self.max_active_connections)
+        super().__init__(server_address, RequestHandlerClass)
+
+    def process_request(self, request, client_address):
+        if not self._slots.acquire(blocking=False):
+            try:
+                request.sendall(
+                    b"HTTP/1.0 503 Service Unavailable\\r\\n"
+                    b"Connection: close\\r\\nContent-Length: 0\\r\\n\\r\\n"
+                )
+            except OSError:
+                pass
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
 MAX_BODY = 16384
 TOOLS = [
     {"name": "text.ingest", "description": "Ingest a bounded document into volatile memory",
@@ -114,7 +148,7 @@ def handler_factory(worker: Worker, secret: str):
 
 if __name__ == "__main__":
     config = StagingConfig.from_environment()
-    server = ThreadingHTTPServer((config.host, config.port),
+    server = BoundedHTTPServer((config.host, config.port),
                                  handler_factory(Worker(), config.token))
     server.daemon_threads = True
     server.serve_forever()
