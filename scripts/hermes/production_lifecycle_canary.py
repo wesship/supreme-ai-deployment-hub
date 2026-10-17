@@ -93,12 +93,15 @@ def authenticate_operator() -> None:
 
 
 def _parse_timestamp(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError("Canary timestamp must include a timezone")
+    return parsed.astimezone(timezone.utc)
 
 
 def verify_api_health() -> None:
     identity = _json_request(f"{API_BASE_URL}/api/runtime/identity")
-    if identity.get("commit_sha") != CERTIFIED_SHA:
+    if not isinstance(identity, dict) or identity.get("commit_sha") != CERTIFIED_SHA:
         raise RuntimeError("API commit does not match certified source")
     deployment = _json_request(f"{API_BASE_URL}/health/deployment")
     if not isinstance(deployment, dict):
@@ -190,7 +193,10 @@ def wait_for_completion(task_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
             },
         )
         if leases:
-            seen_lease = leases[0]
+            candidate = leases[0]
+            if str(candidate.get("task_id")) != task_id:
+                raise RuntimeError("Worker lease belongs to another task")
+            seen_lease = candidate
 
         if status == "FAILED":
             raise RuntimeError(f"Hermes canary task failed: {task.get('error_message')}")
@@ -207,6 +213,8 @@ def wait_for_completion(task_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
                 raise RuntimeError(f"Expected released lease, got {lease_status!r}")
             if not task.get("assigned_to"):
                 raise RuntimeError("Completed task has no assigned worker")
+            if str(task["assigned_to"]) != str(seen_lease.get("worker_id")):
+                raise RuntimeError("Completed task and released lease have different workers")
             print(
                 "PASS task completed through persistent worker",
                 task.get("assigned_to"),
