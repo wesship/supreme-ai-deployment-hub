@@ -69,6 +69,11 @@ def _token(supabase: str, email: str, password: str) -> str:
 
 
 def test_other_account_cannot_read_hermes_stream():
+    # This credentialed live test must be run explicitly in the protected
+    # staging-certification job; ordinary unit CI has no staging secrets.
+    # An opted-in certification MUST fail when credentials or fixtures are absent.
+    if os.getenv("HERMES_STAGING_CERTIFY") != "1":
+        pytest.skip("live two-account certification requires HERMES_STAGING_CERTIFY=1")
     supabase, api = _settings()
     token_a = _token(supabase, os.environ["E2E_TEST_EMAIL"], os.environ["E2E_TEST_PASSWORD"])
     token_b = _token(supabase, os.environ["E2E_TEST_EMAIL_B"], os.environ["E2E_TEST_PASSWORD_B"])
