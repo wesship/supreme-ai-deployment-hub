@@ -1048,7 +1048,10 @@ const KnowledgeGraphOS: React.FC = () => {
             <p className="mt-1 text-xs font-semibold text-stone-300">Command surfaces</p>
           </div>
           <nav className="space-y-1" aria-label="D3VONN command surfaces">
-            {nexusNavItems.map(({ label, route, icon: Icon, active }) => (
+            {nexusNavItems.map((item) => {
+              const { label, route, icon: Icon } = item;
+              const active = 'active' in item && item.active;
+              return (
               <Link
                 key={label}
                 to={route} reloadDocument={route === '/holo'}
@@ -1061,7 +1064,8 @@ const KnowledgeGraphOS: React.FC = () => {
                 <Icon className="h-4 w-4 shrink-0" />
                 <span>{label}</span>
               </Link>
-            ))}
+              );
+            })}
           </nav>
         </aside>
 
@@ -1558,7 +1562,7 @@ const KnowledgeGraphOS: React.FC = () => {
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-semibold text-stone-300">{item.type}</span>
                     {'timestamp' in item && item.timestamp ? (
-                      <span className="text-[9px] text-stone-400">{new Date(item.timestamp).toLocaleTimeString()}</span>
+                      <span className="text-[9px] text-stone-400">{new Date(String(item.timestamp)).toLocaleTimeString()}</span>
                     ) : null}
                   </div>
                   <p className="mt-1">{item.message || item.type}</p>

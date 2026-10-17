@@ -143,7 +143,9 @@ const HermesGovernancePanel: React.FC = () => {
         .order('created_at', { ascending: false })
         .limit(150),
       supabase
-        .from('hermes_runs')
+        // hermes_runs exists in the database but is not yet in the generated types;
+        // the result is cast to RunRow below.
+        .from('hermes_runs' as 'hermes_tasks')
         .select('id,task_id,agent_name,status,duration_ms,cost_usd')
         .order('created_at', { ascending: false })
         .limit(300),
