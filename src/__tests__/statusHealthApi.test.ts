@@ -68,4 +68,31 @@ describe("status health API", () => {
       }),
     );
   });
+  it.each([401, 403])("does not mark a protected health endpoint online (HTTP %i)", async (status) => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => ({ status: "healthy" }),
+    });
+    const snapshot = await createHealthSnapshot(fetcher, "https://api.example.test");
+    expect(snapshot.services[1]).toEqual(expect.objectContaining({
+      status: "degraded",
+      error: `Health endpoint requires authentication (HTTP ${status})`,
+    }));
+  });
+
+  it.each([
+    { name: "non-JSON body", json: async () => { throw new SyntaxError("invalid"); } },
+    { name: "empty object", json: async () => ({}) },
+    { name: "unhealthy payload", json: async () => ({ status: "unhealthy" }) },
+    { name: "HTML-like payload", json: async () => "<html>ok</html>" },
+  ])("fails closed for successful HTTP with $name", async ({ json }) => {
+    const fetcher = vi.fn().mockResolvedValue({ ok: true, status: 200, json });
+    const snapshot = await createHealthSnapshot(fetcher, "https://api.example.test");
+    expect(snapshot.services[1]).toEqual(expect.objectContaining({
+      status: "degraded",
+      error: "Health endpoint did not confirm a healthy state",
+    }));
+  });
+
 });
