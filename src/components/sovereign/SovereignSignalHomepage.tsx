@@ -63,13 +63,13 @@ export default function SovereignSignalHomepage({ telemetry }: { telemetry: Home
         <div id="approved-main" tabIndex={-1}>
           <Hero />
           <SignalRail />
-          <Platform />
-          <Agents />
-          <Films />
-          <Infrastructure />
-          <Voice />
-          <Manifesto />
-          <FinalCTA />
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}><Platform /></div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}><Agents /></div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}><Films /></div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}><Infrastructure /></div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}><Voice /></div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}><Manifesto /></div>
+          <div style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 700px' }}><FinalCTA /></div>
         </div>
         <Footer systemStatus={telemetry.systemStatus} />
       </div>
