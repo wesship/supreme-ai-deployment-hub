@@ -26,8 +26,8 @@ jobs:
     env:
       CERTIFIED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
       SUPABASE_URL: 'https://tjygexesognbkwualywq.supabase.co'
-      E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
-      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      HERMES_CERT_EMAIL: ${{ secrets.HERMES_CERT_EMAIL }}
+      HERMES_CERT_PASSWORD: ${{ secrets.HERMES_CERT_PASSWORD }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       API_BASE_URL: 'https://api.d3vonn.io'
       HERMES_CANARY_TIMEOUT_SECONDS: '180'
@@ -56,8 +56,8 @@ jobs:
           test "$API_BASE_URL" = "https://api.d3vonn.io"
           test -n "$SUPABASE_SERVICE_ROLE_KEY"
           test -n "$CERTIFIED_SHA"
-          test -n "$E2E_TEST_EMAIL"
-          test -n "$E2E_TEST_PASSWORD"
+          test -n "$HERMES_CERT_EMAIL"
+          test -n "$HERMES_CERT_PASSWORD"
           echo "Certifying deployed SHA: $CERTIFIED_SHA" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run Hermes production lifecycle canary
