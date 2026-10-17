@@ -44,6 +44,7 @@ export default function Infrastructure() {
               <Reveal key={c.label} delay={i * 50}>
                 <a
                   href={`#${c.target}`}
+                  aria-label={c.label}
                   onClick={(e) => {
                     e.preventDefault();
                     scrollToSection(c.target);
