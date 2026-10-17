@@ -813,6 +813,18 @@ async def latest_voice_execution(
         return {"execution": None}
 
     task = rows[0]
+    # The repository uses a privileged service client; do not rely solely
+    # on query predicates as an authorization boundary.
+    input_data = task.get("input_data")
+    if not isinstance(input_data, dict):
+        return {"execution": None}
+    voice_context = input_data.get("voice_context")
+    if (
+        input_data.get("authenticated_user_id") != user_id
+        or not isinstance(voice_context, dict)
+        or voice_context.get("ui_session_id") != safe_ui_session_id
+    ):
+        return {"execution": None}
     correlation_id = task.get("correlation_id")
     if not isinstance(correlation_id, str) or not correlation_id:
         return {"execution": None}
