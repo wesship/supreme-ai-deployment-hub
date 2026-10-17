@@ -71,6 +71,12 @@ async def stream_hermes_events(
         while True:
             if await request.is_disconnected():
                 break
+            # Recheck ownership before every read; an SSE connection may outlive
+            # a task reassignment or authorization revocation.
+            try:
+                await _authorized_correlation(correlation_id, user_id)
+            except HTTPException:
+                break
 
             params: dict[str, Any] = {
                 "correlation_id": f"eq.{correlation_id}",
@@ -83,6 +89,9 @@ async def stream_hermes_events(
             rows = await repository.list_rows("hermes_logs", params)
             emitted = False
             for row in rows:
+                # Privileged repository reads must be checked against the requested scope.
+                if str(row.get("correlation_id") or "") != correlation_id:
+                    continue
                 event_id = str(row.get("id") or "")
                 if not event_id or event_id in sent_ids:
                     continue
