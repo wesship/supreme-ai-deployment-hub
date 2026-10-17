@@ -97,8 +97,21 @@ export class TenantMiddleware {
     };
   }
 
+  private isContextActive(context: TenantContext): boolean {
+    const tenant = this.registry.getTenant(context.tenant.id);
+    if (!tenant || tenant.status !== "active") return false;
+    if (tenant.id !== context.apiKey.tenantId) return false;
+    const key = this.registry.getApiKeysForTenant(tenant.id).find(
+      (candidate) => candidate.id === context.apiKey.id
+    );
+    if (!key || key.status !== "active") return false;
+    if (key.expiresAt && key.expiresAt.getTime() <= Date.now()) return false;
+    return true;
+  }
+
   checkScope(context: TenantContext, requiredScope: ApiKeyScope): boolean {
-    return this.registry.hasScope(context.apiKey, requiredScope);
+    return this.isContextActive(context) &&
+      this.registry.hasScope(context.apiKey, requiredScope);
   }
 
   recordUsage(
@@ -120,7 +133,8 @@ export class TenantMiddleware {
   }
 
   checkModelAccess(context: TenantContext, modelId: string): boolean {
-    const allowed = context.tenant.settings.allowedModels;
+    if (!this.isContextActive(context)) return false;
+    const allowed = this.registry.getTenant(context.tenant.id)!.settings.allowedModels;
     if (allowed.includes("*")) return true;
     return allowed.includes(modelId);
   }
