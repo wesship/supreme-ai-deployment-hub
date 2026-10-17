@@ -75,12 +75,28 @@ async function checkApi(
     const latency = Math.round(performance.now() - startedAt);
 
     if (response.ok) {
-      let details = "Healthy response received";
+      let payload: unknown;
       try {
-        details = apiDetails(await response.json());
+        payload = await response.json();
       } catch {
-        // A successful non-JSON response still proves the endpoint is online.
+        payload = null;
       }
+      const healthy = payload !== null && typeof payload === "object" &&
+        ("status" in payload) &&
+        (payload.status === "ok" || payload.status === "healthy");
+      if (!healthy) {
+        return {
+          id: "api-health",
+          name: "API Gateway",
+          description: "Public backend health endpoint",
+          icon: "⚡",
+          category: "api",
+          status: "degraded",
+          latency,
+          error: "Health endpoint did not confirm a healthy state",
+        };
+      }
+      const details = apiDetails(payload);
 
       return {
         id: "api-health",
@@ -101,9 +117,9 @@ async function checkApi(
         description: "Public backend health endpoint",
         icon: "⚡",
         category: "api",
-        status: "online",
+        status: "degraded",
         latency,
-        details: "Protected endpoint responding",
+        error: "Health endpoint requires authentication (HTTP " + response.status + ")",
       };
     }
 
