@@ -38,6 +38,8 @@ class OpenMontageDispatchRequest(BaseModel):
 class OpenMontageStatusResponse(BaseModel):
     render_job_id: str
     project_id: str
+    scene_id: str | None = None
+    result_asset_id: str | None = None
     provider: str
     provider_job_id: str | None = None
     status: str
@@ -132,7 +134,7 @@ async def _select_owned_render_job(access_token: str, job_id: str) -> tuple[dict
             response = await client.get(
                 f"{base_url}/rest/v1/ai_film_render_jobs",
                 headers=headers,
-                params={"id": f"eq.{job_id}", "select": "id,project_id,provider,status,input,output,error_message" , "limit": "1"},
+                params={"id": f"eq.{job_id}", "select": "id,project_id,scene_id,result_asset_id,provider,status,input,output,error_message" , "limit": "1"},
             )
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="OpenMontage status service is unavailable") from exc
@@ -164,7 +166,7 @@ async def _select_openmontage_group_jobs(
                 headers=headers,
                 params={
                     "project_id": f"eq.{job['project_id']}",
-                    "select": "id,project_id,job_type,provider,status,input,output,error_message,created_at",
+                    "select": "id,project_id,scene_id,result_asset_id,job_type,provider,status,input,output,error_message,created_at",
                     "order": "created_at.asc",
                     "limit": "100",
                 },
@@ -487,6 +489,8 @@ async def get_openmontage_job(
     return OpenMontageStatusResponse(
         render_job_id=str(job["id"]),
         project_id=str(job["project_id"]),
+        scene_id=str(selected.get("scene_id") or job.get("scene_id") or "") or None,
+        result_asset_id=str(selected.get("result_asset_id") or job.get("result_asset_id") or "") or None,
         provider=str(selected.get("provider") or job.get("provider") or "pollo"),
         provider_job_id=provider_job_id,
         status=pipeline_status,

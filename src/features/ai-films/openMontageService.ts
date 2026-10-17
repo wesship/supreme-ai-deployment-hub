@@ -25,6 +25,8 @@ export type OpenMontageDispatch = {
 export type OpenMontageJobStatus = {
   render_job_id: string;
   project_id: string;
+  scene_id?: string | null;
+  result_asset_id?: string | null;
   provider: string;
   provider_job_id?: string | null;
   status: string;

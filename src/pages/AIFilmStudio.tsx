@@ -16,6 +16,7 @@ import EnterpriseStudioWorkspace from '@/features/ai-films/EnterpriseStudioWorks
 import RoleStudioWorkspace from '@/features/ai-films/RoleStudioWorkspace';
 import ProviderIntelligenceWorkspace from '@/features/ai-films/ProviderIntelligenceWorkspace';
 import RoutingRecommendationWorkspace from '@/features/ai-films/RoutingRecommendationWorkspace';
+import SceneFinderWorkspace from '@/features/ai-films/SceneFinderWorkspace';
 import {
   ensureSovereignSignalProject,
   fetchProjectAssets,
@@ -127,6 +128,7 @@ const AIFilmStudio = () => {
           <Card className="border-primary/20 p-4 text-sm text-muted-foreground" role="status" aria-live="polite">{message}</Card>
 
           <DrivePickerWorkspace />
+          <SceneFinderWorkspace />
           <CanonSceneWorkspace project={project} assets={assets} />
           <StoryboardWorkspace project={project} />
           <StoragePackageWorkspace project={project} assets={assets} onAssetUploaded={refreshAssets} />

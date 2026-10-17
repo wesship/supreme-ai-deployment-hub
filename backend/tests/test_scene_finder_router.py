@@ -1,0 +1,217 @@
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from backend.ai_films import scene_finder_router
+
+
+def _client(monkeypatch):
+    async def allow(_authorization):
+        return {"id": "scene-finder-test-user"}
+
+    monkeypatch.setattr(scene_finder_router, "_require_authenticated_user", allow)
+    app = FastAPI()
+    app.include_router(scene_finder_router.router, prefix="/api")
+    return TestClient(app)
+
+
+def test_scene_finder_search_returns_clip_hits(monkeypatch):
+    calls = {}
+
+    class FakeIndexClient:
+        async def search(self, query, **kwargs):
+            calls["query"] = query
+            calls["kwargs"] = kwargs
+            return {
+                "data": [
+                    {
+                        "video_id": "video-1",
+                        "start": 12.5,
+                        "end": 21.0,
+                        "score": 0.91,
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(scene_finder_router, "TwelveLabsIndexClient", FakeIndexClient)
+    client = _client(monkeypatch)
+
+    response = client.post(
+        "/api/ai-films/scene-finder/search",
+        headers={"Authorization": "Bearer test"},
+        json={"query": "slow tracking shot through a crowded club"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["surface"] == "scene-finder"
+    assert body["count"] == 1
+    assert body["scenes"][0]["video_id"] == "video-1"
+    assert calls["query"] == "slow tracking shot through a crowded club"
+    assert calls["kwargs"]["group_by"] == "clip"
+
+
+def test_scene_blueprint_builds_original_adaptation_prompt(monkeypatch):
+    calls = {}
+
+    class FakeAnalyzeClient:
+        async def analyze_asset(self, asset_id, prompt, **kwargs):
+            calls["asset_id"] = asset_id
+            calls["prompt"] = prompt
+            calls["kwargs"] = kwargs
+            return {"text": "scene dna"}
+
+    monkeypatch.setattr(scene_finder_router, "TwelveLabsAnalyzeClient", FakeAnalyzeClient)
+    client = _client(monkeypatch)
+
+    response = client.post(
+        "/api/ai-films/scene-finder/blueprint",
+        headers={"Authorization": "Bearer test"},
+        json={
+            "asset_id": "asset-123",
+            "objective": "Adapt the camera movement for an original underground market scene.",
+            "start_time": 10,
+            "end_time": 18,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["surface"] == "scene-blueprint"
+    assert body["window"] == {"start_time": 10.0, "end_time": 18.0}
+    assert calls["asset_id"] == "asset-123"
+    assert "materially original" in calls["prompt"]
+    assert "Do not reproduce copyrighted dialogue" in calls["prompt"]
+    assert calls["kwargs"]["start_time"] == 10.0
+    assert calls["kwargs"]["end_time"] == 18.0
+
+
+def test_scene_blueprint_rejects_too_short_window(monkeypatch):
+    client = _client(monkeypatch)
+    response = client.post(
+        "/api/ai-films/scene-finder/blueprint",
+        headers={"Authorization": "Bearer test"},
+        json={
+            "asset_id": "asset-123",
+            "objective": "Analyze this shot.",
+            "start_time": 10,
+            "end_time": 12,
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_scene_production_handoff_uses_governed_openmontage(monkeypatch):
+    calls = {}
+
+    class FakeAnalyzeClient:
+        async def analyze_asset(self, asset_id, prompt, **kwargs):
+            calls["analyze_asset_id"] = asset_id
+            calls["analyze_prompt"] = prompt
+            return {"text": "slow dolly, hard red practicals, shallow depth of field"}
+
+    async def fake_dispatch(request, authorization=None):
+        calls["dispatch_request"] = request
+        calls["authorization"] = authorization
+        return {
+            "project_id": "project-scene-1",
+            "render_job_id": "render-scene-1",
+            "provider": "pollo",
+            "provider_route": ["pollo", "replicate"],
+            "status": "queued",
+        }
+
+    monkeypatch.setattr(scene_finder_router, "TwelveLabsAnalyzeClient", FakeAnalyzeClient)
+    monkeypatch.setattr(scene_finder_router, "dispatch_openmontage", fake_dispatch)
+    client = _client(monkeypatch)
+
+    response = client.post(
+        "/api/ai-films/scene-finder/production-handoff",
+        headers={"Authorization": "Bearer test"},
+        json={
+            "asset_id": "asset-123",
+            "objective": "Create an original underground market confrontation using the general camera and lighting technique.",
+            "start_time": 10,
+            "end_time": 18,
+            "duration_seconds": 8,
+            "aspect_ratio": "16:9",
+        },
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["surface"] == "scene-finder-production"
+    assert body["originality_policy"] == "general-technique-only"
+    assert body["production"]["render_job_id"] == "render-scene-1"
+    dispatch_request = calls["dispatch_request"]
+    assert dispatch_request.aspect_ratio == "16:9"
+    assert dispatch_request.duration_seconds == 8
+    assert "materially original" in dispatch_request.video_prompt
+    assert "Do not reproduce copyrighted dialogue" in calls["analyze_prompt"]
+    assert calls["authorization"] == "Bearer test"
+
+
+def test_scene_fusion_handoff_combines_generalized_roles(monkeypatch):
+    calls = {"analyze": []}
+
+    class FakeAnalyzeClient:
+        async def analyze_asset(self, asset_id, prompt, **kwargs):
+            calls["analyze"].append({"asset_id": asset_id, "prompt": prompt, "kwargs": kwargs})
+            return {"text": f"generalized technique for {asset_id}"}
+
+    async def fake_dispatch(request, authorization=None):
+        calls["dispatch"] = request
+        calls["authorization"] = authorization
+        return {
+            "project_id": "project-fusion-1",
+            "render_job_id": "render-fusion-1",
+            "provider": "pollo",
+            "provider_route": ["pollo", "replicate"],
+            "status": "queued",
+        }
+
+    monkeypatch.setattr(scene_finder_router, "TwelveLabsAnalyzeClient", FakeAnalyzeClient)
+    monkeypatch.setattr(scene_finder_router, "dispatch_openmontage", fake_dispatch)
+    client = _client(monkeypatch)
+
+    response = client.post(
+        "/api/ai-films/scene-finder/fusion-handoff",
+        headers={"Authorization": "Bearer test"},
+        json={
+            "objective": "Create an original tense underground-market reveal.",
+            "references": [
+                {"asset_id": "asset-camera", "role": "camera", "start_time": 2, "end_time": 8},
+                {"asset_id": "asset-light", "role": "lighting", "start_time": 4, "end_time": 10},
+                {"asset_id": "asset-sound", "role": "sound", "start_time": 6, "end_time": 12},
+            ],
+            "duration_seconds": 8,
+            "aspect_ratio": "16:9",
+        },
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["surface"] == "scene-fusion-production"
+    assert body["reference_count"] == 3
+    assert body["reference_roles"] == ["camera", "lighting", "sound"]
+    assert body["originality_policy"] == "general-technique-fusion-only"
+    assert body["production"]["render_job_id"] == "render-fusion-1"
+    assert len(calls["analyze"]) == 3
+    assert "general camera technique" in calls["analyze"][0]["prompt"]
+    assert "general lighting technique" in calls["analyze"][1]["prompt"]
+    assert "general sound technique" in calls["analyze"][2]["prompt"]
+    assert "materially original" in calls["dispatch"].video_prompt
+    assert "not a composite copy" in calls["dispatch"].video_prompt
+    assert calls["authorization"] == "Bearer test"
+
+
+def test_scene_fusion_requires_at_least_two_references(monkeypatch):
+    client = _client(monkeypatch)
+    response = client.post(
+        "/api/ai-films/scene-finder/fusion-handoff",
+        headers={"Authorization": "Bearer test"},
+        json={
+            "objective": "Create an original scene.",
+            "references": [{"asset_id": "asset-camera", "role": "camera", "start_time": 2, "end_time": 8}],
+        },
+    )
+    assert response.status_code == 422
