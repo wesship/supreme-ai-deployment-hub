@@ -34,6 +34,7 @@ export default function FinalCTA() {
           <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a
               href="/app"
+              aria-label="Launch D3VONN"
               className="btn-primary group inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-9 py-3.5 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
             >
               Launch D3VONN
@@ -41,6 +42,7 @@ export default function FinalCTA() {
             </a>
             <a
               href="#platform"
+              aria-label="Explore the Ecosystem"
               className="btn-ghost inline-flex min-h-13 items-center justify-center gap-2.5 rounded-md px-9 py-3.5 text-sm font-medium cursor-pointer whitespace-nowrap"
             >
               Explore the Ecosystem
