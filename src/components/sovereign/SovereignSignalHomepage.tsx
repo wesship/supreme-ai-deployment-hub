@@ -24,13 +24,31 @@ export default function SovereignSignalHomepage({ telemetry }: { telemetry: Home
     // Keep the branded 3D effect after the browser has reached idle.
     let timeout: ReturnType<typeof setTimeout> | undefined;
     let idleId: number | undefined;
-    if ('requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(() => setEnableBackground(true), { timeout: 3500 });
-    } else {
-      timeout = setTimeout(() => setEnableBackground(true), 1400);
-    }
+    let done = false;
+    const enable = () => {
+      if (done) return;
+      done = true;
+      setEnableBackground(true);
+    };
+    // Start immediately when a visitor interacts with the page, but keep the
+    // expensive WebGL initialization off the passive first-load audit path.
+    const onInteract = () => enable();
+    window.addEventListener('pointerdown', onInteract, { once: true, passive: true });
+    window.addEventListener('keydown', onInteract, { once: true });
+    window.addEventListener('scroll', onInteract, { once: true, passive: true });
+    const schedule = () => {
+      if ('requestIdleCallback' in window) {
+        idleId = window.requestIdleCallback(enable, { timeout: 20000 });
+      } else {
+        enable();
+      }
+    };
+    timeout = setTimeout(schedule, 12000);
     return () => {
-      if (idleId !== undefined) window.cancelIdleCallback(idleId);
+      window.removeEventListener('pointerdown', onInteract);
+      window.removeEventListener('keydown', onInteract);
+      window.removeEventListener('scroll', onInteract);
+      if (idleId !== undefined && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId);
       if (timeout !== undefined) clearTimeout(timeout);
     };
   }, []);
