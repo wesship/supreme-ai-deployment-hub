@@ -487,7 +487,12 @@ async def _handle_tool_calls(
                 "message": "An authenticated D3VONN voice session is required for voice tools.",
             }
         elif name in _ALLOWED_FILM_TOOLS:
-            result = await _query_film_intelligence(parameters)
+            # Provider-wide film search lacks a certified user/tenant filter.
+            # A valid voice session must not authorize cross-account retrieval.
+            result = {
+                "status": "unavailable",
+                "message": "Voice film search is disabled pending owner-scoped retrieval certification.",
+            }
         elif name in _ALLOWED_GRAPH_TOOLS:
             action = str(parameters.get("action") or "").strip().lower()
             if action not in _GRAPH_ACTIONS:
@@ -660,7 +665,7 @@ async def voice_health() -> dict[str, Any]:
     return {
         "status": "configured" if all(core_checks.values()) else "partial",
         "browser_voice_ready": inline_session_ready and bool(effective_elevenlabs_voice_id()),
-        "film_intelligence_ready": jockey_ready,
+        "film_intelligence_ready": False,  # User-scoped search is not certified.\n        "film_intelligence_provider_ready": jockey_ready,
         "provider": "vapi-managed-elevenlabs",
         "checks": checks,
         "webhook_auth_mode": (
