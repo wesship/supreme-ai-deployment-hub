@@ -60,6 +60,7 @@ export default function Films() {
           <Reveal delay={120}>
             <a
               href="/ai-films"
+              aria-label="Enter AI Films"
               className="btn-primary group inline-flex min-h-12 items-center gap-2.5 rounded-md px-6 text-sm font-semibold text-white cursor-pointer whitespace-nowrap"
             >
               Enter AI Films
