@@ -249,6 +249,7 @@ export default function Platform() {
                   {s.href ? (
                     <a
                       href={s.href}
+                      aria-label={`Open ${s.name} surface` }
                       className={cardClass}
                       onKeyDown={(e) => {
                         if (e.key === ' ' || e.key === 'Spacebar') {
