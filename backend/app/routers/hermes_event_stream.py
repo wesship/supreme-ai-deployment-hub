@@ -71,7 +71,16 @@ async def stream_hermes_events(
         while True:
             if await request.is_disconnected():
                 break
-            # Revalidate the original bearer token each cycle: a stream can\n            # outlive token expiry or an auth-session revocation.\n            try:\n                credentials = await security(request)\n                current_user_id = await get_current_user_id(request, credentials)\n                if current_user_id != user_id:\n                    break\n            except HTTPException:\n                break\n            # Recheck ownership before every read; an SSE connection may outlive
+            # Revalidate the original bearer token each cycle: a stream can
+            # outlive token expiry or an auth-session revocation.
+            try:
+                credentials = await security(request)
+                current_user_id = await get_current_user_id(request, credentials)
+                if current_user_id != user_id:
+                    break
+            except HTTPException:
+                break
+            # Recheck ownership before every read; an SSE connection may outlive
             # a task reassignment or authorization revocation.
             try:
                 await _authorized_correlation(correlation_id, user_id)
