@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 2,
+  "principle": "Adinkra symbols retain their documented cultural meanings while serving as recurring narrative and gameplay motifs across The Door.",
+  "threads": [
+    {"symbolId":"ADINKRA_SANKOFA","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_PHL_1977","WORLD_GIZA_DOORREALM_001","WORLD_DOOR_REALM_001"],"gameplayUse":"memory recall, revisiting an abandoned branch, recovering a forgotten clue"},
+    {"symbolId":"ADINKRA_GYE_NYAME","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_MOON_TRANQUILITY_001","WORLD_DOOR_REALM_001"],"gameplayUse":"late-game destiny/faith motif; never used as a generic magic glyph"},
+    {"symbolId":"ADINKRA_DWENNIMMEN","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_GIZA_OLDKINGDOM_001","WORLD_STONEHENGE_NEOLITHIC_001"],"gameplayUse":"strength tempered by humility; unlocks non-violent or restrained choices"},
+    {"symbolId":"ADINKRA_NKYINKYIM","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_NAZCA_SKYMAP_001","WORLD_TEOTIHUACAN_PATHS_001","WORLD_MARS_VALLES_001"],"gameplayUse":"adaptation through branching paths and changing worlds"},
+    {"symbolId":"ADINKRA_FAWOHODIE","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_NYC_2026","WORLD_PHL_1977"],"gameplayUse":"freedom/independence choices and escape from imposed timelines"},
+    {"symbolId":"ADINKRA_AYA","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_RAPANUI_MEMORY_001","WORLD_BAALBEK_FOUNDATION_001","WORLD_EUROPA_001"],"gameplayUse":"endurance and survival after a world-state collapse"},
+    {"symbolId":"ADINKRA_ADINKRAHENE","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_DOOR_REALM_001"],"gameplayUse":"leadership/unification motif for reconciling multiple world branches"},
+    {"symbolId":"ADINKRA_ANANSE_NTONTAN","primaryWorld":"WORLD_ACC_2026","echoWorlds":["WORLD_NAZCA_SKYMAP_001","WORLD_TEOTIHUACAN_PATHS_001","WORLD_DOOR_REALM_001"],"gameplayUse":"wisdom, creativity, networks, and recognizing the hidden web connecting Doors"}
+  ]
+}
