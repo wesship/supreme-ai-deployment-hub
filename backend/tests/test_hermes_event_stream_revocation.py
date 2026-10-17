@@ -62,6 +62,8 @@ async def test_stream_filters_mismatched_rows_from_privileged_repository(monkeyp
                 {"id": "right", "correlation_id": "execution-123", "event": "task.progress", "message": "owned"},
             ]
 
+    monkeypatch.setattr(stream, "security", lambda request: _credentials())
+    monkeypatch.setattr(stream, "get_current_user_id", _current_user)
     monkeypatch.setattr(stream, "_authorized_correlation", authorize)
     monkeypatch.setattr(stream, "get_dependencies", lambda: SimpleNamespace(repository=Repository()))
     response = await stream.stream_hermes_events(FakeRequest(), correlation_id="execution-123", once=True, user_id="account-a")
