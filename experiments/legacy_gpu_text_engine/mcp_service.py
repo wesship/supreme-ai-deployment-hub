@@ -63,6 +63,7 @@ def handler_factory(worker: Worker, secret: str):
 
     class Handler(BaseHTTPRequestHandler):
         timeout = 5
+        protocol_version = "HTTP/1.0"
 
         def setup(self):
             super().setup()
@@ -86,7 +87,10 @@ def handler_factory(worker: Worker, secret: str):
                 if not 1 <= length <= MAX_BODY:
                     self.send_error(413)
                     return
-                payload = json.loads(self.rfile.read(length))
+                raw = self.rfile.read(length)
+                if len(raw) != length:
+                    raise ValueError("incomplete request body")
+                payload = json.loads(raw)
                 result = dispatch(payload, worker)
                 response = {"jsonrpc": "2.0", "id": payload.get("id"), "result": result}
                 encoded = json.dumps(response).encode()
@@ -110,5 +114,7 @@ def handler_factory(worker: Worker, secret: str):
 
 if __name__ == "__main__":
     config = StagingConfig.from_environment()
-    ThreadingHTTPServer((config.host, config.port),
-                        handler_factory(Worker(), config.token)).serve_forever()
+    server = ThreadingHTTPServer((config.host, config.port),
+                                 handler_factory(Worker(), config.token))
+    server.daemon_threads = True
+    server.serve_forever()
