@@ -1941,6 +1941,7 @@ export type Database = {
         Returns: Json
       }
       get_connection_safe: { Args: { connection_id: string }; Returns: Json }
+      get_hermes_public_stats: { Args: never; Returns: Json }
       has_valid_connection: {
         Args: { p_service_name: string }
         Returns: boolean
