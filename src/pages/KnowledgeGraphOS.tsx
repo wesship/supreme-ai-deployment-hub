@@ -1064,7 +1064,8 @@ const KnowledgeGraphOS: React.FC = () => {
                 <Icon className="h-4 w-4 shrink-0" />
                 <span>{label}</span>
               </Link>
-            ))}
+              );
+            })}
           </nav>
         </aside>
 
